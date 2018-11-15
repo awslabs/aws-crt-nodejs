@@ -22,6 +22,7 @@ static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *fina
     (void)finalize_hint;
 
     struct mqtt_node_client *node_client = finalize_data;
+    assert(node_client);
 
     aws_mqtt_client_clean_up(&node_client->native_client);
     aws_mem_release(node_client->native_client.allocator, node_client);
@@ -37,16 +38,22 @@ napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
 
     size_t num_args = 1;
     napi_value node_elg;
-    napi_status status = napi_get_cb_info(env, info, &num_args, &node_elg, NULL, NULL);
-    assert(status == napi_ok);
-    assert(num_args == 1);
+    if (napi_ok != napi_get_cb_info(env, info, &num_args, &node_elg, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    }
+    if (num_args < 1) {
+        napi_throw_error(env, NULL, "mqtt_client_new needs at least 1 argument");
+        return NULL;
+    }
 
     struct aws_event_loop_group *elg = NULL;
-    status = napi_get_value_external(env, node_elg, (void **)&elg);
+    napi_status status = napi_get_value_external(env, node_elg, (void **)&elg);
     if (status == napi_invalid_arg) {
         napi_throw_type_error(env, NULL, "Expected event loop group");
         goto error;
     }
+    assert(status == napi_ok); /* napi_ok and napi_invalid_arg are the only possible return values */
 
     node_client = aws_mem_acquire(allocator, sizeof(struct mqtt_node_client));
     if (!node_client) {
@@ -61,10 +68,10 @@ napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_external;
-    status = napi_create_external(env, node_client, s_mqtt_client_finalize, NULL, &node_external);
-    assert(status == napi_ok);
-
-    (void)status;
+    if (napi_ok != napi_create_external(env, node_client, s_mqtt_client_finalize, NULL, &node_external)) {
+        napi_throw_error(env, NULL, "Failed create n-api external");
+        goto error;
+    }
 
     printf("Created mqtt_client\n");
 
@@ -72,6 +79,7 @@ napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
 
 error:
     if (node_client) {
+        aws_mqtt_client_clean_up(&node_client->native_client);
         aws_mem_release(allocator, node_client);
     }
 

@@ -23,12 +23,14 @@ napi_value io_is_alpn_available(napi_env env, napi_callback_info info) {
 
     (void)info;
 
-    bool is_alpn_available = aws_tls_is_alpn_available();
+    const bool is_alpn_available = aws_tls_is_alpn_available();
 
     napi_value node_bool;
-    napi_status status = napi_get_boolean(env, is_alpn_available, &node_bool);
-    (void)status;
-    assert(status == napi_ok);
+    if (napi_ok!= napi_get_boolean(env, is_alpn_available, &node_bool)) {
+
+        napi_throw_error(env, NULL, "Failed to get boolean value");
+        return NULL;
+    }
 
     return node_bool;
 }
@@ -54,36 +56,43 @@ napi_value io_event_loop_group_new(napi_env env, napi_callback_info info) {
 
     size_t num_args = 1;
     napi_value node_num_threads;
-    napi_status status = napi_get_cb_info(env, info, &num_args, &node_num_threads, NULL, NULL);
-    assert(status == napi_ok);
-    assert(num_args == 1);
+    if (napi_ok != napi_get_cb_info(env, info, &num_args, &node_num_threads, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    }
+    if (num_args < 1) {
+        napi_throw_error(env, NULL, "io_event_loop_group_new needs at least 1 argument");
+        return NULL;
+    }
 
     uint32_t num_threads = 0;
-    status = napi_get_value_uint32(env, node_num_threads, &num_threads);
+    napi_status status = napi_get_value_uint32(env, node_num_threads, &num_threads);
     if (status == napi_invalid_arg) {
         napi_throw_type_error(env, NULL, "Expected number");
         return NULL;
     }
-    assert(status == napi_ok);
+    assert(status == napi_ok); /* napi_ok and napi_invalid_arg are the only possible return values */
 
     struct aws_event_loop_group *elg = aws_mem_acquire(allocator, sizeof(struct aws_event_loop_group));
     if (!elg) {
-        napi_throw_error(env, NULL, "Failed to allocate memory.");
+        napi_throw_error(env, NULL, "Failed to allocate memory");
         return NULL;
     }
     AWS_ZERO_STRUCT(*elg);
 
     if (aws_event_loop_group_default_init(elg, allocator, num_threads)) {
         aws_mem_release(allocator, elg);
-        napi_throw_error(env, NULL, "Failed init ELG.");
+        napi_throw_error(env, NULL, "Failed init ELG");
         return NULL;
     }
 
     napi_value node_external;
-    status = napi_create_external(env, elg, s_elg_finalize, NULL, &node_external);
-    assert(status == napi_ok);
-
-    (void)status;
+    if (napi_ok != napi_create_external(env, elg, s_elg_finalize, NULL, &node_external)) {
+        aws_event_loop_group_clean_up(elg);
+        aws_mem_release(allocator, elg);
+        napi_throw_error(env, NULL, "Failed create n-api external");
+        return NULL;
+    }
 
     printf("Created ELG\n");
 
