@@ -18,9 +18,9 @@
 
 #include <aws/io/socket.h>
 
-struct mqtt_node_connection {
+struct mqtt_nodejs_connection {
     struct aws_socket_options socket_options;
-    struct mqtt_node_client *node_client;
+    struct mqtt_nodejs_client *node_client;
     struct aws_mqtt_client_connection *connection;
 };
 
@@ -29,17 +29,17 @@ struct mqtt_node_connection {
     (void)env;
     (void)finalize_hint;
 
-    struct mqtt_node_connection *node_connection = finalize_data;
+    struct mqtt_nodejs_connection *node_connection = finalize_data;
 
     aws_mqtt_client_connection_disconnect(node_connection->connection);
 
     aws_mem_release(aws_default_allocator(), node_connection);
 }
 
-napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_set_will(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_set_login(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_new(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_set_will(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_set_login(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_publish(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_subscribe(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info);

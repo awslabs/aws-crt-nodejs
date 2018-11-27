@@ -21,48 +21,48 @@ static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *fina
     (void)env;
     (void)finalize_hint;
 
-    struct mqtt_node_client *node_client = finalize_data;
+    struct mqtt_nodejs_client *node_client = finalize_data;
     assert(node_client);
 
-    aws_mqtt_client_clean_up(&node_client->native_client);
-    aws_mem_release(node_client->native_client.allocator, node_client);
+    struct aws_allocator *allocator = node_client->native_client.allocator;
 
-    printf("Destroyed mqtt_client\n");
+    aws_mqtt_client_clean_up(&node_client->native_client);
+    aws_mem_release(allocator, node_client);
 }
 
-napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
+napi_value aws_nodejs_mqtt_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
 
-    struct mqtt_node_client *node_client = NULL;
+    struct mqtt_nodejs_client *node_client = NULL;
 
     size_t num_args = 1;
-    napi_value node_elg;
-    if (napi_ok != napi_get_cb_info(env, info, &num_args, &node_elg, NULL, NULL)) {
+    napi_value node_client_bootstrap;
+    if (napi_ok != napi_get_cb_info(env, info, &num_args, &node_client_bootstrap, NULL, NULL)) {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     }
     if (num_args < 1) {
-        napi_throw_error(env, NULL, "mqtt_client_new needs at least 1 argument");
+        napi_throw_error(env, NULL, "aws_nodejs_mqtt_client_new needs at least 1 argument");
         return NULL;
     }
 
-    struct aws_event_loop_group *elg = NULL;
-    napi_status status = napi_get_value_external(env, node_elg, (void **)&elg);
+    struct aws_client_bootstrap *client_bootstrap = NULL;
+    napi_status status = napi_get_value_external(env, node_client_bootstrap, (void **)&client_bootstrap);
     if (status == napi_invalid_arg) {
         napi_throw_type_error(env, NULL, "Expected event loop group");
         goto error;
     }
     assert(status == napi_ok); /* napi_ok and napi_invalid_arg are the only possible return values */
 
-    node_client = aws_mem_acquire(allocator, sizeof(struct mqtt_node_client));
+    node_client = aws_mem_acquire(allocator, sizeof(struct mqtt_nodejs_client));
     if (!node_client) {
         napi_throw_error(env, NULL, "Failed to allocate client");
         goto error;
     }
     AWS_ZERO_STRUCT(*node_client);
 
-    if (aws_mqtt_client_init(&node_client->native_client, allocator, elg)) {
+    if (aws_mqtt_client_init(&node_client->native_client, allocator, client_bootstrap)) {
         napi_throw_error(env, NULL, "Failed to init client");
         goto error;
     }
@@ -72,8 +72,6 @@ napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed create n-api external");
         goto error;
     }
-
-    printf("Created mqtt_client\n");
 
     return node_external;
 

@@ -19,10 +19,10 @@
 
 #include <aws/mqtt/client.h>
 
-struct mqtt_node_client {
+struct mqtt_nodejs_client {
     struct aws_mqtt_client native_client;
 };
 
-napi_value mqtt_client_new(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_new(napi_env env, napi_callback_info info);
 
 #endif /* AWS_CRT_NODEJS_MQTT_CLIENT_H */
