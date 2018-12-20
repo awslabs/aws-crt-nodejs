@@ -16,6 +16,39 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
+#include <aws/io/tls_channel_handler.h>
+
+napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
+
+    assert(buf);
+
+    napi_status result = napi_ok;
+
+    size_t length = 0;
+    result = napi_get_value_string_utf8(env, node_str, NULL, 0, &length);
+    if (result != napi_ok) {
+        return result;
+    }
+
+    aws_byte_buf_init(buf, aws_default_allocator(), length + 1);
+
+    result = napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->len, &buf->len);
+    assert(result == napi_ok);
+    assert(length == buf->len);
+
+    return result;
+}
+
+bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
+
+    napi_valuetype type = napi_undefined;
+    if (napi_ok != napi_typeof(env, value, &type)) {
+        return true;
+    }
+
+    return type == napi_null || type == napi_undefined;
+}
+
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(napi_env env, napi_value exports, napi_callback fn, const char *fn_name, size_t fn_name_len) {
     napi_value napi_fn;
@@ -35,6 +68,13 @@ static bool s_create_and_register_function(napi_env env, napi_value exports, nap
 }
 
 napi_value Init(napi_env env, napi_value exports) {
+
+    aws_load_error_strings();
+    aws_io_load_error_strings();
+    aws_mqtt_load_error_strings();
+
+    aws_tls_init_static_state(aws_default_allocator());
+
     napi_value null;
     napi_get_null(env, &null);
 
@@ -44,6 +84,7 @@ napi_value Init(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(aws_nodejs_is_alpn_available)
     CREATE_AND_REGISTER_FN(aws_nodejs_io_event_loop_group_new)
     CREATE_AND_REGISTER_FN(aws_nodejs_io_client_bootstrap_new)
+    CREATE_AND_REGISTER_FN(aws_nodejs_io_client_tls_ctx_new)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_new)

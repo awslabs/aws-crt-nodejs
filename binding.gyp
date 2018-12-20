@@ -29,6 +29,7 @@
                         "-laws-c-io",
                         "-laws-c-common",
                         "-ls2n",
+                        "-lcrypto"
                     ],
                 }],
             ],

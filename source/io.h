@@ -30,4 +30,9 @@ napi_value aws_nodejs_io_event_loop_group_new(napi_env env, napi_callback_info i
  */
 napi_value aws_nodejs_io_client_bootstrap_new(napi_env env, napi_callback_info info);
 
+/**
+ * Create a new tls_ctx to be managed by a Python Capsule.
+ */
+napi_value aws_nodejs_io_client_tls_ctx_new(napi_env env, napi_callback_info info);
+
 #endif /* AWS_CRT_NODEJS_IO_H */
