@@ -22,5 +22,6 @@
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value obj);
 
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
+bool aws_napi_is_external(napi_env env, napi_value value);
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */

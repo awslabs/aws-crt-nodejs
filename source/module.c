@@ -49,6 +49,16 @@ bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
     return type == napi_null || type == napi_undefined;
 }
 
+bool aws_napi_is_external(napi_env env, napi_value value) {
+
+    napi_valuetype type = napi_undefined;
+    if (napi_ok != napi_typeof(env, value, &type)) {
+        return false;
+    }
+
+    return type == napi_external;
+}
+
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(napi_env env, napi_value exports, napi_callback fn, const char *fn_name, size_t fn_name_len) {
     napi_value napi_fn;
@@ -90,7 +100,7 @@ napi_value Init(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_new)
 
     /* MQTT Client Connection */
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_new)
+    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_new)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_will)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_login)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_publish)
