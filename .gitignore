@@ -126,3 +126,11 @@ typings/
 .history
 
 # End of https://www.gitignore.io/api/c++,node,visualstudiocode
+
+# credentials
+*.key
+*.pem
+*.crt
+
+# Build artifacts
+dist/
