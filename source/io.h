@@ -21,10 +21,7 @@
  * Returns true if ALPN is available, false if it is not.
  */
 napi_value aws_nodejs_is_alpn_available(napi_env env, napi_callback_info info);
-/**
- * Create a new event_loop_group to be managed by an napi_externl.
- */
-napi_value aws_nodejs_io_event_loop_group_new(napi_env env, napi_callback_info info);
+
 /**
  * Create a new client_bootstrap to be managed by an napi_externl.
  */

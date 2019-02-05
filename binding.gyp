@@ -6,7 +6,11 @@
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],
             "include_dirs": [
-                "<!(echo $AWS_C_INSTALL/include)"
+                "<!(echo $AWS_C_INSTALL/include)",
+            ],
+            "defines": [
+                "AWS_USE_LIBUV",
+                "NAPI_VERSION=4"
             ],
             "conditions": [
                 ["OS=='win'", {
@@ -16,11 +20,12 @@
                     ],
                 }, {
                     "cflags": [
-                        "-std=c99",
+                        "-std=gnu99",
                         "-Werror",
                         "-Wall",
                         "-Wextra",
                         "-pedantic",
+                        "-Wno-zero-length-array",
                     ],
                 }],
                 ["OS=='linux'", {

@@ -18,6 +18,8 @@
 #include <node_api.h>
 
 napi_value aws_nodejs_mqtt_client_connection_new(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_connect(napi_env env, napi_callback_info info);
+napi_value aws_nodejs_mqtt_client_connection_reconnect(napi_env env, napi_callback_info info);
 napi_value aws_nodejs_mqtt_client_connection_set_will(napi_env env, napi_callback_info info);
 napi_value aws_nodejs_mqtt_client_connection_set_login(napi_env env, napi_callback_info info);
 napi_value aws_nodejs_mqtt_client_connection_publish(napi_env env, napi_callback_info info);

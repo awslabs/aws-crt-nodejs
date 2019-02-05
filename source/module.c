@@ -16,7 +16,14 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
+#include <uv.h>
+
+#include <aws/common/clock.h>
+
+#include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
+
+static struct aws_event_loop_group s_node_uv_elg;
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
@@ -59,6 +66,22 @@ bool aws_napi_is_external(napi_env env, napi_value value) {
     return type == napi_external;
 }
 
+struct aws_event_loop_group *aws_napi_get_node_elg(void) {
+    return &s_node_uv_elg;
+}
+
+static struct aws_event_loop *s_new_uv_event_loop(struct aws_allocator *alloc, aws_io_clock_fn *clock, void *userdata) {
+
+    napi_env env = userdata;
+
+    uv_loop_t *napi_loop = NULL;
+    if (napi_get_uv_event_loop(env, &napi_loop)) {
+        return NULL;
+    }
+
+    return aws_event_loop_existing_libuv(alloc, napi_loop, clock);
+}
+
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(napi_env env, napi_value exports, napi_callback fn, const char *fn_name, size_t fn_name_len) {
     napi_value napi_fn;
@@ -85,6 +108,9 @@ napi_value Init(napi_env env, napi_value exports) {
 
     aws_tls_init_static_state(aws_default_allocator());
 
+    /* Initalize the event loop group */
+    aws_event_loop_group_init(&s_node_uv_elg, aws_default_allocator(), aws_high_res_clock_get_ticks, 1, s_new_uv_event_loop, env);
+
     napi_value null;
     napi_get_null(env, &null);
 
@@ -92,7 +118,6 @@ napi_value Init(napi_env env, napi_value exports) {
 
     /* IO */
     CREATE_AND_REGISTER_FN(aws_nodejs_is_alpn_available)
-    CREATE_AND_REGISTER_FN(aws_nodejs_io_event_loop_group_new)
     CREATE_AND_REGISTER_FN(aws_nodejs_io_client_bootstrap_new)
     CREATE_AND_REGISTER_FN(aws_nodejs_io_client_tls_ctx_new)
 
@@ -101,12 +126,13 @@ napi_value Init(napi_env env, napi_value exports) {
 
     /* MQTT Client Connection */
     CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_new)
+    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_connect)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_will)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_login)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_publish)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_subscribe)
     // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_unsubscribe)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_disconnect)
+    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_disconnect)
 
 #undef CREATE_AND_REGISTER_FN
 

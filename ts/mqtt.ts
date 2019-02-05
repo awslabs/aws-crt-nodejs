@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-const crt_native = require('../build/Debug/aws-crt-nodejs');
+const crt_native = require('../../build/Debug/aws-crt-nodejs');
 
 import * as io from "./io";
 
@@ -38,5 +38,79 @@ export class Client {
 
     native_handle(): any {
         return this.client_handle;
+    }
+}
+
+interface ConnectionConnectParams {
+    client_id: string;
+    host_name: string;
+    port: number;
+    use_websocket?: boolean;
+    clean_session?: boolean;
+    keep_alive?: number;
+    will?: any;
+    username?: string;
+    password?: string;
+}
+
+export class Connection {
+    public client: Client;
+    private connection_handle: any;
+
+    constructor(client: Client, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
+        this.client = client;
+        this.connection_handle = crt_native.aws_nodejs_mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
+    }
+
+    async connect(args: ConnectionConnectParams) {
+        return new Promise<boolean>((resolve, reject) => {
+
+            function on_connect(error_code: number, return_code: number, session_present: boolean) {
+                if (error_code == 0 && return_code == 0) {
+                    resolve(session_present);
+                } else {
+                    reject("Failed to connect");
+                }
+            }
+
+            try {
+                crt_native.aws_nodejs_mqtt_client_connection_connect(
+                    this.native_handle(),
+                    args.client_id,
+                    args.host_name,
+                    args.port,
+                    this.client.tls_ctx ? this.client.tls_ctx.native_handle() : null,
+                    args.keep_alive,
+                    args.will,
+                    args.username,
+                    args.password,
+                    on_connect,
+                );
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    async disconnect() {
+        return new Promise<void>((resolve, reject) => {
+
+            function on_disconnect() {
+                resolve();
+            }
+
+            try {
+                crt_native.aws_nodejs_mqtt_client_connection_disconnect(
+                    this.native_handle(),
+                    on_disconnect,
+                );
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    native_handle(): any {
+        return this.connection_handle;
     }
 }

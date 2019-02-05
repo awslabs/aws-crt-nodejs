@@ -13,32 +13,17 @@
  * permissions and limitations under the License.
  */
 
-const crt_native = require('../build/Debug/aws-crt-nodejs');
+const crt_native = require('../../build/Debug/aws-crt-nodejs');
 
 export function is_alpn_available(): boolean {
     return crt_native.aws_nodejs_is_alpn_available();
 }
 
-export class EventLoopGroup {
-    private elg_handle: any;
-
-    constructor(num_threads: number) {
-        this.elg_handle = crt_native.aws_nodejs_io_event_loop_group_new(num_threads);
-    }
-
-    native_handle(): any {
-        return this.elg_handle;
-    }
-}
-
 export class ClientBootstrap {
-    private elg: EventLoopGroup;
     private bootstrap_handle: any;
 
-    constructor(elg: EventLoopGroup) {
-        this.elg = elg;
-
-        this.bootstrap_handle = crt_native.aws_nodejs_io_client_bootstrap_new(elg.native_handle());
+    constructor() {
+        this.bootstrap_handle = crt_native.aws_nodejs_io_client_bootstrap_new();
     }
 
     native_handle(): any {
