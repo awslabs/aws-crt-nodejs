@@ -18,6 +18,11 @@
 #include <node_api.h>
 
 /**
+ * Returns the string associated with the error code.
+ */
+napi_value aws_nodejs_error_code_to_string(napi_env env, napi_callback_info info);
+
+/**
  * Returns true if ALPN is available, false if it is not.
  */
 napi_value aws_nodejs_is_alpn_available(napi_env env, napi_callback_info info);

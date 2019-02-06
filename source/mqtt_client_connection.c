@@ -25,6 +25,8 @@
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 
+#include <stdio.h> /* #TODO */
+
 struct mqtt_nodejs_connection {
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_options;
@@ -33,7 +35,7 @@ struct mqtt_nodejs_connection {
 
     napi_env env;
 
-    napi_threadsafe_function on_connect;
+    napi_ref on_connect;
     napi_ref on_connection_interrupted;
     napi_ref on_connection_resumed;
     napi_ref on_disconnect;
@@ -191,7 +193,9 @@ static void s_on_connect(
             napi_value recv;
             napi_get_undefined(env, &recv);
 
-            napi_call_function(env, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL);
+            if (napi_call_function(env, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+                printf("error calling callback\n");
+            }
 
             napi_close_callback_scope(env, cb_scope);
 
@@ -301,8 +305,6 @@ napi_value aws_nodejs_mqtt_client_connection_connect(napi_env env, napi_callback
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[9])) {
-
-        napi_create_threadsafe_function(env);
         status = napi_create_reference(env, node_args[9], 1, &node_connection->on_connect);
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not create ref from on_connect");

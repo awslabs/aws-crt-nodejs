@@ -117,6 +117,7 @@ napi_value Init(napi_env env, napi_value exports) {
 #define CREATE_AND_REGISTER_FN(fn) if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) { return null; }
 
     /* IO */
+    CREATE_AND_REGISTER_FN(aws_nodejs_error_code_to_string)
     CREATE_AND_REGISTER_FN(aws_nodejs_is_alpn_available)
     CREATE_AND_REGISTER_FN(aws_nodejs_io_client_bootstrap_new)
     CREATE_AND_REGISTER_FN(aws_nodejs_io_client_tls_ctx_new)

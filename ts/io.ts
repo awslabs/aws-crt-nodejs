@@ -15,6 +15,10 @@
 
 const crt_native = require('../../build/Debug/aws-crt-nodejs');
 
+export function error_code_to_string(error_code: number): string {
+    return crt_native.aws_nodejs_error_code_to_string(error_code);
+}
+
 export function is_alpn_available(): boolean {
     return crt_native.aws_nodejs_is_alpn_available();
 }

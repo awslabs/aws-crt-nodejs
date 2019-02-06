@@ -66,10 +66,13 @@ export class Connection {
         return new Promise<boolean>((resolve, reject) => {
 
             function on_connect(error_code: number, return_code: number, session_present: boolean) {
+                console.log("on_connect");
                 if (error_code == 0 && return_code == 0) {
                     resolve(session_present);
+                } else if (error_code != 0) {
+                    reject("Failed to connect: " + io.error_code_to_string(error_code));
                 } else {
-                    reject("Failed to connect");
+                    reject("Server rejected connection.");
                 }
             }
 

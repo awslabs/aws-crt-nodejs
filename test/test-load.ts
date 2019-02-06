@@ -13,21 +13,19 @@ async function main() {
 
     let conn = new mqtt.Connection(client);
 
-    let result = await conn.connect({
+    return conn.connect({
         client_id: "js-client",
         host_name: "a1ba5f1mpna9k5-ats.iot.us-east-1.amazonaws.com",
         port: io.is_alpn_available() ? 443 : 8883,
         keep_alive: 6000
-    });
+    }).then(result => {
+        console.log("connected", result);
+        conn.disconnect()
+            .then(() => console.log("disconnected"))
+            .catch(err => console.error(err));
 
-    console.log("connected", result);
-
-    return conn.disconnect();
+    })
+    .catch(err => console.error(err));
 }
 
-(async () => await main())()
-    .then(() => console.log("disconnected"))
-    .catch(err => console.error(err))
-    ;
-
-global.gc();
+main()
