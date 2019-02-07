@@ -5,18 +5,31 @@
             "sources": [
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],
-            "include_dirs": [
-                "<!(echo $AWS_C_INSTALL/include)",
-            ],
             "defines": [
                 "AWS_USE_LIBUV",
                 "NAPI_VERSION=4"
+            ],
+            "include_dirs": [
+                "<!(node -p \"require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'include')\")",
+            ],
+            "library_dirs": [
+                "<!(node -p \"require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'lib')\")",
+            ],
+            "libraries": [
+                "-laws-c-mqtt",
+                "-laws-c-io",
+                "-laws-c-common",
             ],
             "conditions": [
                 ["OS=='win'", {
                     "cflags": [
                         "/Wall",
                         "/WX",
+                    ],
+                    "libraries": [
+                        "-lSecur32",
+                        "-lCrypt32",
+                        "-lWs2_32"
                     ],
                 }, {
                     "cflags": [
@@ -29,22 +42,12 @@
                     ],
                 }],
                 ["OS=='linux'", {
-                    "libraries=": [
-                        "-laws-c-mqtt",
-                        "-laws-c-io",
-                        "-laws-c-common",
+                    "libraries": [
                         "-ls2n",
-                        "-lcrypto"
+                        "-lcrypto",
+                        "-lgcc",
                     ],
                 }],
-            ],
-            "library_dirs": [
-                "<!(echo $AWS_C_INSTALL/lib)"
-            ],
-            "libraries": [
-                "-laws-c-mqtt",
-                "-laws-c-io",
-                "-laws-c-common",
             ],
         },
     ]
