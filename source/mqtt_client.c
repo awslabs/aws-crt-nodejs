@@ -29,7 +29,7 @@ static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *fina
     aws_mem_release(allocator, node_client);
 }
 
-napi_value aws_nodejs_mqtt_client_new(napi_env env, napi_callback_info info) {
+napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
 

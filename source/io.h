@@ -32,22 +32,22 @@ AWS_EXTERN_C_BEGIN
 /**
  * Returns the string associated with the error code.
  */
-napi_value aws_nodejs_error_code_to_string(napi_env env, napi_callback_info info);
+napi_value error_code_to_string(napi_env env, napi_callback_info info);
 
 /**
  * Returns true if ALPN is available, false if it is not.
  */
-napi_value aws_nodejs_is_alpn_available(napi_env env, napi_callback_info info);
+napi_value is_alpn_available(napi_env env, napi_callback_info info);
 
 /**
  * Create a new client_bootstrap to be managed by an napi_externl.
  */
-napi_value aws_nodejs_io_client_bootstrap_new(napi_env env, napi_callback_info info);
+napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info);
 
 /**
  * Create a new tls_ctx to be managed by a Python Capsule.
  */
-napi_value aws_nodejs_io_client_tls_ctx_new(napi_env env, napi_callback_info info);
+napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info);
 
 AWS_EXTERN_C_END
 

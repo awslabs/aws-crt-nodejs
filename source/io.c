@@ -19,7 +19,7 @@
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 
-napi_value aws_nodejs_error_code_to_string(napi_env env, napi_callback_info info) {
+napi_value error_code_to_string(napi_env env, napi_callback_info info) {
 
     size_t num_args = 1;
     napi_value node_args[1];
@@ -28,7 +28,7 @@ napi_value aws_nodejs_error_code_to_string(napi_env env, napi_callback_info info
         return NULL;
     }
     if (num_args != 1) {
-        napi_throw_error(env, NULL, "aws_nodejs_error_code_to_string needs exactly 1 arguments");
+        napi_throw_error(env, NULL, "error_code_to_string needs exactly 1 argument");
         return NULL;
     }
 
@@ -50,7 +50,7 @@ napi_value aws_nodejs_error_code_to_string(napi_env env, napi_callback_info info
     return error_string_val;
 }
 
-napi_value aws_nodejs_is_alpn_available(napi_env env, napi_callback_info info) {
+napi_value is_alpn_available(napi_env env, napi_callback_info info) {
 
     (void)info;
 
@@ -83,7 +83,7 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
     aws_mem_release(allocator, node_bootstrap);
 }
 
-napi_value aws_nodejs_io_client_bootstrap_new(napi_env env, napi_callback_info info) {
+napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info) {
     (void)info;
 
     struct aws_allocator *allocator = aws_default_allocator();
@@ -92,27 +92,35 @@ napi_value aws_nodejs_io_client_bootstrap_new(napi_env env, napi_callback_info i
     AWS_ZERO_STRUCT(*node_bootstrap);
 
     if (aws_host_resolver_init_uv(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_uv_loop())) {
-        aws_mem_release(allocator, node_bootstrap);
+        goto clean_up;
     }
 
     node_bootstrap->bootstrap = aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &node_bootstrap->resolver, NULL);
     if (!node_bootstrap->bootstrap) {
-        aws_host_resolver_clean_up(&node_bootstrap->resolver);
-        aws_mem_release(allocator, node_bootstrap);
         napi_throw_error(env, NULL, "Failed init client_bootstrap");
-        return NULL;
+        goto clean_up;
     }
 
-    napi_value node_external;
+    napi_value node_external = NULL;
     if (napi_ok != napi_create_external(env, node_bootstrap, s_client_bootstrap_finalize, NULL, &node_external)) {
-        aws_client_bootstrap_destroy(node_bootstrap->bootstrap);
-        aws_host_resolver_clean_up(&node_bootstrap->resolver);
-        aws_mem_release(allocator, node_bootstrap);
         napi_throw_error(env, NULL, "Failed create n-api external");
-        return NULL;
+        goto clean_up;
     }
 
     return node_external;
+
+clean_up:
+    if (node_bootstrap->bootstrap) {
+        aws_client_bootstrap_destroy(node_bootstrap->bootstrap);
+    }
+    if (node_bootstrap->resolver.vtable) {
+        aws_host_resolver_clean_up(&node_bootstrap->resolver);
+    }
+    if (node_bootstrap) {
+        aws_mem_release(allocator, node_bootstrap);
+    }
+
+    return NULL;
 }
 
 /** Finalizer for a tls_ctx external */
@@ -127,7 +135,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
     aws_tls_ctx_destroy(tls_ctx);
 }
 
-napi_value aws_nodejs_io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
+napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *alloc = aws_default_allocator();
     napi_status status = napi_ok;

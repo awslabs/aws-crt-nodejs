@@ -33,7 +33,7 @@ export class Client {
         this.bootstrap = bootstrap;
         this.tls_ctx = tls_ctx;
 
-        this.client_handle = crt_native.aws_nodejs_mqtt_client_new(bootstrap.native_handle())
+        this.client_handle = crt_native.mqtt_client_new(bootstrap.native_handle())
     }
 
     native_handle(): any {
@@ -59,7 +59,7 @@ export class Connection {
 
     constructor(client: Client, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
         this.client = client;
-        this.connection_handle = crt_native.aws_nodejs_mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
+        this.connection_handle = crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
     }
 
     async connect(args: ConnectionConnectParams) {
@@ -77,7 +77,7 @@ export class Connection {
             }
 
             try {
-                crt_native.aws_nodejs_mqtt_client_connection_connect(
+                crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
                     args.client_id,
                     args.host_name,
@@ -103,7 +103,7 @@ export class Connection {
             }
 
             try {
-                crt_native.aws_nodejs_mqtt_client_connection_disconnect(
+                crt_native.mqtt_client_connection_disconnect(
                     this.native_handle(),
                     on_disconnect,
                 );

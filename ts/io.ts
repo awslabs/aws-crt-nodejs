@@ -16,18 +16,18 @@
 const crt_native = require('../../build/Debug/aws-crt-nodejs');
 
 export function error_code_to_string(error_code: number): string {
-    return crt_native.aws_nodejs_error_code_to_string(error_code);
+    return crt_native.error_code_to_string(error_code);
 }
 
 export function is_alpn_available(): boolean {
-    return crt_native.aws_nodejs_is_alpn_available();
+    return crt_native.is_alpn_available();
 }
 
 export class ClientBootstrap {
     private bootstrap_handle: any;
 
     constructor() {
-        this.bootstrap_handle = crt_native.aws_nodejs_io_client_bootstrap_new();
+        this.bootstrap_handle = crt_native.io_client_bootstrap_new();
     }
 
     native_handle(): any {
@@ -97,7 +97,7 @@ export class ClientTlsContext {
     private ctx_handle: any;
 
     constructor(ctx_opt: TlsContextOptions) {
-        this.ctx_handle = crt_native.aws_nodejs_io_client_tls_ctx_new(
+        this.ctx_handle = crt_native.io_client_tls_ctx_new(
             ctx_opt.min_tls_version,
             ctx_opt.ca_file,
             ctx_opt.ca_path,

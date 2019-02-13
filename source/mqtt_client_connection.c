@@ -55,7 +55,7 @@ static void s_node_connection_finalize(napi_env env, void *finalize_data, void *
     aws_mem_release(aws_default_allocator(), node_connection);
 }
 
-napi_value aws_nodejs_mqtt_client_connection_new(napi_env env, napi_callback_info info) {
+napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
     napi_value result = NULL;
@@ -199,7 +199,7 @@ static void s_on_connect(
     }
 }
 
-napi_value aws_nodejs_mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
+napi_value mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
     napi_status status = napi_ok;
@@ -344,12 +344,12 @@ cleanup:
     return result;
 }
 
-napi_value aws_nodejs_mqtt_client_connection_reconnect(napi_env env, napi_callback_info info);
-napi_value aws_nodejs_mqtt_client_connection_set_will(napi_env env, napi_callback_info info);
-napi_value aws_nodejs_mqtt_client_connection_set_login(napi_env env, napi_callback_info info);
-napi_value aws_nodejs_mqtt_client_connection_publish(napi_env env, napi_callback_info info);
-napi_value aws_nodejs_mqtt_client_connection_subscribe(napi_env env, napi_callback_info info);
-napi_value aws_nodejs_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
+napi_value mqtt_client_connection_reconnect(napi_env env, napi_callback_info info);
+napi_value mqtt_client_connection_set_will(napi_env env, napi_callback_info info);
+napi_value mqtt_client_connection_set_login(napi_env env, napi_callback_info info);
+napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info);
+napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info);
+napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
 
 static void s_on_disconnect(struct aws_mqtt_client_connection *connection, void *userdata) {
 
@@ -392,7 +392,7 @@ static void s_on_disconnect(struct aws_mqtt_client_connection *connection, void 
     }
 }
 
-napi_value aws_nodejs_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
+napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
     napi_status status = napi_ok;

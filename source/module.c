@@ -115,7 +115,7 @@ static bool s_create_and_register_function(napi_env env, napi_value exports, nap
     return true;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     aws_load_error_strings();
     aws_io_load_error_strings();
@@ -132,27 +132,27 @@ napi_value Init(napi_env env, napi_value exports) {
 #define CREATE_AND_REGISTER_FN(fn) if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) { return null; }
 
     /* IO */
-    CREATE_AND_REGISTER_FN(aws_nodejs_error_code_to_string)
-    CREATE_AND_REGISTER_FN(aws_nodejs_is_alpn_available)
-    CREATE_AND_REGISTER_FN(aws_nodejs_io_client_bootstrap_new)
-    CREATE_AND_REGISTER_FN(aws_nodejs_io_client_tls_ctx_new)
+    CREATE_AND_REGISTER_FN(error_code_to_string)
+    CREATE_AND_REGISTER_FN(is_alpn_available)
+    CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
+    CREATE_AND_REGISTER_FN(io_client_tls_ctx_new)
 
     /* MQTT Client */
-    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_new)
+    CREATE_AND_REGISTER_FN(mqtt_client_new)
 
     /* MQTT Client Connection */
-    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_new)
-    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_connect)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_will)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_login)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_publish)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_subscribe)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_unsubscribe)
-    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_disconnect)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_new)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_connect)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_set_will)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_set_login)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
 
 #undef CREATE_AND_REGISTER_FN
 
     return exports;
 }
 
-NAPI_MODULE(aws_crt_nodejs, Init)
+NAPI_MODULE(aws_crt_nodejs, s_register_napi_module)
