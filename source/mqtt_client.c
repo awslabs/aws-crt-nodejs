@@ -13,8 +13,7 @@
  * permissions and limitations under the License.
  */
 #include "mqtt_client.h"
-
-#include <stdio.h>
+#include "io.h"
 
 static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 
@@ -47,7 +46,7 @@ napi_value aws_nodejs_mqtt_client_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    struct aws_client_bootstrap *client_bootstrap = NULL;
+    struct aws_nodejs_client_bootstrap *client_bootstrap = NULL;
     napi_status status = napi_get_value_external(env, node_client_bootstrap, (void **)&client_bootstrap);
     if (status == napi_invalid_arg) {
         napi_throw_type_error(env, NULL, "Expected event loop group");
@@ -62,7 +61,7 @@ napi_value aws_nodejs_mqtt_client_new(napi_env env, napi_callback_info info) {
     }
     AWS_ZERO_STRUCT(*node_client);
 
-    if (aws_mqtt_client_init(&node_client->native_client, allocator, client_bootstrap)) {
+    if (aws_mqtt_client_init(&node_client->native_client, allocator, client_bootstrap->bootstrap)) {
         napi_throw_error(env, NULL, "Failed to init client");
         goto error;
     }

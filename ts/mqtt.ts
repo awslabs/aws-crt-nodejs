@@ -66,7 +66,7 @@ export class Connection {
         return new Promise<boolean>((resolve, reject) => {
 
             function on_connect(error_code: number, return_code: number, session_present: boolean) {
-                console.log("on_connect");
+                console.log("on_connect ec:", error_code);
                 if (error_code == 0 && return_code == 0) {
                     resolve(session_present);
                 } else if (error_code != 0) {

@@ -13,7 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#define NAPI_VERSION 4
 #include <node_api.h>
 
 #include "mqtt_client_connection.h"
@@ -25,8 +24,6 @@
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 
-#include <stdio.h> /* #TODO */
-
 struct mqtt_nodejs_connection {
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_options;
@@ -35,6 +32,7 @@ struct mqtt_nodejs_connection {
 
     napi_env env;
 
+    napi_async_context on_connect_ctx;
     napi_ref on_connect;
     napi_ref on_connection_interrupted;
     napi_ref on_connection_resumed;
@@ -176,14 +174,8 @@ static void s_on_connect(
         napi_get_reference_value(env, node_connection->on_connect, &on_connect);
         if (on_connect) {
 
-            napi_value resource_name = NULL;
-            napi_create_string_utf8(env, "aws_mqtt_client_connection_on_connect", NAPI_AUTO_LENGTH, &resource_name);
-
-            napi_async_context async = NULL;
-            napi_async_init(env, NULL, resource_name, &async);
-
             napi_callback_scope cb_scope = NULL;
-            napi_open_callback_scope(env, NULL, async, &cb_scope);
+            napi_open_callback_scope(env, NULL, node_connection->on_connect_ctx, &cb_scope);
 
             napi_value params[3];
             napi_create_int32(env, error_code, &params[0]);
@@ -191,13 +183,14 @@ static void s_on_connect(
             napi_get_boolean(env, session_present, &params[2]);
 
             napi_value recv;
-            napi_get_undefined(env, &recv);
+            napi_get_global(env, &recv);
 
-            if (napi_call_function(env, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
-                printf("error calling callback\n");
+            if (napi_make_callback(env, node_connection->on_connect_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+                /* #TODO: Log failed callback attempt here. */
             }
 
             napi_close_callback_scope(env, cb_scope);
+            napi_async_destroy(env, node_connection->on_connect_ctx);
 
             napi_reference_unref(env, node_connection->on_connect, NULL);
         }
@@ -309,6 +302,10 @@ napi_value aws_nodejs_mqtt_client_connection_connect(napi_env env, napi_callback
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not create ref from on_connect");
         }
+        /* Init the async */
+        napi_value resource_name = NULL;
+        napi_create_string_utf8(env, "aws_mqtt_client_connection_on_connect", NAPI_AUTO_LENGTH, &resource_name);
+        napi_async_init(env, NULL, resource_name, &node_connection->on_connect_ctx);
     }
 
     if (tls_ctx) {

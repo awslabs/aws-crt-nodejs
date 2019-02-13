@@ -23,6 +23,8 @@
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 
+static uv_loop_t *s_node_uv_loop = NULL;
+static struct aws_event_loop *s_node_uv_event_loop = NULL;
 static struct aws_event_loop_group s_node_uv_elg;
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
@@ -66,6 +68,12 @@ bool aws_napi_is_external(napi_env env, napi_value value) {
     return type == napi_external;
 }
 
+struct uv_loop_s *aws_napi_get_node_uv_loop(void) {
+    return s_node_uv_loop;
+}
+struct aws_event_loop *aws_napi_get_node_event_loop(void) {
+    return s_node_uv_event_loop;
+}
 struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
@@ -74,12 +82,19 @@ static struct aws_event_loop *s_new_uv_event_loop(struct aws_allocator *alloc, a
 
     napi_env env = userdata;
 
-    uv_loop_t *napi_loop = NULL;
-    if (napi_get_uv_event_loop(env, &napi_loop)) {
-        return NULL;
+    if (!s_node_uv_loop) {
+        if (napi_get_uv_event_loop(env, &s_node_uv_loop)) {
+            return NULL;
+        }
     }
 
-    return aws_event_loop_existing_libuv(alloc, napi_loop, clock);
+    if (!s_node_uv_event_loop) {
+        s_node_uv_event_loop = aws_event_loop_existing_libuv(alloc, s_node_uv_loop, clock);
+    } else {
+        assert(false); /* Should only be 1 event loop */
+    }
+
+    return s_node_uv_event_loop;
 }
 
 /** Helper for creating and registering a function */
