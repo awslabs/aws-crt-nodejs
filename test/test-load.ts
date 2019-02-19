@@ -22,6 +22,8 @@ async function main() {
         });
         console.log("connected", session_present);
 
+        await conn.publish("test", "Testing from JS client", mqtt.QoS.AtLeastOnce);
+
         await conn.disconnect();
         console.log("disconnected");
     } catch (e) {

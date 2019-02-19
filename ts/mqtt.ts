@@ -95,6 +95,46 @@ export class Connection {
         });
     }
 
+    async reconnect() {
+        return new Promise<boolean>((resolve, reject) => {
+
+            function on_connect(error_code: number, return_code: number, session_present: boolean) {
+                if (error_code == 0 && return_code == 0) {
+                    resolve(session_present);
+                } else if (error_code != 0) {
+                    reject("Failed to connect: " + io.error_code_to_string(error_code));
+                } else {
+                    reject("Server rejected connection.");
+                }
+            }
+
+            try {
+                crt_native.mqtt_client_connection_reconnect(this.native_handle(), on_connect);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    async publish(topic: string, payload: string, qos: QoS, retain: boolean = false) {
+        return new Promise<{}>((resolve, reject) => {
+
+            function on_publish(packet_id: number, error_code: number) {
+                if (error_code == 0) {
+                    resolve({ packet_id });
+                } else {
+                    reject("Failed to publish: " + io.error_code_to_string(error_code));
+                }
+            }
+
+            try {
+                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload, qos, retain, on_publish);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
     async disconnect() {
         return new Promise<void>((resolve, reject) => {
 
