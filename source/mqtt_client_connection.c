@@ -15,9 +15,9 @@
 
 #include <node_api.h>
 
-#include "mqtt_client_connection.h"
 #include "module.h"
 #include "mqtt_client.h"
+#include "mqtt_client_connection.h"
 
 #include <aws/mqtt/client.h>
 
@@ -186,7 +186,8 @@ static void s_on_connect(
             napi_value recv;
             napi_get_global(env, &recv);
 
-            if (napi_make_callback(env, node_connection->on_connect_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+            if (napi_make_callback(
+                    env, node_connection->on_connect_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
 
@@ -457,7 +458,8 @@ void s_on_publish_complete(
             napi_value recv;
             napi_get_global(env, &recv);
 
-            if (napi_make_callback(env, metadata->on_publish_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+            if (napi_make_callback(
+                    env, metadata->on_publish_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
 
@@ -545,7 +547,12 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
 
     const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&metadata->topic);
     const struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&metadata->payload);
-    aws_mqtt_client_connection_publish(node_connection->connection, &topic_cur, qos, retain, &payload_cur, s_on_publish_complete, metadata);
+    int pub_status = aws_mqtt_client_connection_publish(
+        node_connection->connection, &topic_cur, qos, retain, &payload_cur, s_on_publish_complete, metadata);
+    if (pub_status) {
+        napi_throw_error(env, NULL, "Failed to initiate publish request");
+        goto cleanup;
+    }
 
     napi_value undefined;
     napi_get_undefined(env, &undefined);
