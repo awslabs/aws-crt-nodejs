@@ -6,8 +6,7 @@
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],
             "defines": [
-                "AWS_USE_LIBUV",
-                "NAPI_VERSION=4"
+                "AWS_USE_LIBUV"
             ],
             "include_dirs": [
                 "<!(node -p \"require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'include')\")",
@@ -29,7 +28,10 @@
                     "libraries": [
                         "-lSecur32",
                         "-lCrypt32",
-                        "-lWs2_32"
+                        "-lAdvapi32",
+                        "-lBCrypt",
+                        "-lKernel32",
+                        "-lWs2_32",
                     ],
                 }, {
                     "cflags": [
@@ -45,7 +47,6 @@
                     "libraries": [
                         "-ls2n",
                         "-lcrypto",
-                        "-lgcc",
                     ],
                 }],
             ],
