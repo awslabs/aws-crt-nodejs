@@ -16,6 +16,87 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
+#include <uv.h>
+
+#include <aws/common/clock.h>
+
+#include <aws/io/event_loop.h>
+#include <aws/io/tls_channel_handler.h>
+
+static uv_loop_t *s_node_uv_loop = NULL;
+static struct aws_event_loop *s_node_uv_event_loop = NULL;
+static struct aws_event_loop_group s_node_uv_elg;
+
+napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
+
+    assert(buf);
+
+    napi_status result = napi_ok;
+
+    size_t length = 0;
+    result = napi_get_value_string_utf8(env, node_str, NULL, 0, &length);
+    if (result != napi_ok) {
+        return result;
+    }
+
+    aws_byte_buf_init(buf, aws_default_allocator(), length + 1);
+
+    result = napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->len, &buf->len);
+    assert(result == napi_ok);
+    assert(length == buf->len);
+
+    return result;
+}
+
+bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
+
+    napi_valuetype type = napi_undefined;
+    if (napi_ok != napi_typeof(env, value, &type)) {
+        return true;
+    }
+
+    return type == napi_null || type == napi_undefined;
+}
+
+bool aws_napi_is_external(napi_env env, napi_value value) {
+
+    napi_valuetype type = napi_undefined;
+    if (napi_ok != napi_typeof(env, value, &type)) {
+        return false;
+    }
+
+    return type == napi_external;
+}
+
+struct uv_loop_s *aws_napi_get_node_uv_loop(void) {
+    return s_node_uv_loop;
+}
+struct aws_event_loop *aws_napi_get_node_event_loop(void) {
+    return s_node_uv_event_loop;
+}
+struct aws_event_loop_group *aws_napi_get_node_elg(void) {
+    return &s_node_uv_elg;
+}
+
+static struct aws_event_loop *s_new_uv_event_loop(struct aws_allocator *alloc, aws_io_clock_fn *clock, void *userdata) {
+
+    napi_env env = userdata;
+
+    if (!s_node_uv_loop) {
+        if (napi_get_uv_event_loop(env, &s_node_uv_loop)) {
+            return NULL;
+        }
+    }
+
+    if (!s_node_uv_event_loop) {
+        s_node_uv_event_loop = aws_event_loop_existing_libuv(alloc, s_node_uv_loop, clock);
+    } else {
+        assert(false); /* Should only be 1 event loop */
+    }
+
+    return s_node_uv_event_loop;
+}
+
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(napi_env env, napi_value exports, napi_callback fn, const char *fn_name, size_t fn_name_len) {
     napi_value napi_fn;
@@ -34,32 +115,44 @@ static bool s_create_and_register_function(napi_env env, napi_value exports, nap
     return true;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+napi_value s_register_napi_module(napi_env env, napi_value exports) {
+
+    aws_load_error_strings();
+    aws_io_load_error_strings();
+    aws_mqtt_load_error_strings();
+
+    aws_tls_init_static_state(aws_default_allocator());
+
+    /* Initalize the event loop group */
+    aws_event_loop_group_init(&s_node_uv_elg, aws_default_allocator(), aws_high_res_clock_get_ticks, 1, s_new_uv_event_loop, env);
+
     napi_value null;
     napi_get_null(env, &null);
 
 #define CREATE_AND_REGISTER_FN(fn) if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) { return null; }
 
     /* IO */
-    CREATE_AND_REGISTER_FN(aws_nodejs_is_alpn_available)
-    CREATE_AND_REGISTER_FN(aws_nodejs_io_event_loop_group_new)
-    CREATE_AND_REGISTER_FN(aws_nodejs_io_client_bootstrap_new)
+    CREATE_AND_REGISTER_FN(error_code_to_string)
+    CREATE_AND_REGISTER_FN(is_alpn_available)
+    CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
+    CREATE_AND_REGISTER_FN(io_client_tls_ctx_new)
 
     /* MQTT Client */
-    CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_new)
+    CREATE_AND_REGISTER_FN(mqtt_client_new)
 
     /* MQTT Client Connection */
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_new)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_will)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_set_login)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_publish)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_subscribe)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_unsubscribe)
-    // CREATE_AND_REGISTER_FN(aws_nodejs_mqtt_client_connection_disconnect)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_new)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_connect)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_set_will)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_set_login)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
+    // CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
 
 #undef CREATE_AND_REGISTER_FN
 
     return exports;
 }
 
-NAPI_MODULE(aws_crt_nodejs, Init)
+NAPI_MODULE(aws_crt_nodejs, s_register_napi_module)

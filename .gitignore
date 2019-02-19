@@ -36,6 +36,17 @@
 *.out
 *.app
 
+### CMake ###
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+
 ### Node ###
 # Logs
 logs
@@ -126,3 +137,11 @@ typings/
 .history
 
 # End of https://www.gitignore.io/api/c++,node,visualstudiocode
+
+# credentials
+*.key
+*.pem
+*.crt
+
+# Build artifacts
+dist/

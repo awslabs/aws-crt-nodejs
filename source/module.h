@@ -1,5 +1,5 @@
-#ifndef AWS_CRT_NODEJS_MQTT_CLIENT_H
-#define AWS_CRT_NODEJS_MQTT_CLIENT_H
+#ifndef AWS_CRT_NODEJS_MODULE_H
+#define AWS_CRT_NODEJS_MODULE_H
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -15,14 +15,17 @@
  * permissions and limitations under the License.
  */
 
+#include <aws/common/byte_buf.h>
+
 #include <node_api.h>
 
-#include <aws/mqtt/client.h>
+napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value obj);
 
-struct mqtt_nodejs_client {
-    struct aws_mqtt_client native_client;
-};
+bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
+bool aws_napi_is_external(napi_env env, napi_value value);
 
-napi_value mqtt_client_new(napi_env env, napi_callback_info info);
+struct uv_loop_s *aws_napi_get_node_uv_loop(void);
+struct aws_event_loop *aws_napi_get_node_event_loop(void);
+struct aws_event_loop_group *aws_napi_get_node_elg(void);
 
-#endif /* AWS_CRT_NODEJS_MQTT_CLIENT_H */
+#endif /* AWS_CRT_NODEJS_MODULE_H */
