@@ -400,6 +400,9 @@ napi_value mqtt_client_connection_reconnect(napi_env env, napi_callback_info inf
         goto cleanup;
     }
 
+    /* Return undefined */
+    napi_get_undefined(env, &result);
+
 cleanup:
     return result;
 }
