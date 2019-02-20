@@ -3,6 +3,8 @@ import * as mqtt from '../ts/mqtt';
 
 console.log(io.is_alpn_available());
 
+const test_topic = "test";
+
 async function main() {
     let bootstrap = new io.ClientBootstrap();
     let tls_opt = io.TlsContextOptions.create_client_with_mtls("iot-certificate.pem.crt", "iot-private.pem.key")
@@ -22,7 +24,19 @@ async function main() {
         });
         console.log("connected", session_present);
 
-        await conn.publish("test", "Testing from JS client", mqtt.QoS.AtLeastOnce);
+        /* Subscribe, publish on suback, and resolve on message received */
+        await new Promise(resolve => {
+            conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
+                console.log("Got message, topic:", topic, "payload:", payload);
+                resolve();
+            }).then(sub_req => {
+                console.log("subscribed");
+                conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
+            });
+        });
+
+        await conn.unsubscribe(test_topic);
+        console.log("unsubscribed");
 
         await conn.disconnect();
         console.log("disconnected");
