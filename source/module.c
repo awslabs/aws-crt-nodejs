@@ -58,14 +58,9 @@ bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
     return type == napi_null || type == napi_undefined;
 }
 
-bool aws_napi_is_external(napi_env env, napi_value value) {
-
-    napi_valuetype type = napi_undefined;
-    if (napi_ok != napi_typeof(env, value, &type)) {
-        return false;
-    }
-
-    return type == napi_external;
+void aws_napi_throw_last_error(napi_env env) {
+    const int error_code = aws_last_error();
+    napi_throw_error(env, aws_error_str(error_code), aws_error_debug_str(error_code));
 }
 
 struct uv_loop_s *aws_napi_get_node_uv_loop(void) {
