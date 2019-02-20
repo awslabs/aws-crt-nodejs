@@ -22,7 +22,8 @@
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value obj);
 
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
-bool aws_napi_is_external(napi_env env, napi_value value);
+
+void aws_napi_throw_last_error(napi_env env);
 
 struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);

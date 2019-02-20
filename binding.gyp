@@ -47,6 +47,7 @@
                     "libraries": [
                         "-ls2n",
                         "-lcrypto",
+                        "-lgcc",
                     ],
                 }],
             ],
