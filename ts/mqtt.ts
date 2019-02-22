@@ -53,6 +53,16 @@ interface ConnectionConnectParams {
     password?: string;
 }
 
+interface MqttRequest {
+    packet_id: number;
+}
+
+interface MqttSubscribeRequest extends MqttRequest {
+    topic: string;
+    qos: QoS;
+    error_code: number;
+}
+
 export class Connection {
     public client: Client;
     private connection_handle: any;
@@ -117,7 +127,7 @@ export class Connection {
     }
 
     async publish(topic: string, payload: string, qos: QoS, retain: boolean = false) {
-        return new Promise<{}>((resolve, reject) => {
+        return new Promise<MqttRequest>((resolve, reject) => {
 
             function on_publish(packet_id: number, error_code: number) {
                 if (error_code == 0) {
@@ -130,6 +140,44 @@ export class Connection {
             try {
                 crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload, qos, retain, on_publish);
             } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: string) => void) {
+        return new Promise<MqttSubscribeRequest>((resolve, reject) => {
+
+            function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {
+                if (error_code == 0) {
+                    resolve({ packet_id, topic, qos, error_code });
+                } else {
+                    reject("Failed to subscribe: " + io.error_code_to_string(error_code));
+                }
+            }
+
+            try {
+                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message, on_suback);
+            } catch(e) {
+                reject(e);
+            }
+        });
+    }
+
+    async unsubscribe(topic: string) {
+        return new Promise<MqttRequest>((resolve, reject) => {
+
+            function on_unsuback(packet_id: number, error_code: number) {
+                if (error_code == 0) {
+                    resolve({ packet_id });
+                } else {
+                    reject("Failed to unsubscribe: " + io.error_code_to_string(error_code));
+                }
+            }
+
+            try {
+                crt_native.mqtt_client_connection_unsubscribe(this.native_handle(), topic, on_unsuback);
+            } catch(e) {
                 reject(e);
             }
         });

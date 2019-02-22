@@ -140,8 +140,8 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(mqtt_client_connection_connect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_reconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
-    // CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
-    // CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
 
 #undef CREATE_AND_REGISTER_FN

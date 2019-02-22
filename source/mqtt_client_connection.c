@@ -62,6 +62,10 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
     napi_value result = NULL;
 
     struct mqtt_nodejs_connection *node_connection = aws_mem_acquire(allocator, sizeof(struct mqtt_nodejs_connection));
+    if (!node_connection) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
     AWS_ZERO_STRUCT(*node_connection);
 
     napi_value node_args[3];
@@ -71,7 +75,7 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_nodejs_mqtt_client_connection_new needs exactly 3 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_new needs exactly 3 arguments");
         goto cleanup;
     }
 
@@ -148,9 +152,6 @@ static void s_on_connect(
     void *userdata) {
 
     (void)connection;
-    (void)error_code;
-    (void)return_code;
-    (void)session_present;
 
     struct mqtt_nodejs_connection *node_connection = userdata;
     napi_env env = node_connection->env;
@@ -177,26 +178,18 @@ static void s_on_connect(
                 goto cleanup;
             }
 
-            napi_value params[3];
-            if (napi_create_int32(env, error_code, &params[0])) {
-                goto cleanup;
-            }
-            if (napi_create_int32(env, return_code, &params[1])) {
-                goto cleanup;
-            }
-            if (napi_get_boolean(env, session_present, &params[2])) {
-                goto cleanup;
-            }
-
             napi_value recv;
-            napi_get_global(env, &recv);
+            napi_value params[3];
+            if (napi_get_global(env, &recv) || napi_create_int32(env, error_code, &params[0]) ||
+                napi_create_int32(env, return_code, &params[1]) || napi_get_boolean(env, session_present, &params[2])) {
+                goto cleanup;
+            }
 
             if (napi_make_callback(
                     env, node_connection->on_connect_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
         }
-
     }
 
 cleanup:
@@ -224,7 +217,7 @@ napi_value mqtt_client_connection_connect(napi_env env, napi_callback_info info)
         goto cleanup;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_nodejs_mqtt_client_connection_connect needs exactly 10 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 10 arguments");
         goto cleanup;
     }
 
@@ -438,9 +431,9 @@ void s_on_publish_complete(
             goto cleanup;
         }
 
-        napi_value on_connect = NULL;
-        napi_get_reference_value(env, metadata->on_publish, &on_connect);
-        if (on_connect) {
+        napi_value on_publish = NULL;
+        napi_get_reference_value(env, metadata->on_publish, &on_publish);
+        if (on_publish) {
 
             napi_value resource_object = NULL;
             if (napi_create_object(env, &resource_object)) {
@@ -451,23 +444,18 @@ void s_on_publish_complete(
                 goto cleanup;
             }
 
-            napi_value params[2];
-            if (napi_create_uint32(env, packet_id, &params[0])) {
-                goto cleanup;
-            }
-            if (napi_create_int32(env, error_code, &params[1])) {
-                goto cleanup;
-            }
-
             napi_value recv;
-            napi_get_global(env, &recv);
+            napi_value params[2];
+            if (napi_get_global(env, &recv) || napi_create_uint32(env, packet_id, &params[0]) ||
+                napi_create_int32(env, error_code, &params[1])) {
+                goto cleanup;
+            }
 
             if (napi_make_callback(
-                    env, metadata->on_publish_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+                    env, metadata->on_publish_ctx, recv, on_publish, AWS_ARRAY_SIZE(params), params, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
         }
-
     }
 
 cleanup:
@@ -488,6 +476,10 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
 
     struct aws_allocator *allocator = aws_default_allocator();
     struct publish_complete_userdata *metadata = aws_mem_acquire(allocator, sizeof(struct publish_complete_userdata));
+    if (!metadata) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
     AWS_ZERO_STRUCT(*metadata);
     metadata->env = env;
 
@@ -576,8 +568,422 @@ cleanup:
     return NULL;
 }
 
-napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info);
-napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
+/*******************************************************************************
+ * Subscribe
+ ******************************************************************************/
+
+struct subscription_metadata {
+    struct aws_byte_buf topic;
+
+    napi_env env;
+
+    napi_ref on_suback;
+    napi_async_context on_suback_ctx;
+
+    napi_ref on_message;
+    napi_async_context on_message_ctx;
+};
+
+void s_on_subscribe_complete(
+    struct aws_mqtt_client_connection *connection,
+    uint16_t packet_id,
+    const struct aws_byte_cursor *topic,
+    enum aws_mqtt_qos qos,
+    int error_code,
+    void *userdata) {
+
+    (void)connection;
+
+    struct subscription_metadata *metadata = userdata;
+    napi_env env = metadata->env;
+
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    /* Don't need this anymore */
+    aws_byte_buf_clean_up(&metadata->topic);
+
+    /* Call callback */
+    if (metadata->on_suback) {
+
+        if (napi_open_handle_scope(env, &handle_scope)) {
+            goto cleanup;
+        }
+
+        napi_value on_suback = NULL;
+        napi_get_reference_value(env, metadata->on_suback, &on_suback);
+        if (on_suback) {
+
+            napi_value resource_object = NULL;
+            if (napi_create_object(env, &resource_object)) {
+                goto cleanup;
+            }
+
+            if (napi_open_callback_scope(env, resource_object, metadata->on_suback_ctx, &cb_scope)) {
+                goto cleanup;
+            }
+
+            napi_value recv;
+            napi_value params[4];
+            if (napi_get_global(env, &recv) || napi_create_uint32(env, packet_id, &params[0]) ||
+                napi_create_string_utf8(env, (const char *)topic->ptr, topic->len, &params[1]) ||
+                napi_create_uint32(env, qos, &params[2]) || napi_create_int32(env, error_code, &params[3])) {
+                goto cleanup;
+            }
+
+            if (napi_make_callback(
+                    env, metadata->on_suback_ctx, recv, on_suback, AWS_ARRAY_SIZE(params), params, NULL)) {
+                /* #TODO: Log failed callback attempt here. */
+            }
+        }
+    }
+
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    }
+
+    if (metadata->on_suback) {
+        napi_delete_reference(env, metadata->on_suback);
+    }
+    if (metadata->on_suback_ctx) {
+        napi_async_destroy(env, metadata->on_suback_ctx);
+    }
+}
+
+void s_subscribe_on_message(
+    struct aws_mqtt_client_connection *connection,
+    const struct aws_byte_cursor *topic,
+    const struct aws_byte_cursor *payload,
+    void *userdata) {
+
+    (void)connection;
+
+    struct subscription_metadata *metadata = userdata;
+    assert(metadata->on_message);
+    napi_env env = metadata->env;
+
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    /* Call callback */
+    if (napi_open_handle_scope(env, &handle_scope)) {
+        goto cleanup;
+    }
+
+    napi_value on_message = NULL;
+    napi_get_reference_value(env, metadata->on_message, &on_message);
+    if (on_message) {
+
+        napi_value resource_object = NULL;
+        if (napi_create_object(env, &resource_object)) {
+            goto cleanup;
+        }
+
+        if (napi_open_callback_scope(env, resource_object, metadata->on_message_ctx, &cb_scope)) {
+            goto cleanup;
+        }
+
+        napi_value recv;
+        napi_value params[2];
+        if (napi_get_global(env, &recv) ||
+            napi_create_string_utf8(env, (const char *)topic->ptr, topic->len, &params[0]) ||
+            napi_create_string_utf8(env, (const char *)payload->ptr, payload->len, &params[1])) {
+            goto cleanup;
+        }
+
+        if (napi_make_callback(
+                env, metadata->on_message_ctx, recv, on_message, AWS_ARRAY_SIZE(params), params, NULL)) {
+            /* #TODO: Log failed callback attempt here. */
+        }
+    }
+
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    }
+}
+
+void s_subscribe_metadata_cleanup(void *userdata) {
+
+    struct subscription_metadata *metadata = userdata;
+
+    /* Call callback */
+    if (metadata->on_message) {
+
+        napi_env env = metadata->env;
+
+        napi_async_destroy(env, metadata->on_message_ctx);
+        napi_delete_reference(env, metadata->on_message);
+    }
+
+    aws_mem_release(aws_default_allocator(), metadata);
+}
+
+napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
+
+    struct aws_allocator *allocator = aws_default_allocator();
+    struct subscription_metadata *metadata = aws_mem_acquire(allocator, sizeof(struct subscription_metadata));
+    if (!metadata) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+    AWS_ZERO_STRUCT(*metadata);
+    metadata->env = env;
+
+    napi_value node_args[5];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        goto cleanup;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 5 arguments");
+        goto cleanup;
+    }
+
+    struct mqtt_nodejs_connection *node_connection = NULL;
+    if (napi_get_value_external(env, node_args[0], (void **)&node_connection)) {
+        napi_throw_error(env, NULL, "Failed to extract connection from first argument");
+        goto cleanup;
+    }
+
+    if (aws_byte_buf_init_from_napi(&metadata->topic, env, node_args[1])) {
+        napi_throw_type_error(env, NULL, "Second argument (topic) must be a String");
+        goto cleanup;
+    }
+
+    enum aws_mqtt_qos qos = 0;
+    if (napi_get_value_uint32(env, node_args[2], &qos)) {
+        napi_throw_type_error(env, NULL, "Third argument (qos) must be a number");
+        goto cleanup;
+    }
+
+    if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
+        napi_throw_type_error(env, NULL, "on_message callback is required");
+        goto cleanup;
+    }
+    if (napi_create_reference(env, node_args[3], 1, &metadata->on_message)) {
+        napi_throw_error(env, NULL, "Could not create ref from on_message");
+        goto cleanup;
+    }
+    /* Init the async */
+    napi_value resource_name = NULL;
+    if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_message", NAPI_AUTO_LENGTH, &resource_name)) {
+        goto cleanup;
+    }
+    if (napi_async_init(env, NULL, resource_name, &metadata->on_message_ctx)) {
+        goto cleanup;
+    }
+
+    if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
+        if (napi_create_reference(env, node_args[4], 1, &metadata->on_suback)) {
+            napi_throw_error(env, NULL, "Could not create ref from on_suback");
+            goto cleanup;
+        }
+        /* Init the async */
+        napi_value resource_name = NULL;
+        if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_suback", NAPI_AUTO_LENGTH, &resource_name)) {
+            goto cleanup;
+        }
+        if (napi_async_init(env, NULL, resource_name, &metadata->on_suback_ctx)) {
+            goto cleanup;
+        }
+    }
+
+    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&metadata->topic);
+    uint16_t sub_id = aws_mqtt_client_connection_subscribe(
+        node_connection->connection,
+        &topic_cur,
+        qos,
+        s_subscribe_on_message,
+        metadata,
+        s_subscribe_metadata_cleanup,
+        s_on_subscribe_complete,
+        metadata);
+
+    if (!sub_id) {
+        aws_napi_throw_last_error(env);
+        goto cleanup;
+    }
+
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+
+cleanup:
+    aws_byte_buf_clean_up(&metadata->topic);
+
+    if (metadata->on_message) {
+        napi_delete_reference(env, metadata->on_message);
+    }
+    if (metadata->on_message_ctx) {
+        napi_async_destroy(env, metadata->on_message_ctx);
+    }
+
+    if (metadata->on_suback) {
+        napi_delete_reference(env, metadata->on_suback);
+    }
+    if (metadata->on_suback_ctx) {
+        napi_async_destroy(env, metadata->on_suback_ctx);
+    }
+
+    aws_mem_release(allocator, metadata);
+
+    return NULL;
+}
+
+/*******************************************************************************
+ * Unsubscribe
+ ******************************************************************************/
+
+struct unsubscribe_metadata {
+    struct aws_byte_buf topic;
+
+    napi_env env;
+
+    napi_ref on_unsuback;
+    napi_async_context on_unsuback_ctx;
+};
+
+void s_on_unsubscribe_complete(
+    struct aws_mqtt_client_connection *connection,
+    uint16_t packet_id,
+    int error_code,
+    void *userdata) {
+
+    (void)connection;
+
+    struct unsubscribe_metadata *metadata = userdata;
+    napi_env env = metadata->env;
+
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    /* Clean up resources */
+    aws_byte_buf_clean_up(&metadata->topic);
+
+    /* Call callback */
+    if (metadata->on_unsuback) {
+
+        napi_open_handle_scope(env, &handle_scope);
+
+        napi_value on_unsuback = NULL;
+        napi_get_reference_value(env, metadata->on_unsuback, &on_unsuback);
+        if (on_unsuback) {
+
+            napi_open_callback_scope(env, NULL, metadata->on_unsuback_ctx, &cb_scope);
+
+            napi_value recv;
+            napi_value params[2];
+            if (napi_get_global(env, &recv) || napi_create_uint32(env, packet_id, &params[0]) ||
+                napi_create_int32(env, error_code, &params[1])) {
+                goto cleanup;
+            }
+
+            if (napi_make_callback(
+                    env, metadata->on_unsuback_ctx, recv, on_unsuback, AWS_ARRAY_SIZE(params), params, NULL)) {
+                /* #TODO: Log failed callback attempt here. */
+            }
+        }
+    }
+
+cleanup:
+
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    }
+    napi_delete_reference(env, metadata->on_unsuback);
+    napi_async_destroy(env, metadata->on_unsuback_ctx);
+
+    /* Free metadata */
+    aws_mem_release(aws_default_allocator(), metadata);
+}
+
+napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info) {
+
+    struct aws_allocator *allocator = aws_default_allocator();
+    struct unsubscribe_metadata *metadata = aws_mem_acquire(allocator, sizeof(struct unsubscribe_metadata));
+    if (!metadata) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+    AWS_ZERO_STRUCT(*metadata);
+    metadata->env = env;
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        goto cleanup;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "mqtt_client_connection_publish needs exactly 3 arguments");
+        goto cleanup;
+    }
+
+    struct mqtt_nodejs_connection *node_connection = NULL;
+    if (napi_get_value_external(env, node_args[0], (void **)&node_connection)) {
+        napi_throw_error(env, NULL, "Failed to extract connection from external");
+        goto cleanup;
+    }
+
+    if (aws_byte_buf_init_from_napi(&metadata->topic, env, node_args[1])) {
+        napi_throw_type_error(env, NULL, "Second argument (topic) must be a String");
+        goto cleanup;
+    }
+
+    if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
+        if (napi_create_reference(env, node_args[2], 1, &metadata->on_unsuback)) {
+            napi_throw_error(env, NULL, "Could not create ref from on_unsuback");
+            goto cleanup;
+        }
+        /* Init the async */
+        napi_value resource_name = NULL;
+        if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_unsuback", NAPI_AUTO_LENGTH, &resource_name)) {
+            goto cleanup;
+        }
+        if (napi_async_init(env, NULL, resource_name, &metadata->on_unsuback_ctx)) {
+            goto cleanup;
+        }
+    }
+
+    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&metadata->topic);
+    uint16_t unsub_id = aws_mqtt_client_connection_unsubscribe(
+        node_connection->connection, &topic_cur, s_on_unsubscribe_complete, metadata);
+
+    if (!unsub_id) {
+        napi_throw_error(env, NULL, "Failed to initiate subscribe request");
+        goto cleanup;
+    }
+
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+
+cleanup:
+    aws_byte_buf_clean_up(&metadata->topic);
+
+    if (metadata->on_unsuback) {
+        napi_delete_reference(env, metadata->on_unsuback);
+    }
+    if (metadata->on_unsuback_ctx) {
+        napi_async_destroy(env, metadata->on_unsuback_ctx);
+    }
+
+    aws_mem_release(allocator, metadata);
+
+    return NULL;
+}
 
 /*******************************************************************************
  * Disconnect
@@ -588,40 +994,54 @@ static void s_on_disconnect(struct aws_mqtt_client_connection *connection, void 
     (void)connection;
 
     struct mqtt_nodejs_connection *node_connection = userdata;
+    napi_env env = node_connection->env;
+
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
     if (node_connection->on_disconnect) {
 
-        napi_env env = node_connection->env;
-
-        napi_handle_scope handle_scope = NULL;
-        napi_open_handle_scope(env, &handle_scope);
+        if (napi_open_handle_scope(env, &handle_scope)) {
+            goto cleanup;
+        }
 
         napi_value on_disconnect = NULL;
         napi_get_reference_value(env, node_connection->on_disconnect, &on_disconnect);
         if (on_disconnect) {
 
-            napi_callback_scope cb_scope = NULL;
-            napi_open_callback_scope(env, NULL, node_connection->on_disconnect_ctx, &cb_scope);
+            napi_value resource_object = NULL;
+            if (napi_create_object(env, &resource_object)) {
+                goto cleanup;
+            }
+
+            if (napi_open_callback_scope(env, resource_object, node_connection->on_disconnect_ctx, &cb_scope)) {
+                goto cleanup;
+            }
 
             napi_value recv;
-            napi_get_global(env, &recv);
+            if (napi_get_global(env, &recv)) {
+                goto cleanup;
+            }
 
             if (napi_make_callback(env, node_connection->on_disconnect_ctx, recv, on_disconnect, 0, NULL, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
-
-            napi_close_callback_scope(env, cb_scope);
-            napi_async_destroy(env, node_connection->on_disconnect_ctx);
-
-            napi_delete_reference(env, node_connection->on_disconnect);
         }
+    }
 
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
         napi_close_handle_scope(env, handle_scope);
     }
+
+    napi_delete_reference(env, node_connection->on_disconnect);
+    napi_async_destroy(env, node_connection->on_disconnect_ctx);
 }
 
 napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
-
-    napi_value result = NULL;
 
     struct mqtt_nodejs_connection *node_connection = NULL;
 
@@ -629,42 +1049,52 @@ napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info in
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
-        return NULL;
+        goto cleanup;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_nodejs_mqtt_client_connection_connect needs exactly 2 arguments");
-        return NULL;
+        napi_throw_error(env, NULL, "mqtt_client_connection_disconnect needs exactly 2 arguments");
+        goto cleanup;
     }
 
     if (napi_get_value_external(env, node_args[0], (void **)&node_connection)) {
         napi_throw_error(env, NULL, "Failed to extract connection from first argument");
-        return NULL;
+        goto cleanup;
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (napi_create_reference(env, node_args[1], 1, &node_connection->on_disconnect)) {
             napi_throw_error(env, NULL, "Could not create ref from on_disconnect");
-            return NULL;
+            goto cleanup;
         }
         /* Init the async */
         napi_value resource_name = NULL;
-        if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_disconnect", NAPI_AUTO_LENGTH, &resource_name)) {
-            napi_delete_reference(env, node_connection->on_disconnect);
+        if (napi_create_string_utf8(
+                env, "aws_mqtt_client_connection_on_disconnect", NAPI_AUTO_LENGTH, &resource_name)) {
             napi_throw_error(env, NULL, "Could not create async resource name");
-            return NULL;
+            goto cleanup;
         }
         if (napi_async_init(env, NULL, resource_name, &node_connection->on_disconnect_ctx)) {
-            napi_delete_reference(env, node_connection->on_disconnect);
             napi_throw_error(env, NULL, "Could not create async context");
-            return NULL;
+            goto cleanup;
         }
     }
 
     if (aws_mqtt_client_connection_disconnect(node_connection->connection, s_on_disconnect, node_connection)) {
         aws_napi_throw_last_error(env);
-        return NULL;
+        goto cleanup;
     }
 
-    napi_get_undefined(env, &result);
-    return result;
+    napi_value undefined = NULL;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+
+cleanup:
+    if (node_connection->on_disconnect) {
+        napi_delete_reference(env, node_connection->on_disconnect);
+    }
+    if (node_connection->on_disconnect_ctx) {
+        napi_async_destroy(env, node_connection->on_disconnect_ctx);
+    }
+
+    return NULL;
 }
