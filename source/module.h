@@ -19,7 +19,7 @@
 
 #include <node_api.h>
 
-napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value obj);
+napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
 

@@ -18,6 +18,7 @@
                 "-laws-c-mqtt",
                 "-laws-c-io",
                 "-laws-c-common",
+                "-laws-c-cal",
             ],
             "conditions": [
                 ["OS=='win'", {
@@ -40,6 +41,7 @@
                         "-Wall",
                         "-Wextra",
                         "-pedantic",
+                        "-Wimplicit-function-declaration",
                         "-Wno-zero-length-array",
                     ],
                 }],

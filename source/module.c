@@ -12,6 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+#include "crypto.h"
 #include "io.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
@@ -27,25 +28,97 @@ static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
 static struct aws_event_loop_group s_node_uv_elg;
 
+/* Helper to call an napi function and handle the result. Assumes no cleanup step to perform. */
+#define NAPI_CHECK_CALL(expr)       \
+    do {    \
+        napi_status _status = (expr);    \
+        if (_status != napi_ok) {\
+            return _status; \
+        }\
+    } while (false)
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
     assert(buf);
 
-    napi_status result = napi_ok;
+    napi_valuetype type = napi_undefined;
+    NAPI_CHECK_CALL(napi_typeof(env, node_str, &type));
 
-    size_t length = 0;
-    result = napi_get_value_string_utf8(env, node_str, NULL, 0, &length);
-    if (result != napi_ok) {
-        return result;
+    if (type == napi_string) {
+
+        size_t length = 0;
+        NAPI_CHECK_CALL(napi_get_value_string_utf8(env, node_str, NULL, 0, &length));
+
+        /* Node requires that the null terminator be written */
+        if (aws_byte_buf_init(buf, aws_default_allocator(), length + 1)) {
+            return napi_generic_failure;
+        }
+
+        NAPI_CHECK_CALL(napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->capacity, &buf->len));
+        assert(length == buf->len);
+    } else if (type == napi_object) {
+
+        bool is_x = false;
+
+        /* Try ArrayBuffer */
+        NAPI_CHECK_CALL(napi_is_arraybuffer(env, node_str, &is_x));
+        if (is_x) {
+            napi_status status = napi_get_arraybuffer_info(env, node_str, (void **)&buf->buffer, &buf->len);
+            buf->capacity = buf->len;
+            return status;
+        }
+
+        /* Try DataView */
+        NAPI_CHECK_CALL(napi_is_dataview(env, node_str, &is_x));
+        if (is_x) {
+            napi_status status = napi_get_dataview_info(env, node_str, &buf->len, (void **)&buf->buffer, NULL, NULL);
+            buf->capacity = buf->len;
+            return status;
+        }
+
+        /* Try TypedArray */
+        NAPI_CHECK_CALL(napi_is_typedarray(env, node_str, &is_x));
+        if (is_x) {
+            napi_typedarray_type type = napi_uint8_array;
+            size_t length = 0;
+            NAPI_CHECK_CALL(napi_get_typedarray_info(env, node_str, &type, &length, (void **)&buf->buffer, NULL, NULL));
+
+            size_t element_size = 0;
+            switch (type) {
+                case napi_int8_array:
+                case napi_uint8_array:
+                case napi_uint8_clamped_array:
+                    element_size = 1;
+                    break;
+
+                case napi_int16_array:
+                case napi_uint16_array:
+                    element_size = 2;
+                    break;
+
+                case napi_int32_array:
+                case napi_uint32_array:
+                case napi_float32_array:
+                    element_size = 4;
+                    break;
+
+                case napi_float64_array:
+                case napi_bigint64_array:
+                case napi_biguint64_array:
+                    element_size = 8;
+                    break;
+
+                default:
+                    assert(false);
+            }
+            buf->len = length * element_size;
+            buf->capacity = buf->len;
+
+            return napi_ok;
+        }
     }
 
-    aws_byte_buf_init(buf, aws_default_allocator(), length + 1);
-
-    result = napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->len, &buf->len);
-    assert(result == napi_ok);
-    assert(length == buf->len);
-
-    return result;
+    return napi_ok;
 }
 
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
@@ -143,6 +216,15 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
+
+    /* Crypto */
+    CREATE_AND_REGISTER_FN(hash_md5_new)
+    CREATE_AND_REGISTER_FN(hash_sha256_new)
+    CREATE_AND_REGISTER_FN(hash_update)
+    CREATE_AND_REGISTER_FN(hash_digest)
+    CREATE_AND_REGISTER_FN(hmac_sha256_new)
+    CREATE_AND_REGISTER_FN(hmac_update)
+    CREATE_AND_REGISTER_FN(hmac_digest)
 
 #undef CREATE_AND_REGISTER_FN
 
