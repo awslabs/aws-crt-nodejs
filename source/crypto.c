@@ -446,7 +446,7 @@ napi_value hmac_sha256_compute(napi_env env, napi_callback_info info) {
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
 
         uint32_t truncate_to = 0;
-        if (napi_get_value_uint32(env, node_args[1], &truncate_to)) {
+        if (napi_get_value_uint32(env, node_args[2], &truncate_to)) {
             napi_throw_type_error(env, NULL, "truncate_to argument must be undefined or a positive number");
             return NULL;
         }
