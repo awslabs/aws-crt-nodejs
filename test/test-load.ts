@@ -1,5 +1,6 @@
 import * as io from '../ts/io';
 import * as mqtt from '../ts/mqtt';
+import { Hash } from '../ts/crypto';
 
 console.log(io.is_alpn_available());
 
@@ -45,4 +46,9 @@ async function main() {
     }
 }
 
-main()
+//main()
+
+const to_hash = 'ABC';
+let md5 = Hash.md5();
+md5.update(to_hash);
+console.log('Hash of', to_hash, ':', md5.digest());

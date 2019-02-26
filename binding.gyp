@@ -18,6 +18,7 @@
                 "-laws-c-mqtt",
                 "-laws-c-io",
                 "-laws-c-common",
+                "-laws-c-cal",
             ],
             "conditions": [
                 ["OS=='win'", {
@@ -36,7 +37,6 @@
                 }, {
                     "cflags": [
                         "-std=gnu99",
-                        "-Werror",
                         "-Wall",
                         "-Wextra",
                         "-pedantic",
