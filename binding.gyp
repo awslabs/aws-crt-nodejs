@@ -37,11 +37,9 @@
                 }, {
                     "cflags": [
                         "-std=gnu99",
-                        "-Werror",
                         "-Wall",
                         "-Wextra",
                         "-pedantic",
-                        "-Wimplicit-function-declaration",
                         "-Wno-zero-length-array",
                     ],
                 }],

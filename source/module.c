@@ -58,27 +58,27 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
         assert(length == buf->len);
     } else if (type == napi_object) {
 
-        bool is_x = false;
+        bool is_expected = false;
 
         /* Try ArrayBuffer */
-        NAPI_CHECK_CALL(napi_is_arraybuffer(env, node_str, &is_x));
-        if (is_x) {
+        NAPI_CHECK_CALL(napi_is_arraybuffer(env, node_str, &is_expected));
+        if (is_expected) {
             napi_status status = napi_get_arraybuffer_info(env, node_str, (void **)&buf->buffer, &buf->len);
             buf->capacity = buf->len;
             return status;
         }
 
         /* Try DataView */
-        NAPI_CHECK_CALL(napi_is_dataview(env, node_str, &is_x));
-        if (is_x) {
+        NAPI_CHECK_CALL(napi_is_dataview(env, node_str, &is_expected));
+        if (is_expected) {
             napi_status status = napi_get_dataview_info(env, node_str, &buf->len, (void **)&buf->buffer, NULL, NULL);
             buf->capacity = buf->len;
             return status;
         }
 
         /* Try TypedArray */
-        NAPI_CHECK_CALL(napi_is_typedarray(env, node_str, &is_x));
-        if (is_x) {
+        NAPI_CHECK_CALL(napi_is_typedarray(env, node_str, &is_expected));
+        if (is_expected) {
             napi_typedarray_type type = napi_uint8_array;
             size_t length = 0;
             NAPI_CHECK_CALL(napi_get_typedarray_info(env, node_str, &type, &length, (void **)&buf->buffer, NULL, NULL));
@@ -107,9 +107,6 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
                 case napi_biguint64_array:
                     element_size = 8;
                     break;
-
-                default:
-                    assert(false);
             }
             buf->len = length * element_size;
             buf->capacity = buf->len;

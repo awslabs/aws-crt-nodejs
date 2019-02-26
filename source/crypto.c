@@ -208,7 +208,7 @@ napi_value hmac_sha256_new(napi_env env, napi_callback_info info) {
     if (napi_create_external(env, hmac, s_hmac_finalize, NULL, &node_external)) {
         napi_throw_error(env, NULL, "Failed create n-api external");
         aws_hmac_destroy(hmac);
-        aws_byte_buf_clean_up(&secret);
+        aws_byte_buf_clean_up_secure(&secret);
     }
     return node_external;
 }
