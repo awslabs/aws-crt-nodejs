@@ -26,9 +26,14 @@ napi_value hash_sha256_new(napi_env env, napi_callback_info info);
 napi_value hash_update(napi_env env, napi_callback_info info);
 napi_value hash_digest(napi_env env, napi_callback_info info);
 
+napi_value hash_md5_compute(napi_env env, napi_callback_info info);
+napi_value hash_sha256_compute(napi_env env, napi_callback_info info);
+
 napi_value hmac_sha256_new(napi_env env, napi_callback_info info);
 napi_value hmac_update(napi_env env, napi_callback_info info);
 napi_value hmac_digest(napi_env env, napi_callback_info info);
+
+napi_value hmac_sha256_compute(napi_env env, napi_callback_info info);
 
 AWS_EXTERN_C_END
 

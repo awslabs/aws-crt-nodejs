@@ -158,6 +158,120 @@ napi_value hash_digest(napi_env env, napi_callback_info info) {
     return dataview;
 }
 
+napi_value hash_md5_compute(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "hash_md5_compute needs exactly 2 arguments");
+        return NULL;
+    }
+
+    struct aws_byte_buf to_hash;
+    if (aws_byte_buf_init_from_napi(&to_hash, env, node_args[0])) {
+        napi_throw_type_error(env, NULL, "to_hash argument must be a string or array");
+        return NULL;
+    }
+
+    size_t digest_size = AWS_MD5_LEN;
+    if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
+
+        uint32_t truncate_to = 0;
+        if (napi_get_value_uint32(env, node_args[1], &truncate_to)) {
+            napi_throw_type_error(env, NULL, "truncate_to argument must be undefined or a positive number");
+            return NULL;
+        }
+
+        if (digest_size > truncate_to) {
+            digest_size = truncate_to;
+        }
+    }
+
+    napi_value arraybuffer;
+    void *data = NULL;
+    if (napi_create_arraybuffer(env, digest_size, &data, &arraybuffer)) {
+        napi_throw_error(env, NULL, "Failed to create output arraybuffer");
+        return NULL;
+    }
+
+    struct aws_byte_cursor to_hash_cur = aws_byte_cursor_from_buf(&to_hash);
+    struct aws_byte_buf out_buf = aws_byte_buf_from_empty_array(data, digest_size);
+    if (aws_md5_compute(aws_default_allocator(), &to_hash_cur, &out_buf, digest_size)) {
+        aws_napi_throw_last_error(env);
+    }
+
+    napi_value dataview;
+    if (napi_create_dataview(env, digest_size, arraybuffer, 0, &dataview)) {
+        napi_throw_error(env, NULL, "Failed to create output dataview");
+        return NULL;
+    }
+
+    aws_byte_buf_clean_up(&to_hash);
+
+    return dataview;
+}
+
+napi_value hash_sha256_compute(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "hash_sha256_compute needs exactly 2 arguments");
+        return NULL;
+    }
+
+    struct aws_byte_buf to_hash;
+    if (aws_byte_buf_init_from_napi(&to_hash, env, node_args[0])) {
+        napi_throw_type_error(env, NULL, "to_hash argument must be a string or array");
+        return NULL;
+    }
+
+    size_t digest_size = AWS_MD5_LEN;
+    if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
+
+        uint32_t truncate_to = 0;
+        if (napi_get_value_uint32(env, node_args[1], &truncate_to)) {
+            napi_throw_type_error(env, NULL, "truncate_to argument must be undefined or a positive number");
+            return NULL;
+        }
+
+        if (digest_size > truncate_to) {
+            digest_size = truncate_to;
+        }
+    }
+
+    napi_value arraybuffer;
+    void *data = NULL;
+    if (napi_create_arraybuffer(env, digest_size, &data, &arraybuffer)) {
+        napi_throw_error(env, NULL, "Failed to create output arraybuffer");
+        return NULL;
+    }
+
+    struct aws_byte_cursor to_hash_cur = aws_byte_cursor_from_buf(&to_hash);
+    struct aws_byte_buf out_buf = aws_byte_buf_from_empty_array(data, digest_size);
+    if (aws_sha256_compute(aws_default_allocator(), &to_hash_cur, &out_buf, digest_size)) {
+        aws_napi_throw_last_error(env);
+    }
+
+    napi_value dataview;
+    if (napi_create_dataview(env, digest_size, arraybuffer, 0, &dataview)) {
+        napi_throw_error(env, NULL, "Failed to create output dataview");
+        return NULL;
+    }
+
+    aws_byte_buf_clean_up(&to_hash);
+
+    return dataview;
+}
+
 /*******************************************************************************
  * HMAC
  ******************************************************************************/
@@ -195,7 +309,6 @@ napi_value hmac_sha256_new(napi_env env, napi_callback_info info) {
         napi_throw_type_error(env, NULL, "secret argument must be a string or array");
         return NULL;
     }
-
     struct aws_byte_cursor secret_cur = aws_byte_cursor_from_buf(&secret);
 
     struct aws_hmac *hmac = aws_sha256_hmac_new(allocator, &secret_cur);
@@ -299,6 +412,70 @@ napi_value hmac_digest(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to create output dataview");
         return NULL;
     }
+
+    return dataview;
+}
+
+napi_value hmac_sha256_compute(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "hmac_sha256_compute needs exactly 3 arguments");
+        return NULL;
+    }
+
+    struct aws_byte_buf secret;
+    if (aws_byte_buf_init_from_napi(&secret, env, node_args[0])) {
+        napi_throw_type_error(env, NULL, "secret argument must be a string or array");
+        return NULL;
+    }
+    struct aws_byte_cursor secret_cur = aws_byte_cursor_from_buf(&secret);
+
+    struct aws_byte_buf to_hash;
+    if (aws_byte_buf_init_from_napi(&to_hash, env, node_args[1])) {
+        napi_throw_type_error(env, NULL, "to_hash argument must be a string or array");
+        return NULL;
+    }
+
+    size_t digest_size = AWS_MD5_LEN;
+    if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
+
+        uint32_t truncate_to = 0;
+        if (napi_get_value_uint32(env, node_args[1], &truncate_to)) {
+            napi_throw_type_error(env, NULL, "truncate_to argument must be undefined or a positive number");
+            return NULL;
+        }
+
+        if (digest_size > truncate_to) {
+            digest_size = truncate_to;
+        }
+    }
+
+    napi_value arraybuffer;
+    void *data = NULL;
+    if (napi_create_arraybuffer(env, digest_size, &data, &arraybuffer)) {
+        napi_throw_error(env, NULL, "Failed to create output arraybuffer");
+        return NULL;
+    }
+
+    struct aws_byte_cursor to_hash_cur = aws_byte_cursor_from_buf(&to_hash);
+    struct aws_byte_buf out_buf = aws_byte_buf_from_empty_array(data, digest_size);
+    if (aws_sha256_hmac_compute(aws_default_allocator(), &secret_cur, &to_hash_cur, &out_buf, digest_size)) {
+        aws_napi_throw_last_error(env);
+    }
+
+    napi_value dataview;
+    if (napi_create_dataview(env, digest_size, arraybuffer, 0, &dataview)) {
+        napi_throw_error(env, NULL, "Failed to create output dataview");
+        return NULL;
+    }
+
+    aws_byte_buf_clean_up(&to_hash);
 
     return dataview;
 }

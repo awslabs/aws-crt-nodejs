@@ -1,6 +1,6 @@
 import * as io from '../ts/io';
 import * as mqtt from '../ts/mqtt';
-import { Hash } from '../ts/crypto';
+import { Md5Hash, hash_md5 } from '../ts/crypto';
 
 console.log(io.is_alpn_available());
 
@@ -49,6 +49,10 @@ async function main() {
 //main()
 
 const to_hash = 'ABC';
-let md5 = Hash.md5();
+let md5 = new Md5Hash();
 md5.update(to_hash);
-console.log('Hash of', to_hash, ':', md5.digest());
+const obj_digest = md5.digest();
+console.log('Object Hash of', to_hash, ':', obj_digest);
+
+let oneshot_digest = hash_md5(to_hash);
+console.log('Oneshot Hash of', to_hash, ':', oneshot_digest);

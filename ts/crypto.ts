@@ -23,21 +23,7 @@ type Hashable = string | ArrayBuffer | DataView | Buffer;
 /**
  * Object that allows for continuous hashing of data.
  */
-export class Hash {
-    /**
-     * Create a new Hash object using the MD5 algorithm.
-     */
-    static md5(): Hash {
-        return new Hash(crt_native.hash_md5_new());
-    }
-
-    /**
-     * Create a new Hash object using the SHA256 algorithm.
-     */
-    static sha256(): Hash {
-        return new Hash(crt_native.hash_sha256_new());
-    }
-
+class Hash {
     /**
      * Apply data to the hash.
      */
@@ -55,7 +41,7 @@ export class Hash {
     }
 
     private hash_handle: any;
-    private constructor(hash_handle: any) {
+    constructor(hash_handle: any) {
         this.hash_handle = hash_handle;
     }
     native_handle(): any {
@@ -64,21 +50,55 @@ export class Hash {
 }
 
 /**
+ * Object that allows for continuous MD5 hashing of data.
+ */
+export class Md5Hash extends Hash {
+    constructor() {
+        super(crt_native.hash_md5_new());
+    }
+}
+
+/**
+ * Computes an MD5 hash. Use this if you don't need to stream the data you're hashing and can load the entire input
+ * into memory.
+ *
+ * @param data The data to hash
+ * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ */
+export function hash_md5(data: Hashable, truncate_to?: number): DataView {
+    return crt_native.hash_md5_compute(data, truncate_to);
+}
+
+/**
+ * Object that allows for continuous SHA256 hashing of data.
+ */
+export class Sha256Hash extends Hash {
+    constructor() {
+        super(crt_native.hash_sha256_new());
+    }
+}
+
+
+/**
+ * Computes an SHA256 hash. Use this if you don't need to stream the data you're hashing and can load the entire input
+ * into memory.
+ *
+ * @param data The data to hash
+ * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ */
+export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
+    return crt_native.hash_sha256_compute(data, truncate_to);
+}
+
+/**
  * Object that allows for continuous hashing of data with an hmac secret.
  */
-export class Hmac {
-    /**
-     * Create a new Hmac object using the SHA256 algorithm.
-     */
-    static sha256(secret: Hashable): Hmac {
-        return new Hmac(crt_native.hmac_sha256_new(secret));
-    }
-
+class Hmac {
     /**
      * Apply data to the hash.
      */
     update(data: Hashable) {
-        crt_native.hash_update(this.native_handle(), data);
+        crt_native.hmac_update(this.native_handle(), data);
     }
 
     /**
@@ -87,14 +107,35 @@ export class Hmac {
      * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
      */
     digest(truncate_to?: number): DataView {
-        return crt_native.hash_digest(this.native_handle(), truncate_to);
+        return crt_native.hmac_digest(this.native_handle(), truncate_to);
     }
 
     private hash_handle: any;
-    private constructor(hash_handle: any) {
+    constructor(hash_handle: any) {
         this.hash_handle = hash_handle;
     }
     native_handle(): any {
         return this.hash_handle;
     }
+}
+
+/**
+ * Object that allows for continuous SHA256 HMAC hashing of data.
+ */
+export class Sha256Hmac extends Hmac {
+    constructor(secret: Hashable) {
+        super(crt_native.hmac_sha256_new(secret));
+    }
+}
+
+/**
+ * Computes an SHA256 HMAC. Use this if you don't need to stream the data you're hashing and can load the entire input
+ * into memory.
+ *
+ * @param secret The key to use for the HMAC process
+ * @param data The data to hash
+ * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ */
+export function hmac_sha256(secret: Hashable, data: Hashable, truncate_to?: number): DataView {
+    return crt_native.hmac_sha256_compute(secret, data, truncate_to);
 }
