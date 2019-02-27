@@ -41,7 +41,7 @@ export class Client {
     }
 }
 
-interface ConnectionConnectParams {
+export interface ConnectionConnectParams {
     client_id: string;
     host_name: string;
     port: number;
@@ -53,23 +53,27 @@ interface ConnectionConnectParams {
     password?: string;
 }
 
-interface MqttRequest {
+export interface MqttRequest {
     packet_id: number;
 }
 
-interface MqttSubscribeRequest extends MqttRequest {
+export interface MqttSubscribeRequest extends MqttRequest {
     topic: string;
     qos: QoS;
     error_code: number;
 }
 
+type Payload = string | Object | DataView;
+
 export class Connection {
     public client: Client;
     private connection_handle: any;
+    private encoder: TextEncoder;
 
     constructor(client: Client, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
         this.client = client;
         this.connection_handle = crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
+        this.encoder = new TextEncoder();
     }
 
     async connect(args: ConnectionConnectParams) {
@@ -126,8 +130,26 @@ export class Connection {
         });
     }
 
-    async publish(topic: string, payload: string, qos: QoS, retain: boolean = false) {
+    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
         return new Promise<MqttRequest>((resolve, reject) => {
+
+            let payload_data: DataView | undefined = undefined;
+            if (payload instanceof DataView) {
+                // If payload is already dataview, just use it
+                payload_data = payload;
+            } else {
+                if (typeof payload === 'object') {
+                    // Convert payload to JSON string, next if block will turn it into a DataView.
+                    payload = JSON.stringify(payload);
+                }
+
+                if (typeof payload === 'string') {
+                    // Encode the string as UTF-8
+                    payload_data = new DataView(this.encoder.encode(payload).buffer);
+                } else {
+                    return reject(new TypeError("payload parameter must be a string, object, or DataView."));
+                }
+            }
 
             function on_publish(packet_id: number, error_code: number) {
                 if (error_code == 0) {
@@ -138,14 +160,14 @@ export class Connection {
             }
 
             try {
-                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload, qos, retain, on_publish);
+                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos, retain, on_publish);
             } catch (e) {
                 reject(e);
             }
         });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: string) => void) {
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: DataView) => void) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
 
             function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {
