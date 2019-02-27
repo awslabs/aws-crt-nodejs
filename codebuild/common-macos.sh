@@ -25,4 +25,4 @@ function install_from_brew {
 
 install_from_brew cmake
 
-CFLAGS="-Werror" npm run build
+CFLAGS="-Werror" npm install

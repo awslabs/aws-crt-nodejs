@@ -5,4 +5,4 @@ set -x
 
 # build java package
 cd $CODEBUILD_SRC_DIR
-CFLAGS="-Werror" npm run build
+CFLAGS="-Werror" npm install

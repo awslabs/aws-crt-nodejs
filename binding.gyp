@@ -9,10 +9,10 @@
                 "AWS_USE_LIBUV"
             ],
             "include_dirs": [
-                "<!(node -p \"require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'include')\")",
+                "<!(node -p \"process.env.AWS_C_INSTALL ? require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'include') : ''\")",
             ],
             "library_dirs": [
-                "<!(node -p \"require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'lib')\")",
+                "<!(node -p \"process.env.AWS_C_INSTALL ? require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'lib') : ''\")",
             ],
             "libraries": [
                 "-laws-c-mqtt",
