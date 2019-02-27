@@ -118,6 +118,26 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
     return napi_ok;
 }
 
+napi_status aws_napi_create_dataview_from_byte_cursor(
+    napi_env env,
+    const struct aws_byte_cursor *cur,
+    napi_value *result) {
+
+    void *data = NULL;
+    napi_value arraybuffer;
+    NAPI_CHECK_CALL(napi_create_arraybuffer(env, cur->len, &data, &arraybuffer));
+
+    struct aws_byte_buf arraybuffer_buf = aws_byte_buf_from_empty_array(data, cur->len);
+    struct aws_byte_cursor input = *cur;
+    if (!aws_byte_buf_write_from_whole_cursor(&arraybuffer_buf, input)) {
+        return napi_generic_failure;
+    }
+
+    NAPI_CHECK_CALL(napi_create_dataview(env, cur->len, arraybuffer, 0, result));
+
+    return napi_ok;
+}
+
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
 
     napi_valuetype type = napi_undefined;

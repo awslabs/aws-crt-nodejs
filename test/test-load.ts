@@ -28,7 +28,9 @@ async function main() {
         /* Subscribe, publish on suback, and resolve on message received */
         await new Promise(resolve => {
             conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
-                console.log("Got message, topic:", topic, "payload:", payload);
+                let decoder = new TextDecoder('utf-8');
+                let payload_text = decoder.decode(payload);
+                console.log("Got message, topic:", topic, "payload:", payload_text);
                 resolve();
             }).then(sub_req => {
                 console.log("subscribed");
@@ -46,7 +48,7 @@ async function main() {
     }
 }
 
-//main()
+main()
 
 const to_hash = 'ABC';
 let md5 = new Md5Hash();

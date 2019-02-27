@@ -691,7 +691,7 @@ void s_subscribe_on_message(
         napi_value params[2];
         if (napi_get_global(env, &recv) ||
             napi_create_string_utf8(env, (const char *)topic->ptr, topic->len, &params[0]) ||
-            napi_create_string_utf8(env, (const char *)payload->ptr, payload->len, &params[1])) {
+            aws_napi_create_dataview_from_byte_cursor(env, payload, &params[1])) {
             goto cleanup;
         }
 
@@ -765,7 +765,7 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
         goto cleanup;
     }
 
-    if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
+    if (aws_napi_is_null_or_undefined(env, node_args[3])) {
         napi_throw_type_error(env, NULL, "on_message callback is required");
         goto cleanup;
     }
