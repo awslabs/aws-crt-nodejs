@@ -219,9 +219,12 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(hash_sha256_new)
     CREATE_AND_REGISTER_FN(hash_update)
     CREATE_AND_REGISTER_FN(hash_digest)
+    CREATE_AND_REGISTER_FN(hash_md5_compute)
+    CREATE_AND_REGISTER_FN(hash_sha256_compute)
     CREATE_AND_REGISTER_FN(hmac_sha256_new)
     CREATE_AND_REGISTER_FN(hmac_update)
     CREATE_AND_REGISTER_FN(hmac_digest)
+    CREATE_AND_REGISTER_FN(hmac_sha256_compute)
 
 #undef CREATE_AND_REGISTER_FN
 
