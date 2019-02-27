@@ -1,0 +1,18 @@
+version: 0.2
+#this buildspec assumes the ubuntu aws/codebuild/nodejs:10.14.1 image
+phases:
+  install:
+    commands:
+      - sudo apt-get update -y
+      - sudo apt-get install clang-3.9 cmake3 ninja-build -y
+  pre_build:
+    commands:
+      - export CC=clang-3.9
+  build:
+    commands:
+      - echo Build started on `date`
+      - $CODEBUILD_SRC_DIR/codebuild/common-linux.sh -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+  post_build:
+    commands:
+      - echo Build completed on `date`
+
