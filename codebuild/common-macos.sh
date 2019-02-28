@@ -27,4 +27,4 @@ install_from_brew cmake
 
 git submodule update --init
 
-CFLAGS="-Werror" npm run build
+CFLAGS="-Werror" npm install

@@ -8,4 +8,4 @@ cd $CODEBUILD_SRC_DIR
 
 git submodule update --init
 
-CFLAGS="-Werror" npm run build
+CFLAGS="-Werror" npm install

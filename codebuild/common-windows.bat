@@ -9,7 +9,7 @@ cd %CODEBUILD_SRC_DIR%
 
 git submodule update --init
 
-npm run build || goto error
+npm install || goto error
 
 popd
 @endlocal
