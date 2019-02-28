@@ -6,7 +6,10 @@
 pushd %~dp0\..
 
 cd %CODEBUILD_SRC_DIR%
-npm install || goto error
+
+git submodule update --init
+
+npm run build || goto error
 
 popd
 @endlocal

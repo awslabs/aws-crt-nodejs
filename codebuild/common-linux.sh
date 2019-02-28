@@ -3,6 +3,9 @@
 set -e
 set -x
 
-# build java package
+# build nodejs package
 cd $CODEBUILD_SRC_DIR
-CFLAGS="-Werror" npm install
+
+git submodule update --init
+
+CFLAGS="-Werror" npm run build
