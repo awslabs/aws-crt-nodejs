@@ -1,4 +1,7 @@
 {
+    "variables": {
+        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : require('path').join('<!(pwd)', 'deps_build', 'install')\")'"
+    },
     "targets": [
         {
             "target_name": "aws-crt-nodejs",
@@ -9,10 +12,10 @@
                 "AWS_USE_LIBUV"
             ],
             "include_dirs": [
-                "<!(node -p \"process.env.AWS_C_INSTALL ? require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'include') : ''\")",
+                "<!(node -p \"require('path').join(<(deps_install_dir),'include')\")",
             ],
             "library_dirs": [
-                "<!(node -p \"process.env.AWS_C_INSTALL ? require('path').join(process.env.AWS_C_INSTALL.replace(/\\\"+/g,''),'lib') : ''\")",
+                "<!(node -p \"require('path').join(<(deps_install_dir),'lib')\")",
             ],
             "libraries": [
                 "-laws-c-mqtt",
