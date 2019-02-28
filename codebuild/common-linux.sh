@@ -10,5 +10,5 @@ git submodule update --init
 
 CFLAGS="-Werror" npm install
 
-node --trace-warnings -p "require('./build/Release/aws-crt-nodejs')"
+node -p "require('./build/Release/aws-crt-nodejs')"
 
