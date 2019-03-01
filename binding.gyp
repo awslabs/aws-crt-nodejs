@@ -53,6 +53,11 @@
                         "-lgcc",
                     ],
                 }],
+                ["OS=='mac'", {
+                    "libraries": [
+                        "-l/System/Library/Frameworks/Security.framework",
+                    ],
+                }],
             ],
         },
     ]
