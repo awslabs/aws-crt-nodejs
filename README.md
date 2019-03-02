@@ -1,8 +1,8 @@
-## AWS Crt Node.js
+## AWS CRT Node.js
 
-NodeJS bindings for the AWS Common Runtime.
+Node.js bindings for the AWS Common Runtime.
 
-> Note that this module currently only supports Linux and macOS. Windows support is coming soon.
+> Note that this module currently only supports Linux and macOS.
 
 ## License
 
