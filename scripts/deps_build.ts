@@ -37,10 +37,10 @@ const is_windows = process.platform == 'win32';
 
 const cross_compile_string = (is_32bit && !is_windows) ? '-DCMAKE_C_FLAGS=-m32' : '';
 
-async function get_generator_string(): Promise<string> {
+async function get_generator_string(): Promise<string | null> {
     return new Promise(async (resolve) => {
         if (!is_windows) {
-            resolve('-GNinja');
+            resolve(null);
         } else {
             const prog_x86_path = process.env['PROGRAMFILES(x86)'] as string;
 
