@@ -23,6 +23,7 @@ function install_from_brew {
     popd
 }
 
+install_from_brew sphinx-doc
 install_from_brew cmake
 
 git submodule update --init
