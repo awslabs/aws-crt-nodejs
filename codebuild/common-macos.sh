@@ -27,4 +27,6 @@ install_from_brew cmake
 
 git submodule update --init
 
-CFLAGS="-Werror" npm install
+CFLAGS="-Werror" npm ci
+
+node -p "require('./build/Release/aws-crt-nodejs')"
