@@ -128,7 +128,7 @@ if (fs.existsSync(path.join(dep_install_path, 'lib64'))) {
     lib_dir = 'lib64';
 }
 
-async function build_dependency(lib_name: string) {
+async function build_dependency(lib_name: string, ...cmake_args: string[]) {
     const lib_source_dir = path.join(current_dir, lib_name);
     // Skip library if it wasn't pulled
     if (!fs.existsSync(path.join(lib_source_dir, 'CMakeLists.txt'))) {
@@ -143,7 +143,7 @@ async function build_dependency(lib_name: string) {
     }
     process.chdir(lib_build_dir)
 
-    const cmake_args = [
+    const all_cmake_args = [
         'cmake',
         await get_generator_string(),
         cross_compile_string,
@@ -152,11 +152,12 @@ async function build_dependency(lib_name: string) {
         '-DBUILD_SHARED_LIBS=OFF',
         '-DCMAKE_INSTALL_LIBDIR=' + lib_dir,
         '-DCMAKE_BUILD_TYPE=Release',
+        cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
     const build_cmd = ['cmake', '--build', './', '--config', 'release', '--target', 'install'].join(' ');
 
-    await run_and_check(cmake_args);
+    await run_and_check(all_cmake_args);
     await run_and_check(build_cmd);
 
     process.chdir(build_dir);
@@ -167,7 +168,7 @@ async function build_dependency(lib_name: string) {
         await build_dependency('s2n');
     }
     await build_dependency('aws-c-common');
-    await build_dependency('aws-c-io');
+    await build_dependency('aws-c-io', '-DUSE_LIBUV=ON');
     await build_dependency('aws-c-mqtt');
     await build_dependency('aws-c-cal');
 })();
