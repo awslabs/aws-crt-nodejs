@@ -16,7 +16,9 @@ phases:
   build:
     commands:
       - echo Build started on `date`
-      - $CODEBUILD_SRC_DIR/codebuild/common-linux.sh -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - ulimit -c unlimited
+      - sysctl kernel.core_pattern
+      - $CODEBUILD_SRC_DIR/codebuild/common-linux.sh
       - $CODEBUILD_SRC_DIR/format-check.sh
   post_build:
     commands:

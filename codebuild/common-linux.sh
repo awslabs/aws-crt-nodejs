@@ -10,4 +10,5 @@ git submodule update --init
 
 CFLAGS="-Werror" npm ci
 
-node -p "require('./build/Release/aws-crt-nodejs')"
+node --diagnostic-report-on-fatal-error -p "require('./build/Release/aws-crt-nodejs')"
+
