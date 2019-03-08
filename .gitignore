@@ -148,3 +148,6 @@ typings/
 # Build artifacts
 dist/
 build/
+
+# npm artifacts
+package-lock.json
