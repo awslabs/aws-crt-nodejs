@@ -147,3 +147,4 @@ typings/
 
 # Build artifacts
 dist/
+build/
