@@ -164,11 +164,16 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
 }
 
 (async () => {
-    if (process.platform != 'darwin' && !is_windows) {
-        await build_dependency('s2n');
+    try {
+        if (process.platform != 'darwin' && !is_windows) {
+            await build_dependency('s2n');
+        }
+        await build_dependency('aws-c-common');
+        await build_dependency('aws-c-io', '-DUSE_LIBUV=ON');
+        await build_dependency('aws-c-mqtt');
+        await build_dependency('aws-c-cal');
+    } catch (e) {
+        console.error(e);
+        process.exit(-1);
     }
-    await build_dependency('aws-c-common');
-    await build_dependency('aws-c-io', '-DUSE_LIBUV=ON');
-    await build_dependency('aws-c-mqtt');
-    await build_dependency('aws-c-cal');
 })();
