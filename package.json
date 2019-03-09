@@ -11,8 +11,8 @@
   "gypfile": true,
   "scripts": {
     "install": "tsc && node dist/scripts/deps_build.js && node-gyp rebuild",
-    "rebuild": "node-gyp rebuild --debug",
-    "test": "LD_PRELOAD=/usr/local/lib/clang/7.0.0/lib/linux/libclang_rt.asan-x86_64.so LSAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 node --expose_gc test/test-load.js"
+    "rebuild": "node-gyp rebuild",
+    "test": "LSAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 node --expose_gc dist/test/test-load.js"
   },
   "devDependencies": {
     "node-gyp": "^3.8.0",
