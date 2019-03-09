@@ -35,6 +35,9 @@ const is_32bit = process.arch == 'x32' || process.arch == 'arm';
 const is_arm = process.arch == 'arm' || process.arch == 'arm64';
 const is_windows = process.platform == 'win32';
 
+/* Capture the include path of Node dependencies */
+const include_path = path.resolve(process.argv[0], '..', '..', 'include', 'node');
+
 const cross_compile_string = (is_32bit && !is_windows) ? '-DCMAKE_C_FLAGS=-m32' : '';
 
 async function get_generator_string(): Promise<string | null> {
@@ -152,6 +155,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         '-DBUILD_SHARED_LIBS=OFF',
         '-DCMAKE_INSTALL_LIBDIR=' + lib_dir,
         '-DCMAKE_BUILD_TYPE=Release',
+        '-DCMAKE_C_FLAGS=-I' + include_path,
         cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
