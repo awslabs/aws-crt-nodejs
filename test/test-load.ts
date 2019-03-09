@@ -36,6 +36,8 @@ async function main() {
                 console.log("subscribed");
                 conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
             });
+        }).catch((reason) => {
+            console.log('MQTT exception: ', reason);
         });
 
         await conn.unsubscribe(test_topic);
@@ -48,7 +50,9 @@ async function main() {
     }
 }
 
-main()
+main().catch((reason) => {
+    console.log("Exception in main(): ", reason);
+})
 
 const to_hash = 'ABC';
 let md5 = new Md5Hash();
