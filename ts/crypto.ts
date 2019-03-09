@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-const crt_native = require('../../build/Debug/aws-crt-nodejs');
+const crt_native = require('../aws-crt-nodejs');
 
 /**
  * The types that are acceptable to pass for hashing.

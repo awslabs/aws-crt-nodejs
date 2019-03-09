@@ -60,5 +60,18 @@
                 }],
             ],
         },
+        {
+            "target_name": "copy-binary",
+            "type": "none",
+            "dependencies": [ "aws-crt-nodejs" ],
+            "copies": [
+                {
+                    "files": [
+                        "<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)aws-crt-nodejs.node"
+                    ],
+                    "destination": "dist"
+                }
+            ]
+        },
     ]
 }
