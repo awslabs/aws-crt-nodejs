@@ -36,7 +36,8 @@ const is_arm = process.arch == 'arm' || process.arch == 'arm64';
 const is_windows = process.platform == 'win32';
 
 /* Capture the include path of Node dependencies */
-const include_path = path.resolve(process.argv[0], '..', '..', 'include', 'node');
+const node_install_path = path.resolve(process.argv[0], '..', '..');
+const node_include_path = path.resolve(node_install_path, 'include', 'node');
 
 const cross_compile_string = (is_32bit && !is_windows) ? '-DCMAKE_C_FLAGS=-m32' : '';
 
@@ -150,12 +151,12 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         'cmake',
         await get_generator_string(),
         cross_compile_string,
-        '-DCMAKE_PREFIX_PATH=' + dep_install_path,
+        '-DCMAKE_PREFIX_PATH=' + [dep_install_path, node_install_path].join(';'),
         '-DCMAKE_INSTALL_PREFIX=' + dep_install_path,
         '-DBUILD_SHARED_LIBS=OFF',
         '-DCMAKE_INSTALL_LIBDIR=' + lib_dir,
         '-DCMAKE_BUILD_TYPE=Release',
-        '-DCMAKE_C_FLAGS=-I' + include_path,
+        '-DCMAKE_C_FLAGS=-I' + node_include_path,
         cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
