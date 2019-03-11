@@ -4,7 +4,7 @@ phases:
   install:
     commands:
       - sudo apt-get update -y
-      - sudo apt-get install clang-3.9 cmake3 libssl-dev libuv-dev -y
+      - sudo apt-get install clang-3.9 cmake3 libuv-dev -y
   pre_build:
     commands:
       - export CC=clang-3.9

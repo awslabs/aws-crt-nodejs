@@ -151,7 +151,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         'cmake',
         await get_generator_string(),
         cross_compile_string,
-        '"-DCMAKE_PREFIX_PATH=' + [dep_install_path, node_install_path].join(';') + '"',
+        '-DCMAKE_PREFIX_PATH=' + dep_install_path,
         '-DCMAKE_INSTALL_PREFIX=' + dep_install_path,
         '-DBUILD_SHARED_LIBS=OFF',
         '-DBUILD_TESTING=OFF',

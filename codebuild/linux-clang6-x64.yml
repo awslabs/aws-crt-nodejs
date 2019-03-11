@@ -7,7 +7,7 @@ phases:
       - sudo add-apt-repository ppa:ubuntu-toolchain-r/test
       - sudo apt-add-repository "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main"
       - sudo apt-get update -y
-      - sudo apt-get install clang-6.0 cmake3 cppcheck clang-format-6.0 libssl-dev libuv-dev -y -f
+      - sudo apt-get install clang-6.0 cmake3 cppcheck clang-format-6.0 libuv-dev -y -f
 
   pre_build:
     commands:
