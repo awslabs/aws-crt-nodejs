@@ -5,7 +5,7 @@ phases:
     commands:
       - sudo add-apt-repository ppa:ubuntu-toolchain-r/test
       - sudo apt-get update -y
-      - sudo apt-get install gcc-5 cmake3 libuv-dev -y
+      - sudo apt-get install gcc-5 cmake3 libssl-dev libuv-dev -y
   pre_build:
     commands:
       - export CC=gcc-5
