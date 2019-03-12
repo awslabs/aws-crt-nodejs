@@ -8,7 +8,7 @@ cd $CODEBUILD_SRC_DIR
 
 git submodule update --init
 
-CFLAGS="-Werror" npm ci
+CFLAGS="-Werror" npm install
 
 node --trace-warnings -p "try { require('./build/Release/aws-crt-nodejs') } catch (e) { console.log('ERROR: ', e); }"
 

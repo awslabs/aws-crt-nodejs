@@ -9,7 +9,7 @@ cd %CODEBUILD_SRC_DIR%
 
 git submodule update --init || goto error
 
-npm ci || goto error
+npm install || goto error
 
 node -p "require('./build/Release/aws-crt-nodejs')" || goto error
 
