@@ -2,8 +2,6 @@
 # Created by https://www.gitignore.io/api/c++,node,visualstudiocode
 # Edit at https://www.gitignore.io/?templates=c++,node,visualstudiocode
 
-deps_build/
-
 ### C++ ###
 # Prerequisites
 *.d
@@ -148,6 +146,4 @@ typings/
 # Build artifacts
 dist/
 build/
-
-# npm artifacts
-package-lock.json
+deps_build/

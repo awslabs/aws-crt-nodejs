@@ -17,6 +17,12 @@ import child_process from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Runs a shell command and checks for success.
+ * If the command returned 0, the promise is resolved with stdout.
+ * If the command returned non-0, stderr is logged and passed to the promise's exception handler.
+ * @param command Shell command to run
+ */
 async function run_and_check(command: string) {
     return new Promise<string>((resolve, reject) => {
         child_process.exec(command, (error, stdout, stderr) => {
@@ -41,6 +47,9 @@ const node_include_path = path.resolve(node_install_path, 'include', 'node');
 
 const cross_compile_string = (is_32bit && !is_windows) ? '-DCMAKE_C_FLAGS=-m32' : '';
 
+/**
+ * Detects installed Visual Studio version for CMake's -G flags
+ */
 async function get_generator_string(): Promise<string | null> {
     return new Promise(async (resolve) => {
         if (!is_windows) {
@@ -117,14 +126,18 @@ async function get_generator_string(): Promise<string | null> {
     });
 }
 
+/** The root package directory (assumes running from dist/scripts) */
 const current_dir = path.resolve(__dirname, '..', '..');
+/** The directory dependencies will be built into */
 const build_dir = path.join(current_dir, 'deps_build');
 
+// Create the build directory if it doesn't exist, and cd into it
 if (!fs.existsSync(build_dir)) {
     fs.mkdirSync(build_dir);
 }
 process.chdir(build_dir);
 
+// If user provides AWS_C_INSTALL environment variable, use that instead of dependeny build path
 const dep_install_path = process.env.AWS_C_INSTALL || path.join(build_dir, 'install');
 
 let lib_dir = 'lib';
@@ -132,6 +145,11 @@ if (fs.existsSync(path.join(dep_install_path, 'lib64'))) {
     lib_dir = 'lib64';
 }
 
+/**
+ * Uses CMake to configure and build a dependency from its submodule.
+ * @param lib_name The name of the dependency to build
+ * @param cmake_args Extra CMake args to pass to the configure step
+ */
 async function build_dependency(lib_name: string, ...cmake_args: string[]) {
     const lib_source_dir = path.join(current_dir, lib_name);
     // Skip library if it wasn't pulled

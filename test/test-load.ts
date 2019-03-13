@@ -37,7 +37,7 @@ async function main() {
                 conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
             });
         }).catch((reason) => {
-            console.log('MQTT exception: ', reason);
+            console.error('MQTT exception: ', reason);
         });
 
         await conn.unsubscribe(test_topic);
@@ -51,7 +51,7 @@ async function main() {
 }
 
 main().catch((reason) => {
-    console.log("Exception in main(): ", reason);
+    console.error("Exception in main(): ", reason);
 })
 
 const to_hash = 'ABC';
