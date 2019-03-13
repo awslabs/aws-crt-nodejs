@@ -695,8 +695,7 @@ void s_subscribe_on_message(
             goto cleanup;
         }
 
-        if (napi_make_callback(
-                env, metadata->on_message_ctx, recv, on_message, AWS_ARRAY_SIZE(params), params, NULL)) {
+        if (napi_make_callback(env, metadata->on_message_ctx, recv, on_message, AWS_ARRAY_SIZE(params), params, NULL)) {
             /* #TODO: Log failed callback attempt here. */
         }
     }

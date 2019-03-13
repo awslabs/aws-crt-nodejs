@@ -88,14 +88,16 @@ napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
 
-    struct aws_nodejs_client_bootstrap *node_bootstrap = aws_mem_acquire(allocator, sizeof(struct aws_nodejs_client_bootstrap));
+    struct aws_nodejs_client_bootstrap *node_bootstrap =
+        aws_mem_acquire(allocator, sizeof(struct aws_nodejs_client_bootstrap));
     AWS_ZERO_STRUCT(*node_bootstrap);
 
     if (aws_host_resolver_init_uv(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_uv_loop())) {
         goto clean_up;
     }
 
-    node_bootstrap->bootstrap = aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &node_bootstrap->resolver, NULL);
+    node_bootstrap->bootstrap =
+        aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &node_bootstrap->resolver, NULL);
     if (!node_bootstrap->bootstrap) {
         napi_throw_error(env, NULL, "Failed init client_bootstrap");
         goto clean_up;
@@ -159,7 +161,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     if (!aws_napi_is_null_or_undefined(env, node_args[0])) {
         napi_value node_tls_ver;
         if (napi_ok != napi_coerce_to_number(env, node_args[0], &node_tls_ver)) {
-            napi_throw_type_error(env, NULL, "First argument (num_threads) must be a Number (or convertable to a Number)");
+            napi_throw_type_error(
+                env, NULL, "First argument (num_threads) must be a Number (or convertable to a Number)");
             return result;
         }
         status = napi_get_value_uint32(env, node_tls_ver, &ctx_options.minimum_tls_version);
@@ -190,7 +193,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(alpn_list);
     if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&alpn_list, env, node_args[3])) {
-            napi_throw_type_error(env, NULL, "Fourth argument (alpn_list) must be a String (or convertable to a String)");
+            napi_throw_type_error(
+                env, NULL, "Fourth argument (alpn_list) must be a String (or convertable to a String)");
             goto cleanup;
         }
         aws_tls_ctx_options_set_alpn_list(&ctx_options, (const char *)alpn_list.buffer);
@@ -200,7 +204,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(certificate_path);
     if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&certificate_path, env, node_args[4])) {
-            napi_throw_type_error(env, NULL, "Fifth argument (cert_path) must be a String (or convertable to a String)");
+            napi_throw_type_error(
+                env, NULL, "Fifth argument (cert_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
         ctx_options.certificate_path = (const char *)certificate_path.buffer;
@@ -210,7 +215,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(private_key_path);
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&private_key_path, env, node_args[5])) {
-            napi_throw_type_error(env, NULL, "Sixth argument (private_key_path) must be a String (or convertable to a String)");
+            napi_throw_type_error(
+                env, NULL, "Sixth argument (private_key_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
         ctx_options.private_key_path = (const char *)private_key_path.buffer;
@@ -220,7 +226,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(pkcs12_path);
     if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_path, env, node_args[6])) {
-            napi_throw_type_error(env, NULL, "Seventh argument (pkcs12_path) must be a String (or convertable to a String)");
+            napi_throw_type_error(
+                env, NULL, "Seventh argument (pkcs12_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
         ctx_options.pkcs12_path = (const char *)pkcs12_path.buffer;
@@ -230,7 +237,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(pkcs12_password);
     if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_password, env, node_args[7])) {
-            napi_throw_type_error(env, NULL, "Eighth argument (pcks12_password) must be a String (or convertable to a String)");
+            napi_throw_type_error(
+                env, NULL, "Eighth argument (pcks12_password) must be a String (or convertable to a String)");
             goto cleanup;
         }
         ctx_options.pkcs12_password = (const char *)pkcs12_password.buffer;

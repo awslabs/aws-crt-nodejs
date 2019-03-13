@@ -29,12 +29,12 @@ static struct aws_event_loop *s_node_uv_event_loop = NULL;
 static struct aws_event_loop_group s_node_uv_elg;
 
 /* Helper to call an napi function and handle the result. Assumes no cleanup step to perform. */
-#define NAPI_CHECK_CALL(expr)       \
-    do {    \
-        napi_status _status = (expr);    \
-        if (_status != napi_ok) {\
-            return _status; \
-        }\
+#define NAPI_CHECK_CALL(expr)                                                                                          \
+    do {                                                                                                               \
+        napi_status _status = (expr);                                                                                  \
+        if (_status != napi_ok) {                                                                                      \
+            return _status;                                                                                            \
+        }                                                                                                              \
     } while (false)
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
@@ -185,7 +185,13 @@ static struct aws_event_loop *s_new_uv_event_loop(struct aws_allocator *alloc, a
 }
 
 /** Helper for creating and registering a function */
-static bool s_create_and_register_function(napi_env env, napi_value exports, napi_callback fn, const char *fn_name, size_t fn_name_len) {
+static bool s_create_and_register_function(
+    napi_env env,
+    napi_value exports,
+    napi_callback fn,
+    const char *fn_name,
+    size_t fn_name_len) {
+
     napi_value napi_fn;
     napi_status status = napi_create_function(env, fn_name, fn_name_len, fn, NULL, &napi_fn);
     if (status != napi_ok) {
@@ -211,12 +217,16 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     aws_tls_init_static_state(aws_default_allocator());
 
     /* Initalize the event loop group */
-    aws_event_loop_group_init(&s_node_uv_elg, aws_default_allocator(), aws_high_res_clock_get_ticks, 1, s_new_uv_event_loop, env);
+    aws_event_loop_group_init(
+        &s_node_uv_elg, aws_default_allocator(), aws_high_res_clock_get_ticks, 1, s_new_uv_event_loop, env);
 
     napi_value null;
     napi_get_null(env, &null);
 
-#define CREATE_AND_REGISTER_FN(fn) if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) { return null; }
+#define CREATE_AND_REGISTER_FN(fn)                                                                                     \
+    if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) {                                         \
+        return null;                                                                                                   \
+    }
 
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
