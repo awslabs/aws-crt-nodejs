@@ -13,9 +13,10 @@
  * permissions and limitations under the License.
  */
 
-const crt_native = require('../../build/Debug/aws-crt-nodejs');
+const crt_native = require('../aws-crt-nodejs');
 
 import * as io from "./io";
+import { TextEncoder } from 'util';
 
 export enum QoS {
     AtMostOnce = 0,

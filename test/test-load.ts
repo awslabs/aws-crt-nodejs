@@ -2,7 +2,7 @@ import * as io from '../ts/io';
 import * as mqtt from '../ts/mqtt';
 import { Md5Hash, hash_md5 } from '../ts/crypto';
 
-console.log(io.is_alpn_available());
+console.log('ALPN is available: ', io.is_alpn_available());
 
 const test_topic = "test";
 
@@ -36,6 +36,8 @@ async function main() {
                 console.log("subscribed");
                 conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
             });
+        }).catch((reason) => {
+            console.error('MQTT exception: ', reason);
         });
 
         await conn.unsubscribe(test_topic);
@@ -48,7 +50,9 @@ async function main() {
     }
 }
 
-main()
+main().catch((reason) => {
+    console.error("Exception in main(): ", reason);
+})
 
 const to_hash = 'ABC';
 let md5 = new Md5Hash();

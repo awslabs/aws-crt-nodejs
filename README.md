@@ -16,7 +16,7 @@ Requirements:
 * Clang 3.9+ or GCC 4.4+
 * libssl-dev (on Linux/Unix POSIX platforms)
 * cmake 3.1+
-* Node.js
+* Node.js 10.x or newer
 
 #### Linux/Unix
 ```bash
