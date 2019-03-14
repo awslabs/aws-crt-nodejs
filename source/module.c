@@ -17,12 +17,11 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
-#include <uv.h>
-
 #include <aws/common/clock.h>
 
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
+#include <aws/io/uv/uv_include.h>
 
 static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
@@ -118,6 +117,18 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
     }
 
     return napi_ok;
+}
+
+struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str) {
+
+    struct aws_byte_buf temp_buf;
+    if (aws_byte_buf_init_from_napi(&temp_buf, env, node_str)) {
+        return NULL;
+    }
+
+    struct aws_string *string = aws_string_new_from_array(aws_default_allocator(), temp_buf.buffer, temp_buf.len);
+    aws_byte_buf_clean_up(&temp_buf);
+    return string;
 }
 
 napi_status aws_napi_create_dataview_from_byte_cursor(

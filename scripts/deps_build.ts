@@ -27,6 +27,7 @@ async function run_and_check(command: string) {
     return new Promise<string>((resolve, reject) => {
         child_process.exec(command, (error, stdout, stderr) => {
             if (error) {
+                console.error(stdout);
                 console.error(stderr);
                 reject(error);
             }
@@ -43,7 +44,7 @@ const is_windows = process.platform == 'win32';
 
 /* Capture the include path of Node dependencies */
 const node_install_path = path.resolve(process.argv[0], '..', '..');
-const node_include_path = path.resolve(node_install_path, 'include', 'node');
+const uv_include_path = path.resolve(node_install_path, 'include', 'node', 'uv.h');
 
 const cross_compile_string = (is_32bit && !is_windows) ? '-DCMAKE_C_FLAGS=-m32' : '';
 
@@ -175,7 +176,6 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         '-DBUILD_TESTING=OFF',
         '-DCMAKE_INSTALL_LIBDIR=' + lib_dir,
         '-DCMAKE_BUILD_TYPE=Release',
-        '-DCMAKE_C_FLAGS=-I' + node_include_path,
         cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
@@ -193,7 +193,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
             await build_dependency('s2n');
         }
         await build_dependency('aws-c-common');
-        await build_dependency('aws-c-io', '-DUSE_LIBUV=ON', '-DUV_LINK_LIBRARY=OFF');
+        await build_dependency('aws-c-io', '-DUSE_LIBUV=ON', '-DUV_LINK_LIBRARY=OFF', '-DUV_HEADER_PATH=' + uv_include_path);
         await build_dependency('aws-c-mqtt');
         await build_dependency('aws-c-cal');
     } catch (e) {

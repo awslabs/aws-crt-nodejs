@@ -16,10 +16,12 @@
  */
 
 #include <aws/common/byte_buf.h>
+#include <aws/common/string.h>
 
 #include <node_api.h>
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
+struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
 /** Copies data from cur into a new ArrayBuffer, then returns a DataView to the buffer. */
 napi_status aws_napi_create_dataview_from_byte_cursor(
     napi_env env,
