@@ -193,9 +193,8 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
             await build_dependency('s2n');
         }
         await build_dependency('aws-c-common');
-        await build_dependency('aws-c-io', '-DUSE_LIBUV=ON', '-DUV_LINK_LIBRARY=OFF', '-DUV_HEADER_PATH=' + uv_include_path);
-        await build_dependency('aws-c-mqtt');
-        process.env.CFLAGS = '-pthread';
+        // await build_dependency('aws-c-io', '-DUSE_LIBUV=ON', '-DUV_LINK_LIBRARY=OFF', '-DUV_HEADER_PATH=' + uv_include_path);
+        // await build_dependency('aws-c-mqtt');
         await build_dependency('aws-c-cal');
     } catch (e) {
         console.error(e);
