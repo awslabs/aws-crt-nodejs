@@ -8,7 +8,7 @@
     "Colden Cullen <colden@amazon.com>"
   ],
   "license": "Apache-2.0",
-  "main": "./dist/ts/index.js",
+  "main": "./dist/lib/index.js",
   "gypfile": true,
   "binary": {
     "module_name": "aws-crt-nodejs",
