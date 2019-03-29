@@ -59,7 +59,7 @@
     },
     "include": [
         "scripts/**/*.ts",
-        "ts/**/*.ts",
+        "lib/**/*.ts",
         "test/**/*.ts"
     ],
     "exclude": [

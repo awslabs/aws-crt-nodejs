@@ -1,6 +1,6 @@
-import * as io from '../ts/io';
-import * as mqtt from '../ts/mqtt';
-import { Md5Hash, hash_md5 } from '../ts/crypto';
+import * as io from '../lib/io';
+import * as mqtt from '../lib/mqtt';
+import { Md5Hash, hash_md5 } from '../lib/crypto';
 
 console.log('ALPN is available: ', io.is_alpn_available());
 

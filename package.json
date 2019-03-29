@@ -8,15 +8,30 @@
     "Colden Cullen <colden@amazon.com>"
   ],
   "license": "Apache-2.0",
+  "main": "./dist/lib/index.js",
   "gypfile": true,
+  "binary": {
+    "module_name": "aws-crt-nodejs",
+    "module_path": "./dist/napi-v{napi_build_version}-{configuration}",
+    "host": "https://aws-crt-nodejs-release.s3-us-east-1.amazonaws.com/",
+    "remote_path": "{name}/v{version}/{configuration}",
+    "package_name": "{platform}-{arch}-napi-v{napi_build_version}.tar.gz",
+    "napi_versions": [
+      3
+    ]
+  },
   "scripts": {
-    "install": "tsc && node dist/scripts/deps_build.js && node-gyp rebuild",
-    "rebuild": "node-gyp rebuild",
-    "test": "LSAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 node --expose_gc dist/test/test-load.js"
+    "build": "tsc && node-pre-gyp rebuild",
+    "test": "node --expose_gc dist/test/test-load.js",
+    "install": "tsc && node-pre-gyp install --fallback-to-build"
   },
   "devDependencies": {
+    "@types/node": "^10.12.18",
+    "aws-sdk": "^2.419.0",
     "node-gyp": "^3.8.0",
-    "typescript": "^3.2.2",
-    "@types/node": "^10.12.18"
+    "typescript": "^3.2.2"
+  },
+  "dependencies": {
+    "node-pre-gyp": "^0.12.0"
   }
 }

@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-const crt_native = require('../aws-crt-nodejs');
+import crt_native = require('./binding');
 
 /**
  * The types that are acceptable to pass for hashing.

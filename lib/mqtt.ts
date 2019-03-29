@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-const crt_native = require('../aws-crt-nodejs');
+import crt_native = require('./binding');
 
 import * as io from "./io";
 import { TextEncoder } from 'util';

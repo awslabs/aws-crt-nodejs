@@ -4,12 +4,31 @@
     },
     "targets": [
         {
-            "target_name": "aws-crt-nodejs",
+            "target_name": "run-deps-build",
+            "type": "none",
+            "actions": [
+                {
+                    "action_name": "deps-build",
+                    "inputs": [
+                        "<!@(node -p \"require('fs').readdirSync('./aws-c-common/').map(f=>'aws-c-common/'+f).join(' ')\")"
+                    ],
+                    "outputs": [
+                        "../deps_build/install/include/aws/common/common.h"
+                    ],
+                    "action": ["node", "./dist/scripts/deps_build.js"],
+                    "message": "building dependencies"
+                }
+            ],
+        },
+        {
+            "target_name": "<(module_name)",
+            "dependencies": ["run-deps-build"],
             "sources": [
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],
             "defines": [
-                "AWS_USE_LIBUV"
+                "AWS_USE_LIBUV",
+                "NAPI_VERSION=<(napi_build_version)",
             ],
             "include_dirs": [
                 "<!(node -p \"require('path').join(<(deps_install_dir),'include')\")",
@@ -63,13 +82,13 @@
         {
             "target_name": "copy-binary",
             "type": "none",
-            "dependencies": [ "aws-crt-nodejs" ],
+            "dependencies": [ "<(module_name)" ],
             "copies": [
                 {
                     "files": [
-                        "<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)aws-crt-nodejs.node"
+                        "<(PRODUCT_DIR)/<(module_name).node"
                     ],
-                    "destination": "dist"
+                    "destination": "<(module_path)"
                 }
             ]
         },

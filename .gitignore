@@ -146,4 +146,5 @@ typings/
 # Build artifacts
 dist/
 build/
+build-*/
 deps_build/
