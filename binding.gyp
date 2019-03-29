@@ -4,7 +4,25 @@
     },
     "targets": [
         {
+            "target_name": "deps-build",
+            "type": "none",
+            "actions": [
+                {
+                    "action_name": "deps-build",
+                    "inputs": [
+                        "<!@(node -p \"require('fs').readdirSync('./aws-c-common/').map(f=>'aws-c-common/'+f).join(' ')\")"
+                    ],
+                    "outputs": [
+                        "../deps_build/install/include/aws/common/common.h"
+                    ],
+                    "action": ["node", "./dist/scripts/deps_build.js"],
+                    "message": "building dependencies"
+                }
+            ],
+        },
+        {
             "target_name": "<(module_name)",
+            "dependencies": ["deps-build"],
             "sources": [
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],

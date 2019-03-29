@@ -16,11 +16,12 @@
     "host": "https://aws-crt-nodejs-release.s3-us-east-1.amazonaws.com/",
     "remote_path": "{name}/v{version}/{configuration}",
     "package_name": "{platform}-{arch}-napi-v{napi_build_version}.tar.gz",
-    "napi_versions": [3]
+    "napi_versions": [
+      3
+    ]
   },
   "scripts": {
-    "build": "tsc && node dist/scripts/deps_build.js && node-pre-gyp rebuild",
-    "rebuild": "tsc && node-pre-gyp rebuild",
+    "build": "tsc && node-pre-gyp rebuild",
     "test": "node --expose_gc dist/test/test-load.js",
     "install": "node-pre-gyp install --fallback-to-build"
   },
