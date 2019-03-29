@@ -4,7 +4,7 @@
     },
     "targets": [
         {
-            "target_name": "deps-build",
+            "target_name": "run-deps-build",
             "type": "none",
             "actions": [
                 {
@@ -22,7 +22,7 @@
         },
         {
             "target_name": "<(module_name)",
-            "dependencies": ["deps-build"],
+            "dependencies": ["run-deps-build"],
             "sources": [
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],

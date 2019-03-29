@@ -47,7 +47,7 @@ const is_macos = process.platform == 'darwin';
 const node_install_path = path.resolve(process.argv[0], '..', '..');
 const uv_include_path = path.resolve(node_install_path, 'include', 'node');
 
-function get_cross_compile_flags(): string[] {
+const cross_compile_flags: string = (() => {
     let flags: string[] = [];
 
     if (is_32bit && !is_windows) {
@@ -57,8 +57,8 @@ function get_cross_compile_flags(): string[] {
         flags.push('-DCMAKE_OSX_DEPLOYMENT_TARGET=10.7');
     }
 
-    return flags;
-}
+    return flags.join(' ');
+})();
 
 /**
  * Detects installed Visual Studio version for CMake's -G flags
@@ -181,7 +181,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
     const config_cmd = [
         'cmake',
         await get_generator_string(),
-        get_cross_compile_flags().join(' '),
+        cross_compile_flags,
         '-DCMAKE_PREFIX_PATH=' + dep_install_path,
         '-DCMAKE_INSTALL_PREFIX=' + dep_install_path,
         '-DBUILD_SHARED_LIBS=OFF',

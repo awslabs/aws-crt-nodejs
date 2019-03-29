@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc && node-pre-gyp rebuild",
     "test": "node --expose_gc dist/test/test-load.js",
-    "install": "node-pre-gyp install --fallback-to-build"
+    "install": "tsc && node-pre-gyp install --fallback-to-build"
   },
   "devDependencies": {
     "@types/node": "^10.12.18",
