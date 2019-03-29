@@ -41,12 +41,24 @@ const is_32bit = process.arch == 'x32' || process.arch == 'arm';
 
 const is_arm = process.arch == 'arm' || process.arch == 'arm64';
 const is_windows = process.platform == 'win32';
+const is_macos = process.platform == 'darwin';
 
 /* Capture the include path of Node dependencies */
 const node_install_path = path.resolve(process.argv[0], '..', '..');
-const uv_include_path = path.resolve(node_install_path, 'include', 'node', 'uv.h');
+const uv_include_path = path.resolve(node_install_path, 'include', 'node');
 
-const cross_compile_string = (is_32bit && !is_windows) ? '-DCMAKE_C_FLAGS=-m32' : '';
+function get_cross_compile_flags(): string[] {
+    let flags: string[] = [];
+
+    if (is_32bit && !is_windows) {
+        flags.push('-DCMAKE_C_FLAGS=-m32');
+    }
+    if (is_macos) {
+        flags.push('-DCMAKE_OSX_DEPLOYMENT_TARGET=10.7');
+    }
+
+    return flags;
+}
 
 /**
  * Detects installed Visual Studio version for CMake's -G flags
@@ -169,7 +181,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
     const config_cmd = [
         'cmake',
         await get_generator_string(),
-        cross_compile_string,
+        get_cross_compile_flags().join(' '),
         '-DCMAKE_PREFIX_PATH=' + dep_install_path,
         '-DCMAKE_INSTALL_PREFIX=' + dep_install_path,
         '-DBUILD_SHARED_LIBS=OFF',

@@ -21,7 +21,7 @@
 
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
-#include <aws/io/uv/uv_include.h>
+#include <uv.h>
 
 static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
