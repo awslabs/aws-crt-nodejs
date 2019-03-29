@@ -30,4 +30,4 @@ git submodule update --init
 
 CFLAGS="-Werror" npm install
 
-node -p "require('./build/Release/aws-crt-nodejs')"
+node -p "require('./dist/lib/index')"
