@@ -102,7 +102,7 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
                     break;
 
                 case napi_float64_array:
-#if NAPI_VERSION >= 3
+#if NAPI_VERSION > 3
                 case napi_bigint64_array:
                 case napi_biguint64_array:
 #endif
