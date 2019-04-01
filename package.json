@@ -1,6 +1,6 @@
 {
   "name": "aws-crt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "NodeJS bindings to the aws-c-* libraries",
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
@@ -9,11 +9,21 @@
   ],
   "license": "Apache-2.0",
   "main": "./dist/lib/index.js",
+  "files": [
+    "s2n/",
+    "aws-c-common/",
+    "aws-c-io/",
+    "aws-c-mqtt/",
+    "aws-c-cal",
+    "dist/",
+    "source/",
+    "binding.gyp"
+  ],
   "gypfile": true,
   "binary": {
     "module_name": "aws-crt-nodejs",
     "module_path": "./dist/napi-v{napi_build_version}-{configuration}",
-    "host": "https://aws-crt-nodejs-release.s3-us-east-1.amazonaws.com/",
+    "host": "https://aws-crt-nodejs-release.s3.amazonaws.com/",
     "remote_path": "{name}/v{version}/{configuration}",
     "package_name": "{platform}-{arch}-napi-v{napi_build_version}.tar.gz",
     "napi_versions": [
