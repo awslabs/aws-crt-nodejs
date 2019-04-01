@@ -39,7 +39,6 @@ async function run_and_check(command: string) {
 const is_64bit = process.arch == 'x64' || process.arch == 'arm64';
 const is_32bit = process.arch == 'x32' || process.arch == 'arm';
 
-const is_arm = process.arch == 'arm' || process.arch == 'arm64';
 const is_windows = process.platform == 'win32';
 const is_macos = process.platform == 'darwin';
 
