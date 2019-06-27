@@ -212,12 +212,12 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 #ifdef __APPLE__
     if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.pkcs12, env, node_args[6])) {
-            napi_throw_type_error(
-                env, NULL, "Seventh argument (pkcs12_path) must be a String (or convertable to a String)");
-            goto cleanup;
-        }
-    }
-
+, s_new_uv_event_loop, env
+, s_new_uv_event_loop, envring (or convertable to a String)");
+, s_new_uv_event_loop, env
+, s_new_uv_event_loop, env
+, s_new_uv_event_loop, env
+, s_new_uv_event_loop, env
     if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
         if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.pkcs12_password, env, node_args[7])) {
             napi_throw_type_error(

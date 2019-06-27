@@ -43,8 +43,8 @@ const is_windows = process.platform == 'win32';
 const is_macos = process.platform == 'darwin';
 
 /* Capture the include path of Node dependencies */
-const node_install_path = path.resolve(process.argv[0], '..', '..');
-const uv_include_path = path.resolve(node_install_path, 'include', 'node');
+// const node_install_path = path.resolve(process.argv[0], '..', '..');
+//const uv_include_path = path.resolve(node_install_path, 'include', 'node');
 
 const cross_compile_flags: string = (() => {
     let flags: string[] = [];
@@ -205,6 +205,8 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         }
         await build_dependency('aws-c-common');
         await build_dependency('aws-c-io');
+        await build_dependency('aws-c-compression');
+        await build_dependency('aws-c-http');
         await build_dependency('aws-c-mqtt');
         await build_dependency('aws-c-cal');
     } catch (e) {

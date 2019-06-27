@@ -176,25 +176,6 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
 
-static struct aws_event_loop *s_new_uv_event_loop(struct aws_allocator *alloc, aws_io_clock_fn *clock, void *userdata) {
-
-    napi_env env = userdata;
-
-    if (!s_node_uv_loop) {
-        if (napi_get_uv_event_loop(env, &s_node_uv_loop)) {
-            return NULL;
-        }
-    }
-
-    if (!s_node_uv_event_loop) {
-        s_node_uv_event_loop = aws_event_loop_existing_libuv(alloc, s_node_uv_loop, clock);
-    } else {
-        assert(false); /* Should only be 1 event loop */
-    }
-
-    return s_node_uv_event_loop;
-}
-
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(
     napi_env env,
@@ -228,8 +209,8 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     aws_tls_init_static_state(aws_default_allocator());
 
     /* Initalize the event loop group */
-    aws_event_loop_group_init(
-        &s_node_uv_elg, aws_default_allocator(), aws_high_res_clock_get_ticks, 1, s_new_uv_event_loop, env);
+    aws_event_loop_group_default_init(
+        &s_node_uv_elg, aws_default_allocator(), 1);
 
     napi_value null;
     napi_get_null(env, &null);
