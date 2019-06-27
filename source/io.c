@@ -92,7 +92,7 @@ napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info) {
         aws_mem_acquire(allocator, sizeof(struct aws_nodejs_client_bootstrap));
     AWS_ZERO_STRUCT(*node_bootstrap);
 
-    if (aws_host_resolver_init_uv(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_uv_loop())) {
+    if (aws_host_resolver_init_default(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_elg())) {
         goto clean_up;
     }
 
