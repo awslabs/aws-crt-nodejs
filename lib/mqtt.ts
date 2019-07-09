@@ -17,6 +17,7 @@ import crt_native = require('./binding');
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
+import ResourceSafety = require('./resource_safe')
 
 export enum QoS {
     AtMostOnce = 0,
@@ -66,7 +67,7 @@ export interface MqttSubscribeRequest extends MqttRequest {
 
 type Payload = string | Object | DataView;
 
-export class Connection {
+export class Connection implements ResourceSafety.ResourceSafe {
     public client: Client;
     private connection_handle: any;
     private encoder: TextEncoder;
@@ -75,6 +76,10 @@ export class Connection {
         this.client = client;
         this.connection_handle = crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
         this.encoder = new TextEncoder();
+    }
+
+    close() {
+        crt_native.mqtt_client_connection_close(this.native_handle())
     }
 
     async connect(args: ConnectionConnectParams) {

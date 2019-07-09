@@ -12,8 +12,10 @@
   "files": [
     "s2n/",
     "aws-c-common/",
+    "aws-c-compression/",
     "aws-c-io/",
     "aws-c-mqtt/",
+    "aws-c-http/",
     "aws-c-cal",
     "dist/",
     "source/",
@@ -32,7 +34,7 @@
   },
   "scripts": {
     "build": "tsc && node-pre-gyp rebuild",
-    "test": "node --expose_gc dist/test/test-load.js",
+    "test": "node --expose-gc dist/test/test-load.js",
     "install": "tsc && node-pre-gyp install --fallback-to-build"
   },
   "devDependencies": {

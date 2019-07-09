@@ -38,20 +38,8 @@ enum mqtt_nodejs_cb_type {
     MQTT_NODEJS_CB_ON_PUBLISH,
 };
 
-struct mqtt_nodejs_connection;
-
-struct mqtt_nodejs_callback_context {
-    struct aws_allocator *allocator;
-    struct aws_linked_list_node node;
-    napi_ref callback;
-    struct mqtt_nodejs_connection *connection;
-    int error_code;
-    bool session_present;
-    aws_mqtt_connect_return_code connect_code;
-    mqtt_nodejs_cb_type cb_type;
-}
-
 struct mqtt_nodejs_connection {
+    struct aws_allocator *allocator;
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_options;
     struct mqtt_nodejs_client *node_client;
@@ -65,7 +53,7 @@ struct mqtt_nodejs_connection {
 
     napi_async_context on_connect_ctx;
     napi_ref on_connect;
-    napi_ref on_connection_interrupted;
+    napi_ref on_connection_interupted;
     napi_async_context on_connection_interupted_ctx;
 
     napi_ref on_connection_resumed;
@@ -73,6 +61,17 @@ struct mqtt_nodejs_connection {
     
     napi_ref on_disconnect;
     napi_async_context on_disconnect_ctx;
+};
+
+struct mqtt_nodejs_callback_context {
+    struct aws_allocator *allocator;
+    struct aws_linked_list_node node;
+    napi_ref callback;
+    struct mqtt_nodejs_connection *connection;
+    int error_code;
+    bool session_present;
+    enum aws_mqtt_connect_return_code connect_code;
+    enum mqtt_nodejs_cb_type cb_type;
 };
 
 typedef void(dispatch_mqtt_callback_fn)(struct mqtt_nodejs_callback_context *context);
@@ -110,7 +109,7 @@ static void s_dispatch_on_connect(struct mqtt_nodejs_callback_context *context) 
             }
 
             if (napi_make_callback(
-                    env, node_connection->on_connectctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+                    env, node_connection->on_connect_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
         }
@@ -134,14 +133,14 @@ static void s_dispatch_on_interupt(struct mqtt_nodejs_callback_context *context)
     struct mqtt_nodejs_connection *node_connection = context->connection;
     napi_env env = node_connection->env;
 
-    if (node_connection->on_connection_interrupted) {
+    if (node_connection->on_connection_interupted) {
 
         if (napi_open_handle_scope(env, &handle_scope)) {
             goto cleanup;
         }
 
         napi_value on_connection_interupted = NULL;
-        napi_get_reference_value(env, node_connection->on_connection_interrupted, &on_connection_interupted);
+        napi_get_reference_value(env, node_connection->on_connection_interupted, &on_connection_interupted);
         if (on_connection_interupted) {
             napi_value resource_object = NULL;
             if (napi_create_object(env, &resource_object)) {
@@ -234,9 +233,7 @@ static void s_dispatch_on_disconnect(struct mqtt_nodejs_callback_context *contex
 
     struct mqtt_nodejs_connection *node_connection = context->connection;
     napi_env env = node_connection->env;
-
     if (node_connection->on_disconnect) {
-
         if (napi_open_handle_scope(env, &handle_scope)) {
             goto cleanup;
         }
@@ -254,12 +251,18 @@ static void s_dispatch_on_disconnect(struct mqtt_nodejs_callback_context *contex
             }
 
             napi_value recv;
-            napi_value params[0];
-            
+            if (napi_get_global(env, &recv)) {
+                goto cleanup;
+            }
+
             if (napi_make_callback(
-                    env, node_connection->on_disconnect_ctx, recv, on_disconnect, AWS_ARRAY_SIZE(params), params, NULL)) {
+                    env, node_connection->on_disconnect_ctx, recv, on_disconnect, 0, NULL, NULL)) {
                 /* #TODO: Log failed callback attempt here. */
             }
+        }
+
+        //uv_unref(&node_connection->async_handle);
+    }
 
 cleanup:
     if (cb_scope) {
@@ -272,27 +275,28 @@ cleanup:
     napi_delete_reference(env, node_connection->on_disconnect);
 }
 
-static dispatch_mqtt_callback_fn *s_mqtt_callback_fns[] = { 
+static dispatch_mqtt_callback_fn *s_mqtt_callback_fns[] = {
     [MQTT_NODEJS_CB_ON_CONNECT] = s_dispatch_on_connect,
     [MQTT_NODEJS_CB_ON_INTERUPTED] = s_dispatch_on_interupt,
     [MQTT_NODEJS_CB_ON_RESUMED] = s_dispatch_on_resumed,
     [MQTT_NODEJS_CB_ON_DISCONNECTED] = s_dispatch_on_disconnect,
     [MQTT_NODEJS_CB_ON_OP_COMPLETE] = NULL,
     [MQTT_NODEJS_CB_ON_PUBLISH] = NULL,
-}
+};
 
-static void s_mqtt_uv_async_cb(uv_async_t* handle, int status) {
+static void s_mqtt_uv_async_cb(uv_async_t* handle) {
     struct mqtt_nodejs_connection *nodejs_connection = handle->data;
 
-    aws_mutex_acquire(&nodejs_connection->queued_cb_lock);
     struct aws_linked_list list_cpy;
     aws_linked_list_init(&list_cpy);
+
+    aws_mutex_lock(&nodejs_connection->queued_cb_lock);
     aws_linked_list_swap_contents(&list_cpy, &nodejs_connection->queued_cb);
-    aws_mutex_release(&nodejs_connection->queued_cb_lock);
+    aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
 
     while (!aws_linked_list_empty(&list_cpy)) {
         struct aws_linked_list_node *node = aws_linked_list_pop_front(&list_cpy);
-        mqtt_nodejs_callback_context *callback_context = AWS_CONTAINER_OF(node, struct mqtt_nodejs_callback_context, node);
+        struct mqtt_nodejs_callback_context *callback_context = AWS_CONTAINER_OF(node, struct mqtt_nodejs_callback_context, node);
         s_mqtt_callback_fns[callback_context->cb_type](callback_context);
         aws_mem_release(callback_context->allocator, callback_context);
     }
@@ -303,17 +307,17 @@ static void s_on_connected(
     int error_code,
     enum aws_mqtt_connect_return_code return_code,
     bool session_present,
-    void *userdata) {
+    void *user_data) {
         struct mqtt_nodejs_connection *nodejs_connection = user_data;
 
         struct mqtt_nodejs_callback_context *context = 
-            aws_mem_calloc(nodejs_connection->connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+            aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
 
         if (!context) {
             //what to do here....
         }
 
-        context->allocator =  nodejs_connection->connection->allocator;
+        context->allocator =  nodejs_connection->allocator;
         context->error_code = error_code;
         context->session_present = session_present;
         context->connect_code = return_code;
@@ -321,87 +325,86 @@ static void s_on_connected(
         context->cb_type =  MQTT_NODEJS_CB_ON_CONNECT;
         context->connection = nodejs_connection;
 
-        aws_mutex_acquire(&nodejs_connection->queued_cb_lock);
-        aws_linked_list_push_back(&nodejs_connection.queued_cb, &context->node);
-        aws_mutex_release(&nodejs_connection->queued_cb_lock);
+        aws_mutex_lock(&nodejs_connection->queued_cb_lock);
+        aws_linked_list_push_back(&nodejs_connection->queued_cb, &context->node);
+        aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
 
         uv_async_send(&nodejs_connection->async_handle);
     }
 
-static void s_on_connection_interrupted(
+static void s_on_connection_interupted(
     struct aws_mqtt_client_connection *connection,
     int error_code,
     void *user_data) {
         struct mqtt_nodejs_connection *nodejs_connection = user_data;
 
         struct mqtt_nodejs_callback_context *context = 
-            aws_mem_calloc(nodejs_connection->connection->allocator, 1, sizeof(struct struct mqtt_nodejs_callback_context));
+            aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
 
         if (!context) {
             //what to do here....
         }
 
-        context->allocator =  nodejs_connection->connection->allocator;
+        context->allocator =  nodejs_connection->allocator;
         context->error_code = error_code;
         context->callback = nodejs_connection->on_connection_interupted;
         context->cb_type =  MQTT_NODEJS_CB_ON_INTERUPTED;
         context->connection = nodejs_connection;
 
-        aws_mutex_acquire(&nodejs_connection->queued_cb_lock);
-        aws_linked_list_push_back(&nodejs_connection.queued_cb, &context->node);
-        aws_mutex_release(&nodejs_connection->queued_cb_lock);
+        aws_mutex_lock(&nodejs_connection->queued_cb_lock);
+        aws_linked_list_push_back(&nodejs_connection->queued_cb, &context->node);
+        aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
 
         uv_async_send(&nodejs_connection->async_handle);
     }
 
-static void s_on_resumed(
+static void s_on_connection_resumed(
     struct aws_mqtt_client_connection *connection,
     enum aws_mqtt_connect_return_code return_code,
     bool session_present,
-    void *userdata) {
+    void *user_data) {
         struct mqtt_nodejs_connection *nodejs_connection = user_data;
 
         struct mqtt_nodejs_callback_context *context = 
-            aws_mem_calloc(nodejs_connection->connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+            aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
 
         if (!context) {
             //what to do here....
         }
 
-        context->allocator =  nodejs_connection->connection->allocator;
+        context->allocator =  nodejs_connection->allocator;
         context->session_present = session_present;
         context->connect_code = return_code;
         context->callback = nodejs_connection->on_connection_resumed;
         context->cb_type =  MQTT_NODEJS_CB_ON_RESUMED;
         context->connection = nodejs_connection;
 
-        aws_mutex_acquire(&nodejs_connection->queued_cb_lock);
-        aws_linked_list_push_back(&nodejs_connection.queued_cb, &context->node);
-        aws_mutex_release(&nodejs_connection->queued_cb_lock);
+        aws_mutex_lock(&nodejs_connection->queued_cb_lock);
+        aws_linked_list_push_back(&nodejs_connection->queued_cb, &context->node);
+        aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
 
         uv_async_send(&nodejs_connection->async_handle);
     }    
 
  static void s_on_disconnected(
     struct aws_mqtt_client_connection *connection,
-    void *userdata) {
+    void *user_data) {
         struct mqtt_nodejs_connection *nodejs_connection = user_data;
-
         struct mqtt_nodejs_callback_context *context = 
-            aws_mem_calloc(nodejs_connection->connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+            aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
 
         if (!context) {
             //what to do here....
         }
 
-        context->allocator =  nodejs_connection->connection->allocator;
-        context->callback = nodejs_connection->on_connect;
+        context->allocator =  nodejs_connection->allocator;
+        context->callback = nodejs_connection->on_disconnect;
         context->cb_type =  MQTT_NODEJS_CB_ON_DISCONNECTED;
         context->connection = nodejs_connection;
 
-        aws_mutex_acquire(&nodejs_connection->queued_cb_lock);
-        aws_linked_list_push_back(&nodejs_connection.queued_cb, &context->node);
-        aws_mutex_release(&nodejs_connection->queued_cb_lock);
+        aws_mutex_lock(&nodejs_connection->queued_cb_lock);
+        aws_linked_list_push_back(&nodejs_connection->queued_cb, &context->node);
+        aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
 
         uv_async_send(&nodejs_connection->async_handle);
     }   
@@ -410,16 +413,29 @@ static void s_on_resumed(
  * New Connection
  ******************************************************************************/
 
-static void s_node_connection_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+napi_value mqtt_client_connection_close(napi_env env, napi_callback_info info) {
 
-    (void)env;
-    (void)finalize_hint;
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    struct mqtt_nodejs_connection *node_connection = NULL;
 
-    struct mqtt_nodejs_connection *node_connection = finalize_data;
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "mqtt_client_connection_close needs exactly 1 arguments");
+    }
 
-    aws_mqtt_client_connection_disconnect(node_connection->connection, NULL, NULL); /* #TODO */
+    if (napi_get_value_external(env, node_args[0], (void **)&node_connection)) {
+        napi_throw_error(env, NULL, "Failed to extract connection from first argument");
+    }
+    
+    uv_unref((struct uv_handle_t *)&node_connection->async_handle);
+    aws_mem_release(node_connection->allocator, node_connection);
 
-    aws_mem_release(aws_default_allocator(), node_connection);
+    napi_value undefined = NULL;
+    napi_get_undefined(env, &undefined);
+    return undefined;
 }
 
 napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
@@ -450,8 +466,9 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     }
 
+
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (napi_create_reference(env, node_args[1], 1, &node_connection->on_connection_interrupted)) {
+        if (napi_create_reference(env, node_args[1], 1, &node_connection->on_connection_interupted)) {
             napi_throw_error(env, NULL, "Could not create ref from on_connnection_interrupted");
         }
     }
@@ -463,7 +480,7 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
     }
 
     /* CREATE THE THING */
-
+    node_connection->allocator = allocator;
     node_connection->connection = aws_mqtt_client_connection_new(&node_connection->node_client->native_client);
     if (!node_connection->connection) {
         napi_throw_error(env, NULL, "Failed create native connection object");
@@ -472,14 +489,13 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     node_connection->env = env;
 
-    if (node_connection->on_connection_interrupted || node_connection->on_connection_resumed) {
-        /* #TODO */
+    if (node_connection->on_connection_interupted || node_connection->on_connection_resumed) {
         aws_mqtt_client_connection_set_connection_interruption_handlers(
-            node_connection->connection, NULL, NULL, NULL, NULL);
+            node_connection->connection, s_on_connection_interupted, node_connection, s_on_connection_resumed, node_connection);
     }
 
     napi_value node_external;
-    if (napi_create_external(env, node_connection, s_node_connection_finalize, NULL, &node_external)) {
+    if (napi_create_external(env, node_connection, NULL, NULL, &node_external)) {
         napi_throw_error(env, NULL, "Failed create n-api external");
         goto cleanup;
     }
@@ -487,7 +503,10 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     uv_loop_t *uv_loop = NULL;
     napi_get_uv_event_loop( env, &uv_loop);
-    uv_async_init(uv_loop, &node_connection->async_handle);
+    uv_async_init(uv_loop, &node_connection->async_handle, s_mqtt_uv_async_cb);
+    node_connection->async_handle.data = node_connection;
+    aws_mutex_init(&node_connection->queued_cb_lock);
+    aws_linked_list_init(&node_connection->queued_cb);
 
 cleanup:
 
@@ -496,15 +515,19 @@ cleanup:
             aws_mqtt_client_connection_destroy(node_connection->connection);
         }
 
-        if (node_connection->on_connection_interrupted) {
-            napi_delete_reference(env, node_connection->on_connection_interrupted);
+        if (node_connection->on_connection_interupted) {
+            napi_delete_reference(env, node_connection->on_connection_interupted);
         }
 
         if (node_connection->on_connection_resumed) {
             napi_delete_reference(env, node_connection->on_connection_resumed);
         }
 
-        aws_mem_release(allocator, node_connection);
+        if (uv_loop) {
+            uv_unref(&node_connection->async_handle);
+        }
+
+        aws_mem_release(allocator, node_connection);       
     }
 
     return result;
@@ -513,66 +536,6 @@ cleanup:
 /*******************************************************************************
  * Connect
  ******************************************************************************/
-
-static void s_on_connect(
-    struct aws_mqtt_client_connection *connection,
-    int error_code,
-    enum aws_mqtt_connect_return_code return_code,
-    bool session_present,
-    void *userdata) {
-
-    (void)connection;
-
-    struct mqtt_nodejs_connection *node_connection = userdata;
-    napi_env env = node_connection->env;
-
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope cb_scope = NULL;
-
-    if (node_connection->on_connect) {
-
-        if (napi_open_handle_scope(env, &handle_scope)) {
-            goto cleanup;
-        }
-
-        napi_value on_connect = NULL;
-        napi_get_reference_value(env, node_connection->on_connect, &on_connect);
-        if (on_connect) {
-
-            napi_value resource_object = NULL;
-            if (napi_create_object(env, &resource_object)) {
-                goto cleanup;
-            }
-
-            if (napi_open_callback_scope(env, resource_object, node_connection->on_connect_ctx, &cb_scope)) {
-                goto cleanup;
-            }
-
-            napi_value recv;
-            napi_value params[3];
-            if (napi_get_global(env, &recv) || napi_create_int32(env, error_code, &params[0]) ||
-                napi_create_int32(env, return_code, &params[1]) || napi_get_boolean(env, session_present, &params[2])) {
-                goto cleanup;
-            }
-
-            if (napi_make_callback(
-                    env, node_connection->on_connect_ctx, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
-                /* #TODO: Log failed callback attempt here. */
-            }
-        }
-    }
-
-cleanup:
-    if (cb_scope) {
-        napi_close_callback_scope(env, cb_scope);
-    }
-    if (handle_scope) {
-        napi_close_handle_scope(env, handle_scope);
-    }
-    napi_async_destroy(env, node_connection->on_connect_ctx);
-    napi_delete_reference(env, node_connection->on_connect);
-}
-
 napi_value mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
@@ -672,17 +635,21 @@ napi_value mqtt_client_connection_connect(napi_env env, napi_callback_info info)
     struct aws_byte_cursor client_id_cur = aws_byte_cursor_from_buf(&client_id);
     struct aws_byte_cursor server_name_cur = aws_byte_cursor_from_buf(&server_name);
 
+    struct aws_mqtt_connection_options options;
+    options.clean_session = false; //TODO come back for this
+    options.client_id = client_id_cur;
+    options.host_name = server_name_cur;
+    options.keep_alive_time_secs = keep_alive_time;
+    options.on_connection_complete = s_on_connected;
+    options.ping_timeout_ms = 3000; //TODO come back for this
+    options.port = port_number;
+    options.socket_options = &node_connection->socket_options;
+    options.tls_options = tls_ctx ? &node_connection->tls_options : NULL;
+    options.user_data = node_connection;
+
     if (aws_mqtt_client_connection_connect(
             node_connection->connection,
-            &server_name_cur,
-            port_number,
-            &node_connection->socket_options,
-            tls_ctx ? &node_connection->tls_options : NULL,
-            &client_id_cur,
-            true,
-            keep_alive_time,
-            s_on_connect,
-            node_connection)) {
+            &options)) {
         aws_napi_throw_last_error(env);
         goto cleanup;
     }
@@ -745,7 +712,7 @@ napi_value mqtt_client_connection_reconnect(napi_env env, napi_callback_info inf
         }
     }
 
-    if (aws_mqtt_client_connection_reconnect(node_connection->connection, s_on_connect, node_connection)) {
+    if (aws_mqtt_client_connection_reconnect(node_connection->connection, s_on_connected, node_connection)) {
         aws_napi_throw_last_error(env);
         goto cleanup;
     }
@@ -1357,63 +1324,9 @@ cleanup:
 /*******************************************************************************
  * Disconnect
  ******************************************************************************/
-
-static void s_on_disconnect(struct aws_mqtt_client_connection *connection, void *userdata) {
-
-    (void)connection;
-
-    struct mqtt_nodejs_connection *node_connection = userdata;
-    napi_env env = node_connection->env;
-
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope cb_scope = NULL;
-
-    if (node_connection->on_disconnect) {
-
-        if (napi_open_handle_scope(env, &handle_scope)) {
-            goto cleanup;
-        }
-
-        napi_value on_disconnect = NULL;
-        napi_get_reference_value(env, node_connection->on_disconnect, &on_disconnect);
-        if (on_disconnect) {
-
-            napi_value resource_object = NULL;
-            if (napi_create_object(env, &resource_object)) {
-                goto cleanup;
-            }
-
-            if (napi_open_callback_scope(env, resource_object, node_connection->on_disconnect_ctx, &cb_scope)) {
-                goto cleanup;
-            }
-
-            napi_value recv;
-            if (napi_get_global(env, &recv)) {
-                goto cleanup;
-            }
-
-            if (napi_make_callback(env, node_connection->on_disconnect_ctx, recv, on_disconnect, 0, NULL, NULL)) {
-                /* #TODO: Log failed callback attempt here. */
-            }
-        }
-    }
-
-cleanup:
-    if (cb_scope) {
-        napi_close_callback_scope(env, cb_scope);
-    }
-    if (handle_scope) {
-        napi_close_handle_scope(env, handle_scope);
-    }
-
-    napi_delete_reference(env, node_connection->on_disconnect);
-    napi_async_destroy(env, node_connection->on_disconnect_ctx);
-}
-
 napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
 
     struct mqtt_nodejs_connection *node_connection = NULL;
-
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -1448,7 +1361,7 @@ napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info in
         }
     }
 
-    if (aws_mqtt_client_connection_disconnect(node_connection->connection, s_on_disconnect, node_connection)) {
+    if (aws_mqtt_client_connection_disconnect(node_connection->connection, s_on_disconnected, node_connection)) {
         aws_napi_throw_last_error(env);
         goto cleanup;
     }
