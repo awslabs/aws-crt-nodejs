@@ -34,8 +34,10 @@ enum mqtt_nodejs_cb_type {
     MQTT_NODEJS_CB_ON_INTERUPTED,
     MQTT_NODEJS_CB_ON_RESUMED,
     MQTT_NODEJS_CB_ON_DISCONNECTED,
-    MQTT_NODEJS_CB_ON_OP_COMPLETE,
+    MQTT_NODEJS_CB_ON_PUBLISH_COMPLETE,
     MQTT_NODEJS_CB_ON_PUBLISH,
+    MQTT_NODEJS_CB_ON_SUBACK,
+    MQTT_NODEJS_CB_ON_UNSUBACK,
 };
 
 struct mqtt_nodejs_connection {
@@ -67,10 +69,15 @@ struct mqtt_nodejs_callback_context {
     struct aws_allocator *allocator;
     struct aws_linked_list_node node;
     napi_ref callback;
+    napi_async_context callback_ctx;
+    struct aws_byte_buf payload_data;
     struct mqtt_nodejs_connection *connection;
     int error_code;
+    uint16_t packet_id;
+    struct aws_byte_cursor topic;
     bool session_present;
     enum aws_mqtt_connect_return_code connect_code;
+    enum aws_mqtt_qos qos;
     enum mqtt_nodejs_cb_type cb_type;
 };
 
@@ -124,6 +131,7 @@ cleanup:
     }
     napi_async_destroy(env, node_connection->on_connect_ctx);
     napi_delete_reference(env, node_connection->on_connect);
+    aws_mem_release(context->allocator, context);
 }
 
 static void s_dispatch_on_interupt(struct mqtt_nodejs_callback_context *context) {
@@ -173,6 +181,8 @@ cleanup:
     }
     napi_async_destroy(env, node_connection->on_connection_interupted_ctx);
     napi_delete_reference(env, node_connection->on_connection_interupted);
+    aws_mem_release(context->allocator, context);
+
 }
 
 static void s_dispatch_on_resumed(struct mqtt_nodejs_callback_context *context) {
@@ -224,6 +234,7 @@ cleanup:
     }
     napi_async_destroy(env, context->connection->on_connection_resumed_ctx);
     napi_delete_reference(env, context->connection->on_connection_resumed);
+    aws_mem_release(context->allocator, context);
 }
 
 
@@ -273,6 +284,211 @@ cleanup:
     }
     napi_async_destroy(env, node_connection->on_disconnect_ctx);
     napi_delete_reference(env, node_connection->on_disconnect);
+    aws_mem_release(context->allocator, context);
+}
+
+static void s_dispatch_on_suback(struct mqtt_nodejs_callback_context *context) {
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    struct mqtt_nodejs_connection *node_connection = context->connection;
+    napi_env env = node_connection->env;
+    if (context->callback) {
+        if (napi_open_handle_scope(env, &handle_scope)) {
+            goto cleanup;
+        }
+
+        napi_value on_suback = NULL;
+        napi_get_reference_value(env, context->callback, &on_suback);
+        if (on_suback) {
+            napi_value resource_object = NULL;
+            if (napi_create_object(env, &resource_object)) {
+                goto cleanup;
+            }
+
+            if (napi_open_callback_scope(env, resource_object, context->callback_ctx, &cb_scope)) {
+                goto cleanup;
+            }
+
+            napi_value recv;
+            napi_value params[4];
+            if (napi_get_global(env, &recv) || napi_create_int32(env, context->packet_id, &params[0]) 
+                || napi_create_string_utf8(env, context->topic.ptr, context->topic.len, &params[1]) 
+                || napi_create_int32(env, context->qos, &params[2])
+                || napi_create_int32(env, context->error_code, &params[3])
+                ) {
+                goto cleanup;
+            }
+
+            if (napi_make_callback(
+                    env, context->callback_ctx, recv, on_suback, AWS_ARRAY_SIZE(params), params, NULL)) {
+                /* #TODO: Log failed callback attempt here. */
+            }
+        }
+    }
+
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    }
+    napi_async_destroy(env, context->callback_ctx);
+    napi_delete_reference(env, context->callback);
+    aws_mem_release(context->allocator, context);
+}
+
+static void s_dispatch_on_publish(struct mqtt_nodejs_callback_context *context) {
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    struct mqtt_nodejs_connection *node_connection = context->connection;
+    napi_env env = node_connection->env;
+    if (context->callback) {
+        if (napi_open_handle_scope(env, &handle_scope)) {
+            goto cleanup;
+        }
+
+        napi_value on_publish = NULL;
+        napi_get_reference_value(env, context->callback, &on_publish);
+        if (on_publish) {
+            napi_value resource_object = NULL;
+            if (napi_create_object(env, &resource_object)) {
+                goto cleanup;
+            }
+
+            if (napi_open_callback_scope(env, resource_object, context->callback_ctx, &cb_scope)) {
+                goto cleanup;
+            }
+
+            napi_value recv;
+            napi_value params[2];
+            if (napi_get_global(env, &recv) || napi_create_string_utf8(env, context->topic.ptr, context->topic.len, &params[0]) 
+                || napi_create_external_arraybuffer(env, context->payload_data.buffer, context->payload_data.len, NULL, NULL, &params[1]) ) {
+                goto cleanup;
+            }
+      
+            if (napi_make_callback(
+                    env, context->callback_ctx, recv, on_publish, AWS_ARRAY_SIZE(params), params, NULL)) {
+
+                //TODO, handle this.
+            }
+
+            //the scoping here is wrong.... this callback comes back multiple times.
+            aws_byte_buf_clean_up(&context->payload_data);
+        }
+    }
+
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    }    
+}
+
+static void s_dispatch_on_publish_complete(struct mqtt_nodejs_callback_context *context) {
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    struct mqtt_nodejs_connection *node_connection = context->connection;
+    napi_env env = node_connection->env;
+    if (context->callback) {
+        if (napi_open_handle_scope(env, &handle_scope)) {
+            goto cleanup;
+        }
+
+        napi_value on_publish = NULL;
+        napi_get_reference_value(env, context->callback, &on_publish);
+        if (on_publish) {
+            napi_value resource_object = NULL;
+            if (napi_create_object(env, &resource_object)) {
+                goto cleanup;
+            }
+
+            if (napi_open_callback_scope(env, resource_object, context->callback_ctx, &cb_scope)) {
+                goto cleanup;
+            }
+
+            napi_value recv;
+            napi_value params[2];
+            if (napi_get_global(env, &recv) || napi_create_uint32(env, context->packet_id, &params[0]) ||
+                napi_create_int32(env, context->error_code, &params[1])) {
+                goto cleanup;
+            }
+      
+            if (napi_make_callback(
+                    env, context->callback_ctx, recv, on_publish, AWS_ARRAY_SIZE(params), params, NULL)) {
+
+                //TODO, handle this.
+            }
+        }
+    }
+
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    } 
+
+    napi_async_destroy(env, context->callback_ctx);
+    napi_delete_reference(env, context->callback);
+    aws_mem_release(context->allocator, context);   
+}
+
+static void s_dispatch_on_unsub_ack(struct mqtt_nodejs_callback_context *context) {
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope cb_scope = NULL;
+
+    struct mqtt_nodejs_connection *node_connection = context->connection;
+    napi_env env = node_connection->env;
+    if (context->callback) {
+        if (napi_open_handle_scope(env, &handle_scope)) {
+            goto cleanup;
+        }
+
+        napi_value on_unsub_ack = NULL;
+        napi_get_reference_value(env, context->callback, &on_unsub_ack);
+        if (on_unsub_ack) {
+            napi_value resource_object = NULL;
+            if (napi_create_object(env, &resource_object)) {
+                goto cleanup;
+            }
+
+            if (napi_open_callback_scope(env, resource_object, context->callback_ctx, &cb_scope)) {
+                goto cleanup;
+            }
+
+            napi_value recv;
+            napi_value params[2];
+            if (napi_get_global(env, &recv) || napi_create_uint32(env, context->packet_id, &params[0]) ||
+                napi_create_int32(env, context->error_code, &params[1])) {
+                goto cleanup;
+            }
+      
+            if (napi_make_callback(
+                    env, context->callback_ctx, recv, on_unsub_ack, AWS_ARRAY_SIZE(params), params, NULL)) {
+
+                //TODO, handle this.
+            }
+        }
+    }
+
+cleanup:
+    if (cb_scope) {
+        napi_close_callback_scope(env, cb_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    } 
+
+    napi_async_destroy(env, context->callback_ctx);
+    napi_delete_reference(env, context->callback);
+    aws_mem_release(context->allocator, context);   
 }
 
 static dispatch_mqtt_callback_fn *s_mqtt_callback_fns[] = {
@@ -280,8 +496,10 @@ static dispatch_mqtt_callback_fn *s_mqtt_callback_fns[] = {
     [MQTT_NODEJS_CB_ON_INTERUPTED] = s_dispatch_on_interupt,
     [MQTT_NODEJS_CB_ON_RESUMED] = s_dispatch_on_resumed,
     [MQTT_NODEJS_CB_ON_DISCONNECTED] = s_dispatch_on_disconnect,
-    [MQTT_NODEJS_CB_ON_OP_COMPLETE] = NULL,
-    [MQTT_NODEJS_CB_ON_PUBLISH] = NULL,
+    [MQTT_NODEJS_CB_ON_PUBLISH_COMPLETE] = s_dispatch_on_publish_complete,
+    [MQTT_NODEJS_CB_ON_PUBLISH] = s_dispatch_on_publish,
+    [MQTT_NODEJS_CB_ON_SUBACK] = s_dispatch_on_suback,
+    [MQTT_NODEJS_CB_ON_UNSUBACK] = s_dispatch_on_unsub_ack,
 };
 
 static void s_mqtt_uv_async_cb(uv_async_t* handle) {
@@ -298,8 +516,100 @@ static void s_mqtt_uv_async_cb(uv_async_t* handle) {
         struct aws_linked_list_node *node = aws_linked_list_pop_front(&list_cpy);
         struct mqtt_nodejs_callback_context *callback_context = AWS_CONTAINER_OF(node, struct mqtt_nodejs_callback_context, node);
         s_mqtt_callback_fns[callback_context->cb_type](callback_context);
-        aws_mem_release(callback_context->allocator, callback_context);
     }
+}
+
+static void s_on_suback(
+    struct aws_mqtt_client_connection *connection,
+    uint16_t packet_id,
+    const struct aws_byte_cursor *topic,
+    enum aws_mqtt_qos qos,
+    int error_code,
+    void *user_data) {
+        struct mqtt_nodejs_callback_context *context = user_data;
+
+        context->error_code = error_code;
+        context->qos = qos;
+        context->packet_id = packet_id;
+
+        if (topic) {
+            context->topic = *topic;
+        }
+        context->cb_type =  MQTT_NODEJS_CB_ON_SUBACK;
+
+        aws_mutex_lock(&context->connection->queued_cb_lock);
+        aws_linked_list_push_back(&context->connection->queued_cb, &context->node);
+        aws_mutex_unlock(&context->connection->queued_cb_lock);
+
+        uv_async_send(&context->connection->async_handle);
+    }
+
+static void s_on_publish(
+    struct aws_mqtt_client_connection *connection,
+    const struct aws_byte_cursor *topic,
+    const struct aws_byte_cursor *payload,
+    void *user_data) {
+
+    (void)connection;
+
+    struct mqtt_nodejs_callback_context *context = user_data;
+    context->cb_type =  MQTT_NODEJS_CB_ON_PUBLISH;
+    
+    aws_byte_buf_init_copy_from_cursor(&context->payload_data, context->allocator, *payload);
+    
+    aws_mutex_lock(&context->connection->queued_cb_lock);
+    aws_linked_list_push_back(&context->connection->queued_cb, &context->node);
+    aws_mutex_unlock(&context->connection->queued_cb_lock);
+
+    uv_async_send(&context->connection->async_handle);    
+}
+
+static void s_on_publish_complete(
+    struct aws_mqtt_client_connection *connection,
+    uint16_t packet_id,
+    int error_code,
+    void *user_data) {
+
+    (void)connection;
+
+    struct mqtt_nodejs_callback_context *context = user_data;
+
+    /* Clean up resources */
+    aws_byte_buf_clean_up(&context->payload_data);
+
+    context->cb_type =  MQTT_NODEJS_CB_ON_PUBLISH_COMPLETE;
+    context->packet_id = packet_id;
+    context->error_code = error_code;
+    
+    aws_mutex_lock(&context->connection->queued_cb_lock);
+    aws_linked_list_push_back(&context->connection->queued_cb, &context->node);
+    aws_mutex_unlock(&context->connection->queued_cb_lock);
+
+    uv_async_send(&context->connection->async_handle);   
+}
+
+void s_on_unsubscribe_complete(
+    struct aws_mqtt_client_connection *connection,
+    uint16_t packet_id,
+    int error_code,
+    void *user_data) {
+
+    (void)connection;
+
+    struct mqtt_nodejs_callback_context *context = user_data;
+
+    /* Clean up resources */
+    aws_byte_buf_clean_up(&context->payload_data);
+
+    context->cb_type =  MQTT_NODEJS_CB_ON_PUBLISH_COMPLETE;
+    context->packet_id = packet_id;
+    context->error_code = error_code;
+    
+    aws_mutex_lock(&context->connection->queued_cb_lock);
+    aws_linked_list_push_back(&context->connection->queued_cb, &context->node);
+    aws_mutex_unlock(&context->connection->queued_cb_lock);
+
+    uv_async_send(&context->connection->async_handle);
 }
 
 static void s_on_connected(
@@ -733,92 +1043,18 @@ cleanup:
  * Publish
  ******************************************************************************/
 
-struct publish_complete_userdata {
-    struct aws_byte_buf topic;
-    struct aws_byte_buf payload;
-
-    napi_env env;
-
-    napi_ref on_publish;
-    napi_async_context on_publish_ctx;
-};
-
-void s_on_publish_complete(
-    struct aws_mqtt_client_connection *connection,
-    uint16_t packet_id,
-    int error_code,
-    void *userdata) {
-
-    (void)connection;
-
-    struct publish_complete_userdata *metadata = userdata;
-
-    napi_env env = metadata->env;
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope cb_scope = NULL;
-
-    /* Clean up resources */
-    aws_byte_buf_clean_up(&metadata->topic);
-    aws_byte_buf_clean_up(&metadata->payload);
-
-    /* Call callback */
-    if (metadata->on_publish) {
-
-        if (napi_open_handle_scope(env, &handle_scope)) {
-            goto cleanup;
-        }
-
-        napi_value on_publish = NULL;
-        napi_get_reference_value(env, metadata->on_publish, &on_publish);
-        if (on_publish) {
-
-            napi_value resource_object = NULL;
-            if (napi_create_object(env, &resource_object)) {
-                goto cleanup;
-            }
-
-            if (napi_open_callback_scope(env, resource_object, metadata->on_publish_ctx, &cb_scope)) {
-                goto cleanup;
-            }
-
-            napi_value recv;
-            napi_value params[2];
-            if (napi_get_global(env, &recv) || napi_create_uint32(env, packet_id, &params[0]) ||
-                napi_create_int32(env, error_code, &params[1])) {
-                goto cleanup;
-            }
-
-            if (napi_make_callback(
-                    env, metadata->on_publish_ctx, recv, on_publish, AWS_ARRAY_SIZE(params), params, NULL)) {
-                /* #TODO: Log failed callback attempt here. */
-            }
-        }
-    }
-
-cleanup:
-    if (handle_scope) {
-        napi_close_handle_scope(env, handle_scope);
-    }
-    if (cb_scope) {
-        napi_close_callback_scope(env, cb_scope);
-    }
-    napi_async_destroy(env, metadata->on_publish_ctx);
-    napi_delete_reference(env, metadata->on_publish);
-
-    /* Free metadata */
-    aws_mem_release(aws_default_allocator(), metadata);
-}
-
 napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
-    struct publish_complete_userdata *metadata = aws_mem_acquire(allocator, sizeof(struct publish_complete_userdata));
-    if (!metadata) {
+
+    struct mqtt_nodejs_callback_context *context = 
+            aws_mem_calloc(allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+
+    if (!context) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
-    AWS_ZERO_STRUCT(*metadata);
-    metadata->env = env;
+    AWS_ZERO_STRUCT(*context);
 
     napi_value node_args[6];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -837,12 +1073,17 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
         goto cleanup;
     }
 
-    if (aws_byte_buf_init_from_napi(&metadata->topic, env, node_args[1])) {
+    context->connection = node_connection;
+    context->allocator = allocator;
+
+    struct aws_byte_buf topic;
+    AWS_ZERO_STRUCT(topic);
+    if (aws_byte_buf_init_from_napi(&topic, env, node_args[1])) {
         napi_throw_type_error(env, NULL, "Second argument (topic) must be a String");
         goto cleanup;
     }
 
-    if (aws_byte_buf_init_from_napi(&metadata->payload, env, node_args[2])) {
+    if (aws_byte_buf_init_from_napi(&context->payload_data, env, node_args[2])) {
         napi_throw_type_error(env, NULL, "Third argument (payload) must be a String");
         goto cleanup;
     }
@@ -860,28 +1101,28 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
-        if (napi_create_reference(env, node_args[5], 1, &metadata->on_publish)) {
+        if (napi_create_reference(env, node_args[5], 1, &context->callback)) {
             napi_throw_error(env, NULL, "Could not create ref from on_publish");
             goto cleanup;
         }
         /* Init the async */
         napi_value resource_name = NULL;
         if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_publish", NAPI_AUTO_LENGTH, &resource_name)) {
-            napi_delete_reference(env, metadata->on_publish);
+            napi_delete_reference(env, context->callback);
             napi_throw_error(env, NULL, "Could not create async resource name");
             goto cleanup;
         }
-        if (napi_async_init(env, NULL, resource_name, &metadata->on_publish_ctx)) {
-            napi_delete_reference(env, metadata->on_publish);
+        if (napi_async_init(env, NULL, resource_name, &context->callback_ctx)) {
+            napi_delete_reference(env, context->callback);
             napi_throw_error(env, NULL, "Could not create async context");
             goto cleanup;
         }
     }
 
-    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&metadata->topic);
-    const struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&metadata->payload);
+    context->topic = aws_byte_cursor_from_buf(&topic);
+    const struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&context->payload_data);
     uint16_t pub_id = aws_mqtt_client_connection_publish(
-        node_connection->connection, &topic_cur, qos, retain, &payload_cur, s_on_publish_complete, metadata);
+        node_connection->connection, &context->topic, qos, retain, &payload_cur, s_on_publish_complete, context);
     if (!pub_id) {
         aws_napi_throw_last_error(env);
         goto cleanup;
@@ -892,186 +1133,50 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
     return undefined;
 
 cleanup:
-    aws_byte_buf_clean_up(&metadata->payload);
-    aws_byte_buf_clean_up(&metadata->topic);
+    aws_byte_buf_clean_up(&context->payload_data);
+    aws_byte_buf_clean_up(&topic);
 
-    if (metadata->on_publish) {
-        napi_delete_reference(env, metadata->on_publish);
-        napi_async_destroy(env, metadata->on_publish_ctx);
+    if (context->callback) {
+        napi_delete_reference(env, context->callback);
+        napi_async_destroy(env, context->callback_ctx);
     }
 
-    aws_mem_release(allocator, metadata);
+    aws_mem_release(allocator, context);
 
     return NULL;
+}
+
+void s_on_publish_user_data_clean_up(void *user_data) {
+    struct mqtt_nodejs_callback_context *context = user_data;
+
+    napi_async_destroy(context->connection->env, context->callback_ctx);
+    napi_delete_reference(context->connection->env, context->callback);
+    aws_byte_buf_clean_up(&context->topic);
+    aws_mem_release(context->allocator, context);
 }
 
 /*******************************************************************************
  * Subscribe
  ******************************************************************************/
-
-struct subscription_metadata {
-    struct aws_byte_buf topic;
-
-    napi_env env;
-
-    napi_ref on_suback;
-    napi_async_context on_suback_ctx;
-
-    napi_ref on_message;
-    napi_async_context on_message_ctx;
-};
-
-void s_on_subscribe_complete(
-    struct aws_mqtt_client_connection *connection,
-    uint16_t packet_id,
-    const struct aws_byte_cursor *topic,
-    enum aws_mqtt_qos qos,
-    int error_code,
-    void *userdata) {
-
-    (void)connection;
-
-    struct subscription_metadata *metadata = userdata;
-    napi_env env = metadata->env;
-
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope cb_scope = NULL;
-
-    /* Don't need this anymore */
-    aws_byte_buf_clean_up(&metadata->topic);
-
-    /* Call callback */
-    if (metadata->on_suback) {
-
-        if (napi_open_handle_scope(env, &handle_scope)) {
-            goto cleanup;
-        }
-
-        napi_value on_suback = NULL;
-        napi_get_reference_value(env, metadata->on_suback, &on_suback);
-        if (on_suback) {
-
-            napi_value resource_object = NULL;
-            if (napi_create_object(env, &resource_object)) {
-                goto cleanup;
-            }
-
-            if (napi_open_callback_scope(env, resource_object, metadata->on_suback_ctx, &cb_scope)) {
-                goto cleanup;
-            }
-
-            napi_value recv;
-            napi_value params[4];
-            if (napi_get_global(env, &recv) || napi_create_uint32(env, packet_id, &params[0]) ||
-                napi_create_string_utf8(env, (const char *)topic->ptr, topic->len, &params[1]) ||
-                napi_create_uint32(env, qos, &params[2]) || napi_create_int32(env, error_code, &params[3])) {
-                goto cleanup;
-            }
-
-            if (napi_make_callback(
-                    env, metadata->on_suback_ctx, recv, on_suback, AWS_ARRAY_SIZE(params), params, NULL)) {
-                /* #TODO: Log failed callback attempt here. */
-            }
-        }
-    }
-
-cleanup:
-    if (cb_scope) {
-        napi_close_callback_scope(env, cb_scope);
-    }
-    if (handle_scope) {
-        napi_close_handle_scope(env, handle_scope);
-    }
-
-    if (metadata->on_suback) {
-        napi_delete_reference(env, metadata->on_suback);
-    }
-    if (metadata->on_suback_ctx) {
-        napi_async_destroy(env, metadata->on_suback_ctx);
-    }
-}
-
-void s_subscribe_on_message(
-    struct aws_mqtt_client_connection *connection,
-    const struct aws_byte_cursor *topic,
-    const struct aws_byte_cursor *payload,
-    void *userdata) {
-
-    (void)connection;
-
-    struct subscription_metadata *metadata = userdata;
-    assert(metadata->on_message);
-    napi_env env = metadata->env;
-
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope cb_scope = NULL;
-
-    /* Call callback */
-    if (napi_open_handle_scope(env, &handle_scope)) {
-        goto cleanup;
-    }
-
-    napi_value on_message = NULL;
-    napi_get_reference_value(env, metadata->on_message, &on_message);
-    if (on_message) {
-
-        napi_value resource_object = NULL;
-        if (napi_create_object(env, &resource_object)) {
-            goto cleanup;
-        }
-
-        if (napi_open_callback_scope(env, resource_object, metadata->on_message_ctx, &cb_scope)) {
-            goto cleanup;
-        }
-
-        napi_value recv;
-        napi_value params[2];
-        if (napi_get_global(env, &recv) ||
-            napi_create_string_utf8(env, (const char *)topic->ptr, topic->len, &params[0]) ||
-            aws_napi_create_dataview_from_byte_cursor(env, payload, &params[1])) {
-            goto cleanup;
-        }
-
-        if (napi_make_callback(env, metadata->on_message_ctx, recv, on_message, AWS_ARRAY_SIZE(params), params, NULL)) {
-            /* #TODO: Log failed callback attempt here. */
-        }
-    }
-
-cleanup:
-    if (cb_scope) {
-        napi_close_callback_scope(env, cb_scope);
-    }
-    if (handle_scope) {
-        napi_close_handle_scope(env, handle_scope);
-    }
-}
-
-void s_subscribe_metadata_cleanup(void *userdata) {
-
-    struct subscription_metadata *metadata = userdata;
-
-    /* Call callback */
-    if (metadata->on_message) {
-
-        napi_env env = metadata->env;
-
-        napi_async_destroy(env, metadata->on_message_ctx);
-        napi_delete_reference(env, metadata->on_message);
-    }
-
-    aws_mem_release(aws_default_allocator(), metadata);
-}
-
 napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
-    struct subscription_metadata *metadata = aws_mem_acquire(allocator, sizeof(struct subscription_metadata));
-    if (!metadata) {
+    struct mqtt_nodejs_callback_context *on_publish_context = aws_mem_calloc(allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+
+    if (!on_publish_context) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
-    AWS_ZERO_STRUCT(*metadata);
-    metadata->env = env;
+
+    struct mqtt_nodejs_callback_context *context = aws_mem_calloc(allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+    if (!context) {
+        aws_mem_release(allocator, on_publish_context);
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+
+    on_publish_context->allocator = allocator;
+    context->allocator = allocator;    
 
     napi_value node_args[5];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -1090,10 +1195,17 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
         goto cleanup;
     }
 
-    if (aws_byte_buf_init_from_napi(&metadata->topic, env, node_args[1])) {
+    on_publish_context->connection = node_connection;
+    context->connection = node_connection;
+
+    struct aws_byte_buf topic_buf;
+    AWS_ZERO_STRUCT(topic_buf);
+    if (aws_byte_buf_init_from_napi(&topic_buf, env, node_args[1])) {
         napi_throw_type_error(env, NULL, "Second argument (topic) must be a String");
         goto cleanup;
     }
+
+    on_publish_context->topic = aws_byte_cursor_from_buf(&topic_buf);
 
     enum aws_mqtt_qos qos = 0;
     if (napi_get_value_uint32(env, node_args[2], &qos)) {
@@ -1105,7 +1217,7 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
         napi_throw_type_error(env, NULL, "on_message callback is required");
         goto cleanup;
     }
-    if (napi_create_reference(env, node_args[3], 1, &metadata->on_message)) {
+    if (napi_create_reference(env, node_args[3], 1, &on_publish_context->callback)) {
         napi_throw_error(env, NULL, "Could not create ref from on_message");
         goto cleanup;
     }
@@ -1114,12 +1226,12 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
     if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_message", NAPI_AUTO_LENGTH, &resource_name)) {
         goto cleanup;
     }
-    if (napi_async_init(env, NULL, resource_name, &metadata->on_message_ctx)) {
+    if (napi_async_init(env, NULL, resource_name, &on_publish_context->callback_ctx)) {
         goto cleanup;
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
-        if (napi_create_reference(env, node_args[4], 1, &metadata->on_suback)) {
+        if (napi_create_reference(env, node_args[4], 1, &context->callback)) {
             napi_throw_error(env, NULL, "Could not create ref from on_suback");
             goto cleanup;
         }
@@ -1128,21 +1240,20 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
         if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_suback", NAPI_AUTO_LENGTH, &resource_name)) {
             goto cleanup;
         }
-        if (napi_async_init(env, NULL, resource_name, &metadata->on_suback_ctx)) {
+        if (napi_async_init(env, NULL, resource_name, &context->callback_ctx)) {
             goto cleanup;
         }
     }
-
-    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&metadata->topic);
+    
     uint16_t sub_id = aws_mqtt_client_connection_subscribe(
         node_connection->connection,
-        &topic_cur,
+        &on_publish_context->topic,
         qos,
-        s_subscribe_on_message,
-        metadata,
-        s_subscribe_metadata_cleanup,
-        s_on_subscribe_complete,
-        metadata);
+        s_on_publish,
+        on_publish_context,
+        s_on_publish_user_data_clean_up,
+        s_on_suback,
+        context);
 
     if (!sub_id) {
         aws_napi_throw_last_error(env);
@@ -1154,23 +1265,24 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
     return undefined;
 
 cleanup:
-    aws_byte_buf_clean_up(&metadata->topic);
+    aws_byte_buf_clean_up(&topic_buf);
 
-    if (metadata->on_message) {
-        napi_delete_reference(env, metadata->on_message);
+    if (on_publish_context->callback) {
+        napi_delete_reference(env, on_publish_context->callback);
     }
-    if (metadata->on_message_ctx) {
-        napi_async_destroy(env, metadata->on_message_ctx);
-    }
-
-    if (metadata->on_suback) {
-        napi_delete_reference(env, metadata->on_suback);
-    }
-    if (metadata->on_suback_ctx) {
-        napi_async_destroy(env, metadata->on_suback_ctx);
+    if (on_publish_context->callback_ctx) {
+        napi_async_destroy(env, on_publish_context->callback_ctx);
     }
 
-    aws_mem_release(allocator, metadata);
+    if (context->callback) {
+        napi_delete_reference(env, context->callback);
+    }
+    if (context->callback_ctx) {
+        napi_async_destroy(env, context->callback_ctx);
+    }
+
+    aws_mem_release(allocator, on_publish_context);
+    aws_mem_release(allocator, context);
 
     return NULL;
 }
@@ -1178,83 +1290,17 @@ cleanup:
 /*******************************************************************************
  * Unsubscribe
  ******************************************************************************/
-
-struct unsubscribe_metadata {
-    struct aws_byte_buf topic;
-
-    napi_env env;
-
-    napi_ref on_unsuback;
-    napi_async_context on_unsuback_ctx;
-};
-
-void s_on_unsubscribe_complete(
-    struct aws_mqtt_client_connection *connection,
-    uint16_t packet_id,
-    int error_code,
-    void *userdata) {
-
-    (void)connection;
-
-    struct unsubscribe_metadata *metadata = userdata;
-    napi_env env = metadata->env;
-
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope cb_scope = NULL;
-
-    /* Clean up resources */
-    aws_byte_buf_clean_up(&metadata->topic);
-
-    /* Call callback */
-    if (metadata->on_unsuback) {
-
-        napi_open_handle_scope(env, &handle_scope);
-
-        napi_value on_unsuback = NULL;
-        napi_get_reference_value(env, metadata->on_unsuback, &on_unsuback);
-        if (on_unsuback) {
-
-            napi_open_callback_scope(env, NULL, metadata->on_unsuback_ctx, &cb_scope);
-
-            napi_value recv;
-            napi_value params[2];
-            if (napi_get_global(env, &recv) || napi_create_uint32(env, packet_id, &params[0]) ||
-                napi_create_int32(env, error_code, &params[1])) {
-                goto cleanup;
-            }
-
-            if (napi_make_callback(
-                    env, metadata->on_unsuback_ctx, recv, on_unsuback, AWS_ARRAY_SIZE(params), params, NULL)) {
-                /* #TODO: Log failed callback attempt here. */
-            }
-        }
-    }
-
-cleanup:
-
-    if (cb_scope) {
-        napi_close_callback_scope(env, cb_scope);
-    }
-    if (handle_scope) {
-        napi_close_handle_scope(env, handle_scope);
-    }
-    napi_delete_reference(env, metadata->on_unsuback);
-    napi_async_destroy(env, metadata->on_unsuback_ctx);
-
-    /* Free metadata */
-    aws_mem_release(aws_default_allocator(), metadata);
-}
-
 napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
-    struct unsubscribe_metadata *metadata = aws_mem_acquire(allocator, sizeof(struct unsubscribe_metadata));
-    if (!metadata) {
+
+    struct mqtt_nodejs_callback_context *context = aws_mem_calloc(allocator, 1, sizeof(struct mqtt_nodejs_callback_context));
+    if (!context) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
-    AWS_ZERO_STRUCT(*metadata);
-    metadata->env = env;
+
+    context->allocator = allocator;    
 
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -1273,13 +1319,17 @@ napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info i
         goto cleanup;
     }
 
-    if (aws_byte_buf_init_from_napi(&metadata->topic, env, node_args[1])) {
+    context->connection = node_connection;
+
+    struct aws_byte_buf topic;
+    AWS_ZERO_STRUCT(topic);
+    if (aws_byte_buf_init_from_napi(&topic, env, node_args[1])) {
         napi_throw_type_error(env, NULL, "Second argument (topic) must be a String");
         goto cleanup;
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
-        if (napi_create_reference(env, node_args[2], 1, &metadata->on_unsuback)) {
+        if (napi_create_reference(env, node_args[2], 1, &context->callback)) {
             napi_throw_error(env, NULL, "Could not create ref from on_unsuback");
             goto cleanup;
         }
@@ -1288,35 +1338,38 @@ napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info i
         if (napi_create_string_utf8(env, "aws_mqtt_client_connection_on_unsuback", NAPI_AUTO_LENGTH, &resource_name)) {
             goto cleanup;
         }
-        if (napi_async_init(env, NULL, resource_name, &metadata->on_unsuback_ctx)) {
+        if (napi_async_init(env, NULL, resource_name, &context->callback_ctx)) {
             goto cleanup;
         }
     }
 
-    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&metadata->topic);
+    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&topic);
     uint16_t unsub_id = aws_mqtt_client_connection_unsubscribe(
-        node_connection->connection, &topic_cur, s_on_unsubscribe_complete, metadata);
+        node_connection->connection, &topic_cur, s_on_unsubscribe_complete, context);
 
     if (!unsub_id) {
         napi_throw_error(env, NULL, "Failed to initiate subscribe request");
         goto cleanup;
     }
 
+    context->packet_id = unsub_id;
+
+    aws_byte_buf_clean_up(&topic);
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     return undefined;
 
 cleanup:
-    aws_byte_buf_clean_up(&metadata->topic);
+    aws_byte_buf_clean_up(&topic);
 
-    if (metadata->on_unsuback) {
-        napi_delete_reference(env, metadata->on_unsuback);
+    if (context->callback) {
+        napi_delete_reference(env, context->callback);
     }
-    if (metadata->on_unsuback_ctx) {
-        napi_async_destroy(env, metadata->on_unsuback_ctx);
+    if (context->callback_ctx) {
+        napi_async_destroy(env, context->callback_ctx);
     }
 
-    aws_mem_release(allocator, metadata);
+    aws_mem_release(allocator, context);
 
     return NULL;
 }

@@ -1,11 +1,12 @@
 import * as io from '../lib/io';
 import * as mqtt from '../lib/mqtt';
 import { Md5Hash, hash_md5 } from '../lib/crypto';
-import ResourceSafety = require('../lib/resource_safe')
+import ResourceSafety = require('../lib/resource_safety');
+import { TextDecoder } from 'util';
 
 console.log('ALPN is available: ', io.is_alpn_available());
 
-//const test_topic = "test";
+const test_topic = "test";
 
 async function main() {
     let bootstrap = new io.ClientBootstrap();
@@ -26,22 +27,24 @@ async function main() {
             console.log("connected", session_present);
 
             /* Subscribe, publish on suback, and resolve on message received */
-            /*await new Promise(resolve => {
+            await new Promise(resolve => {
                 conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
                     let decoder = new TextDecoder('utf-8');
                     let payload_text = decoder.decode(payload);
-                    console.log("Got message, topic:", topic, "payload:", payload_text);
-                    resolve();8883
-                }).then(sub_re8883
-                    console.lo8883
+                    console.log("Got message, topic:", topic, ", payload:\n", payload_text);
+                    resolve();
+                }).
+                then(sub_ack => {
+                    console.log("subscribed to topic: " + sub_ack.topic + ", with packet id: " + sub_ack.packet_id 
+                    + ", error code: " + sub_ack.error_code + ", with qos: " + sub_ack.qos);
                     conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
-                });
+            });
             }).catch((reason) => {
                 console.error('MQTT exception: ', reason);
             });
 
             await conn.unsubscribe(test_topic);
-            console.log("unsubscribed");*/
+            console.log("unsubscribed");
 
             await conn.disconnect();
             console.log("disconnected");
@@ -63,5 +66,3 @@ console.log('Object Hash of', to_hash, ':', obj_digest);
 
 let oneshot_digest = hash_md5(to_hash);
 console.log('Oneshot Hash of', to_hash, ':', oneshot_digest);
-
-

@@ -17,7 +17,7 @@ import crt_native = require('./binding');
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import ResourceSafety = require('./resource_safe')
+import ResourceSafety = require('./resource_safety')
 
 export enum QoS {
     AtMostOnce = 0,
@@ -173,7 +173,7 @@ export class Connection implements ResourceSafety.ResourceSafe {
         });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: DataView) => void) {
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
 
             function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {

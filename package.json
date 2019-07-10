@@ -44,6 +44,8 @@
     "typescript": "^3.2.2"
   },
   "dependencies": {
-    "node-pre-gyp": "^0.12.0"
+    "@types/text-encoding": "0.0.35",
+    "node-pre-gyp": "^0.12.0",
+    "text-encoding": "^0.7.0"
   }
 }
