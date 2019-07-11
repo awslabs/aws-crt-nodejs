@@ -47,6 +47,7 @@ export class Client {
 export interface ConnectionConfig {
     client_id: string;
     host_name: string;
+    connect_timeout: number;
     port: number;
     use_websocket?: boolean;
     clean_session?: boolean;
@@ -71,13 +72,14 @@ export interface MqttSubscribeRequest extends MqttRequest {
 type Payload = string | Object | DataView;
 
 export class AwsIotMqttConnectionConfigBuilder {
-    params: ConnectionConfig   
-    tls_ctx_options?: io.TlsContextOptions
+    private params: ConnectionConfig   
+    private tls_ctx_options?: io.TlsContextOptions
 
     private constructor() {
         this.params = {
             client_id: '', 
-            host_name: '', 
+            host_name: '',
+            connect_timeout: 3000, 
             port: io.is_alpn_available() ? 443 : 8883,
             use_websocket: false,
             clean_session: false,
@@ -149,6 +151,11 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
+    with_connect_timeout_ms(timeout: number) {
+        this.params.connect_timeout = timeout;
+        return this;
+    }
+
     build() {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
@@ -177,7 +184,7 @@ export class Connection implements ResourceSafety.ResourceSafe {
     }
 
     close() {
-        crt_native.mqtt_client_connection_close(this.native_handle())
+        crt_native.mqtt_client_connection_close(this.native_handle());
     }
 
     async connect() {
@@ -201,10 +208,14 @@ export class Connection implements ResourceSafety.ResourceSafe {
                     this.config.host_name,
                     this.config.port,
                     this.config.tls_ctx ? this.config.tls_ctx.native_handle() : null,
+                    this.config.connect_timeout,
                     this.config.keep_alive,
+                    this.config.timeout,
                     this.config.will,
                     this.config.username,
                     this.config.password,
+                    this.config.use_websocket,
+                    this.config.clean_session,
                     on_connect,
                 );
             } catch (e) {

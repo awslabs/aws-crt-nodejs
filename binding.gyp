@@ -1,6 +1,6 @@
 {
     "variables": {
-        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : 'c:/Users/henso/Source/aws-crt-nodejs/deps_build/install')'"
+        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : require('path').join(process.cwd(), 'deps_build', 'install')\")'"
     },
     "targets": [
         {
@@ -55,7 +55,7 @@
                         "-lBCrypt",
                         "-lKernel32",
                         "-lWs2_32",
-                        "-lMSVCRT",
+                        "-lLIBCMT",
                     ],
                 }, {
                     "cflags": [
@@ -63,7 +63,6 @@
                         "-Wall",
                         "-Wextra",
                         "-pedantic",
-                        "-Wno-zero-length-array",
                     ],
                 }],
                 ["OS=='linux'", {

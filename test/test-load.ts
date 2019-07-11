@@ -11,13 +11,13 @@ const test_topic = "test";
 async function main() {
     let bootstrap = new io.ClientBootstrap();
     let config_builder = 
-    mqtt.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path("C:\\Users\\henso\\Source\\mqtt-pub-sub.pem.crt", 
-                                                                      "C:\\Users\\henso\\Source\\mqtt-pub-sub.pem.key");
+    mqtt.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path("/home/ANT.AMAZON.COM/henso/source/4d169378e4.cert.pem", 
+                                                                      "/home/ANT.AMAZON.COM/henso/source/4d169378e4.private.key");
     config_builder
-        .with_certificate_authority_from_path(undefined, "C:\\Users\\henso\\Source\\AmazonRootCA1.pem")
+        .with_certificate_authority_from_path(undefined, "/home/ANT.AMAZON.COM/henso/source/AmazonRootCA1.pem")
         .with_clean_session(false)
         .with_client_id('js-client')
-        .with_endpoint('a16523t7iy5uyg-ats.iot.us-east-1.amazonaws.com')
+        .with_endpoint('a16523t7iy5uyg-ats.iot.us-east-1.amazonaws.com');
 
     let client = new mqtt.Client(bootstrap);
 
