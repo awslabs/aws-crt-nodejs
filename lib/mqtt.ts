@@ -27,15 +27,16 @@ export enum QoS {
 
 export class Client {
     public bootstrap: io.ClientBootstrap;
-    public tls_ctx?: io.ClientTlsContext;
 
     private client_handle: any;
 
     constructor(bootstrap: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
         this.bootstrap = bootstrap;
-        this.tls_ctx = tls_ctx;
-
         this.client_handle = crt_native.mqtt_client_new(bootstrap.native_handle())
+    }
+
+    new_connection(config: ConnectionConfig) {
+        return new Connection(this, config)
     }
 
     native_handle(): any {
@@ -43,16 +44,18 @@ export class Client {
     }
 }
 
-export interface ConnectionConnectParams {
+export interface ConnectionConfig {
     client_id: string;
     host_name: string;
     port: number;
     use_websocket?: boolean;
     clean_session?: boolean;
     keep_alive?: number;
-    will?: any;
+    timeout?: number;
+    will?: string;
     username?: string;
     password?: string;
+    tls_ctx?: io.ClientTlsContext;
 }
 
 export interface MqttRequest {
@@ -67,13 +70,108 @@ export interface MqttSubscribeRequest extends MqttRequest {
 
 type Payload = string | Object | DataView;
 
+export class AwsIotMqttConnectionConfigBuilder {
+    params: ConnectionConfig   
+    tls_ctx_options?: io.TlsContextOptions
+
+    private constructor() {
+        this.params = {
+            client_id: '', 
+            host_name: '', 
+            port: io.is_alpn_available() ? 443 : 8883,
+            use_websocket: false,
+            clean_session: false,
+            keep_alive: undefined,
+            will: undefined,
+            username: '?SDK=NodeJSv2&Version=0.1.0',
+            password: undefined,
+            tls_ctx: undefined,
+        };
+    }
+
+    static new_mtls_builder_from_path(cert_path: string, key_path: string) {
+        let builder = new AwsIotMqttConnectionConfigBuilder();
+        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert_path, key_path);
+        
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
+        }   
+        
+        return builder;
+    }  
+
+    with_certificate_authority_from_path(ca_path?: string, ca_file?: string) {
+        if (this.tls_ctx_options !== undefined) {
+            this.tls_ctx_options.override_default_trust_store(ca_path, ca_file);
+        }
+
+        return this;
+    }
+
+    with_endpoint(endpoint: string) {
+        this.params.host_name = endpoint;
+        return this;
+    }
+
+    with_client_id(client_id: string) {
+        this.params.client_id = client_id;
+        return this;
+    }
+
+    with_clean_session(clean_session: boolean) {
+        this.params.clean_session = clean_session;
+        return this;
+    }
+
+    with_use_websockets() {
+        this.params.use_websocket = true;
+
+        if (this.tls_ctx_options !== undefined) {
+            this.tls_ctx_options.alpn_list = undefined;
+            this.params.port = 443;
+        }
+
+        return this;
+    }
+
+    with_keep_alive_seconds(keep_alive: number) {
+        this.params.keep_alive = keep_alive;
+        return this;
+    }
+
+    with_timeout_ms(timeout_ms: number) {
+        this.params.timeout = timeout_ms;
+        return this;
+    }
+
+    with_will(will: string) {
+        this.params.will = will;
+        return this;
+    }
+
+    build() {
+        if (this.params.client_id === undefined || this.params.host_name === undefined) {
+            throw 'client_id and endpoint are required';
+        }
+
+        if (this.tls_ctx_options === undefined) {
+            throw 'tls options have to be specified'
+        }
+
+        this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);       
+        return this.params;       
+    }
+}
+
 export class Connection implements ResourceSafety.ResourceSafe {
     public client: Client;
     private connection_handle: any;
     private encoder: TextEncoder;
+    private config: ConnectionConfig
 
-    constructor(client: Client, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
+    constructor(client: Client, config: ConnectionConfig, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
         this.client = client;
+        this.config = config;
         this.connection_handle = crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
         this.encoder = new TextEncoder();
     }
@@ -82,7 +180,7 @@ export class Connection implements ResourceSafety.ResourceSafe {
         crt_native.mqtt_client_connection_close(this.native_handle())
     }
 
-    async connect(args: ConnectionConnectParams) {
+    async connect() {
         return new Promise<boolean>((resolve, reject) => {
 
             function on_connect(error_code: number, return_code: number, session_present: boolean) {
@@ -99,14 +197,14 @@ export class Connection implements ResourceSafety.ResourceSafe {
             try {
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
-                    args.client_id,
-                    args.host_name,
-                    args.port,
-                    this.client.tls_ctx ? this.client.tls_ctx.native_handle() : null,
-                    args.keep_alive,
-                    args.will,
-                    args.username,
-                    args.password,
+                    this.config.client_id,
+                    this.config.host_name,
+                    this.config.port,
+                    this.config.tls_ctx ? this.config.tls_ctx.native_handle() : null,
+                    this.config.keep_alive,
+                    this.config.will,
+                    this.config.username,
+                    this.config.password,
                     on_connect,
                 );
             } catch (e) {

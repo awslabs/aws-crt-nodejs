@@ -10,20 +10,20 @@ const test_topic = "test";
 
 async function main() {
     let bootstrap = new io.ClientBootstrap();
-    let tls_opt = io.TlsContextOptions.create_client_with_mtls("/home/ANT.AMAZON.COM/henso/source/4d169378e4.cert.pem", "/home/ANT.AMAZON.COM/henso/source/4d169378e4.private.key")
-    tls_opt.override_default_trust_store(undefined, "/henso/source/AmazonRootCA1.pem")
-    tls_opt.alpn_list = io.is_alpn_available() ? "x-amzn-mqtt-ca" : undefined;
-    let tls_ctx = new io.ClientTlsContext(tls_opt);
-    let client = new mqtt.Client(bootstrap, tls_ctx);
+    let config_builder = 
+    mqtt.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path("C:\\Users\\henso\\Source\\mqtt-pub-sub.pem.crt", 
+                                                                      "C:\\Users\\henso\\Source\\mqtt-pub-sub.pem.key");
+    config_builder
+        .with_certificate_authority_from_path(undefined, "C:\\Users\\henso\\Source\\AmazonRootCA1.pem")
+        .with_clean_session(false)
+        .with_client_id('js-client')
+        .with_endpoint('a16523t7iy5uyg-ats.iot.us-east-1.amazonaws.com')
 
-    await ResourceSafety.using(new mqtt.Connection(client), async (conn) => {
+    let client = new mqtt.Client(bootstrap);
+
+    await ResourceSafety.using(new mqtt.Connection(client, config_builder.build()), async (conn) => {
         try {
-            const session_present = await conn.connect({
-                client_id: "js-client",
-                host_name: "a16523t7iy5uyg-ats.iot.us-east-1.amazonaws.com",
-                port: io.is_alpn_available() ? 443 : 8883,
-                keep_alive: 6000
-            });
+            const session_present = await conn.connect();
             console.log("connected", session_present);
 
             /* Subscribe, publish on suback, and resolve on message received */
@@ -50,6 +50,7 @@ async function main() {
             console.log("disconnected");
         } catch (e) {
             console.error(e);
+            throw e;
         }
     });
 }
