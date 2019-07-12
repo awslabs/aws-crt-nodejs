@@ -84,7 +84,10 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
             NAPI_CHECK_CALL(napi_get_typedarray_info(env, node_str, &type, &length, (void **)&buf->buffer, NULL, NULL));
 
             size_t element_size = 0;
-            switch (type) {
+
+            /* whoever added napi_bigint64_array to the node api deserves a good thrashing!!!! */
+            int type_hack = type;
+            switch (type_hack) {
                 case napi_int8_array:
                 case napi_uint8_array:
                 case napi_uint8_clamped_array:
