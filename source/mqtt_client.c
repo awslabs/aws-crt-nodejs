@@ -15,15 +15,13 @@
 #include "mqtt_client.h"
 #include "io.h"
 
-#include <assert.h>
-
 static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 
     (void)env;
     (void)finalize_hint;
 
     struct mqtt_nodejs_client *node_client = finalize_data;
-    assert(node_client);
+    AWS_ASSERT(node_client);
 
     struct aws_allocator *allocator = node_client->native_client.allocator;
 
@@ -54,7 +52,7 @@ napi_value mqtt_client_new(napi_env env, napi_callback_info info) {
         napi_throw_type_error(env, NULL, "Expected event loop group");
         goto error;
     }
-    assert(status == napi_ok); /* napi_ok and napi_invalid_arg are the only possible return values */
+    AWS_ASSERT(status == napi_ok); /* napi_ok and napi_invalid_arg are the only possible return values */
 
     node_client = aws_mem_acquire(allocator, sizeof(struct mqtt_nodejs_client));
     if (!node_client) {

@@ -55,7 +55,7 @@ static const char *s_callback_invocation_failed = "Callback invocation failed";
  */
 enum mqtt_nodejs_cb_type {
     MQTT_NODEJS_CB_ON_CONNECT,
-    MQTT_NODEJS_CB_ON_INTERUPTED,
+    MQTT_NODEJS_CB_ON_INTERRUPTED,
     MQTT_NODEJS_CB_ON_RESUMED,
     MQTT_NODEJS_CB_ON_DISCONNECTED,
     MQTT_NODEJS_CB_ON_PUBLISH_COMPLETE,
@@ -100,8 +100,8 @@ struct mqtt_nodejs_connection {
 
     napi_async_context on_connect_ctx;
     napi_ref on_connect;
-    napi_ref on_connection_interupted;
-    napi_async_context on_connection_interupted_ctx;
+    napi_ref on_connection_interrupted;
+    napi_async_context on_connection_interrupted_ctx;
 
     napi_ref on_connection_resumed;
     napi_async_context on_connection_resumed_ctx;
@@ -127,7 +127,7 @@ static void s_raise_napi_error(napi_env env, const char *message) {
 }
 
 static void s_dispatch_on_connect(struct mqtt_nodejs_callback_context *context);
-static void s_dispatch_on_interupt(struct mqtt_nodejs_callback_context *context);
+static void s_dispatch_on_interrupt(struct mqtt_nodejs_callback_context *context);
 static void s_dispatch_on_resumed(struct mqtt_nodejs_callback_context *context);
 static void s_dispatch_on_disconnect(struct mqtt_nodejs_callback_context *context);
 static void s_dispatch_on_suback(struct mqtt_nodejs_callback_context *context);
@@ -138,7 +138,7 @@ static void s_dispatch_on_unsub_ack(struct mqtt_nodejs_callback_context *context
 
 static dispatch_mqtt_callback_fn *s_mqtt_callback_fns[] = {
     [MQTT_NODEJS_CB_ON_CONNECT] = s_dispatch_on_connect,
-    [MQTT_NODEJS_CB_ON_INTERUPTED] = s_dispatch_on_interupt,
+    [MQTT_NODEJS_CB_ON_INTERRUPTED] = s_dispatch_on_interrupt,
     [MQTT_NODEJS_CB_ON_RESUMED] = s_dispatch_on_resumed,
     [MQTT_NODEJS_CB_ON_DISCONNECTED] = s_dispatch_on_disconnect,
     [MQTT_NODEJS_CB_ON_PUBLISH_COMPLETE] = s_dispatch_on_publish_complete,
@@ -212,9 +212,9 @@ napi_value mqtt_client_connection_close(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to extract connection from first argument");
     }
 
-    if (node_connection->on_connection_interupted) {
-        napi_async_destroy(env, node_connection->on_connection_interupted_ctx);
-        napi_delete_reference(env, node_connection->on_connection_interupted);
+    if (node_connection->on_connection_interrupted) {
+        napi_async_destroy(env, node_connection->on_connection_interrupted_ctx);
+        napi_delete_reference(env, node_connection->on_connection_interrupted);
     }
 
     if (node_connection->on_connection_resumed) {
@@ -234,22 +234,22 @@ napi_value mqtt_client_connection_close(napi_env env, napi_callback_info info) {
 /************************************
  * Connection object initialization
  ************************************/
-static void s_dispatch_on_interupt(struct mqtt_nodejs_callback_context *context) {
+static void s_dispatch_on_interrupt(struct mqtt_nodejs_callback_context *context) {
     napi_handle_scope handle_scope = NULL;
     napi_callback_scope cb_scope = NULL;
 
     struct mqtt_nodejs_connection *node_connection = context->connection;
     napi_env env = node_connection->env;
 
-    if (node_connection->on_connection_interupted) {
+    if (node_connection->on_connection_interrupted) {
         if (napi_open_handle_scope(env, &handle_scope)) {
             s_raise_napi_error(env, s_handle_scope_open_failed);
             goto cleanup;
         }
 
-        napi_value on_connection_interupted = NULL;
-        napi_get_reference_value(env, node_connection->on_connection_interupted, &on_connection_interupted);
-        if (on_connection_interupted) {
+        napi_value on_connection_interrupted = NULL;
+        napi_get_reference_value(env, node_connection->on_connection_interrupted, &on_connection_interrupted);
+        if (on_connection_interrupted) {
             napi_value resource_object = NULL;
             if (napi_create_object(env, &resource_object)) {
                 s_raise_napi_error(env, s_resource_creation_failed);
@@ -257,7 +257,7 @@ static void s_dispatch_on_interupt(struct mqtt_nodejs_callback_context *context)
             }
 
             if (napi_open_callback_scope(
-                    env, resource_object, node_connection->on_connection_interupted_ctx, &cb_scope)) {
+                    env, resource_object, node_connection->on_connection_interrupted_ctx, &cb_scope)) {
                 s_raise_napi_error(env, s_callback_scope_open_failed);
                 goto cleanup;
             }
@@ -271,9 +271,9 @@ static void s_dispatch_on_interupt(struct mqtt_nodejs_callback_context *context)
 
             if (napi_make_callback(
                     env,
-                    node_connection->on_connection_interupted_ctx,
+                    node_connection->on_connection_interrupted_ctx,
                     recv,
-                    on_connection_interupted,
+                    on_connection_interrupted,
                     AWS_ARRAY_SIZE(params),
                     params,
                     NULL)) {
@@ -353,7 +353,10 @@ cleanup:
     aws_mem_release(context->allocator, context);
 }
 
-static void s_on_connection_interupted(struct aws_mqtt_client_connection *connection, int error_code, void *user_data) {
+static void s_on_connection_interrupted(
+    struct aws_mqtt_client_connection *connection,
+    int error_code,
+    void *user_data) {
     (void)connection;
 
     struct mqtt_nodejs_connection *nodejs_connection = user_data;
@@ -367,8 +370,8 @@ static void s_on_connection_interupted(struct aws_mqtt_client_connection *connec
     } else {
         context->allocator = nodejs_connection->allocator;
         context->error_code = error_code;
-        context->callback = nodejs_connection->on_connection_interupted;
-        context->cb_type = MQTT_NODEJS_CB_ON_INTERUPTED;
+        context->callback = nodejs_connection->on_connection_interrupted;
+        context->cb_type = MQTT_NODEJS_CB_ON_INTERRUPTED;
         context->connection = nodejs_connection;
     }
 
@@ -436,11 +439,11 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (napi_create_reference(env, node_args[1], 1, &node_connection->on_connection_interupted)) {
+        if (napi_create_reference(env, node_args[1], 1, &node_connection->on_connection_interrupted)) {
             napi_value resource_name = NULL;
             napi_create_string_utf8(
-                env, "aws_mqtt_client_connection_on_connection_interupted", NAPI_AUTO_LENGTH, &resource_name);
-            napi_async_init(env, NULL, resource_name, &node_connection->on_connection_interupted_ctx);
+                env, "aws_mqtt_client_connection_on_connection_interrupted", NAPI_AUTO_LENGTH, &resource_name);
+            napi_async_init(env, NULL, resource_name, &node_connection->on_connection_interrupted_ctx);
             napi_throw_error(env, NULL, "Could not create ref from on_connnection_interrupted");
         }
     }
@@ -465,10 +468,10 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     node_connection->env = env;
 
-    if (node_connection->on_connection_interupted || node_connection->on_connection_resumed) {
+    if (node_connection->on_connection_interrupted || node_connection->on_connection_resumed) {
         aws_mqtt_client_connection_set_connection_interruption_handlers(
             node_connection->connection,
-            s_on_connection_interupted,
+            s_on_connection_interrupted,
             node_connection,
             s_on_connection_resumed,
             node_connection);
@@ -501,9 +504,9 @@ cleanup:
             aws_mqtt_client_connection_destroy(node_connection->connection);
         }
 
-        if (node_connection->on_connection_interupted) {
-            napi_async_destroy(env, node_connection->on_connection_interupted_ctx);
-            napi_delete_reference(env, node_connection->on_connection_interupted);
+        if (node_connection->on_connection_interrupted) {
+            napi_async_destroy(env, node_connection->on_connection_interrupted_ctx);
+            napi_delete_reference(env, node_connection->on_connection_interrupted);
         }
 
         if (node_connection->on_connection_resumed) {

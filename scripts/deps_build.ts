@@ -42,8 +42,6 @@ const is_32bit = process.arch == 'x32' || process.arch == 'arm';
 const is_windows = process.platform == 'win32';
 const is_macos = process.platform == 'darwin';
 
-/* Capture the include path of Node dependencies */
-
 const cross_compile_flags: string = (() => {
     let flags: string[] = [];
 
@@ -67,14 +65,20 @@ async function get_generator_string(): Promise<string | null> {
         } else {
             const prog_x86_path = process.env['PROGRAMFILES(x86)'] as string;
             let vs_version_gen_str: string | undefined;
+            let x64_arch_str: string
+            x64_arch_str = ''
+
             if (fs.existsSync(path.join(prog_x86_path, 'Microsoft Visual Studio', '2019'))) {
                 vs_version_gen_str = 'Visual Studio 16.0 2019';
+                x64_arch_str = '-A x64';
                 console.log('found installed version of Visual Studio 2019');
             } else if (fs.existsSync(path.join(prog_x86_path, 'Microsoft Visual Studio', '2017'))) {
                 vs_version_gen_str = 'Visual Studio 15 2017';
+                x64_arch_str = 'Win64'
                 console.log('found installed version of Visual Studio 2017');
             } else if (fs.existsSync(path.join(prog_x86_path, 'Microsoft Visual Studio 14.0'))) {
                 vs_version_gen_str = 'Visual Studio 14 2015';
+                x64_arch_str = 'Win64'
                 console.log('found installed version of Visual Studio 2015');
             } 
 
@@ -85,7 +89,7 @@ async function get_generator_string(): Promise<string | null> {
 
             if (is_64bit) {
                 console.log('64bit version of node detected, using win64 builds')
-                vs_version_gen_str = vs_version_gen_str + ' Win64'
+                vs_version_gen_str = vs_version_gen_str + ' ' + x64_arch_str;
             }
 
             vs_version_gen_str = '-G \"' + vs_version_gen_str + '\"';

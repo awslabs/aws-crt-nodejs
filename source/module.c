@@ -19,7 +19,6 @@
 
 #include <aws/common/clock.h>
 
-#include <assert.h>
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 #include <uv.h>
@@ -39,7 +38,7 @@ static struct aws_event_loop_group s_node_uv_elg;
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
-    assert(buf);
+    AWS_ASSERT(buf);
 
     napi_valuetype type = napi_undefined;
     NAPI_CHECK_CALL(napi_typeof(env, node_str, &type));
@@ -55,7 +54,7 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
         }
 
         NAPI_CHECK_CALL(napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->capacity, &buf->len));
-        assert(length == buf->len);
+        AWS_ASSERT(length == buf->len);
     } else if (type == napi_object) {
 
         bool is_expected = false;
