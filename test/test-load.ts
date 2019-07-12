@@ -3,6 +3,36 @@ import * as mqtt from '../lib/mqtt';
 import { Md5Hash, hash_md5 } from '../lib/crypto';
 import ResourceSafety = require('../lib/resource_safety');
 import { TextDecoder } from 'util';
+const yargs = require('yargs');
+
+const argv = yargs
+    .option('cert_path', {
+        alias: 'c',
+        description: 'Path on disk to an MTLS certificate in PEM format',
+        type: 'string',
+        require: 'true'
+    })
+    .option('key_path', {
+        alias: 'k',
+        description: 'Path on disk to an MTLS private key in PEM format',
+        type: 'string',
+        require: 'true'
+    })
+    .option('ca_path', {
+        alias: 'a',
+        description: 'Path on disk to a certificate authority in PEM format',
+        type: 'string',
+        require: 'false'
+    })
+    .option('endpoint', {
+        alias: 'e',
+        description: 'Endpoint to connect to',
+        type: 'string',
+        require: 'true'
+    })
+    .help()
+    .alias('help', 'h')
+    .argv;
 
 console.log('ALPN is available: ', io.is_alpn_available());
 
@@ -11,13 +41,12 @@ const test_topic = "test";
 async function main() {
     let bootstrap = new io.ClientBootstrap();
     let config_builder = 
-    mqtt.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path("/home/ANT.AMAZON.COM/henso/source/4d169378e4.cert.pem", 
-                                                                      "/home/ANT.AMAZON.COM/henso/source/4d169378e4.private.key");
+    mqtt.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(argv.cert_path, argv.key_path);
     config_builder
-        .with_certificate_authority_from_path(undefined, "/home/ANT.AMAZON.COM/henso/source/AmazonRootCA1.pem")
+        .with_certificate_authority_from_path(undefined, argv.ca_path)
         .with_clean_session(false)
         .with_client_id('js-client')
-        .with_endpoint('a16523t7iy5uyg-ats.iot.us-east-1.amazonaws.com');
+        .with_endpoint(argv.endpoint);
 
     let client = new mqtt.Client(bootstrap);
 
