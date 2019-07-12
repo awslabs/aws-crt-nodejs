@@ -1,7 +1,8 @@
 import * as io from '../lib/io';
 import * as mqtt from '../lib/mqtt';
+import { AwsIotMqttConnectionConfigBuilder } from '../lib/aws_mqtt';
 import { Md5Hash, hash_md5 } from '../lib/crypto';
-import ResourceSafety = require('../lib/resource_safety');
+import { using } from '../lib/resource_safety';
 import { TextDecoder } from 'util';
 const yargs = require('yargs');
 
@@ -41,7 +42,7 @@ const test_topic = "test";
 async function main() {
     let bootstrap = new io.ClientBootstrap();
     let config_builder = 
-    mqtt.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(argv.cert_path, argv.key_path);
+    AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(argv.cert_path, argv.key_path);
     config_builder
         .with_certificate_authority_from_path(undefined, argv.ca_path)
         .with_clean_session(false)
@@ -50,7 +51,7 @@ async function main() {
 
     let client = new mqtt.Client(bootstrap);
 
-    await ResourceSafety.using(new mqtt.Connection(client, config_builder.build()), async (conn) => {
+    await using(new mqtt.Connection(client, config_builder.build()), async (conn) => {
         try {
             const session_present = await conn.connect();
             console.log("connected", session_present);

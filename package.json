@@ -41,10 +41,11 @@
     "@types/node": "^10.12.18",
     "aws-sdk": "^2.419.0",
     "node-gyp": "^3.8.0",
-    "typescript": "^3.2.2"
+    "typescript": "^3.2.2",
+    "yargs": "^13.2.4"
+
   },
   "dependencies": {
-    "node-pre-gyp": "^0.12.0",
-    "yargs": "^13.2.4"
+    "node-pre-gyp": "^0.12.0"
   }
 }

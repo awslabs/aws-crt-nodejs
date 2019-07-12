@@ -229,9 +229,7 @@ napi_value mqtt_client_connection_close(napi_env env, napi_callback_info info) {
        up the connection. */
     uv_close((uv_handle_t *)&node_connection->async_handle, s_async_handle_close_cb);
 
-    napi_value undefined = NULL;
-    napi_get_undefined(env, &undefined);
-    return undefined;
+    return NULL;
 }
 
 /************************************
@@ -829,9 +827,7 @@ napi_value mqtt_client_connection_reconnect(napi_env env, napi_callback_info inf
         goto cleanup;
     }
 
-    /* Return undefined */
-    napi_get_undefined(env, &result);
-    return result;
+    return NULL;
 
 cleanup:
     if (node_connection->on_connect) {
@@ -1004,9 +1000,7 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
         goto cleanup;
     }
 
-    napi_value undefined;
-    napi_get_undefined(env, &undefined);
-    return undefined;
+    return NULL;
 
 cleanup:
     aws_byte_buf_clean_up(&context->payload_data);
@@ -1313,9 +1307,7 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
         goto cleanup;
     }
 
-    napi_value undefined;
-    napi_get_undefined(env, &undefined);
-    return undefined;
+    return NULL;
 
 cleanup:
     if (on_publish_context->topic.buffer) {
@@ -1480,10 +1472,7 @@ napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info i
 
     context->packet_id = unsub_id;
 
-    napi_value undefined;
-    napi_get_undefined(env, &undefined);
-    return undefined;
-
+    return NULL;
 cleanup:
     aws_byte_buf_clean_up(&context->topic);
 
@@ -1619,10 +1608,7 @@ napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info in
         goto cleanup;
     }
 
-    napi_value undefined = NULL;
-    napi_get_undefined(env, &undefined);
-    return undefined;
-
+    return NULL;
 cleanup:
     if (context->callback) {
         napi_delete_reference(env, context->callback);
