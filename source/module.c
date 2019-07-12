@@ -103,10 +103,8 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
                     break;
 
                 case napi_float64_array:
-#if NAPI_VERSION > 3
-                case napi_bigint64_array:
-                case napi_biguint64_array:
-#endif /* NAPI_VERSION > 3 */
+                case 9:  /*napi_bigint64_array */
+                case 10: /*napi_biguint64_array*/
                     element_size = 8;
                     break;
             }

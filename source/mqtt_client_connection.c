@@ -1178,6 +1178,7 @@ static void s_on_publish(
     void *user_data) {
 
     (void)connection;
+    (void)topic;
 
     struct mqtt_nodejs_callback_context *subscribe_context = user_data;
     struct mqtt_nodejs_callback_context *context =
