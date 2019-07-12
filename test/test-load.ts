@@ -1,6 +1,39 @@
 import * as io from '../lib/io';
 import * as mqtt from '../lib/mqtt';
+import { AwsIotMqttConnectionConfigBuilder } from '../lib/aws_mqtt';
 import { Md5Hash, hash_md5 } from '../lib/crypto';
+import { using } from '../lib/resource_safety';
+import { TextDecoder } from 'util';
+const yargs = require('yargs');
+
+const argv = yargs
+    .option('cert_path', {
+        alias: 'c',
+        description: 'Path on disk to an MTLS certificate in PEM format',
+        type: 'string',
+        require: 'true'
+    })
+    .option('key_path', {
+        alias: 'k',
+        description: 'Path on disk to an MTLS private key in PEM format',
+        type: 'string',
+        require: 'true'
+    })
+    .option('ca_path', {
+        alias: 'a',
+        description: 'Path on disk to a certificate authority in PEM format',
+        type: 'string',
+        require: 'false'
+    })
+    .option('endpoint', {
+        alias: 'e',
+        description: 'Endpoint to connect to',
+        type: 'string',
+        require: 'true'
+    })
+    .help()
+    .alias('help', 'h')
+    .argv;
 
 console.log('ALPN is available: ', io.is_alpn_available());
 
@@ -8,46 +41,48 @@ const test_topic = "test";
 
 async function main() {
     let bootstrap = new io.ClientBootstrap();
-    let tls_opt = io.TlsContextOptions.create_client_with_mtls("iot-certificate.pem.crt", "iot-private.pem.key")
-    tls_opt.override_default_trust_store(undefined, "AmazonRootCA1.pem")
-    tls_opt.alpn_list = "x-amzn-mqtt-ca"
-    let tls_ctx = new io.ClientTlsContext(tls_opt);
-    let client = new mqtt.Client(bootstrap, tls_ctx);
+    let config_builder = 
+    AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(argv.cert_path, argv.key_path);
+    config_builder
+        .with_certificate_authority_from_path(undefined, argv.ca_path)
+        .with_clean_session(false)
+        .with_client_id('js-client')
+        .with_endpoint(argv.endpoint);
 
-    let conn = new mqtt.Connection(client);
+    let client = new mqtt.Client(bootstrap);
 
-    try {
-        const session_present = await conn.connect({
-            client_id: "js-client",
-            host_name: "a1ba5f1mpna9k5-ats.iot.us-east-1.amazonaws.com",
-            port: io.is_alpn_available() ? 443 : 8883,
-            keep_alive: 6000
-        });
-        console.log("connected", session_present);
+    await using(new mqtt.Connection(client, config_builder.build()), async (conn) => {
+        try {
+            const session_present = await conn.connect();
+            console.log("connected", session_present);
 
-        /* Subscribe, publish on suback, and resolve on message received */
-        await new Promise(resolve => {
-            conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
-                let decoder = new TextDecoder('utf-8');
-                let payload_text = decoder.decode(payload);
-                console.log("Got message, topic:", topic, "payload:", payload_text);
-                resolve();
-            }).then(sub_req => {
-                console.log("subscribed");
-                conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
+            /* Subscribe, publish on suback, and resolve on message received */
+            await new Promise(resolve => {
+                conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
+                    let decoder = new TextDecoder('utf-8');
+                    let payload_text = decoder.decode(payload);
+                    console.log("Got message, topic:", topic, ", payload:\n", payload_text);
+                    resolve();
+                }).
+                then(sub_ack => {
+                    console.log("subscribed to topic: " + sub_ack.topic + ", with packet id: " + sub_ack.packet_id 
+                    + ", error code: " + sub_ack.error_code + ", with qos: " + sub_ack.qos);
+                    conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
             });
-        }).catch((reason) => {
-            console.error('MQTT exception: ', reason);
-        });
+            }).catch((reason) => {
+                console.error('MQTT exception: ', reason);
+            });
 
-        await conn.unsubscribe(test_topic);
-        console.log("unsubscribed");
+            await conn.unsubscribe(test_topic);
+            console.log("unsubscribed");
 
-        await conn.disconnect();
-        console.log("disconnected");
-    } catch (e) {
-        console.error(e);
-    }
+            await conn.disconnect();
+            console.log("disconnected");
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    });
 }
 
 main().catch((reason) => {

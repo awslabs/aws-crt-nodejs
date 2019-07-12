@@ -39,7 +39,7 @@ napi_value error_code_to_string(napi_env env, napi_callback_info info) {
 
     int64_t error_code = 0;
     if (napi_get_value_int64(env, error_number_val, &error_code)) {
-        assert(false); /* Coerce should make this impossible */
+        AWS_ASSERT(false); /* Coerce should make this impossible */
     }
 
     const char *error_string = aws_error_debug_str((int)error_code);
@@ -73,12 +73,12 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
     (void)finalize_hint;
 
     struct aws_nodejs_client_bootstrap *node_bootstrap = finalize_data;
-    assert(node_bootstrap);
+    AWS_ASSERT(node_bootstrap);
 
     struct aws_allocator *allocator = node_bootstrap->bootstrap->allocator;
 
     aws_host_resolver_clean_up(&node_bootstrap->resolver);
-    aws_client_bootstrap_destroy(node_bootstrap->bootstrap);
+    aws_client_bootstrap_release(node_bootstrap->bootstrap);
 
     aws_mem_release(allocator, node_bootstrap);
 }
@@ -92,7 +92,7 @@ napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info) {
         aws_mem_acquire(allocator, sizeof(struct aws_nodejs_client_bootstrap));
     AWS_ZERO_STRUCT(*node_bootstrap);
 
-    if (aws_host_resolver_init_uv(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_uv_loop())) {
+    if (aws_host_resolver_init_default(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_elg())) {
         goto clean_up;
     }
 
@@ -113,7 +113,7 @@ napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info) {
 
 clean_up:
     if (node_bootstrap->bootstrap) {
-        aws_client_bootstrap_destroy(node_bootstrap->bootstrap);
+        aws_client_bootstrap_release(node_bootstrap->bootstrap);
     }
     if (node_bootstrap->resolver.vtable) {
         aws_host_resolver_clean_up(&node_bootstrap->resolver);
@@ -132,7 +132,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
     (void)finalize_hint;
 
     struct aws_tls_ctx *tls_ctx = finalize_data;
-    assert(tls_ctx);
+    AWS_ASSERT(tls_ctx);
 
     aws_tls_ctx_destroy(tls_ctx);
 }
@@ -141,6 +141,7 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *alloc = aws_default_allocator();
     napi_status status = napi_ok;
+    (void)status;
 
     size_t num_args = 9;
     napi_value node_args[9];
@@ -155,9 +156,7 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
 
-    struct aws_tls_ctx_options ctx_options;
-    aws_tls_ctx_options_init_default_client(&ctx_options, alloc);
-
+    uint32_t min_tls_version = AWS_IO_TLS_VER_SYS_DEFAULTS;
     if (!aws_napi_is_null_or_undefined(env, node_args[0])) {
         napi_value node_tls_ver;
         if (napi_ok != napi_coerce_to_number(env, node_args[0], &node_tls_ver)) {
@@ -165,67 +164,81 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
                 env, NULL, "First argument (num_threads) must be a Number (or convertable to a Number)");
             return result;
         }
-        status = napi_get_value_uint32(env, node_tls_ver, &ctx_options.minimum_tls_version);
-        assert(status == napi_ok); /* We coerced the value to a number, so this must return ok */
+        status = napi_get_value_uint32(env, node_tls_ver, &min_tls_version);
+        AWS_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
     }
 
+    struct aws_string *ca_file = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.ca_file, env, node_args[1])) {
+        ca_file = aws_string_new_from_napi(env, node_args[1]);
+        if (!ca_file) {
             napi_throw_type_error(env, NULL, "Second argument (ca_file) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
 
+    struct aws_string *ca_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
-        ctx_options.ca_path = aws_string_new_from_napi(env, node_args[2]);
-        if (!ctx_options.ca_path) {
+        ca_path = aws_string_new_from_napi(env, node_args[2]);
+        if (!ca_path) {
             napi_throw_type_error(env, NULL, "Third argument (ca_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
 
+    struct aws_string *alpn_list = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
-        ctx_options.alpn_list = aws_string_new_from_napi(env, node_args[3]);
-        if (!ctx_options.alpn_list) {
+        alpn_list = aws_string_new_from_napi(env, node_args[3]);
+        if (!alpn_list) {
             napi_throw_type_error(
                 env, NULL, "Fourth argument (alpn_list) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
 
+    struct aws_string *cert_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.certificate, env, node_args[4])) {
+        cert_path = aws_string_new_from_napi(env, node_args[4]);
+        if (!cert_path) {
             napi_throw_type_error(
                 env, NULL, "Fifth argument (cert_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
 
+    struct aws_string *pkey_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.private_key, env, node_args[5])) {
+        pkey_path = aws_string_new_from_napi(env, node_args[5]);
+        if (!pkey_path) {
             napi_throw_type_error(
-                env, NULL, "Sixth argument (private_key_path) must be a String (or convertable to a String)");
+                env, NULL, "Sixth argument (pkey_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
 
 #ifdef __APPLE__
+    struct aws_byte_buf pkcs12_path;
+    AWS_ZERO_STRUCT(pkcs12_path);
+
     if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.pkcs12, env, node_args[6])) {
+        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_path, env, node_args[6])) {
             napi_throw_type_error(
                 env, NULL, "Seventh argument (pkcs12_path) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
 
+    struct aws_byte_buf pkcs12_pwd;
+    AWS_ZERO_STRUCT(pkcs12_pwd);
     if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&ctx_options.pkcs12_password, env, node_args[7])) {
+        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_pwd, env, node_args[7])) {
             napi_throw_type_error(
                 env, NULL, "Eighth argument (pcks12_password) must be a String (or convertable to a String)");
             goto cleanup;
         }
     }
-#endif /* __APPLE __ */
+#endif /* __APPLE__ */
+    bool verify_peer = true;
 
     if (!aws_napi_is_null_or_undefined(env, node_args[8])) {
         napi_value node_verify_peer;
@@ -234,11 +247,31 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
             goto cleanup;
         }
 
-        bool verify_peer = false;
         status = napi_get_value_bool(env, node_verify_peer, &verify_peer);
-        assert(status == napi_ok);
-        aws_tls_ctx_options_set_verify_peer(&ctx_options, verify_peer);
+        AWS_ASSERT(status == napi_ok);
     }
+
+    struct aws_tls_ctx_options ctx_options;
+
+    if (cert_path && pkey_path) {
+        aws_tls_ctx_options_init_client_mtls_from_path(
+            &ctx_options, alloc, (const char *)aws_string_bytes(cert_path), (const char *)aws_string_bytes(pkey_path));
+    } else {
+        aws_tls_ctx_options_init_default_client(&ctx_options, alloc);
+    }
+
+    if (ca_path || ca_file) {
+        aws_tls_ctx_options_override_default_trust_store_from_path(
+            &ctx_options,
+            ca_path ? (const char *)aws_string_bytes(ca_path) : NULL,
+            ca_file ? (const char *)aws_string_bytes(ca_file) : NULL);
+    }
+
+    if (alpn_list) {
+        aws_tls_ctx_options_set_alpn_list(&ctx_options, (const char *)aws_string_bytes(alpn_list));
+    }
+
+    aws_tls_ctx_options_set_verify_peer(&ctx_options, verify_peer);
 
     struct aws_tls_ctx *tls_ctx = aws_tls_client_ctx_new(alloc, &ctx_options);
     if (!tls_ctx) {

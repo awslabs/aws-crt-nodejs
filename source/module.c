@@ -38,7 +38,7 @@ static struct aws_event_loop_group s_node_uv_elg;
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
-    assert(buf);
+    AWS_ASSERT(buf);
 
     napi_valuetype type = napi_undefined;
     NAPI_CHECK_CALL(napi_typeof(env, node_str, &type));
@@ -54,7 +54,7 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
         }
 
         NAPI_CHECK_CALL(napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->capacity, &buf->len));
-        assert(length == buf->len);
+        AWS_ASSERT(length == buf->len);
     } else if (type == napi_object) {
 
         bool is_expected = false;
@@ -83,7 +83,10 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
             NAPI_CHECK_CALL(napi_get_typedarray_info(env, node_str, &type, &length, (void **)&buf->buffer, NULL, NULL));
 
             size_t element_size = 0;
-            switch (type) {
+
+            /* whoever added napi_bigint64_array to the node api deserves a good thrashing!!!! */
+            int type_hack = type;
+            switch (type_hack) {
                 case napi_int8_array:
                 case napi_uint8_array:
                 case napi_uint8_clamped_array:
@@ -102,10 +105,8 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
                     break;
 
                 case napi_float64_array:
-#if NAPI_VERSION > 3
-                case napi_bigint64_array:
-                case napi_biguint64_array:
-#endif
+                case 9:  /*napi_bigint64_array */
+                case 10: /*napi_biguint64_array*/
                     element_size = 8;
                     break;
             }
@@ -176,25 +177,6 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
 
-static struct aws_event_loop *s_new_uv_event_loop(struct aws_allocator *alloc, aws_io_clock_fn *clock, void *userdata) {
-
-    napi_env env = userdata;
-
-    if (!s_node_uv_loop) {
-        if (napi_get_uv_event_loop(env, &s_node_uv_loop)) {
-            return NULL;
-        }
-    }
-
-    if (!s_node_uv_event_loop) {
-        s_node_uv_event_loop = aws_event_loop_existing_libuv(alloc, s_node_uv_loop, clock);
-    } else {
-        assert(false); /* Should only be 1 event loop */
-    }
-
-    return s_node_uv_event_loop;
-}
-
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(
     napi_env env,
@@ -223,13 +205,13 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     aws_load_error_strings();
     aws_io_load_error_strings();
-    aws_mqtt_load_error_strings();
 
+    struct aws_allocator *allocator = aws_default_allocator();
     aws_tls_init_static_state(aws_default_allocator());
+    aws_mqtt_library_init(allocator);
 
     /* Initalize the event loop group */
-    aws_event_loop_group_init(
-        &s_node_uv_elg, aws_default_allocator(), aws_high_res_clock_get_ticks, 1, s_new_uv_event_loop, env);
+    aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
 
     napi_value null;
     napi_get_null(env, &null);
@@ -256,6 +238,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_close)
 
     /* Crypto */
     CREATE_AND_REGISTER_FN(hash_md5_new)

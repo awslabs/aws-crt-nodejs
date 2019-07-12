@@ -1,6 +1,6 @@
 {
     "variables": {
-        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : require('path').join('<!(pwd)', 'deps_build', 'install')\")'"
+        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : require('path').join(process.cwd(), 'deps_build', 'install')\")'"
     },
     "targets": [
         {
@@ -27,7 +27,6 @@
                 "<!@(node -p \"require('fs').readdirSync('./source/').map(f=>'source/'+f).join(' ')\")",
             ],
             "defines": [
-                "AWS_USE_LIBUV",
                 "NAPI_VERSION=<(napi_build_version)",
             ],
             "include_dirs": [
@@ -47,6 +46,7 @@
                     "cflags": [
                         "/Wall",
                         "/WX",
+                        "/NODEFAULTLIB:library",
                     ],
                     "libraries": [
                         "-lSecur32",
@@ -55,6 +55,7 @@
                         "-lBCrypt",
                         "-lKernel32",
                         "-lWs2_32",
+                        "-lLIBCMT",
                     ],
                 }, {
                     "cflags": [
@@ -62,7 +63,6 @@
                         "-Wall",
                         "-Wextra",
                         "-pedantic",
-                        "-Wno-zero-length-array",
                     ],
                 }],
                 ["OS=='linux'", {

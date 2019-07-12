@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2010-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ import crt_native = require('./binding');
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
+import ResourceSafety = require('./resource_safety')
 
 export enum QoS {
     AtMostOnce = 0,
@@ -26,15 +27,16 @@ export enum QoS {
 
 export class Client {
     public bootstrap: io.ClientBootstrap;
-    public tls_ctx?: io.ClientTlsContext;
 
     private client_handle: any;
 
     constructor(bootstrap: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
         this.bootstrap = bootstrap;
-        this.tls_ctx = tls_ctx;
-
         this.client_handle = crt_native.mqtt_client_new(bootstrap.native_handle())
+    }
+
+    new_connection(config: ConnectionConfig) {
+        return new Connection(this, config)
     }
 
     native_handle(): any {
@@ -42,16 +44,19 @@ export class Client {
     }
 }
 
-export interface ConnectionConnectParams {
+export interface ConnectionConfig {
     client_id: string;
     host_name: string;
+    connect_timeout: number;
     port: number;
     use_websocket?: boolean;
     clean_session?: boolean;
     keep_alive?: number;
-    will?: any;
+    timeout?: number;
+    will?: string;
     username?: string;
     password?: string;
+    tls_ctx?: io.ClientTlsContext;
 }
 
 export interface MqttRequest {
@@ -66,18 +71,24 @@ export interface MqttSubscribeRequest extends MqttRequest {
 
 type Payload = string | Object | DataView;
 
-export class Connection {
+export class Connection implements ResourceSafety.ResourceSafe {
     public client: Client;
     private connection_handle: any;
     private encoder: TextEncoder;
+    private config: ConnectionConfig
 
-    constructor(client: Client, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
+    constructor(client: Client, config: ConnectionConfig, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
         this.client = client;
+        this.config = config;
         this.connection_handle = crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
         this.encoder = new TextEncoder();
     }
 
-    async connect(args: ConnectionConnectParams) {
+    close() {
+        crt_native.mqtt_client_connection_close(this.native_handle());
+    }
+
+    async connect() {
         return new Promise<boolean>((resolve, reject) => {
 
             function on_connect(error_code: number, return_code: number, session_present: boolean) {
@@ -94,14 +105,18 @@ export class Connection {
             try {
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
-                    args.client_id,
-                    args.host_name,
-                    args.port,
-                    this.client.tls_ctx ? this.client.tls_ctx.native_handle() : null,
-                    args.keep_alive,
-                    args.will,
-                    args.username,
-                    args.password,
+                    this.config.client_id,
+                    this.config.host_name,
+                    this.config.port,
+                    this.config.tls_ctx ? this.config.tls_ctx.native_handle() : null,
+                    this.config.connect_timeout,
+                    this.config.keep_alive,
+                    this.config.timeout,
+                    this.config.will,
+                    this.config.username,
+                    this.config.password,
+                    this.config.use_websocket,
+                    this.config.clean_session,
                     on_connect,
                 );
             } catch (e) {
@@ -168,7 +183,7 @@ export class Connection {
         });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: DataView) => void) {
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
 
             function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {

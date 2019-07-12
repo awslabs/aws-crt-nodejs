@@ -1,6 +1,6 @@
 {
   "name": "aws-crt",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "NodeJS bindings to the aws-c-* libraries",
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
@@ -12,8 +12,10 @@
   "files": [
     "s2n/",
     "aws-c-common/",
+    "aws-c-compression/",
     "aws-c-io/",
     "aws-c-mqtt/",
+    "aws-c-http/",
     "aws-c-cal",
     "dist/",
     "source/",
@@ -32,14 +34,16 @@
   },
   "scripts": {
     "build": "tsc && node-pre-gyp rebuild",
-    "test": "node --expose_gc dist/test/test-load.js",
+    "test": "node --expose-gc dist/test/test-load.js",
     "install": "tsc && node-pre-gyp install --fallback-to-build"
   },
   "devDependencies": {
     "@types/node": "^10.12.18",
     "aws-sdk": "^2.419.0",
     "node-gyp": "^3.8.0",
-    "typescript": "^3.2.2"
+    "typescript": "^3.2.2",
+    "yargs": "^13.2.4"
+
   },
   "dependencies": {
     "node-pre-gyp": "^0.12.0"
