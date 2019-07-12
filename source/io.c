@@ -141,6 +141,7 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *alloc = aws_default_allocator();
     napi_status status = napi_ok;
+    (void)status;
 
     size_t num_args = 9;
     napi_value node_args[9];
