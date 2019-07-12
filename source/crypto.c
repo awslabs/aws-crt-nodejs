@@ -18,8 +18,6 @@
 #include <aws/cal/hash.h>
 #include <aws/cal/hmac.h>
 
-#include <assert.h>
-
 /*******************************************************************************
  * Hash
  ******************************************************************************/
@@ -31,7 +29,7 @@ static void s_hash_finalize(napi_env env, void *finalize_data, void *finalize_hi
     (void)finalize_hint;
 
     struct aws_hash *hash = finalize_data;
-    assert(hash);
+    AWS_ASSERT(hash);
 
     aws_hash_destroy(hash);
 }
@@ -285,7 +283,7 @@ static void s_hmac_finalize(napi_env env, void *finalize_data, void *finalize_hi
     (void)finalize_hint;
 
     struct aws_hmac *hmac = finalize_data;
-    assert(hmac);
+    AWS_ASSERT(hmac);
 
     aws_hmac_destroy(hmac);
 }
