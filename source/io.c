@@ -19,8 +19,6 @@
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 
-#include <assert.h>
-
 napi_value error_code_to_string(napi_env env, napi_callback_info info) {
 
     size_t num_args = 1;
@@ -41,7 +39,7 @@ napi_value error_code_to_string(napi_env env, napi_callback_info info) {
 
     int64_t error_code = 0;
     if (napi_get_value_int64(env, error_number_val, &error_code)) {
-        assert(false); /* Coerce should make this impossible */
+        AWS_ASSERT(false); /* Coerce should make this impossible */
     }
 
     const char *error_string = aws_error_debug_str((int)error_code);
@@ -75,7 +73,7 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
     (void)finalize_hint;
 
     struct aws_nodejs_client_bootstrap *node_bootstrap = finalize_data;
-    assert(node_bootstrap);
+    AWS_ASSERT(node_bootstrap);
 
     struct aws_allocator *allocator = node_bootstrap->bootstrap->allocator;
 
@@ -134,7 +132,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
     (void)finalize_hint;
 
     struct aws_tls_ctx *tls_ctx = finalize_data;
-    assert(tls_ctx);
+    AWS_ASSERT(tls_ctx);
 
     aws_tls_ctx_destroy(tls_ctx);
 }
@@ -166,7 +164,7 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
             return result;
         }
         status = napi_get_value_uint32(env, node_tls_ver, &min_tls_version);
-        assert(status == napi_ok); /* We coerced the value to a number, so this must return ok */
+        AWS_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
     }
 
     struct aws_string *ca_file = NULL;
@@ -249,7 +247,7 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
 
         status = napi_get_value_bool(env, node_verify_peer, &verify_peer);
-        assert(status == napi_ok);
+        AWS_ASSERT(status == napi_ok);
     }
 
     struct aws_tls_ctx_options ctx_options;
