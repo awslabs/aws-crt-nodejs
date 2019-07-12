@@ -85,7 +85,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: '?SDK=NodeJSv2&Version=0.1.0',
+            username: '?SDK=NodeJSv2&Version=0.2.0',
             password: undefined,
             tls_ctx: undefined,
         };

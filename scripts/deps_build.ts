@@ -147,7 +147,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
-    const build_cmd = ['cmake', '--build', './', '--config', 'release', '--target', 'install', '--verbose'].join(' ');
+    const build_cmd = ['cmake', '--build', './', '--config', 'release', '--target', 'install'].join(' ');
 
     await run_and_check(config_cmd);
     await run_and_check(build_cmd);
