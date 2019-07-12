@@ -95,8 +95,11 @@ struct mqtt_nodejs_connection {
 
     napi_env env;
     uv_async_t async_handle;
-    struct aws_linked_list queued_cb; /* type is  mqtt_nodejs_callback_context */
-    struct aws_mutex queued_cb_lock;
+
+    struct {
+        struct aws_linked_list queued_cb; /* type is  mqtt_nodejs_callback_context */
+        struct aws_mutex queued_cb_lock;
+    } thread_data;
 
     napi_async_context on_connect_ctx;
     napi_ref on_connect;
@@ -152,13 +155,13 @@ static dispatch_mqtt_callback_fn *s_mqtt_callback_fns[] = {
 static void s_queue_dispatch_callback(struct mqtt_nodejs_callback_context *context) {
     struct mqtt_nodejs_connection *nodejs_connection = context->connection;
 
-    aws_mutex_lock(&nodejs_connection->queued_cb_lock);
+    aws_mutex_lock(&nodejs_connection->thread_data.queued_cb_lock);
     /* it doesn't hurt to do this check here, but it's specifically for error context, because
        there's technically a race condition on it otherwise. */
     if (!(context->node.next || context->node.prev)) {
-        aws_linked_list_push_back(&context->connection->queued_cb, &context->node);
+        aws_linked_list_push_back(&context->connection->thread_data.queued_cb, &context->node);
     }
-    aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
+    aws_mutex_unlock(&nodejs_connection->thread_data.queued_cb_lock);
 
     uv_async_send(&context->connection->async_handle);
 }
@@ -169,18 +172,18 @@ static void s_mqtt_uv_async_cb(uv_async_t *handle) {
     struct aws_linked_list list_cpy;
     aws_linked_list_init(&list_cpy);
 
-    aws_mutex_lock(&nodejs_connection->queued_cb_lock);
-    aws_linked_list_swap_contents(&list_cpy, &nodejs_connection->queued_cb);
-    aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
+    aws_mutex_lock(&nodejs_connection->thread_data.queued_cb_lock);
+    aws_linked_list_swap_contents(&list_cpy, &nodejs_connection->thread_data.queued_cb);
+    aws_mutex_unlock(&nodejs_connection->thread_data.queued_cb_lock);
 
     while (!aws_linked_list_empty(&list_cpy)) {
         /* the error dispatch shares a single node, so we need to hold the lock during the pop to accomodate
            the, "don't queue twice" check. There's still technically a race on the error code, but it doesn't really
            matter, if we report the later error, it's a word and shouldn't rip, and we don't care which one we report in
            that case. */
-        aws_mutex_lock(&nodejs_connection->queued_cb_lock);
+        aws_mutex_lock(&nodejs_connection->thread_data.queued_cb_lock);
         struct aws_linked_list_node *node = aws_linked_list_pop_front(&list_cpy);
-        aws_mutex_unlock(&nodejs_connection->queued_cb_lock);
+        aws_mutex_unlock(&nodejs_connection->thread_data.queued_cb_lock);
         struct mqtt_nodejs_callback_context *callback_context =
             AWS_CONTAINER_OF(node, struct mqtt_nodejs_callback_context, node);
         s_mqtt_callback_fns[callback_context->cb_type](callback_context);
@@ -494,8 +497,8 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     uv_async_init(uv_loop, &node_connection->async_handle, s_mqtt_uv_async_cb);
     node_connection->async_handle.data = node_connection;
-    aws_mutex_init(&node_connection->queued_cb_lock);
-    aws_linked_list_init(&node_connection->queued_cb);
+    aws_mutex_init(&node_connection->thread_data.queued_cb_lock);
+    aws_linked_list_init(&node_connection->thread_data.queued_cb);
 
 cleanup:
 
