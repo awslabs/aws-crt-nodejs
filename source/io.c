@@ -179,8 +179,8 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
     }
 
     struct aws_string *ca_path = NULL;
-    if (!aws_napi_is_null_or_undefined(env, node_args[2])) { 
-        ca_path = aws_string_new_from_napi(env, node_args[2]);      
+    if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
+        ca_path = aws_string_new_from_napi(env, node_args[2]);
         if (!ca_path) {
             napi_throw_type_error(env, NULL, "Third argument (ca_path) must be a String (or convertable to a String)");
             goto cleanup;
@@ -207,16 +207,16 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
     }
 
-    struct aws_string *pkey_path = NULL;    
+    struct aws_string *pkey_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
         pkey_path = aws_string_new_from_napi(env, node_args[5]);
         if (!pkey_path) {
             napi_throw_type_error(
                 env, NULL, "Sixth argument (pkey_path) must be a String (or convertable to a String)");
             goto cleanup;
-        }       
+        }
     }
-    
+
 #ifdef __APPLE__
     struct aws_byte_buf pkcs12_path;
     AWS_ZERO_STRUCT(pkcs12_path);
@@ -237,7 +237,7 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
                 env, NULL, "Eighth argument (pcks12_password) must be a String (or convertable to a String)");
             goto cleanup;
         }
-}
+    }
 #endif /* __APPLE__ */
     bool verify_peer = true;
 
@@ -254,15 +254,18 @@ napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_tls_ctx_options ctx_options;
 
-
     if (cert_path && pkey_path) {
-        aws_tls_ctx_options_init_client_mtls_from_path(&ctx_options, alloc, (const char *)aws_string_bytes(cert_path), (const char *)aws_string_bytes(pkey_path));
+        aws_tls_ctx_options_init_client_mtls_from_path(
+            &ctx_options, alloc, (const char *)aws_string_bytes(cert_path), (const char *)aws_string_bytes(pkey_path));
     } else {
         aws_tls_ctx_options_init_default_client(&ctx_options, alloc);
     }
 
     if (ca_path || ca_file) {
-        aws_tls_ctx_options_override_default_trust_store_from_path(&ctx_options, ca_path ? (const char *)aws_string_bytes(ca_path) : NULL, ca_file ? (const char *)aws_string_bytes(ca_file) : NULL);
+        aws_tls_ctx_options_override_default_trust_store_from_path(
+            &ctx_options,
+            ca_path ? (const char *)aws_string_bytes(ca_path) : NULL,
+            ca_file ? (const char *)aws_string_bytes(ca_file) : NULL);
     }
 
     if (alpn_list) {

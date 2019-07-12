@@ -19,10 +19,10 @@
 
 #include <aws/common/clock.h>
 
+#include <assert.h>
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 #include <uv.h>
-#include <assert.h>
 
 static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
@@ -208,10 +208,8 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     aws_tls_init_static_state(aws_default_allocator());
     aws_mqtt_library_init(allocator);
 
-
     /* Initalize the event loop group */
-    aws_event_loop_group_default_init(
-        &s_node_uv_elg, allocator, 1);
+    aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
 
     napi_value null;
     napi_get_null(env, &null);
