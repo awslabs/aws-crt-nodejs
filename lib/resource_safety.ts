@@ -25,7 +25,7 @@ export interface ResourceSafe {
  * Use this function to create a resource in an async context. This will make sure the 
  * resources are cleaned up before returning.
  * 
- * example:   await using(res = new SomeResource(), my_function(res) =>  {
+ * example:   await using(res = new SomeResource(), async (res) =>  {
  *                res.do_the_thing();
  *            });
  */
