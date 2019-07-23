@@ -25,7 +25,7 @@ $ apt-get install cmake3 libssl-dev -y
 
 #### OSX
 ```bash
-$ brew install cmake3
+$ brew install cmake
 ```
 
 ### Running the build
