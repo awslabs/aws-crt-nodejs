@@ -13,13 +13,24 @@
  * permissions and limitations under the License.
  */
 
-import * as io from "./io";
-import * as mqtt from "./mqtt";
-import * as crypto from "./crypto";
+function is_nodejs() {
+    return (typeof process === 'object' &&
+        typeof process.versions === 'object' &&
+        typeof process.versions.node !== 'undefined');
+}
+
+function resolve(module : string) : string {
+    return (is_nodejs())
+        ? `./native/${module}`
+        : `./browser/${module}`;
+}
+
+const io = require(resolve('io'));
+const mqtt = require(resolve('mqtt'));
+const crypto = require(resolve('crypto'));
 
 export {
     io,
     mqtt,
     crypto,
-}
-
+};
