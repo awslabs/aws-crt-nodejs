@@ -43,7 +43,6 @@
     "node-gyp": "^3.8.0",
     "typescript": "^3.2.2",
     "yargs": "^13.2.4"
-
   },
   "dependencies": {
     "node-pre-gyp": "^0.12.0"

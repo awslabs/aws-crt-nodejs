@@ -17,7 +17,7 @@ import crt_native = require('./binding');
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import ResourceSafety = require('./resource_safety')
+import ResourceSafety = require('../resource_safety')
 
 export enum QoS {
     AtMostOnce = 0,

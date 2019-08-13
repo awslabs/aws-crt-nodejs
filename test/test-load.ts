@@ -1,10 +1,11 @@
-import * as io from '../lib/io';
-import * as mqtt from '../lib/mqtt';
-import { AwsIotMqttConnectionConfigBuilder } from '../lib/aws_mqtt';
-import { Md5Hash, hash_md5 } from '../lib/crypto';
+import { io, mqtt, crypto } from '../lib/';
+import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_mqtt';
 import { using } from '../lib/resource_safety';
 import { TextDecoder } from 'util';
 const yargs = require('yargs');
+
+const Md5Hash = crypto.Md5Hash;
+const hash_md5 = crypto.hash_md5;
 
 const argv = yargs
     .option('cert_path', {
@@ -58,17 +59,17 @@ async function main() {
 
             /* Subscribe, publish on suback, and resolve on message received */
             await new Promise(resolve => {
-                conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
+                conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic : string, payload : Buffer) => {
                     let decoder = new TextDecoder('utf-8');
                     let payload_text = decoder.decode(payload);
                     console.log("Got message, topic:", topic, ", payload:\n", payload_text);
                     resolve();
                 }).
-                then(sub_ack => {
+                then((sub_ack : any) => {
                     console.log("subscribed to topic: " + sub_ack.topic + ", with packet id: " + sub_ack.packet_id 
                     + ", error code: " + sub_ack.error_code + ", with qos: " + sub_ack.qos);
                     conn.publish(test_topic, "Testing from JS client", mqtt.QoS.AtLeastOnce)
-            });
+                });
             }).catch((reason) => {
                 console.error('MQTT exception: ', reason);
             });
