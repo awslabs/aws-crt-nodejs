@@ -25,6 +25,15 @@ function resolve(module : string) : string {
         : `./browser/${module}`;
 }
 
+const platform = {
+    is_nodejs: () => {
+        return is_nodejs();
+    },
+    is_browser: () => {
+        return !is_nodejs();
+    }
+};
+
 const io = require(resolve('io'));
 const mqtt = require(resolve('mqtt'));
 const crypto = require(resolve('crypto'));
@@ -33,4 +42,5 @@ export {
     io,
     mqtt,
     crypto,
+    platform,
 };
