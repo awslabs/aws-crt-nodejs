@@ -19,10 +19,6 @@ export function is_alpn_available(): boolean {
 export class ClientBootstrap {
     constructor() {
     }
-
-    native_handle(): any {
-        return undefined;
-    }
 }
 
 export enum TlsVersion {
@@ -88,9 +84,5 @@ export class ClientTlsContext {
 
     constructor(ctx_opt: TlsContextOptions) {
         this.ctx_options = ctx_opt;
-    }
-
-    native_handle(): any {
-        return undefined;
     }
 }

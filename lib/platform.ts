@@ -13,16 +13,17 @@
  * permissions and limitations under the License.
  */
 
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as crypto from './native/crypto';
-import * as platform from './platform';
-import * as resource_safety from './resource_safety';
+function is_nodejs() {
+    return (typeof process === 'object' &&
+        typeof process.versions === 'object' &&
+        typeof process.versions.node !== 'undefined');
+}
 
-export {
-    io,
-    mqtt,
-    crypto,
-    platform,
-    resource_safety,
+export default {
+    is_nodejs: () => {
+        return is_nodejs();
+    },
+    is_browser: () => {
+        return !is_nodejs();
+    }
 };

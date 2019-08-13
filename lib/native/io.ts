@@ -14,6 +14,7 @@
  */
 
 import crt_native = require('./binding');
+import { NativeResource } from "./native_resource";
 
 export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
@@ -23,15 +24,9 @@ export function is_alpn_available(): boolean {
     return crt_native.is_alpn_available();
 }
 
-export class ClientBootstrap {
-    private bootstrap_handle: any;
-
+export class ClientBootstrap extends NativeResource {
     constructor() {
-        this.bootstrap_handle = crt_native.io_client_bootstrap_new();
-    }
-
-    native_handle(): any {
-        return this.bootstrap_handle;
+        super(crt_native.io_client_bootstrap_new());
     }
 }
 
@@ -93,11 +88,9 @@ export class TlsContextOptions {
     }
 }
 
-export class ClientTlsContext {
-    private ctx_handle: any;
-
+export class ClientTlsContext extends NativeResource {
     constructor(ctx_opt: TlsContextOptions) {
-        this.ctx_handle = crt_native.io_client_tls_ctx_new(
+        super(crt_native.io_client_tls_ctx_new(
             ctx_opt.min_tls_version,
             ctx_opt.ca_file,
             ctx_opt.ca_path,
@@ -106,10 +99,6 @@ export class ClientTlsContext {
             ctx_opt.private_key_path,
             ctx_opt.pkcs12_path,
             ctx_opt.pkcs12_password,
-            ctx_opt.verify_peer);
-    }
-
-    native_handle(): any {
-        return this.ctx_handle;
+            ctx_opt.verify_peer));
     }
 }

@@ -59,7 +59,7 @@ async function main() {
 
             /* Subscribe, publish on suback, and resolve on message received */
             await new Promise(resolve => {
-                conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic : string, payload : Buffer) => {
+                conn.subscribe(test_topic, mqtt.QoS.AtLeastOnce, (topic, payload) => {
                     let decoder = new TextDecoder('utf-8');
                     let payload_text = decoder.decode(payload);
                     console.log("Got message, topic:", topic, ", payload:\n", payload_text);
