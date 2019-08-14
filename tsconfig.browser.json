@@ -1,16 +1,15 @@
 {
     "extends": "./tsconfig.base",
     "compilerOptions": {
+        "outDir": "dist.browser",
         "paths": {
             "@lib/*": [
-                "lib/native/*"
+                "lib/browser/*"
             ],
         },
     },
     "include": [
         "lib/*.ts",
-        "lib/native/*.ts",
-        "scripts/**/*.ts",
-        "test/**/*.ts"
+        "lib/browser/*.ts"
     ]
 }

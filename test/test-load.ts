@@ -1,11 +1,11 @@
-import { io, mqtt, crypto } from '../lib/';
+import { io, mqtt, crypto, resource_safety } from '../lib/';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_mqtt';
-import { using } from '../lib/resource_safety';
 import { TextDecoder } from 'util';
 const yargs = require('yargs');
 
 const Md5Hash = crypto.Md5Hash;
 const hash_md5 = crypto.hash_md5;
+const using = resource_safety.using;
 
 const argv = yargs
     .option('cert_path', {

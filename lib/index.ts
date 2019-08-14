@@ -13,11 +13,20 @@
  * permissions and limitations under the License.
  */
 
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as crypto from './native/crypto';
+/* common libs */
 import * as platform from './platform';
 import * as resource_safety from './resource_safety';
+
+/* allows module aliasing to work in node */
+if (platform.is_nodejs()) {
+    require('module-alias/register');
+}
+
+
+/* platform specific libs, @lib is mapped by tsconfig.*.json */
+import * as io from '@lib/io';
+import * as mqtt from '@lib/mqtt';
+import * as crypto from '@lib/crypto';
 
 export {
     io,

@@ -144,7 +144,7 @@ typings/
 *.crt
 
 # Build artifacts
-dist/
+dist*/
 build/
 build-*/
 deps_build/
