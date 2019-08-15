@@ -9,7 +9,7 @@
   ],
   "license": "Apache-2.0",
   "main": "./dist/lib/index.js",
-  "browser": "./dist.browser/bundle.js",
+  "browser": "./dist.browser/browser.js",
   "files": [
     "s2n/",
     "aws-c-common/",
@@ -44,10 +44,10 @@
     "@types/node": "^10.12.18",
     "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
+    "copy-webpack-plugin": "^5.0.4",
     "node-gyp": "^3.8.0",
     "source-map-loader": "^0.2.4",
     "ts-loader": "^6.0.4",
-    "tsconfig-paths-webpack-plugin": "^3.2.0",
     "typescript": "^3.5.3",
     "webpack": "^4.35.3",
     "webpack-cli": "^3.3.6",
@@ -56,12 +56,8 @@
   "dependencies": {
     "async-mqtt": "^2.3.0",
     "crypto-js": "^3.1.9-1",
-    "module-alias": "^2.2.1",
     "mqtt": "^2.3.1",
     "node-pre-gyp": "^0.12.0",
     "websocket-stream": "^5.5.0"
-  },
-  "_moduleAliases": {
-    "@lib": "dist/lib/native"
   }
 }

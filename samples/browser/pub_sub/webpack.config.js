@@ -1,9 +1,9 @@
 module.exports = {
     entry: "./index.ts",
-    devtool: "inline-source-map",
+    devtool: "source-map",
     target: "web",
     output: {
-        filename: "bundle.js"
+        filename: "index.js"
     },
     resolve: {
         extensions: [".tsx", ".ts", ".js", ".json"]

@@ -7,7 +7,7 @@
   "contributors": [
     "AWS SDK Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
   ],
-  "browser": "./dist/bundle.js",
+  "browser": "./dist/index.js",
   "scripts": {
     "webpack": "webpack --mode=development",
     "prepare": "cd ../../.. && npm install && cd samples/browser/pub_sub && npm run webpack"

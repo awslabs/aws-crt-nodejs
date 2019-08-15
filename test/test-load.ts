@@ -1,4 +1,4 @@
-import { io, mqtt, crypto, resource_safety } from '../lib/';
+import { io, mqtt, crypto, resource_safety } from '../lib';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_mqtt';
 import { TextDecoder } from 'util';
 const yargs = require('yargs');

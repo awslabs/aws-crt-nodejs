@@ -14,13 +14,6 @@
  */
 
 export function is_nodejs() {
-    /* when bundling for webpack, always pretend to be the browser 
-       NODE_ENV is set to 'webpack' by webpack.config.js */
-    if (typeof process === 'object' &&
-        typeof process.env === 'object' &&
-        process.env.NODE_ENV === 'webpack') {
-        return false;
-    }
     return (typeof process === 'object' &&
         typeof process.versions === 'object' &&
         typeof process.versions.node !== 'undefined');
