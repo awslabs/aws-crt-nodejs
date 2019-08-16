@@ -14,8 +14,8 @@
 
 import { MqttClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket } from "mqtt";
 import { AsyncClient } from "async-mqtt";
-import * as WebsocketUtils from "./ws";
-import * as io from "./io";
+import * as WebsocketUtils from "./browser_ws";
+import * as io from "./browser_io";
 import * as trie from "./trie";
 
 type WebsocketOptions = WebsocketUtils.WebsocketOptions;

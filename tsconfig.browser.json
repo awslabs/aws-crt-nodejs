@@ -1,7 +1,11 @@
 {
     "extends": "./tsconfig.base",
     "compilerOptions": {
-        "outDir": "dist.browser"
+        "outDir": "dist.browser",
+        // "baseUrl": "./",
+        // "paths": {
+        //     "mqtt" : ["node_modules/mqtt"]
+        // }
     },
     "include": [
         "lib/*.ts",

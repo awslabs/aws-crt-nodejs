@@ -20,9 +20,9 @@ import * as platform from './platform';
 import * as resource_safety from './resource_safety';
 
 /* platform specific libs */
-import * as io from './browser/io';
-import * as mqtt from './browser/mqtt';
-import * as crypto from './browser/crypto';
+import * as io from './browser/browser_io';
+import * as mqtt from './browser/browser_mqtt';
+import * as crypto from './browser/browser_crypto';
 
 export {
     io,

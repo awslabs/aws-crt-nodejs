@@ -35,22 +35,17 @@
     ]
   },
   "scripts": {
-    "build": "tsc && node-pre-gyp rebuild && webpack",
+    "build": "tsc && node-pre-gyp rebuild && tsc -p tsconfig.browser.json",
     "test": "node --expose-gc dist/test/test-load.js",
-    "install": "tsc && node-pre-gyp install --fallback-to-build && webpack"
+    "install": "tsc && node-pre-gyp install --fallback-to-build && tsc -p tsconfig.browser.json"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/node": "^10.12.18",
     "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
-    "copy-webpack-plugin": "^5.0.4",
     "node-gyp": "^3.8.0",
-    "source-map-loader": "^0.2.4",
-    "ts-loader": "^6.0.4",
     "typescript": "^3.5.3",
-    "webpack": "^4.35.3",
-    "webpack-cli": "^3.3.6",
     "yargs": "^13.2.4"
   },
   "dependencies": {
