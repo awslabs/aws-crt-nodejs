@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-/// @preserve <reference path="browser" />
-
 /* common libs */
 import * as platform from './platform';
 import * as resource_safety from './resource_safety';
