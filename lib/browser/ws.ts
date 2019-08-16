@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { ConnectionConfig } from "./browser_mqtt";
+import { ConnectionConfig } from "./mqtt";
 import WebsocketStream = require("websocket-stream");
 import * as Crypto from "crypto-js";
 
