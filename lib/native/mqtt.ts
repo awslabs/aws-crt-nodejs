@@ -14,6 +14,7 @@
  */
 
 import crt_native = require('./binding');
+import { NativeResource } from "./native_resource";
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
@@ -25,22 +26,16 @@ export enum QoS {
     ExactlyOnce = 2,
 }
 
-export class Client {
+export class Client extends NativeResource {
     public bootstrap: io.ClientBootstrap;
 
-    private client_handle: any;
-
     constructor(bootstrap: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
+        super(crt_native.mqtt_client_new(bootstrap.native_handle()));
         this.bootstrap = bootstrap;
-        this.client_handle = crt_native.mqtt_client_new(bootstrap.native_handle())
     }
 
     new_connection(config: ConnectionConfig) {
         return new Connection(this, config)
-    }
-
-    native_handle(): any {
-        return this.client_handle;
     }
 }
 
@@ -71,16 +66,16 @@ export interface MqttSubscribeRequest extends MqttRequest {
 
 type Payload = string | Object | DataView;
 
-export class Connection implements ResourceSafety.ResourceSafe {
+export class Connection extends NativeResource implements ResourceSafety.ResourceSafe {
     public client: Client;
-    private connection_handle: any;
     private encoder: TextEncoder;
     private config: ConnectionConfig
 
     constructor(client: Client, config: ConnectionConfig, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
+        super(crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed));
+        
         this.client = client;
         this.config = config;
-        this.connection_handle = crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed);
         this.encoder = new TextEncoder();
     }
 
@@ -237,9 +232,5 @@ export class Connection implements ResourceSafety.ResourceSafe {
                 reject(e);
             }
         });
-    }
-
-    native_handle(): any {
-        return this.connection_handle;
     }
 }

@@ -14,6 +14,7 @@
  */
 
 import crt_native = require('./binding');
+import { NativeResource } from "./native_resource";
 
 /**
  * The types that are acceptable to pass for hashing.
@@ -23,7 +24,7 @@ type Hashable = string | ArrayBuffer | DataView | Buffer;
 /**
  * Object that allows for continuous hashing of data.
  */
-class Hash {
+class Hash extends NativeResource {
     /**
      * Apply data to the hash.
      */
@@ -40,12 +41,8 @@ class Hash {
         return crt_native.hash_digest(this.native_handle(), truncate_to);
     }
 
-    private hash_handle: any;
     constructor(hash_handle: any) {
-        this.hash_handle = hash_handle;
-    }
-    native_handle(): any {
-        return this.hash_handle;
+        super(hash_handle);
     }
 }
 
@@ -93,7 +90,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous hashing of data with an hmac secret.
  */
-class Hmac {
+class Hmac extends NativeResource {
     /**
      * Apply data to the hash.
      */
@@ -110,12 +107,8 @@ class Hmac {
         return crt_native.hmac_digest(this.native_handle(), truncate_to);
     }
 
-    private hash_handle: any;
     constructor(hash_handle: any) {
-        this.hash_handle = hash_handle;
-    }
-    native_handle(): any {
-        return this.hash_handle;
+        super(hash_handle);
     }
 }
 

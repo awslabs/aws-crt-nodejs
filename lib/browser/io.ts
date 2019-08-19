@@ -1,32 +1,23 @@
-/*
- * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *  http://aws.amazon.com/apache2.0
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- */
-
-import crt_native = require('./binding');
-import { NativeResource } from "./native_resource";
-
-export function error_code_to_string(error_code: number): string {
-    return crt_native.error_code_to_string(error_code);
-}
+/* Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+*
+* Licensed under the Apache License, Version 2.0 (the "License").
+* You may not use this file except in compliance with the License.
+* A copy of the License is located at
+*
+*  http://aws.amazon.com/apache2.0
+*
+* or in the "license" file accompanying this file. This file is distributed
+* on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+* express or implied. See the License for the specific language governing
+* permissions and limitations under the License.
+*/
 
 export function is_alpn_available(): boolean {
-    return crt_native.is_alpn_available();
+    return false;
 }
 
-export class ClientBootstrap extends NativeResource {
+export class ClientBootstrap {
     constructor() {
-        super(crt_native.io_client_bootstrap_new());
     }
 }
 
@@ -88,17 +79,10 @@ export class TlsContextOptions {
     }
 }
 
-export class ClientTlsContext extends NativeResource {
+export class ClientTlsContext {
+    readonly ctx_options: TlsContextOptions;
+
     constructor(ctx_opt: TlsContextOptions) {
-        super(crt_native.io_client_tls_ctx_new(
-            ctx_opt.min_tls_version,
-            ctx_opt.ca_file,
-            ctx_opt.ca_path,
-            ctx_opt.alpn_list,
-            ctx_opt.certificate_path,
-            ctx_opt.private_key_path,
-            ctx_opt.pkcs12_path,
-            ctx_opt.pkcs12_password,
-            ctx_opt.verify_peer));
+        this.ctx_options = ctx_opt;
     }
 }

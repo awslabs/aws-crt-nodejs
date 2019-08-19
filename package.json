@@ -5,10 +5,11 @@
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
   "contributors": [
-    "Colden Cullen <colden@amazon.com>"
+    "AWS SDK Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
   ],
   "license": "Apache-2.0",
   "main": "./dist/lib/index.js",
+  "browser": "./dist.browser/browser.js",
   "files": [
     "s2n/",
     "aws-c-common/",
@@ -18,6 +19,7 @@
     "aws-c-http/",
     "aws-c-cal",
     "dist/",
+    "dist.browser/",
     "source/",
     "binding.gyp"
   ],
@@ -33,18 +35,24 @@
     ]
   },
   "scripts": {
-    "build": "tsc && node-pre-gyp rebuild",
+    "build": "tsc && node-pre-gyp rebuild && tsc -p tsconfig.browser.json",
     "test": "node --expose-gc dist/test/test-load.js",
-    "install": "tsc && node-pre-gyp install --fallback-to-build"
+    "install": "tsc && node-pre-gyp install --fallback-to-build && tsc -p tsconfig.browser.json"
   },
   "devDependencies": {
+    "@types/crypto-js": "^3.1.43",
     "@types/node": "^10.12.18",
+    "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
     "node-gyp": "^3.8.0",
-    "typescript": "^3.2.2",
+    "typescript": "^3.5.3",
     "yargs": "^13.2.4"
   },
   "dependencies": {
-    "node-pre-gyp": "^0.12.0"
+    "async-mqtt": "^2.3.0",
+    "crypto-js": "^3.1.9-1",
+    "mqtt": "^2.3.1",
+    "node-pre-gyp": "^0.12.0",
+    "websocket-stream": "^5.5.0"
   }
 }

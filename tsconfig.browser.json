@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.base",
+    "compilerOptions": {
+        "outDir": "dist.browser",
+    },
+    "include": [
+        "lib/*.ts",
+        "lib/browser/*.ts"
+    ],
+    "exclude": [
+        "lib/index.ts"
+    ]
+}

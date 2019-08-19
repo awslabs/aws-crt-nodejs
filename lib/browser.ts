@@ -17,10 +17,10 @@
 import * as platform from './platform';
 import * as resource_safety from './resource_safety';
 
-/* node specific libs */
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as crypto from './native/crypto';
+/* browser specific libs */
+import * as io from './browser/io';
+import * as mqtt from './browser/mqtt';
+import * as crypto from './browser/crypto';
 
 export {
     io,

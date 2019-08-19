@@ -13,19 +13,12 @@
  * permissions and limitations under the License.
  */
 
-/* common libs */
-import * as platform from './platform';
-import * as resource_safety from './resource_safety';
+export function is_nodejs() {
+    return (typeof process === 'object' &&
+        typeof process.versions === 'object' &&
+        typeof process.versions.node !== 'undefined');
+}
 
-/* node specific libs */
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as crypto from './native/crypto';
-
-export {
-    io,
-    mqtt,
-    crypto,
-    platform,
-    resource_safety,
-};
+export function is_browser() {
+    return !is_nodejs();
+}
