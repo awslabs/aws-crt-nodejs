@@ -17,7 +17,7 @@
 import * as platform from './platform';
 import * as resource_safety from './resource_safety';
 
-/* platform specific libs */
+/* node specific libs */
 import * as io from './native/io';
 import * as mqtt from './native/mqtt';
 import * as crypto from './native/crypto';
