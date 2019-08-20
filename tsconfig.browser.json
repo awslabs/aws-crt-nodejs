@@ -5,6 +5,7 @@
     },
     "include": [
         "lib/*.ts",
+        "lib/common/*.ts",
         "lib/browser/*.ts"
     ],
     "exclude": [

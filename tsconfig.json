@@ -2,6 +2,7 @@
     "extends": "./tsconfig.base",
     "include": [
         "lib/*.ts",
+        "lib/common/*.ts",
         "lib/native/*.ts",
         "scripts/**/*.ts",
         "test/**/*.ts"

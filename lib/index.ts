@@ -14,8 +14,8 @@
  */
 
 /* common libs */
-import * as platform from './platform';
-import * as resource_safety from './resource_safety';
+import * as platform from './common/platform';
+import * as resource_safety from './common/resource_safety';
 
 /* node specific libs */
 import * as io from './native/io';

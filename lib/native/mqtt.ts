@@ -18,7 +18,7 @@ import { NativeResource } from "./native_resource";
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import ResourceSafety = require('../resource_safety')
+import ResourceSafety = require('../common/resource_safety')
 
 export enum QoS {
     AtMostOnce = 0,

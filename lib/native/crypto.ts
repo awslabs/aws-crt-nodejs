@@ -15,16 +15,12 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
-
-/**
- * The types that are acceptable to pass for hashing.
- */
-type Hashable = string | ArrayBuffer | DataView | Buffer;
+import { Hashable } from "../common/crypto";
 
 /**
  * Object that allows for continuous hashing of data.
  */
-class Hash extends NativeResource {
+abstract class Hash extends NativeResource {
     /**
      * Apply data to the hash.
      */
@@ -90,7 +86,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous hashing of data with an hmac secret.
  */
-class Hmac extends NativeResource {
+abstract class Hmac extends NativeResource {
     /**
      * Apply data to the hash.
      */

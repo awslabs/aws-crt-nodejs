@@ -13,19 +13,7 @@
  * permissions and limitations under the License.
  */
 
-/* common libs */
-import * as platform from './common/platform';
-import * as resource_safety from './common/resource_safety';
-
-/* browser specific libs */
-import * as io from './browser/io';
-import * as mqtt from './browser/mqtt';
-import * as crypto from './browser/crypto';
-
-export {
-    io,
-    mqtt,
-    crypto,
-    platform,
-    resource_safety,
-};
+/**
+ * The types that are acceptable to pass for hashing.
+ */
+export type Hashable = string | ArrayBuffer | DataView | Buffer;
