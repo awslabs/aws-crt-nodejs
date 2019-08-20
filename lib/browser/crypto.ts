@@ -23,7 +23,7 @@ export class Md5Hash {
         this.hash = Crypto.MD5(data.toString(), this.hash ? this.hash.toString() : undefined);
     }
 
-    digest(truncate_to?: number): DataView {
+    finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString(Crypto.enc.Utf8) : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
         const encoder = new TextEncoder();
@@ -35,7 +35,7 @@ export class Md5Hash {
 export function hash_md5(data: Hashable, truncate_to?: number): DataView {
     const md5 = new Md5Hash();
     md5.update(data);
-    return md5.digest();
+    return md5.finalize(truncate_to);
 }
 
 export class Sha256Hmac {
@@ -50,11 +50,17 @@ export class Sha256Hmac {
         this.hmac.update(data.toString());
     }
 
-    digest(truncate_to?: number): DataView {
+    finalize(truncate_to?: number): DataView {
         const digest = this.hmac.finalize();
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
         const encoder = new TextEncoder();
         const bytes = encoder.encode(truncated);
         return new DataView(bytes);
     }
+}
+
+export function hmac_sha256(secret: Hashable, data: Hashable, truncate_to?: number): DataView {
+    const hmac = new Sha256Hmac(secret);
+    hmac.update(data);
+    return hmac.finalize(truncate_to);
 }

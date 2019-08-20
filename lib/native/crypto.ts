@@ -33,7 +33,7 @@ abstract class Hash extends NativeResource {
      *
      * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
      */
-    digest(truncate_to?: number): DataView {
+    finalize(truncate_to?: number): DataView {
         return crt_native.hash_digest(this.native_handle(), truncate_to);
     }
 
@@ -99,7 +99,7 @@ abstract class Hmac extends NativeResource {
      *
      * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
      */
-    digest(truncate_to?: number): DataView {
+    finalize(truncate_to?: number): DataView {
         return crt_native.hmac_digest(this.native_handle(), truncate_to);
     }
 

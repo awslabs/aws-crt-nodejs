@@ -93,7 +93,7 @@ main().catch((reason) => {
 const to_hash = 'ABC';
 let md5 = new Md5Hash();
 md5.update(to_hash);
-const obj_digest = md5.digest();
+const obj_digest = md5.finalize();
 console.log('Object Hash of', to_hash, ':', obj_digest);
 
 let oneshot_digest = hash_md5(to_hash);
