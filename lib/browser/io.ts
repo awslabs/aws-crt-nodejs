@@ -12,6 +12,9 @@
 * permissions and limitations under the License.
 */
 
+import { TlsVersion } from "../common/io";
+export * from "../common/io";
+
 export function is_alpn_available(): boolean {
     return false;
 }
@@ -19,15 +22,6 @@ export function is_alpn_available(): boolean {
 export class ClientBootstrap {
     constructor() {
     }
-}
-
-export enum TlsVersion {
-    SSLv3 = 0,
-    TLSv1 = 1,
-    TLSv1_1 = 2,
-    TLSv1_2 = 3,
-    TLSv1_3 = 4,
-    Default = 128,
 }
 
 export class TlsContextOptions {

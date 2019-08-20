@@ -13,30 +13,13 @@
  * permissions and limitations under the License.
  */
 
-export function is_nodejs() {
-    return (typeof process === 'object' &&
-        typeof process.versions === 'object' &&
-        typeof process.versions.node !== 'undefined');
+export enum TlsVersion {
+    SSLv3 = 0,
+    TLSv1 = 1,
+    TLSv1_1 = 2,
+    TLSv1_2 = 3,
+    TLSv1_3 = 4,
+    Default = 128,
 }
 
-export function is_browser() {
-    return !is_nodejs();
-}
 
-export function package_info() {
-    try {
-        const pkg = require('../../package.json');
-        return pkg;
-    }
-    catch (err) { 
-        return {
-            name: 'aws-crt-nodejs',
-            version: 'UNKNOWN'
-        };
-    }
-}
-
-export function crt_version() {
-    const pkg = package_info();
-    return pkg.version;
-}

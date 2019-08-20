@@ -17,9 +17,13 @@ import { AsyncClient } from "async-mqtt";
 import * as WebsocketUtils from "./ws";
 import * as io from "./io";
 import * as trie from "./trie";
+import * as platform from "../common/platform";
 
-type WebsocketOptions = WebsocketUtils.WebsocketOptions;
-type AWSCredentials = WebsocketUtils.AWSCredentials;
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+
+export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
+export type AWSCredentials = WebsocketUtils.AWSCredentials;
 
 export interface ConnectionConfig {
     client_id: string;
@@ -50,7 +54,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: '?SDK=NodeJSv2&Version=0.2.0',
+            username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
             password: undefined,
             tls_ctx: undefined,
             websocket: {},
@@ -168,22 +172,6 @@ export class Client {
     }
 }
 
-export enum QoS {
-    AtMostOnce = 0,
-    AtLeastOnce = 1,
-    ExactlyOnce = 2,
-}
-
-export interface MqttRequest {
-    packet_id: number;
-}
-
-export interface MqttSubscribeRequest extends MqttRequest {
-    topic: string;
-    qos: QoS;
-    error_code: number;
-}
-
 type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
 
 class TopicTrie extends trie.Trie<SubscriptionCallback> {
@@ -222,8 +210,6 @@ class TopicTrie extends trie.Trie<SubscriptionCallback> {
         return current;
     }
 }
-
-type Payload = string | Object | DataView;
 
 export class Connection {
     private connection: AsyncClient;
@@ -321,7 +307,7 @@ export class Connection {
         return this.connect();
     }
 
-    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
+    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) : Promise<MqttRequest> {
         let payload_data: string = payload.toString();
         if (typeof payload === 'object') {
             // Convert payload to JSON string
@@ -333,25 +319,21 @@ export class Connection {
         });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) {
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) : Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
         return this.connection.subscribe(topic, { qos: qos }).then((value: ISubscriptionGrant[]) => {
             return { topic: value[0].topic, qos: value[0].qos };
         });
     }
 
-    async unsubscribe(topic: string) {
+    async unsubscribe(topic: string) : Promise<MqttRequest> {
         this.subscriptions.remove(topic);
-        this.connection.unsubscribe(topic).then((value: IUnsubackPacket) => {
+        return this.connection.unsubscribe(topic).then((value: IUnsubackPacket) => {
             return { packet_id: value.messageId };
         });
     }
 
     async disconnect() {
         return this.connection.end();
-    }
-
-    native_handle(): any {
-        return undefined;
     }
 }
