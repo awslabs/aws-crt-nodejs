@@ -15,16 +15,12 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
-
-/**
- * The types that are acceptable to pass for hashing.
- */
-type Hashable = string | ArrayBuffer | DataView | Buffer;
+import { Hashable } from "../common/crypto";
 
 /**
  * Object that allows for continuous hashing of data.
  */
-class Hash extends NativeResource {
+abstract class Hash extends NativeResource {
     /**
      * Apply data to the hash.
      */
@@ -37,7 +33,7 @@ class Hash extends NativeResource {
      *
      * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
      */
-    digest(truncate_to?: number): DataView {
+    finalize(truncate_to?: number): DataView {
         return crt_native.hash_digest(this.native_handle(), truncate_to);
     }
 
@@ -90,7 +86,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous hashing of data with an hmac secret.
  */
-class Hmac extends NativeResource {
+abstract class Hmac extends NativeResource {
     /**
      * Apply data to the hash.
      */
@@ -103,7 +99,7 @@ class Hmac extends NativeResource {
      *
      * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
      */
-    digest(truncate_to?: number): DataView {
+    finalize(truncate_to?: number): DataView {
         return crt_native.hmac_digest(this.native_handle(), truncate_to);
     }
 

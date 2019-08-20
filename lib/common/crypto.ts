@@ -13,21 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import * as path from 'path';
-
-const binary = require('node-pre-gyp');
-
-let binding: any;
-
-try {
-    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'));
-    binding = require(binding_path);
-}
-catch (err)
-{
-    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', '..', 'package.json'));
-    binding = require(binding_path);
-}
-
-export = binding;
-
+/**
+ * The types that are acceptable to pass for hashing.
+ */
+export type Hashable = string | ArrayBuffer | DataView | Buffer;

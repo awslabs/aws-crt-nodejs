@@ -4,10 +4,8 @@
         "outDir": "dist.browser",
     },
     "include": [
-        "lib/*.ts",
+        "lib/browser.ts",
+        "lib/common/*.ts",
         "lib/browser/*.ts"
-    ],
-    "exclude": [
-        "lib/index.ts"
     ]
 }

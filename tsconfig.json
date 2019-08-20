@@ -1,12 +1,9 @@
 {
     "extends": "./tsconfig.base",
     "include": [
-        "lib/*.ts",
+        "lib/index.ts",
+        "lib/common/*.ts",
         "lib/native/*.ts",
         "scripts/**/*.ts",
-        "test/**/*.ts"
-    ],
-    "exclude": [
-        "lib/browser.ts"
     ]
 }
