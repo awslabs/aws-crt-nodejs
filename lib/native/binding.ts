@@ -16,7 +16,7 @@
 import * as path from 'path';
 
 const binary = require('node-pre-gyp');
-const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', '..', 'package.json'));
+const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'));
 const binding = require(binding_path);
 
 export = binding;

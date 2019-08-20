@@ -15,6 +15,7 @@
 
 import * as Crypto from "crypto-js";
 import { Hashable } from "../common/crypto";
+import { TextEncoder } from "util";
 
 export class Md5Hash {
     private hash?: Crypto.WordArray;
@@ -24,11 +25,11 @@ export class Md5Hash {
     }
 
     finalize(truncate_to?: number): DataView {
-        const digest = this.hash ? this.hash.toString(Crypto.enc.Utf8) : '';
+        const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
         const encoder = new TextEncoder();
         const bytes = encoder.encode(truncated);
-        return new DataView(bytes);
+        return new DataView(bytes.buffer);
     }
 }
 
@@ -52,10 +53,10 @@ export class Sha256Hmac {
 
     finalize(truncate_to?: number): DataView {
         const digest = this.hmac.finalize();
-        const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
+        const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.length);
         const encoder = new TextEncoder();
         const bytes = encoder.encode(truncated);
-        return new DataView(bytes);
+        return new DataView(bytes.buffer);
     }
 }
 

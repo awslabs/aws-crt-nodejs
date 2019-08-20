@@ -1,10 +1,8 @@
-import { io, mqtt, crypto, resource_safety } from '../lib';
+import { io, mqtt, resource_safety } from '../lib';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_mqtt';
 import { TextDecoder } from 'util';
 const yargs = require('yargs');
 
-const Md5Hash = crypto.Md5Hash;
-const hash_md5 = crypto.hash_md5;
 const using = resource_safety.using;
 
 const argv = yargs
@@ -89,12 +87,3 @@ async function main() {
 main().catch((reason) => {
     console.error("Exception in main(): ", reason);
 })
-
-const to_hash = 'ABC';
-let md5 = new Md5Hash();
-md5.update(to_hash);
-const obj_digest = md5.finalize();
-console.log('Object Hash of', to_hash, ':', obj_digest);
-
-let oneshot_digest = hash_md5(to_hash);
-console.log('Oneshot Hash of', to_hash, ':', oneshot_digest);
