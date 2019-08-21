@@ -18,13 +18,10 @@ import { NativeResource } from "./native_resource";
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import ResourceSafety = require('../common/resource_safety')
+import * as ResourceSafety from '../common/resource_safety';
 
-export enum QoS {
-    AtMostOnce = 0,
-    AtLeastOnce = 1,
-    ExactlyOnce = 2,
-}
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
 export class Client extends NativeResource {
     public bootstrap: io.ClientBootstrap;
@@ -34,8 +31,11 @@ export class Client extends NativeResource {
         this.bootstrap = bootstrap;
     }
 
-    new_connection(config: ConnectionConfig) {
-        return new Connection(this, config)
+    new_connection(
+        config: ConnectionConfig,
+        on_connection_interrupted?: (error_code: number) => void,
+        on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
+        return new Connection(this, config, on_connection_interrupted, on_connection_resumed);
     }
 }
 
@@ -53,18 +53,6 @@ export interface ConnectionConfig {
     password?: string;
     tls_ctx?: io.ClientTlsContext;
 }
-
-export interface MqttRequest {
-    packet_id: number;
-}
-
-export interface MqttSubscribeRequest extends MqttRequest {
-    topic: string;
-    qos: QoS;
-    error_code: number;
-}
-
-type Payload = string | Object | DataView;
 
 export class Connection extends NativeResource implements ResourceSafety.ResourceSafe {
     public client: Client;

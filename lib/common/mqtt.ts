@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2010-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,21 +13,22 @@
  * permissions and limitations under the License.
  */
 
-/* common libs */
-import * as platform from './common/platform';
-import * as resource_safety from './common/resource_safety';
+export enum QoS {
+    AtMostOnce = 0,
+    AtLeastOnce = 1,
+    ExactlyOnce = 2,
+}
 
-/* node specific libs */
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as crypto from './native/crypto';
-import * as iot from './native/aws_iot';
+export type Payload = string | Object | DataView;
 
-export {
-    io,
-    mqtt,
-    crypto,
-    iot,
-    platform,
-    resource_safety,
-};
+export interface MqttRequest {
+    packet_id?: number;
+}
+
+export interface MqttSubscribeRequest extends MqttRequest {
+    topic: string;
+    qos: QoS;
+    error_code?: number;
+}
+
+

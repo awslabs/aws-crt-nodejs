@@ -22,3 +22,21 @@ export function is_nodejs() {
 export function is_browser() {
     return !is_nodejs();
 }
+
+export function package_info() {
+    try {
+        const pkg = require('../../package.json');
+        return pkg;
+    }
+    catch (err) { 
+        return {
+            name: 'aws-crt-nodejs',
+            version: 'UNKNOWN'
+        };
+    }
+}
+
+export function crt_version() {
+    const pkg = package_info();
+    return pkg.version;
+}

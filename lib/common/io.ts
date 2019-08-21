@@ -13,21 +13,13 @@
  * permissions and limitations under the License.
  */
 
-/* common libs */
-import * as platform from './common/platform';
-import * as resource_safety from './common/resource_safety';
+export enum TlsVersion {
+    SSLv3 = 0,
+    TLSv1 = 1,
+    TLSv1_1 = 2,
+    TLSv1_2 = 3,
+    TLSv1_3 = 4,
+    Default = 128,
+}
 
-/* node specific libs */
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as crypto from './native/crypto';
-import * as iot from './native/aws_iot';
 
-export {
-    io,
-    mqtt,
-    crypto,
-    iot,
-    platform,
-    resource_safety,
-};

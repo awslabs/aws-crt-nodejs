@@ -15,11 +15,13 @@
 import { MqttClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket } from "mqtt";
 import { AsyncClient } from "async-mqtt";
 import * as WebsocketUtils from "./ws";
-import * as io from "./io";
 import * as trie from "./trie";
 
-type WebsocketOptions = WebsocketUtils.WebsocketOptions;
-type AWSCredentials = WebsocketUtils.AWSCredentials;
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+
+export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
+export type AWSCredentials = WebsocketUtils.AWSCredentials;
 
 export interface ConnectionConfig {
     client_id: string;
@@ -32,156 +34,17 @@ export interface ConnectionConfig {
     will?: string;
     username?: string;
     password?: string;
-    tls_ctx?: io.ClientTlsContext;
     websocket?: WebsocketOptions;
     credentials?: AWSCredentials;
 }
 
-export class AwsIotMqttConnectionConfigBuilder {
-    private params: ConnectionConfig
-    private tls_ctx_options?: io.TlsContextOptions
-
-    private constructor() {
-        this.params = {
-            client_id: '',
-            host_name: '',
-            connect_timeout: 3000,
-            port: io.is_alpn_available() ? 443 : 8883,
-            clean_session: false,
-            keep_alive: undefined,
-            will: undefined,
-            username: '?SDK=NodeJSv2&Version=0.2.0',
-            password: undefined,
-            tls_ctx: undefined,
-            websocket: {},
-        };
-    }
-
-    static new_mtls_builder_from_path(cert_path: string, key_path: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder();
-        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert_path, key_path);
-
-        if (io.is_alpn_available()) {
-            builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
-        }
-
-        return builder;
-    }
-
-    static new_builder_for_websocket() {
-        let builder = new AwsIotMqttConnectionConfigBuilder();
-        return builder;
-    }
-
-    with_certificate_authority_from_path(ca_path?: string, ca_file?: string) {
-        if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.override_default_trust_store(ca_path, ca_file);
-        }
-
-        return this;
-    }
-
-    with_endpoint(endpoint: string) {
-        this.params.host_name = endpoint;
-        return this;
-    }
-
-    with_client_id(client_id: string) {
-        this.params.client_id = client_id;
-        return this;
-    }
-
-    with_clean_session(clean_session: boolean) {
-        this.params.clean_session = clean_session;
-        return this;
-    }
-
-    with_use_websockets() {
-        if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.alpn_list = undefined;
-            this.params.port = 443;
-        }
-
-        return this;
-    }
-
-    with_keep_alive_seconds(keep_alive: number) {
-        this.params.keep_alive = keep_alive;
-        return this;
-    }
-
-    with_timeout_ms(timeout_ms: number) {
-        this.params.timeout = timeout_ms;
-        return this;
-    }
-
-    with_will(will: string) {
-        this.params.will = will;
-        return this;
-    }
-
-    with_connect_timeout_ms(timeout: number) {
-        this.params.connect_timeout = timeout;
-        return this;
-    }
-
-    with_websocket_headers(headers: { [index: string]: string }) {
-        this.params.websocket = {
-            headers: headers
-        };
-        return this;
-    }
-
-    with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token: string | undefined) {
-        this.params.credentials = {
-            aws_region: aws_region,
-            aws_access_id: aws_access_id,
-            aws_secret_key: aws_secret_key,
-            aws_sts_token: aws_sts_token,
-        };
-        return this;
-    }
-
-    build() {
-        if (this.params.client_id === undefined || this.params.host_name === undefined) {
-            throw 'client_id and endpoint are required';
-        }
-
-        return this.params;
-    }
-}
-
 export class Client {
-    constructor(bootstrap?: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
-
-    }
-
     new_connection(
         config: ConnectionConfig,
         on_connection_interrupted?: (error_code: number) => void,
         on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
         return new Connection(this, config, on_connection_interrupted, on_connection_resumed);
     }
-
-    native_handle(): any {
-        return undefined;
-    }
-}
-
-export enum QoS {
-    AtMostOnce = 0,
-    AtLeastOnce = 1,
-    ExactlyOnce = 2,
-}
-
-export interface MqttRequest {
-    packet_id: number;
-}
-
-export interface MqttSubscribeRequest extends MqttRequest {
-    topic: string;
-    qos: QoS;
-    error_code: number;
 }
 
 type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
@@ -222,8 +85,6 @@ class TopicTrie extends trie.Trie<SubscriptionCallback> {
         return current;
     }
 }
-
-type Payload = string | Object | DataView;
 
 export class Connection {
     private connection: AsyncClient;
@@ -321,7 +182,7 @@ export class Connection {
         return this.connect();
     }
 
-    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
+    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) : Promise<MqttRequest> {
         let payload_data: string = payload.toString();
         if (typeof payload === 'object') {
             // Convert payload to JSON string
@@ -333,25 +194,21 @@ export class Connection {
         });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) {
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) : Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
         return this.connection.subscribe(topic, { qos: qos }).then((value: ISubscriptionGrant[]) => {
             return { topic: value[0].topic, qos: value[0].qos };
         });
     }
 
-    async unsubscribe(topic: string) {
+    async unsubscribe(topic: string) : Promise<MqttRequest> {
         this.subscriptions.remove(topic);
-        this.connection.unsubscribe(topic).then((value: IUnsubackPacket) => {
+        return this.connection.unsubscribe(topic).then((value: IUnsubackPacket) => {
             return { packet_id: value.messageId };
         });
     }
 
     async disconnect() {
         return this.connection.end();
-    }
-
-    native_handle(): any {
-        return undefined;
     }
 }
