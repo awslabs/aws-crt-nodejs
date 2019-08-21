@@ -38,6 +38,20 @@ test('md5 one-shot matches', () => {
     expect(native_hash).toEqual(browser_hash);
 });
 
+test('SHA256 multi-part matches', () => {
+    const parts = ['ABC', '123', 'XYZ'];
+    const native_sha = new native.Sha256Hash();
+    const browser_sha = new browser.Sha256Hash();
+    parts.forEach(part => {
+        native_sha.update(part);
+        browser_sha.update(part);
+    });
+    const native_hash = native_sha.finalize();
+    const browser_hash = browser_sha.finalize();
+
+    expect(native_hash).toEqual(browser_hash);
+});
+
 test('SHA256 one-shot matches', () => {
     const data = 'ABC123XYZ';
     const native_hash = native.hash_sha256(data);
