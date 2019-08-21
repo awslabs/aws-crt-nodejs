@@ -13,6 +13,8 @@ npm install || goto error
 
 node -p "require('./dist/lib/index')" || goto error
 
+npm test
+
 popd
 @endlocal
 goto :EOF

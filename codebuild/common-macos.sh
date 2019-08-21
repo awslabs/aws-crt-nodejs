@@ -31,3 +31,5 @@ git submodule update --init
 CFLAGS="-Werror" npm install
 
 node -p "require('./dist/lib/index')"
+
+npm test
