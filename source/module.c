@@ -16,6 +16,9 @@
 #include "io.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
+#include "http_connection.h"
+#include "http_stream.h"
+#include "http_connection_manager.h"
 
 #include <aws/common/clock.h>
 
@@ -251,6 +254,10 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(hmac_update)
     CREATE_AND_REGISTER_FN(hmac_digest)
     CREATE_AND_REGISTER_FN(hmac_sha256_compute)
+
+    /* HTTP */
+    CREATE_AND_REGISTER_FN(http_connection_new)
+    CREATE_AND_REGISTER_FN(http_connection_close)
 
 #undef CREATE_AND_REGISTER_FN
 
