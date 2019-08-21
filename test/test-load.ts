@@ -1,5 +1,4 @@
-import { io, mqtt, resource_safety } from '../lib';
-import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_mqtt';
+import { io, mqtt, resource_safety, iot } from '../lib';
 import { TextDecoder } from 'util';
 const yargs = require('yargs');
 
@@ -41,7 +40,7 @@ const test_topic = "test";
 async function main() {
     let bootstrap = new io.ClientBootstrap();
     let config_builder = 
-    AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(argv.cert_path, argv.key_path);
+    iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(argv.cert_path, argv.key_path);
     config_builder
         .with_certificate_authority_from_path(undefined, argv.ca_path)
         .with_clean_session(false)

@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { mqtt } from "aws-crt";
+import { mqtt, iot } from "aws-crt";
 import * as AWS from "aws-sdk";
 import Config = require('./config');
 import jquery = require("jquery");
@@ -42,7 +42,7 @@ async function fetch_credentials() {
 
 async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
     return new Promise<mqtt.Connection>((resolve, reject) => {
-        let config = mqtt.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
+        let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)

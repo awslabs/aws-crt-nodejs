@@ -21,11 +21,13 @@ import * as resource_safety from './common/resource_safety';
 import * as io from './native/io';
 import * as mqtt from './native/mqtt';
 import * as crypto from './native/crypto';
+import * as iot from './native/aws_iot';
 
 export {
     io,
     mqtt,
     crypto,
+    iot,
     platform,
     resource_safety,
 };

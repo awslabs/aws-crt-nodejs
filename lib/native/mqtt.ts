@@ -18,7 +18,7 @@ import { NativeResource } from "./native_resource";
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import ResourceSafety = require('../common/resource_safety')
+import * as ResourceSafety from '../common/resource_safety';
 
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
