@@ -18,6 +18,11 @@
 
 #include <aws/http/connection.h>
 
+struct aws_nodejs_callback {
+    napi_async_context ctx;
+    napi_ref callback;
+};
+
 struct http_nodejs_connection {
     struct aws_http_connection *connection;
 };
