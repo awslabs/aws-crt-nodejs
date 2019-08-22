@@ -93,55 +93,53 @@ static void s_uv_dispatch_pump(uv_async_t *handle) {
     }
 }
 
-int aws_uv_context_init(struct aws_uv_context *ctx, napi_env env) {
-    /* init is idempotent */
-    if (ctx->uv_loop) {
-        ctx->ref_count++;
-        return AWS_OP_SUCCESS;
+int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env) {
+    if (AWS_UNLIKELY(!ctx->uv_loop)) {
+        AWS_ZERO_STRUCT(*ctx);
+        aws_mutex_init(&ctx->command_queue.mutex);
+        aws_linked_list_init(&ctx->command_queue.queue);
+        aws_mutex_init(&ctx->command_pool.mutex);
+        aws_linked_list_init(&ctx->command_pool.free_list);
+
+        napi_get_uv_event_loop(env, &ctx->uv_loop);
+        AWS_FATAL_ASSERT(ctx->uv_loop);
+
+        uv_async_init(ctx->uv_loop, &ctx->async_handle, s_uv_dispatch_pump);
+        ctx->env = env;
+        ctx->async_handle.data = ctx;
     }
 
-    AWS_ZERO_STRUCT(*ctx);
-    aws_mutex_init(&ctx->command_queue.mutex);
-    aws_linked_list_init(&ctx->command_queue.queue);
-    aws_mutex_init(&ctx->command_pool.mutex);
-    aws_linked_list_init(&ctx->command_pool.free_list);
-
-    napi_get_uv_event_loop(env, &ctx->uv_loop);
-    AWS_FATAL_ASSERT(ctx->uv_loop);
-
-    uv_async_init(ctx->uv_loop, &ctx->async_handle, s_uv_dispatch_pump);
-    ctx->env = env;
-    ctx->async_handle.data = ctx;
-
-    ctx->ref_count = 1;
+    ctx->ref_count++;
 
     return AWS_OP_SUCCESS;
 }
 
-int aws_uv_context_cleanup(struct aws_uv_context *ctx) {
-    /* cleanup is idempotent */
-    if (!ctx || !ctx->uv_loop) {
-        return AWS_OP_SUCCESS;
+static void s_uv_closed(uv_handle_t *handle) {
+    struct aws_uv_context *ctx = handle->data;
+    s_uv_context_cleanup_impl(ctx);
+}
+
+static void s_uv_context_cleanup_impl(struct aws_uv_context *ctx) {
+    struct aws_allocator *allocator = aws_default_allocator();
+    /* clean up free list for callbacks*/
+    while (!aws_linked_list_empty(&ctx->command_pool.free_list)) {
+        struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&ctx->command_pool.free_list);
+        struct aws_uv_callback *callback = AWS_CONTAINER_OF(list_node, struct aws_uv_callback, list_node);
+        aws_mem_release(allocator, callback);
     }
 
+    aws_mutex_clean_up(&ctx->command_queue.mutex);
+    aws_mutex_clean_up(&ctx->command_pool.mutex);
+}
+
+int aws_uv_context_release(struct aws_uv_context *ctx) {
     if (--ctx->ref_count == 0) {
-        /* we can't do anything with leftover commands, there shouldn't be any, shutting this down with
-           callbacks pending is DEFINITELY going to cause bugs for users somewhere */
+        /* For now, don't bother supporting a final flush, it shouldn't be necessary, as when refs are
+           dropped the owning object should be on its way to death */
         AWS_ASSERT(aws_linked_list_empty(ctx->command_queue.queue));
 
-        /* clean up uv handle */
-        uv_unref((uv_handle_t *)&ctx->async_handle);
-
-        struct aws_allocator *allocator = aws_default_allocator();
-        /* clean up free list for callbacks*/
-        while (!aws_linked_list_empty(&ctx->command_pool.free_list)) {
-            struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&ctx->command_pool.free_list);
-            struct aws_uv_callback *callback = AWS_CONTAINER_OF(list_node, struct aws_uv_callback, list_node);
-            aws_mem_release(allocator, callback);
-        }
-
-        aws_mutex_clean_up(&ctx->command_queue.mutex);
-        aws_mutex_clean_up(&ctx->command_pool.mutex);
+        /* close uv handle, when it's dead, we finish cleanup in the callback */
+        uv_close((uv_handle_t *)&ctx->async_handle, s_uv_closed);        
     }
 
     return AWS_OP_SUCCESS;

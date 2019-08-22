@@ -27,11 +27,11 @@
 
     Typical flow will look like:
     [optional] Grab default context OR allocate one
-    aws_uv_context_init(ctx)
+    aws_uv_context_acquire(ctx)
     ...
     aws_uv_context_queue(ctx, fn, user_data)
     ...
-    aws_uv_context_cleanup(ctx)
+    aws_uv_context_release(ctx)
 
     Note that init/cleanup do ref counting, so it is necessary to call init/cleanup for each object referencing
     the aws_uv_context.
@@ -43,11 +43,11 @@ typedef void(aws_uv_callback_fn)(void *user_data);
 /* Gets the default global libuv command buffer, in most cases there is only 1 per application */
 struct aws_uv_context *aws_uv_context_get_default();
 
-/* Initializes the libuv command buffer, and attaches our message pump to libuv's event loop */
-int aws_uv_context_init(struct aws_uv_context *ctx, napi_env env);
+/* Acquire a reference to the context, initializing it if necessary */
+int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env);
 
-/* Removes our message pump from libuv and cleans up the libuv command buffer */
-int aws_uv_context_cleanup(struct aws_uv_context *ctx);
+/* Release a reference to the context */
+int aws_uv_context_release(struct aws_uv_context *ctx);
 
 /* queues a functions to be called by libuv in the node event loop */
 void aws_uv_context_queue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data);
