@@ -37,7 +37,7 @@ struct aws_uv_context {
 
 struct aws_uv_callback {
     struct aws_linked_list_node list_node;
-    aws_uv_callback_fn callback;
+    aws_uv_callback_fn *callback;
     void *user_data;
 };
 
@@ -147,7 +147,7 @@ int aws_uv_context_cleanup(struct aws_uv_context *ctx) {
     return AWS_OP_SUCCESS;
 }
 
-void aws_uv_queue_dispatch(struct aws_uv_context *ctx, aws_uv_callback_fn callback, void *user_data) {
+void aws_uv_context_queue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data) {
     AWS_FATAL_ASSERT(ctx && ctx->uv_loop);
 
     struct aws_uv_callback *cb = s_uv_command_alloc(ctx);

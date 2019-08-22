@@ -18,8 +18,27 @@
 
 #include <node_api.h>
 
+/*
+    This acts as a command queue between the aws-c-io event loop and the libuv event loop. JS callbacks can only
+    be invoked within the libuv event loop, so we queue them up, and tell the uv loop to call our message pump.
+
+    There only needs to be 1 aws_uv_context per application, the default one. It fine to create any number of
+    contexts, but it will most likely only help from a lock contention/categorization perspective.
+
+    Typical flow will look like:
+    [optional] Grab default context OR allocate one
+    aws_uv_context_init(ctx)
+    ...
+    aws_uv_context_queue(ctx, fn, user_data)
+    ...
+    aws_uv_context_cleanup(ctx)
+
+    Note that init/cleanup do ref counting, so it is necessary to call init/cleanup for each object referencing
+    the aws_uv_context.
+ */
+
 struct aws_uv_context;
-typedef void (*aws_uv_callback_fn)(void *user_data);
+typedef void(aws_uv_callback_fn)(void *user_data);
 
 /* Gets the default global libuv command buffer, in most cases there is only 1 per application */
 struct aws_uv_context *aws_uv_context_get_default();
@@ -31,6 +50,6 @@ int aws_uv_context_init(struct aws_uv_context *ctx, napi_env env);
 int aws_uv_context_cleanup(struct aws_uv_context *ctx);
 
 /* queues a functions to be called by libuv in the node event loop */
-void aws_uv_queue_dispatch(struct aws_uv_context *ctx, aws_uv_callback_fn callback, void *user_data);
+void aws_uv_context_queue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data);
 
 #endif /* AWS_CRT_NODEJS_UV_INTEROP_H */
