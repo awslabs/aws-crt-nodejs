@@ -13,12 +13,12 @@
  * permissions and limitations under the License.
  */
 #include "crypto.h"
+#include "http_connection.h"
+#include "http_connection_manager.h"
+#include "http_stream.h"
 #include "io.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
-#include "http_connection.h"
-#include "http_stream.h"
-#include "http_connection_manager.h"
 
 #include <aws/common/clock.h>
 

@@ -14,10 +14,10 @@
  */
 
 #include "uv_interop.h"
-#include <uv.h>
 #include <aws/common/common.h>
-#include <aws/common/mutex.h>
 #include <aws/common/linked_list.h>
+#include <aws/common/mutex.h>
+#include <uv.h>
 
 struct aws_uv_context {
     uv_loop_t *uv_loop;
@@ -156,7 +156,7 @@ void aws_uv_queue_dispatch(struct aws_uv_context *ctx, aws_uv_callback_fn callba
     aws_mutex_lock(&ctx->command_queue.mutex);
     aws_linked_list_push_back(&ctx->command_queue.queue, &cb->list_node);
     aws_mutex_unlock(&ctx->command_queue.mutex);
-    
+
     /* notify uv that there's work to do */
     uv_async_send(&ctx->async_handle);
 }
