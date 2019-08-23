@@ -91,15 +91,8 @@ napi_value mqtt_client_connection_close(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to extract connection from first argument");
     }
 
-    if (node_connection->on_connection_interrupted.callback) {
-        napi_async_destroy(env, node_connection->on_connection_interrupted.async_context);
-        napi_delete_reference(env, node_connection->on_connection_interrupted.callback);
-    }
-
-    if (node_connection->on_connection_resumed.callback) {
-        napi_async_destroy(env, node_connection->on_connection_resumed.async_context);
-        napi_delete_reference(env, node_connection->on_connection_resumed.callback);
-    }
+    aws_napi_callback_clean_up(&node_connection->on_connection_interrupted);
+    aws_napi_callback_clean_up(&node_connection->on_connection_resumed);
 
     aws_uv_context_release(node_connection->uv_context);
     aws_mqtt_client_connection_destroy(node_connection->connection);
