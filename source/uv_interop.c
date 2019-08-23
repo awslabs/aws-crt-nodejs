@@ -114,11 +114,6 @@ int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env) {
     return AWS_OP_SUCCESS;
 }
 
-static void s_uv_closed(uv_handle_t *handle) {
-    struct aws_uv_context *ctx = handle->data;
-    s_uv_context_cleanup_impl(ctx);
-}
-
 static void s_uv_context_cleanup_impl(struct aws_uv_context *ctx) {
     struct aws_allocator *allocator = aws_default_allocator();
     /* clean up free list for callbacks*/
@@ -130,6 +125,11 @@ static void s_uv_context_cleanup_impl(struct aws_uv_context *ctx) {
 
     aws_mutex_clean_up(&ctx->command_queue.mutex);
     aws_mutex_clean_up(&ctx->command_pool.mutex);
+}
+
+static void s_uv_closed(uv_handle_t *handle) {
+    struct aws_uv_context *ctx = handle->data;
+    s_uv_context_cleanup_impl(ctx);
 }
 
 int aws_uv_context_release(struct aws_uv_context *ctx) {
