@@ -369,14 +369,8 @@ cleanup:
             aws_mqtt_client_connection_destroy(node_connection->connection);
         }
 
-        if (node_connection->on_connection_interrupted.callback) {
-            aws_napi_callback_clean_up(&node_connection->on_connection_interrupted);
-        }
-
-        if (node_connection->on_connection_resumed.callback) {
-            aws_napi_callback_clean_up(&node_connection->on_connection_resumed);
-        }
-
+        aws_napi_callback_clean_up(&node_connection->on_connection_interrupted);
+        aws_napi_callback_clean_up(&node_connection->on_connection_resumed);
         aws_mem_release(allocator, node_connection);
     }
 
@@ -451,10 +445,7 @@ cleanup:
         napi_close_handle_scope(env, handle_scope);
     }
 
-    if (node_connection->on_connect.callback) {
-        aws_napi_callback_clean_up(&node_connection->on_connect);
-    }
-
+    aws_napi_callback_clean_up(&node_connection->on_connect);
     aws_mem_release(node_connection->allocator, args);
 }
 
@@ -683,9 +674,7 @@ napi_value mqtt_client_connection_reconnect(napi_env env, napi_callback_info inf
     return NULL;
 
 cleanup:
-    if (node_connection->on_connect.callback) {
-        aws_napi_callback_clean_up(&node_connection->on_connect);
-    }
+    aws_napi_callback_clean_up(&node_connection->on_connect);
     return result;
 }
 
@@ -751,10 +740,7 @@ cleanup:
         napi_close_handle_scope(env, handle_scope);
     }
 
-    if (args->callback.callback) {
-        aws_napi_callback_clean_up(&args->callback);
-    }
-
+    aws_napi_callback_clean_up(&args->callback);
     aws_mem_release(node_connection->allocator, args);
 }
 
@@ -851,10 +837,7 @@ cleanup:
     aws_byte_buf_clean_up(&args->payload);
     aws_byte_buf_clean_up(&args->topic);
 
-    if (args->callback.callback) {
-        aws_napi_callback_clean_up(&args->callback);
-    }
-
+    aws_napi_callback_clean_up(&args->callback);
     aws_mem_release(allocator, args);
 
     return NULL;
@@ -924,10 +907,7 @@ cleanup:
         napi_close_handle_scope(env, handle_scope);
     }
 
-    if (args->callback.callback) {
-        aws_napi_callback_clean_up(&args->callback);
-    }
-
+    aws_napi_callback_clean_up(&args->callback);
     aws_mem_release(node_connection->allocator, args);
 }
 
