@@ -216,7 +216,7 @@ int aws_napi_callback_clean_up(struct aws_napi_callback *cb) {
             napi_delete_reference(cb->env, cb->callback);
         }
     }
-    
+
     AWS_ZERO_STRUCT(*cb);
     return AWS_OP_SUCCESS;
 }

@@ -223,7 +223,8 @@ static void s_dispatch_on_resumed(void *user_data) {
                 goto cleanup;
             }
 
-            if (napi_open_callback_scope(env, resource_object, node_connection->on_connection_resumed.async_context, &cb_scope)) {
+            if (napi_open_callback_scope(
+                    env, resource_object, node_connection->on_connection_resumed.async_context, &cb_scope)) {
                 s_raise_napi_error(env, s_callback_scope_open_failed);
                 goto cleanup;
             }
@@ -315,7 +316,10 @@ napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (aws_napi_callback_init(
-            &node_connection->on_connection_interrupted, env, node_args[1], "aws_mqtt_client_connection_on_connection_interrupted")) {
+                &node_connection->on_connection_interrupted,
+                env,
+                node_args[1],
+                "aws_mqtt_client_connection_on_connection_interrupted")) {
             goto cleanup;
         }
     }
@@ -427,7 +431,13 @@ static void s_dispatch_on_connect(void *user_data) {
             }
 
             if (napi_make_callback(
-                    env, node_connection->on_connect.async_context, recv, on_connect, AWS_ARRAY_SIZE(params), params, NULL)) {
+                    env,
+                    node_connection->on_connect.async_context,
+                    recv,
+                    on_connect,
+                    AWS_ARRAY_SIZE(params),
+                    params,
+                    NULL)) {
                 s_raise_napi_error(env, s_callback_invocation_failed);
             }
         }
@@ -458,8 +468,7 @@ static void s_on_connected(
 
     struct mqtt_nodejs_connection *nodejs_connection = user_data;
 
-    struct connect_args *args =
-        aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct connect_args));
+    struct connect_args *args = aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct connect_args));
 
     if (!args) {
         s_on_error(nodejs_connection, aws_last_error());
@@ -773,14 +782,13 @@ napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info)
 
     struct aws_allocator *allocator = aws_default_allocator();
 
-    struct publish_args *args =
-        aws_mem_calloc(allocator, 1, sizeof(struct publish_args));
+    struct publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct publish_args));
 
     if (!args) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
-    
+
     napi_value node_args[6];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -895,13 +903,13 @@ static void s_dispatch_on_suback(void *user_data) {
             napi_value params[4];
             if (napi_get_global(env, &recv) || napi_create_int32(env, args->packet_id, &params[0]) ||
                 napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[1]) ||
-                napi_create_int32(env, args->qos, &params[2]) ||
-                napi_create_int32(env, args->error_code, &params[3])) {
+                napi_create_int32(env, args->qos, &params[2]) || napi_create_int32(env, args->error_code, &params[3])) {
                 s_raise_napi_error(env, s_load_arguments_failed);
                 goto cleanup;
             }
 
-            if (napi_make_callback(env, args->callback.async_context, recv, on_suback, AWS_ARRAY_SIZE(params), params, NULL)) {
+            if (napi_make_callback(
+                    env, args->callback.async_context, recv, on_suback, AWS_ARRAY_SIZE(params), params, NULL)) {
                 s_raise_napi_error(env, s_callback_invocation_failed);
                 goto cleanup;
             }
@@ -965,8 +973,8 @@ static void s_on_publish_user_data_clean_up(void *user_data) {
 /* arguments for publish callbacks */
 struct on_publish_args {
     struct mqtt_nodejs_connection *connection;
-    struct aws_byte_buf topic; /* owned by subscription */
-    struct aws_byte_buf payload; /* owned by this */
+    struct aws_byte_buf topic;         /* owned by subscription */
+    struct aws_byte_buf payload;       /* owned by this */
     struct aws_napi_callback callback; /* owned by subscription */
 };
 
@@ -1037,8 +1045,7 @@ static void s_on_publish(
     (void)topic;
 
     struct subscription *sub = user_data;
-    struct on_publish_args *args =
-        aws_mem_calloc(sub->connection->allocator, 1, sizeof(struct on_publish_args));
+    struct on_publish_args *args = aws_mem_calloc(sub->connection->allocator, 1, sizeof(struct on_publish_args));
 
     if (!args) {
         s_on_error(sub->connection, aws_last_error());
@@ -1060,8 +1067,7 @@ static void s_on_publish(
 napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
-    struct subscription *sub =
-        aws_mem_calloc(allocator, 1, sizeof(struct subscription));
+    struct subscription *sub = aws_mem_calloc(allocator, 1, sizeof(struct subscription));
     struct suback_args *suback = aws_mem_calloc(allocator, 1, sizeof(struct suback_args));
 
     if (!sub || !suback) {
@@ -1109,7 +1115,7 @@ napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info inf
     if (aws_napi_callback_init(&sub->callback, env, node_args[3], "aws_mqtt_client_connection_on_message")) {
         goto cleanup;
     }
-    
+
     if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
         if (aws_napi_callback_init(&suback->callback, env, node_args[4], "aws_mqtt_client_connection_on_suback")) {
             goto cleanup;
