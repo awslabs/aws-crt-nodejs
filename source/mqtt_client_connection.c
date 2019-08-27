@@ -1000,6 +1000,7 @@ static void s_dispatch_on_publish(void *user_data) {
                 s_raise_napi_error(env, s_callback_invocation_failed);
             }
 
+            /* publish complete, free payload memory up */
             aws_byte_buf_clean_up(&args->payload);
         }
     }
@@ -1015,6 +1016,7 @@ cleanup:
     aws_mem_release(args->connection->allocator, args);
 }
 
+/* called in response to a message being published to an active subscription */
 static void s_on_publish(
     struct aws_mqtt_client_connection *connection,
     const struct aws_byte_cursor *topic,
@@ -1035,6 +1037,7 @@ static void s_on_publish(
     args->connection = sub->connection;
     args->topic = sub->topic;
     args->callback = sub->callback;
+    /* this is freed after being delivered to node in s_dispatch_on_publish */
     if (aws_byte_buf_init_copy_from_cursor(&args->payload, args->connection->allocator, *payload)) {
         aws_mem_release(args->connection->allocator, args);
         s_on_error(sub->connection, aws_last_error());
