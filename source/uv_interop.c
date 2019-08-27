@@ -48,7 +48,7 @@ static uint8_t s_default_context_storage[sizeof(struct aws_uv_context)] = {0};
 static const struct aws_uv_context *s_default_context = (void *)&s_default_context_storage;
 
 struct aws_uv_context *aws_uv_context_get_default() {
-    return (struct aws_uv_context*)s_default_context;
+    return (struct aws_uv_context *)s_default_context;
 }
 
 /* pool allocator that works off a simple free FIFO */
