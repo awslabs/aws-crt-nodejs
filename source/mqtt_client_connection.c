@@ -75,7 +75,7 @@ static void s_raise_napi_error(napi_env env, const char *message) {
     napi_throw_error(env, "Runtime Error", message);
 }
 
-napi_value mqtt_client_connection_close(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     struct mqtt_nodejs_connection *node_connection = NULL;
@@ -284,7 +284,7 @@ static void s_on_connection_resumed(
     aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_resumed, args);
 }
 
-napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
     napi_value result = NULL;
@@ -473,7 +473,7 @@ static void s_on_connected(
     aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_connect, args);
 }
 
-napi_value mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
 
@@ -632,7 +632,7 @@ cleanup:
  * Reconnect
  ******************************************************************************/
 
-napi_value mqtt_client_connection_reconnect(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
     struct mqtt_nodejs_connection *node_connection = NULL;
@@ -764,7 +764,7 @@ static void s_on_publish_complete(
     aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_publish_complete, args);
 }
 
-napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
 
@@ -1044,7 +1044,7 @@ static void s_on_publish(
     aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_publish, args);
 }
 
-napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
     struct subscription *sub = aws_mem_calloc(allocator, 1, sizeof(struct subscription));
@@ -1214,7 +1214,7 @@ static void s_on_unsubscribe_complete(
     aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_unsub_ack, args);
 }
 
-napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
 
@@ -1341,7 +1341,7 @@ static void s_on_disconnected(struct aws_mqtt_client_connection *connection, voi
     aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_disconnect, args);
 }
 
-napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_default_allocator();
     struct mqtt_nodejs_connection *node_connection = NULL;

@@ -19,7 +19,7 @@
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 
-napi_value error_code_to_string(napi_env env, napi_callback_info info) {
+napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) {
 
     size_t num_args = 1;
     napi_value node_args[1];
@@ -50,7 +50,7 @@ napi_value error_code_to_string(napi_env env, napi_callback_info info) {
     return error_string_val;
 }
 
-napi_value is_alpn_available(napi_env env, napi_callback_info info) {
+napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info) {
 
     (void)info;
 
@@ -83,7 +83,7 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
     aws_mem_release(allocator, node_bootstrap);
 }
 
-napi_value io_client_bootstrap_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info info) {
     (void)info;
 
     struct aws_allocator *allocator = aws_default_allocator();
@@ -137,7 +137,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
     aws_tls_ctx_destroy(tls_ctx);
 }
 
-napi_value io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *alloc = aws_default_allocator();
     napi_status status = napi_ok;

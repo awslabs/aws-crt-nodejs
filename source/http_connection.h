@@ -18,7 +18,7 @@
 
 #include <node_api.h>
 
-napi_value http_connection_new(napi_env env, napi_callback_info info);
-napi_value http_connection_close(napi_env env, napi_callback_info info);
+napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info);
+napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info);
 
 #endif /* AWS_CRT_NODEJS_HTTP_CONNECTION_H */

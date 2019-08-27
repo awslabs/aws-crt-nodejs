@@ -27,7 +27,7 @@ struct http_nodejs_connection {
     struct aws_http_connection *connection;
 };
 
-napi_value http_connection_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     (void)info;
     struct aws_allocator *allocator = aws_default_allocator();
     napi_value result = NULL;
@@ -58,7 +58,7 @@ cleanup:
     return result;
 }
 
-napi_value http_connection_close(napi_env env, napi_callback_info info) {
+napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info) {
     struct aws_allocator *allocator = aws_default_allocator();
 
     napi_value node_args[1];
