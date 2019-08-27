@@ -15,8 +15,9 @@
 
 #include "uv_interop.h"
 #include <aws/common/common.h>
-#include <aws/common/linked_list.h>
+#include <aws/io/message_pool.h>
 #include <aws/common/mutex.h>
+
 #include <uv.h>
 
 struct aws_uv_context {
@@ -26,7 +27,7 @@ struct aws_uv_context {
     uv_async_t async_handle;
     struct {
         struct aws_mutex mutex;
-        struct aws_linked_list free_list;
+        struct aws_memory_pool pool;
     } command_pool;
 
     struct {
@@ -51,26 +52,18 @@ struct aws_uv_context *aws_uv_context_get_default() {
     return (struct aws_uv_context *)s_default_context;
 }
 
-/* pool allocator that works off a simple free FIFO */
 static struct aws_uv_callback *s_uv_command_alloc(struct aws_uv_context *ctx) {
     aws_mutex_lock(&ctx->command_pool.mutex);
-    if (aws_linked_list_empty(&ctx->command_pool.free_list)) {
-        aws_mutex_unlock(&ctx->command_pool.mutex);
-        struct aws_allocator *allocator = aws_default_allocator();
-        return aws_mem_calloc(allocator, 1, sizeof(struct aws_uv_callback));
-    }
-
-    struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&ctx->command_pool.free_list);
+    struct aws_uv_callback *callback = aws_memory_pool_acquire(&ctx->command_pool.pool);
     aws_mutex_unlock(&ctx->command_pool.mutex);
 
-    struct aws_uv_callback *callback = AWS_CONTAINER_OF(list_node, struct aws_uv_callback, list_node);
     AWS_ZERO_STRUCT(*callback);
     return callback;
 }
 
 static void s_uv_command_free(struct aws_uv_context *ctx, struct aws_uv_callback *callback) {
     aws_mutex_lock(&ctx->command_pool.mutex);
-    aws_linked_list_push_front(&ctx->command_pool.free_list, &callback->list_node);
+    aws_memory_pool_release(&ctx->command_pool.pool, callback);
     aws_mutex_unlock(&ctx->command_pool.mutex);
 }
 
@@ -94,11 +87,12 @@ static void s_uv_dispatch_pump(uv_async_t *handle) {
 
 int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env) {
     if (AWS_UNLIKELY(!ctx->uv_loop)) {
+        struct aws_allocator *allocator = aws_default_allocator();
         AWS_ZERO_STRUCT(*ctx);
         aws_mutex_init(&ctx->command_queue.mutex);
         aws_linked_list_init(&ctx->command_queue.queue);
         aws_mutex_init(&ctx->command_pool.mutex);
-        aws_linked_list_init(&ctx->command_pool.free_list);
+        aws_memory_pool_init(&ctx->command_pool.pool, allocator, 16, sizeof(struct aws_uv_callback));
 
         napi_get_uv_event_loop(env, &ctx->uv_loop);
         AWS_FATAL_ASSERT(ctx->uv_loop);
@@ -114,13 +108,7 @@ int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env) {
 }
 
 static void s_uv_context_cleanup_impl(struct aws_uv_context *ctx) {
-    struct aws_allocator *allocator = aws_default_allocator();
-    /* clean up free list for callbacks*/
-    while (!aws_linked_list_empty(&ctx->command_pool.free_list)) {
-        struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&ctx->command_pool.free_list);
-        struct aws_uv_callback *callback = AWS_CONTAINER_OF(list_node, struct aws_uv_callback, list_node);
-        aws_mem_release(allocator, callback);
-    }
+    aws_memory_pool_clean_up(&ctx->command_pool.pool);
 
     aws_mutex_clean_up(&ctx->command_queue.mutex);
     aws_mutex_clean_up(&ctx->command_pool.mutex);
