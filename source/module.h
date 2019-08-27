@@ -36,4 +36,13 @@ struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);
 struct aws_event_loop_group *aws_napi_get_node_elg(void);
 
+struct aws_napi_callback {
+    napi_env env;
+    napi_async_context async_context;
+    napi_ref callback;
+};
+
+int aws_napi_callback_init(struct aws_napi_callback *cb, napi_env env, napi_value callback, const char *name);
+int aws_napi_callback_clean_up(struct aws_napi_callback *cb);
+
 #endif /* AWS_CRT_NODEJS_MODULE_H */

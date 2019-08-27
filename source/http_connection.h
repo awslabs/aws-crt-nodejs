@@ -1,5 +1,6 @@
-#ifndef AWS_CRT_NODEJS_MQTT_CLIENT_H
-#define AWS_CRT_NODEJS_MQTT_CLIENT_H
+#ifndef AWS_CRT_NODEJS_HTTP_CONNECTION_H
+#define AWS_CRT_NODEJS_HTTP_CONNECTION_H
+
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -17,12 +18,7 @@
 
 #include <node_api.h>
 
-#include <aws/mqtt/client.h>
+napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info);
+napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info);
 
-struct mqtt_nodejs_client {
-    struct aws_mqtt_client native_client;
-};
-
-napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info);
-
-#endif /* AWS_CRT_NODEJS_MQTT_CLIENT_H */
+#endif /* AWS_CRT_NODEJS_HTTP_CONNECTION_H */

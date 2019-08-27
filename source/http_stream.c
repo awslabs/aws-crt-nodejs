@@ -1,5 +1,3 @@
-#ifndef AWS_CRT_NODEJS_MQTT_CLIENT_H
-#define AWS_CRT_NODEJS_MQTT_CLIENT_H
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -15,14 +13,16 @@
  * permissions and limitations under the License.
  */
 
-#include <node_api.h>
+#include "http_stream.h"
 
-#include <aws/mqtt/client.h>
+napi_value http_stream_new(napi_env env, napi_callback_info info) {
+    (void)env;
+    (void)info;
+    return NULL;
+}
 
-struct mqtt_nodejs_client {
-    struct aws_mqtt_client native_client;
-};
-
-napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info);
-
-#endif /* AWS_CRT_NODEJS_MQTT_CLIENT_H */
+napi_value http_stream_close(napi_env env, napi_callback_info info) {
+    (void)env;
+    (void)info;
+    return NULL;
+}

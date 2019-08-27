@@ -34,7 +34,7 @@ static void s_hash_finalize(napi_env env, void *finalize_data, void *finalize_hi
     aws_hash_destroy(hash);
 }
 
-napi_value hash_md5_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hash_md5_new(napi_env env, napi_callback_info info) {
 
     (void)info;
     struct aws_allocator *allocator = aws_default_allocator();
@@ -51,7 +51,7 @@ napi_value hash_md5_new(napi_env env, napi_callback_info info) {
     return node_external;
 }
 
-napi_value hash_sha256_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hash_sha256_new(napi_env env, napi_callback_info info) {
 
     (void)info;
     struct aws_allocator *allocator = aws_default_allocator();
@@ -68,7 +68,7 @@ napi_value hash_sha256_new(napi_env env, napi_callback_info info) {
     return node_external;
 }
 
-napi_value hash_update(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hash_update(napi_env env, napi_callback_info info) {
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -103,7 +103,7 @@ napi_value hash_update(napi_env env, napi_callback_info info) {
     return NULL;
 }
 
-napi_value hash_digest(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hash_digest(napi_env env, napi_callback_info info) {
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -158,7 +158,7 @@ napi_value hash_digest(napi_env env, napi_callback_info info) {
     return dataview;
 }
 
-napi_value hash_md5_compute(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hash_md5_compute(napi_env env, napi_callback_info info) {
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -215,7 +215,7 @@ napi_value hash_md5_compute(napi_env env, napi_callback_info info) {
     return dataview;
 }
 
-napi_value hash_sha256_compute(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hash_sha256_compute(napi_env env, napi_callback_info info) {
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -288,7 +288,7 @@ static void s_hmac_finalize(napi_env env, void *finalize_data, void *finalize_hi
     aws_hmac_destroy(hmac);
 }
 
-napi_value hmac_sha256_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hmac_sha256_new(napi_env env, napi_callback_info info) {
 
     (void)info;
     struct aws_allocator *allocator = aws_default_allocator();
@@ -326,7 +326,7 @@ napi_value hmac_sha256_new(napi_env env, napi_callback_info info) {
     return node_external;
 }
 
-napi_value hmac_update(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hmac_update(napi_env env, napi_callback_info info) {
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -361,7 +361,7 @@ napi_value hmac_update(napi_env env, napi_callback_info info) {
     return NULL;
 }
 
-napi_value hmac_digest(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hmac_digest(napi_env env, napi_callback_info info) {
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -416,7 +416,7 @@ napi_value hmac_digest(napi_env env, napi_callback_info info) {
     return dataview;
 }
 
-napi_value hmac_sha256_compute(napi_env env, napi_callback_info info) {
+napi_value aws_napi_hmac_sha256_compute(napi_env env, napi_callback_info info) {
 
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);

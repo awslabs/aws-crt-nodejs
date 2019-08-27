@@ -1,5 +1,3 @@
-#ifndef AWS_CRT_NODEJS_MQTT_CLIENT_H
-#define AWS_CRT_NODEJS_MQTT_CLIENT_H
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -15,14 +13,17 @@
  * permissions and limitations under the License.
  */
 
-#include <node_api.h>
+import crt_native = require('./binding');
+import { NativeResource } from "./native_resource";
+import { resource_safety } from '../browser';
 
-#include <aws/mqtt/client.h>
+export class HttpConnection extends NativeResource implements resource_safety.ResourceSafe {
 
-struct mqtt_nodejs_client {
-    struct aws_mqtt_client native_client;
-};
+    constructor() {
+        super(crt_native.http_connection_new());
+    }
 
-napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info);
-
-#endif /* AWS_CRT_NODEJS_MQTT_CLIENT_H */
+    close() {
+        crt_native.http_connection_close(this.native_handle());
+    }
+}

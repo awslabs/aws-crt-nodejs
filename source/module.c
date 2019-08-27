@@ -12,7 +12,13 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
+#include "module.h"
+
 #include "crypto.h"
+#include "http_connection.h"
+#include "http_connection_manager.h"
+#include "http_stream.h"
 #include "io.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
@@ -177,6 +183,44 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
 
+int aws_napi_callback_init(struct aws_napi_callback *cb, napi_env env, napi_value callback, const char *name) {
+    cb->env = env;
+
+    napi_value resource_name = NULL;
+    if (napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name)) {
+        napi_throw_error(env, NULL, "Could not create string to name async resource");
+        goto failure;
+    }
+    if (napi_async_init(env, NULL, resource_name, &cb->async_context)) {
+        napi_throw_error(env, NULL, "Could not initialize async context");
+        goto failure;
+    }
+    if (napi_create_reference(env, callback, 1, &cb->callback)) {
+        napi_throw_error(env, NULL, "Could not create reference to callback");
+        goto failure;
+    }
+
+    return AWS_OP_SUCCESS;
+
+failure:
+    aws_napi_callback_clean_up(cb);
+    return AWS_OP_ERR;
+}
+
+int aws_napi_callback_clean_up(struct aws_napi_callback *cb) {
+    if (cb->env) {
+        if (cb->async_context) {
+            napi_async_destroy(cb->env, cb->async_context);
+        }
+        if (cb->callback) {
+            napi_delete_reference(cb->env, cb->callback);
+        }
+    }
+
+    AWS_ZERO_STRUCT(*cb);
+    return AWS_OP_SUCCESS;
+}
+
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(
     napi_env env,
@@ -217,7 +261,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     napi_get_null(env, &null);
 
 #define CREATE_AND_REGISTER_FN(fn)                                                                                     \
-    if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) {                                         \
+    if (!s_create_and_register_function(env, exports, aws_napi_##fn, #fn, sizeof(#fn))) {                              \
         return null;                                                                                                   \
     }
 
@@ -251,6 +295,10 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(hmac_update)
     CREATE_AND_REGISTER_FN(hmac_digest)
     CREATE_AND_REGISTER_FN(hmac_sha256_compute)
+
+    /* HTTP */
+    CREATE_AND_REGISTER_FN(http_connection_new)
+    CREATE_AND_REGISTER_FN(http_connection_close)
 
 #undef CREATE_AND_REGISTER_FN
 

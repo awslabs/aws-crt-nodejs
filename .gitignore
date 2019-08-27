@@ -148,3 +148,4 @@ dist*/
 build/
 build-*/
 deps_build/
+.vscode/
