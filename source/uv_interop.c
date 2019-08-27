@@ -46,10 +46,10 @@ struct aws_uv_callback {
    to establish domains for profiling/categorization.
    Init/shutdown does not need atomic protection, as it can only be invoked from the uv thread */
 static uint8_t s_default_context_storage[sizeof(struct aws_uv_context)] = {0};
-static const struct aws_uv_context *s_default_context = (void *)&s_default_context_storage;
+static struct aws_uv_context *const s_default_context = (void *)&s_default_context_storage;
 
 struct aws_uv_context *aws_uv_context_get_default() {
-    return (struct aws_uv_context *)s_default_context;
+    return s_default_context;
 }
 
 static struct aws_uv_callback *s_uv_command_alloc(struct aws_uv_context *ctx) {
