@@ -44,12 +44,11 @@ struct aws_uv_callback {
 /* Default libuv context. Most applications will only need one, but multiple can be used
    to establish domains for profiling/categorization.
    Init/shutdown does not need atomic protection, as it can only be invoked from the uv thread */
-static char s_default_context_storage[sizeof(struct aws_uv_context)] = {0};
-static struct aws_uv_context *s_default_context = (void *)&s_default_context_storage;
+static uint8_t s_default_context_storage[sizeof(struct aws_uv_context)] = {0};
+static const struct aws_uv_context *s_default_context = (void *)&s_default_context_storage;
 
 struct aws_uv_context *aws_uv_context_get_default() {
-    AWS_FATAL_ASSERT(s_default_context);
-    return s_default_context;
+    return (struct aws_uv_context*)s_default_context;
 }
 
 /* pool allocator that works off a simple free FIFO */

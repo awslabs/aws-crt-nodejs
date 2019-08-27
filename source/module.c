@@ -229,21 +229,14 @@ static bool s_create_and_register_function(
     const char *fn_name,
     size_t fn_name_len) {
 
-    const char *name = fn_name;
-    size_t name_len = fn_name_len;
-    if (strncmp("aws_napi_", name, 9) == 0) {
-        name += 9;
-        name_len -= 9;
-    }
-
     napi_value napi_fn;
-    napi_status status = napi_create_function(env, name, name_len, fn, NULL, &napi_fn);
+    napi_status status = napi_create_function(env, fn_name, fn_name_len, fn, NULL, &napi_fn);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to wrap native function");
         return false;
     }
 
-    status = napi_set_named_property(env, exports, name, napi_fn);
+    status = napi_set_named_property(env, exports, fn_name, napi_fn);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to populate exports");
         return false;
@@ -268,44 +261,44 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     napi_get_null(env, &null);
 
 #define CREATE_AND_REGISTER_FN(fn)                                                                                     \
-    if (!s_create_and_register_function(env, exports, fn, #fn, sizeof(#fn))) {                                         \
+    if (!s_create_and_register_function(env, exports, aws_napi_##fn, #fn, sizeof(#fn))) {                              \
         return null;                                                                                                   \
     }
 
     /* IO */
-    CREATE_AND_REGISTER_FN(aws_napi_error_code_to_string)
-    CREATE_AND_REGISTER_FN(aws_napi_is_alpn_available)
-    CREATE_AND_REGISTER_FN(aws_napi_io_client_bootstrap_new)
-    CREATE_AND_REGISTER_FN(aws_napi_io_client_tls_ctx_new)
+    CREATE_AND_REGISTER_FN(error_code_to_string)
+    CREATE_AND_REGISTER_FN(is_alpn_available)
+    CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
+    CREATE_AND_REGISTER_FN(io_client_tls_ctx_new)
 
     /* MQTT Client */
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_new)
+    CREATE_AND_REGISTER_FN(mqtt_client_new)
 
     /* MQTT Client Connection */
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_new)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_connect)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_reconnect)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_publish)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_subscribe)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_unsubscribe)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_disconnect)
-    CREATE_AND_REGISTER_FN(aws_napi_mqtt_client_connection_close)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_new)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_connect)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_reconnect)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_close)
 
     /* Crypto */
-    CREATE_AND_REGISTER_FN(aws_napi_hash_md5_new)
-    CREATE_AND_REGISTER_FN(aws_napi_hash_sha256_new)
-    CREATE_AND_REGISTER_FN(aws_napi_hash_update)
-    CREATE_AND_REGISTER_FN(aws_napi_hash_digest)
-    CREATE_AND_REGISTER_FN(aws_napi_hash_md5_compute)
-    CREATE_AND_REGISTER_FN(aws_napi_hash_sha256_compute)
-    CREATE_AND_REGISTER_FN(aws_napi_hmac_sha256_new)
-    CREATE_AND_REGISTER_FN(aws_napi_hmac_update)
-    CREATE_AND_REGISTER_FN(aws_napi_hmac_digest)
-    CREATE_AND_REGISTER_FN(aws_napi_hmac_sha256_compute)
+    CREATE_AND_REGISTER_FN(hash_md5_new)
+    CREATE_AND_REGISTER_FN(hash_sha256_new)
+    CREATE_AND_REGISTER_FN(hash_update)
+    CREATE_AND_REGISTER_FN(hash_digest)
+    CREATE_AND_REGISTER_FN(hash_md5_compute)
+    CREATE_AND_REGISTER_FN(hash_sha256_compute)
+    CREATE_AND_REGISTER_FN(hmac_sha256_new)
+    CREATE_AND_REGISTER_FN(hmac_update)
+    CREATE_AND_REGISTER_FN(hmac_digest)
+    CREATE_AND_REGISTER_FN(hmac_sha256_compute)
 
     /* HTTP */
-    CREATE_AND_REGISTER_FN(aws_napi_http_connection_new)
-    CREATE_AND_REGISTER_FN(aws_napi_http_connection_close)
+    CREATE_AND_REGISTER_FN(http_connection_new)
+    CREATE_AND_REGISTER_FN(http_connection_close)
 
 #undef CREATE_AND_REGISTER_FN
 
