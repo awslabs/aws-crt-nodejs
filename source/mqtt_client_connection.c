@@ -1005,7 +1005,7 @@ static void s_dispatch_on_publish(void *user_data) {
 cleanup:
     /* publish complete, free payload memory up */
     aws_byte_buf_clean_up(&args->payload);
-    
+
     if (cb_scope) {
         napi_close_callback_scope(env, cb_scope);
     }
