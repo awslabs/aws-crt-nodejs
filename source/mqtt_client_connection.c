@@ -68,7 +68,7 @@ static void s_dispatch_error(void *user_data) {
 
 static void s_on_error(struct mqtt_nodejs_connection *connection, int error_code) {
     connection->last_error_code = error_code;
-    aws_uv_context_queue(connection->uv_context, s_dispatch_error, connection);
+    aws_uv_context_enqueue(connection->uv_context, s_dispatch_error, connection);
 }
 
 static void s_raise_napi_error(napi_env env, const char *message) {
@@ -187,7 +187,7 @@ static void s_on_connection_interrupted(
     args->connection = nodejs_connection;
     args->error_code = error_code;
 
-    aws_uv_context_queue(nodejs_connection->uv_context, s_dispatch_on_interrupt, args);
+    aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_interrupt, args);
 }
 
 /*******************************************************************************
@@ -281,7 +281,7 @@ static void s_on_connection_resumed(
     args->connection = nodejs_connection;
     args->return_code = return_code;
     args->session_present = session_present;
-    aws_uv_context_queue(nodejs_connection->uv_context, s_dispatch_on_resumed, args);
+    aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_resumed, args);
 }
 
 napi_value mqtt_client_connection_new(napi_env env, napi_callback_info info) {
@@ -470,7 +470,7 @@ static void s_on_connected(
     args->return_code = return_code;
     args->session_present = session_present;
 
-    aws_uv_context_queue(nodejs_connection->uv_context, s_dispatch_on_connect, args);
+    aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_connect, args);
 }
 
 napi_value mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
@@ -685,8 +685,8 @@ struct publish_args {
     struct mqtt_nodejs_connection *connection;
     uint16_t packet_id;
     int error_code;
-    struct aws_byte_buf topic;
-    struct aws_byte_buf payload;
+    struct aws_byte_buf topic;   /* stored here until the publish completes */
+    struct aws_byte_buf payload; /* stored here until the publish completes */
     struct aws_napi_callback callback;
 };
 
@@ -761,7 +761,7 @@ static void s_on_publish_complete(
     aws_byte_buf_clean_up(&args->topic);
     aws_byte_buf_clean_up(&args->payload);
 
-    aws_uv_context_queue(args->connection->uv_context, s_dispatch_on_publish_complete, args);
+    aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_publish_complete, args);
 }
 
 napi_value mqtt_client_connection_publish(napi_env env, napi_callback_info info) {
@@ -927,13 +927,13 @@ static void s_on_suback(
     args->qos = qos;
     args->packet_id = packet_id;
 
-    aws_uv_context_queue(args->connection->uv_context, s_dispatch_on_suback, args);
+    aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_suback, args);
 }
 
-/* user data which describes a description, passed to aws_mqtt_connection_subscribe */
+/* user data which describes a subscription, passed to aws_mqtt_connection_subscribe */
 struct subscription {
     struct mqtt_nodejs_connection *connection;
-    struct aws_byte_buf topic;
+    struct aws_byte_buf topic; /* stored here as long as the sub is active, referenced by callbacks */
     struct aws_napi_callback callback;
 };
 
@@ -947,7 +947,7 @@ static void s_dispatch_free_on_publish_data(void *user_data) {
 
 static void s_on_publish_user_data_clean_up(void *user_data) {
     struct subscription *args = user_data;
-    aws_uv_context_queue(args->connection->uv_context, s_dispatch_free_on_publish_data, args);
+    aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_free_on_publish_data, args);
 }
 
 /* arguments for publish callbacks */
@@ -1041,7 +1041,7 @@ static void s_on_publish(
         return;
     }
 
-    aws_uv_context_queue(args->connection->uv_context, s_dispatch_on_publish, args);
+    aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_publish, args);
 }
 
 napi_value mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
@@ -1140,7 +1140,7 @@ cleanup:
 
 struct unsuback_args {
     struct mqtt_nodejs_connection *connection;
-    struct aws_byte_buf topic;
+    struct aws_byte_buf topic; /* stored here until unsub completes */
     uint16_t packet_id;
     int error_code;
     struct aws_napi_callback callback;
@@ -1211,7 +1211,7 @@ static void s_on_unsubscribe_complete(
     args->packet_id = packet_id;
     args->error_code = error_code;
 
-    aws_uv_context_queue(args->connection->uv_context, s_dispatch_on_unsub_ack, args);
+    aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_unsub_ack, args);
 }
 
 napi_value mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info) {
@@ -1338,7 +1338,7 @@ static void s_on_disconnected(struct aws_mqtt_client_connection *connection, voi
     (void)connection;
 
     struct disconnect_args *args = user_data;
-    aws_uv_context_queue(args->connection->uv_context, s_dispatch_on_disconnect, args);
+    aws_uv_context_enqueue(args->connection->uv_context, s_dispatch_on_disconnect, args);
 }
 
 napi_value mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {

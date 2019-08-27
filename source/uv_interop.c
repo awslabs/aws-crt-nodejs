@@ -145,7 +145,7 @@ int aws_uv_context_release(struct aws_uv_context *ctx) {
     return AWS_OP_SUCCESS;
 }
 
-void aws_uv_context_queue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data) {
+void aws_uv_context_enqueue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data) {
     AWS_FATAL_ASSERT(ctx && ctx->uv_loop);
 
     struct aws_uv_callback *cb = s_uv_command_alloc(ctx);

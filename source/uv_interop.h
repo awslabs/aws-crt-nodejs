@@ -29,7 +29,7 @@
     [optional] Grab default context OR allocate one
     aws_uv_context_acquire(ctx)
     ...
-    aws_uv_context_queue(ctx, fn, user_data)
+    aws_uv_context_enqueue(ctx, fn, user_data)
     ...
     aws_uv_context_release(ctx)
 
@@ -50,6 +50,6 @@ int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env);
 int aws_uv_context_release(struct aws_uv_context *ctx);
 
 /* queues a functions to be called by libuv in the node event loop */
-void aws_uv_context_queue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data);
+void aws_uv_context_enqueue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data);
 
 #endif /* AWS_CRT_NODEJS_UV_INTEROP_H */
