@@ -999,13 +999,13 @@ static void s_dispatch_on_publish(void *user_data) {
                     env, args->callback.async_context, recv, on_publish, AWS_ARRAY_SIZE(params), params, NULL)) {
                 s_raise_napi_error(env, s_callback_invocation_failed);
             }
-
-            /* publish complete, free payload memory up */
-            aws_byte_buf_clean_up(&args->payload);
         }
     }
 
 cleanup:
+    /* publish complete, free payload memory up */
+    aws_byte_buf_clean_up(&args->payload);
+    
     if (cb_scope) {
         napi_close_callback_scope(env, cb_scope);
     }
