@@ -37,11 +37,7 @@ struct aws_event_loop *aws_napi_get_node_event_loop(void);
 struct aws_event_loop_group *aws_napi_get_node_elg(void);
 
 struct aws_napi_callback;
-typedef int(aws_napi_callback_params_builder)(
-    napi_env /* env */,
-    napi_value * /* params */,
-    size_t * /* num_params */,
-    void * /* user_data */);
+typedef int(aws_napi_callback_params_builder)(napi_env env, napi_value *params, size_t *num_params, void *user_data);
 
 struct aws_napi_callback {
     napi_env env;
