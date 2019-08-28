@@ -28,23 +28,65 @@ struct http_nodejs_connection {
     struct aws_uv_context *uv_context;
 };
 
-void s_dispatch_http_on_connection_setup(void *user_data) {
-    (void)user_data;
+struct on_connection_args {
+    struct http_nodejs_connection *connection;
+    int error_code;
+};
+
+int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+    struct on_connection_args *args = user_data;
+    
+    if (napi_create_uint32(env, args->error_code, &params[0])) {
+        return AWS_OP_ERR;
+    }
+
+    *num_params = 1;
+    return AWS_OP_SUCCESS;
+}
+
+void s_http_on_connection_setup_dispatch(void *user_data) {
+    struct on_connection_args *args = user_data;
+    aws_napi_callback_dispatch(&args->connection->on_setup, args);
+    aws_mem_release(aws_default_allocator(), args);
 }
 
 void s_http_on_connection_setup(struct aws_http_connection *connection, int error_code, void *user_data) {
-    (void)error_code;
     struct http_nodejs_connection *node_connection = user_data;
     node_connection->connection = connection;
     if (node_connection->on_setup.callback) {
-        aws_uv_context_enqueue(node_connection->uv_context, s_dispatch_http_on_connection_setup, node_connection);
+        struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
+        args->connection = node_connection;
+        args->error_code = error_code;
+        aws_uv_context_enqueue(node_connection->uv_context, s_http_on_connection_setup_dispatch, args);
     }
 }
 
+int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+    struct on_connection_args *args = user_data;
+    
+    if (napi_create_uint32(env, args->error_code, &params[0])) {
+        return AWS_OP_ERR;
+    }
+
+    *num_params = 1;
+    return AWS_OP_SUCCESS;
+}
+
+void s_http_on_connection_shutdown_dispatch(void *user_data) {
+    struct on_connection_args *args = user_data;
+    aws_napi_callback_dispatch(&args->connection->on_shutdown, args);
+    aws_mem_release(aws_default_allocator(), args);
+}
+
 void s_http_on_connection_shutdown(struct aws_http_connection *connection, int error_code, void *user_data) {
-    (void)connection;
-    (void)error_code;
-    (void)user_data;
+    struct http_nodejs_connection *node_connection = user_data;
+    node_connection->connection = connection;
+    if (node_connection->on_setup.callback) {
+        struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
+        args->connection = node_connection;
+        args->error_code = error_code;
+        aws_uv_context_enqueue(node_connection->uv_context, s_http_on_connection_shutdown_dispatch, args);
+    }
 }
 
 napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
@@ -75,7 +117,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(on_connection_setup);
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (aws_napi_callback_init(
-                &on_connection_setup, env, node_args[1], "aws_http_connection_on_connection_setup")) {
+                &on_connection_setup, env, node_args[1], "aws_http_connection_on_connection_setup", s_http_on_connection_setup_params)) {
             return NULL;
         }
     }
@@ -84,7 +126,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(on_connection_shutdown);
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
         if (aws_napi_callback_init(
-                &on_connection_shutdown, env, node_args[2], "aws_http_connection_on_connection_shutdown")) {
+                &on_connection_shutdown, env, node_args[2], "aws_http_connection_on_connection_shutdown", s_http_on_connection_shutdown_params)) {
             return NULL;
         }
     }

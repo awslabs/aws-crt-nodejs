@@ -186,8 +186,15 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
 
-int aws_napi_callback_init(struct aws_napi_callback *cb, napi_env env, napi_value callback, const char *name) {
+int aws_napi_callback_init(
+    struct aws_napi_callback *cb,
+    napi_env env,
+    napi_value callback,
+    const char *name,
+    aws_napi_callback_params_builder *build_params) {
+
     cb->env = env;
+    cb->build_params = build_params;
 
     napi_value resource_name = NULL;
     if (napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name)) {
@@ -222,6 +229,71 @@ int aws_napi_callback_clean_up(struct aws_napi_callback *cb) {
 
     AWS_ZERO_STRUCT(*cb);
     return AWS_OP_SUCCESS;
+}
+
+int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data) {
+    if (!cb->callback) {
+        return AWS_OP_SUCCESS;
+    }
+
+    napi_env env = cb->env;
+    napi_handle_scope handle_scope = NULL;
+    napi_callback_scope callback_scope = NULL;
+    int result = AWS_OP_ERR;
+
+    if (napi_open_handle_scope(env, &handle_scope)) {
+        napi_throw_error(env, NULL, "Unable to open handle scope for callback");
+        goto cleanup;
+    }
+
+    napi_value node_function = NULL;
+    napi_get_reference_value(env, cb->callback, &node_function);
+    if (!node_function) {
+        napi_throw_error(env, NULL, "Unable to resolve target function for callback");
+        goto cleanup;
+    }
+
+    napi_value resource_object = NULL;
+    if (napi_create_object(env, &resource_object)) {
+        napi_throw_error(env, NULL, "Unable to create resource object for callback");
+        goto cleanup;
+    }
+
+    if (napi_open_callback_scope(env, resource_object, cb->async_context, &callback_scope)) {
+        napi_throw_error(env, NULL, "Unable to open callback scope for callback");
+        goto cleanup;
+    }
+
+    napi_value this_object = NULL;
+    if (napi_get_global(env, &this_object)) {
+        napi_throw_error(env, NULL, "Unable to get global this scope for callback");
+        goto cleanup;
+    }
+
+    napi_value params[16];
+    size_t num_params = 0;
+    if (cb->build_params(env, params, &num_params, user_data)) {
+        napi_throw_error(env, NULL, "Unable to prepare params for callback");
+        goto cleanup;
+    }
+    AWS_FATAL_ASSERT(num_params < AWS_ARRAY_SIZE(params));
+
+    if (napi_make_callback(env, cb->async_context, this_object, node_function, num_params, params, NULL)) {
+        napi_throw_error(env, NULL, "Callback invocation failed");
+        goto cleanup;
+    }
+
+    result = AWS_OP_SUCCESS;
+
+cleanup:
+    if (callback_scope) {
+        napi_close_callback_scope(env, callback_scope);
+    }
+    if (handle_scope) {
+        napi_close_handle_scope(env, handle_scope);
+    }
+
+    return result;
 }
 
 /** Helper for creating and registering a function */
