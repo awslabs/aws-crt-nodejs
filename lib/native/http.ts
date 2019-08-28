@@ -15,12 +15,31 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
-import { resource_safety } from '../browser';
+import { ResourceSafe } from '../common/resource_safety';
+import { ClientBootstrap, ClientTlsContext, SocketOptions } from './io';
 
-export class HttpConnection extends NativeResource implements resource_safety.ResourceSafe {
+type ConnectionCallback = (error_code: Number) => void;
 
-    constructor() {
-        super(crt_native.http_connection_new());
+export class HttpConnection extends NativeResource implements ResourceSafe {
+
+    constructor(
+        bootstrap: ClientBootstrap,
+        on_connection_setup: ConnectionCallback | undefined,
+        on_connection_shutdown: ConnectionCallback | undefined,
+        host_name: String,
+        port: Number,
+        socket_options: SocketOptions,
+        tls_ctx: ClientTlsContext)
+    {
+        super(crt_native.http_connection_new(
+            bootstrap.native_handle(),
+            on_connection_setup,
+            on_connection_shutdown,
+            host_name,
+            port,
+            socket_options.native_handle(),
+            tls_ctx.native_handle()
+        ));
     }
 
     close() {
