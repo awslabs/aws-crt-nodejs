@@ -294,8 +294,7 @@ struct connect_args {
 
 static int s_on_connect_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct connect_args *args = user_data;
-    if (napi_create_int32(env, args->error_code, &params[0]) ||
-        napi_create_int32(env, args->return_code, &params[1]) ||
+    if (napi_create_int32(env, args->error_code, &params[0]) || napi_create_int32(env, args->return_code, &params[1]) ||
         napi_get_boolean(env, args->session_present, &params[2])) {
         return AWS_OP_ERR;
     }
@@ -447,7 +446,11 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
 
     if (!aws_napi_is_null_or_undefined(env, node_args[13])) {
         if (aws_napi_callback_init(
-                &node_connection->on_connect, env, node_args[13], "aws_mqtt_client_connection_on_connect", s_on_connect_params)) {
+                &node_connection->on_connect,
+                env,
+                node_args[13],
+                "aws_mqtt_client_connection_on_connect",
+                s_on_connect_params)) {
             aws_napi_callback_clean_up(&node_connection->on_connect);
             goto cleanup;
         }
@@ -521,7 +524,11 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
         aws_napi_callback_clean_up(&node_connection->on_connect);
 
         if (aws_napi_callback_init(
-                &node_connection->on_connect, env, node_args[1], "mqtt_client_connection_on_reconnect", s_on_connect_params)) {
+                &node_connection->on_connect,
+                env,
+                node_args[1],
+                "mqtt_client_connection_on_reconnect",
+                s_on_connect_params)) {
             goto cleanup;
         }
     }
@@ -552,8 +559,7 @@ struct publish_args {
 
 static int s_on_publish_complete_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct publish_args *args = user_data;
-    if (napi_create_uint32(env, args->packet_id, &params[0]) ||
-        napi_create_int32(env, args->error_code, &params[1])) {
+    if (napi_create_uint32(env, args->packet_id, &params[0]) || napi_create_int32(env, args->error_code, &params[1])) {
         return AWS_OP_ERR;
     }
 
@@ -641,7 +647,12 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
-        if (aws_napi_callback_init(&args->callback, env, node_args[5], "aws_mqtt_client_connection_on_publish", s_on_publish_complete_params)) {
+        if (aws_napi_callback_init(
+                &args->callback,
+                env,
+                node_args[5],
+                "aws_mqtt_client_connection_on_publish",
+                s_on_publish_complete_params)) {
             goto cleanup;
         }
     }
@@ -683,8 +694,7 @@ static int s_on_suback_params(napi_env env, napi_value *params, size_t *num_para
     struct suback_args *args = user_data;
     if (napi_create_int32(env, args->packet_id, &params[0]) ||
         napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[1]) ||
-        napi_create_int32(env, args->qos, &params[2]) || 
-        napi_create_int32(env, args->error_code, &params[3])) {
+        napi_create_int32(env, args->qos, &params[2]) || napi_create_int32(env, args->error_code, &params[3])) {
         return AWS_OP_ERR;
     }
 
@@ -842,12 +852,14 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         napi_throw_type_error(env, NULL, "on_message callback is required");
         goto cleanup;
     }
-    if (aws_napi_callback_init(&sub->callback, env, node_args[3], "aws_mqtt_client_connection_on_message", s_on_publish_params)) {
+    if (aws_napi_callback_init(
+            &sub->callback, env, node_args[3], "aws_mqtt_client_connection_on_message", s_on_publish_params)) {
         goto cleanup;
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
-        if (aws_napi_callback_init(&suback->callback, env, node_args[4], "aws_mqtt_client_connection_on_suback", s_on_suback_params)) {
+        if (aws_napi_callback_init(
+                &suback->callback, env, node_args[4], "aws_mqtt_client_connection_on_suback", s_on_suback_params)) {
             goto cleanup;
         }
     }
@@ -898,8 +910,7 @@ struct unsuback_args {
 
 static int s_on_unsub_ack_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct unsuback_args *args = user_data;
-    if (napi_create_uint32(env, args->packet_id, &params[0]) ||
-        napi_create_int32(env, args->error_code, &params[1])) {
+    if (napi_create_uint32(env, args->packet_id, &params[0]) || napi_create_int32(env, args->error_code, &params[1])) {
         return AWS_OP_ERR;
     }
 
@@ -964,7 +975,8 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
     }
 
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
-        if (aws_napi_callback_init(&args->callback, env, node_args[2], "aws_mqtt_client_connection_on_unsuback", s_on_unsub_ack_params)) {
+        if (aws_napi_callback_init(
+                &args->callback, env, node_args[2], "aws_mqtt_client_connection_on_unsuback", s_on_unsub_ack_params)) {
             goto cleanup;
         }
     }
@@ -1050,7 +1062,12 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
     args->connection = node_connection;
 
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (aws_napi_callback_init(&args->callback, env, node_args[1], "aws_mqtt_client_connection_on_disconnect", s_on_disconnect_params)) {
+        if (aws_napi_callback_init(
+                &args->callback,
+                env,
+                node_args[1],
+                "aws_mqtt_client_connection_on_disconnect",
+                s_on_disconnect_params)) {
             goto cleanup;
         }
     }

@@ -35,7 +35,7 @@ struct on_connection_args {
 
 int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
-    
+
     if (napi_create_uint32(env, args->error_code, &params[0])) {
         return AWS_OP_ERR;
     }
@@ -63,7 +63,7 @@ void s_http_on_connection_setup(struct aws_http_connection *connection, int erro
 
 int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
-    
+
     if (napi_create_uint32(env, args->error_code, &params[0])) {
         return AWS_OP_ERR;
     }
@@ -117,7 +117,11 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(on_connection_setup);
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (aws_napi_callback_init(
-                &on_connection_setup, env, node_args[1], "aws_http_connection_on_connection_setup", s_http_on_connection_setup_params)) {
+                &on_connection_setup,
+                env,
+                node_args[1],
+                "aws_http_connection_on_connection_setup",
+                s_http_on_connection_setup_params)) {
             return NULL;
         }
     }
@@ -126,7 +130,11 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(on_connection_shutdown);
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
         if (aws_napi_callback_init(
-                &on_connection_shutdown, env, node_args[2], "aws_http_connection_on_connection_shutdown", s_http_on_connection_shutdown_params)) {
+                &on_connection_shutdown,
+                env,
+                node_args[2],
+                "aws_http_connection_on_connection_shutdown",
+                s_http_on_connection_shutdown_params)) {
             return NULL;
         }
     }
