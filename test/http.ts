@@ -15,11 +15,22 @@
 
 import { HttpConnection } from "../lib/native/http";
 import { using } from "../lib/common/resource_safety";
+import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsContextOptions } from "../lib/native/io";
 
 test('HTTP Connection Create/Destroy', (done) => {
-    using(new HttpConnection(), (connection) => {
-        expect(connection).toBeDefined();
-    }).then(() => {
-        done();
+    using(new ClientBootstrap(), (bootstrap) => {
+        using(new HttpConnection(
+            bootstrap,
+            undefined,
+            undefined,
+            "www.amazon.com",
+            80,
+            new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
+            new ClientTlsContext(new TlsContextOptions())
+        ), (connection) => {
+            expect(connection).toBeDefined();
+        }).then(() => {
+            done();
+        });
     });
 })

@@ -15,6 +15,7 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
+import { ResourceSafe } from '../common/resource_safety';
 
 export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
@@ -24,9 +25,49 @@ export function is_alpn_available(): boolean {
     return crt_native.is_alpn_available();
 }
 
-export class ClientBootstrap extends NativeResource {
+export class ClientBootstrap extends NativeResource implements ResourceSafe {
     constructor() {
         super(crt_native.io_client_bootstrap_new());
+    }
+
+    close() {
+        /* no-op in JS */
+    }
+}
+
+export enum SocketType {
+    STREAM = 0,
+    DGRAM = 1,
+}
+
+export enum SocketDomain {
+    IPV4 = 0,
+    IPV6 = 1,
+    LOCAL = 2, /* UNIX domain/named pipes */
+}
+
+export class SocketOptions extends NativeResource implements ResourceSafe {
+    constructor(
+        type: SocketType,
+        domain: SocketDomain,
+        connect_timeout_ms: Number,
+        keepalive = false,
+        keep_alive_interval_sec = 0,
+        keep_alive_timeout_sec = 0,
+        keep_alive_max_failed_probes = 0) {
+        super(crt_native.io_socket_options_new(
+            type,
+            domain,
+            connect_timeout_ms,
+            keep_alive_interval_sec,
+            keep_alive_timeout_sec,
+            keep_alive_max_failed_probes,
+            keepalive
+        ));
+    }
+
+    close() {
+        /* no-op in JS */
     }
 }
 

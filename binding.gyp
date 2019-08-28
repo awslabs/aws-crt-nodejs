@@ -37,6 +37,7 @@
             ],
             "libraries": [
                 "-laws-c-mqtt",
+                "-laws-c-http",
                 "-laws-c-io",
                 "-laws-c-common",
                 "-laws-c-cal",

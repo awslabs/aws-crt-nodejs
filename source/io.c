@@ -17,6 +17,7 @@
 
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/event_loop.h>
+#include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 
 napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) {
@@ -293,4 +294,89 @@ cleanup:
     }
 
     return result;
+}
+
+void s_socket_options_dtor(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+
+    struct aws_socket_options *socket_options = finalize_data;
+    aws_mem_release(aws_default_allocator(), socket_options);
+}
+
+napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[7];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_socket_options_new requires exactly 7 arguments");
+        return NULL;
+    }
+
+    struct aws_socket_options options;
+    if (napi_get_value_uint32(env, node_args[0], &options.type) || options.type > AWS_SOCKET_DGRAM) {
+        napi_throw_type_error(env, NULL, "First argument (type) must be a Number between 0 and 1");
+        return NULL;
+    }
+
+    if (napi_get_value_uint32(env, node_args[1], &options.domain) || options.domain > AWS_SOCKET_LOCAL) {
+        napi_throw_type_error(env, NULL, "Second argument (domain) must be a Number between 0 and 2");
+        return NULL;
+    }
+
+    if (napi_get_value_uint32(env, node_args[2], &options.connect_timeout_ms)) {
+        napi_throw_type_error(env, NULL, "Third argument (connect_timeout_ms) must be a Number");
+        return NULL;
+    }
+
+    uint32_t keep_alive_interval_sec;
+    if (napi_get_value_uint32(env, node_args[3], &keep_alive_interval_sec)) {
+        napi_throw_type_error(
+            env, NULL, "Fourth argument (keep_alive_interval_sec) must be a Number between 0 and 32767");
+        return NULL;
+    }
+    options.keep_alive_interval_sec = (keep_alive_interval_sec > 0x7fff) ? 0x7fff : keep_alive_interval_sec;
+
+    uint32_t keep_alive_timeout_sec;
+    if (napi_get_value_uint32(env, node_args[4], &keep_alive_timeout_sec)) {
+        napi_throw_type_error(
+            env, NULL, "Fifth argument (keep_alive_timeout_sec) must be a Number between 0 and 32767");
+        return NULL;
+    }
+    options.keep_alive_timeout_sec = (keep_alive_timeout_sec > 0x7fff) ? 0x7fff : keep_alive_timeout_sec;
+
+    uint32_t keep_alive_max_failed_probes;
+    if (napi_get_value_uint32(env, node_args[5], &keep_alive_max_failed_probes)) {
+        napi_throw_type_error(
+            env, NULL, "Sixth argument (keep_alive_max_failed_probes) must be a Number between 0 and 32767");
+        return NULL;
+    }
+    options.keep_alive_max_failed_probes =
+        (keep_alive_max_failed_probes > 0x7fff) ? 0x7fff : keep_alive_max_failed_probes;
+
+    if (napi_get_value_bool(env, node_args[6], &options.keepalive)) {
+        napi_throw_type_error(env, NULL, "Seventh argument (keepalive) must be a Boolean value");
+        return NULL;
+    }
+
+    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_socket_options *socket_options = aws_mem_acquire(allocator, sizeof(struct aws_socket_options));
+    if (!socket_options) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+
+    *socket_options = options;
+
+    napi_value node_external;
+    if (napi_create_external(env, socket_options, s_socket_options_dtor, NULL, &node_external)) {
+        aws_mem_release(allocator, socket_options);
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+
+    return node_external;
 }

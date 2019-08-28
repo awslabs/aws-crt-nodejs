@@ -27,6 +27,9 @@
 
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
+
+#include <aws/http/http.h>
+
 #include <uv.h>
 
 static uv_loop_t *s_node_uv_loop = NULL;
@@ -252,6 +255,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     struct aws_allocator *allocator = aws_default_allocator();
     aws_tls_init_static_state(aws_default_allocator());
+    aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
 
     /* Initalize the event loop group */
@@ -270,6 +274,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(is_alpn_available)
     CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
     CREATE_AND_REGISTER_FN(io_client_tls_ctx_new)
+    CREATE_AND_REGISTER_FN(io_socket_options_new)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)

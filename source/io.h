@@ -40,14 +40,19 @@ napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info);
 napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info);
 
 /**
- * Create a new client_bootstrap to be managed by an napi_externl.
+ * Create a new aws_client_bootstrap to be managed by an napi_external.
  */
 napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info info);
 
 /**
- * Create a new tls_ctx to be managed by a Python Capsule.
+ * Create a new aws_tls_ctx to be managed by a napi_external.
  */
 napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info);
+
+/**
+ * Create a new aws_socket_options to be managed by a napi_external
+ */
+napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info);
 
 AWS_EXTERN_C_END
 
