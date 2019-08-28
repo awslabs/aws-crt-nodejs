@@ -148,7 +148,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
 
     return node_external;
 
-connect_failed:
+// connect_failed:
 create_external_failed:
     aws_mem_release(allocator, node_connection);
 alloc_failed:
@@ -179,7 +179,7 @@ napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info)
     }
 
     if (node_connection->connection) {
-        aws_mem_release(allocator, node_connection->connection);
+        aws_http_connection_close(node_connection->connection);
     }
 
     aws_napi_callback_clean_up(&node_connection->on_setup);
