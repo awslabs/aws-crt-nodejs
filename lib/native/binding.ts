@@ -17,10 +17,18 @@ import * as path from 'path';
 
 const binary = require('node-pre-gyp');
 
-let binding: any;
+/* setting this to true causes node-pre-gyp to load the debug awscrt node plugin */
+const DEBUG_BINDINGS = false;
 
-const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'), {debug: true});
-binding = require(binding_path);
+let binding: any;
+try { /* when in the lib folder, it's 2 directories up */
+    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'), { debug: DEBUG_BINDINGS });
+    binding = require(binding_path);
+}
+catch (err) { /* When in the dist/lib folder, it's 3 directories up */
+    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', '..', 'package.json'), { debug: DEBUG_BINDINGS });
+    binding = require(binding_path);
+}
 
 export = binding;
 
