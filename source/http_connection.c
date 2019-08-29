@@ -14,9 +14,9 @@
  */
 
 #include "http_connection.h"
+#include "io.h"
 #include "module.h"
 #include "uv_interop.h"
-#include "io.h"
 
 #include <aws/http/connection.h>
 #include <aws/io/tls_channel_handler.h>
