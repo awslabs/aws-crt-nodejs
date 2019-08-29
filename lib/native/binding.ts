@@ -19,15 +19,8 @@ const binary = require('node-pre-gyp');
 
 let binding: any;
 
-try {
-    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'));
-    binding = require(binding_path);
-}
-catch (err)
-{
-    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', '..', 'package.json'));
-    binding = require(binding_path);
-}
+const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'), {debug: true});
+binding = require(binding_path);
 
 export = binding;
 

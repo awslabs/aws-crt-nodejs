@@ -16,6 +16,7 @@
 #include "http_connection.h"
 #include "module.h"
 #include "uv_interop.h"
+#include "io.h"
 
 #include <aws/http/connection.h>
 #include <aws/io/tls_channel_handler.h>
@@ -108,7 +109,8 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    if (napi_get_value_external(env, node_args[0], (void **)&options.bootstrap)) {
+    struct aws_nodejs_client_bootstrap *node_bootstrap = NULL;
+    if (napi_get_value_external(env, node_args[0], (void **)&node_bootstrap)) {
         napi_throw_error(env, NULL, "Unable to extract bootstrap from external");
         return NULL;
     }
@@ -183,6 +185,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     node_connection->on_setup = on_connection_setup;
     node_connection->on_shutdown = on_connection_shutdown;
 
+    options.bootstrap = node_bootstrap->bootstrap;
     options.host_name = aws_byte_cursor_from_string(host_name);
     options.on_setup = s_http_on_connection_setup;
     options.on_shutdown = s_http_on_connection_shutdown;
@@ -190,15 +193,16 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     aws_tls_connection_options_init_from_ctx(&node_connection->tls_options, tls_ctx);
     node_connection->tls_options.server_name = host_name;
     options.tls_options = &node_connection->tls_options;
+    options.user_data = node_connection;
 
-    // if (aws_http_client_connect(&options)) {
-    //     aws_napi_throw_last_error(env);
-    //     goto connect_failed;
-    // }
+    if (aws_http_client_connect(&options)) {
+        aws_napi_throw_last_error(env);
+        goto connect_failed;
+    }
 
     return node_external;
 
-// connect_failed:
+connect_failed:
 create_external_failed:
     aws_mem_release(allocator, node_connection);
 alloc_failed:

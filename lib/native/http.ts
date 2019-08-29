@@ -23,13 +23,13 @@ type ConnectionCallback = (error_code: Number) => void;
 export class HttpConnection extends NativeResource implements ResourceSafe {
 
     constructor(
-        bootstrap: ClientBootstrap,
-        on_connection_setup: ConnectionCallback | undefined,
-        on_connection_shutdown: ConnectionCallback | undefined,
+        protected bootstrap: ClientBootstrap,
+        protected on_connection_setup: ConnectionCallback | undefined,
+        protected on_connection_shutdown: ConnectionCallback | undefined,
         host_name: String,
         port: Number,
-        socket_options: SocketOptions,
-        tls_ctx: ClientTlsContext)
+        protected socket_options: SocketOptions,
+        protected tls_ctx: ClientTlsContext)
     {
         super(crt_native.http_connection_new(
             bootstrap.native_handle(),
