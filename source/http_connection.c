@@ -26,7 +26,6 @@ struct http_connection_binding {
     struct aws_http_connection *connection;
     napi_ref node_external;
     napi_env env;
-    struct aws_tls_connection_options tls_options;
     struct aws_napi_callback on_setup;
     struct aws_napi_callback on_shutdown;
     struct aws_uv_context *uv_context;
@@ -98,7 +97,6 @@ void s_http_connection_binding_finalize(void *user_data) {
     napi_delete_reference(env, binding->node_external);
     aws_napi_callback_clean_up(&binding->on_setup);
     aws_napi_callback_clean_up(&binding->on_shutdown);
-    aws_tls_connection_options_clean_up(&binding->tls_options);
 
     aws_uv_context_release(binding->uv_context);
 
@@ -240,7 +238,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     if (tls_ctx) {
         aws_tls_connection_options_init_from_ctx(&tls_options, tls_ctx);
         tls_options.server_name = host_name;
-        options.tls_options = &binding->tls_options;
+        options.tls_options = &tls_options;
     }
 
     options.user_data = binding;
