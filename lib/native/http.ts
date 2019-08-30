@@ -40,9 +40,9 @@ export class HttpClientConnection extends HttpConnection {
         host_name: String,
         port: Number,
         socket_options: SocketOptions,
-        tls_ctx: ClientTlsContext) {
+        tls_ctx?: ClientTlsContext) : Promise<HttpClientConnection> {
         
-        return new Promise<HttpConnection>((resolve) => {
+        return new Promise<HttpClientConnection>((resolve) => {
             let connection: HttpClientConnection;
             const on_setup = (native_connection: any, error_code: Number) => {
                 connection = new HttpClientConnection(
@@ -71,7 +71,7 @@ export class HttpClientConnection extends HttpConnection {
                 host_name,
                 port,
                 socket_options.native_handle(),
-                tls_ctx.native_handle()
+                tls_ctx
             )
         });
     }
@@ -80,7 +80,7 @@ export class HttpClientConnection extends HttpConnection {
         native_handle: any,
         protected bootstrap: ClientBootstrap,
         protected socket_options: SocketOptions,
-        protected tls_ctx: ClientTlsContext) {
+        protected tls_ctx?: ClientTlsContext) {
         super(native_handle);
     }
 }

@@ -130,7 +130,11 @@ export class TlsContextOptions {
 }
 
 export class ClientTlsContext extends NativeResource {
-    constructor(ctx_opt: TlsContextOptions) {
+    constructor(ctx_opt?: TlsContextOptions) {
+        if (!ctx_opt) {
+            ctx_opt = new TlsContextOptions()
+            ctx_opt.verify_peer = true;
+        }
         super(crt_native.io_client_tls_ctx_new(
             ctx_opt.min_tls_version,
             ctx_opt.ca_file,

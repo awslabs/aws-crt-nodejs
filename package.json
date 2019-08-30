@@ -36,7 +36,7 @@
   },
   "scripts": {
     "build": "tsc && node-pre-gyp rebuild && tsc -p tsconfig.browser.json",
-    "test": "jest",
+    "test": "jest -i",
     "install": "tsc && node-pre-gyp install --fallback-to-build && tsc -p tsconfig.browser.json"
   },
   "devDependencies": {
