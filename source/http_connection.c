@@ -128,6 +128,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     (void)info;
     struct aws_allocator *allocator = aws_default_allocator();
 
+    struct aws_tls_ctx *tls_ctx = NULL;
     struct aws_http_client_connection_options options = AWS_HTTP_CLIENT_CONNECTION_OPTIONS_INIT;
     options.allocator = allocator;
 
@@ -196,7 +197,6 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto argument_error;
     }
 
-    struct aws_tls_ctx *tls_ctx = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
         if (napi_get_value_external(env, node_args[6], (void **)&tls_ctx)) {
             napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
@@ -248,21 +248,20 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto connect_failed;
     }
 
-    /* the tls connection options own the host name string and kill it */
-    if (tls_ctx) {
-        aws_tls_connection_options_clean_up(&tls_options);
-    } else {
-        aws_string_destroy(host_name);
-    }
-
-    return NULL;
+    goto done;
 
 connect_failed:
 create_external_failed:
     aws_mem_release(allocator, binding);
 alloc_failed:
 argument_error:
-    aws_string_destroy(host_name);
+done:
+    /* the tls connection options own the host name string and kill it */
+    if (tls_ctx) {
+        aws_tls_connection_options_clean_up(&tls_options);
+    } else {
+        aws_string_destroy(host_name);
+    }
 
     return NULL;
 }
