@@ -71,7 +71,7 @@ export class HttpClientConnection extends HttpConnection {
                 host_name,
                 port,
                 socket_options.native_handle(),
-                tls_ctx
+                tls_ctx ? tls_ctx.native_handle() : undefined
             )
         });
     }

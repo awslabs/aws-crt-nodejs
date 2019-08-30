@@ -18,7 +18,7 @@ import * as path from 'path';
 const binary = require('node-pre-gyp');
 
 /* setting this to true causes node-pre-gyp to load the debug awscrt node plugin */
-const DEBUG_BINDINGS = true;
+const DEBUG_BINDINGS = false;
 
 let binding: any;
 try { /* when in the lib folder, it's 2 directories up */

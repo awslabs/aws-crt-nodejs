@@ -147,11 +147,11 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         '-DBUILD_SHARED_LIBS=OFF',
         '-DBUILD_TESTING=OFF',
         '-DCMAKE_INSTALL_LIBDIR=' + lib_dir,
-        '-DCMAKE_BUILD_TYPE=Debug',
+        '-DCMAKE_BUILD_TYPE=Release',
         cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
-    const build_cmd = ['cmake', '--build', './', '--config', 'debug', '--target', 'install'].join(' ');
+    const build_cmd = ['cmake', '--build', './', '--config', 'release', '--target', 'install'].join(' ');
 
     await run_and_check(config_cmd);
     await run_and_check(build_cmd);
