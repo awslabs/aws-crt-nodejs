@@ -13,24 +13,30 @@
  * permissions and limitations under the License.
  */
 
-import { HttpConnection } from "../lib/native/http";
+import { HttpClientConnection } from "../lib/native/http";
 import { using } from "../lib/common/resource_safety";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsContextOptions } from "../lib/native/io";
 
 test('HTTP Connection Create/Destroy', (done) => {
-    using(new ClientBootstrap(), (bootstrap) => {
-        using(new HttpConnection(
+    using(new ClientBootstrap(), async (bootstrap) => {
+        const on_setup = (connection: HttpClientConnection, error_code: Number) => {
+            expect(connection).toBeDefined();
+            expect(error_code).toEqual(0);
+        }
+
+        const on_shutdown = (connection: HttpClientConnection, error_code: Number) => {
+            expect(connection).toBeDefined();
+            expect(error_code).toEqual(0);
+            done();
+        }
+
+        await HttpClientConnection.create(
             bootstrap,
-            undefined,
-            undefined,
+            on_setup,
+            on_shutdown,
             "www.amazon.com",
             80,
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
-            new ClientTlsContext(new TlsContextOptions())
-        ), (connection) => {
-            expect(connection).toBeDefined();
-        }).then(() => {
-            done();
-        });
+            new ClientTlsContext(new TlsContextOptions()));
     });
 })

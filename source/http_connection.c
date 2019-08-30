@@ -21,8 +21,9 @@
 #include <aws/http/connection.h>
 #include <aws/io/tls_channel_handler.h>
 
-struct http_nodejs_connection {
+struct http_connection_binding {
     struct aws_http_connection *connection;
+    napi_value node_external;
     struct aws_tls_connection_options tls_options;
     struct aws_napi_callback on_setup;
     struct aws_napi_callback on_shutdown;
@@ -30,18 +31,20 @@ struct http_nodejs_connection {
 };
 
 struct on_connection_args {
-    struct http_nodejs_connection *connection;
+    struct http_connection_binding *connection;
     int error_code;
 };
 
 int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
 
-    if (napi_create_uint32(env, args->error_code, &params[0])) {
+    params[0] = args->connection->node_external;
+
+    if (napi_create_uint32(env, args->error_code, &params[1])) {
         return AWS_OP_ERR;
     }
 
-    *num_params = 1;
+    *num_params = 2;
     return AWS_OP_SUCCESS;
 }
 
@@ -52,7 +55,7 @@ void s_http_on_connection_setup_dispatch(void *user_data) {
 }
 
 void s_http_on_connection_setup(struct aws_http_connection *connection, int error_code, void *user_data) {
-    struct http_nodejs_connection *node_connection = user_data;
+    struct http_connection_binding *node_connection = user_data;
     node_connection->connection = connection;
     if (node_connection->on_setup.callback) {
         struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
@@ -65,11 +68,13 @@ void s_http_on_connection_setup(struct aws_http_connection *connection, int erro
 int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
 
-    if (napi_create_uint32(env, args->error_code, &params[0])) {
+    params[0] = args->connection->node_external;
+
+    if (napi_create_uint32(env, args->error_code, &params[1])) {
         return AWS_OP_ERR;
     }
 
-    *num_params = 1;
+    *num_params = 2;
     return AWS_OP_SUCCESS;
 }
 
@@ -80,7 +85,7 @@ void s_http_on_connection_shutdown_dispatch(void *user_data) {
 }
 
 void s_http_on_connection_shutdown(struct aws_http_connection *connection, int error_code, void *user_data) {
-    struct http_nodejs_connection *node_connection = user_data;
+    struct http_connection_binding *node_connection = user_data;
     node_connection->connection = connection;
     if (node_connection->on_setup.callback) {
         struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
@@ -117,15 +122,17 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
 
     struct aws_napi_callback on_connection_setup;
     AWS_ZERO_STRUCT(on_connection_setup);
-    if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (aws_napi_callback_init(
-                &on_connection_setup,
-                env,
-                node_args[1],
-                "aws_http_connection_on_connection_setup",
-                s_http_on_connection_setup_params)) {
-            return NULL;
-        }
+    if (aws_napi_is_null_or_undefined(env, node_args[1])) {
+        napi_throw_error(env, NULL, "2nd argument (on_connection_setup) must be a callback");
+        return NULL;
+    }
+    if (aws_napi_callback_init(
+            &on_connection_setup,
+            env,
+            node_args[1],
+            "aws_http_connection_on_connection_setup",
+            s_http_on_connection_setup_params)) {
+        return NULL;
     }
 
     struct aws_napi_callback on_connection_shutdown;
@@ -167,16 +174,15 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     }
 
     /* create node external to hold the connection wrapper, cleanup is required from here on out */
-    struct http_nodejs_connection *node_connection =
-        aws_mem_calloc(allocator, 1, sizeof(struct http_nodejs_connection));
+    struct http_connection_binding *node_connection =
+        aws_mem_calloc(allocator, 1, sizeof(struct http_connection_binding));
     if (!node_connection) {
         aws_napi_throw_last_error(env);
         goto alloc_failed;
     }
 
-    napi_value node_external;
-    if (napi_create_external(env, node_connection, NULL, NULL, &node_external)) {
-        napi_throw_error(env, NULL, "Failed to create napi external for http_nodejs_connection");
+    if (napi_create_external(env, node_connection, NULL, NULL, &node_connection->node_external)) {
+        napi_throw_error(env, NULL, "Failed to create napi external for http_connection_binding");
         goto create_external_failed;
     }
 
@@ -200,7 +206,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto connect_failed;
     }
 
-    return node_external;
+    return NULL;
 
 connect_failed:
 create_external_failed:
@@ -226,9 +232,9 @@ napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info)
         return NULL;
     }
 
-    struct http_nodejs_connection *node_connection = NULL;
+    struct http_connection_binding *node_connection = NULL;
     if (napi_get_value_external(env, node_args[0], (void **)&node_connection)) {
-        napi_throw_error(env, NULL, "Failed to extract http_nodejs_connection from external");
+        napi_throw_error(env, NULL, "Failed to extract http_connection_binding from external");
         return NULL;
     }
 
