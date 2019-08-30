@@ -39,7 +39,7 @@ test('HTTP Connection Create/Destroy', (done) => {
                 bootstrap,
                 on_setup,
                 on_shutdown,
-                "www.amazon.com",
+                "s3.amazonaws.com",
                 80,
                 new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
                 undefined)
