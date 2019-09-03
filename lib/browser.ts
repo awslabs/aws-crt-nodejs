@@ -22,6 +22,7 @@ import * as io from './browser/io';
 import * as mqtt from './browser/mqtt';
 import * as crypto from './browser/crypto';
 import * as iot from './browser/aws_iot';
+import { CrtError } from './browser/error';
 
 export {
     io,
@@ -30,4 +31,5 @@ export {
     iot,
     platform,
     resource_safety,
+    CrtError
 };

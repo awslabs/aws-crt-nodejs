@@ -17,11 +17,12 @@ import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, ClientTlsContext, SocketOptions } from './io';
+import { CrtError } from './error';
+
 
 export class HttpConnection extends NativeResource implements ResourceSafe {
 
-    protected constructor(native_handle: any)
-    {
+    protected constructor(native_handle: any) {
         super(native_handle);
     }
 
@@ -42,9 +43,12 @@ export class HttpClientConnection extends HttpConnection {
         socket_options: SocketOptions,
         tls_ctx?: ClientTlsContext) : Promise<HttpClientConnection> {
         
-        return new Promise<HttpClientConnection>((resolve) => {
+        return new Promise<HttpClientConnection>((resolve, reject) => {
             let connection: HttpClientConnection;
             const on_setup = (native_connection: any, error_code: Number) => {
+                if (error_code) {
+                    reject(new CrtError(error_code));
+                }
                 connection = new HttpClientConnection(
                     native_connection,
                     bootstrap,

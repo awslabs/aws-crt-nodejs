@@ -1,6 +1,3 @@
-#ifndef AWS_CRT_NODEJS_HTTP_CONNECTION_H
-#define AWS_CRT_NODEJS_HTTP_CONNECTION_H
-
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -16,13 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#include <node_api.h>
-
-napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info);
-napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info);
-
-struct http_connection_binding;
-
-struct aws_http_connection *aws_napi_get_http_connection(struct http_connection_binding *binding);
-
-#endif /* AWS_CRT_NODEJS_HTTP_CONNECTION_H */
+export class CrtError extends Error {
+    constructor(err: any) {
+        super(err.toString());
+    }
+}

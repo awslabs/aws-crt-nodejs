@@ -18,14 +18,12 @@
 #include "module.h"
 #include "uv_interop.h"
 
-#include <aws/common/logging.h>
 #include <aws/http/connection.h>
 #include <aws/io/tls_channel_handler.h>
 
 struct http_connection_binding {
     struct aws_http_connection *connection;
     napi_ref node_external;
-    napi_env env;
     struct aws_napi_callback on_setup;
     struct aws_napi_callback on_shutdown;
     struct aws_uv_context *uv_context;
@@ -34,8 +32,11 @@ struct http_connection_binding {
 struct on_connection_args {
     struct http_connection_binding *binding;
     int error_code;
-    napi_env env;
 };
+
+struct aws_http_connection *aws_napi_get_http_connection(struct http_connection_binding *binding) {
+    return binding->connection;
+}
 
 int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
@@ -84,10 +85,11 @@ int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_
     return AWS_OP_SUCCESS;
 }
 
-void s_http_connection_binding_finalize(void *user_data) {
-    struct http_connection_binding *binding = user_data;
+/* finalizer called when node cleans up this object */
+void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)finalize_hint;
+    struct http_connection_binding *binding = finalize_data;
     struct aws_allocator *allocator = aws_default_allocator();
-    napi_env env = binding->env;
 
     napi_handle_scope handle_scope = NULL;
     if (napi_open_handle_scope(env, &handle_scope)) {
@@ -97,20 +99,18 @@ void s_http_connection_binding_finalize(void *user_data) {
     napi_delete_reference(env, binding->node_external);
     aws_napi_callback_clean_up(&binding->on_setup);
     aws_napi_callback_clean_up(&binding->on_shutdown);
-
-    aws_uv_context_release(binding->uv_context);
-
-    aws_mem_release(allocator, binding);
-cleanup:
     napi_close_handle_scope(env, handle_scope);
+
+cleanup:
+    aws_uv_context_release(binding->uv_context);
+    aws_http_connection_release(binding->connection);
+    aws_mem_release(allocator, binding);
 }
 
 void s_http_on_connection_shutdown_dispatch(void *user_data) {
     struct on_connection_args *args = user_data;
     aws_napi_callback_dispatch(&args->binding->on_shutdown, args);
-    struct http_connection_binding *binding = args->binding;
     aws_mem_release(aws_default_allocator(), args);
-    aws_uv_context_enqueue(binding->uv_context, s_http_connection_binding_finalize, binding);
 }
 
 void s_http_on_connection_shutdown(struct aws_http_connection *connection, int error_code, void *user_data) {
@@ -125,7 +125,6 @@ void s_http_on_connection_shutdown(struct aws_http_connection *connection, int e
 }
 
 napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
-    (void)info;
     struct aws_allocator *allocator = aws_default_allocator();
 
     struct aws_tls_ctx *tls_ctx = NULL;
@@ -212,7 +211,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_external;
-    if (napi_create_external(env, binding, NULL, NULL, &node_external)) {
+    if (napi_create_external(env, binding, s_http_connection_binding_finalize, binding, &node_external)) {
         napi_throw_error(env, NULL, "Failed to create napi external for http_connection_binding");
         goto create_external_failed;
     }
@@ -222,7 +221,6 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto create_external_failed;
     }
 
-    binding->env = env;
     binding->uv_context = aws_uv_context_get_default();
     aws_uv_context_acquire(binding->uv_context, env);
     binding->on_setup = on_connection_setup;
@@ -286,7 +284,6 @@ napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info)
 
     if (binding->connection) {
         aws_http_connection_close(binding->connection);
-        aws_http_connection_release(binding->connection);
     }
 
     /* the rest of cleanup happens in s_http_connection_binding_finalize() */
