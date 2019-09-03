@@ -222,7 +222,10 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     }
 
     binding->uv_context = aws_uv_context_get_default();
-    aws_uv_context_acquire(binding->uv_context, env);
+    if (aws_uv_context_acquire(binding->uv_context, env)) {
+        napi_throw_error(env, NULL, "Unable to acquire libuv context");
+        goto uv_context_failed;
+    }
     binding->on_setup = on_connection_setup;
     binding->on_shutdown = on_connection_shutdown;
 
@@ -249,15 +252,15 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     goto done;
 
 connect_failed:
+uv_context_failed:
 create_external_failed:
     aws_mem_release(allocator, binding);
 alloc_failed:
 argument_error:
 done:
     /* the tls connection options own the host name string and kill it */
-    if (tls_ctx) {
-        aws_tls_connection_options_clean_up(&tls_options);
-    } else {
+    aws_tls_connection_options_clean_up(&tls_options);
+    if (!tls_ctx) {
         aws_string_destroy(host_name);
     }
 
