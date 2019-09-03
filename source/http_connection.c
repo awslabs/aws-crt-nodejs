@@ -24,6 +24,7 @@
 struct http_connection_binding {
     struct aws_http_connection *connection;
     napi_ref node_external;
+    napi_env env;
     struct aws_napi_callback on_setup;
     struct aws_napi_callback on_shutdown;
     struct aws_uv_context *uv_context;
@@ -87,10 +88,23 @@ int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_
 
 /* finalizer called when node cleans up this object */
 void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
     (void)finalize_hint;
     struct http_connection_binding *binding = finalize_data;
     struct aws_allocator *allocator = aws_default_allocator();
 
+    aws_uv_context_release(binding->uv_context);
+    aws_http_connection_release(binding->connection);
+    aws_mem_release(allocator, binding);
+}
+
+void s_http_on_connection_shutdown_dispatch(void *user_data) {
+    struct on_connection_args *args = user_data;
+    aws_napi_callback_dispatch(&args->binding->on_shutdown, args);
+
+    /* no more node callbacks will be done, so clean up node stuff now */
+    struct http_connection_binding *binding = args->binding;
+    napi_env env = binding->env;
     napi_handle_scope handle_scope = NULL;
     if (napi_open_handle_scope(env, &handle_scope)) {
         napi_throw_error(env, NULL, "Unable to open handle scope for callback");
@@ -102,21 +116,13 @@ void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void 
     napi_close_handle_scope(env, handle_scope);
 
 cleanup:
-    aws_uv_context_release(binding->uv_context);
-    aws_http_connection_release(binding->connection);
-    aws_mem_release(allocator, binding);
-}
-
-void s_http_on_connection_shutdown_dispatch(void *user_data) {
-    struct on_connection_args *args = user_data;
-    aws_napi_callback_dispatch(&args->binding->on_shutdown, args);
     aws_mem_release(aws_default_allocator(), args);
 }
 
 void s_http_on_connection_shutdown(struct aws_http_connection *connection, int error_code, void *user_data) {
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
-    if (binding->on_setup.callback) {
+    if (binding->on_shutdown.callback) {
         struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
         args->binding = binding;
         args->error_code = error_code;
@@ -226,6 +232,8 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Unable to acquire libuv context");
         goto uv_context_failed;
     }
+
+    binding->env = env;
     binding->on_setup = on_connection_setup;
     binding->on_shutdown = on_connection_shutdown;
 
