@@ -437,7 +437,7 @@ napi_value aws_napi_http_stream_close(napi_env env, napi_callback_info info) {
     aws_napi_callback_clean_up(&binding->on_response);
     aws_napi_callback_clean_up(&binding->on_body);
     aws_napi_callback_clean_up(&binding->on_complete);
-    napi_reference_unref(env, binding->node_external, NULL);
+    napi_delete_reference(env, binding->node_external);
     aws_http_stream_release(binding->stream);
 
     return NULL;
