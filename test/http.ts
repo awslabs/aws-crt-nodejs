@@ -26,6 +26,18 @@ test('HTTP Headers', () => {
         expect(['Host', 'Content-Length']).toContain(header[0]);
         expect(['www.amazon.com', '42']).toContain(header[1]);
     }
+    // Upgrade header does not exist
+    expect(headers.get('Upgrade')).toBeFalsy();
+
+    // Make sure case doesn't matter
+    expect(headers.get('HOST')).toBe('www.amazon.com');
+
+    // Remove Content-Length, and make sure host is all that's left
+    headers.remove('content-length');
+    for (const header of headers) {
+        expect(header[0]).toBe('Host');
+        expect(header[1]).toBe('www.amazon.com');
+    }
 });
 
 test('HTTP Connection Create/Destroy', (done) => {

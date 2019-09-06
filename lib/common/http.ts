@@ -16,6 +16,7 @@
 type HttpHeader = string[];
 
 export class HttpHeaders {
+    // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
     private headers: { [index: string]: [HttpHeader] } = {};
 
     constructor(headers: HttpHeader[] = []) {
@@ -47,7 +48,11 @@ export class HttpHeaders {
     }
 
     get(name: string) {
-        return this.headers[name][0][0] || "";
+        const values = this.headers[name.toLowerCase()];
+        if (!values) { 
+            return "";
+        }
+        return values[0][1] || "";
     }
 
     remove(name: string) {
