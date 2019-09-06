@@ -17,7 +17,7 @@
 
 #include <node_api.h>
 
-napi_value http_stream_new(napi_env env, napi_callback_info info);
-napi_value http_stream_close(napi_env env, napi_callback_info info);
+napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info);
+napi_value aws_napi_http_stream_close(napi_env env, napi_callback_info info);
 
 #endif /* AWS_CRT_NODEJS_HTTP_STREAM_H */

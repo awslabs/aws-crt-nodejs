@@ -293,6 +293,8 @@ napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info)
         return NULL;
     }
 
+    napi_reference_unref(env, binding->node_external, NULL);
+
     if (binding->connection) {
         aws_http_connection_close(binding->connection);
     }

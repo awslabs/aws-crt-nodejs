@@ -387,6 +387,8 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     /* HTTP */
     CREATE_AND_REGISTER_FN(http_connection_new)
     CREATE_AND_REGISTER_FN(http_connection_close)
+    CREATE_AND_REGISTER_FN(http_stream_new)
+    CREATE_AND_REGISTER_FN(http_stream_close)
 
 #undef CREATE_AND_REGISTER_FN
 
