@@ -13,9 +13,20 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnection } from "../lib/native/http";
+import { HttpClientConnection, HttpHeaders } from "../lib/native/http";
 import { using } from "../lib/common/resource_safety";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
+
+test('HTTP Headers', () => {
+    let headers = new HttpHeaders([
+        ['Host', 'www.amazon.com'],
+        ['Content-Length', '42']
+    ]);
+    for (const header of headers) {
+        expect(['Host', 'Content-Length']).toContain(header[0]);
+        expect(['www.amazon.com', '42']).toContain(header[1]);
+    }
+});
 
 test('HTTP Connection Create/Destroy', (done) => {
     using(new ClientBootstrap(), async (bootstrap) => {

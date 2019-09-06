@@ -18,55 +18,8 @@ import { NativeResource } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, ClientTlsContext, SocketOptions } from './io';
 import { CrtError } from './error';
-
-export class HttpHeaders {
-    constructor(protected headers: { [index: string]: [string] } = {}) {
-
-    }
-
-    add(name: string, value: string) {
-        this.headers[name].push(value);
-    }
-
-    set(name: string, value: string) {
-        this.headers[name] = [value];
-    }
-
-    get_list(name: string) {
-        return this.headers[name] || []
-    }
-
-    get(name: string) {
-        return this.headers[name][0] || "";
-    }
-
-    remove(name: string) {
-        delete this.headers[name];
-    }
-
-    *[Symbol.iterator]() {
-        for (const key in this.headers) {
-            yield [key, this.headers[key][0]];
-        }
-    }
-
-    _flatten(): string[][] {
-        let flattened = [];
-        for (let key in this.headers) {
-            flattened.push([key, this.headers[key][0]]);
-        }
-        return flattened;
-    }
-}
-
-export class HttpRequest {
-    public headers = new HttpHeaders();
-    constructor(
-        public method: string,
-        public path: string,
-        public body: string) {
-    }
-}
+import { HttpHeaders, HttpRequest } from '../common/http';
+export { HttpHeaders, HttpRequest } from '../common/http';
 
 export class HttpConnection extends NativeResource implements ResourceSafe {
 
