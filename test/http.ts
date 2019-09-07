@@ -38,6 +38,12 @@ test('HTTP Headers', () => {
         expect(header[0]).toBe('Host');
         expect(header[1]).toBe('www.amazon.com');
     }
+
+    headers.clear();
+    for (const header of headers) {
+        // this should never be called
+        expect(header).toBeNull();
+    }
 });
 
 test('HTTP Connection Create/Destroy', (done) => {
