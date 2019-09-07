@@ -77,6 +77,10 @@ export class HttpHeaders {
         this.headers = {};
     }
 
+    // Allows for:
+    // let headers = new HttpHeaders();
+    // ...
+    // for (const header of headers) { }
     *[Symbol.iterator]() {
         for (const key in this.headers) {
             const values = this.headers[key];
