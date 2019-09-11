@@ -323,11 +323,7 @@ static bool s_create_and_register_function(
 
 napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
-    aws_load_error_strings();
-    aws_io_load_error_strings();
-
     struct aws_allocator *allocator = aws_default_allocator();
-    aws_tls_init_static_state(aws_default_allocator());
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
 

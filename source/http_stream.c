@@ -79,8 +79,9 @@ int s_on_response_params(napi_env env, napi_value *params, size_t *num_params, v
     return AWS_OP_SUCCESS;
 }
 
-int s_on_response_headers(struct aws_http_stream *stream, const struct aws_http_header *header_array, size_t num_headers, void *user_data) {
+int s_on_response_headers(struct aws_http_stream *stream, enum aws_http_header_block block_type, const struct aws_http_header *header_array, size_t num_headers, void *user_data) {
     (void)stream;
+    (void)block_type;
     struct http_stream_binding *binding = user_data;
     if (!binding->on_response.callback) {
         return AWS_OP_SUCCESS;
@@ -99,8 +100,8 @@ void s_on_response_dispatch(void *user_data) {
     binding->response = NULL;
 }
 
-int s_on_response_header_block_done(struct aws_http_stream *stream, bool has_body, void *user_data) {
-    (void)has_body;
+int s_on_response_header_block_done(struct aws_http_stream *stream, enum aws_http_header_block block_type, void *user_data) {
+    (void)block_type;
     struct http_stream_binding *binding = user_data;
     if (binding->on_response.callback) {
         int status_code = 0;
