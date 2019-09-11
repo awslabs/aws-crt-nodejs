@@ -104,6 +104,6 @@ export class HttpRequest {
     constructor(
         public method: string,
         public path: string,
-        public body: string) {
+        public body?: string) {
     }
 }

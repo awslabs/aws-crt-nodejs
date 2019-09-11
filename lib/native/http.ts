@@ -175,11 +175,11 @@ export class HttpClientStream extends HttpStream {
         return this.response_status_code;
     }
 
-    _on_response(status_code: Number, headers: string[][]) {
+    _on_response(status_code: Number, header_array: string[][]) {
         this.response_status_code = status_code;
         if (this.on_response_cb) {
             let headers = new HttpHeaders();
-            for (let header in headers) {
+            for (let header of header_array) {
                 const name = header[0];
                 const value = header[1];
                 headers.add(name, value);

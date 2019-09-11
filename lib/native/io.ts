@@ -21,6 +21,20 @@ export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
 }
 
+export enum LogLevel {
+    NONE = 0,
+    FATAL = 1,
+    ERROR = 2,
+    WARN = 3,
+    INFO = 4,
+    DEBUG = 5,
+    TRACE = 6
+}
+
+export function enable_logging(level: LogLevel, filename?: string) {
+    crt_native.io_logging_enable(level, filename);
+}
+
 export function is_alpn_available(): boolean {
     return crt_native.is_alpn_available();
 }
