@@ -321,8 +321,6 @@ static bool s_create_and_register_function(
     return true;
 }
 
-/* static struct aws_logger s_logger; */
-
 napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     aws_load_error_strings();
@@ -332,14 +330,6 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     aws_tls_init_static_state(aws_default_allocator());
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
-
-    /*
-    struct aws_logger_standard_options log_options;
-    log_options.file = stdout;
-    log_options.level = AWS_LL_DEBUG;
-    aws_logger_init_standard(&s_logger, allocator, &log_options);
-    aws_logger_set(&s_logger);
-    */
 
     /* Initalize the event loop group */
     aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);

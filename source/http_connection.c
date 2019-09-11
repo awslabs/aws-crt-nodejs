@@ -93,7 +93,6 @@ void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void 
     struct http_connection_binding *binding = finalize_data;
     struct aws_allocator *allocator = aws_default_allocator();
 
-    aws_uv_context_release(binding->uv_context);
     aws_http_connection_release(binding->connection);
     aws_mem_release(allocator, binding);
 }
@@ -114,6 +113,8 @@ void s_http_on_connection_shutdown_dispatch(void *user_data) {
     aws_napi_callback_clean_up(&binding->on_setup);
     aws_napi_callback_clean_up(&binding->on_shutdown);
     napi_close_handle_scope(env, handle_scope);
+
+    aws_uv_context_release(binding->uv_context);
 
 cleanup:
     aws_mem_release(aws_default_allocator(), args);
