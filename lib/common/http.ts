@@ -93,17 +93,17 @@ export class HttpHeaders {
     _flatten(): string[][] {
         let flattened = [];
         for (let key in this.headers) {
-            flattened.push([key, this.headers[key][0][0]]);
+            flattened.push([key, this.headers[key][0][1]]);
         }
         return flattened;
     }
 }
 
 export class HttpRequest {
-    public headers = new HttpHeaders();
     constructor(
         public method: string,
         public path: string,
-        public body?: string) {
+        public body?: string,
+        public headers = new HttpHeaders()) {
     }
 }
