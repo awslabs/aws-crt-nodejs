@@ -15,11 +15,11 @@
 #include "io.h"
 #include "module.h"
 
+#include <aws/common/logging.h>
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/event_loop.h>
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
-#include <aws/common/logging.h>
 
 napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) {
 
@@ -64,7 +64,7 @@ napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
     }
 
     enum aws_log_level log_level;
-    if (napi_get_value_int32(env, node_args[0], (int32_t*)&log_level)) {
+    if (napi_get_value_int32(env, node_args[0], (int32_t *)&log_level)) {
         napi_throw_error(env, NULL, "log_level must be an integer");
         return NULL;
     }
@@ -75,11 +75,11 @@ napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
             napi_throw_error(env, NULL, "filename must be a string or undefined");
             return NULL;
         }
-    }    
+    }
 
     struct aws_logger_standard_options options = {.level = log_level};
     options.file = filename ? NULL : stderr;
-    options.filename = (filename) ? (const char*)aws_string_bytes(filename) : NULL;
+    options.filename = (filename) ? (const char *)aws_string_bytes(filename) : NULL;
 
     if (aws_logger_init_standard(&s_logger, aws_default_allocator(), &options)) {
         aws_napi_throw_last_error(env);

@@ -13,9 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include "module.h"
-#include "http_connection.h"
 #include "http_stream.h"
+#include "http_connection.h"
+#include "module.h"
 #include "uv_interop.h"
 
 #include <aws/http/request_response.h>
@@ -30,7 +30,7 @@ struct http_stream_binding {
     struct aws_napi_callback on_body;
     struct aws_http_message *response; /* used to buffer response headers/status code */
     struct aws_http_message *request;
-    struct aws_byte_buf body; /* request body */
+    struct aws_byte_buf body;             /* request body */
     struct aws_input_stream *body_stream; /* stream pointing at request body */
 };
 
@@ -61,12 +61,11 @@ int s_on_response_params(napi_env env, napi_value *params, size_t *num_params, v
 
         napi_value node_name = NULL;
         napi_value node_value = NULL;
-        if (napi_create_string_utf8(env, (const char*)header.name.ptr, header.name.len, &node_name) ||
-            napi_create_string_utf8(env, (const char*)header.value.ptr, header.value.len, &node_value)) {
+        if (napi_create_string_utf8(env, (const char *)header.name.ptr, header.name.len, &node_name) ||
+            napi_create_string_utf8(env, (const char *)header.value.ptr, header.value.len, &node_value)) {
             return AWS_OP_ERR;
         }
-        if (napi_set_element(env, node_header, 0, node_name) ||
-            napi_set_element(env, node_header, 1, node_value)) {
+        if (napi_set_element(env, node_header, 0, node_name) || napi_set_element(env, node_header, 1, node_value)) {
             return AWS_OP_ERR;
         }
 
@@ -79,7 +78,12 @@ int s_on_response_params(napi_env env, napi_value *params, size_t *num_params, v
     return AWS_OP_SUCCESS;
 }
 
-int s_on_response_headers(struct aws_http_stream *stream, enum aws_http_header_block block_type, const struct aws_http_header *header_array, size_t num_headers, void *user_data) {
+int s_on_response_headers(
+    struct aws_http_stream *stream,
+    enum aws_http_header_block block_type,
+    const struct aws_http_header *header_array,
+    size_t num_headers,
+    void *user_data) {
     (void)stream;
     (void)block_type;
     struct http_stream_binding *binding = user_data;
@@ -100,7 +104,10 @@ void s_on_response_dispatch(void *user_data) {
     binding->response = NULL;
 }
 
-int s_on_response_header_block_done(struct aws_http_stream *stream, enum aws_http_header_block block_type, void *user_data) {
+int s_on_response_header_block_done(
+    struct aws_http_stream *stream,
+    enum aws_http_header_block block_type,
+    void *user_data) {
     (void)block_type;
     struct http_stream_binding *binding = user_data;
     if (binding->on_response.callback) {
@@ -120,7 +127,7 @@ struct on_body_args {
 int s_on_body_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_body_args *args = user_data;
 
-    if (napi_get_reference_value(env, args->binding->node_external, &params[0]) || 
+    if (napi_get_reference_value(env, args->binding->node_external, &params[0]) ||
         napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[1])) {
         return AWS_OP_ERR;
     }
@@ -287,8 +294,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
         }
         napi_value node_name = NULL;
         napi_value node_value = NULL;
-        if (napi_get_element(env, node_header, 0, &node_name) ||
-            napi_get_element(env, node_header, 1, &node_value)) {
+        if (napi_get_element(env, node_header, 0, &node_name) || napi_get_element(env, node_header, 1, &node_value)) {
             napi_throw_error(env, NULL, "Could not extract header parts");
             goto argument_error;
         }
@@ -305,8 +311,8 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
             goto argument_error;
         }
         aws_byte_buf_reserve(&value_buf, length);
-        if (napi_get_value_string_utf8(env, node_name, (char*)name_buf.buffer, name_buf.capacity, &name_buf.len) ||
-            napi_get_value_string_utf8(env, node_value, (char*)value_buf.buffer, value_buf.capacity, &value_buf.len)) {
+        if (napi_get_value_string_utf8(env, node_name, (char *)name_buf.buffer, name_buf.capacity, &name_buf.len) ||
+            napi_get_value_string_utf8(env, node_value, (char *)value_buf.buffer, value_buf.capacity, &value_buf.len)) {
             napi_throw_error(env, NULL, "HTTP header could not be extracted");
             goto argument_error;
         }
@@ -326,11 +332,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(on_response);
     if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
         if (aws_napi_callback_init(
-            &on_response,
-            env,
-            node_args[6],
-            "aws_http_stream_on_response",
-            s_on_response_params)) {
+                &on_response, env, node_args[6], "aws_http_stream_on_response", s_on_response_params)) {
             napi_throw_error(env, NULL, "Unable to bind on_response callback");
             return NULL;
         }
@@ -339,12 +341,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     struct aws_napi_callback on_body;
     AWS_ZERO_STRUCT(on_body);
     if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
-        if (aws_napi_callback_init(
-            &on_body,
-            env,
-            node_args[7],
-            "aws_http_stream_on_body",
-            s_on_body_params)) {
+        if (aws_napi_callback_init(&on_body, env, node_args[7], "aws_http_stream_on_body", s_on_body_params)) {
             napi_throw_error(env, NULL, "Unable to bind on_body callback");
             return NULL;
         }
@@ -363,16 +360,15 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     binding->on_body = on_body;
     binding->request = request;
 
-    struct aws_http_make_request_options request_options = {
-        .self_size = sizeof(struct aws_http_make_request_options),
-        .request = request,
-        .user_data = binding,
-        .on_response_headers = s_on_response_headers,
-        .on_response_header_block_done = s_on_response_header_block_done,
-        .on_response_body = s_on_response_body,
-        .on_complete = s_on_complete,
-        .manual_window_management = false
-    };
+    struct aws_http_make_request_options request_options = {.self_size = sizeof(struct aws_http_make_request_options),
+                                                            .request = request,
+                                                            .user_data = binding,
+                                                            .on_response_headers = s_on_response_headers,
+                                                            .on_response_header_block_done =
+                                                                s_on_response_header_block_done,
+                                                            .on_response_body = s_on_response_body,
+                                                            .on_complete = s_on_complete,
+                                                            .manual_window_management = false};
 
     /* becomes the native_handle for the JS object */
     if (napi_create_external(env, binding, s_http_stream_binding_finalize, NULL, &result)) {
