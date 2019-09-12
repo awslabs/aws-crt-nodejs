@@ -264,15 +264,15 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     aws_http_message_set_request_path(request, aws_byte_cursor_from_string(path));
     aws_http_message_set_body_stream(request, body_stream);
 
-    napi_value headers = node_args[4];
+    napi_value node_headers = node_args[4];
     bool is_array = false;
-    if (napi_is_array(env, node_args[4], &is_array) || !is_array) {
+    if (napi_is_array(env, node_headers, &is_array) || !is_array) {
         napi_throw_error(env, NULL, "headers must be an array of arrays");
         goto argument_error;
     }
 
     uint32_t num_headers = 0;
-    if (napi_get_array_length(env, headers, &num_headers)) {
+    if (napi_get_array_length(env, node_headers, &num_headers)) {
         napi_throw_error(env, NULL, "Could not get length of header array");
         goto argument_error;
     }
@@ -283,10 +283,16 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     aws_byte_buf_init(&value_buf, allocator, 256);
     for (uint32_t idx = 0; idx < num_headers; ++idx) {
         napi_value node_header = NULL;
-        if (napi_get_element(env, headers, idx, &node_header)) {
+        if (napi_get_element(env, node_headers, idx, &node_header)) {
             napi_throw_error(env, NULL, "Failed to extract headers");
             goto argument_error;
         }
+
+        if (napi_is_array(env, node_header, &is_array) || !is_array) {
+            napi_throw_error(env, NULL, "headers must be an array of 2 element arrays");
+            goto argument_error;
+        }
+
         uint32_t num_parts = 0;
         if (napi_get_array_length(env, node_header, &num_parts) || num_parts != 2) {
             napi_throw_error(env, NULL, "Could not get length of header parts or length was not 2");

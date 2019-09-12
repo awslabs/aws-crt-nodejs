@@ -251,8 +251,6 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         options.tls_options = &tls_options;
     }
 
-    options.user_data = binding;
-
     if (aws_http_client_connect(&options)) {
         aws_napi_throw_last_error(env);
         goto connect_failed;

@@ -193,6 +193,14 @@ function main(argv: Args) {
     const client_bootstrap = new io.ClientBootstrap();
     const tls_ctx = init_tls(argv);
     const socket_options = new io.SocketOptions(io.SocketType.STREAM, io.SocketDomain.IPV4, argv.connect_timeout);
+    
+    // if port is not supplied, derive it from scheme
+    let port = Number.parseInt(argv.url.port);
+    if (argv.url.protocol === 'http:' && !argv.url.port) {
+        port = 80;
+    } else if (argv.url.protocol === 'https:' && !argv.url.port) {
+        port = 443;
+    }
 
     const make_request = async (connection: http.HttpClientConnection, body?: string) => {
         const on_response = (status_code: Number, headers: http.HttpHeaders) => {
@@ -208,21 +216,28 @@ function main(argv: Args) {
             argv.output.write(body);
         }
 
-        const request = new http.HttpRequest(argv.method, argv.url.toString(), body);
+        let headers = new http.HttpHeaders([
+            ["host", argv.url.hostname],
+            ["user-agent", "elasticurl.js 1.0, Powered by the AWS Common Runtime."],
+            ["test", "test"],
+        ]);
+        if (body) {
+            headers.add('content-length', body.length.toString());
+        }
+        if (argv.header) {
+            for (const header of argv.header as string[]) {
+                let h = header.split(/:\s*/, 2);
+                headers.add(h[0], h[1]);
+            }
+        }
+
+        const request = new http.HttpRequest(argv.method, argv.url.toString(), body, headers);
         const stream = connection.make_request(request, on_response, on_body);
         return stream.complete.then((error_code) => {
             connection.close();
             return error_code;
         });
     };
-
-    // normalize port against url
-    let port = Number.parseInt(argv.url.port);
-    if (argv.url.protocol === 'http:' && !argv.url.port) {
-        port = 80;
-    } else if (argv.url.protocol === 'https:' && !argv.url.port) {
-        port = 443;
-    }
 
     http.HttpClientConnection.create(
         client_bootstrap,
