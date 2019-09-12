@@ -59,6 +59,16 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
  */
 napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info);
 
+/**
+ * Create an input stream
+ */
+napi_value aws_napi_io_input_stream_new(napi_env, napi_callback_info info);
+
+/**
+ * Append a Buffer to an input stream
+ */
+napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info);
+
 AWS_EXTERN_C_END
 
 #endif /* AWS_CRT_NODEJS_IO_H */

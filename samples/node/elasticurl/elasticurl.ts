@@ -220,8 +220,13 @@ function main(argv: Args) {
             ["host", argv.url.hostname],
             ["user-agent", "elasticurl.js 1.0, Powered by the AWS Common Runtime."],
         ]);
+        let body_stream: io.InputStream | undefined = undefined;
         if (body) {
             headers.add('content-length', body.length.toString());
+            let stream = new PassThrough();
+            stream.write(body);
+            stream.end();
+            body_stream = new io.InputStream(stream);
         }
         if (argv.header) {
             for (const header of argv.header as string[]) {
@@ -230,7 +235,7 @@ function main(argv: Args) {
             }
         }
 
-        const request = new http.HttpRequest(argv.method, argv.url.toString(), body, headers);
+        const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
         const stream = connection.make_request(request, on_response, on_body);
         return stream.complete.then((error_code) => {
             connection.close();

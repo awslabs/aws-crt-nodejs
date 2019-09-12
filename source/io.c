@@ -16,9 +16,11 @@
 #include "module.h"
 
 #include <aws/common/logging.h>
+#include <aws/common/mutex.h>
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/event_loop.h>
 #include <aws/io/socket.h>
+#include <aws/io/stream.h>
 #include <aws/io/tls_channel_handler.h>
 
 napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) {
@@ -420,4 +422,218 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
     }
 
     return node_external;
+}
+
+struct aws_napi_input_stream_impl {
+    /* this MUST be the first member, allows polymorphism with aws_input_stream* */
+    struct aws_input_stream base;
+    struct aws_byte_buf buffer;
+    struct aws_byte_cursor cursor;
+    struct aws_mutex mutex;
+    size_t bytes_read; /* bytes already consumed by the reader, flushed from the buffer */
+    bool eos; /* end of stream */
+};
+
+static int s_input_stream_seek(struct aws_input_stream *stream, aws_off_t offset, enum aws_stream_seek_basis basis) {
+    struct aws_napi_input_stream_impl *impl = stream->impl;
+
+    int result = AWS_OP_SUCCESS;
+    uint64_t final_offset = 0;
+    int64_t checked_offset = offset;
+
+    aws_mutex_lock(&impl->mutex);
+    uint64_t total_bytes = impl->bytes_read + impl->buffer.len;
+
+    switch (basis) {
+        case AWS_SSB_BEGIN:
+            /* Offset must be positive, must be greater than the bytes already read (because those
+             * bytes are gone from the buffer), and must not be greater than the sum of the bytes
+             * read so far and the size of the buffer
+             */
+            if (checked_offset < 0 || 
+                (uint64_t)checked_offset > total_bytes ||
+                (uint64_t)checked_offset < impl->bytes_read) {
+                result = AWS_IO_STREAM_INVALID_SEEK_POSITION;
+                goto failed;
+            }
+            final_offset = (uint64_t)checked_offset - impl->bytes_read;
+            break;
+        case AWS_SSB_END:
+            /* Offset must be negative, and must not be trying to go further back than the
+             * current length of the buffer, because those bytes have been purged
+             */
+            if (checked_offset > 0 || checked_offset == INT64_MIN ||
+                (uint64_t)(-checked_offset) > impl->buffer.len) {
+                result = AWS_IO_STREAM_INVALID_SEEK_POSITION;
+                goto failed;
+            }
+            final_offset = (uint64_t)impl->buffer.len - (uint64_t)(-checked_offset);
+            break;
+    }
+
+    AWS_ASSERT(final_offset <= SIZE_MAX);
+    size_t buf_offset = (size_t)final_offset;
+    AWS_ASSERT(buf_offset <= impl->buffer.len);
+
+    impl->eos = false;
+    if (buf_offset == impl->buffer.len) {
+        impl->bytes_read += impl->buffer.len;
+        impl->buffer.len = 0;
+    } else if (buf_offset > 0) {
+        size_t new_len = impl->buffer.len - buf_offset;
+        memmove(impl->buffer.buffer, impl->buffer.buffer + buf_offset, new_len);
+        impl->buffer.len = new_len;
+    }
+
+failed:
+    aws_mutex_unlock(&impl->mutex);
+    return result;
+}
+
+static int s_input_stream_read(struct aws_input_stream *stream, struct aws_byte_buf *dest) {
+    struct aws_napi_input_stream_impl *impl = stream->impl;
+
+    size_t bytes_to_read = dest->capacity - dest->len;
+    if (bytes_to_read > impl->buffer.len) {
+        bytes_to_read = impl->buffer.len;
+    }
+
+    if (!aws_byte_buf_write(dest, impl->buffer.buffer, bytes_to_read)) {
+        return AWS_OP_ERR;
+    }
+
+    /* seek the stream past what's been read to advance the buffer/bytes_read */
+    aws_input_stream_seek(&impl->base, impl->bytes_read + bytes_to_read, AWS_SSB_BEGIN);
+    return AWS_OP_SUCCESS;
+}
+
+static int s_input_stream_get_status(struct aws_input_stream *stream, struct aws_stream_status *status) {
+    struct aws_napi_input_stream_impl *impl = stream->impl;
+    aws_mutex_lock(&impl->mutex);
+    status->is_end_of_stream = impl->eos;
+    aws_mutex_unlock(&impl->mutex);
+    status->is_valid = true;
+    return AWS_OP_SUCCESS;
+}
+
+static int s_input_stream_get_length(struct aws_input_stream *stream, int64_t *out_length) {
+    (void)stream;
+    (void)out_length;
+    return AWS_ERROR_UNIMPLEMENTED;
+}
+
+static void s_input_stream_clean_up(struct aws_input_stream *stream) {
+    struct aws_napi_input_stream_impl *impl = stream->impl;
+    struct aws_allocator *allocator = impl->buffer.allocator;
+    aws_mutex_clean_up(&impl->mutex);
+    aws_byte_buf_clean_up(&impl->buffer);
+    aws_mem_release(allocator, impl);
+}
+
+static struct aws_input_stream_vtable s_input_stream_vtable = {
+    .seek = s_input_stream_seek,
+    .read = s_input_stream_read,
+    .get_status = s_input_stream_get_status,
+    .get_length = s_input_stream_get_length,
+    .clean_up = s_input_stream_clean_up,
+};
+
+napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_input_stream_new requires exactly 1 arguments");
+        return NULL;
+    }
+
+    int64_t capacity = 0;
+    if (napi_get_value_int64(env, node_args[0], &capacity)) {
+        napi_throw_error(env, NULL, "capacity must be a number");
+        return NULL;
+    }
+
+    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_napi_input_stream_impl *impl = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_input_stream_impl));
+    if (!impl) {
+        napi_throw_error(env, NULL, "Unable to allocate native aws_input_stream");
+        return NULL;
+    }
+
+    impl->base.allocator = allocator;
+    impl->base.impl = impl;
+    impl->base.vtable = &s_input_stream_vtable;
+    if (aws_mutex_init(&impl->mutex)) {
+        aws_napi_throw_last_error(env);
+        goto failed;
+    }
+
+    if (aws_byte_buf_init(&impl->buffer, allocator, 16 * 1024)) {
+        napi_throw_error(env, NULL, "Unable to allocate stream buffer");
+        goto failed;
+    }
+
+    napi_value node_external = NULL;
+    if (napi_create_external(env, impl, NULL, NULL, &node_external)) {
+        napi_throw_error(env, NULL, "Unable to create external for native aws_input_stream");
+        goto failed;
+    }
+
+    return node_external;
+
+failed:
+    if (impl) {
+        s_input_stream_clean_up(&impl->base);
+    }
+
+    return NULL;
+}
+
+napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_input_stream_append requires exactly 2 arguments");
+        return NULL;
+    }
+
+    struct aws_napi_input_stream_impl *impl = NULL;
+    if (napi_get_value_external(env, node_args[0], (void**)&impl)) {
+        napi_throw_error(env, NULL, "stream must be a node external");
+        return NULL;
+    }
+
+    /* null means end of stream */
+    if (aws_napi_is_null_or_undefined(env, node_args[1])) {
+        aws_mutex_lock(&impl->mutex);
+        impl->eos = true;
+        aws_mutex_unlock(&impl->mutex);
+        return NULL;
+    }
+
+    /* not null or undefined, so it should be a buffer */
+    bool is_buffer = false;
+    if (napi_is_buffer(env, node_args[1], &is_buffer) || !is_buffer) {
+        napi_throw_error(env, NULL, "buffer must be a valid Buffer object or undefined/null");
+        return NULL;
+    }
+
+    struct aws_byte_cursor data;
+    if (napi_get_buffer_info(env, node_args[1], (void**)&data.ptr, &data.len)) {
+        napi_throw_error(env, NULL, "Unable to extract data from buffer");
+        return NULL;
+    }
+
+    aws_mutex_lock(&impl->mutex);
+    aws_byte_buf_append(&impl->buffer, &data);
+    aws_mutex_unlock(&impl->mutex);
+
+    return NULL;
 }

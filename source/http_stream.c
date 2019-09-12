@@ -30,7 +30,6 @@ struct http_stream_binding {
     struct aws_napi_callback on_body;
     struct aws_http_message *response; /* used to buffer response headers/status code */
     struct aws_http_message *request;
-    struct aws_byte_buf body;             /* request body */
     struct aws_input_stream *body_stream; /* stream pointing at request body */
 };
 
@@ -206,7 +205,6 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
     aws_http_message_destroy(binding->request);
     aws_http_message_destroy(binding->response);
     aws_input_stream_destroy(binding->body_stream);
-    aws_byte_buf_clean_up(&binding->body);
     aws_mem_release(allocator, binding);
 }
 
@@ -247,12 +245,10 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
 
     struct aws_input_stream *body_stream = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
-        if (aws_byte_buf_init_from_napi(&body, env, node_args[3])) {
-            napi_throw_error(env, NULL, "Unable to init request body buffer");
+        if (napi_get_value_external(env, node_args[3], (void**)&body_stream)) {
+            napi_throw_error(env, NULL, "Unable to acquire request body stream");
             goto argument_error;
         }
-        struct aws_byte_cursor body_cursor = aws_byte_cursor_from_buf(&body);
-        body_stream = aws_input_stream_new_from_cursor(allocator, &body_cursor);
     }
 
     struct aws_http_message *request = aws_http_message_new_request(allocator);
@@ -361,7 +357,6 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
         goto failed_binding_alloc;
     }
 
-    binding->body = body;
     binding->body_stream = body_stream;
     binding->on_complete = on_complete;
     binding->on_response = on_response;

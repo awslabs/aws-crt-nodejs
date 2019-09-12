@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+import { InputStreamBase } from "./io";
+
 type HttpHeader = [string, string];
 
 export class HttpHeaders {
@@ -103,7 +105,7 @@ export class HttpRequest {
     constructor(
         public method: string,
         public path: string,
-        public body?: string,
+        public body?: InputStreamBase,
         public headers = new HttpHeaders()) {
     }
 }
