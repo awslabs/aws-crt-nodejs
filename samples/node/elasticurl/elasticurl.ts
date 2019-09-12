@@ -219,7 +219,6 @@ function main(argv: Args) {
         let headers = new http.HttpHeaders([
             ["host", argv.url.hostname],
             ["user-agent", "elasticurl.js 1.0, Powered by the AWS Common Runtime."],
-            ["test", "test"],
         ]);
         if (body) {
             headers.add('content-length', body.length.toString());
