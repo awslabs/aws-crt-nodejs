@@ -203,7 +203,7 @@ function main(argv: Args) {
         port = 443;
     }
 
-    let decoder = new TextDecoder();
+    const decoder = new TextDecoder();
 
     const make_request = async (connection: http.HttpClientConnection, body?: string) => {
         const on_response = (status_code: Number, headers: http.HttpHeaders) => {
@@ -233,7 +233,7 @@ function main(argv: Args) {
             body_stream = new io.InputStream(stream);
         }
         if (argv.header) {
-            for (const header of argv.header as string[]) {
+            for (const header of argv.header) {
                 let h = header.split(/:\s*/, 2);
                 headers.add(h[0], h[1]);
             }
@@ -264,7 +264,7 @@ function main(argv: Args) {
         port,
         socket_options,
         tls_ctx)
-        .then((connection: http.HttpClientConnection) => {
+        .then((connection) => {
             if (argv.data) {
                 return new Promise((resolve, reject) => {
                     let data = "";
@@ -282,13 +282,13 @@ function main(argv: Args) {
             
             return make_request(connection);
         })
-        .catch((reason: Error) => {
+        .catch((reason) => {
             finish(reason);
         })
         .then((error_code) => {
             finish();
         })
-        .catch((reason: Error) => {
+        .catch((reason) => {
             finish(reason);
         });
 }
