@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-type HttpHeader = string[];
+type HttpHeader = [string, string];
 
 export class HttpHeaders {
     // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
