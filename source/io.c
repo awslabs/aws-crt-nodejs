@@ -475,7 +475,6 @@ static int s_input_stream_seek(struct aws_input_stream *stream, aws_off_t offset
     size_t buf_offset = (size_t)final_offset;
     AWS_ASSERT(buf_offset <= impl->buffer.len);
 
-    impl->eos = false;
     if (buf_offset == impl->buffer.len) {
         impl->bytes_read += impl->buffer.len;
         impl->buffer.len = 0;

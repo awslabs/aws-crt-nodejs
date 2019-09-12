@@ -126,12 +126,11 @@ struct on_body_args {
 static int s_on_body_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_body_args *args = user_data;
 
-    if (napi_get_reference_value(env, args->binding->node_external, &params[0]) ||
-        napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[1])) {
+    if (napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0])) {
         return AWS_OP_ERR;
     }
 
-    *num_params = 2;
+    *num_params = 1;
     return AWS_OP_SUCCESS;
 }
 

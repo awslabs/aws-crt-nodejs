@@ -15,6 +15,7 @@
 
 import { http, io } from "aws-crt";
 import { PassThrough } from "stream";
+import { TextDecoder } from "util";
 const fs = require('fs');
 
 type Args = { [index: string]: any };
@@ -134,11 +135,11 @@ yargs.command('*', false, (yargs: any) => {
     .alias('help', 'h')
     .middleware((argv: Args) => {
         if (argv.get) {
-            argv.method = 'get';
+            argv.method = 'GET';
         } else if (argv.post) {
-            argv.method = 'post';
+            argv.method = 'POST';
         } else if (argv.head) {
-            argv.method = 'head';
+            argv.method = 'HEAD';
         }
 
         if (argv.data_file) {
@@ -202,6 +203,8 @@ function main(argv: Args) {
         port = 443;
     }
 
+    let decoder = new TextDecoder();
+
     const make_request = async (connection: http.HttpClientConnection, body?: string) => {
         const on_response = (status_code: Number, headers: http.HttpHeaders) => {
             console.log("Response Code: " + status_code.toString());
@@ -213,7 +216,8 @@ function main(argv: Args) {
         };
 
         const on_body = (body: ArrayBuffer) => {
-            argv.output.write(body);
+            const body_str = decoder.decode(body);
+            argv.output.write(body_str);
         }
 
         let headers = new http.HttpHeaders([
@@ -262,13 +266,18 @@ function main(argv: Args) {
         tls_ctx)
         .then((connection: http.HttpClientConnection) => {
             if (argv.data) {
-                let data = "";
-                argv.data.on('data', (chunk: Buffer|string) => {
-                    data += chunk.toString();
+                return new Promise((resolve, reject) => {
+                    let data = "";
+                    argv.data.on('error', (error: Error) => {
+                        reject(error);
+                    })
+                    argv.data.on('data', (chunk: Buffer | string) => {
+                        data += chunk.toString();
+                    });
+                    argv.data.on('end', () => {
+                        resolve(make_request(connection, data));
+                    });
                 });
-                argv.data.on('end', () => {
-                    return make_request(connection, data);
-                })
             }
             
             return make_request(connection);
