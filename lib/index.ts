@@ -20,6 +20,7 @@ import * as resource_safety from './common/resource_safety';
 /* node specific libs */
 import * as io from './native/io';
 import * as mqtt from './native/mqtt';
+import * as http from './native/http';
 import * as crypto from './native/crypto';
 import * as iot from './native/aws_iot';
 import { CrtError } from './native/error';
@@ -27,6 +28,7 @@ import { CrtError } from './native/error';
 export {
     io,
     mqtt,
+    http,
     crypto,
     iot,
     platform,

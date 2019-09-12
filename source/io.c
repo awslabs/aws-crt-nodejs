@@ -15,6 +15,7 @@
 #include "io.h"
 #include "module.h"
 
+#include <aws/common/logging.h>
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/event_loop.h>
 #include <aws/io/socket.h>
@@ -51,8 +52,48 @@ napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) 
     return error_string_val;
 }
 
-napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info) {
+static struct aws_logger s_logger;
 
+napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+
+    enum aws_log_level log_level;
+    if (napi_get_value_int32(env, node_args[0], (int32_t *)&log_level)) {
+        napi_throw_error(env, NULL, "log_level must be an integer");
+        return NULL;
+    }
+
+    struct aws_string *filename = NULL;
+    if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
+        if (aws_string_new_from_napi(env, node_args[1])) {
+            napi_throw_error(env, NULL, "filename must be a string or undefined");
+            return NULL;
+        }
+    }
+
+    struct aws_logger_standard_options options = {.level = log_level};
+    options.file = filename ? NULL : stderr;
+    options.filename = (filename) ? (const char *)aws_string_bytes(filename) : NULL;
+
+    if (aws_logger_init_standard(&s_logger, aws_default_allocator(), &options)) {
+        aws_napi_throw_last_error(env);
+        goto failed;
+    }
+
+    aws_logger_set(&s_logger);
+
+failed:
+    aws_string_destroy(filename);
+    return NULL;
+}
+
+napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info) {
     (void)info;
 
     const bool is_alpn_available = aws_tls_is_alpn_available();

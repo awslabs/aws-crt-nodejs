@@ -1,0 +1,33 @@
+{
+  "name": "elasticurl",
+  "version": "1.0.0",
+  "description": "curl-like test/sample suite for the AWS CRT",
+  "main": "./dist/elasticurl.js",
+  "scripts": {
+    "test": "tsc && node ./dist/elasticurl.js -v TRACE -i https://example.com",
+    "install": "cd ../../../ && npm install --update-binary && cd samples/node/elasticurl && tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awslabs/aws-crt-nodejs.git"
+  },
+  "keywords": [
+    "aws",
+    "native",
+    "http"
+  ],
+  "author": "AWS Common Runtime Team <aws-sdk-common-runtime@amazon.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/awslabs/aws-crt-nodejs/issues"
+  },
+  "homepage": "https://github.com/awslabs/aws-crt-nodejs#readme",
+  "devDependencies": {
+    "typescript": "^3.5.3",
+    "@types/node": "^10.12.18"
+  },
+  "dependencies": {
+    "aws-crt": "file:../../../",
+    "yargs": "^13.2.4"
+  }
+}

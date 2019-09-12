@@ -13,9 +13,38 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnection } from "../lib/native/http";
+import { HttpClientConnection, HttpHeaders } from "../lib/native/http";
 import { using } from "../lib/common/resource_safety";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
+
+test('HTTP Headers', () => {
+    let headers = new HttpHeaders([
+        ['Host', 'www.amazon.com'],
+        ['Content-Length', '42']
+    ]);
+    for (const header of headers) {
+        expect(['Host', 'Content-Length']).toContain(header[0]);
+        expect(['www.amazon.com', '42']).toContain(header[1]);
+    }
+    // Upgrade header does not exist
+    expect(headers.get('Upgrade')).toBeFalsy();
+
+    // Make sure case doesn't matter
+    expect(headers.get('HOST')).toBe('www.amazon.com');
+
+    // Remove Content-Length, and make sure host is all that's left
+    headers.remove('content-length');
+    for (const header of headers) {
+        expect(header[0]).toBe('Host');
+        expect(header[1]).toBe('www.amazon.com');
+    }
+
+    headers.clear();
+    for (const header of headers) {
+        // this should never be called
+        expect(header).toBeNull();
+    }
+});
 
 test('HTTP Connection Create/Destroy', (done) => {
     using(new ClientBootstrap(), async (bootstrap) => {

@@ -54,6 +54,11 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
  */
 napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info);
 
+/**
+ * Initialize CRT logging
+ */
+napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info);
+
 AWS_EXTERN_C_END
 
 #endif /* AWS_CRT_NODEJS_IO_H */
