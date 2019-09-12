@@ -516,7 +516,7 @@ static int s_input_stream_get_status(struct aws_input_stream *stream, struct aws
 static int s_input_stream_get_length(struct aws_input_stream *stream, int64_t *out_length) {
     (void)stream;
     (void)out_length;
-    return AWS_ERROR_UNIMPLEMENTED;
+    return aws_raise_error(AWS_ERROR_UNIMPLEMENTED);
 }
 
 static void s_input_stream_clean_up(struct aws_input_stream *stream) {
