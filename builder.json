@@ -1,0 +1,12 @@
+{
+    "name": "aws-crt-nodejs",
+    "upstream": [],
+    "downstream": [],
+    "build": [
+        ["git", "submodule", "update", "--init", "--recursive"],
+        ["npm", "install"]
+    ],
+    "test": [
+        ["node", "-p", "require('./dist/lib/index')"]
+    ]
+}
