@@ -22,4 +22,4 @@ export enum TlsVersion {
     Default = 128,
 }
 
-export class InputStreamBase { };
+export interface InputStreamBase { };

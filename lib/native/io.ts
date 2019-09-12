@@ -16,6 +16,7 @@
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
+import { InputStreamBase } from '../common/io';
 import { Readable } from 'stream';
 
 export function error_code_to_string(error_code: number): string {
@@ -40,9 +41,9 @@ export function is_alpn_available(): boolean {
     return crt_native.is_alpn_available();
 }
 
-export class InputStream extends NativeResource {
+export class InputStream extends NativeResource implements InputStreamBase {
     constructor(private source: Readable) {
-        super(crt_native.io_input_stream_new());
+        super(crt_native.io_input_stream_new(16 * 1024));
         this.source.on('data', (data) => {
             data = Buffer.isBuffer(data) ? data : new Buffer(data.toString(), 'utf8');
             crt_native.io_input_stream_append(this.native_handle(), data);

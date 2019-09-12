@@ -237,11 +237,20 @@ function main(argv: Args) {
 
         const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
         const stream = connection.make_request(request, on_response, on_body);
-        return stream.complete.then((error_code) => {
+        return stream.complete.then((error_code: Number) => {
             connection.close();
             return error_code;
         });
     };
+
+    const finish = (error?: Error) => {
+        if (error) {
+            console.log("EXCEPTION: " + error);
+        }
+        if (argv.output !== process.stdout) {
+            argv.output.close();
+        }
+    }
 
     http.HttpClientConnection.create(
         client_bootstrap,
@@ -251,7 +260,7 @@ function main(argv: Args) {
         port,
         socket_options,
         tls_ctx)
-        .then((connection) => {
+        .then((connection: http.HttpClientConnection) => {
             if (argv.data) {
                 let data = "";
                 argv.data.on('data', (chunk: Buffer|string) => {
@@ -264,12 +273,13 @@ function main(argv: Args) {
             
             return make_request(connection);
         })
-        .then((error_code) => {
-            if (argv.output !== process.stdout) {
-                argv.output.close();
-            }
+        .catch((reason: Error) => {
+            finish(reason);
         })
-        .catch((reason) => {
-            console.error("EXCEPTION: " + reason);
+        .then((error_code) => {
+            finish();
+        })
+        .catch((reason: Error) => {
+            finish(reason);
         });
 }
