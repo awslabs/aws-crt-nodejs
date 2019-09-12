@@ -320,6 +320,8 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
                                          .value = aws_byte_cursor_from_buf(&value_buf)};
         aws_http_message_add_header(request, header);
     }
+    aws_byte_buf_clean_up(&name_buf);
+    aws_byte_buf_clean_up(&value_buf);
 
     struct aws_napi_callback on_complete;
     AWS_ZERO_STRUCT(on_complete);
