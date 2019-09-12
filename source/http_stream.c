@@ -244,7 +244,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
 
     struct aws_input_stream *body_stream = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
-        if (napi_get_value_external(env, node_args[3], (void**)&body_stream)) {
+        if (napi_get_value_external(env, node_args[3], (void **)&body_stream)) {
             napi_throw_error(env, NULL, "Unable to acquire request body stream");
             goto argument_error;
         }

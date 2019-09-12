@@ -431,7 +431,7 @@ struct aws_napi_input_stream_impl {
     struct aws_byte_cursor cursor;
     struct aws_mutex mutex;
     size_t bytes_read; /* bytes already consumed by the reader, flushed from the buffer */
-    bool eos; /* end of stream */
+    bool eos;          /* end of stream */
 };
 
 static int s_input_stream_seek(struct aws_input_stream *stream, aws_off_t offset, enum aws_stream_seek_basis basis) {
@@ -450,8 +450,7 @@ static int s_input_stream_seek(struct aws_input_stream *stream, aws_off_t offset
              * bytes are gone from the buffer), and must not be greater than the sum of the bytes
              * read so far and the size of the buffer
              */
-            if (checked_offset < 0 || 
-                (uint64_t)checked_offset > total_bytes ||
+            if (checked_offset < 0 || (uint64_t)checked_offset > total_bytes ||
                 (uint64_t)checked_offset < impl->bytes_read) {
                 result = AWS_IO_STREAM_INVALID_SEEK_POSITION;
                 goto failed;
@@ -462,8 +461,7 @@ static int s_input_stream_seek(struct aws_input_stream *stream, aws_off_t offset
             /* Offset must be negative, and must not be trying to go further back than the
              * current length of the buffer, because those bytes have been purged
              */
-            if (checked_offset > 0 || checked_offset == INT64_MIN ||
-                (uint64_t)(-checked_offset) > impl->buffer.len) {
+            if (checked_offset > 0 || checked_offset == INT64_MIN || (uint64_t)(-checked_offset) > impl->buffer.len) {
                 result = AWS_IO_STREAM_INVALID_SEEK_POSITION;
                 goto failed;
             }
@@ -604,7 +602,7 @@ napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info
     }
 
     struct aws_napi_input_stream_impl *impl = NULL;
-    if (napi_get_value_external(env, node_args[0], (void**)&impl)) {
+    if (napi_get_value_external(env, node_args[0], (void **)&impl)) {
         napi_throw_error(env, NULL, "stream must be a node external");
         return NULL;
     }
@@ -625,7 +623,7 @@ napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info
     }
 
     struct aws_byte_cursor data;
-    if (napi_get_buffer_info(env, node_args[1], (void**)&data.ptr, &data.len)) {
+    if (napi_get_buffer_info(env, node_args[1], (void **)&data.ptr, &data.len)) {
         napi_throw_error(env, NULL, "Unable to extract data from buffer");
         return NULL;
     }
