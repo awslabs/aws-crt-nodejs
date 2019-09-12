@@ -34,7 +34,7 @@ struct http_stream_binding {
     struct aws_input_stream *body_stream; /* stream pointing at request body */
 };
 
-int s_on_response_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+static int s_on_response_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct aws_http_message *response = user_data;
 
     int32_t status_code = 0;
@@ -78,7 +78,7 @@ int s_on_response_params(napi_env env, napi_value *params, size_t *num_params, v
     return AWS_OP_SUCCESS;
 }
 
-int s_on_response_headers(
+static int s_on_response_headers(
     struct aws_http_stream *stream,
     enum aws_http_header_block block_type,
     const struct aws_http_header *header_array,
@@ -97,14 +97,14 @@ int s_on_response_headers(
     return aws_http_message_add_header_array(binding->response, header_array, num_headers);
 }
 
-void s_on_response_dispatch(void *user_data) {
+static void s_on_response_dispatch(void *user_data) {
     struct http_stream_binding *binding = user_data;
     aws_napi_callback_dispatch(&binding->on_response, binding->response);
     aws_http_message_destroy(binding->response);
     binding->response = NULL;
 }
 
-int s_on_response_header_block_done(
+static int s_on_response_header_block_done(
     struct aws_http_stream *stream,
     enum aws_http_header_block block_type,
     void *user_data) {
@@ -124,7 +124,7 @@ struct on_body_args {
     struct aws_byte_buf chunk;
 };
 
-int s_on_body_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+static int s_on_body_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_body_args *args = user_data;
 
     if (napi_get_reference_value(env, args->binding->node_external, &params[0]) ||
@@ -136,7 +136,7 @@ int s_on_body_params(napi_env env, napi_value *params, size_t *num_params, void 
     return AWS_OP_SUCCESS;
 }
 
-void s_on_body_dispatch(void *user_data) {
+static void s_on_body_dispatch(void *user_data) {
     struct on_body_args *args = user_data;
     struct aws_allocator *allocator = aws_default_allocator();
     aws_napi_callback_dispatch(&args->binding->on_body, args);
@@ -144,7 +144,7 @@ void s_on_body_dispatch(void *user_data) {
     aws_mem_release(allocator, args);
 }
 
-int s_on_response_body(struct aws_http_stream *stream, const struct aws_byte_cursor *data, void *user_data) {
+static int s_on_response_body(struct aws_http_stream *stream, const struct aws_byte_cursor *data, void *user_data) {
     (void)stream;
     struct http_stream_binding *binding = user_data;
     if (AWS_UNLIKELY(!binding->on_body.callback)) {
@@ -170,7 +170,7 @@ struct on_complete_args {
     int error_code;
 };
 
-int s_on_complete_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+static int s_on_complete_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_complete_args *args = user_data;
 
     if (napi_create_int32(env, args->error_code, &params[0])) {
@@ -181,13 +181,13 @@ int s_on_complete_params(napi_env env, napi_value *params, size_t *num_params, v
     return AWS_OP_SUCCESS;
 }
 
-void s_on_complete_dispatch(void *user_data) {
+static void s_on_complete_dispatch(void *user_data) {
     struct on_complete_args *args = user_data;
     aws_napi_callback_dispatch(&args->binding->on_complete, args);
     aws_mem_release(aws_default_allocator(), args);
 }
 
-void s_on_complete(struct aws_http_stream *stream, int error_code, void *user_data) {
+static void s_on_complete(struct aws_http_stream *stream, int error_code, void *user_data) {
     (void)stream;
     struct http_stream_binding *binding = user_data;
     struct aws_allocator *allocator = aws_default_allocator();
@@ -198,7 +198,7 @@ void s_on_complete(struct aws_http_stream *stream, int error_code, void *user_da
     aws_uv_context_enqueue(binding->uv_context, s_on_complete_dispatch, args);
 }
 
-void s_http_stream_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
     struct http_stream_binding *binding = finalize_data;
@@ -362,15 +362,16 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     binding->on_body = on_body;
     binding->request = request;
 
-    struct aws_http_make_request_options request_options = {.self_size = sizeof(struct aws_http_make_request_options),
-                                                            .request = request,
-                                                            .user_data = binding,
-                                                            .on_response_headers = s_on_response_headers,
-                                                            .on_response_header_block_done =
-                                                                s_on_response_header_block_done,
-                                                            .on_response_body = s_on_response_body,
-                                                            .on_complete = s_on_complete,
-                                                            .manual_window_management = false};
+    struct aws_http_make_request_options request_options = {
+        .self_size = sizeof(struct aws_http_make_request_options),
+        .request = request,
+        .user_data = binding,
+        .on_response_headers = s_on_response_headers,
+        .on_response_header_block_done = s_on_response_header_block_done,
+        .on_response_body = s_on_response_body,
+        .on_complete = s_on_complete,
+        .manual_window_management = false,
+    };
 
     /* becomes the native_handle for the JS object */
     if (napi_create_external(env, binding, s_http_stream_binding_finalize, NULL, &result)) {
@@ -421,7 +422,6 @@ done:
 }
 
 napi_value aws_napi_http_stream_close(napi_env env, napi_callback_info info) {
-
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {

@@ -39,7 +39,7 @@ struct aws_http_connection *aws_napi_get_http_connection(struct http_connection_
     return binding->connection;
 }
 
-int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+static int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
 
     if (napi_get_reference_value(env, args->binding->node_external, &params[0])) {
@@ -54,13 +54,13 @@ int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *
     return AWS_OP_SUCCESS;
 }
 
-void s_http_on_connection_setup_dispatch(void *user_data) {
+static void s_http_on_connection_setup_dispatch(void *user_data) {
     struct on_connection_args *args = user_data;
     aws_napi_callback_dispatch(&args->binding->on_setup, args);
     aws_mem_release(aws_default_allocator(), args);
 }
 
-void s_http_on_connection_setup(struct aws_http_connection *connection, int error_code, void *user_data) {
+static void s_http_on_connection_setup(struct aws_http_connection *connection, int error_code, void *user_data) {
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
     if (binding->on_setup.callback) {
@@ -71,7 +71,7 @@ void s_http_on_connection_setup(struct aws_http_connection *connection, int erro
     }
 }
 
-int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
+static int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
 
     if (napi_get_reference_value(env, args->binding->node_external, &params[0])) {
@@ -87,7 +87,7 @@ int s_http_on_connection_shutdown_params(napi_env env, napi_value *params, size_
 }
 
 /* finalizer called when node cleans up this object */
-void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+static void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
     struct http_connection_binding *binding = finalize_data;
@@ -97,7 +97,7 @@ void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void 
     aws_mem_release(allocator, binding);
 }
 
-void s_http_on_connection_shutdown_dispatch(void *user_data) {
+static void s_http_on_connection_shutdown_dispatch(void *user_data) {
     struct on_connection_args *args = user_data;
     aws_napi_callback_dispatch(&args->binding->on_shutdown, args);
 
@@ -120,7 +120,7 @@ cleanup:
     aws_mem_release(aws_default_allocator(), args);
 }
 
-void s_http_on_connection_shutdown(struct aws_http_connection *connection, int error_code, void *user_data) {
+static void s_http_on_connection_shutdown(struct aws_http_connection *connection, int error_code, void *user_data) {
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
     if (binding->on_shutdown.callback) {
