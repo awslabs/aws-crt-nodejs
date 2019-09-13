@@ -62,9 +62,4 @@ export class BufferedEventEmitter extends EventEmitter {
 
         return super.emit(event, ...args);
     }
-
-    on(event: EventKey, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        return this;
-    }
 }
