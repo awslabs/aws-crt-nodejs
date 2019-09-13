@@ -14,10 +14,11 @@
  */
 
 import crt_native = require('./binding');
+import { isNumber } from 'util';
 
 export class CrtError extends Error {
     constructor(err: any) {
-        const message: string = (err instanceof Number) ? crt_native.error_code_to_string(err) : err.toString();
+        const message: string = (isNumber(err)) ? crt_native.error_code_to_string(err) : err.toString();
         super(message);
     }
 }

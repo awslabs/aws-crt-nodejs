@@ -16,7 +16,7 @@
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
-import { ClientBootstrap, ClientTlsContext, SocketOptions } from './io';
+import { ClientBootstrap, ClientTlsContext, SocketOptions, InputStream } from './io';
 import { CrtError } from './error';
 import { HttpHeaders, HttpRequest } from '../common/http';
 export { HttpHeaders, HttpRequest } from '../common/http';
@@ -106,7 +106,7 @@ export class HttpClientConnection extends HttpConnection {
             this.native_handle(),
             request.method,
             request.path,
-            request.body,
+            request.body ? (request.body as InputStream).native_handle() : undefined,
             request.headers._flatten(),
             on_complete_impl,
             on_response_impl,
