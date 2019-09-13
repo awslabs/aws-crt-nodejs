@@ -239,11 +239,18 @@ function main(argv: Args) {
             }
         }
 
-        const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
-        const stream = connection.request(request, on_response, on_body);
-        return stream.complete.then((error_code: Number) => {
-            connection.close();
-            return error_code;
+        return new Promise((resolve, reject) => {
+            const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
+            const stream = connection.request(request);
+            stream.on('response', on_response);
+            stream.on('data', on_body);
+            stream.on('error', (error: Error) => {
+                reject(error);
+            })
+            stream.on('end', () => {
+                connection.close();
+                resolve();
+            });
         });
     };
 
