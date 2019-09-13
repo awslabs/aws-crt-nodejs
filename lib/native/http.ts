@@ -89,7 +89,7 @@ export class HttpClientConnection extends HttpConnection {
         super(native_handle);
     }
 
-    make_request(request: HttpRequest, on_response: StreamResponseCallback, on_body: StreamBodyCallback) {
+    request(request: HttpRequest, on_response: StreamResponseCallback, on_body: StreamBodyCallback) {
         let stream: HttpClientStream;
         const on_response_impl = (status_code: Number, headers: string[][]) => {
             stream._on_response(status_code, headers);
@@ -128,7 +128,7 @@ class HttpStream extends NativeResource implements ResourceSafe {
 
     protected constructor(
         native_handle: any,
-        protected connection: HttpConnection,
+        public connection: HttpConnection,
         protected on_body_cb?: StreamBodyCallback) {
         super(native_handle);
         this.complete = new Promise((resolve, reject) => {

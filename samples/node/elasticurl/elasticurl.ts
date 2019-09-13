@@ -240,7 +240,7 @@ function main(argv: Args) {
         }
 
         const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
-        const stream = connection.make_request(request, on_response, on_body);
+        const stream = connection.request(request, on_response, on_body);
         return stream.complete.then((error_code: Number) => {
             connection.close();
             return error_code;
