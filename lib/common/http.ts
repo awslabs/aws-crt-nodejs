@@ -65,12 +65,13 @@ export class HttpHeaders {
         let values = this.headers[name.toLowerCase()];
         for (let idx = 0; idx < values.length; ++idx) {
             const entry = values[idx];
-            if (entry[0] == name) {
+            if (entry[1] == value) {
                 if (values.length == 1) {
                     delete this.headers[name.toLowerCase()];
                 } else {
                     delete values[idx];
                 }
+                return;
             }
         }
     }
