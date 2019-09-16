@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+// This is the entry point for the AWS CRT nodejs native libraries
+
 /* common libs */
 import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';

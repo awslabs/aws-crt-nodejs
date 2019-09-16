@@ -14,6 +14,7 @@
 
 type Ctor<T> = new (...args: any[]) => T;
 
+/** Represents an object allocated natively inside the AWS CRT. */
 export class NativeResource {
     constructor(private handle: any) { }
 
@@ -22,6 +23,10 @@ export class NativeResource {
     }
 }
 
+/** 
+ * Represents an object allocated natively inside the AWS CRT which also
+ * needs a node/TS base class
+ */
 export function NativeResourceMixin<T extends Ctor<{}>>(Base: T) {
     return class extends Base {
         _handle: any;
