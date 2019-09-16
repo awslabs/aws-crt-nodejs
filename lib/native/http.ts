@@ -142,6 +142,11 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
+        if (event == 'ready' || event == 'response') {
+            process.nextTick(() => {
+                this.uncork();
+            })
+        }
         return this;
     }
 
@@ -180,7 +185,6 @@ export class HttpClientStream extends HttpStream {
             headers.add(name, value);
         }
         this.emit('ready');
-        this.uncork();
         this.emit('response', status_code, headers);
     }
 }
