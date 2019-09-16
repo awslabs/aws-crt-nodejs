@@ -92,7 +92,7 @@ export class HttpClientConnection extends HttpConnection {
 
     request(request: HttpRequest) {
         let stream: HttpClientStream;
-        const on_response_impl = (status_code: Number, headers: string[][]) => {
+        const on_response_impl = (status_code: Number, headers: [string, string][]) => {
             stream._on_response(status_code, headers);
         }
 
@@ -176,14 +176,9 @@ export class HttpClientStream extends HttpStream {
         return this.response_status_code;
     }
 
-    _on_response(status_code: Number, header_array: string[][]) {
+    _on_response(status_code: Number, header_array: [string, string][]) {
         this.response_status_code = status_code;
-        let headers = new HttpHeaders();
-        for (let header of header_array) {
-            const name = header[0];
-            const value = header[1];
-            headers.add(name, value);
-        }
+        let headers = new HttpHeaders(header_array);
         this.emit('ready');
         this.emit('response', status_code, headers);
     }
