@@ -12,10 +12,31 @@
 * permissions and limitations under the License.
 */
 
+type Ctor<T> = new (...args: any[]) => T;
+
 export class NativeResource {
-    protected constructor(private handle: any) { }
+    constructor(private handle: any) { }
 
     native_handle() {
         return this.handle;
+    }
+}
+
+export function NativeResourceMixin<T extends Ctor<{}>>(Base: T) {
+    return class extends Base {
+        _handle: any;
+        constructor(...args: any[]) {
+            const handle = args.shift();
+            super(...args);
+            this._handle = handle;
+        }
+
+        _super(handle: any) {
+            this._handle = handle;
+        }
+
+        native_handle() {
+            return this._handle;
+        }
     }
 }

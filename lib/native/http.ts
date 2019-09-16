@@ -14,12 +14,13 @@
  */
 
 import crt_native = require('./binding');
-import { NativeResource } from "./native_resource";
+import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, ClientTlsContext, SocketOptions, InputStream } from './io';
 import { CrtError } from './error';
 import { HttpHeaders, HttpRequest } from '../common/http';
 export { HttpHeaders, HttpRequest } from '../common/http';
+import { BufferedEventEmitter } from '../common/event';
 
 export class HttpConnection extends NativeResource implements ResourceSafe {
 
@@ -89,9 +90,9 @@ export class HttpClientConnection extends HttpConnection {
         super(native_handle);
     }
 
-    request(request: HttpRequest, on_response: StreamResponseCallback, on_body: StreamBodyCallback) {
+    request(request: HttpRequest) {
         let stream: HttpClientStream;
-        const on_response_impl = (status_code: Number, headers: string[][]) => {
+        const on_response_impl = (status_code: Number, headers: [string, string][]) => {
             stream._on_response(status_code, headers);
         }
 
@@ -115,76 +116,70 @@ export class HttpClientConnection extends HttpConnection {
         return stream = new HttpClientStream(
             native_handle,
             this,
-            request,
-            on_response,
-            on_body);
+            request);
     }
 }
 
-class HttpStream extends NativeResource implements ResourceSafe {
-    public readonly complete: Promise<Number>;
-    private resolve_complete?: (error_code: Number) => void;
-    private reject_complete?: (reason: any) => void;
-
+class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
     protected constructor(
         native_handle: any,
-        public connection: HttpConnection,
-        protected on_body_cb?: StreamBodyCallback) {
-        super(native_handle);
-        this.complete = new Promise((resolve, reject) => {
-            this.resolve_complete = resolve;
-            this.reject_complete = reject;
-        });
+        public connection: HttpConnection) {
+        super();
+        this._super(native_handle);
+        this.cork();
     }
 
     close() {
         crt_native.http_stream_close(this.native_handle());
     }
 
-    _on_body(data: ArrayBuffer) {
-        if (this.on_body_cb) {
-            this.on_body_cb(data);
+    on(event: 'end', listener: () => void): this;
+    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
+    on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
+    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
+    on(event: 'error', listener: (error: Error) => void): this;
+    on(event: 'ready', listener: () => void): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        if (event == 'ready' || event == 'response') {
+            process.nextTick(() => {
+                this.uncork();
+            })
         }
+        return this;
+    }
+
+    _on_body(data: ArrayBuffer) {
+        this.emit('data', data);
     }
 
     _on_complete(error_code: Number) {
-        if (error_code == 0) {
-            this.resolve_complete && this.resolve_complete(error_code);
-        } else {
-            this.reject_complete && this.reject_complete(new CrtError(error_code));
-        }
-        this.close();
+        // schedule death after end is delivered
+        this.on('end', () => {
+            this.close();
+        })
+        this.emit('end');
     }
 }
-
-export type StreamResponseCallback = (status_code: Number, headers: HttpHeaders) => void;
-export type StreamBodyCallback = (data: ArrayBuffer) => void;
 
 export class HttpClientStream extends HttpStream {
     private response_status_code?: Number;
     constructor(
         native_handle: any,
         connection: HttpClientConnection,
-        public readonly request: HttpRequest,
-        protected on_response_cb: StreamResponseCallback,
-        on_body_cb?: StreamBodyCallback) {
-        super(native_handle, connection, on_body_cb);
+        public readonly request: HttpRequest) {
+        super(native_handle, connection);
     }
 
     status_code() {
         return this.response_status_code;
     }
 
-    _on_response(status_code: Number, header_array: string[][]) {
+    _on_response(status_code: Number, header_array: [string, string][]) {
         this.response_status_code = status_code;
-        if (this.on_response_cb) {
-            let headers = new HttpHeaders();
-            for (let header of header_array) {
-                const name = header[0];
-                const value = header[1];
-                headers.add(name, value);
-            }
-            this.on_response_cb(status_code, headers);
-        }
+        let headers = new HttpHeaders(header_array);
+        this.emit('ready');
+        this.emit('response', status_code, headers);
     }
 }
