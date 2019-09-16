@@ -4,9 +4,12 @@
     "downstream": [],
     "build": [
         ["git", "submodule", "update", "--init", "--recursive"],
-        ["npm", "install"]
+        ["npm", "install", "--ignore-scripts"],
+        ["npm", "run-script", "gyp", "configure", "--build-from-source", "--", "-Ddeps_build_args=\"-DLibCrypto_DIR=/opt/openssl\""],
+        ["npm", "run-script", "gyp", "build"]
     ],
     "test": [
-        ["node", "-p", "require('./dist/lib/index')"]
+        ["node", "-p", "require('./dist/lib/index')"],
+        ["npm", "run-script", "test"]
     ]
 }

@@ -42,6 +42,8 @@ const is_32bit = process.arch == 'x32' || process.arch == 'arm';
 const is_windows = process.platform == 'win32';
 const is_macos = process.platform == 'darwin';
 
+const extra_cmake_args = process.argv.slice(2);
+
 const cross_compile_flags: string = (() => {
     let flags: string[] = [];
 
@@ -80,7 +82,7 @@ async function get_generator_string(): Promise<string | null> {
                 vs_version_gen_str = 'Visual Studio 14 2015';
                 x64_arch_str = 'Win64'
                 console.log('found installed version of Visual Studio 2015');
-            } 
+            }
 
             if (!vs_version_gen_str) {
                 console.error('CMake does not recognize an installed version of visual studio on your system.');
@@ -150,7 +152,7 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         '-DCMAKE_BUILD_TYPE=Release',
         cmake_args.join(' '),
         lib_source_dir,
-    ].join(' ');
+    ].concat(extra_cmake_args).join(' ');
     const build_cmd = ['cmake', '--build', './', '--config', 'release', '--target', 'install'].join(' ');
 
     await run_and_check(config_cmd);

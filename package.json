@@ -35,7 +35,8 @@
     ]
   },
   "scripts": {
-    "build": "tsc && node-pre-gyp rebuild && tsc -p tsconfig.browser.json",
+    "gyp": "node-pre-gyp",
+    "build": "tsc && tsc -p tsconfig.browser.json && node-pre-gyp rebuild",
     "test": "jest -i --detectOpenHandles",
     "install": "tsc && node-pre-gyp install --fallback-to-build && tsc -p tsconfig.browser.json"
   },

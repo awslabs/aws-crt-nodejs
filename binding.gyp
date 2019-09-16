@@ -1,6 +1,7 @@
 {
     "variables": {
-        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : require('path').join(process.cwd(), 'deps_build', 'install')\")'"
+        "deps_install_dir": "'<!(node -p \"process.env.AWS_C_INSTALL ? process.env.AWS_C_INSTALL.replace(/\\\"+/g,'') : require('path').join(process.cwd(), 'deps_build', 'install')\")'",
+        "deps_build_args%": ["from-file"]
     },
     "targets": [
         {
@@ -15,7 +16,7 @@
                     "outputs": [
                         "../deps_build/install/include/aws/common/common.h"
                     ],
-                    "action": ["node", "./dist/scripts/deps_build.js"],
+                    "action": ["node", "./dist/scripts/deps_build.js", "<@(deps_build_args)"],
                     "message": "building dependencies"
                 }
             ],
