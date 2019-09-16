@@ -25,6 +25,10 @@ class BufferedEvent {
     }
 }
 
+/** Provides buffered event emitting semantics, similar to many Node-style streams.
+ * Subclasses will override {@link BufferedEventEmitter#on} and trigger uncorking.
+ * Note that uncorking should always be done next tick, not during the on() call!
+ */
 export class BufferedEventEmitter extends EventEmitter {
     private corked = false;
     private eventQueue?: BufferedEvent;

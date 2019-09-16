@@ -22,6 +22,7 @@ import { HttpHeaders, HttpRequest } from '../common/http';
 export { HttpHeaders, HttpRequest } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
+/** Base class for HTTP connections */
 export class HttpConnection extends NativeResource implements ResourceSafe {
 
     protected constructor(native_handle: any) {
@@ -35,6 +36,8 @@ export class HttpConnection extends NativeResource implements ResourceSafe {
 
 type ClientConnectionCallback = (connection: HttpClientConnection, error_code: Number) => void;
 
+/** Represents an HTTP connection from a client to a server */
+/* TODO: Switch this to an EventEmitter interface and then document the events */
 export class HttpClientConnection extends HttpConnection {
     static create(
         bootstrap: ClientBootstrap,
@@ -90,6 +93,10 @@ export class HttpClientConnection extends HttpConnection {
         super(native_handle);
     }
 
+    /** Make a client initiated request to this connection.
+     * @param request - The HttpRequest to attempt on this connection
+     * @returns A new stream that will deliver events for the request
+     */
     request(request: HttpRequest) {
         let stream: HttpClientStream;
         const on_response_impl = (status_code: Number, headers: [string, string][]) => {
@@ -120,6 +127,12 @@ export class HttpClientConnection extends HttpConnection {
     }
 }
 
+/** Represents a single http message exchange (request/response) in HTTP/1.1. In H2, it may
+ * also represent a PUSH_PROMISE followed by the accompanying response.
+ * 
+ * NOTE: Binding either the ready or response event will uncork any buffered events and start
+ * event delivery
+ */
 class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
     protected constructor(
         native_handle: any,
@@ -129,15 +142,35 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         this.cork();
     }
 
+    /** Closes and ends all communication on this stream. Called automatically after the 'end'
+     * event is delivered. Calling this manually is only necessary if you wish to terminate
+     * communication mid-request/response.
+     */
     close() {
         crt_native.http_stream_close(this.native_handle());
     }
 
+    /** Stream has completed sucessfully. */
     on(event: 'end', listener: () => void): this;
+    /** Emitted when the header block arrives from the server.
+     * HTTP/1.1 - After all leading headers have been delivered
+     * H2 - After the initial header block has been delivered
+     */
     on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
+    /** Emitted when inline headers are delivered while communicating over H2 
+     * @param status_code - The HTTP status code returned from the server
+     * @param headers - The full set of headers returned from the server in the header block 
+    */    
     on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
+    /** Emitted when a body chunk arrives from the server
+     * @param body_data - The chunk of body data
+     */
     on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
+    /** Emitted when an error occurs
+     * @param error - A CrtError containing the error that occurred
+     */
     on(event: 'error', listener: (error: Error) => void): this;
+    /** Emitted when the stream is ready and is about to start sending response data */
     on(event: 'ready', listener: () => void): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -155,6 +188,11 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
     }
 
     _on_complete(error_code: Number) {
+        if (error_code) {
+            this.emit('error', new CrtError(error_code));
+            this.close();
+            return;
+        }
         // schedule death after end is delivered
         this.on('end', () => {
             this.close();
@@ -163,6 +201,7 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
     }
 }
 
+/** Represents a stream created on a client HTTP connection. {@see HttpStream}*/
 export class HttpClientStream extends HttpStream {
     private response_status_code?: Number;
     constructor(
@@ -172,6 +211,9 @@ export class HttpClientStream extends HttpStream {
         super(native_handle, connection);
     }
 
+    /** HTTP status code returned from the server.
+     * @return Either the status code, or undefined if the server response has not arrived yet.
+     */
     status_code() {
         return this.response_status_code;
     }
