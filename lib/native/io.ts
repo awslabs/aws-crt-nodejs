@@ -15,7 +15,6 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
-import { ResourceSafe } from '../common/resource_safety';
 import { InputStreamBase, TlsVersion } from '../common/io';
 import { Readable } from 'stream';
 export { TlsVersion } from '../common/io';
@@ -81,10 +80,6 @@ export class InputStream extends NativeResource implements InputStreamBase {
             crt_native.io_input_stream_append(this.native_handle(), undefined);
         })
     }
-
-    close() {
-        /* no-op */
-    }
 }
 
 /** Represents native resources required to bootstrap a client connection
@@ -93,13 +88,9 @@ export class InputStream extends NativeResource implements InputStreamBase {
  * 
  * nodejs only.
  */
-export class ClientBootstrap extends NativeResource implements ResourceSafe {
+export class ClientBootstrap extends NativeResource {
     constructor() {
         super(crt_native.io_client_bootstrap_new());
-    }
-
-    close() {
-        /* no-op in JS */
     }
 }
 
@@ -118,7 +109,7 @@ export enum SocketDomain {
  * 
  * nodejs only.
 */
-export class SocketOptions extends NativeResource implements ResourceSafe {
+export class SocketOptions extends NativeResource {
     constructor(
         type: SocketType,
         domain: SocketDomain,
@@ -136,10 +127,6 @@ export class SocketOptions extends NativeResource implements ResourceSafe {
             keep_alive_max_failed_probes,
             keepalive
         ));
-    }
-
-    close() {
-        /* no-op in JS */
     }
 }
 
