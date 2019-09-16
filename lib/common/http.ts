@@ -17,7 +17,8 @@ import { InputStreamBase } from "./io";
 
 type HttpHeader = [string, string];
 
-/** Encapsulates an HTTP header block. Stores all headers in their original case format,
+/** 
+ * Encapsulates an HTTP header block. Stores all headers in their original case format,
  * but allows for case-insensitive header lookup.
  */
 export class HttpHeaders {
@@ -31,7 +32,8 @@ export class HttpHeaders {
         }
     }
 
-    /** Add a name/value pair 
+    /** 
+     * Add a name/value pair 
      * @param name - The header name
      * @param value - The header value
     */
@@ -44,7 +46,8 @@ export class HttpHeaders {
         }
     }
 
-    /** Set a name/value pair, replacing any existing values for the name 
+    /** 
+     * Set a name/value pair, replacing any existing values for the name 
      * @param name - The header name
      * @param value - The header value
     */
@@ -52,7 +55,8 @@ export class HttpHeaders {
         this.headers[name.toLowerCase()] = [[name, value]];
     }
 
-    /** Get the list of values for the given name
+    /**
+     * Get the list of values for the given name
      * @param name - The header name to look for
      * @return List of values, or empty list if none exist
      */
@@ -65,7 +69,8 @@ export class HttpHeaders {
         return values;
     }
 
-    /** Gets the first value for the given name, ignoring any additional values
+    /** 
+     * Gets the first value for the given name, ignoring any additional values
      * @param name - The header name to look for
      * @param default_value - Value returned if no values are found for the given name
      * @return The first header value, or default if no values exist
@@ -78,14 +83,16 @@ export class HttpHeaders {
         return values[0][1] || default_value;
     }
 
-    /** Removes all values for the given name
+    /** 
+     * Removes all values for the given name
      * @param name - The header to remove all values for
      */
     remove(name: string) {
         delete this.headers[name.toLowerCase()];
     }
 
-    /** Removes a specific name/value pair
+    /** 
+     * Removes a specific name/value pair
      * @param name - The header name to remove
      * @param value - The header value to remove
      */
@@ -109,7 +116,8 @@ export class HttpHeaders {
         this.headers = {};
     }
 
-    /** Iterator. Allows for: 
+    /** 
+     * Iterator. Allows for: 
      * let headers = new HttpHeaders();
      * ...
      * for (const header of headers) { }

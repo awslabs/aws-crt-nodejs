@@ -23,7 +23,8 @@ export class NativeResource {
     }
 }
 
-/** Represents an object allocated natively inside the AWS CRT which also
+/** 
+ * Represents an object allocated natively inside the AWS CRT which also
  * needs a node/TS base class
  */
 export function NativeResourceMixin<T extends Ctor<{}>>(Base: T) {

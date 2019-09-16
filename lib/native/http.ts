@@ -93,7 +93,8 @@ export class HttpClientConnection extends HttpConnection {
         super(native_handle);
     }
 
-    /** Make a client initiated request to this connection.
+    /** 
+     * Make a client initiated request to this connection.
      * @param request - The HttpRequest to attempt on this connection
      * @returns A new stream that will deliver events for the request
      */
@@ -127,7 +128,8 @@ export class HttpClientConnection extends HttpConnection {
     }
 }
 
-/** Represents a single http message exchange (request/response) in HTTP/1.1. In H2, it may
+/** 
+ * Represents a single http message exchange (request/response) in HTTP/1.1. In H2, it may
  * also represent a PUSH_PROMISE followed by the accompanying response.
  * 
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
@@ -142,7 +144,8 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         this.cork();
     }
 
-    /** Closes and ends all communication on this stream. Called automatically after the 'end'
+    /** 
+     * Closes and ends all communication on this stream. Called automatically after the 'end'
      * event is delivered. Calling this manually is only necessary if you wish to terminate
      * communication mid-request/response.
      */
@@ -150,29 +153,34 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         crt_native.http_stream_close(this.native_handle());
     }
 
-    /** Stream has completed sucessfully. */
+    /** Emitted when stream has completed sucessfully. */
     on(event: 'end', listener: () => void): this;
-    /** Emitted when the header block arrives from the server.
+    /** 
+     * Emitted when the header block arrives from the server.
      * HTTP/1.1 - After all leading headers have been delivered
      * H2 - After the initial header block has been delivered
      */
     on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
-    /** Emitted when inline headers are delivered while communicating over H2 
+    /** 
+     * Emitted when inline headers are delivered while communicating over H2 
      * @param status_code - The HTTP status code returned from the server
      * @param headers - The full set of headers returned from the server in the header block 
     */    
     on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
-    /** Emitted when a body chunk arrives from the server
+    /** 
+     * Emitted when a body chunk arrives from the server
      * @param body_data - The chunk of body data
      */
     on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
-    /** Emitted when an error occurs
+    /** 
+     * Emitted when an error occurs
      * @param error - A CrtError containing the error that occurred
      */
     on(event: 'error', listener: (error: Error) => void): this;
     /** Emitted when the stream is ready and is about to start sending response data */
     on(event: 'ready', listener: () => void): this;
 
+    // Override to allow uncorking on ready and response
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
         if (event == 'ready' || event == 'response') {
@@ -211,7 +219,8 @@ export class HttpClientStream extends HttpStream {
         super(native_handle, connection);
     }
 
-    /** HTTP status code returned from the server.
+    /** 
+     * HTTP status code returned from the server.
      * @return Either the status code, or undefined if the server response has not arrived yet.
      */
     status_code() {
