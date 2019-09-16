@@ -15,18 +15,13 @@
 
 import * as path from 'path';
 
-const binary = require('node-pre-gyp');
-
-/* setting this to true causes node-pre-gyp to load the debug awscrt node plugin */
-const DEBUG_BINDINGS = false;
-
 let binding: any;
-try { /* when in the lib folder, it's 2 directories up */
-    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', 'package.json'), { debug: DEBUG_BINDINGS });
+try { /* when in the lib folder, it's in the dist directory */
+    const binding_path: string = path.resolve(__dirname, '..', '..', 'dist', 'native', 'aws-crt-nodejs');
     binding = require(binding_path);
 }
-catch (err) { /* When in the dist/lib folder, it's 3 directories up */
-    const binding_path: string = binary.find(path.resolve(__dirname, '..', '..', '..', 'package.json'), { debug: DEBUG_BINDINGS });
+catch (err) { /* When in the dist/lib folder, just leave lib */
+    const binding_path: string = path.resolve(__dirname, '..', '..', 'native', 'aws-crt-nodejs');
     binding = require(binding_path);
 }
 

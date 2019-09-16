@@ -41,7 +41,7 @@ struct aws_uv_context;
 typedef void(aws_uv_callback_fn)(void *user_data);
 
 /* Gets the default global libuv command buffer, in most cases there is only 1 per application */
-struct aws_uv_context *aws_uv_context_get_default();
+struct aws_uv_context *aws_uv_context_get_default(void);
 
 /* Acquire a reference to the context, initializing it if necessary */
 int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env);

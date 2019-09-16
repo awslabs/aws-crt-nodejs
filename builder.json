@@ -5,8 +5,8 @@
     "build": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
-        ["npm", "run-script", "gyp", "configure", "--build-from-source", "--", "-Ddeps_build_args=\"-DLibCrypto_DIR=/opt/openssl\""],
-        ["npm", "run-script", "gyp", "build"]
+        ["npm", "run-script", "cmake", "configure", "--CDLibCrypto_DIR=/opt/openssl"],
+        ["npm", "run-script", "cmake", "build"]
     ],
     "test": [
         ["node", "-p", "require('./dist/lib/index')"],
