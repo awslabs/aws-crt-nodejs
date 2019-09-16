@@ -16,12 +16,14 @@
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
-import { InputStreamBase } from '../common/io';
+import { InputStreamBase, TlsVersion } from '../common/io';
 import { Readable } from 'stream';
+export { TlsVersion } from '../common/io';
 
 /** Convert a native error code into a human-readable string
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @see CrtError
  * 
  * nodejs only.
  */
@@ -29,20 +31,27 @@ export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
 }
 
+/** The amount of detail that will be logged */
 export enum LogLevel {
+    /** No logging whatsoever. Equivalent to never calling {@link enable_logging}. */
     NONE = 0,
+    /** Only fatals. In practice, this will not do much, as the process will log and then crash (intentionally) if a fatal condition occurs */
     FATAL = 1,
+    /** Only errors */
     ERROR = 2,
+    /** Only warnings and errors */
     WARN = 3,
+    /** Information about connection/stream creation/destruction events */
     INFO = 4,
+    /** Enough information to debug the chain of events a given network connection encounters */
     DEBUG = 5,
+    /** Everything. Only use this if you really need to know EVERY single call */
     TRACE = 6
 }
 
 /** Enables logging of the native AWS CRT libraries.
- * @param {LogLevel} level - The logging level to filter to
- * @param filename - (Optional) The file to log to. If not provided,
- * stderr will be used
+ * @param level - The logging level to filter to
+ * @param filename - (Optional) The file to log to. If not provided, stderr will be used
  * 
  * nodejs only.
  */
@@ -51,7 +60,7 @@ export function enable_logging(level: LogLevel, filename?: string) {
 }
 
 /** Returns true if ALPN is available on this platform natively 
- * 
+ * @return true if ALPN is supported natively, false otherwise
  * nodejs only.
 */
 export function is_alpn_available(): boolean {
@@ -132,15 +141,6 @@ export class SocketOptions extends NativeResource implements ResourceSafe {
     close() {
         /* no-op in JS */
     }
-}
-
-export enum TlsVersion {
-    SSLv3 = 0,
-    TLSv1 = 1,
-    TLSv1_1 = 2,
-    TLSv1_2 = 3,
-    TLSv1_3 = 4,
-    Default = 128,
 }
 
 /** Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}. 
