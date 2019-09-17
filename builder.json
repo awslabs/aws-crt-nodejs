@@ -5,7 +5,7 @@
     "build": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
-        ["npm", "run-script", "cmake", "--", "configure", "--cc={c}", "--cxx={cxx}", "--CDLibCrypto_DIR=/opt/openssl"],
+        ["npm", "run-script", "cmake", "--", "configure", "--cc={c}", "--cxx={cxx}", "--CDCMAKE_PREFIX_PATH=/opt/openssl"],
         ["npm", "run-script", "cmake", "--", "build"],
         ["npm", "run-script", "cmake", "--", "build", "-T", "install"]
     ],

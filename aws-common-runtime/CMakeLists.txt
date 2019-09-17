@@ -14,7 +14,6 @@ set(AWS_DEPS_BIN_DIR "${AWS_DEPS_INSTALL_DIR}/bin" CACHE PATH "Dependencies bina
 set(AWS_DEPS_LIB_DIR "${AWS_DEPS_INSTALL_DIR}/lib" CACHE PATH "Dependencies library install directory.")
 set(AWS_DEPS_BUILD_DIR "${CMAKE_BINARY_DIR}/build" CACHE PATH "Dependencies build directory.")
 
-message("install dir ${AWS_DEPS_INSTALL_DIR}")
 set(AWS_C_COMMON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/aws-c-common")
 include(BuildAwsCCommon)
 

@@ -18,11 +18,12 @@ if (BUILD_DEPS)
     set(AWS_DEPS_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/deps CACHE STRING "If BUILD_DEPS is on, aws common runtime dependencies build in this directory.")
     set(AWS_DEPS_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/deps/install)
 
-    if (NOT DEFINED CMAKE_PREFIX_PATH)
-        set(CMAKE_PREFIX_PATH ${AWS_DEPS_INSTALL_DIR})
-    endif()
+    list(APPEND CMAKE_PREFIX_PATH ${AWS_DEPS_INSTALL_DIR})
 
     message(STATUS "AWS Common Runtime is installing to: ${AWS_DEPS_INSTALL_DIR}")
+
+    string(REPLACE ";" "|" CMAKE_PREFIX_PATH_BAR "${CMAKE_PREFIX_PATH}")
+    message(STATUS "ROOT prefix path: ${CMAKE_PREFIX_PATH}")
 
     file(MAKE_DIRECTORY ${AWS_DEPS_BUILD_DIR})
     execute_process(
@@ -31,12 +32,10 @@ if (BUILD_DEPS)
             -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
             -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
-            -DCMAKE_PREFIX_PATH=${AWS_DEPS_INSTALL_DIR}
+            -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH_BAR}
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
-            -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/bin
             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-            -DLibCrypto_DIR=${LibCrypto_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/aws-common-runtime
             WORKING_DIRECTORY ${AWS_DEPS_BUILD_DIR}
             RESULT_VARIABLE BUILD_AWSCRT_EXIT_CODE

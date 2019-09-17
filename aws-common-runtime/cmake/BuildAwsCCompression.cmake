@@ -4,6 +4,7 @@ if("${TARGET_ARCH}" STREQUAL ANDROID)
             GIT_REPOSITORY ${AWS_C_COMPRESSION_URL}
             GIT_TAG ${AWS_C_COMPRESSION_SHA}
             BUILD_IN_SOURCE 0
+            LIST_SEPARATOR |
             UPDATE_COMMAND ""
             CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
@@ -24,6 +25,7 @@ elseif(MSVC)
             GIT_REPOSITORY ${AWS_C_COMPRESSION_URL}
             GIT_TAG ${AWS_C_COMPRESSION_SHA}
             BUILD_IN_SOURCE 0
+            LIST_SEPARATOR |
             UPDATE_COMMAND ""
             CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
@@ -34,11 +36,13 @@ elseif(MSVC)
             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
             )
 else()
+    message(STATUS "Compression Prefix path: ${CMAKE_PREFIX_PATH}")
     ExternalProject_Add(AwsCCompression
             PREFIX ${AWS_DEPS_BUILD_DIR}
             DOWNLOAD_COMMAND ""
             SOURCE_DIR ${AWS_C_COMPRESSION_DIR}
             BUILD_IN_SOURCE 0
+            LIST_SEPARATOR |
             CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
             -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}

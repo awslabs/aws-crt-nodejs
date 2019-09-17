@@ -4,6 +4,7 @@ if("${TARGET_ARCH}" STREQUAL ANDROID)
             GIT_REPOSITORY ${AWS_C_AUTH_URL}
             GIT_TAG ${AWS_C_AUTH_SHA}
             BUILD_IN_SOURCE 0
+            LIST_SEPARATOR |
             UPDATE_COMMAND ""
             CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
@@ -25,6 +26,7 @@ elseif(MSVC)
             GIT_REPOSITORY ${AWS_C_AUTH_URL}
             GIT_TAG ${AWS_C_AUTH_SHA}
             BUILD_IN_SOURCE 0
+            LIST_SEPARATOR |
             UPDATE_COMMAND ""
             CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
@@ -41,6 +43,7 @@ else()
             DOWNLOAD_COMMAND ""
             SOURCE_DIR ${AWS_C_AUTH_DIR}
             BUILD_IN_SOURCE 0
+            LIST_SEPARATOR |
             CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
             -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
