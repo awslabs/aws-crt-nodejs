@@ -24,12 +24,12 @@ if("${TARGET_ARCH}" STREQUAL ANDROID)
             -DUSE_S2N_PQ_CRYPTO=OFF
             )
 else()
+    message("${S2N_DIR}")
     ExternalProject_Add(S2N
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${S2N_URL}
-            GIT_TAG ${S2N_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${S2N_DIR}
             BUILD_IN_SOURCE 0
-            UPDATE_COMMAND ""
             CMAKE_ARGS
             -DCMAKE_PREFIX_PATH=${AWS_DEPS_INSTALL_DIR}
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
@@ -39,6 +39,6 @@ else()
             -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
             -DBUILD_TESTING=OFF
-            -DUSE_S2N_PQ_CRYPTO=OFF
+            -DLibCrypto_DIR=${LibCrypto_DIR}
             )
 endif()
