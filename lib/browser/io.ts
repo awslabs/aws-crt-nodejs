@@ -13,7 +13,16 @@
 */
 
 export { TlsVersion } from "../common/io";
+import { InputStreamBase } from "../common/io";
 
 export function is_alpn_available(): boolean {
     return false;
+}
+
+type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
+
+export class InputStream implements InputStreamBase {
+    constructor(public data: BodyData) {
+        
+    }
 }
