@@ -24,9 +24,12 @@ export class HttpClientConnection extends BufferedEventEmitter {
     constructor(
         host_name: string,
         port: number,
-        scheme: string = 'http'
+        scheme?: string
     ) {
         super();
+        if (!scheme) {
+            scheme = (port == 443) ? 'https' : 'http'
+        }
         this.axios = axios.create({
             baseURL: `${scheme}://${host_name}:${port}/`
         });
@@ -71,8 +74,13 @@ export class HttpClientConnection extends BufferedEventEmitter {
 
 function stream_request(connection: HttpClientConnection, request: HttpRequest) {
     const _to_object = (headers: HttpHeaders) => {
+        // axios refuses to let users configure host or user-agent
+        const forbidden_headers = ['host', 'user-agent'];
         let obj: { [index: string]: string } = {};
         for (const header of headers) {
+            if (forbidden_headers.indexOf(header[0].toLowerCase()) != -1) {
+                continue;
+            }
             obj[header[0]] = headers.get(header[0]);
         }
         return obj;
@@ -160,9 +168,9 @@ export class HttpClientStream extends BufferedEventEmitter {
             headers.add(header, response.headers[header]);
         }
         this.emit('response', this.response_status_code, headers);
-        let data = response.body;
-        if (!(response.body instanceof ArrayBuffer)) {
-            data = this.encoder.encode(response.body.toString());
+        let data = response.data;
+        if (data && !(data instanceof ArrayBuffer)) {
+            data = this.encoder.encode(data.toString());
         }
         this.emit('data', data);
         this.emit('end');
