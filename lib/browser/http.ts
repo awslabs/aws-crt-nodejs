@@ -48,9 +48,9 @@ export class HttpClientConnection extends BufferedEventEmitter {
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
         if (event == 'ready') {
-            process.nextTick(() => {
+            setTimeout(() => {
                 this.uncork();
-            })
+            }, 0);
         }
         return this;
     }
@@ -139,9 +139,9 @@ export class HttpClientStream extends BufferedEventEmitter {
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
         if (event == 'ready' || event == 'response') {
-            process.nextTick(() => {
+            setTimeout(() => {
                 this.uncork();
-            })
+            }, 0);
         }
         return this;
     }
