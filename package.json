@@ -36,9 +36,9 @@
   },
   "scripts": {
     "cmake": "cmake-js",
-    "build": "tsc && tsc -p tsconfig.browser.json && node-pre-gyp rebuild",
+    "build": "tsc && tsc -p tsconfig.browser.json && cmake-js compile",
     "test": "jest -i --detectOpenHandles",
-    "install": "tsc && node-pre-gyp install --fallback-to-build && tsc -p tsconfig.browser.json"
+    "install": "tsc && tsc -p tsconfig.browser.json && cmake-js compile"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
@@ -46,7 +46,7 @@
     "@types/node": "^10.12.18",
     "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
-    "cmake-js": "^5.3.2",
+    "cmake-js": "file:./cmake-js/",
     "jest": "^24.9.0",
     "ts-jest": "^24.0.2",
     "typescript": "^3.5.3",
