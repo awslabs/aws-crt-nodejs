@@ -25,7 +25,7 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
-export class Client extends NativeResource {
+export class MqttClient extends NativeResource {
     public bootstrap: io.ClientBootstrap;
 
     constructor(bootstrap: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
@@ -34,12 +34,12 @@ export class Client extends NativeResource {
     }
 
     new_connection(
-        config: ConnectionConfig) {
-        return new Connection(this, config);
+        config: MqttConnectionConfig) {
+        return new MqttClientConnection(this, config);
     }
 }
 
-export interface ConnectionConfig {
+export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
     connect_timeout: number;
@@ -54,10 +54,10 @@ export interface ConnectionConfig {
     tls_ctx?: io.ClientTlsContext;
 }
 
-export class Connection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafety.ResourceSafe {
+export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafety.ResourceSafe {
     private encoder = new TextEncoder();
 
-    constructor(readonly client: Client, private config: ConnectionConfig) {
+    constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
         super();
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
@@ -75,10 +75,10 @@ export class Connection extends NativeResourceMixin(BufferedEventEmitter) implem
     }
 
     /** Emitted when the connection is ready and is about to start sending response data */
-    on(event: 'ready', listener: () => void): this;
+    on(event: 'connect', listener: (session_present: boolean) => void): this;
 
     /** Emitted when connection has closed sucessfully. */
-    on(event: 'end', listener: () => void): this;
+    on(event: 'close', listener: () => void): this;
 
     /**
      * Emitted when an error occurs
@@ -101,7 +101,7 @@ export class Connection extends NativeResourceMixin(BufferedEventEmitter) implem
     // Override to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
-        if (event == 'ready') {
+        if (event == 'connect') {
             process.nextTick(() => {
                 this.uncork();
             })
@@ -116,7 +116,7 @@ export class Connection extends NativeResourceMixin(BufferedEventEmitter) implem
             const on_connect = (error_code: number, return_code: number, session_present: boolean) => {
                 if (error_code == 0 && return_code == 0) {
                     resolve(session_present);
-                    this.emit('ready');
+                    this.emit('connect', session_present);
                 } else if (error_code != 0) {
                     reject("Failed to connect: " + io.error_code_to_string(error_code));
                 } else {
@@ -253,7 +253,7 @@ export class Connection extends NativeResourceMixin(BufferedEventEmitter) implem
 
             const on_disconnect = () => {
                 resolve();
-                this.emit('end');
+                this.emit('close');
             }
 
             try {

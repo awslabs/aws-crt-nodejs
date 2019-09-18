@@ -12,11 +12,12 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-import {ConnectionConfig} from "./mqtt";
+import { MqttConnectionConfig } from "./mqtt";
 import * as io from "./io";
+import * as platform from '../common/platform';
 
 export class AwsIotMqttConnectionConfigBuilder {
-    private params: ConnectionConfig   
+    private params: MqttConnectionConfig   
     private tls_ctx_options?: io.TlsContextOptions
 
     private constructor() {
@@ -29,22 +30,43 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: '?SDK=NodeJSv2&Version=0.2.0',
+            username: `?SDK=NodeJSv2&Version=${platform.crt_version()}`,
             password: undefined,
             tls_ctx: undefined,
         };
     }
 
+    /** 
+     * Create a new builder with mTLS file paths 
+     * @param cert_path - Path to certificate, in PEM format
+     * @param key_path - Path to private key, in PEM format
+     */
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
         let builder = new AwsIotMqttConnectionConfigBuilder();
-        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert_path, key_path);
+        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path);
         
         if (io.is_alpn_available()) {
             builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
         }   
         
         return builder;
-    }  
+    }
+
+    /**
+     * Create a new builder with mTLS cert pair in memory
+     * @param cert - Certificate, in PEM format
+     * @param private_key - Private key, in PEM format
+     */
+    static new_mtls_builder(cert: string, private_key: string) {
+        let builder = new AwsIotMqttConnectionConfigBuilder();
+        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert, private_key);
+
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
+        }
+
+        return builder;
+    }
 
     with_certificate_authority_from_path(ca_path?: string, ca_file?: string) {
         if (this.tls_ctx_options !== undefined) {

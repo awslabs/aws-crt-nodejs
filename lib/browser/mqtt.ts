@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { MqttClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket } from "mqtt";
+import { MqttClient as MqttClientInternal, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket } from "mqtt";
 import { AsyncClient } from "async-mqtt";
 import * as WebsocketUtils from "./ws";
 import * as trie from "./trie";
@@ -25,7 +25,7 @@ export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt"
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
 export type AWSCredentials = WebsocketUtils.AWSCredentials;
 
-export interface ConnectionConfig {
+export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
     connect_timeout: number;
@@ -40,9 +40,9 @@ export interface ConnectionConfig {
     credentials?: AWSCredentials;
 }
 
-export class Client {
-    new_connection(config: ConnectionConfig) {
-        return new Connection(this, config);
+export class MqttClient {
+    new_connection(config: MqttConnectionConfig) {
+        return new MqttClientConnection(this, config);
     }
 }
 
@@ -85,23 +85,24 @@ class TopicTrie extends trie.Trie<SubscriptionCallback> {
     }
 }
 
-export class Connection extends BufferedEventEmitter {
+export class MqttClientConnection extends BufferedEventEmitter {
     private connection: AsyncClient;
     private subscriptions = new TopicTrie();
+    private connection_count = 0;
 
-    private create_websocket_stream = (client: MqttClient) => {
+    private create_websocket_stream = (client: MqttClientInternal) => {
         return WebsocketUtils.create_websocket_stream(this.config);
     }
 
-    private transform_websocket_url = (url: string, options: IClientOptions, client: MqttClient) => {
+    private transform_websocket_url = (url: string, options: IClientOptions, client: MqttClientInternal) => {
         return WebsocketUtils.transform_websocket_url(url, this.config);
     }
 
     constructor(
-        readonly client: Client,
-        private config: ConnectionConfig) {
+        readonly client: MqttClient,
+        private config: MqttConnectionConfig) {
         super();
-        this.connection = new AsyncClient(new MqttClient(
+        this.connection = new AsyncClient(new MqttClientInternal(
             this.create_websocket_stream,
             {
                 keepalive: this.config.keep_alive,
@@ -129,7 +130,7 @@ export class Connection extends BufferedEventEmitter {
     }
 
     /** Emitted when the connection is ready and is about to start sending response data */
-    on(event: 'connect', listener: () => void): this;
+    on(event: 'connect', listener: (session_present: boolean) => void): this;
 
     /** Emitted when connection has closed sucessfully. */
     on(event: 'close', listener: () => void): this;
@@ -163,7 +164,11 @@ export class Connection extends BufferedEventEmitter {
     }
 
     private on_online = (session_present: boolean) => {
-        this.emit('resume', 0, session_present);
+        if (++this.connection_count == 1) {
+            this.emit('connect', session_present);
+        } else {
+            this.emit('resume', 0, session_present);
+        }
     }
 
     private on_offline = () => {

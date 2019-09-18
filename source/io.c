@@ -187,107 +187,133 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
     napi_status status = napi_ok;
     (void)status;
 
-    size_t num_args = 9;
-    napi_value node_args[9];
+    napi_value node_args[11];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     }
-    if (num_args != 9) {
-        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new needs exactly 9 arguments");
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new needs exactly 11 arguments");
         return NULL;
     }
 
     napi_value result = NULL;
+
+#ifdef __APPLE__
+    struct aws_byte_buf pkcs12_path;
+    AWS_ZERO_STRUCT(pkcs12_path);
+    struct aws_byte_buf pkcs12_pwd;
+    AWS_ZERO_STRUCT(pkcs12_pwd);
+#endif
+
+    struct aws_tls_ctx_options ctx_options;
+    AWS_ZERO_STRUCT(ctx_options);
+
+    struct aws_string *ca_path = NULL;
+    struct aws_string *ca_file = NULL;
+
+    struct aws_byte_buf certificate;
+    AWS_ZERO_STRUCT(certificate);
+    struct aws_byte_buf private_key;
+    AWS_ZERO_STRUCT(private_key);
+
+    struct aws_string *cert_path = NULL;
+    struct aws_string *pkey_path = NULL;
+    struct aws_string *alpn_list = NULL;
 
     uint32_t min_tls_version = AWS_IO_TLS_VER_SYS_DEFAULTS;
     if (!aws_napi_is_null_or_undefined(env, node_args[0])) {
         napi_value node_tls_ver;
         if (napi_ok != napi_coerce_to_number(env, node_args[0], &node_tls_ver)) {
             napi_throw_type_error(
-                env, NULL, "First argument (num_threads) must be a Number (or convertable to a Number)");
+                env, NULL, "num_threads must be a Number (or convertible to a Number)");
             return result;
         }
         status = napi_get_value_uint32(env, node_tls_ver, &min_tls_version);
         AWS_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
     }
 
-    struct aws_string *ca_file = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         ca_file = aws_string_new_from_napi(env, node_args[1]);
         if (!ca_file) {
-            napi_throw_type_error(env, NULL, "Second argument (ca_file) must be a String (or convertable to a String)");
+            napi_throw_type_error(env, NULL, "ca_file must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
-    struct aws_string *ca_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
         ca_path = aws_string_new_from_napi(env, node_args[2]);
         if (!ca_path) {
-            napi_throw_type_error(env, NULL, "Third argument (ca_path) must be a String (or convertable to a String)");
+            napi_throw_type_error(env, NULL, "ca_path must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
-    struct aws_string *alpn_list = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[3])) {
         alpn_list = aws_string_new_from_napi(env, node_args[3]);
         if (!alpn_list) {
             napi_throw_type_error(
-                env, NULL, "Fourth argument (alpn_list) must be a String (or convertable to a String)");
+                env, NULL, "alpn_list must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
-    struct aws_string *cert_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
         cert_path = aws_string_new_from_napi(env, node_args[4]);
         if (!cert_path) {
             napi_throw_type_error(
-                env, NULL, "Fifth argument (cert_path) must be a String (or convertable to a String)");
+                env, NULL, "cert_path must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
-    struct aws_string *pkey_path = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
-        pkey_path = aws_string_new_from_napi(env, node_args[5]);
+        if (aws_byte_buf_init_from_napi(&certificate, env, node_args[5])) {
+            napi_throw_type_error(env, NULL, "certificate must be a String (or convertible to a String)");
+            goto cleanup;
+        }
+    }
+
+    if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
+        pkey_path = aws_string_new_from_napi(env, node_args[6]);
         if (!pkey_path) {
             napi_throw_type_error(
-                env, NULL, "Sixth argument (pkey_path) must be a String (or convertable to a String)");
+                env, NULL, "private_key_path must be a String (or convertible to a String)");
+            goto cleanup;
+        }
+    }
+
+    if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
+        if (aws_byte_buf_init_from_napi(&private_key, env, node_args[7])) {
+            napi_throw_type_error(env, NULL, "private_key must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
 #ifdef __APPLE__
-    struct aws_byte_buf pkcs12_path;
-    AWS_ZERO_STRUCT(pkcs12_path);
-
-    if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_path, env, node_args[6])) {
+    if (!aws_napi_is_null_or_undefined(env, node_args[8])) {
+        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_path, env, node_args[8])) {
             napi_throw_type_error(
-                env, NULL, "Seventh argument (pkcs12_path) must be a String (or convertable to a String)");
+                env, NULL, "pkcs12_path must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
-    struct aws_byte_buf pkcs12_pwd;
-    AWS_ZERO_STRUCT(pkcs12_pwd);
-    if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_pwd, env, node_args[7])) {
+    if (!aws_napi_is_null_or_undefined(env, node_args[9])) {
+        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_pwd, env, node_args[9])) {
             napi_throw_type_error(
-                env, NULL, "Eighth argument (pcks12_password) must be a String (or convertable to a String)");
+                env, NULL, "pcks12_password must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 #endif /* __APPLE__ */
     bool verify_peer = true;
 
-    if (!aws_napi_is_null_or_undefined(env, node_args[8])) {
+    if (!aws_napi_is_null_or_undefined(env, node_args[10])) {
         napi_value node_verify_peer;
-        if (napi_ok != napi_coerce_to_bool(env, node_args[8], &node_verify_peer)) {
-            napi_throw_type_error(env, NULL, "Ninth argument (verify_peer) must be a Bool (or convertable to a Bool)");
+        if (napi_ok != napi_coerce_to_bool(env, node_args[10], &node_verify_peer)) {
+            napi_throw_type_error(env, NULL, "verify_peer must be a boolean (or convertible to a boolean)");
             goto cleanup;
         }
 
@@ -295,11 +321,19 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
         AWS_ASSERT(status == napi_ok);
     }
 
-    struct aws_tls_ctx_options ctx_options;
-
-    if (cert_path && pkey_path) {
-        aws_tls_ctx_options_init_client_mtls_from_path(
-            &ctx_options, alloc, (const char *)aws_string_bytes(cert_path), (const char *)aws_string_bytes(pkey_path));
+    if (certificate.buffer && private_key.buffer) {
+        struct aws_byte_cursor cert_cursor = aws_byte_cursor_from_buf(&certificate);
+        struct aws_byte_cursor pkey_cursor = aws_byte_cursor_from_buf(&private_key);
+        if (aws_tls_ctx_options_init_client_mtls(&ctx_options, alloc, &cert_cursor, &pkey_cursor)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    } else if (cert_path && pkey_path) {
+        if (aws_tls_ctx_options_init_client_mtls_from_path(
+            &ctx_options, alloc, (const char *)aws_string_bytes(cert_path), (const char *)aws_string_bytes(pkey_path))) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
     } else {
         aws_tls_ctx_options_init_default_client(&ctx_options, alloc);
     }
@@ -332,6 +366,15 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
     result = node_external;
 
 cleanup:
+#ifdef __APPLE__
+    aws_byte_buf_clean_up_secure(&pkcs12_path);
+    aws_byte_buf_clean_up_secure(&pkcs12_pwd);
+#endif
+    aws_string_destroy_secure(cert_path);
+    aws_byte_buf_clean_up_secure(&certificate);
+    aws_string_destroy_secure(pkey_path);
+    aws_byte_buf_clean_up_secure(&private_key);
+    aws_string_destroy(alpn_list);
     if (!result) {
         aws_tls_ctx_options_clean_up(&ctx_options);
     }
