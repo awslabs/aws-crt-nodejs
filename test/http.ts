@@ -58,11 +58,11 @@ async function test_connection(host: string, port: number, tls_ctx?: ClientTlsCo
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
             tls_ctx
         );
-        connection.on('ready', () => {
+        connection.on('connect', () => {
             setup_error_code = 0;
             connection.close();
         });
-        connection.on('end', () => {
+        connection.on('close', () => {
             shutdown_error_code = 0;
             resolve();
         });
@@ -99,7 +99,7 @@ async function test_stream(method: string, host: string, port: number, tls_ctx?:
             port,
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
             tls_ctx);
-        connection.on('ready', () => {
+        connection.on('connect', () => {
             let request = new HttpRequest(
                 method, '/', undefined,
                 new HttpHeaders([
@@ -124,7 +124,7 @@ async function test_stream(method: string, host: string, port: number, tls_ctx?:
                 expect(error).toBeUndefined();
             });
         });
-        connection.on('end', () => {
+        connection.on('close', () => {
             resolve();
         });
         connection.on('error', (error) => {

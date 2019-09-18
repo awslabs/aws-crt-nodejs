@@ -35,18 +35,18 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     }
 
     /** Emitted when the connection is connected and ready to start streams */
-    on(event: 'ready', listener: () => void): this;
+    on(event: 'connect', listener: () => void): this;
 
     /** Emitted when an error occurs on the connection */
     on(event: 'error', listener: (error: Error) => void): this;
 
     /** Emitted when the connection has completed */
-    on(event: 'end', listener: () => void): this;
+    on(event: 'close', listener: () => void): this;
 
     // Override to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
-        if (event == 'ready') {
+        if (event == 'connect') {
             process.nextTick(() => {
                 this.uncork();
             })
@@ -56,7 +56,6 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
 }
 
 /** Represents an HTTP connection from a client to a server */
-/* TODO: Switch this to an EventEmitter interface and then document the events */
 export class HttpClientConnection extends HttpConnection {
     private _on_setup(native_handle: any, error_code: number) {
         if (error_code) {
@@ -64,7 +63,7 @@ export class HttpClientConnection extends HttpConnection {
             return;
         }
 
-        this.emit('ready');
+        this.emit('connect');
     }
 
     private _on_shutdown(native_handle: any, error_code: number) {
@@ -72,7 +71,7 @@ export class HttpClientConnection extends HttpConnection {
             this.emit('error', new CrtError(error_code));
             return;
         }
-        this.emit('end');
+        this.emit('close');
     }
 
     constructor(
@@ -157,44 +156,6 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         crt_native.http_stream_close(this.native_handle());
     }
 
-    /** Emitted when stream has completed sucessfully. */
-    on(event: 'end', listener: () => void): this;
-    /** 
-     * Emitted when the header block arrives from the server.
-     * HTTP/1.1 - After all leading headers have been delivered
-     * H2 - After the initial header block has been delivered
-     */
-    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
-    /** 
-     * Emitted when inline headers are delivered while communicating over H2 
-     * @param status_code - The HTTP status code returned from the server
-     * @param headers - The full set of headers returned from the server in the header block 
-    */    
-    on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
-    /** 
-     * Emitted when a body chunk arrives from the server
-     * @param body_data - The chunk of body data
-     */
-    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
-    /** 
-     * Emitted when an error occurs
-     * @param error - A CrtError containing the error that occurred
-     */
-    on(event: 'error', listener: (error: Error) => void): this;
-    /** Emitted when the stream is ready and is about to start sending response data */
-    on(event: 'ready', listener: () => void): this;
-
-    // Override to allow uncorking on ready and response
-    on(event: string | symbol, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        if (event == 'ready' || event == 'response') {
-            process.nextTick(() => {
-                this.uncork();
-            })
-        }
-        return this;
-    }
-
     _on_body(data: ArrayBuffer) {
         this.emit('data', data);
     }
@@ -231,10 +192,49 @@ export class HttpClientStream extends HttpStream {
         return this.response_status_code;
     }
 
+    /** 
+     * Emitted when the header block arrives from the server.
+     * HTTP/1.1 - After all leading headers have been delivered
+     * H2 - After the initial header block has been delivered
+     */
+    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
+
+    /**
+     * Emitted when inline headers are delivered while communicating over H2 
+     * @param status_code - The HTTP status code returned from the server
+     * @param headers - The full set of headers returned from the server in the header block 
+    */
+    on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
+
+    /**
+     * Emitted when a body chunk arrives from the server
+     * @param body_data - The chunk of body data
+     */
+    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
+
+    /**
+     * Emitted when an error occurs
+     * @param error - A CrtError containing the error that occurred
+     */
+    on(event: 'error', listener: (error: Error) => void): this;
+
+    /** Emitted when stream has completed sucessfully. */
+    on(event: 'end', listener: () => void): this;
+
+    // Override to allow uncorking on ready and response
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        if (event == 'response') {
+            process.nextTick(() => {
+                this.uncork();
+            })
+        }
+        return this;
+    }
+
     _on_response(status_code: Number, header_array: [string, string][]) {
         this.response_status_code = status_code;
         let headers = new HttpHeaders(header_array);
-        this.emit('ready');
         this.emit('response', status_code, headers);
     }
 }

@@ -74,7 +74,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
 
 function stream_request(connection: HttpClientConnection, request: HttpRequest) {
     const _to_object = (headers: HttpHeaders) => {
-        // axios refuses to let users configure host or user-agent
+        // browsers refuse to let users configure host or user-agent
         const forbidden_headers = ['host', 'user-agent'];
         let obj: { [index: string]: string } = {};
         for (const header of headers) {
