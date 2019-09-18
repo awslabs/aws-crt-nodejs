@@ -68,7 +68,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
     }
 
     _on_end(stream: HttpClientStream) {
-        this.emit('end');
+        this.emit('close');
     }
 }
 

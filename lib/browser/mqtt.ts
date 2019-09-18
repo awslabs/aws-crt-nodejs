@@ -129,10 +129,10 @@ export class Connection extends BufferedEventEmitter {
     }
 
     /** Emitted when the connection is ready and is about to start sending response data */
-    on(event: 'ready', listener: () => void): this;
+    on(event: 'connect', listener: () => void): this;
 
     /** Emitted when connection has closed sucessfully. */
-    on(event: 'end', listener: () => void): this;
+    on(event: 'close', listener: () => void): this;
 
     /**
      * Emitted when an error occurs
@@ -151,11 +151,10 @@ export class Connection extends BufferedEventEmitter {
      */
     on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
 
-
-    // Override to allow uncorking on ready
+    // Override to allow uncorking on connect
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
-        if (event == 'ready') {
+        if (event == 'connect') {
             process.nextTick(() => {
                 this.uncork();
             })
@@ -172,7 +171,7 @@ export class Connection extends BufferedEventEmitter {
     }
 
     private on_disconnected = () => {
-        this.emit('end');
+        this.emit('close');
     }
 
     private on_message = (topic: string, payload: Buffer, packet: any) => {
