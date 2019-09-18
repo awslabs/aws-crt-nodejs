@@ -8,8 +8,6 @@ elseif(NOT DEFINED CMAKE_INSTALL_LIBDIR)
     set(CMAKE_INSTALL_LIBDIR "lib")
 endif()
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/dist")
-
 if (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib64")
     set(FIND_LIBRARY_USE_LIB64_PATHS true)
 endif()
@@ -69,6 +67,7 @@ if (POLICY CMP0069)
     cmake_policy(SET CMP0069 NEW) # Enable LTO/IPO if available in the compiler, see AwsCFlags
 endif()
 
+set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/dist")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_PREFIX_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake")
 
 include(AwsCFlags)
@@ -96,6 +95,8 @@ find_package(aws-c-http REQUIRED)
 find_package(aws-c-mqtt REQUIRED)
 find_package(aws-c-auth REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} ${CMAKE_JS_LIB} AWS::aws-c-auth AWS::aws-c-http AWS::aws-c-mqtt)
+
+message(STATUS "INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
     DESTINATION "native")
