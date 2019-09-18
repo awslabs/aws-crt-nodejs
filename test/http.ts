@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnection, HttpHeaders } from "../lib/native/http";
+import { HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
 
 test('HTTP Headers', () => {
@@ -45,88 +45,102 @@ test('HTTP Headers', () => {
     }
 });
 
-test('HTTP Connection Create/Destroy', async (done) => {
+async function test_connection(host: string, port: number, tls_ctx?: ClientTlsContext) {
     const bootstrap = new ClientBootstrap();
     let setup_error_code: Number = -1;
-    let setup_connection: HttpClientConnection | undefined;
     let shutdown_error_code: Number = -1;
-    let shutdown_connection: HttpClientConnection | undefined;
+    let connection_error: Error | undefined;
     await new Promise((resolve, reject) => {
-        const on_setup = (connection: HttpClientConnection, error_code: Number) => {
-            setup_error_code = error_code;
-            setup_connection = connection;
-        }
-
-        const on_shutdown = (connection: HttpClientConnection, error_code: Number) => {
-            shutdown_error_code = error_code;
-            shutdown_connection = connection;
-            resolve();
-        }
-
-        HttpClientConnection.create(
+        let connection = new HttpClientConnection(
             bootstrap,
-            on_setup,
-            on_shutdown,
-            "s3.amazonaws.com",
-            80,
+            host,
+            port,
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
-            undefined)
-            .then((connection) => {
-                connection.close();
-            })
-            .catch((reason) => {
-                reject(reason);
-            });
+            tls_ctx
+        );
+        connection.on('connect', () => {
+            setup_error_code = 0;
+            connection.close();
+        });
+        connection.on('close', () => {
+            shutdown_error_code = 0;
+            resolve();
+        });
+        connection.on('error', (error) => {
+            console.log(error);
+            connection_error = error;
+            reject(error);
+        });
     }).catch((reason) => {
+        console.log(reason);
         expect(reason).toBeUndefined();
-    });        
-    
-    expect(setup_connection).toBeDefined();
+    });
+
     expect(setup_error_code).toEqual(0);
-    expect(shutdown_connection).toEqual(setup_connection);
     expect(shutdown_error_code).toEqual(0);
+    expect(connection_error).toBeUndefined();
+}
+
+test('HTTP Connection Create/Destroy', async (done) => {
+    await test_connection("s3.amazon.com", 80);
     done();
 }, 30000);
 
 test('HTTPS Connection Create/Destroy', async (done) => {
-    const bootstrap = new ClientBootstrap();
-    let setup_error_code: Number = -1;
-    let setup_connection: HttpClientConnection | undefined;
-    let shutdown_error_code: Number = -1;
-    let shutdown_connection: HttpClientConnection | undefined;
-    await new Promise((resolve, reject) => {
-        const on_setup = (connection: HttpClientConnection, error_code: Number) => {
-            setup_error_code = error_code;
-            setup_connection = connection;
-        }
-
-        const on_shutdown = (connection: HttpClientConnection, error_code: Number) => {
-            shutdown_error_code = error_code;
-            shutdown_connection = connection;
-            resolve();
-        }
-
-        HttpClientConnection.create(
-            bootstrap,
-            on_setup,
-            on_shutdown,
-            "s3.amazonaws.com",
-            443,
-            new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
-            new ClientTlsContext())
-            .then((connection) => {
-                connection.close();
-            })
-            .catch((reason) => {
-                reject(reason);
-            });
-    }).catch((reason) => {
-        expect(reason).toBeUndefined();
-    });
-
-    expect(setup_connection).toBeDefined();
-    expect(setup_error_code).toEqual(0);
-    expect(shutdown_connection).toEqual(setup_connection);
-    expect(shutdown_error_code).toEqual(0);
+    await test_connection("s3.amazonaws.com", 443, new ClientTlsContext());
     done();
 }, 30000);
+
+async function test_stream(method: string, host: string, port: number, tls_ctx?: ClientTlsContext) {
+    await new Promise((resolve, reject) => {
+        let connection = new HttpClientConnection(
+            new ClientBootstrap(),
+            host,
+            port,
+            new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
+            tls_ctx);
+        connection.on('connect', () => {
+            let request = new HttpRequest(
+                method, '/', undefined,
+                new HttpHeaders([
+                    ['host', host],
+                    ['user-agent', 'AWS CRT for NodeJS']
+                ])
+            );
+            let stream = connection.request(request);
+            stream.on('response', (status_code, headers) => {
+                expect(status_code).toBe(200);
+                expect(headers).toBeDefined();
+            });
+            stream.on('data', (body_data) => {
+                expect(body_data.byteLength).toBeGreaterThan(0);
+            });
+            stream.on('end', () => {
+                connection.close();
+            });
+            stream.on('error', (error) => {
+                connection.close();
+                console.log(error);
+                expect(error).toBeUndefined();
+            });
+        });
+        connection.on('close', () => {
+            resolve();
+        });
+        connection.on('error', (error) => {
+            console.log(error);
+            expect(error).toBeUndefined();
+            resolve();
+        });
+    });
+}
+
+test('HTTP Stream GET', async (done) => {
+    await test_stream('GET', 'example.com', 80);
+    done();
+});
+
+test('HTTPS Stream GET', async (done) => {
+    await test_stream('GET', 'example.com', 443, new ClientTlsContext());
+    done();
+})

@@ -14,7 +14,7 @@
  */
 
 import crt_native = require('./binding');
-import { NativeResource, NativeResourceMixin } from "./native_resource";
+import { NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, ClientTlsContext, SocketOptions, InputStream } from './io';
 import { CrtError } from './error';
@@ -23,74 +23,77 @@ export { HttpHeaders, HttpRequest } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
 /** Base class for HTTP connections */
-export class HttpConnection extends NativeResource implements ResourceSafe {
+export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
 
     protected constructor(native_handle: any) {
-        super(native_handle);
+        super();
+        this._super(native_handle);
     }
 
     close() {
         crt_native.http_connection_close(this.native_handle());
     }
+
+    /** Emitted when the connection is connected and ready to start streams */
+    on(event: 'connect', listener: () => void): this;
+
+    /** Emitted when an error occurs on the connection */
+    on(event: 'error', listener: (error: Error) => void): this;
+
+    /** Emitted when the connection has completed */
+    on(event: 'close', listener: () => void): this;
+
+    // Override to allow uncorking on ready
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        if (event == 'connect') {
+            process.nextTick(() => {
+                this.uncork();
+            })
+        }
+        return this;
+    }
 }
 
-type ClientConnectionCallback = (connection: HttpClientConnection, error_code: Number) => void;
-
 /** Represents an HTTP connection from a client to a server */
-/* TODO: Switch this to an EventEmitter interface and then document the events */
 export class HttpClientConnection extends HttpConnection {
-    static create(
-        bootstrap: ClientBootstrap,
-        on_connection_setup: ClientConnectionCallback | undefined,
-        on_connection_shutdown: ClientConnectionCallback | undefined,
-        host_name: String,
-        port: Number,
-        socket_options: SocketOptions,
-        tls_ctx?: ClientTlsContext) : Promise<HttpClientConnection> {
-        
-        return new Promise<HttpClientConnection>((resolve, reject) => {
-            let connection: HttpClientConnection;
-            const on_setup = (native_connection: any, error_code: Number) => {
-                if (error_code) {
-                    reject(new CrtError(error_code));
-                }
-                connection = new HttpClientConnection(
-                    native_connection,
-                    bootstrap,
-                    socket_options,
-                    tls_ctx);
-                if (on_connection_setup) {
-                    on_connection_setup(connection, error_code);
-                }
-                resolve(connection);
-            }
+    private _on_setup(native_handle: any, error_code: number) {
+        if (error_code) {
+            this.emit('error', new CrtError(error_code));
+            return;
+        }
 
-            const on_shutdown = (_native_connection: any, error_code: Number) => {
-                if (on_connection_shutdown) {
-                    on_connection_shutdown(connection, error_code);
-                }
-            }
-
-            // create new connection, connection will be delivered via on_setup
-            // errors during construction will be thrown
-            crt_native.http_connection_new(
-                bootstrap.native_handle(),
-                on_setup,
-                on_shutdown,
-                host_name,
-                port,
-                socket_options.native_handle(),
-                tls_ctx ? tls_ctx.native_handle() : undefined
-            )
-        });
+        this.emit('connect');
     }
 
-    protected constructor(
-        native_handle: any,
+    private _on_shutdown(native_handle: any, error_code: number) {
+        if (error_code) {
+            this.emit('error', new CrtError(error_code));
+            return;
+        }
+        this.emit('close');
+    }
+
+    constructor(
         protected bootstrap: ClientBootstrap,
+        host_name: string,
+        port: number,
         protected socket_options: SocketOptions,
         protected tls_ctx?: ClientTlsContext) {
-        super(native_handle);
+        
+        super(crt_native.http_connection_new(
+            bootstrap.native_handle(),
+            (handle: any, error_code: number) => {
+                this._on_setup(handle, error_code);
+            },
+            (handle: any, error_code: number) => {
+                this._on_shutdown(handle, error_code);
+            },
+            host_name,
+            port,
+            socket_options.native_handle(),
+            tls_ctx ? tls_ctx.native_handle() : undefined
+        ));
     }
 
     /** 
@@ -153,44 +156,6 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         crt_native.http_stream_close(this.native_handle());
     }
 
-    /** Emitted when stream has completed sucessfully. */
-    on(event: 'end', listener: () => void): this;
-    /** 
-     * Emitted when the header block arrives from the server.
-     * HTTP/1.1 - After all leading headers have been delivered
-     * H2 - After the initial header block has been delivered
-     */
-    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
-    /** 
-     * Emitted when inline headers are delivered while communicating over H2 
-     * @param status_code - The HTTP status code returned from the server
-     * @param headers - The full set of headers returned from the server in the header block 
-    */    
-    on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
-    /** 
-     * Emitted when a body chunk arrives from the server
-     * @param body_data - The chunk of body data
-     */
-    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
-    /** 
-     * Emitted when an error occurs
-     * @param error - A CrtError containing the error that occurred
-     */
-    on(event: 'error', listener: (error: Error) => void): this;
-    /** Emitted when the stream is ready and is about to start sending response data */
-    on(event: 'ready', listener: () => void): this;
-
-    // Override to allow uncorking on ready and response
-    on(event: string | symbol, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        if (event == 'ready' || event == 'response') {
-            process.nextTick(() => {
-                this.uncork();
-            })
-        }
-        return this;
-    }
-
     _on_body(data: ArrayBuffer) {
         this.emit('data', data);
     }
@@ -209,7 +174,7 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
     }
 }
 
-/** Represents a stream created on a client HTTP connection. {@see HttpStream}*/
+/** Represents a stream created on a client HTTP connection. {@see HttpStream} */
 export class HttpClientStream extends HttpStream {
     private response_status_code?: Number;
     constructor(
@@ -227,10 +192,49 @@ export class HttpClientStream extends HttpStream {
         return this.response_status_code;
     }
 
+    /** 
+     * Emitted when the header block arrives from the server.
+     * HTTP/1.1 - After all leading headers have been delivered
+     * H2 - After the initial header block has been delivered
+     */
+    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
+
+    /**
+     * Emitted when inline headers are delivered while communicating over H2 
+     * @param status_code - The HTTP status code returned from the server
+     * @param headers - The full set of headers returned from the server in the header block 
+    */
+    on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
+
+    /**
+     * Emitted when a body chunk arrives from the server
+     * @param body_data - The chunk of body data
+     */
+    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
+
+    /**
+     * Emitted when an error occurs
+     * @param error - A CrtError containing the error that occurred
+     */
+    on(event: 'error', listener: (error: Error) => void): this;
+
+    /** Emitted when stream has completed sucessfully. */
+    on(event: 'end', listener: () => void): this;
+
+    // Override to allow uncorking on ready and response
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        if (event == 'response') {
+            process.nextTick(() => {
+                this.uncork();
+            })
+        }
+        return this;
+    }
+
     _on_response(status_code: Number, header_array: [string, string][]) {
         this.response_status_code = status_code;
         let headers = new HttpHeaders(header_array);
-        this.emit('ready');
         this.emit('response', status_code, headers);
     }
 }
