@@ -20,7 +20,7 @@ import { InputStream } from './io';
 const axios = require('axios').default;
 
 export class HttpClientConnection extends BufferedEventEmitter {
-    public axios: any;
+    readonly axios: any;
     constructor(
         host_name: string,
         port: number,
@@ -109,7 +109,7 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
 export class HttpClientStream extends BufferedEventEmitter {
     private response_status_code?: number;
     private encoder = new TextEncoder();
-    private constructor(public connection: HttpClientConnection) {
+    private constructor(readonly connection: HttpClientConnection) {
         super();
     }
 

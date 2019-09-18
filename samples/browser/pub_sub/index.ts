@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { mqtt, iot } from "aws-crt";
+import { mqtt, iot, CrtError } from "aws-crt";
 import * as AWS from "aws-sdk";
 import Config = require('./config');
 import jquery = require("jquery");
@@ -53,48 +53,44 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
         log('Connecting websocket...');
         const client = new mqtt.Client();
 
-        function on_connection_resumed(return_code: number, session_present: boolean) {
-            log(`Connected: existing session: ${session_present}`);
-        }
-
-        function on_connection_interrupted(error_code: number) {
-            if (error_code) {
-                log(`Connection interrupted: error=${error_code}`);
-            } else {
-                log('Disconnected');
-            }
-        }
-
-        const connection = client.new_connection(config, on_connection_interrupted, on_connection_resumed);
+        const connection = client.new_connection(config);
+        connection.on('interrupt', (error: CrtError) => {
+            log(`Connection interrupted: error=${error}`);
+        });
+        connection.on('resume', (return_code: number, session_present: boolean) => {
+            log(`Resumed: rc: ${return_code} existing session: ${session_present}`)
+        });
+        connection.on('end', () => {
+            log('Disconnected');
+        });
         connection.connect().then((session_present) => {
             resolve(connection);
         }).catch((reason) => {
             reject(reason);
         });
     });
-    
+
 }
 
 async function main() {
     fetch_credentials()
-    .then(connect_websocket)
-    .then((connection) => {
-        connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload) => {
-            const decoder = new TextDecoder('utf8');
-            let message = decoder.decode(payload);
-            log(`Message recieved: topic=${topic} message=${message}`);
-            connection.disconnect();
+        .then(connect_websocket)
+        .then((connection) => {
+            connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload) => {
+                const decoder = new TextDecoder('utf8');
+                let message = decoder.decode(payload);
+                log(`Message recieved: topic=${topic} message=${message}`);
+                connection.disconnect();
+            })
+                .then((subscription) => {
+                    return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                });
         })
-        .then((subscription) => {
-            return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
-        }); 
-    })
-    .catch((reason) => {
-        log(`Error while connecting: ${reason}`);
-    });
+        .catch((reason) => {
+            log(`Error while connecting: ${reason}`);
+        });
 }
 
 $(document).ready(() => {
     main();
 });
-
