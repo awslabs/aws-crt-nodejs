@@ -5,7 +5,8 @@
     "build": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
-        ["npm", "run-script", "cmake", "--", "compile", "--cc={c}", "--cxx={cxx}", "--CDCMAKE_PREFIX_PATH=/opt/openssl", "-T", "install"]
+        ["npm", "run-script", "cmake", "--", "compile", "--cc={c}", "--cxx={cxx}", "--CDCMAKE_PREFIX_PATH=/opt/openssl", "-T", "install"],
+        ["npm", "run-script", "tsc"]
     ],
     "test": [
         ["node", "-p", "require('./dist/lib/index')"],
