@@ -82,9 +82,9 @@ async function main() {
                 log(`Message recieved: topic=${topic} message=${message}`);
                 connection.disconnect();
             })
-                .then((subscription) => {
-                    return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
-                });
+            .then((subscription) => {
+                return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+            });
         })
         .catch((reason) => {
             log(`Error while connecting: ${reason}`);

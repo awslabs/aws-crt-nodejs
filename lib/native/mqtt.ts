@@ -25,11 +25,8 @@ import { CrtError } from './error';
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
 export class MqttClient extends NativeResource {
-    public bootstrap: io.ClientBootstrap;
-
-    constructor(bootstrap: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
+    constructor(readonly bootstrap: io.ClientBootstrap, readonly tls_ctx?: io.ClientTlsContext) {
         super(crt_native.mqtt_client_new(bootstrap.native_handle()));
-        this.bootstrap = bootstrap;
     }
 
     new_connection(
