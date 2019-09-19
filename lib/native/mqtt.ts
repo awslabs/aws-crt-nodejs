@@ -22,6 +22,7 @@ import { TextEncoder } from 'util';
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
 export class MqttClient extends NativeResource {
     constructor(readonly bootstrap: io.ClientBootstrap) {
