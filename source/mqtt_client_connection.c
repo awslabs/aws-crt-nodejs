@@ -100,7 +100,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     napi_delete_reference(env, binding->node_external);
 
     aws_uv_context_release(binding->uv_context);
-    
+
     return NULL;
 }
 
@@ -205,8 +205,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     struct aws_allocator *allocator = aws_default_allocator();
     napi_value result = NULL;
 
-    struct mqtt_connection_binding *binding =
-        aws_mem_calloc(allocator, 1, sizeof(struct mqtt_connection_binding));
+    struct mqtt_connection_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct mqtt_connection_binding));
     if (!binding) {
         aws_napi_throw_last_error(env);
         return NULL;
@@ -264,11 +263,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     if (binding->on_connection_interrupted.callback || binding->on_connection_resumed.callback) {
         aws_mqtt_client_connection_set_connection_interruption_handlers(
-            binding->connection,
-            s_on_connection_interrupted,
-            binding,
-            s_on_connection_resumed,
-            binding);
+            binding->connection, s_on_connection_interrupted, binding, s_on_connection_resumed, binding);
     }
 
     napi_value node_external;
@@ -285,7 +280,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         napi_throw_error(env, NULL, "Unable to acquire libuv context");
         goto cleanup;
     }
-    
+
     result = node_external;
 
 cleanup:
@@ -541,11 +536,7 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
         aws_napi_callback_clean_up(&binding->on_connect);
 
         if (aws_napi_callback_init(
-                &binding->on_connect,
-                env,
-                node_args[1],
-                "mqtt_client_connection_on_reconnect",
-                s_on_connect_params)) {
+                &binding->on_connect, env, node_args[1], "mqtt_client_connection_on_reconnect", s_on_connect_params)) {
             goto cleanup;
         }
     }
@@ -883,14 +874,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
 
     struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&sub->topic);
     uint16_t sub_id = aws_mqtt_client_connection_subscribe(
-        binding->connection,
-        &topic_cur,
-        qos,
-        s_on_publish,
-        sub,
-        s_on_publish_user_data_clean_up,
-        s_on_suback,
-        suback);
+        binding->connection, &topic_cur, qos, s_on_publish, sub, s_on_publish_user_data_clean_up, s_on_suback, suback);
 
     if (!sub_id) {
         aws_napi_throw_last_error(env);
@@ -999,8 +983,8 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
     }
 
     const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&args->topic);
-    uint16_t unsub_id = aws_mqtt_client_connection_unsubscribe(
-        binding->connection, &topic_cur, s_on_unsubscribe_complete, args);
+    uint16_t unsub_id =
+        aws_mqtt_client_connection_unsubscribe(binding->connection, &topic_cur, s_on_unsubscribe_complete, args);
 
     if (!unsub_id) {
         napi_throw_error(env, NULL, "Failed to initiate subscribe request");
