@@ -50,6 +50,7 @@ export interface MqttConnectionConfig {
 
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     private encoder = new TextEncoder();
+    readonly tls_ctx?: io.ClientTlsContext; // this keeps the tls_ctx alive beyond the life of the connection
 
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
         super();
@@ -58,6 +59,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             (error_code: number) => { this._on_connection_interrupted(error_code); },
             (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); })
         );
+        this.tls_ctx = config.tls_ctx;
     }
 
     private close() {
