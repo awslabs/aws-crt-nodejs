@@ -15,13 +15,11 @@
 
 import crt_native = require('./binding');
 import { NativeResource, NativeResourceMixin } from "./native_resource";
-
-import * as io from "./io";
-import { TextEncoder } from 'util';
-
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
+import * as io from "./io";
+import { TextEncoder } from 'util';
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
 export class MqttClient extends NativeResource {
