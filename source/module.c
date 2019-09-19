@@ -65,6 +65,8 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
 
         NAPI_CHECK_CALL(napi_get_value_string_utf8(env, node_str, (char *)buf->buffer, buf->capacity, &buf->len));
         AWS_ASSERT(length == buf->len);
+        return napi_ok;
+
     } else if (type == napi_object) {
 
         bool is_expected = false;
@@ -127,7 +129,7 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
         }
     }
 
-    return napi_ok;
+    return napi_invalid_arg;
 }
 
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str) {

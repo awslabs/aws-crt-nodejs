@@ -123,7 +123,7 @@ int aws_uv_context_release(struct aws_uv_context *ctx) {
     if (--ctx->ref_count == 0) {
         /* For now, don't bother supporting a final flush, it shouldn't be necessary, as when refs are
            dropped the owning object should be on its way to death */
-        AWS_ASSERT(aws_linked_list_empty(ctx->command_queue.queue));
+        AWS_ASSERT(aws_linked_list_empty(&ctx->command_queue.queue));
 
         /* close uv handle, when it's dead, we finish cleanup in the callback */
         uv_close((uv_handle_t *)&ctx->async_handle, s_uv_closed);

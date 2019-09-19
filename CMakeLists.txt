@@ -94,9 +94,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 find_package(aws-c-http REQUIRED)
 find_package(aws-c-mqtt REQUIRED)
 find_package(aws-c-auth REQUIRED)
-target_link_libraries(${CMAKE_PROJECT_NAME} ${CMAKE_JS_LIB} AWS::aws-c-auth AWS::aws-c-http AWS::aws-c-mqtt)
-
-message(STATUS "INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} AWS::aws-c-auth AWS::aws-c-http AWS::aws-c-mqtt)
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
     DESTINATION "native")
