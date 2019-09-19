@@ -135,19 +135,19 @@ static void s_on_connection_interrupted(
     void *user_data) {
     (void)connection;
 
-    struct mqtt_connection_binding *nodejs_connection = user_data;
+    struct mqtt_connection_binding *binding = user_data;
 
     struct connection_interrupted_args *args =
-        aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct connection_interrupted_args));
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_interrupted_args));
 
     if (!args) {
         s_on_error(args->binding, aws_last_error());
         return;
     }
-    args->binding = nodejs_connection;
+    args->binding = binding;
     args->error_code = error_code;
 
-    aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_interrupt, args);
+    aws_uv_context_enqueue(binding->uv_context, s_dispatch_on_interrupt, args);
 }
 
 /*******************************************************************************
@@ -184,20 +184,20 @@ static void s_on_connection_resumed(
     void *user_data) {
     (void)connection;
 
-    struct mqtt_connection_binding *nodejs_connection = user_data;
+    struct mqtt_connection_binding *binding = user_data;
 
     struct connection_resumed_args *args =
-        aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct connection_resumed_args));
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_resumed_args));
 
     if (!args) {
-        s_on_error(nodejs_connection, aws_last_error());
+        s_on_error(binding, aws_last_error());
         return;
     }
 
-    args->binding = nodejs_connection;
+    args->binding = binding;
     args->return_code = return_code;
     args->session_present = session_present;
-    aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_resumed, args);
+    aws_uv_context_enqueue(binding->uv_context, s_dispatch_on_resumed, args);
 }
 
 napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info info) {
@@ -487,10 +487,11 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.on_connection_complete = s_on_connected;
     options.ping_timeout_ms = timeout;
     options.port = port_number;
-    options.socket_options = &binding->socket_options;
 
+    /* copy the original socket options, and add connect timeout */
     struct aws_socket_options socket_options = binding->socket_options;
     socket_options.connect_timeout_ms = connect_timeout;
+
     options.socket_options = &socket_options;
     options.tls_options = tls_ctx ? &binding->tls_options : NULL;
     options.user_data = binding;
