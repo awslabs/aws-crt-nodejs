@@ -25,7 +25,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             client_id: '', 
             host_name: '',
             connect_timeout: 3000, 
-            port: io.is_alpn_available() ? 443 : 8883,
+            port: 8883,
             use_websocket: false,
             clean_session: false,
             keep_alive: undefined,
@@ -44,6 +44,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
         let builder = new AwsIotMqttConnectionConfigBuilder();
         builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path);
+        builder.params.port = 8883;
         
         if (io.is_alpn_available()) {
             builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
@@ -60,6 +61,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     static new_mtls_builder(cert: string, private_key: string) {
         let builder = new AwsIotMqttConnectionConfigBuilder();
         builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert, private_key);
+        builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
             builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
@@ -78,6 +80,11 @@ export class AwsIotMqttConnectionConfigBuilder {
 
     with_endpoint(endpoint: string) {
         this.params.host_name = endpoint;
+        return this;
+    }
+
+    with_port(port: number) {
+        this.params.port = port;
         return this;
     }
 

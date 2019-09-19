@@ -189,8 +189,8 @@ export class TlsContextOptions {
      */
     static create_client_with_mtls(certificate: string, private_key: string): TlsContextOptions {
         let opt = new TlsContextOptions();
-        opt.certificate_path = certificate;
-        opt.private_key_path = private_key;
+        opt.certificate = certificate;
+        opt.private_key = private_key;
         opt.verify_peer = true;
         return opt;
     }

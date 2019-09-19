@@ -18,7 +18,6 @@ import { NativeResource, NativeResourceMixin } from "./native_resource";
 
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import * as ResourceSafety from '../common/resource_safety';
 
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 import { BufferedEventEmitter } from '../common/event';
@@ -54,7 +53,7 @@ export interface MqttConnectionConfig {
     tls_ctx?: io.ClientTlsContext;
 }
 
-export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafety.ResourceSafe {
+export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     private encoder = new TextEncoder();
 
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
@@ -66,19 +65,15 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         );
     }
 
-    /**
-     * Closes and ends all communication on this connection. Note that 'end' will be emitted
-     * after calls to close().
-     */
-    close() {
+    private close() {
         crt_native.mqtt_client_connection_close(this.native_handle());
     }
 
     /** Emitted when the connection is ready and is about to start sending response data */
     on(event: 'connect', listener: (session_present: boolean) => void): this;
 
-    /** Emitted when connection has closed sucessfully. */
-    on(event: 'close', listener: () => void): this;
+    /** Emitted when connection has disconnected sucessfully. */
+    on(event: 'disconnect', listener: () => void): this;
 
     /**
      * Emitted when an error occurs
@@ -253,7 +248,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
             const on_disconnect = () => {
                 resolve();
-                this.emit('close');
+                this.emit('disconnect');
+                this.close();
             }
 
             try {

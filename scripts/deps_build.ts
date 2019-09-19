@@ -42,6 +42,8 @@ const is_32bit = process.arch == 'x32' || process.arch == 'arm';
 const is_windows = process.platform == 'win32';
 const is_macos = process.platform == 'darwin';
 
+const cmake_config = process.argv.indexOf('--debug') != -1 ? 'Debug' : 'Release';
+
 const cross_compile_flags: string = (() => {
     let flags: string[] = [];
 
@@ -147,11 +149,11 @@ async function build_dependency(lib_name: string, ...cmake_args: string[]) {
         '-DBUILD_SHARED_LIBS=OFF',
         '-DBUILD_TESTING=OFF',
         '-DCMAKE_INSTALL_LIBDIR=' + lib_dir,
-        '-DCMAKE_BUILD_TYPE=Release',
+        `-DCMAKE_BUILD_TYPE=${cmake_config}`,
         cmake_args.join(' '),
         lib_source_dir,
     ].join(' ');
-    const build_cmd = ['cmake', '--build', './', '--config', 'release', '--target', 'install'].join(' ');
+    const build_cmd = ['cmake', '--build', './', '--config', cmake_config.toLowerCase(), '--target', 'install'].join(' ');
 
     await run_and_check(config_cmd);
     await run_and_check(build_cmd);

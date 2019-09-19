@@ -123,17 +123,11 @@ export class MqttClientConnection extends BufferedEventEmitter {
         ));
     }
 
-    close() {
-        if (this.connection.connected) {
-            this.connection.end();
-        }
-    }
-
     /** Emitted when the connection is ready and is about to start sending response data */
     on(event: 'connect', listener: (session_present: boolean) => void): this;
 
     /** Emitted when connection has closed sucessfully. */
-    on(event: 'close', listener: () => void): this;
+    on(event: 'disconnect', listener: () => void): this;
 
     /**
      * Emitted when an error occurs
@@ -176,7 +170,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_disconnected = () => {
-        this.emit('close');
+        this.emit('disconnect');
     }
 
     private on_message = (topic: string, payload: Buffer, packet: any) => {

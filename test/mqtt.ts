@@ -55,7 +55,7 @@ async function fetch_credentials() : Promise<Config> {
                 reject(error);
             }
 
-            config.endpoint = data.SecretString as string;
+            config.endpoint = JSON.parse(data.SecretString as string).endpoint;
             resolve_if_done();
         });
         client.getSecretValue({ SecretId: 'unit-test/certificate' }, (error, data) => {
@@ -88,14 +88,16 @@ test('MQTT Connect/Disconnect', async (done) => {
     const connection = client.new_connection(config);
     connection.on('connect', (session_present) => {
         expect(session_present).toBeFalsy();
-        connection.close();
+        setTimeout(() => { connection.disconnect(); }, 15);
+        //process.nextTick(() => { connection.disconnect(); });
     });
     connection.on('error', (error) => {
         console.log(error);
         expect(error).toBeUndefined();
         done();
     })
-    connection.on('close', () => {
+    connection.on('disconnect', () => {
         done();
     })
-});
+    connection.connect();
+}, 30000);
