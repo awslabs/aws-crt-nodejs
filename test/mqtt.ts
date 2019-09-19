@@ -15,8 +15,9 @@
 
 import * as AWS from 'aws-sdk';
 import { ClientBootstrap } from '../lib/native/io';
-import { MqttClient } from '../lib/native/mqtt';
+import { MqttClient, QoS } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
+import { TextDecoder } from 'util';
 
 class Config {
     static readonly region = 'us-east-1';
@@ -88,8 +89,42 @@ test('MQTT Connect/Disconnect', async (done) => {
     const connection = client.new_connection(config);
     connection.on('connect', (session_present) => {
         expect(session_present).toBeFalsy();
-        setTimeout(() => { connection.disconnect(); }, 15);
-        //process.nextTick(() => { connection.disconnect(); });
+        connection.disconnect();
+    });
+    connection.on('error', (error) => {
+        console.log(error);
+        expect(error).toBeUndefined();
+        done();
+    })
+    connection.on('disconnect', () => {
+        done();
+    })
+    connection.connect();
+}, 10000);
+
+test('MQTT Pub/Sub', async (done) => {
+    const decoder = new TextDecoder('utf8');
+    const aws_opts = await fetch_credentials();
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .build()
+    const client = new MqttClient(new ClientBootstrap(), config.tls_ctx);
+    const connection = client.new_connection(config);
+    connection.on('connect', (session_present) => {
+        expect(session_present).toBeFalsy();
+        const test_topic = '/test/me/senpai';
+        const test_payload = 'TEST_PAYLOAD';
+        connection.subscribe(test_topic, QoS.AtLeastOnce, (topic, payload) => {
+            expect(topic).toBe(test_topic);
+            expect(payload).toBeDefined();
+            const payload_str = decoder.decode(payload);
+            expect(payload_str).toBe(test_payload);
+
+            connection.disconnect();
+        });
+        connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
     });
     connection.on('error', (error) => {
         console.log(error);

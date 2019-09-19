@@ -43,7 +43,6 @@ struct mqtt_connection_binding {
 
     napi_ref node_external;
     struct aws_napi_callback on_connect;
-    struct aws_napi_callback on_disconnect;
     struct aws_napi_callback on_connection_interrupted;
     struct aws_napi_callback on_connection_resumed;
 };
@@ -96,8 +95,6 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     }
 
     /* no more node interop will be done, free node resources */
-    aws_napi_callback_clean_up(&binding->on_connect);
-    aws_napi_callback_clean_up(&binding->on_disconnect);
     aws_napi_callback_clean_up(&binding->on_connection_interrupted);
     aws_napi_callback_clean_up(&binding->on_connection_resumed);
     napi_delete_reference(env, binding->node_external);
@@ -310,6 +307,7 @@ cleanup:
  ******************************************************************************/
 struct connect_args {
     struct mqtt_connection_binding *binding;
+    struct aws_napi_callback on_connect;
     enum aws_mqtt_connect_return_code return_code;
     int error_code;
     bool session_present;
@@ -329,6 +327,7 @@ static int s_on_connect_params(napi_env env, napi_value *params, size_t *num_par
 static void s_dispatch_on_connect(void *user_data) {
     struct connect_args *args = user_data;
     aws_napi_callback_dispatch(&args->binding->on_connect, args);
+    aws_napi_callback_clean_up(&args->binding->on_connect);
     aws_mem_release(args->binding->allocator, args);
 }
 
@@ -340,20 +339,15 @@ static void s_on_connected(
     void *user_data) {
     (void)connection;
 
-    struct mqtt_connection_binding *nodejs_connection = user_data;
-
-    struct connect_args *args = aws_mem_calloc(nodejs_connection->allocator, 1, sizeof(struct connect_args));
-
-    if (!args) {
-        s_on_error(nodejs_connection, aws_last_error());
-        return;
-    }
-    args->binding = nodejs_connection;
+    struct mqtt_connection_binding *binding = user_data;
+    struct connect_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct connect_args));
+    AWS_FATAL_ASSERT(args);
+    args->binding = binding;
     args->error_code = error_code;
     args->return_code = return_code;
     args->session_present = session_present;
 
-    aws_uv_context_enqueue(nodejs_connection->uv_context, s_dispatch_on_connect, args);
+    aws_uv_context_enqueue(args->binding->uv_context, s_dispatch_on_connect, args);
 }
 
 napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
@@ -382,20 +376,20 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     struct aws_byte_buf client_id;
     AWS_ZERO_STRUCT(client_id);
     if (aws_byte_buf_init_from_napi(&client_id, env, node_args[1])) {
-        napi_throw_type_error(env, NULL, "Second argument (client_id) must be a String");
+        napi_throw_type_error(env, NULL, "client_id must be a String");
         goto cleanup;
     }
 
     struct aws_byte_buf server_name;
     AWS_ZERO_STRUCT(server_name);
     if (aws_byte_buf_init_from_napi(&server_name, env, node_args[2])) {
-        napi_throw_type_error(env, NULL, "Third argument (server_name) must be a String");
+        napi_throw_type_error(env, NULL, "server_name must be a String");
         goto cleanup;
     }
 
     uint32_t port_number = 0;
     if (napi_get_value_uint32(env, node_args[3], &port_number)) {
-        napi_throw_type_error(env, NULL, "Fourth argument (port) must be a Number");
+        napi_throw_type_error(env, NULL, "port must be a Number");
         goto cleanup;
     }
 
@@ -409,7 +403,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     uint32_t connect_timeout = 0;
     if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
         if (napi_get_value_uint32(env, node_args[5], &connect_timeout)) {
-            napi_throw_type_error(env, NULL, "Sixth argument (connect_timeout) must be a Number");
+            napi_throw_type_error(env, NULL, "connect_timeout must be a Number");
             goto cleanup;
         }
     }
@@ -417,7 +411,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     uint32_t keep_alive_time = 0;
     if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
         if (napi_get_value_uint32(env, node_args[6], &keep_alive_time)) {
-            napi_throw_type_error(env, NULL, "Seventh argument (keep_alive) must be a Number");
+            napi_throw_type_error(env, NULL, "keep_alive must be a Number");
             goto cleanup;
         }
     }
@@ -425,7 +419,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     uint32_t timeout = 0;
     if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
         if (napi_get_value_uint32(env, node_args[7], &timeout)) {
-            napi_throw_type_error(env, NULL, "Eigth argument (timeout) must be a Number");
+            napi_throw_type_error(env, NULL, "timeout must be a Number");
             goto cleanup;
         }
     }
@@ -436,7 +430,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(username);
     if (!aws_napi_is_null_or_undefined(env, node_args[9])) {
         if (aws_byte_buf_init_from_napi(&username, env, node_args[9])) {
-            napi_throw_type_error(env, NULL, "Tenth argument (username) must be a String");
+            napi_throw_type_error(env, NULL, "username must be a String");
             goto cleanup;
         }
     }
@@ -445,7 +439,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(password);
     if (!aws_napi_is_null_or_undefined(env, node_args[10])) {
         if (aws_byte_buf_init_from_napi(&password, env, node_args[10])) {
-            napi_throw_type_error(env, NULL, "eleventh argument (password) must be a String");
+            napi_throw_type_error(env, NULL, "password must be a String");
             goto cleanup;
         }
     }
@@ -453,7 +447,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     bool use_websocket = false;
     if (!aws_napi_is_null_or_undefined(env, node_args[11])) {
         if (napi_get_value_bool(env, node_args[11], &use_websocket)) {
-            napi_throw_type_error(env, NULL, "twelfth argument (use_websocket) must be a boolean");
+            napi_throw_type_error(env, NULL, "use_websocket must be a boolean");
             goto cleanup;
         }
     }
@@ -461,7 +455,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     bool clean_session = false;
     if (!aws_napi_is_null_or_undefined(env, node_args[12])) {
         if (napi_get_value_bool(env, node_args[12], &clean_session)) {
-            napi_throw_type_error(env, NULL, "thirteenth argument (clean_session) must be a boolean");
+            napi_throw_type_error(env, NULL, "clean_session must be a boolean");
             goto cleanup;
         }
     }
@@ -473,7 +467,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
                 node_args[13],
                 "aws_mqtt_client_connection_on_connect",
                 s_on_connect_params)) {
-            aws_napi_callback_clean_up(&binding->on_connect);
+            napi_throw_error(env, NULL, "Failed to bind on_connect callback");
             goto cleanup;
         }
     }
@@ -1026,6 +1020,11 @@ cleanup:
 /*******************************************************************************
  * Disconnect
  ******************************************************************************/
+struct disconnect_args {
+    struct mqtt_connection_binding *binding;
+    struct aws_napi_callback on_disconnect;
+};
+
 static int s_on_disconnect_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     (void)env;
     (void)params;
@@ -1035,15 +1034,17 @@ static int s_on_disconnect_params(napi_env env, napi_value *params, size_t *num_
 }
 
 static void s_dispatch_on_disconnect(void *user_data) {
-    struct mqtt_connection_binding *binding = user_data;
-    aws_napi_callback_dispatch(&binding->on_disconnect, binding);
+    struct disconnect_args *args = user_data;
+    aws_napi_callback_dispatch(&args->on_disconnect, args);
+    aws_napi_callback_clean_up(&args->on_disconnect);
+    aws_mem_release(args->binding->allocator, args);
 }
 
 static void s_on_disconnected(struct aws_mqtt_client_connection *connection, void *user_data) {
     (void)connection;
 
-    struct mqtt_connection_binding *binding = user_data;
-    aws_uv_context_enqueue(binding->uv_context, s_dispatch_on_disconnect, binding);
+    struct disconnect_args *args = user_data;
+    aws_uv_context_enqueue(args->binding->uv_context, s_dispatch_on_disconnect, args);
 }
 
 napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
@@ -1066,9 +1067,16 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         return NULL;
     }
 
+    struct disconnect_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct disconnect_args));
+    if (!args) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+
+    args->binding = binding;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (aws_napi_callback_init(
-                &binding->on_disconnect,
+                &args->on_disconnect,
                 env,
                 node_args[1],
                 "aws_mqtt_client_connection_on_disconnect",
@@ -1077,7 +1085,7 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         }
     }
 
-    if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, binding)) {
+    if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, args)) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
