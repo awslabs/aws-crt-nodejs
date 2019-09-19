@@ -16,7 +16,6 @@
 #include "uv_interop.h"
 #include <aws/common/common.h>
 #include <aws/common/mutex.h>
-#include <aws/common/condition_variable.h>
 #include <aws/io/message_pool.h>
 
 #include <uv.h>
