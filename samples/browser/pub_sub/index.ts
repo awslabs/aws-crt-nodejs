@@ -41,7 +41,7 @@ async function fetch_credentials() {
 }
 
 async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
-    return new Promise<mqtt.Connection>((resolve, reject) => {
+    return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
@@ -51,23 +51,25 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
             .build();
 
         log('Connecting websocket...');
-        const client = new mqtt.Client();
+        const client = new mqtt.MqttClient();
 
         const connection = client.new_connection(config);
+        connection.on('connect', (session_present) => {
+            resolve(connection);
+        });
         connection.on('interrupt', (error: CrtError) => {
             log(`Connection interrupted: error=${error}`);
         });
         connection.on('resume', (return_code: number, session_present: boolean) => {
             log(`Resumed: rc: ${return_code} existing session: ${session_present}`)
         });
-        connection.on('end', () => {
+        connection.on('disconnect', () => {
             log('Disconnected');
         });
-        connection.connect().then((session_present) => {
-            resolve(connection);
-        }).catch((reason) => {
-            reject(reason);
+        connection.on('error', (error) => {
+            reject(error);
         });
+        connection.connect();
     });
 
 }
