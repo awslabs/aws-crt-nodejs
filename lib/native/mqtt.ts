@@ -22,10 +22,9 @@ import { TextEncoder } from 'util';
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
 export class MqttClient extends NativeResource {
-    constructor(readonly bootstrap: io.ClientBootstrap, readonly tls_ctx?: io.ClientTlsContext) {
+    constructor(readonly bootstrap: io.ClientBootstrap) {
         super(crt_native.mqtt_client_new(bootstrap.native_handle()));
     }
 

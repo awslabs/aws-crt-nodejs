@@ -85,7 +85,7 @@ test('MQTT Connect/Disconnect', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${new Date()}`)
         .with_endpoint(aws_opts.endpoint)
         .build()
-    const client = new MqttClient(new ClientBootstrap(), config.tls_ctx);
+    const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
     connection.on('connect', (session_present) => {
         expect(session_present).toBeFalsy();
@@ -110,7 +110,7 @@ test('MQTT Pub/Sub', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${new Date()}`)
         .with_endpoint(aws_opts.endpoint)
         .build()
-    const client = new MqttClient(new ClientBootstrap(), config.tls_ctx);
+    const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
     connection.on('connect', (session_present) => {
         expect(session_present).toBeFalsy();
