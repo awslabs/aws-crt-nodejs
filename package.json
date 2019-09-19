@@ -23,7 +23,6 @@
     "source/",
     "binding.gyp"
   ],
-  "debug": true,
   "gypfile": true,
   "binary": {
     "module_name": "aws-crt-nodejs",
