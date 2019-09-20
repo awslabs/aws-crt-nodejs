@@ -21,12 +21,17 @@ import { isNumber } from 'util';
  * a human-readable string.
  */
 export class CrtError extends Error {
+    /** The original integer error code from the CRT */
     public readonly error_code?: number;
-    constructor(err: any) {
-        const message: string = (isNumber(err)) ? crt_native.error_code_to_string(err) : err.toString();
-        super(message);
-        if (isNumber(err)) {
-            this.error_code = err;
+    /** The translated error name (e.g. AWS_ERROR_UNKNOWN) */
+    public readonly error_name?: string;
+
+    /** @var error - The original error. Most often an error_code, but possibly some other context */
+    constructor(readonly error: any) {
+        super((isNumber(error)) ? crt_native.error_code_to_string(error) : error.toString());
+        if (isNumber(error)) {
+            this.error_code = error;
+            this.error_name = crt_native.error_code_to_name(error);
         }
     }
 }

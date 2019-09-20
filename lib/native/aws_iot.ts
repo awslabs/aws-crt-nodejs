@@ -47,7 +47,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         builder.params.port = 8883;
         
         if (io.is_alpn_available()) {
-            builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
         }   
         
         return builder;
@@ -64,7 +64,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
-            builder.tls_ctx_options.alpn_list = 'x-amzn-mqtt-ca';
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
         }
 
         return builder;
@@ -102,7 +102,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         this.params.use_websocket = true;
 
         if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.alpn_list = undefined;
+            this.tls_ctx_options.alpn_list = [];
             this.params.port = 443;
         }
 
