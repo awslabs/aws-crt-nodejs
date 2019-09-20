@@ -10,8 +10,7 @@ module.exports = {
         }
     },
     testPathIgnorePatterns: [
-        '/node_modules/',
-        'test-load.ts'
+        '/node_modules/'
     ],
     modulePathIgnorePatterns: [
         '/cmake-js/'

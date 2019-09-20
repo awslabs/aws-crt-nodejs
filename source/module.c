@@ -222,12 +222,15 @@ failure:
 
 int aws_napi_callback_clean_up(struct aws_napi_callback *cb) {
     if (cb->env) {
+        napi_handle_scope handle_scope = NULL;
+        AWS_FATAL_ASSERT(napi_ok == napi_open_handle_scope(cb->env, &handle_scope));
         if (cb->async_context) {
             napi_async_destroy(cb->env, cb->async_context);
         }
         if (cb->callback) {
             napi_delete_reference(cb->env, cb->callback);
         }
+        napi_close_handle_scope(cb->env, handle_scope);
     }
 
     AWS_ZERO_STRUCT(*cb);
@@ -342,6 +345,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
+    CREATE_AND_REGISTER_FN(error_code_to_name)
     CREATE_AND_REGISTER_FN(io_logging_enable)
     CREATE_AND_REGISTER_FN(is_alpn_available)
     CREATE_AND_REGISTER_FN(io_client_bootstrap_new)

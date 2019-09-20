@@ -12,21 +12,23 @@
 * permissions and limitations under the License.
 */
 
-import { MqttClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket } from "mqtt";
+import { MqttClient as MqttClientInternal, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket } from "mqtt";
 import { AsyncClient } from "async-mqtt";
 import * as WebsocketUtils from "./ws";
 import * as trie from "./trie";
 
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+import { BufferedEventEmitter } from "../common/event";
+import { CrtError } from "../browser";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
 export type AWSCredentials = WebsocketUtils.AWSCredentials;
 
-export interface ConnectionConfig {
+export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
-    connect_timeout: number;
+    connect_timeout?: number;
     port: number;
     clean_session?: boolean;
     keep_alive?: number;
@@ -38,12 +40,9 @@ export interface ConnectionConfig {
     credentials?: AWSCredentials;
 }
 
-export class Client {
-    new_connection(
-        config: ConnectionConfig,
-        on_connection_interrupted?: (error_code: number) => void,
-        on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
-        return new Connection(this, config, on_connection_interrupted, on_connection_resumed);
+export class MqttClient {
+    new_connection(config: MqttConnectionConfig) {
+        return new MqttClientConnection(this, config);
     }
 }
 
@@ -86,24 +85,24 @@ class TopicTrie extends trie.Trie<SubscriptionCallback> {
     }
 }
 
-export class Connection {
+export class MqttClientConnection extends BufferedEventEmitter {
     private connection: AsyncClient;
     private subscriptions = new TopicTrie();
+    private connection_count = 0;
 
-    private create_websocket_stream = (client: MqttClient) => {
+    private create_websocket_stream = (client: MqttClientInternal) => {
         return WebsocketUtils.create_websocket_stream(this.config);
     }
 
-    private transform_websocket_url = (url: string, options: IClientOptions, client: MqttClient) => {
+    private transform_websocket_url = (url: string, options: IClientOptions, client: MqttClientInternal) => {
         return WebsocketUtils.transform_websocket_url(url, this.config);
     }
 
-    constructor(readonly client: Client,
-        private config: ConnectionConfig,
-        private on_connection_interrupted?: (error_code: number) => void,
-        private on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
-        
-        this.connection = new AsyncClient(new MqttClient(
+    constructor(
+        readonly client: MqttClient,
+        private config: MqttConnectionConfig) {
+        super();
+        this.connection = new AsyncClient(new MqttClientInternal(
             this.create_websocket_stream,
             {
                 keepalive: this.config.keep_alive,
@@ -124,28 +123,54 @@ export class Connection {
         ));
     }
 
-    close() {
-        if (this.connection.connected) {
-            this.connection.end();
+    /** Emitted when the connection is ready and is about to start sending response data */
+    on(event: 'connect', listener: (session_present: boolean) => void): this;
+
+    /** Emitted when connection has closed sucessfully. */
+    on(event: 'disconnect', listener: () => void): this;
+
+    /**
+     * Emitted when an error occurs
+     * @param error - A CrtError containing the error that occurred
+     */
+    on(event: 'error', listener: (error: CrtError) => void): this;
+
+    /**
+     * Emitted when the connection is dropped unexpectedly. The error will contain the error
+     * code and message.
+     */
+    on(event: 'interrupt', listener: (error: CrtError) => void): this;
+
+    /**
+     * Emitted when the connection reconnects. Only triggers on connections after the initial one.
+     */
+    on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
+
+    // Override to allow uncorking on connect
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        if (event == 'connect') {
+            process.nextTick(() => {
+                this.uncork();
+            })
         }
+        return this;
     }
 
     private on_online = (session_present: boolean) => {
-        if (this.on_connection_resumed) {
-            this.on_connection_resumed(0, session_present);
+        if (++this.connection_count == 1) {
+            this.emit('connect', session_present);
+        } else {
+            this.emit('resume', 0, session_present);
         }
     }
 
     private on_offline = () => {
-        if (this.on_connection_interrupted) {
-            this.on_connection_interrupted(-1);
-        }
+        this.emit('interrupt', -1);
     }
 
     private on_disconnected = () => {
-        if (this.on_connection_interrupted) {
-            this.on_connection_interrupted(0);
-        }
+        this.emit('disconnect');
     }
 
     private on_message = (topic: string, payload: Buffer, packet: any) => {
@@ -155,8 +180,17 @@ export class Connection {
         }
     }
 
+    private _reject(reject: (reason: any) => void) {
+        return (reason: any) => {
+            reject(reason);
+            this.emit('error', new CrtError(reason));
+        }
+    }
+
     async connect() {
         return new Promise<boolean>((resolve, reject) => {
+            reject = this._reject(reject);
+
             try {
                 this.connection.on('connect',
                     (connack: { sessionPresent: boolean, rc: number }) => {
@@ -182,30 +216,43 @@ export class Connection {
         return this.connect();
     }
 
-    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) : Promise<MqttRequest> {
+    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
         let payload_data: string = payload.toString();
         if (typeof payload === 'object') {
             // Convert payload to JSON string
             payload_data = JSON.stringify(payload);
         }
 
-        return this.connection.publish(topic, payload_data, { qos: qos, retain: retain }).then((value) => {
-            return { packet_id: value.messageId };
-        });
+        return this.connection.publish(topic, payload_data, { qos: qos, retain: retain })
+            .catch((reason) => {
+                this.emit('error', new CrtError(reason));
+            })
+            .then((value) => {
+                return { packet_id: (value as IPublishPacket).messageId };
+            });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) : Promise<MqttSubscribeRequest> {
+    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void): Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
-        return this.connection.subscribe(topic, { qos: qos }).then((value: ISubscriptionGrant[]) => {
-            return { topic: value[0].topic, qos: value[0].qos };
-        });
+        return this.connection.subscribe(topic, { qos: qos })
+            .catch((reason: any) => {
+                this.emit('error', new CrtError(reason));
+            })
+            .then((value) => {
+                const sub = (value as ISubscriptionGrant[])[0];
+                return { topic: sub.topic, qos: sub.qos };
+            });
     }
 
-    async unsubscribe(topic: string) : Promise<MqttRequest> {
+    async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
-        return this.connection.unsubscribe(topic).then((value: IUnsubackPacket) => {
-            return { packet_id: value.messageId };
-        });
+        return this.connection.unsubscribe(topic)
+            .catch((reason: any) => {
+                this.emit('error', new CrtError(reason));
+            })
+            .then((value) => {
+                return { packet_id: (value as IUnsubackPacket).messageId };
+            });
     }
 
     async disconnect() {

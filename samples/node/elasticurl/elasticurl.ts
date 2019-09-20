@@ -239,11 +239,18 @@ function main(argv: Args) {
             }
         }
 
-        const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
-        const stream = connection.request(request, on_response, on_body);
-        return stream.complete.then((error_code: Number) => {
-            connection.close();
-            return error_code;
+        return new Promise((resolve, reject) => {
+            const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
+            const stream = connection.request(request);
+            stream.on('response', on_response);
+            stream.on('data', on_body);
+            stream.on('error', (error: Error) => {
+                reject(error);
+            })
+            stream.on('end', () => {
+                connection.close();
+                resolve();
+            });
         });
     };
 
@@ -256,39 +263,34 @@ function main(argv: Args) {
         }
     }
 
-    http.HttpClientConnection.create(
+    const connection = new http.HttpClientConnection(
         client_bootstrap,
-        undefined,
-        undefined,
         argv.url.hostname,
         port,
         socket_options,
-        tls_ctx)
-        .then((connection) => {
-            if (argv.data) {
-                return new Promise((resolve, reject) => {
-                    let data = "";
-                    argv.data.on('error', (error: Error) => {
-                        reject(error);
-                    })
-                    argv.data.on('data', (chunk: Buffer | string) => {
-                        data += chunk.toString();
-                    });
-                    argv.data.on('end', () => {
-                        resolve(make_request(connection, data));
-                    });
+        tls_ctx);
+    connection.on('connect', async () => {
+        if (argv.data) {
+            const data: string = await new Promise((resolve, reject) => {
+                let data = "";
+                argv.data.on('error', (error: Error) => {
+                    reject(error);
+                })
+                argv.data.on('data', (chunk: Buffer | string) => {
+                    data += chunk.toString();
                 });
-            }
-            
-            return make_request(connection);
-        })
-        .catch((reason) => {
-            finish(reason);
-        })
-        .then((error_code) => {
-            finish();
-        })
-        .catch((reason) => {
-            finish(reason);
-        });
+                argv.data.on('end', () => {
+                    resolve(data);
+                });
+            });
+            await make_request(connection, data);
+        } else {
+            await make_request(connection);
+        }
+        
+        finish();
+    });
+    connection.on('error', (error) => {
+        finish(error);
+    });
 }

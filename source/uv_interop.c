@@ -22,9 +22,9 @@
 
 struct aws_uv_context {
     uv_loop_t *uv_loop;
-    uint32_t ref_count;
     napi_env env;
     uv_async_t async_handle;
+    struct aws_allocator *allocator;
     struct {
         struct aws_mutex mutex;
         struct aws_memory_pool pool;
@@ -41,16 +41,6 @@ struct aws_uv_callback {
     aws_uv_callback_fn *callback;
     void *user_data;
 };
-
-/* Default libuv context. Most applications will only need one, but multiple can be used
-   to establish domains for profiling/categorization.
-   Init/shutdown does not need atomic protection, as it can only be invoked from the uv thread */
-static uint8_t s_default_context_storage[sizeof(struct aws_uv_context)] = {0};
-static struct aws_uv_context *const s_default_context = (void *)&s_default_context_storage;
-
-struct aws_uv_context *aws_uv_context_get_default() {
-    return s_default_context;
-}
 
 static struct aws_uv_callback *s_uv_command_alloc(struct aws_uv_context *ctx) {
     aws_mutex_lock(&ctx->command_pool.mutex);
@@ -85,51 +75,46 @@ static void s_uv_dispatch_pump(uv_async_t *handle) {
     }
 }
 
-int aws_uv_context_acquire(struct aws_uv_context *ctx, napi_env env) {
-    if (AWS_UNLIKELY(!ctx->uv_loop)) {
-        struct aws_allocator *allocator = aws_default_allocator();
-        AWS_ZERO_STRUCT(*ctx);
-        aws_mutex_init(&ctx->command_queue.mutex);
-        aws_linked_list_init(&ctx->command_queue.queue);
-        aws_mutex_init(&ctx->command_pool.mutex);
-        aws_memory_pool_init(&ctx->command_pool.pool, allocator, 16, sizeof(struct aws_uv_callback));
+struct aws_uv_context *aws_uv_context_new(napi_env env, struct aws_allocator *allocator) {
+    struct aws_uv_context *ctx = aws_mem_calloc(allocator, 1, sizeof(struct aws_uv_context));
+    AWS_FATAL_ASSERT(ctx);
 
-        napi_get_uv_event_loop(env, &ctx->uv_loop);
-        AWS_FATAL_ASSERT(ctx->uv_loop);
+    ctx->allocator = allocator;
 
-        uv_async_init(ctx->uv_loop, &ctx->async_handle, s_uv_dispatch_pump);
-        ctx->env = env;
-        ctx->async_handle.data = ctx;
-    }
+    aws_mutex_init(&ctx->command_queue.mutex);
+    aws_linked_list_init(&ctx->command_queue.queue);
+    aws_mutex_init(&ctx->command_pool.mutex);
+    aws_memory_pool_init(&ctx->command_pool.pool, allocator, 16, sizeof(struct aws_uv_callback));
 
-    ctx->ref_count++;
+    napi_get_uv_event_loop(env, &ctx->uv_loop);
+    AWS_FATAL_ASSERT(ctx->uv_loop);
 
-    return AWS_OP_SUCCESS;
-}
+    uv_async_init(ctx->uv_loop, &ctx->async_handle, s_uv_dispatch_pump);
+    ctx->env = env;
+    ctx->async_handle.data = ctx;
 
-static void s_uv_context_cleanup_impl(struct aws_uv_context *ctx) {
-    aws_memory_pool_clean_up(&ctx->command_pool.pool);
-
-    aws_mutex_clean_up(&ctx->command_queue.mutex);
-    aws_mutex_clean_up(&ctx->command_pool.mutex);
+    return ctx;
 }
 
 static void s_uv_closed(uv_handle_t *handle) {
     struct aws_uv_context *ctx = handle->data;
-    s_uv_context_cleanup_impl(ctx);
+
+    /* finish the rest of cleanup */
+    aws_memory_pool_clean_up(&ctx->command_pool.pool);
+    aws_mutex_clean_up(&ctx->command_queue.mutex);
+    aws_mutex_clean_up(&ctx->command_pool.mutex);
+    aws_mem_release(ctx->allocator, ctx);
 }
 
-int aws_uv_context_release(struct aws_uv_context *ctx) {
-    if (--ctx->ref_count == 0) {
-        /* For now, don't bother supporting a final flush, it shouldn't be necessary, as when refs are
-           dropped the owning object should be on its way to death */
-        AWS_ASSERT(aws_linked_list_empty(&ctx->command_queue.queue));
+void aws_uv_context_release(struct aws_uv_context *ctx) {
+    aws_mutex_lock(&ctx->command_queue.mutex);
+    /* For now, don't bother supporting a final flush, it shouldn't be necessary, as when refs are
+       dropped the owning object should be on its way to death */
+    AWS_ASSERT(aws_linked_list_empty(&ctx->command_queue.queue));
+    aws_mutex_unlock(&ctx->command_queue.mutex);
 
-        /* close uv handle, when it's dead, we finish cleanup in the callback */
-        uv_close((uv_handle_t *)&ctx->async_handle, s_uv_closed);
-    }
-
-    return AWS_OP_SUCCESS;
+    /* close uv handle, when it's dead, we finish cleanup in the callback */
+    uv_close((uv_handle_t *)&ctx->async_handle, s_uv_closed);
 }
 
 void aws_uv_context_enqueue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data) {

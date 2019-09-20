@@ -134,6 +134,7 @@ static void s_http_on_connection_shutdown(struct aws_http_connection *connection
 napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     struct aws_allocator *allocator = aws_default_allocator();
 
+    napi_value result = NULL;
     struct aws_tls_ctx *tls_ctx = NULL;
     struct aws_http_client_connection_options options = AWS_HTTP_CLIENT_CONNECTION_OPTIONS_INIT;
     options.allocator = allocator;
@@ -228,8 +229,8 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto create_external_failed;
     }
 
-    binding->uv_context = aws_uv_context_get_default();
-    if (aws_uv_context_acquire(binding->uv_context, env)) {
+    binding->uv_context = aws_uv_context_new(env, allocator);
+    if (!binding->uv_context) {
         napi_throw_error(env, NULL, "Unable to acquire libuv context");
         goto uv_context_failed;
     }
@@ -256,6 +257,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto connect_failed;
     }
 
+    result = node_external;
     goto done;
 
 connect_failed:
@@ -271,7 +273,7 @@ done:
         aws_string_destroy(host_name);
     }
 
-    return NULL;
+    return result;
 }
 
 napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info) {

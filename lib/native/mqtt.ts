@@ -14,32 +14,26 @@
  */
 
 import crt_native = require('./binding');
-import { NativeResource } from "./native_resource";
-
+import { NativeResource, NativeResourceMixin } from "./native_resource";
+import { BufferedEventEmitter } from '../common/event';
+import { CrtError } from './error';
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import * as ResourceSafety from '../common/resource_safety';
-
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 
-export class Client extends NativeResource {
-    public bootstrap: io.ClientBootstrap;
-
-    constructor(bootstrap: io.ClientBootstrap, tls_ctx?: io.ClientTlsContext) {
+export class MqttClient extends NativeResource {
+    constructor(readonly bootstrap: io.ClientBootstrap) {
         super(crt_native.mqtt_client_new(bootstrap.native_handle()));
-        this.bootstrap = bootstrap;
     }
 
     new_connection(
-        config: ConnectionConfig,
-        on_connection_interrupted?: (error_code: number) => void,
-        on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
-        return new Connection(this, config, on_connection_interrupted, on_connection_resumed);
+        config: MqttConnectionConfig) {
+        return new MqttClientConnection(this, config);
     }
 }
 
-export interface ConnectionConfig {
+export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
     connect_timeout: number;
@@ -54,30 +48,67 @@ export interface ConnectionConfig {
     tls_ctx?: io.ClientTlsContext;
 }
 
-export class Connection extends NativeResource implements ResourceSafety.ResourceSafe {
-    public client: Client;
-    private encoder: TextEncoder;
-    private config: ConnectionConfig
+export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
+    private encoder = new TextEncoder();
+    readonly tls_ctx?: io.ClientTlsContext; // this keeps the tls_ctx alive beyond the life of the connection
 
-    constructor(client: Client, config: ConnectionConfig, on_connection_interrupted?: (error_code: number) => void, on_connection_resumed?: (return_code: number, session_present: boolean) => void) {
-        super(crt_native.mqtt_client_connection_new(client.native_handle(), on_connection_interrupted, on_connection_resumed));
-        
-        this.client = client;
-        this.config = config;
-        this.encoder = new TextEncoder();
+    constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
+        super();
+        this._super(crt_native.mqtt_client_connection_new(
+            client.native_handle(),
+            (error_code: number) => { this._on_connection_interrupted(error_code); },
+            (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); })
+        );
+        this.tls_ctx = config.tls_ctx;
     }
 
-    close() {
+    private close() {
         crt_native.mqtt_client_connection_close(this.native_handle());
+    }
+
+    /** Emitted when the connection is ready and is about to start sending response data */
+    on(event: 'connect', listener: (session_present: boolean) => void): this;
+
+    /** Emitted when connection has disconnected sucessfully. */
+    on(event: 'disconnect', listener: () => void): this;
+
+    /**
+     * Emitted when an error occurs
+     * @param error - A CrtError containing the error that occurred
+     */
+    on(event: 'error', listener: (error: CrtError) => void): this;
+
+    /**
+     * Emitted when the connection is dropped unexpectedly. The error will contain the error
+     * code and message.
+     */
+    on(event: 'interrupt', listener: (error: CrtError) => void): this;
+
+    /**
+     * Emitted when the connection reconnects. Only triggers on connections after the initial one.
+     */
+    on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
+
+
+    // Override to allow uncorking on ready
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        if (event == 'connect') {
+            process.nextTick(() => {
+                this.uncork();
+            })
+        }
+        return this;
     }
 
     async connect() {
         return new Promise<boolean>((resolve, reject) => {
+            reject = this._reject(reject);
 
-            function on_connect(error_code: number, return_code: number, session_present: boolean) {
-                console.log("on_connect ec:", error_code);
+            const on_connect = (error_code: number, return_code: number, session_present: boolean) => {
                 if (error_code == 0 && return_code == 0) {
                     resolve(session_present);
+                    this.emit('connect', session_present);
                 } else if (error_code != 0) {
                     reject("Failed to connect: " + io.error_code_to_string(error_code));
                 } else {
@@ -110,6 +141,7 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
     async reconnect() {
         return new Promise<boolean>((resolve, reject) => {
+            reject = this._reject(reject);
 
             function on_connect(error_code: number, return_code: number, session_present: boolean) {
                 if (error_code == 0 && return_code == 0) {
@@ -131,6 +163,7 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
         return new Promise<MqttRequest>((resolve, reject) => {
+            reject = this._reject(reject);
 
             let payload_data: DataView | undefined = undefined;
             if (payload instanceof DataView) {
@@ -168,6 +201,7 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
     async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
+            reject = this._reject(reject);
 
             function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {
                 if (error_code == 0) {
@@ -179,7 +213,7 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
             try {
                 crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message, on_suback);
-            } catch(e) {
+            } catch (e) {
                 reject(e);
             }
         });
@@ -187,6 +221,7 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
     async unsubscribe(topic: string) {
         return new Promise<MqttRequest>((resolve, reject) => {
+            reject = this._reject(reject);
 
             function on_unsuback(packet_id: number, error_code: number) {
                 if (error_code == 0) {
@@ -198,7 +233,7 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
             try {
                 crt_native.mqtt_client_connection_unsubscribe(this.native_handle(), topic, on_unsuback);
-            } catch(e) {
+            } catch (e) {
                 reject(e);
             }
         });
@@ -206,9 +241,12 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
 
     async disconnect() {
         return new Promise<void>((resolve, reject) => {
+            reject = this._reject(reject);
 
-            function on_disconnect() {
+            const on_disconnect = () => {
                 resolve();
+                this.emit('disconnect');
+                this.close();
             }
 
             try {
@@ -220,5 +258,21 @@ export class Connection extends NativeResource implements ResourceSafety.Resourc
                 reject(e);
             }
         });
+    }
+
+    // Wrap a promise rejection with a function that will also emit the error as an event
+    private _reject(reject: (reason: any) => void) {
+        return (reason: any) => {
+            reject(reason);
+            this.emit('error', new CrtError(reason));
+        };
+    }
+
+    private _on_connection_interrupted(error_code: number) {
+        this.emit('interrupt', new CrtError(error_code));
+    }
+
+    private _on_connection_resumed(return_code: number, session_present: boolean) {
+        this.emit('resume', return_code, session_present);
     }
 }

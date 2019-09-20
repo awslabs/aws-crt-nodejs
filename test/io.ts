@@ -12,17 +12,16 @@
 * permissions and limitations under the License.
 */
 
-export { TlsVersion } from "../common/io";
-import { InputStreamBase } from "../common/io";
+import * as io from '../lib/native/io';
+import { CrtError } from '../lib/native/error';
 
-export function is_alpn_available(): boolean {
-    return false;
-}
+test('Error Resolve', () => {
+    const err = new CrtError(0);
+    expect(err.error_code).toBe(0);
+    expect(err.error_name).toBe('AWS_ERROR_SUCCESS');
+    expect(err.message).toBe('aws-c-common: AWS_ERROR_SUCCESS, Success.');
+});
 
-type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
-
-export class InputStream implements InputStreamBase {
-    constructor(public data: BodyData) {
-        
-    }
-}
+test('ALPN availability', () => {
+    expect(io.is_alpn_available()).toBeDefined();
+});

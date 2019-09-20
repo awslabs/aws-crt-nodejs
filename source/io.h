@@ -35,6 +35,11 @@ AWS_EXTERN_C_BEGIN
 napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info);
 
 /**
+ * Returns the identifier/name associated with the error code.
+ */
+napi_value aws_napi_error_code_to_name(napi_env env, napi_callback_info info);
+
+/**
  * Returns true if ALPN is available, false if it is not.
  */
 napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info);

@@ -22,4 +22,5 @@ export enum TlsVersion {
     Default = 128,
 }
 
+/** Base class for streams used as inputs to AWS CRT I/O facilities */
 export interface InputStreamBase { };
