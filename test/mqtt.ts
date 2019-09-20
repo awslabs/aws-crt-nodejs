@@ -15,7 +15,7 @@
 
 import * as AWS from 'aws-sdk';
 import { ClientBootstrap } from '../lib/native/io';
-import { MqttClient, QoS } from '../lib/native/mqtt';
+import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
 
@@ -115,7 +115,7 @@ test('MQTT Pub/Sub', async (done) => {
     connection.on('connect', (session_present) => {
         expect(session_present).toBeFalsy();
         const test_topic = '/test/me/senpai';
-        const test_payload = 'TEST_PAYLOAD';
+        const test_payload = 'NOTICE ME';
         connection.subscribe(test_topic, QoS.AtLeastOnce, (topic, payload) => {
             expect(topic).toBe(test_topic);
             expect(payload).toBeDefined();
@@ -136,3 +136,32 @@ test('MQTT Pub/Sub', async (done) => {
     })
     connection.connect();
 }, 30000);
+
+test('MQTT Will', async (done) => {
+    const aws_opts = await fetch_credentials();
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_will(new MqttWill(
+            '/last/will/and/testament',
+            QoS.AtLeastOnce,
+            'AVENGE ME'
+        ))
+        .build()
+    const client = new MqttClient(new ClientBootstrap());
+    const connection = client.new_connection(config);
+    connection.on('connect', (session_present) => {
+        expect(session_present).toBeFalsy();
+        connection.disconnect();
+    });
+    connection.on('error', (error) => {
+        console.log(error);
+        expect(error).toBeUndefined();
+        done();
+    })
+    connection.on('disconnect', () => {
+        done();
+    })
+    connection.connect();
+}, 10000);

@@ -12,7 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-import { MqttConnectionConfig } from "./mqtt";
+import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
 
@@ -119,7 +119,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
-    with_will(will: string) {
+    with_will(will: MqttWill) {
         this.params.will = will;
         return this;
     }
