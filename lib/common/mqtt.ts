@@ -19,16 +19,30 @@ export enum QoS {
     ExactlyOnce = 2,
 }
 
-export type Payload = string | Object | DataView;
+/** Possible types of data to send via publish or receive via subscription */
+export type Payload = String | Object | DataView;
 
+/** Every request sent returns an MqttRequest */
 export interface MqttRequest {
     packet_id?: number;
 }
 
+/** Subscription request metadata */
 export interface MqttSubscribeRequest extends MqttRequest {
     topic: string;
     qos: QoS;
     error_code?: number;
+}
+
+/** Represents the message sent when a client is found to be offline by the broker */
+export class MqttWill {
+    constructor(
+        readonly topic: string,
+        readonly qos: QoS,
+        readonly payload: Payload,
+        readonly retain = false) {
+
+    }
 }
 
 

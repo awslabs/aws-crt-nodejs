@@ -17,10 +17,10 @@ import { AsyncClient } from "async-mqtt";
 import * as WebsocketUtils from "./ws";
 import * as trie from "./trie";
 
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
 import { BufferedEventEmitter } from "../common/event";
 import { CrtError } from "../browser";
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
 export type AWSCredentials = WebsocketUtils.AWSCredentials;
@@ -33,7 +33,7 @@ export interface MqttConnectionConfig {
     clean_session?: boolean;
     keep_alive?: number;
     timeout?: number;
-    will?: string;
+    will?: MqttWill;
     username?: string;
     password?: string;
     websocket?: WebsocketOptions;
@@ -85,6 +85,17 @@ class TopicTrie extends trie.Trie<SubscriptionCallback> {
     }
 }
 
+function normalize_payload(payload: Payload) {
+    let payload_data: string = payload.toString();
+    if (payload instanceof DataView) {
+        payload_data = new TextDecoder('utf8').decode(payload as DataView);
+    } else if (payload instanceof Object) {
+        // Convert payload to JSON string
+        payload_data = JSON.stringify(payload);
+    }
+    return payload_data;
+}
+
 export class MqttClientConnection extends BufferedEventEmitter {
     private connection: AsyncClient;
     private subscriptions = new TopicTrie();
@@ -102,6 +113,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         readonly client: MqttClient,
         private config: MqttConnectionConfig) {
         super();
+        
         this.connection = new AsyncClient(new MqttClientInternal(
             this.create_websocket_stream,
             {
@@ -113,10 +125,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 password: this.config.password,
                 reconnectPeriod: 0,
                 will: this.config.will ? {
-                    topic: "will",
-                    payload: this.config.will,
-                    qos: 1,
-                    retain: false,
+                    topic: this.config.will.topic,
+                    payload: normalize_payload(this.config.will.payload),
+                    qos: this.config.will.qos,
+                    retain: this.config.will.retain,
                 } : undefined,
                 transformWsUrl: (config.websocket || {}).protocol != 'wss-custom-auth' ? this.transform_websocket_url : undefined
             }
@@ -217,12 +229,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
-        let payload_data: string = payload.toString();
-        if (typeof payload === 'object') {
-            // Convert payload to JSON string
-            payload_data = JSON.stringify(payload);
-        }
-
+        let payload_data = normalize_payload(payload);
         return this.connection.publish(topic, payload_data, { qos: qos, retain: retain })
             .catch((reason) => {
                 this.emit('error', new CrtError(reason));

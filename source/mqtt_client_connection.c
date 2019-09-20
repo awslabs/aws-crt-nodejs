@@ -352,6 +352,19 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     struct aws_tls_ctx *tls_ctx = NULL;
     struct mqtt_connection_binding *binding = NULL;
 
+    struct aws_byte_buf client_id;
+    AWS_ZERO_STRUCT(client_id);
+    struct aws_byte_buf server_name;
+    AWS_ZERO_STRUCT(server_name);
+    struct aws_byte_buf username;
+    AWS_ZERO_STRUCT(username);
+    struct aws_byte_buf password;
+    AWS_ZERO_STRUCT(password);
+    struct aws_byte_buf will_topic;
+    AWS_ZERO_STRUCT(will_topic);
+    struct aws_byte_buf will_payload;
+    AWS_ZERO_STRUCT(will_payload);
+
     napi_value node_args[14];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -363,103 +376,144 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     }
 
-    if (napi_get_value_external(env, node_args[0], (void **)&binding)) {
+    napi_value *arg = &node_args[0];
+
+    napi_value node_binding = *arg++;
+    if (napi_get_value_external(env, node_binding, (void **)&binding)) {
         napi_throw_error(env, NULL, "Failed to extract connection from first argument");
         goto cleanup;
     }
 
-    struct aws_byte_buf client_id;
-    AWS_ZERO_STRUCT(client_id);
-    if (aws_byte_buf_init_from_napi(&client_id, env, node_args[1])) {
+    napi_value node_client_id = *arg++;
+    if (aws_byte_buf_init_from_napi(&client_id, env, node_client_id)) {
         napi_throw_type_error(env, NULL, "client_id must be a String");
         goto cleanup;
     }
 
-    struct aws_byte_buf server_name;
-    AWS_ZERO_STRUCT(server_name);
-    if (aws_byte_buf_init_from_napi(&server_name, env, node_args[2])) {
+    napi_value node_server_name = *arg++;
+    if (aws_byte_buf_init_from_napi(&server_name, env, node_server_name)) {
         napi_throw_type_error(env, NULL, "server_name must be a String");
         goto cleanup;
     }
 
+    napi_value node_port = *arg++;
     uint32_t port_number = 0;
-    if (napi_get_value_uint32(env, node_args[3], &port_number)) {
+    if (napi_get_value_uint32(env, node_port, &port_number)) {
         napi_throw_type_error(env, NULL, "port must be a Number");
         goto cleanup;
     }
 
-    if (!aws_napi_is_null_or_undefined(env, node_args[4])) {
-        if (napi_get_value_external(env, node_args[4], (void **)&tls_ctx)) {
+    napi_value node_tls = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_tls)) {
+        if (napi_get_value_external(env, node_tls, (void **)&tls_ctx)) {
             napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
             goto cleanup;
         }
     }
 
+    napi_value node_connect_timeout = *arg++;
     uint32_t connect_timeout = 0;
-    if (!aws_napi_is_null_or_undefined(env, node_args[5])) {
-        if (napi_get_value_uint32(env, node_args[5], &connect_timeout)) {
+    if (!aws_napi_is_null_or_undefined(env, node_connect_timeout)) {
+        if (napi_get_value_uint32(env, node_connect_timeout, &connect_timeout)) {
             napi_throw_type_error(env, NULL, "connect_timeout must be a Number");
             goto cleanup;
         }
     }
 
+    napi_value node_keep_alive_time = *arg++;
     uint32_t keep_alive_time = 0;
-    if (!aws_napi_is_null_or_undefined(env, node_args[6])) {
-        if (napi_get_value_uint32(env, node_args[6], &keep_alive_time)) {
+    if (!aws_napi_is_null_or_undefined(env, node_keep_alive_time)) {
+        if (napi_get_value_uint32(env, node_keep_alive_time, &keep_alive_time)) {
             napi_throw_type_error(env, NULL, "keep_alive must be a Number");
             goto cleanup;
         }
     }
 
+    napi_value node_timeout = *arg++;
     uint32_t timeout = 0;
-    if (!aws_napi_is_null_or_undefined(env, node_args[7])) {
-        if (napi_get_value_uint32(env, node_args[7], &timeout)) {
+    if (!aws_napi_is_null_or_undefined(env, node_timeout)) {
+        if (napi_get_value_uint32(env, node_timeout, &timeout)) {
             napi_throw_type_error(env, NULL, "timeout must be a Number");
             goto cleanup;
         }
     }
 
-    /* TODO: Handle Will */
+    napi_value node_will = *arg++;
+    enum aws_mqtt_qos will_qos = AWS_MQTT_QOS_AT_LEAST_ONCE;
+    bool will_retain = false;
+    if (!aws_napi_is_null_or_undefined(env, node_will)) {
+        napi_value node_topic = NULL;
+        if (napi_get_named_property(env, node_will, "topic", &node_topic)) {
+            napi_throw_type_error(env, NULL, "will must contain a topic string");
+            goto cleanup;
+        }
+        if (aws_byte_buf_init_from_napi(&will_topic, env, node_topic)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+        napi_value node_payload;
+        if (napi_get_named_property(env, node_will, "payload", &node_payload)) {
+            napi_throw_type_error(env, NULL, "will must contain a payload DataView");
+            goto cleanup;
+        }
+        if (aws_byte_buf_init_from_napi(&will_payload, env, node_payload)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+        napi_value node_qos;
+        if (napi_get_named_property(env, node_will, "qos", &node_qos) ||
+            napi_get_value_int32(env, node_qos, (int32_t*)&will_qos)) {
+            napi_throw_type_error(env, NULL, "will must contain a qos number");
+            goto cleanup;
+        }
+        napi_value node_retain;
+        if (napi_get_named_property(env, node_will, "retain", &node_retain) ||
+            napi_get_value_bool(env, node_retain, &will_retain)) {
+            napi_throw_type_error(env, NULL, "will must contain a retain boolean");
+            goto cleanup;
+        }
+    }
 
-    struct aws_byte_buf username;
-    AWS_ZERO_STRUCT(username);
-    if (!aws_napi_is_null_or_undefined(env, node_args[9])) {
-        if (aws_byte_buf_init_from_napi(&username, env, node_args[9])) {
+    napi_value node_username = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_username)) {
+        if (aws_byte_buf_init_from_napi(&username, env, node_username)) {
             napi_throw_type_error(env, NULL, "username must be a String");
             goto cleanup;
         }
     }
 
-    struct aws_byte_buf password;
-    AWS_ZERO_STRUCT(password);
-    if (!aws_napi_is_null_or_undefined(env, node_args[10])) {
-        if (aws_byte_buf_init_from_napi(&password, env, node_args[10])) {
+    napi_value node_password = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_password)) {
+        if (aws_byte_buf_init_from_napi(&password, env, node_password)) {
             napi_throw_type_error(env, NULL, "password must be a String");
             goto cleanup;
         }
     }
 
+    napi_value node_use_websocket = *arg++;
     bool use_websocket = false;
-    if (!aws_napi_is_null_or_undefined(env, node_args[11])) {
-        if (napi_get_value_bool(env, node_args[11], &use_websocket)) {
+    if (!aws_napi_is_null_or_undefined(env, node_use_websocket)) {
+        if (napi_get_value_bool(env, node_use_websocket, &use_websocket)) {
             napi_throw_type_error(env, NULL, "use_websocket must be a boolean");
             goto cleanup;
         }
     }
 
+    napi_value node_clean_session = *arg++;
     bool clean_session = false;
-    if (!aws_napi_is_null_or_undefined(env, node_args[12])) {
-        if (napi_get_value_bool(env, node_args[12], &clean_session)) {
+    if (!aws_napi_is_null_or_undefined(env, node_clean_session)) {
+        if (napi_get_value_bool(env, node_clean_session, &clean_session)) {
             napi_throw_type_error(env, NULL, "clean_session must be a boolean");
             goto cleanup;
         }
     }
 
-    if (!aws_napi_is_null_or_undefined(env, node_args[13])) {
+    napi_value node_on_connect = *arg;
+    if (!aws_napi_is_null_or_undefined(env, node_on_connect)) {
         if (aws_napi_callback_init(
                 &binding->on_connect,
                 env,
-                node_args[13],
+                node_on_connect,
                 "aws_mqtt_client_connection_on_connect",
                 s_on_connect_params)) {
             napi_throw_error(env, NULL, "Failed to bind on_connect callback");
@@ -491,6 +545,24 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.tls_options = tls_ctx ? &binding->tls_options : NULL;
     options.user_data = binding;
 
+    if (will_topic.buffer) {
+        struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&will_topic);
+        struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&will_payload);
+        if (aws_mqtt_client_connection_set_will(binding->connection, &topic_cur, will_qos, will_retain, &payload_cur)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    }
+
+    if (username.buffer || password.buffer) {
+        struct aws_byte_cursor username_cur = aws_byte_cursor_from_buf(&username);
+        struct aws_byte_cursor password_cur = aws_byte_cursor_from_buf(&password);
+        if (aws_mqtt_client_connection_set_login(binding->connection, &username_cur, &password_cur)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    }
+
     if (aws_mqtt_client_connection_connect(binding->connection, &options)) {
         aws_napi_throw_last_error(env);
         goto cleanup;
@@ -499,8 +571,10 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
 cleanup:
     aws_byte_buf_clean_up(&client_id);
     aws_byte_buf_clean_up(&server_name);
-    aws_byte_buf_clean_up(&username);
-    aws_byte_buf_clean_up(&password);
+    aws_byte_buf_clean_up_secure(&username);
+    aws_byte_buf_clean_up_secure(&password);
+    aws_byte_buf_clean_up(&will_topic);
+    aws_byte_buf_clean_up(&will_payload);
 
     return result;
 }

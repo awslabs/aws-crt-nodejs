@@ -19,8 +19,8 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest } from "../common/mqtt";
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 export class MqttClient extends NativeResource {
     constructor(readonly bootstrap: io.ClientBootstrap) {
@@ -42,14 +42,35 @@ export interface MqttConnectionConfig {
     clean_session?: boolean;
     keep_alive?: number;
     timeout?: number;
-    will?: string;
+    will?: MqttWill;
     username?: string;
     password?: string;
     tls_ctx?: io.ClientTlsContext;
 }
 
+const normalize_encoder = new TextEncoder();
+function normalize_payload(payload: Payload) {
+    let payload_data: DataView;
+    if (payload instanceof DataView) {
+        // If payload is already dataview, just use it
+        payload_data = payload;
+    } else {
+        if (typeof payload === 'object') {
+            // Convert payload to JSON string, next if block will turn it into a DataView.
+            payload = JSON.stringify(payload);
+        }
+
+        if (typeof payload === 'string') {
+            // Encode the string as UTF-8
+            payload_data = new DataView(normalize_encoder.encode(payload).buffer);
+        } else {
+            throw new TypeError("payload parameter must be a string, object, or DataView.");
+        }
+    }
+    return payload_data;
+}
+
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
-    private encoder = new TextEncoder();
     readonly tls_ctx?: io.ClientTlsContext; // this keeps the tls_ctx alive beyond the life of the connection
 
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
@@ -116,6 +137,14 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                 }
             }
 
+            // If there is a will, ensure that its payload is normalized to a DataView
+            const will = this.config.will ?
+                new MqttWill(
+                    this.config.will.topic,
+                    this.config.will.qos,
+                    normalize_payload(this.config.will.payload),
+                    this.config.will.retain)
+                : undefined;
             try {
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
@@ -126,7 +155,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.connect_timeout,
                     this.config.keep_alive,
                     this.config.timeout,
-                    this.config.will,
+                    will,
                     this.config.username,
                     this.config.password,
                     this.config.use_websocket,
@@ -165,24 +194,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            let payload_data: DataView | undefined = undefined;
-            if (payload instanceof DataView) {
-                // If payload is already dataview, just use it
-                payload_data = payload;
-            } else {
-                if (typeof payload === 'object') {
-                    // Convert payload to JSON string, next if block will turn it into a DataView.
-                    payload = JSON.stringify(payload);
-                }
-
-                if (typeof payload === 'string') {
-                    // Encode the string as UTF-8
-                    payload_data = new DataView(this.encoder.encode(payload).buffer);
-                } else {
-                    return reject(new TypeError("payload parameter must be a string, object, or DataView."));
-                }
-            }
-
+            let payload_data = normalize_payload(payload);
             function on_publish(packet_id: number, error_code: number) {
                 if (error_code == 0) {
                     resolve({ packet_id });
