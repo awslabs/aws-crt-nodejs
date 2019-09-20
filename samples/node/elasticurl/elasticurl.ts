@@ -15,6 +15,7 @@
 
 import { http, io } from "aws-crt";
 import { PassThrough } from "stream";
+import { TextDecoder } from "util";
 const fs = require('fs');
 
 type Args = { [index: string]: any };
@@ -134,11 +135,11 @@ yargs.command('*', false, (yargs: any) => {
     .alias('help', 'h')
     .middleware((argv: Args) => {
         if (argv.get) {
-            argv.method = 'get';
+            argv.method = 'GET';
         } else if (argv.post) {
-            argv.method = 'post';
+            argv.method = 'POST';
         } else if (argv.head) {
-            argv.method = 'head';
+            argv.method = 'HEAD';
         }
 
         if (argv.data_file) {
@@ -202,6 +203,8 @@ function main(argv: Args) {
         port = 443;
     }
 
+    const decoder = new TextDecoder();
+
     const make_request = async (connection: http.HttpClientConnection, body?: string) => {
         const on_response = (status_code: Number, headers: http.HttpHeaders) => {
             console.log("Response Code: " + status_code.toString());
@@ -213,30 +216,45 @@ function main(argv: Args) {
         };
 
         const on_body = (body: ArrayBuffer) => {
-            argv.output.write(body);
+            const body_str = decoder.decode(body);
+            argv.output.write(body_str);
         }
 
         let headers = new http.HttpHeaders([
             ["host", argv.url.hostname],
             ["user-agent", "elasticurl.js 1.0, Powered by the AWS Common Runtime."],
         ]);
+        let body_stream: io.InputStream | undefined = undefined;
         if (body) {
             headers.add('content-length', body.length.toString());
+            let stream = new PassThrough();
+            stream.write(body);
+            stream.end();
+            body_stream = new io.InputStream(stream);
         }
         if (argv.header) {
-            for (const header of argv.header as string[]) {
+            for (const header of argv.header) {
                 let h = header.split(/:\s*/, 2);
                 headers.add(h[0], h[1]);
             }
         }
 
-        const request = new http.HttpRequest(argv.method, argv.url.toString(), body, headers);
-        const stream = connection.make_request(request, on_response, on_body);
-        return stream.complete.then((error_code) => {
+        const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
+        const stream = connection.request(request, on_response, on_body);
+        return stream.complete.then((error_code: Number) => {
             connection.close();
             return error_code;
         });
     };
+
+    const finish = (error?: Error) => {
+        if (error) {
+            console.log("EXCEPTION: " + error);
+        }
+        if (argv.output !== process.stdout) {
+            argv.output.close();
+        }
+    }
 
     http.HttpClientConnection.create(
         client_bootstrap,
@@ -248,23 +266,29 @@ function main(argv: Args) {
         tls_ctx)
         .then((connection) => {
             if (argv.data) {
-                let data = "";
-                argv.data.on('data', (chunk: Buffer|string) => {
-                    data += chunk.toString();
+                return new Promise((resolve, reject) => {
+                    let data = "";
+                    argv.data.on('error', (error: Error) => {
+                        reject(error);
+                    })
+                    argv.data.on('data', (chunk: Buffer | string) => {
+                        data += chunk.toString();
+                    });
+                    argv.data.on('end', () => {
+                        resolve(make_request(connection, data));
+                    });
                 });
-                argv.data.on('end', () => {
-                    return make_request(connection, data);
-                })
             }
             
             return make_request(connection);
         })
+        .catch((reason) => {
+            finish(reason);
+        })
         .then((error_code) => {
-            if (argv.output !== process.stdout) {
-                argv.output.close();
-            }
+            finish();
         })
         .catch((reason) => {
-            console.error("EXCEPTION: " + reason);
+            finish(reason);
         });
 }

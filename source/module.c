@@ -347,6 +347,8 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
     CREATE_AND_REGISTER_FN(io_client_tls_ctx_new)
     CREATE_AND_REGISTER_FN(io_socket_options_new)
+    CREATE_AND_REGISTER_FN(io_input_stream_new)
+    CREATE_AND_REGISTER_FN(io_input_stream_append)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)
