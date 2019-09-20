@@ -27,7 +27,7 @@ async function main() {
         url.host,
         443
     );
-    connection.on('ready', () => {
+    connection.on('connect', () => {
         log('Ready');
         let request = new http.HttpRequest(
             'GET',
@@ -54,7 +54,7 @@ async function main() {
             log(`STREAM ERROR: ${error}`);
         });
     });
-    connection.on('end', () => {
+    connection.on('close', () => {
         log('Connection Done.');
     });
     connection.on('error', (error) => {

@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { ConnectionConfig } from "./mqtt";
+import { MqttConnectionConfig } from "./mqtt";
 import WebsocketStream = require("websocket-stream");
 import * as Crypto from "crypto-js";
 
@@ -76,7 +76,7 @@ function sign_url(method: string,
     return signed_url;
 }
 
-function create_websocket_url(config: ConnectionConfig) {
+function create_websocket_url(config: MqttConnectionConfig) {
     const time = canonical_time();
     const day = canonical_day(time);
     const path = '/mqtt';
@@ -95,12 +95,12 @@ function create_websocket_url(config: ConnectionConfig) {
     throw new URIError(`Invalid protocol requested: ${protocol}`);
 }
 
-export function transform_websocket_url(original_url: string, config: ConnectionConfig) {
+export function transform_websocket_url(original_url: string, config: MqttConnectionConfig) {
     const url = create_websocket_url(config);
     return url;
 }
 
-export function create_websocket_stream(config: ConnectionConfig) {
+export function create_websocket_stream(config: MqttConnectionConfig) {
     const url = create_websocket_url(config);
     return WebsocketStream(url, ['mqttv3.1'], config.websocket);
 }

@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { mqtt, iot } from "aws-crt";
+import { mqtt, iot, CrtError } from "aws-crt";
 import * as AWS from "aws-sdk";
 import Config = require('./config');
 import jquery = require("jquery");
@@ -41,7 +41,7 @@ async function fetch_credentials() {
 }
 
 async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
-    return new Promise<mqtt.Connection>((resolve, reject) => {
+    return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
@@ -51,50 +51,48 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
             .build();
 
         log('Connecting websocket...');
-        const client = new mqtt.Client();
+        const client = new mqtt.MqttClient();
 
-        function on_connection_resumed(return_code: number, session_present: boolean) {
-            log(`Connected: existing session: ${session_present}`);
-        }
-
-        function on_connection_interrupted(error_code: number) {
-            if (error_code) {
-                log(`Connection interrupted: error=${error_code}`);
-            } else {
-                log('Disconnected');
-            }
-        }
-
-        const connection = client.new_connection(config, on_connection_interrupted, on_connection_resumed);
-        connection.connect().then((session_present) => {
+        const connection = client.new_connection(config);
+        connection.on('connect', (session_present) => {
             resolve(connection);
-        }).catch((reason) => {
-            reject(reason);
         });
+        connection.on('interrupt', (error: CrtError) => {
+            log(`Connection interrupted: error=${error}`);
+        });
+        connection.on('resume', (return_code: number, session_present: boolean) => {
+            log(`Resumed: rc: ${return_code} existing session: ${session_present}`)
+        });
+        connection.on('disconnect', () => {
+            log('Disconnected');
+        });
+        connection.on('error', (error) => {
+            reject(error);
+        });
+        connection.connect();
     });
-    
+
 }
 
 async function main() {
     fetch_credentials()
-    .then(connect_websocket)
-    .then((connection) => {
-        connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload) => {
-            const decoder = new TextDecoder('utf8');
-            let message = decoder.decode(payload);
-            log(`Message recieved: topic=${topic} message=${message}`);
-            connection.disconnect();
+        .then(connect_websocket)
+        .then((connection) => {
+            connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload) => {
+                const decoder = new TextDecoder('utf8');
+                let message = decoder.decode(payload);
+                log(`Message recieved: topic=${topic} message=${message}`);
+                connection.disconnect();
+            })
+            .then((subscription) => {
+                return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+            });
         })
-        .then((subscription) => {
-            return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
-        }); 
-    })
-    .catch((reason) => {
-        log(`Error while connecting: ${reason}`);
-    });
+        .catch((reason) => {
+            log(`Error while connecting: ${reason}`);
+        });
 }
 
 $(document).ready(() => {
     main();
 });
-

@@ -229,8 +229,8 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto create_external_failed;
     }
 
-    binding->uv_context = aws_uv_context_get_default();
-    if (aws_uv_context_acquire(binding->uv_context, env)) {
+    binding->uv_context = aws_uv_context_new(env, allocator);
+    if (!binding->uv_context) {
         napi_throw_error(env, NULL, "Unable to acquire libuv context");
         goto uv_context_failed;
     }

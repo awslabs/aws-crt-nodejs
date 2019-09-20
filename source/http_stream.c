@@ -394,8 +394,8 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
         goto failed_request;
     }
 
-    binding->uv_context = aws_uv_context_get_default();
-    if (aws_uv_context_acquire(binding->uv_context, env)) {
+    binding->uv_context = aws_uv_context_new(env, allocator);
+    if (!binding->uv_context) {
         napi_throw_error(env, NULL, "Unable to acquire uv context");
         goto failed_uv;
     }
@@ -439,11 +439,11 @@ napi_value aws_napi_http_stream_close(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    aws_uv_context_release(binding->uv_context);
     aws_napi_callback_clean_up(&binding->on_response);
     aws_napi_callback_clean_up(&binding->on_body);
     aws_napi_callback_clean_up(&binding->on_complete);
     napi_delete_reference(env, binding->node_external);
+    aws_uv_context_release(binding->uv_context);
     aws_http_stream_release(binding->stream);
 
     return NULL;

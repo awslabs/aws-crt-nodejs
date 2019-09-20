@@ -145,19 +145,23 @@ export class TlsContextOptions {
     /** Minimum version of TLS to support. Uses OS/system default if unspecified. */
     public min_tls_version: TlsVersion = TlsVersion.Default;
     /** Path to a single file with all trust anchors in it, in PEM format */
-    public ca_file?: string = undefined;
+    public ca_file?: string;
     /** Path to directory containing trust anchors. Only used on Unix-style systems. */
-    public ca_path?: string = undefined;
+    public ca_path?: string;
     /** Semi-colon delimited list of ALPN protocols to be used on platforms which support ALPN */
-    public alpn_list?: string = undefined;
+    public alpn_list?: string;
     /** Path to certificate, in PEM format */
-    public certificate_path?: string = undefined;
+    public certificate_path?: string;
+    /** Certificate, in PEM format */
+    public certificate?: string;
     /** Path to private key, in PEM format */
-    public private_key_path?: string = undefined;
+    public private_key_path?: string;
+    /** Private key, in PEM format */
+    public private_key?: string;
     /** Path to certificate, in PKCS#12 format. Currently, only supported on OSX */
-    public pkcs12_path?: string = undefined;
+    public pkcs12_path?: string;
     /** Password for PKCS#12. Currently, only supported on OSX. */
-    public pkcs12_password?: string = undefined;
+    public pkcs12_password?: string;
     /** 
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
      * It is much better to just override the default trust store and pass the self-signed
@@ -180,10 +184,23 @@ export class TlsContextOptions {
 
     /** 
      * Creates a client with secure-by-default options, along with a client cert and private key
+     * @param certificate - Client certificate, in PEM format
+     * @param private_key - Client private key, in PEM format
+     */
+    static create_client_with_mtls(certificate: string, private_key: string): TlsContextOptions {
+        let opt = new TlsContextOptions();
+        opt.certificate = certificate;
+        opt.private_key = private_key;
+        opt.verify_peer = true;
+        return opt;
+    }
+
+    /** 
+     * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate_path - Path to client certificate, in PEM format
      * @param private_key_path - Path to private key, in PEM format
      */
-    static create_client_with_mtls(certificate_path: string, private_key_path: string): TlsContextOptions {
+    static create_client_with_mtls_from_path(certificate_path: string, private_key_path: string): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.certificate_path = certificate_path;
         opt.private_key_path = private_key_path;
@@ -196,7 +213,7 @@ export class TlsContextOptions {
      * @param pkcs12_path - Path to client certificate in PKCS#12 format
      * @param pkcs12_password - PKCS#12 password
     */
-    static create_client_with_mtls_pkcs(pkcs12_path: string, pkcs12_password: string): TlsContextOptions {
+    static create_client_with_mtls_pkcs_from_path(pkcs12_path: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs12_path = pkcs12_path;
         opt.pkcs12_password = pkcs12_password;
@@ -210,7 +227,7 @@ export class TlsContextOptions {
      * @param private_key_path - Path to private key, in PEM format 
      *      
      */
-    static create_server_with_mtls(certificate_path: string, private_key_path: string): TlsContextOptions {
+    static create_server_with_mtls_from_path(certificate_path: string, private_key_path: string): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.certificate_path = certificate_path;
         opt.private_key_path = private_key_path;
@@ -225,7 +242,7 @@ export class TlsContextOptions {
      * @param pkcs12_password - PKCS#12 Password
      *
      */
-    static create_server_with_mtls_pkcs(pkcs12_path: string, pkcs12_password: string): TlsContextOptions {
+    static create_server_with_mtls_pkcs_from_path(pkcs12_path: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs12_path = pkcs12_path;
         opt.pkcs12_password = pkcs12_password;
@@ -253,7 +270,9 @@ export class ClientTlsContext extends NativeResource {
             ctx_opt.ca_path,
             ctx_opt.alpn_list,
             ctx_opt.certificate_path,
+            ctx_opt.certificate,
             ctx_opt.private_key_path,
+            ctx_opt.private_key,
             ctx_opt.pkcs12_path,
             ctx_opt.pkcs12_password,
             ctx_opt.verify_peer));
@@ -279,7 +298,9 @@ export class ServerTlsContext extends NativeResource {
             ctx_opt.ca_path,
             ctx_opt.alpn_list,
             ctx_opt.certificate_path,
+            ctx_opt.certificate,
             ctx_opt.private_key_path,
+            ctx_opt.private_key,
             ctx_opt.pkcs12_path,
             ctx_opt.pkcs12_password,
             ctx_opt.verify_peer));

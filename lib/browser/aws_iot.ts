@@ -13,11 +13,11 @@
  * permissions and limitations under the License.
  */
 
-import { ConnectionConfig } from "./mqtt";
+import { MqttConnectionConfig } from "./mqtt";
 import * as platform from "../common/platform";
 
 export class AwsIotMqttConnectionConfigBuilder {
-    private params: ConnectionConfig
+    private params: MqttConnectionConfig
 
     private constructor() {
         this.params = {

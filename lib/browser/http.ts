@@ -20,7 +20,7 @@ import { InputStream } from './io';
 const axios = require('axios').default;
 
 export class HttpClientConnection extends BufferedEventEmitter {
-    public axios: any;
+    readonly axios: any;
     constructor(
         host_name: string,
         port: number,
@@ -34,23 +34,23 @@ export class HttpClientConnection extends BufferedEventEmitter {
             baseURL: `${scheme}://${host_name}:${port}/`
         });
         setTimeout(() => {
-            this.emit('ready');
+            this.emit('connect');
         }, 0);
     }
 
     /** Emitted when the connection is connected and ready to start streams */
-    on(event: 'ready', listener: () => void): this;
+    on(event: 'connect', listener: () => void): this;
     
     /** Emitted when an error occurs on the connection */
     on(event: 'error', listener: (error: Error) => void): this;
     
     /** Emitted when the connection has completed */
-    on(event: 'end', listener: () => void): this;
+    on(event: 'close', listener: () => void): this;
 
     // Override to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
-        if (event == 'ready') {
+        if (event == 'connect') {
             setTimeout(() => {
                 this.uncork();
             }, 0);
@@ -68,7 +68,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
     }
 
     _on_end(stream: HttpClientStream) {
-        this.emit('end');
+        this.emit('close');
     }
 }
 
@@ -109,7 +109,7 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
 export class HttpClientStream extends BufferedEventEmitter {
     private response_status_code?: number;
     private encoder = new TextEncoder();
-    private constructor(public connection: HttpClientConnection) {
+    private constructor(readonly connection: HttpClientConnection) {
         super();
     }
 
@@ -120,9 +120,6 @@ export class HttpClientStream extends BufferedEventEmitter {
     status_code() {
         return this.response_status_code;
     }
-
-    /** Emitted when stream has completed sucessfully. */
-    on(event: 'end', listener: () => void): this;
 
     /**
      * Emitted when the header block arrives from the server.
@@ -141,8 +138,8 @@ export class HttpClientStream extends BufferedEventEmitter {
      */
     on(event: 'error', listener: (error: Error) => void): this;
 
-    /** Emitted when the stream is ready and is about to start sending response data */
-    on(event: 'ready', listener: () => void): this;
+    /** Emitted when stream has completed sucessfully. */
+    on(event: 'end', listener: () => void): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -162,7 +159,6 @@ export class HttpClientStream extends BufferedEventEmitter {
     // Convert axios' single response into a series of events
     _on_response(response: any) {
         this.response_status_code = response.status;
-        this.emit('ready');
         let headers = new HttpHeaders();
         for (let header in response.headers) {
             headers.add(header, response.headers[header]);

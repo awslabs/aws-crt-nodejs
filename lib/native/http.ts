@@ -141,7 +141,7 @@ export class HttpClientConnection extends HttpConnection {
 class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
     protected constructor(
         native_handle: any,
-        public connection: HttpConnection) {
+        readonly connection: HttpConnection) {
         super();
         this._super(native_handle);
         this.cork();
@@ -180,7 +180,7 @@ export class HttpClientStream extends HttpStream {
     constructor(
         native_handle: any,
         connection: HttpClientConnection,
-        public readonly request: HttpRequest) {
+        readonly request: HttpRequest) {
         super(native_handle, connection);
     }
 

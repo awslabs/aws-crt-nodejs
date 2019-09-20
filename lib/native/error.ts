@@ -21,8 +21,12 @@ import { isNumber } from 'util';
  * a human-readable string.
  */
 export class CrtError extends Error {
+    public readonly error_code?: number;
     constructor(err: any) {
         const message: string = (isNumber(err)) ? crt_native.error_code_to_string(err) : err.toString();
         super(message);
+        if (isNumber(err)) {
+            this.error_code = err;
+        }
     }
 }
