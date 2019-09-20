@@ -31,6 +31,18 @@ export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
 }
 
+/**
+ * Convert a native error code into a human-readable identifier
+ * @param error_code - An error code returned from a native API call, or delivered
+ * via callback.
+ * @see CrtError
+ *
+ * nodejs only.
+ */
+export function error_code_to_name(error_code: number): string {
+    return crt_native.error_code_to_name(error_code);
+}
+
 /** The amount of detail that will be logged */
 export enum LogLevel {
     /** No logging whatsoever. Equivalent to never calling {@link enable_logging}. */
@@ -145,21 +157,21 @@ export class TlsContextOptions {
     /** Minimum version of TLS to support. Uses OS/system default if unspecified. */
     public min_tls_version: TlsVersion = TlsVersion.Default;
     /** Path to a single file with all trust anchors in it, in PEM format */
-    public ca_file?: string;
+    public ca_filepath?: string;
     /** Path to directory containing trust anchors. Only used on Unix-style systems. */
-    public ca_path?: string;
-    /** Semi-colon delimited list of ALPN protocols to be used on platforms which support ALPN */
-    public alpn_list?: string;
+    public ca_dirpath?: string;
+    /** List of ALPN protocols to be used on platforms which support ALPN */
+    public alpn_list:string[] = [];
     /** Path to certificate, in PEM format */
-    public certificate_path?: string;
+    public certificate_filepath?: string;
     /** Certificate, in PEM format */
     public certificate?: string;
     /** Path to private key, in PEM format */
-    public private_key_path?: string;
+    public private_key_filepath?: string;
     /** Private key, in PEM format */
     public private_key?: string;
     /** Path to certificate, in PKCS#12 format. Currently, only supported on OSX */
-    public pkcs12_path?: string;
+    public pkcs12_filepath?: string;
     /** Password for PKCS#12. Currently, only supported on OSX. */
     public pkcs12_password?: string;
     /** 
@@ -173,13 +185,13 @@ export class TlsContextOptions {
     public verify_peer: boolean = false;
 
     /** overrides the default system trust store. 
-     * @param ca_path - Only used on Unix-style systems where all trust anchors are 
+     * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are 
      * stored in a directory (e.g. /etc/ssl/certs). 
-     * @param ca_file - Single file containing all trust CAs, in PEM format
+     * @param ca_filepath - Single file containing all trust CAs, in PEM format
      */
-    override_default_trust_store(ca_path?: string, ca_file?: string): void {
-        this.ca_path = ca_path;
-        this.ca_file = ca_file;
+    override_default_trust_store(ca_dirpath?: string, ca_filepath?: string): void {
+        this.ca_dirpath = ca_dirpath;
+        this.ca_filepath = ca_filepath;
     }
 
     /** 
@@ -197,25 +209,25 @@ export class TlsContextOptions {
 
     /** 
      * Creates a client with secure-by-default options, along with a client cert and private key
-     * @param certificate_path - Path to client certificate, in PEM format
-     * @param private_key_path - Path to private key, in PEM format
+     * @param certificate_filepath - Path to client certificate, in PEM format
+     * @param private_key_filepath - Path to private key, in PEM format
      */
-    static create_client_with_mtls_from_path(certificate_path: string, private_key_path: string): TlsContextOptions {
+    static create_client_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
-        opt.certificate_path = certificate_path;
-        opt.private_key_path = private_key_path;
+        opt.certificate_filepath = certificate_filepath;
+        opt.private_key_filepath = private_key_filepath;
         opt.verify_peer = true;
         return opt;
     }
 
     /** 
      * Creates a TLS context with secure-by-default options, along with a client cert and password
-     * @param pkcs12_path - Path to client certificate in PKCS#12 format
+     * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
      * @param pkcs12_password - PKCS#12 password
     */
-    static create_client_with_mtls_pkcs_from_path(pkcs12_path: string, pkcs12_password: string): TlsContextOptions {
+    static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
-        opt.pkcs12_path = pkcs12_path;
+        opt.pkcs12_filepath = pkcs12_filepath;
         opt.pkcs12_password = pkcs12_password;
         opt.verify_peer = true;
         return opt;
@@ -223,14 +235,14 @@ export class TlsContextOptions {
 
     /** 
      * Creates TLS context with peer verification disabled, along with a certificate and private key
-     * @param certificate_path - Path to certificate, in PEM format
-     * @param private_key_path - Path to private key, in PEM format 
+     * @param certificate_filepath - Path to certificate, in PEM format
+     * @param private_key_filepath - Path to private key, in PEM format 
      *      
      */
-    static create_server_with_mtls_from_path(certificate_path: string, private_key_path: string): TlsContextOptions {
+    static create_server_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
-        opt.certificate_path = certificate_path;
-        opt.private_key_path = private_key_path;
+        opt.certificate_filepath = certificate_filepath;
+        opt.private_key_filepath = private_key_filepath;
         opt.verify_peer = false;
         return opt;
     }
@@ -238,13 +250,13 @@ export class TlsContextOptions {
     /**
      * Creates TLS context with peer verification disabled, along with a certificate and private key
      * in PKCS#12 format
-     * @param pkcs12_path - Path to certificate, in PKCS#12 format
+     * @param pkcs12_filepath - Path to certificate, in PKCS#12 format
      * @param pkcs12_password - PKCS#12 Password
      *
      */
-    static create_server_with_mtls_pkcs_from_path(pkcs12_path: string, pkcs12_password: string): TlsContextOptions {
+    static create_server_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
-        opt.pkcs12_path = pkcs12_path;
+        opt.pkcs12_filepath = pkcs12_filepath;
         opt.pkcs12_password = pkcs12_password;
         opt.verify_peer = false;
         return opt;
@@ -266,14 +278,14 @@ export class ClientTlsContext extends NativeResource {
         }
         super(crt_native.io_client_tls_ctx_new(
             ctx_opt.min_tls_version,
-            ctx_opt.ca_file,
-            ctx_opt.ca_path,
-            ctx_opt.alpn_list,
-            ctx_opt.certificate_path,
+            ctx_opt.ca_filepath,
+            ctx_opt.ca_dirpath,
+            ctx_opt.alpn_list.length > 0 ? ctx_opt.alpn_list.join(';') : undefined,
+            ctx_opt.certificate_filepath,
             ctx_opt.certificate,
-            ctx_opt.private_key_path,
+            ctx_opt.private_key_filepath,
             ctx_opt.private_key,
-            ctx_opt.pkcs12_path,
+            ctx_opt.pkcs12_filepath,
             ctx_opt.pkcs12_password,
             ctx_opt.verify_peer));
     }
@@ -294,14 +306,14 @@ export class ServerTlsContext extends NativeResource {
         }
         super(crt_native.io_client_tls_ctx_new(
             ctx_opt.min_tls_version,
-            ctx_opt.ca_file,
-            ctx_opt.ca_path,
+            ctx_opt.ca_filepath,
+            ctx_opt.ca_dirpath,
             ctx_opt.alpn_list,
-            ctx_opt.certificate_path,
+            ctx_opt.certificate_filepath,
             ctx_opt.certificate,
-            ctx_opt.private_key_path,
+            ctx_opt.private_key_filepath,
             ctx_opt.private_key,
-            ctx_opt.pkcs12_path,
+            ctx_opt.pkcs12_filepath,
             ctx_opt.pkcs12_password,
             ctx_opt.verify_peer));
     }

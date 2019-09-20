@@ -54,6 +54,37 @@ napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) 
     return error_string_val;
 }
 
+napi_value aws_napi_error_code_to_name(napi_env env, napi_callback_info info) {
+
+    size_t num_args = 1;
+    napi_value node_args[1];
+    if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    }
+    if (num_args != 1) {
+        napi_throw_error(env, NULL, "error_code_to_name needs exactly 1 argument");
+        return NULL;
+    }
+
+    napi_value error_number_val = NULL;
+    if (napi_coerce_to_number(env, node_args[0], &error_number_val)) {
+        return NULL;
+    }
+
+    int64_t error_code = 0;
+    if (napi_get_value_int64(env, error_number_val, &error_code)) {
+        AWS_ASSERT(false); /* Coerce should make this impossible */
+    }
+
+    const char *error_string = aws_error_name((int)error_code);
+
+    napi_value error_string_val = NULL;
+    napi_create_string_utf8(env, error_string, NAPI_AUTO_LENGTH, &error_string_val);
+
+    return error_string_val;
+}
+
 static struct aws_logger s_logger;
 
 napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
