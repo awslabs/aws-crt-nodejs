@@ -548,13 +548,19 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     if (will_topic.buffer) {
         struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&will_topic);
         struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&will_payload);
-        aws_mqtt_client_connection_set_will(binding->connection, &topic_cur, will_qos, will_retain, &payload_cur);
+        if (aws_mqtt_client_connection_set_will(binding->connection, &topic_cur, will_qos, will_retain, &payload_cur)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
     }
 
     if (username.buffer || password.buffer) {
         struct aws_byte_cursor username_cur = aws_byte_cursor_from_buf(&username);
         struct aws_byte_cursor password_cur = aws_byte_cursor_from_buf(&password);
-        aws_mqtt_client_connection_set_login(binding->connection, &username_cur, &password_cur);
+        if (aws_mqtt_client_connection_set_login(binding->connection, &username_cur, &password_cur)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
     }
 
     if (aws_mqtt_client_connection_connect(binding->connection, &options)) {
