@@ -28,7 +28,7 @@ export type AWSCredentials = WebsocketUtils.AWSCredentials;
 export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
-    connect_timeout: number;
+    connect_timeout?: number;
     port: number;
     clean_session?: boolean;
     keep_alive?: number;
