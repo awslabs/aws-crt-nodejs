@@ -343,6 +343,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
+    CREATE_AND_REGISTER_FN(error_code_to_name)
     CREATE_AND_REGISTER_FN(io_logging_enable)
     CREATE_AND_REGISTER_FN(is_alpn_available)
     CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
