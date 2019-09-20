@@ -23,7 +23,6 @@
     "source/",
     "binding.gyp"
   ],
-  "gypfile": true,
   "binary": {
     "module_name": "aws-crt-nodejs",
     "module_path": "./dist/napi-v{napi_build_version}-{configuration}",
