@@ -519,7 +519,7 @@ static int s_input_stream_get_length(struct aws_input_stream *stream, int64_t *o
     return aws_raise_error(AWS_ERROR_UNIMPLEMENTED);
 }
 
-static void s_input_stream_clean_up(struct aws_input_stream *stream) {
+static void s_input_stream_destroy(struct aws_input_stream *stream) {
     struct aws_napi_input_stream_impl *impl = stream->impl;
     struct aws_allocator *allocator = impl->buffer.allocator;
     aws_mutex_clean_up(&impl->mutex);
@@ -532,7 +532,7 @@ static struct aws_input_stream_vtable s_input_stream_vtable = {
     .read = s_input_stream_read,
     .get_status = s_input_stream_get_status,
     .get_length = s_input_stream_get_length,
-    .clean_up = s_input_stream_clean_up,
+    .destroy = s_input_stream_destroy,
 };
 
 napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
@@ -583,7 +583,7 @@ napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
 
 failed:
     if (impl) {
-        s_input_stream_clean_up(&impl->base);
+        s_input_stream_destroy(&impl->base);
     }
 
     return NULL;
