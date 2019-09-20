@@ -36,7 +36,6 @@ elseif(MSVC)
             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
             )
 else()
-    message(STATUS "Compression Prefix path: ${CMAKE_PREFIX_PATH}")
     ExternalProject_Add(AwsCCompression
             PREFIX ${AWS_DEPS_BUILD_DIR}
             DOWNLOAD_COMMAND ""

@@ -18,10 +18,7 @@ if (BUILD_DEPS)
 
     list(APPEND CMAKE_PREFIX_PATH ${AWS_DEPS_INSTALL_DIR})
 
-    message(STATUS "AWS Common Runtime is installing to: ${AWS_DEPS_INSTALL_DIR}")
-
     string(REPLACE ";" "|" CMAKE_PREFIX_PATH_BAR "${CMAKE_PREFIX_PATH}")
-    message(STATUS "ROOT prefix path: ${CMAKE_PREFIX_PATH}")
 
     file(MAKE_DIRECTORY ${AWS_DEPS_BUILD_DIR})
     execute_process(
@@ -48,7 +45,6 @@ if (BUILD_DEPS)
     if (NOT ${BUILD_AWSCRT_EXIT_CODE} EQUAL 0)
         message(FATAL_ERROR "Failed to build aws crt libraries.")
     endif()
-    message(STATUS "AWS Common Runtime is installed at: ${AWS_DEPS_INSTALL_DIR}")
 
     #the following two lines are done in this branch intentionally, don't move it. project() does some magic that
     #we don't want happening until we're done with the above code.
