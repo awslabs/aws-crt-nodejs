@@ -42,6 +42,8 @@
         ["npm", "run-script", "tsc"]
     ],
     "test": [
+        ["ls", "dist"],
+        ["ls", "dist", "lib"],
         ["node", "-p", "require('./dist/lib/index')"],
         ["npm", "run-script", "test"]
     ]
