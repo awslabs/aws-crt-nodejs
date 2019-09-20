@@ -1,5 +1,31 @@
 {
     "name": "aws-crt-nodejs",
+    "hosts": {
+        "linux": {
+            "architectures": {
+                "x64": {
+                    "image": "123124136734.dkr.ecr.us-east-1.amazonaws.com/aws-common-runtime/nodejs/10.1.0:x64"
+                },
+                "x86": {
+                    "enabled": false
+                }
+            }
+        },
+        "al2012": {
+            "enabled": false
+        },
+        "manylinux": {
+            "enabled": false
+        },
+        "windows": {
+            "enabled": false
+        }
+    },
+    "targets": {
+        "android": {
+            "enabled": false
+        }
+    },
     "upstream": [],
     "downstream": [],
     "build": [
