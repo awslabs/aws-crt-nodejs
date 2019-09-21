@@ -23,7 +23,6 @@
     "source/",
     "binding.gyp"
   ],
-  "gypfile": true,
   "binary": {
     "module_name": "aws-crt-nodejs",
     "module_path": "./dist/napi-v{napi_build_version}-{configuration}",
@@ -35,9 +34,10 @@
     ]
   },
   "scripts": {
-    "build": "tsc && node-pre-gyp rebuild && tsc -p tsconfig.browser.json",
+    "cmake": "cmake-js",
+    "tsc": "tsc && tsc -p tsconfig.browser.json",
     "test": "jest -i --detectOpenHandles",
-    "install": "tsc && node-pre-gyp install --fallback-to-build && tsc -p tsconfig.browser.json"
+    "install": "tsc && tsc -p tsconfig.browser.json && cmake-js compile -T install"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
@@ -45,8 +45,8 @@
     "@types/node": "^10.12.18",
     "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
+    "cmake-js": "file:./cmake-js/",
     "jest": "^24.9.0",
-    "node-gyp": "^3.8.0",
     "ts-jest": "^24.0.2",
     "typescript": "^3.5.3",
     "yargs": "^13.2.4"
@@ -57,7 +57,6 @@
     "axios": "^0.19.0",
     "crypto-js": "^3.1.9-1",
     "mqtt": "^2.3.1",
-    "node-pre-gyp": "^0.12.0",
     "websocket-stream": "^5.5.0"
   }
 }

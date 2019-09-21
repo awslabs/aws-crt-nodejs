@@ -23,7 +23,7 @@
     be invoked within the libuv event loop, so we queue them up, and tell the uv loop to call our message pump.
 
     Each object that needs async dispatch will need an aws_uv_context, which represents a handle in the uv
-    event loop. Note that the context does not die synchronously (during close()), it has to be closed and 
+    event loop. Note that the context does not die synchronously (during close()), it has to be closed and
     cleaned up in the uv loop after all events are handled for the tick where uv_close() is called.
 
     Typical flow will look like:

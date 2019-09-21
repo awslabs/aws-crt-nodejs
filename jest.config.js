@@ -11,5 +11,8 @@ module.exports = {
     },
     testPathIgnorePatterns: [
         '/node_modules/'
+    ],
+    modulePathIgnorePatterns: [
+        '/cmake-js/'
     ]
 }
