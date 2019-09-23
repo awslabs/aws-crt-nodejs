@@ -37,7 +37,7 @@
     "cmake": "cmake-js",
     "tsc": "tsc && tsc -p tsconfig.browser.json",
     "test": "jest -i --detectOpenHandles",
-    "install": "tsc && tsc -p tsconfig.browser.json && cmake-js compile -T install"
+    "install": "tsc && tsc -p tsconfig.browser.json && cmake-js compile -T install --CDCMAKE_EXPORT_COMPILE_COMMANDS=ON"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
