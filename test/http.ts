@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
+import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
 
 test('HTTP Headers', () => {
@@ -144,3 +144,18 @@ test('HTTPS Stream GET', async (done) => {
     await test_stream('GET', 'example.com', 443, new ClientTlsContext());
     done();
 })
+
+test('HTTP Connection Manager create/destroy', () => {
+    const bootstrap = new ClientBootstrap();
+    let connection_manager = new HttpClientConnectionManager(
+        bootstrap,
+        "s3.amazon.com",
+        80,
+        4,
+        16 * 1024,
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        undefined
+    );
+    expect(connection_manager).toBeDefined();
+    connection_manager.close();
+});

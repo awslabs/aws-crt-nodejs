@@ -462,7 +462,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         }
         napi_value node_qos;
         if (napi_get_named_property(env, node_will, "qos", &node_qos) ||
-            napi_get_value_int32(env, node_qos, (int32_t*)&will_qos)) {
+            napi_get_value_int32(env, node_qos, (int32_t *)&will_qos)) {
             napi_throw_type_error(env, NULL, "will must contain a qos number");
             goto cleanup;
         }

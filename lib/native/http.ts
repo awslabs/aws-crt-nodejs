@@ -238,3 +238,32 @@ export class HttpClientStream extends HttpStream {
         this.emit('response', status_code, headers);
     }
 }
+
+/** Creates, manages, and vends connections to a given host/port endpoint */
+export class HttpClientConnectionManager extends NativeResourceMixin(BufferedEventEmitter) {
+    constructor(
+        readonly bootstrap: ClientBootstrap,
+        readonly host: string,
+        readonly port: number,
+        readonly max_connections: number,
+        readonly initial_window_size: number,
+        readonly socket_options?: SocketOptions,
+        readonly tls_ctx?: ClientTlsContext
+    ) {
+        super();
+        this._super(crt_native.http_connection_manager_new(
+            bootstrap.native_handle(),
+            host,
+            port,
+            max_connections,
+            initial_window_size,
+            socket_options,
+            tls_ctx,
+            undefined /* on_shutdown */
+        ));
+    }
+
+    close() {
+        crt_native.http_connection_manager_close(this.native_handle());
+    }
+}
