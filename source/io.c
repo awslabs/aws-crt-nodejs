@@ -141,21 +141,30 @@ napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info) {
     return node_bool;
 }
 
+struct client_bootstrap_binding {
+    struct aws_client_bootstrap *bootstrap;
+    struct aws_host_resolver resolver;
+};
+
+struct aws_client_bootstrap *aws_napi_get_client_bootstrap(struct client_bootstrap_binding *binding) {
+    return binding->bootstrap;
+}
+
 /** Finalizer for an client_bootstrap external */
 static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 
     (void)env;
     (void)finalize_hint;
 
-    struct aws_nodejs_client_bootstrap *node_bootstrap = finalize_data;
-    AWS_ASSERT(node_bootstrap);
+    struct client_bootstrap_binding *binding = finalize_data;
+    AWS_ASSERT(binding);
 
-    struct aws_allocator *allocator = node_bootstrap->bootstrap->allocator;
+    struct aws_allocator *allocator = binding->bootstrap->allocator;
 
-    aws_host_resolver_clean_up(&node_bootstrap->resolver);
-    aws_client_bootstrap_release(node_bootstrap->bootstrap);
+    aws_host_resolver_clean_up(&binding->resolver);
+    aws_client_bootstrap_release(binding->bootstrap);
 
-    aws_mem_release(allocator, node_bootstrap);
+    aws_mem_release(allocator, binding);
 }
 
 napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info info) {
@@ -163,23 +172,21 @@ napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info inf
 
     struct aws_allocator *allocator = aws_default_allocator();
 
-    struct aws_nodejs_client_bootstrap *node_bootstrap =
-        aws_mem_acquire(allocator, sizeof(struct aws_nodejs_client_bootstrap));
-    AWS_ZERO_STRUCT(*node_bootstrap);
+    struct client_bootstrap_binding *binding = aws_mem_acquire(allocator, sizeof(struct client_bootstrap_binding));
+    AWS_ZERO_STRUCT(*binding);
 
-    if (aws_host_resolver_init_default(&node_bootstrap->resolver, allocator, 64, aws_napi_get_node_elg())) {
+    if (aws_host_resolver_init_default(&binding->resolver, allocator, 64, aws_napi_get_node_elg())) {
         goto clean_up;
     }
 
-    node_bootstrap->bootstrap =
-        aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &node_bootstrap->resolver, NULL);
-    if (!node_bootstrap->bootstrap) {
+    binding->bootstrap = aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &binding->resolver, NULL);
+    if (!binding->bootstrap) {
         napi_throw_error(env, NULL, "Failed init client_bootstrap");
         goto clean_up;
     }
 
     napi_value node_external = NULL;
-    if (napi_ok != napi_create_external(env, node_bootstrap, s_client_bootstrap_finalize, NULL, &node_external)) {
+    if (napi_ok != napi_create_external(env, binding, s_client_bootstrap_finalize, NULL, &node_external)) {
         napi_throw_error(env, NULL, "Failed create n-api external");
         goto clean_up;
     }
@@ -187,14 +194,14 @@ napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info inf
     return node_external;
 
 clean_up:
-    if (node_bootstrap->bootstrap) {
-        aws_client_bootstrap_release(node_bootstrap->bootstrap);
+    if (binding->bootstrap) {
+        aws_client_bootstrap_release(binding->bootstrap);
     }
-    if (node_bootstrap->resolver.vtable) {
-        aws_host_resolver_clean_up(&node_bootstrap->resolver);
+    if (binding->resolver.vtable) {
+        aws_host_resolver_clean_up(&binding->resolver);
     }
-    if (node_bootstrap) {
-        aws_mem_release(allocator, node_bootstrap);
+    if (binding) {
+        aws_mem_release(allocator, binding);
     }
 
     return NULL;

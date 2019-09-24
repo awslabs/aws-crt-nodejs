@@ -22,10 +22,7 @@
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/host_resolver.h>
 
-struct aws_nodejs_client_bootstrap {
-    struct aws_client_bootstrap *bootstrap;
-    struct aws_host_resolver resolver;
-};
+struct client_bootstrap_binding;
 
 AWS_EXTERN_C_BEGIN
 
@@ -48,6 +45,9 @@ napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info);
  * Create a new aws_client_bootstrap to be managed by an napi_external.
  */
 napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info info);
+
+/* extracts the underlying aws_client_bootstrap from an opaque binding, usually found in a node external */
+struct aws_client_bootstrap *aws_napi_get_client_bootstrap(struct client_bootstrap_binding *binding);
 
 /**
  * Create a new aws_tls_ctx to be managed by a napi_external.

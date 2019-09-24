@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
+import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
 
 test('HTTP Headers', () => {
@@ -144,3 +144,84 @@ test('HTTPS Stream GET', async (done) => {
     await test_stream('GET', 'example.com', 443, new ClientTlsContext());
     done();
 })
+
+test('HTTP Connection Manager create/destroy', () => {
+    const bootstrap = new ClientBootstrap();
+    let connection_manager = new HttpClientConnectionManager(
+        bootstrap,
+        "s3.amazon.com",
+        80,
+        4,
+        16 * 1024,
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        undefined
+    );
+    expect(connection_manager).toBeDefined();
+    connection_manager.close();
+});
+
+test('HTTP Connection Manager acquire/release', async (done) => {
+    const bootstrap = new ClientBootstrap();
+    let connection_manager = new HttpClientConnectionManager(
+        bootstrap,
+        "s3.amazon.com",
+        80,
+        4,
+        16 * 1024,
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        undefined
+    );
+    expect(connection_manager).toBeDefined();
+
+    const connection = await connection_manager.acquire();
+    expect(connection).toBeDefined();
+    connection_manager.release(connection);
+
+    connection_manager.close();
+    done();
+});
+
+test('HTTP Connection Manager acquire/stream/release', async (done) => {
+    const bootstrap = new ClientBootstrap();
+    let connection_manager = new HttpClientConnectionManager(
+        bootstrap,
+        "example.com",
+        80,
+        4,
+        16 * 1024,
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        undefined
+    );
+    expect(connection_manager).toBeDefined();
+
+    const connection = await connection_manager.acquire();
+    expect(connection).toBeDefined();
+
+    let request = new HttpRequest(
+        'GET', '/', undefined,
+        new HttpHeaders([
+            ['host', 'example.com'],
+            ['user-agent', 'AWS CRT for NodeJS']
+        ])
+    );
+    let stream = connection.request(request);
+    stream.on('response', (status_code, headers) => {
+        expect(status_code).toBe(200);
+        expect(headers).toBeDefined();
+    });
+    stream.on('data', (body_data) => {
+        expect(body_data.byteLength).toBeGreaterThan(0);
+    });
+    stream.on('end', () => {
+        connection_manager.release(connection);
+        connection_manager.close();
+        done();
+    });
+    stream.on('error', (error) => {
+        connection_manager.release(connection);
+        connection_manager.close();
+        console.log(error);
+        expect(error).toBeUndefined();
+        done();
+    });
+});

@@ -139,11 +139,7 @@ static void s_on_connection_interrupted(
 
     struct connection_interrupted_args *args =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_interrupted_args));
-
-    if (!args) {
-        s_on_error(args->binding, aws_last_error());
-        return;
-    }
+    AWS_FATAL_ASSERT(args);
     args->binding = binding;
     args->error_code = error_code;
 
@@ -462,7 +458,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         }
         napi_value node_qos;
         if (napi_get_named_property(env, node_will, "qos", &node_qos) ||
-            napi_get_value_int32(env, node_qos, (int32_t*)&will_qos)) {
+            napi_get_value_int32(env, node_qos, (int32_t *)&will_qos)) {
             napi_throw_type_error(env, NULL, "will must contain a qos number");
             goto cleanup;
         }

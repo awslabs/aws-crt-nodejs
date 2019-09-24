@@ -30,14 +30,43 @@ struct http_connection_binding {
     struct aws_uv_context *uv_context;
 };
 
-struct on_connection_args {
-    struct http_connection_binding *binding;
-    int error_code;
-};
+/* finalizer called when node cleans up this object */
+static void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+    struct http_connection_binding *binding = finalize_data;
+    struct aws_allocator *allocator = aws_default_allocator();
+
+    aws_http_connection_release(binding->connection);
+    aws_mem_release(allocator, binding);
+}
 
 struct aws_http_connection *aws_napi_get_http_connection(struct http_connection_binding *binding) {
     return binding->connection;
 }
+
+napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_connection *connection) {
+    struct http_connection_binding *binding =
+        aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct http_connection_binding));
+    if (!binding) {
+        aws_napi_throw_last_error(env);
+        return NULL;
+    }
+    binding->env = env;
+    binding->connection = connection;
+    napi_value node_external = NULL;
+    if (napi_create_external(env, binding, s_http_connection_binding_finalize, NULL, &node_external)) {
+        napi_throw_error(env, NULL, "Unable to create external for managed connection");
+        aws_mem_release(aws_default_allocator(), binding);
+        return NULL;
+    }
+    return node_external;
+}
+
+struct on_connection_args {
+    struct http_connection_binding *binding;
+    int error_code;
+};
 
 static int s_http_on_connection_setup_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct on_connection_args *args = user_data;
@@ -84,17 +113,6 @@ static int s_http_on_connection_shutdown_params(napi_env env, napi_value *params
 
     *num_params = 2;
     return AWS_OP_SUCCESS;
-}
-
-/* finalizer called when node cleans up this object */
-static void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
-    (void)finalize_hint;
-    struct http_connection_binding *binding = finalize_data;
-    struct aws_allocator *allocator = aws_default_allocator();
-
-    aws_http_connection_release(binding->connection);
-    aws_mem_release(allocator, binding);
 }
 
 static void s_http_on_connection_shutdown_dispatch(void *user_data) {
@@ -151,7 +169,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    struct aws_nodejs_client_bootstrap *node_bootstrap = NULL;
+    struct client_bootstrap_binding *node_bootstrap = NULL;
     if (napi_get_value_external(env, node_args[0], (void **)&node_bootstrap)) {
         napi_throw_error(env, NULL, "Unable to extract bootstrap from external");
         return NULL;
@@ -218,7 +236,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto alloc_failed;
     }
 
-    napi_value node_external;
+    napi_value node_external = NULL;
     if (napi_create_external(env, binding, s_http_connection_binding_finalize, binding, &node_external)) {
         napi_throw_error(env, NULL, "Failed to create napi external for http_connection_binding");
         goto create_external_failed;
@@ -239,7 +257,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     binding->on_setup = on_connection_setup;
     binding->on_shutdown = on_connection_shutdown;
 
-    options.bootstrap = node_bootstrap->bootstrap;
+    options.bootstrap = aws_napi_get_client_bootstrap(node_bootstrap);
     options.host_name = aws_byte_cursor_from_string(host_name);
     options.on_setup = s_http_on_connection_setup;
     options.on_shutdown = s_http_on_connection_shutdown;

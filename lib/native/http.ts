@@ -14,7 +14,7 @@
  */
 
 import crt_native = require('./binding');
-import { NativeResourceMixin } from "./native_resource";
+import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, ClientTlsContext, SocketOptions, InputStream } from './io';
 import { CrtError } from './error';
@@ -79,9 +79,12 @@ export class HttpClientConnection extends HttpConnection {
         host_name: string,
         port: number,
         protected socket_options: SocketOptions,
-        protected tls_ctx?: ClientTlsContext) {
+        protected tls_ctx?: ClientTlsContext,
+        handle?: any) {
         
-        super(crt_native.http_connection_new(
+        super(handle
+            ? handle
+            : crt_native.http_connection_new(
             bootstrap.native_handle(),
             (handle: any, error_code: number) => {
                 this._on_setup(handle, error_code);
@@ -236,5 +239,65 @@ export class HttpClientStream extends HttpStream {
         this.response_status_code = status_code;
         let headers = new HttpHeaders(header_array);
         this.emit('response', status_code, headers);
+    }
+}
+
+/** Creates, manages, and vends connections to a given host/port endpoint */
+export class HttpClientConnectionManager extends NativeResource {
+    private connections = new Map<any, HttpClientConnection>();
+
+    constructor(
+        readonly bootstrap: ClientBootstrap,
+        readonly host: string,
+        readonly port: number,
+        readonly max_connections: number,
+        readonly initial_window_size: number,
+        readonly socket_options: SocketOptions,
+        readonly tls_ctx?: ClientTlsContext
+    ) {      
+        super(crt_native.http_connection_manager_new(
+            bootstrap.native_handle(),
+            host,
+            port,
+            max_connections,
+            initial_window_size,
+            socket_options,
+            tls_ctx,
+            undefined /* on_shutdown */
+        ));
+    }
+
+    acquire(): Promise<HttpClientConnection> {
+        return new Promise((resolve, reject) => {
+            // Only create 1 connection in JS/TS from each native connection
+            const on_acquired = (handle: any, error_code: number) => {
+                if (error_code) {
+                    reject(new CrtError(error_code));
+                    return;
+                }
+                let connection = this.connections.get(handle);
+                if (!connection) {
+                    connection = new HttpClientConnection(
+                        this.bootstrap,
+                        this.host,
+                        this.port,
+                        this.socket_options,
+                        this.tls_ctx,
+                        handle
+                    );
+                    this.connections.set(handle, connection as HttpClientConnection);
+                }
+                resolve(connection);
+            };
+            crt_native.http_connection_manager_acquire(this.native_handle(), on_acquired);
+        });
+    }
+
+    release(connection: HttpClientConnection) {
+        crt_native.http_connection_manager_release(this.native_handle(), connection.native_handle());
+    }
+
+    close() {
+        crt_native.http_connection_manager_close(this.native_handle());
     }
 }

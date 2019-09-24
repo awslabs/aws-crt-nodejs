@@ -384,6 +384,10 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     CREATE_AND_REGISTER_FN(http_connection_close)
     CREATE_AND_REGISTER_FN(http_stream_new)
     CREATE_AND_REGISTER_FN(http_stream_close)
+    CREATE_AND_REGISTER_FN(http_connection_manager_new)
+    CREATE_AND_REGISTER_FN(http_connection_manager_close)
+    CREATE_AND_REGISTER_FN(http_connection_manager_acquire)
+    CREATE_AND_REGISTER_FN(http_connection_manager_release)
 
 #undef CREATE_AND_REGISTER_FN
 
