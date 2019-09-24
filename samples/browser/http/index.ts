@@ -21,45 +21,53 @@ function log(msg: string) {
 }
 
 async function main() {
-    // This will fail unless you disable CORS
     const url = new URL('https://aws-crt-test-stuff.s3.amazonaws.com/random_32_byte.data');
-    let connection = new http.HttpClientConnection(
+    const connection_manager = new http.HttpClientConnectionManager(
         url.host,
-        443
+        443,
+        4
     );
-    connection.on('connect', () => {
-        log('Ready');
-        let request = new http.HttpRequest(
-            'GET',
-            url.pathname);
-        log(`Requesting ${url}`);
-        let stream = connection.request(request);
-        stream.on('response', (status_code, headers) => {
-            log(`Status Code: ${status_code}`);
-            log('HEADERS:');
-            for (let header of headers) {
-                log(`${header[0]}: ${header[1]}`);
-            }
-        });
-        stream.on('data', (body_data) => {
-            log('BODY BEGIN');
-            let body = new TextDecoder('utf8').decode(body_data);
-            log(body);
-            log('BODY END');
-        });
-        stream.on('end', () => {
-            log('Stream Done');
-        });
-        stream.on('error', (error) => {
-            log(`STREAM ERROR: ${error}`);
-        });
-    });
-    connection.on('close', () => {
-        log('Connection Done.');
-    });
-    connection.on('error', (error) => {
-        log(`CONNECTION ERROR: ${error}`);
-    });
+    let promises = [];
+    for (let idx = 0; idx < 10; ++idx) {
+        log(`Request(${idx}) start`)
+        const conn = connection_manager.acquire()
+            .then((connection) => {
+                log(`Request(${idx}) Ready`);
+                let request = new http.HttpRequest(
+                    'GET',
+                    url.pathname);
+                log(`Request(${idx}) Requesting ${url}`);
+                let stream = connection.request(request);
+                stream.on('response', (status_code, headers) => {
+                    log(`Request(${idx}) Status Code: ${status_code}`);
+                    log(`Request(${idx}) Headers:`);
+                    for (let header of headers) {
+                        log(`    ${header[0]}: ${header[1]}`);
+                    }
+                });
+                stream.on('data', (body_data) => {
+                    log(`Request(${idx}) BODY BEGIN`);
+                    let body = new TextDecoder('utf8').decode(body_data);
+                    log("    " + body);
+                    log(`Request(${idx}) BODY END`);
+                });
+                stream.on('end', () => {
+                    log(`Request(${idx}) Stream Done`);
+                });
+                stream.on('error', (error) => {
+                    log(`Request(${idx}) STREAM ERROR: ${error}`);
+                });
+
+                connection.on('close', () => {
+                    log(`Request(${idx}) Done.`);
+                });
+                connection.on('error', (error) => {
+                    log(`Request(${idx}) CONNECTION ERROR: ${error}`);
+                });                    
+            });
+        promises.push(conn);
+    }
+    await Promise.all(promises);
 }
 
 $(document).ready(() => {

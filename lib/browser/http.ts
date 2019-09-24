@@ -17,6 +17,7 @@ import { HttpHeaders, HttpRequest } from '../common/http';
 export { HttpHeaders, HttpRequest } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { InputStream } from './io';
+import { CrtError } from './error';
 const axios = require('axios').default;
 
 export class HttpClientConnection extends BufferedEventEmitter {
@@ -191,5 +192,91 @@ export class HttpClientStream extends BufferedEventEmitter {
         }
 
         this.emit('error', new Error(`msg=${error.message}, XHR=${error.request}, info=${info}`));
+    }
+}
+
+interface PendingRequest {
+    resolve: (connection: HttpClientConnection) => void;
+    reject: (error: CrtError) => void;
+}
+
+/** Creates, manages, and vends connections to a given host/port endpoint */
+export class HttpClientConnectionManager {
+    private all_connections: HttpClientConnection[] = [];
+    private free_connections: HttpClientConnection[] = [];
+    private pending_requests: PendingRequest[] = [];
+
+    constructor(
+        readonly host: string,
+        readonly port: number,
+        readonly max_connections: number
+    ) {
+        
+    }
+
+    private remove(connection: HttpClientConnection) {
+        const all_idx = this.all_connections.indexOf(connection);
+        if (all_idx != -1) {
+            this.all_connections.splice(all_idx, 1);
+        }
+        const free_idx = this.free_connections.indexOf(connection);
+        if (free_idx != -1) {
+            this.free_connections.splice(free_idx, 1);
+        }
+    }
+
+    acquire(): Promise<HttpClientConnection> {
+        return new Promise((resolve, reject) => {
+            // Try to service the request with a free connection
+            {
+                let connection = this.free_connections.pop();
+                if (connection) {
+                    resolve(connection)
+                }
+            }
+            
+            // If we can't create a new connection, queue the request
+            if (this.all_connections.length == this.max_connections) {
+                this.pending_requests.push({
+                    resolve: resolve,
+                    reject: reject
+                });
+                return;
+            }
+
+            // There's room, create a new connection
+            let connection = new HttpClientConnection(this.host, this.port);
+            const on_connect = () => {
+                this.all_connections.push(connection);
+                resolve(connection);
+            }
+            const on_error = (error: any) => {
+                // If the connection errors, get it out of rotation
+                this.remove(connection);
+                reject(error);
+            }
+            const on_close = () => {
+                this.remove(connection);
+            }
+            connection.on('connect', on_connect);
+            connection.on('error', on_error);
+            connection.on('close', on_close);
+        });
+    }
+
+    release(connection: HttpClientConnection) {
+        const request = this.pending_requests.shift();
+        if (request) {
+            request.resolve(connection);
+            return;
+        }
+
+        this.free_connections.push(connection);
+    }
+
+    close() {
+        this.pending_requests.forEach((request) => {
+            request.reject(new CrtError('HttpClientConnectionManager shutting down'));
+        })
     }
 }
