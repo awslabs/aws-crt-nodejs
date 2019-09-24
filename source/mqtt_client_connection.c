@@ -139,11 +139,7 @@ static void s_on_connection_interrupted(
 
     struct connection_interrupted_args *args =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_interrupted_args));
-
-    if (!args) {
-        s_on_error(args->binding, aws_last_error());
-        return;
-    }
+    AWS_FATAL_ASSERT(args);
     args->binding = binding;
     args->error_code = error_code;
 
