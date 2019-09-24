@@ -159,3 +159,24 @@ test('HTTP Connection Manager create/destroy', () => {
     expect(connection_manager).toBeDefined();
     connection_manager.close();
 });
+
+test('HTTP Connection Manager acquire/release', async (done) => {
+    const bootstrap = new ClientBootstrap();
+    let connection_manager = new HttpClientConnectionManager(
+        bootstrap,
+        "s3.amazon.com",
+        80,
+        4,
+        16 * 1024,
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        undefined
+    );
+    expect(connection_manager).toBeDefined();
+
+    const connection = await connection_manager.acquire();
+    expect(connection).toBeDefined();
+    connection_manager.release(connection);
+
+    connection_manager.close();
+    done();
+});

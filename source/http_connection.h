@@ -22,7 +22,9 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info);
 napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info);
 
 struct http_connection_binding;
+struct aws_http_connection;
 
 struct aws_http_connection *aws_napi_get_http_connection(struct http_connection_binding *binding);
+napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_connection *connection);
 
 #endif /* AWS_CRT_NODEJS_HTTP_CONNECTION_H */
