@@ -14,7 +14,7 @@
  */
 
 import crt_native = require('./binding');
-import { NativeResourceMixin } from "./native_resource";
+import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, ClientTlsContext, SocketOptions, InputStream } from './io';
 import { CrtError } from './error';
@@ -243,7 +243,7 @@ export class HttpClientStream extends HttpStream {
 }
 
 /** Creates, manages, and vends connections to a given host/port endpoint */
-export class HttpClientConnectionManager extends NativeResourceMixin(BufferedEventEmitter) {
+export class HttpClientConnectionManager extends NativeResource {
     private connections = new Map<any, HttpClientConnection>();
 
     constructor(
@@ -254,10 +254,8 @@ export class HttpClientConnectionManager extends NativeResourceMixin(BufferedEve
         readonly initial_window_size: number,
         readonly socket_options: SocketOptions,
         readonly tls_ctx?: ClientTlsContext
-    ) {
-        super();
-        
-        this._super(crt_native.http_connection_manager_new(
+    ) {      
+        super(crt_native.http_connection_manager_new(
             bootstrap.native_handle(),
             host,
             port,
