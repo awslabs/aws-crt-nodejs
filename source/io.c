@@ -179,8 +179,7 @@ napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info inf
         goto clean_up;
     }
 
-    binding->bootstrap =
-        aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &binding->resolver, NULL);
+    binding->bootstrap = aws_client_bootstrap_new(allocator, aws_napi_get_node_elg(), &binding->resolver, NULL);
     if (!binding->bootstrap) {
         napi_throw_error(env, NULL, "Failed init client_bootstrap");
         goto clean_up;

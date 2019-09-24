@@ -265,17 +265,17 @@ struct connection_acquired_args {
 };
 
 static int s_http_connection_manager_on_acquired_params(
-        napi_env env,
-        napi_value *params,
-        size_t *num_params,
-        void *user_data) {
+    napi_env env,
+    napi_value *params,
+    size_t *num_params,
+    void *user_data) {
     struct connection_acquired_args *args = user_data;
     napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
     if (!connection_external) {
         return AWS_OP_ERR;
     }
     params[0] = connection_external;
-    if (napi_create_int32(env, args-> error_code, &params[1])) {
+    if (napi_create_int32(env, args->error_code, &params[1])) {
         return AWS_OP_ERR;
     }
 
@@ -289,7 +289,10 @@ static void s_http_connection_manager_on_acquired_dispatch(void *user_data) {
     aws_mem_release(args->binding->allocator, args);
 }
 
-static void s_http_connection_manager_acquired(struct aws_http_connection *connection, int error_code, void *user_data) {
+static void s_http_connection_manager_acquired(
+    struct aws_http_connection *connection,
+    int error_code,
+    void *user_data) {
     struct connection_acquired_args *args = user_data;
     args->connection = connection;
     args->error_code = error_code;
@@ -312,12 +315,13 @@ napi_value aws_napi_http_connection_manager_acquire(napi_env env, napi_callback_
 
     napi_value node_external = *arg++;
     struct http_connection_manager_binding *binding = NULL;
-    if (napi_get_value_external(env, node_external, (void**)&binding)) {
+    if (napi_get_value_external(env, node_external, (void **)&binding)) {
         napi_throw_type_error(env, NULL, "connection_manager should be an external");
         return NULL;
     }
 
-    struct connection_acquired_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_acquired_args));
+    struct connection_acquired_args *args =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_acquired_args));
     if (!args) {
         aws_napi_throw_last_error(env);
         return NULL;
@@ -325,7 +329,12 @@ napi_value aws_napi_http_connection_manager_acquire(napi_env env, napi_callback_
     args->binding = binding;
 
     napi_value node_on_acquired = *arg++;
-    if (aws_napi_callback_init(&args->on_acquired, env, node_on_acquired, "http_connection_manager_on_acquired", s_http_connection_manager_on_acquired_params)) {
+    if (aws_napi_callback_init(
+            &args->on_acquired,
+            env,
+            node_on_acquired,
+            "http_connection_manager_on_acquired",
+            s_http_connection_manager_on_acquired_params)) {
         napi_throw_type_error(env, NULL, "on_acquired should be a valid callback");
         goto failed;
     }
@@ -360,7 +369,7 @@ napi_value aws_napi_http_connection_manager_release(napi_env env, napi_callback_
 
     napi_value node_connection = *arg++;
     struct http_connection_binding *connection_binding = NULL;
-    if (napi_get_value_external(env, node_connection, (void**)&connection_binding)) {
+    if (napi_get_value_external(env, node_connection, (void **)&connection_binding)) {
         napi_throw_type_error(env, NULL, "connection should be an external");
         return NULL;
     }
