@@ -239,6 +239,9 @@ export class HttpClientConnectionManager {
     }
 
     private pump() {
+        if (this.pending_requests.length == 0) {
+            return;
+        }
         // Try to service the request with a free connection
         {
             let connection = this.free_connections.pop();
