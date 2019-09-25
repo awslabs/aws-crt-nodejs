@@ -282,6 +282,11 @@ export class HttpClientConnectionManager {
         connection.on('close', on_close);
     }
 
+    /** 
+     * Vends a connection from the pool
+     * @returns A promise that results in an HttpClientConnection. When done with the connection, return
+     *          it via {@link release}
+     */
     acquire(): Promise<HttpClientConnection> {
         return new Promise((resolve, reject) => {
             this.pending_requests.push({
@@ -292,11 +297,16 @@ export class HttpClientConnectionManager {
         });
     }
 
+    /** 
+     * Returns an unused connection to the pool 
+     * @param connection - The connection to return
+    */
     release(connection: HttpClientConnection) {
         this.free_connections.push(connection);
         this.pump();
     }
 
+    /** Closes all connections and rejects all pending requests */
     close() {
         this.pending_requests.forEach((request) => {
             request.reject(new CrtError('HttpClientConnectionManager shutting down'));
