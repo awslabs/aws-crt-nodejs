@@ -65,6 +65,7 @@ async function main() {
         promises.push(conn);
     }
     await Promise.all(promises);
+    connection_manager.close();
 }
 
 $(document).ready(() => {
