@@ -53,13 +53,10 @@ async function main() {
                 });
                 stream.on('end', () => {
                     log(`Request(${idx}) Stream Done`);
+                    connection_manager.release(connection);
                 });
                 stream.on('error', (error) => {
                     log(`Request(${idx}) STREAM ERROR: ${error}`);
-                });
-
-                connection.on('close', () => {
-                    log(`Request(${idx}) Connection Done`);
                 });
                 connection.on('error', (error) => {
                     log(`Request(${idx}) CONNECTION ERROR: ${error}`);
