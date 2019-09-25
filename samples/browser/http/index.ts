@@ -59,7 +59,7 @@ async function main() {
                 });
 
                 connection.on('close', () => {
-                    log(`Request(${idx}) Done.`);
+                    log(`Request(${idx}) Connection Done`);
                 });
                 connection.on('error', (error) => {
                     log(`Request(${idx}) CONNECTION ERROR: ${error}`);

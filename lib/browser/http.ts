@@ -202,7 +202,8 @@ interface PendingRequest {
 
 /** Creates, manages, and vends connections to a given host/port endpoint */
 export class HttpClientConnectionManager {
-    private all_connections: HttpClientConnection[] = [];
+    private pending_connections = new Set<HttpClientConnection>();
+    private live_connections = new Set<HttpClientConnection>();
     private free_connections: HttpClientConnection[] = [];
     private pending_requests: PendingRequest[] = [];
 
@@ -215,63 +216,82 @@ export class HttpClientConnectionManager {
     }
 
     private remove(connection: HttpClientConnection) {
-        const all_idx = this.all_connections.indexOf(connection);
-        if (all_idx != -1) {
-            this.all_connections.splice(all_idx, 1);
-        }
+        this.pending_connections.delete(connection);
+        this.live_connections.delete(connection);
         const free_idx = this.free_connections.indexOf(connection);
         if (free_idx != -1) {
             this.free_connections.splice(free_idx, 1);
         }
     }
 
+    private resolve(connection: HttpClientConnection) {
+        const request = this.pending_requests.shift();
+        if (request) {
+            request.resolve(connection);
+        }
+    }
+
+    private reject(error: CrtError) {
+        const request = this.pending_requests.shift();
+        if (request) {
+            request.reject(error);
+        }
+    }
+
+    private pump() {
+        // Try to service the request with a free connection
+        {
+            let connection = this.free_connections.pop();
+            if (connection) {
+                return this.resolve(connection);
+            }
+        }
+        
+        // If there's no more room, nothing can be resolved right now
+        if ((this.live_connections.size + this.pending_connections.size) == this.max_connections) {
+            return;
+        }
+        
+        // There's room, create a new connection
+        let connection = new HttpClientConnection(this.host, this.port);
+        this.pending_connections.add(connection);
+        const on_connect = () => {
+            this.pending_connections.delete(connection);
+            this.live_connections.add(connection);
+            this.free_connections.push(connection);
+            this.resolve(connection);
+        }
+        const on_error = (error: any) => {
+            if (this.pending_connections.has(connection)) {
+                // Connection never connected, error it out
+                return this.reject(new CrtError(error));
+            }
+            // If the connection errors after use, get it out of rotation and replace it
+            this.remove(connection);
+            this.pump();
+        }
+        const on_close = () => {
+            this.remove(connection);
+            this.pump();
+        }
+        connection.on('connect', on_connect);
+        connection.on('error', on_error);
+        connection.on('close', on_close);
+    }
+
     acquire(): Promise<HttpClientConnection> {
         return new Promise((resolve, reject) => {
-            // Try to service the request with a free connection
-            {
-                let connection = this.free_connections.pop();
-                if (connection) {
-                    resolve(connection)
-                }
-            }
-            
-            // If we can't create a new connection, queue the request
-            if (this.all_connections.length == this.max_connections) {
-                this.pending_requests.push({
-                    resolve: resolve,
-                    reject: reject
-                });
-                return;
-            }
-
-            // There's room, create a new connection
-            let connection = new HttpClientConnection(this.host, this.port);
-            const on_connect = () => {
-                this.all_connections.push(connection);
-                resolve(connection);
-            }
-            const on_error = (error: any) => {
-                // If the connection errors, get it out of rotation
-                this.remove(connection);
-                reject(error);
-            }
-            const on_close = () => {
-                this.remove(connection);
-            }
-            connection.on('connect', on_connect);
-            connection.on('error', on_error);
-            connection.on('close', on_close);
+            this.pending_requests.push({
+                resolve: resolve,
+                reject: reject
+            });
+            this.pump();
         });
     }
 
     release(connection: HttpClientConnection) {
-        const request = this.pending_requests.shift();
-        if (request) {
-            request.resolve(connection);
-            return;
-        }
-
         this.free_connections.push(connection);
+        this.pump();
     }
 
     close() {
