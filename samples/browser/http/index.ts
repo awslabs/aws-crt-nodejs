@@ -48,7 +48,7 @@ async function main() {
                 stream.on('data', (body_data) => {
                     log(`Request(${idx}) BODY BEGIN`);
                     let body = new TextDecoder('utf8').decode(body_data);
-                    log("    " + body);
+                    log(`    ${body}`);
                     log(`Request(${idx}) BODY END`);
                 });
                 stream.on('end', () => {
