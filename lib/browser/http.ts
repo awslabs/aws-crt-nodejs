@@ -228,6 +228,8 @@ export class HttpClientConnectionManager {
         const request = this.pending_requests.shift();
         if (request) {
             request.resolve(connection);
+        } else {
+            this.free_connections.push(connection);
         }
     }
 
