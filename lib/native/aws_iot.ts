@@ -16,6 +16,7 @@ import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
 
+/** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig   
     private tls_ctx_options?: io.TlsContextOptions
@@ -80,7 +81,6 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.tls_ctx_options !== undefined) {
             this.tls_ctx_options.override_default_trust_store_from_path(ca_dirpath, ca_filepath);
         }
-
         return this;
     }
 
@@ -92,28 +92,48 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.tls_ctx_options) {
             this.tls_ctx_options.override_default_trust_store(ca);
         }
+        return this;
     }
 
+    /**
+     * Configures the IoT endpoint for this connection
+     * @param endpoint The IoT endpoint to connect to
+     */
     with_endpoint(endpoint: string) {
         this.params.host_name = endpoint;
         return this;
     }
 
+    /**
+     * The port to connect to on the IoT endpoint
+     * @param port The port to connect to on the IoT endpoint. Usually 8883 for MQTT, or 443 for websockets
+     */
     with_port(port: number) {
         this.params.port = port;
         return this;
     }
 
+    /**
+     * Configures the client_id to use to connect to the IoT Core service
+     * @param client_id The client id for this connection. Needs to be unique across all devices/clients.
+     */
     with_client_id(client_id: string) {
         this.params.client_id = client_id;
         return this;
     }
 
+    /**
+     * Determines whether or not the service should try to resume prior subscriptions, if it has any
+     * @param clean_session true if the session should drop prior subscriptions when this client connects, false to resume the session
+     */
     with_clean_session(clean_session: boolean) {
         this.params.clean_session = clean_session;
         return this;
     }
 
+    /**
+     * Configures the connection to use MQTT over websockets. Forces the port to 443.
+     */
     with_use_websockets() {
         this.params.use_websocket = true;
 
@@ -125,26 +145,46 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
+    /**
+     * Configures MQTT keep-alive via PING messages. Note that this is not TCP keepalive.
+     * @param keep_alive How often in seconds to send an MQTT PING message to the service to keep the connection alive
+     */
     with_keep_alive_seconds(keep_alive: number) {
         this.params.keep_alive = keep_alive;
         return this;
     }
 
+    /**
+     * Configures the TCP socket timeout (in milliseconds)
+     * @param timeout_ms TCP socket timeout
+     */
     with_timeout_ms(timeout_ms: number) {
         this.params.timeout = timeout_ms;
         return this;
     }
 
+    /**
+     * Configures the will message to be sent when this client disconnects
+     * @param will The will topic, qos, and message
+     */
     with_will(will: MqttWill) {
         this.params.will = will;
         return this;
     }
 
+    /**
+     * Configures the amount of time a connection can take (in milliseconds) to CONNACK before it times out
+     * @param timeout_ms The maximum time it can take to connect to an endpoint before timing out the connection
+     */
     with_connect_timeout_ms(timeout: number) {
         this.params.connect_timeout = timeout;
         return this;
     }
 
+    /**
+     * Returns the configured MqttConnectionConfig
+     * @returns The configured MqttConnectionConfig
+     */
     build() {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
