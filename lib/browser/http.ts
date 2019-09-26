@@ -17,6 +17,7 @@ import { HttpHeaders, HttpRequest } from '../common/http';
 export { HttpHeaders, HttpRequest } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { InputStream } from './io';
+import { CrtError } from './error';
 const axios = require('axios').default;
 
 export class HttpClientConnection extends BufferedEventEmitter {
@@ -191,5 +192,126 @@ export class HttpClientStream extends BufferedEventEmitter {
         }
 
         this.emit('error', new Error(`msg=${error.message}, XHR=${error.request}, info=${info}`));
+    }
+}
+
+interface PendingRequest {
+    resolve: (connection: HttpClientConnection) => void;
+    reject: (error: CrtError) => void;
+}
+
+/** Creates, manages, and vends connections to a given host/port endpoint */
+export class HttpClientConnectionManager {
+    private pending_connections = new Set<HttpClientConnection>();
+    private live_connections = new Set<HttpClientConnection>();
+    private free_connections: HttpClientConnection[] = [];
+    private pending_requests: PendingRequest[] = [];
+
+    constructor(
+        readonly host: string,
+        readonly port: number,
+        readonly max_connections: number
+    ) {
+        
+    }
+
+    private remove(connection: HttpClientConnection) {
+        this.pending_connections.delete(connection);
+        this.live_connections.delete(connection);
+        const free_idx = this.free_connections.indexOf(connection);
+        if (free_idx != -1) {
+            this.free_connections.splice(free_idx, 1);
+        }
+    }
+
+    private resolve(connection: HttpClientConnection) {
+        const request = this.pending_requests.shift();
+        if (request) {
+            request.resolve(connection);
+        } else {
+            this.free_connections.push(connection);
+        }
+    }
+
+    private reject(error: CrtError) {
+        const request = this.pending_requests.shift();
+        if (request) {
+            request.reject(error);
+        }
+    }
+
+    private pump() {
+        if (this.pending_requests.length == 0) {
+            return;
+        }
+        // Try to service the request with a free connection
+        {
+            let connection = this.free_connections.pop();
+            if (connection) {
+                return this.resolve(connection);
+            }
+        }
+        
+        // If there's no more room, nothing can be resolved right now
+        if ((this.live_connections.size + this.pending_connections.size) == this.max_connections) {
+            return;
+        }
+        
+        // There's room, create a new connection
+        let connection = new HttpClientConnection(this.host, this.port);
+        this.pending_connections.add(connection);
+        const on_connect = () => {
+            this.pending_connections.delete(connection);
+            this.live_connections.add(connection);
+            this.free_connections.push(connection);
+            this.resolve(connection);
+        }
+        const on_error = (error: any) => {
+            if (this.pending_connections.has(connection)) {
+                // Connection never connected, error it out
+                return this.reject(new CrtError(error));
+            }
+            // If the connection errors after use, get it out of rotation and replace it
+            this.remove(connection);
+            this.pump();
+        }
+        const on_close = () => {
+            this.remove(connection);
+            this.pump();
+        }
+        connection.on('connect', on_connect);
+        connection.on('error', on_error);
+        connection.on('close', on_close);
+    }
+
+    /** 
+     * Vends a connection from the pool
+     * @returns A promise that results in an HttpClientConnection. When done with the connection, return
+     *          it via {@link release}
+     */
+    acquire(): Promise<HttpClientConnection> {
+        return new Promise((resolve, reject) => {
+            this.pending_requests.push({
+                resolve: resolve,
+                reject: reject
+            });
+            this.pump();
+        });
+    }
+
+    /** 
+     * Returns an unused connection to the pool 
+     * @param connection - The connection to return
+    */
+    release(connection: HttpClientConnection) {
+        this.free_connections.push(connection);
+        this.pump();
+    }
+
+    /** Closes all connections and rejects all pending requests */
+    close() {
+        this.pending_requests.forEach((request) => {
+            request.reject(new CrtError('HttpClientConnectionManager shutting down'));
+        })
     }
 }

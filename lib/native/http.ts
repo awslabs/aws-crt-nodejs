@@ -261,12 +261,17 @@ export class HttpClientConnectionManager extends NativeResource {
             port,
             max_connections,
             initial_window_size,
-            socket_options,
-            tls_ctx,
+            socket_options.native_handle(),
+            tls_ctx ? tls_ctx.native_handle() : undefined,
             undefined /* on_shutdown */
         ));
     }
 
+    /**
+    * Vends a connection from the pool
+    * @returns A promise that results in an HttpClientConnection. When done with the connection, return
+    *          it via {@link release}
+    */
     acquire(): Promise<HttpClientConnection> {
         return new Promise((resolve, reject) => {
             // Only create 1 connection in JS/TS from each native connection
@@ -293,10 +298,15 @@ export class HttpClientConnectionManager extends NativeResource {
         });
     }
 
+    /**
+     * Returns an unused connection to the pool
+     * @param connection - The connection to return
+    */
     release(connection: HttpClientConnection) {
         crt_native.http_connection_manager_release(this.native_handle(), connection.native_handle());
     }
 
+    /** Closes all connections and rejects all pending requests */
     close() {
         crt_native.http_connection_manager_close(this.native_handle());
     }

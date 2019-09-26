@@ -109,6 +109,7 @@ test('MQTT Pub/Sub', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${new Date()}`)
         .with_endpoint(aws_opts.endpoint)
+        .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
@@ -135,7 +136,7 @@ test('MQTT Pub/Sub', async (done) => {
         done();
     })
     connection.connect();
-}, 30000);
+}, 10000);
 
 test('MQTT Will', async (done) => {
     const aws_opts = await fetch_credentials();
