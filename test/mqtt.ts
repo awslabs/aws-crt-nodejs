@@ -136,7 +136,7 @@ test('MQTT Pub/Sub', async (done) => {
         done();
     })
     connection.connect();
-}, 30000);
+}, 10000);
 
 test('MQTT Will', async (done) => {
     const aws_opts = await fetch_credentials();
