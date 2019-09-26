@@ -8,7 +8,7 @@
     "AWS SDK Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
   ],
   "license": "Apache-2.0",
-  "main": "./dist/lib/index.js",
+  "main": "./dist/index.js",
   "browser": "./dist.browser/browser.js",
   "files": [
     "s2n/",
