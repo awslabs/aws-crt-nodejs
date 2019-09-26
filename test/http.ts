@@ -153,7 +153,7 @@ test('HTTP Connection Manager create/destroy', () => {
         80,
         4,
         16 * 1024,
-        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
         undefined
     );
     expect(connection_manager).toBeDefined();
@@ -168,7 +168,7 @@ test('HTTP Connection Manager acquire/release', async (done) => {
         80,
         4,
         16 * 1024,
-        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
         undefined
     );
     expect(connection_manager).toBeDefined();
@@ -189,7 +189,7 @@ test('HTTP Connection Manager acquire/stream/release', async (done) => {
         80,
         4,
         16 * 1024,
-        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000).native_handle(),
+        new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
         undefined
     );
     expect(connection_manager).toBeDefined();

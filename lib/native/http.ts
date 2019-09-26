@@ -261,8 +261,8 @@ export class HttpClientConnectionManager extends NativeResource {
             port,
             max_connections,
             initial_window_size,
-            socket_options,
-            tls_ctx,
+            socket_options.native_handle(),
+            tls_ctx ? tls_ctx.native_handle() : undefined,
             undefined /* on_shutdown */
         ));
     }
