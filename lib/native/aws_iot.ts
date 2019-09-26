@@ -70,12 +70,28 @@ export class AwsIotMqttConnectionConfigBuilder {
         return builder;
     }
 
-    with_certificate_authority_from_path(ca_path?: string, ca_file?: string) {
+    /**
+     * Overrides the default system trust store.
+     * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are
+     * stored in a directory (e.g. /etc/ssl/certs).
+     * @param ca_filepath - Single file containing all trust CAs, in PEM format
+     */
+    with_certificate_authority_from_path(ca_dirpath?: string, ca_filepath?: string) {
         if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.override_default_trust_store_from_path(ca_path, ca_file);
+            this.tls_ctx_options.override_default_trust_store_from_path(ca_dirpath, ca_filepath);
         }
 
         return this;
+    }
+
+    /**
+     * Overrides the default system trust store.
+     * @param ca - Buffer containing all trust CAs, in PEM format
+     */
+    with_certificate_authority(ca: string) {
+        if (this.tls_ctx_options) {
+            this.tls_ctx_options.override_default_trust_store(ca);
+        }
     }
 
     with_endpoint(endpoint: string) {
