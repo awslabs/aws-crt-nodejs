@@ -72,7 +72,7 @@ export class AwsIotMqttConnectionConfigBuilder {
 
     with_certificate_authority_from_path(ca_path?: string, ca_file?: string) {
         if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.override_default_trust_store(ca_path, ca_file);
+            this.tls_ctx_options.override_default_trust_store_from_path(ca_path, ca_file);
         }
 
         return this;

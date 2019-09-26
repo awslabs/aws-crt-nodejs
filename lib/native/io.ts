@@ -189,7 +189,7 @@ export class TlsContextOptions {
      * stored in a directory (e.g. /etc/ssl/certs). 
      * @param ca_filepath - Single file containing all trust CAs, in PEM format
      */
-    override_default_trust_store(ca_dirpath?: string, ca_filepath?: string): void {
+    override_default_trust_store_from_path(ca_dirpath?: string, ca_filepath?: string): void {
         this.ca_dirpath = ca_dirpath;
         this.ca_filepath = ca_filepath;
     }
