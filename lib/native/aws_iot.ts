@@ -19,9 +19,8 @@ import * as platform from '../common/platform';
 /** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig   
-    private tls_ctx_options?: io.TlsContextOptions
 
-    private constructor() {
+    private constructor(private tls_ctx_options: io.TlsContextOptions) {
         this.params = {
             client_id: '', 
             host_name: '',
@@ -43,8 +42,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param key_path - Path to private key, in PEM format
      */
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder();
-        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path);
+        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
         builder.params.port = 8883;
         
         if (io.is_alpn_available()) {
@@ -60,8 +58,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param private_key - Private key, in PEM format
      */
     static new_mtls_builder(cert: string, private_key: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder();
-        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert, private_key);
+        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls(cert, private_key));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
@@ -78,9 +75,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param ca_filepath - Single file containing all trust CAs, in PEM format
      */
     with_certificate_authority_from_path(ca_dirpath?: string, ca_filepath?: string) {
-        if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.override_default_trust_store_from_path(ca_dirpath, ca_filepath);
-        }
+        this.tls_ctx_options.override_default_trust_store_from_path(ca_dirpath, ca_filepath);
         return this;
     }
 
@@ -89,9 +84,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param ca - Buffer containing all trust CAs, in PEM format
      */
     with_certificate_authority(ca: string) {
-        if (this.tls_ctx_options) {
-            this.tls_ctx_options.override_default_trust_store(ca);
-        }
+        this.tls_ctx_options.override_default_trust_store(ca);
         return this;
     }
 
@@ -137,7 +130,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     with_use_websockets() {
         this.params.use_websocket = true;
 
-        if (this.tls_ctx_options !== undefined) {
+        if (this.tls_ctx_options) {
             this.tls_ctx_options.alpn_list = [];
             this.params.port = 443;
         }
@@ -188,10 +181,6 @@ export class AwsIotMqttConnectionConfigBuilder {
     build() {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
-        }
-
-        if (this.tls_ctx_options === undefined) {
-            throw 'tls options have to be specified'
         }
 
         this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);       
