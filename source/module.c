@@ -33,6 +33,15 @@
 
 #include <uv.h>
 
+static struct aws_log_subject_info s_log_subject_infos[] = {
+    DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODE, "node", "Node/N-API failures"),
+};
+
+static struct aws_log_subject_info_list s_log_subject_list = {
+    .subject_list = s_log_subject_infos,
+    .count = AWS_ARRAY_SIZE(s_log_subject_infos),
+};
+
 static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
 static struct aws_event_loop_group s_node_uv_elg;
@@ -189,6 +198,58 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
 
+const char *aws_napi_status_to_str(napi_status status) {
+    const char *reason = "UNKNOWN";
+    switch (status) {
+        case napi_ok:
+            reason = "OK";
+            break;
+        case napi_invalid_arg:
+            reason = "napi_invalid_arg: an invalid argument was supplied";
+            break;
+        case napi_object_expected:
+            reason = "napi_object_expected";
+            break;
+        case napi_string_expected:
+            reason = "napi_name_expected";
+            break;
+        case napi_name_expected:
+            reason = "napi_name_expected";
+            break;
+        case napi_function_expected:
+            reason = "napi_function_expected";
+            break;
+        case napi_number_expected:
+            reason = "napi_number_expected";
+            break;
+        case napi_boolean_expected:
+            reason = "napi_boolean_expected";
+            break;
+        case napi_array_expected:
+            reason = "napi_array_expected";
+            break;
+        case napi_generic_failure:
+            reason = "napi_generic_failure";
+            break;
+        case napi_pending_exception:
+            reason = "napi_pending_exception";
+            break;
+        case napi_cancelled:
+            reason = "napi_cancelled";
+            break;
+        case napi_escape_called_twice:
+            reason = "napi_escape_called_twice";
+            break;
+        case napi_handle_scope_mismatch:
+            reason = "napi_handle_scope_mismatch";
+            break;
+        case napi_callback_scope_mismatch:
+            reason = "napi_callback_scope_mismatch";
+            break;
+    }
+    return reason;
+}
+
 int aws_napi_callback_init(
     struct aws_napi_callback *cb,
     napi_env env,
@@ -284,8 +345,9 @@ int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data) {
     }
     AWS_FATAL_ASSERT(num_params < AWS_ARRAY_SIZE(params));
 
-    if (napi_make_callback(env, cb->async_context, this_object, node_function, num_params, params, NULL)) {
-        napi_throw_error(env, NULL, "Callback invocation failed");
+    napi_status call_result = napi_make_callback(env, cb->async_context, this_object, node_function, num_params, params, NULL);
+    if (napi_ok != call_result) {
+        AWS_LOGF_WARN(AWS_LS_NODE, "Callback invocation failed: %s", aws_napi_status_to_str(call_result));
         goto cleanup;
     }
 
@@ -331,6 +393,7 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
     struct aws_allocator *allocator = aws_default_allocator();
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
+    aws_register_log_subject_info_list(&s_log_subject_list);
 
     /* Initalize the event loop group */
     aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
