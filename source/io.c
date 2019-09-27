@@ -367,7 +367,7 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
         }
     }
 #endif /* __APPLE__ */
-    
+
     bool verify_peer = true;
     napi_value node_verify_peer = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_verify_peer)) {
@@ -409,9 +409,9 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
         }
     } else if (ca_path || ca_file) {
         if (aws_tls_ctx_options_override_default_trust_store_from_path(
-            &ctx_options,
-            ca_path ? (const char *)aws_string_bytes(ca_path) : NULL,
-            ca_file ? (const char *)aws_string_bytes(ca_file) : NULL)) {
+                &ctx_options,
+                ca_path ? (const char *)aws_string_bytes(ca_path) : NULL,
+                ca_file ? (const char *)aws_string_bytes(ca_file) : NULL)) {
             aws_napi_throw_last_error(env);
             goto cleanup;
         }
