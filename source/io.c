@@ -49,7 +49,9 @@ napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) 
     const char *error_string = aws_error_debug_str((int)error_code);
 
     napi_value error_string_val = NULL;
-    napi_create_string_utf8(env, error_string, NAPI_AUTO_LENGTH, &error_string_val);
+    if (napi_create_string_utf8(env, error_string, NAPI_AUTO_LENGTH, &error_string_val)) {
+        napi_throw_error(env, NULL, "error_code_to_string failed to create return value");
+    }
 
     return error_string_val;
 }
@@ -80,7 +82,9 @@ napi_value aws_napi_error_code_to_name(napi_env env, napi_callback_info info) {
     const char *error_string = aws_error_name((int)error_code);
 
     napi_value error_string_val = NULL;
-    napi_create_string_utf8(env, error_string, NAPI_AUTO_LENGTH, &error_string_val);
+    if (napi_create_string_utf8(env, error_string, NAPI_AUTO_LENGTH, &error_string_val)) {
+        napi_throw_error(env, NULL, "error_code_to_name failed to create return value");
+    }
 
     return error_string_val;
 }
@@ -233,7 +237,7 @@ napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info)
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new needs exactly 11 arguments");
+        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new needs exactly 12 arguments");
         return NULL;
     }
 
