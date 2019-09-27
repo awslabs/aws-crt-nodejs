@@ -28,7 +28,6 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     protected constructor(native_handle: any) {
         super();
         this._super(native_handle);
-        this.on('error', () => { }); // suppress error throwing
     }
 
     close() {
@@ -149,7 +148,6 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         super();
         this._super(native_handle);
         this.cork();
-        this.on('error', () => { }); // suppress error throwing
     }
 
     /** 

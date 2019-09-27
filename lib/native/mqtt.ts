@@ -81,7 +81,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); })
         );
         this.tls_ctx = config.tls_ctx;
-        this.on('error', () => { });
     }
 
     private close() {

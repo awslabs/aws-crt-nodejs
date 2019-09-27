@@ -108,7 +108,7 @@ napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
 
     struct aws_string *filename = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (aws_string_new_from_napi(env, node_args[1])) {
+        if (!(filename = aws_string_new_from_napi(env, node_args[1]))) {
             napi_throw_error(env, NULL, "filename must be a string or undefined");
             return NULL;
         }
