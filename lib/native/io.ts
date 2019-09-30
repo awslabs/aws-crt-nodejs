@@ -63,13 +63,12 @@ export enum LogLevel {
 
 /** 
  * Enables logging of the native AWS CRT libraries.
- * @param level - The logging level to filter to
- * @param filename - (Optional) The file to log to. If not provided, stderr will be used
+ * @param level - The logging level to filter to. It is not possible to log less than WARN.
  * 
  * nodejs only.
  */
-export function enable_logging(level: LogLevel, filename?: string) {
-    crt_native.io_logging_enable(level, filename);
+export function enable_logging(level: LogLevel) {
+    crt_native.io_logging_enable(level);
 }
 
 /** 

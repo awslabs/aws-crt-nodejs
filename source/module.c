@@ -22,6 +22,7 @@
 #include "io.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
+#include "logger.h"
 
 #include <aws/common/clock.h>
 #include <aws/common/logging.h>
@@ -286,12 +287,12 @@ int aws_napi_callback_clean_up(struct aws_napi_callback *cb) {
         napi_handle_scope handle_scope = NULL;
         AWS_FATAL_ASSERT(napi_ok == napi_open_handle_scope(cb->env, &handle_scope));
         if (cb->async_context) {
-            napi_async_destroy(cb->env, cb->async_context);
+            AWS_FATAL_ASSERT(napi_ok == napi_async_destroy(cb->env, cb->async_context));
         }
         if (cb->callback) {
-            napi_delete_reference(cb->env, cb->callback);
+            AWS_FATAL_ASSERT(napi_ok == napi_delete_reference(cb->env, cb->callback));
         }
-        napi_close_handle_scope(cb->env, handle_scope);
+        AWS_FATAL_ASSERT(napi_ok == napi_close_handle_scope(cb->env, handle_scope));
     }
 
     AWS_ZERO_STRUCT(*cb);
@@ -475,6 +476,22 @@ cleanup:
     return result;
 }
 
+static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env) {
+    struct aws_napi_context *ctx = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_context));
+    AWS_FATAL_ASSERT(ctx && "Failed to initialize napi context");
+    ctx->allocator = allocator;
+    ctx->logger = aws_napi_logger_new(allocator, env);
+    return ctx;
+}
+
+/*
+static void s_napi_context_finalize(void *user_data) {
+    struct aws_napi_context *ctx = user_data;
+    aws_napi_logger_destroy(ctx->logger);
+    aws_mem_release(ctx->allocator, ctx);
+}
+*/
+
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(
     napi_env env,
@@ -502,9 +519,17 @@ static bool s_create_and_register_function(
 napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     struct aws_allocator *allocator = aws_default_allocator();
+
+    /* create context, register to have the context cleaned up before exit */
+    struct aws_napi_context *ctx = s_napi_context_new(allocator, env);
+    (void)ctx;
+    /*napi_add_env_cleanup_hook(env, s_napi_context_finalize, ctx);*/
+
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
     aws_register_log_subject_info_list(&s_log_subject_list);
+
+    aws_logger_set(aws_napi_logger_get());
 
     /* Initalize the event loop group */
     aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
