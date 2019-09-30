@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 #include "io.h"
+#include "logger.h"
 #include "module.h"
 
 #include <aws/common/logging.h>
@@ -85,8 +86,6 @@ napi_value aws_napi_error_code_to_name(napi_env env, napi_callback_info info) {
     return error_string_val;
 }
 
-static struct aws_logger s_logger;
-
 napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -102,27 +101,10 @@ napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    struct aws_string *filename = NULL;
-    if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (aws_string_new_from_napi(env, node_args[1])) {
-            napi_throw_error(env, NULL, "filename must be a string or undefined");
-            return NULL;
-        }
+    if (log_level > AWS_LL_WARN) {
+        aws_napi_logger_set_level(log_level);
     }
 
-    struct aws_logger_standard_options options = {.level = log_level};
-    options.file = filename ? NULL : stderr;
-    options.filename = (filename) ? (const char *)aws_string_bytes(filename) : NULL;
-
-    if (aws_logger_init_standard(&s_logger, aws_default_allocator(), &options)) {
-        aws_napi_throw_last_error(env);
-        goto failed;
-    }
-
-    aws_logger_set(&s_logger);
-
-failed:
-    aws_string_destroy(filename);
     return NULL;
 }
 

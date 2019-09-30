@@ -55,4 +55,15 @@ int aws_napi_callback_init(
 int aws_napi_callback_clean_up(struct aws_napi_callback *cb);
 int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
 
+/* 
+ * One of these will be allocated each time the module init function is called 
+ * Any global state that isn't thread safe or requires clean up should be stored
+ * on this so that it can be tracked and cleaned up
+ */
+struct aws_napi_context {
+    napi_env env;
+    struct aws_allocator *allocator;
+    struct aws_napi_logger_ctx *logger;
+};
+
 #endif /* AWS_CRT_NODEJS_MODULE_H */
