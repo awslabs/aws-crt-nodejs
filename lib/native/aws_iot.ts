@@ -16,11 +16,11 @@ import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
 
+/** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig   
-    private tls_ctx_options?: io.TlsContextOptions
 
-    private constructor() {
+    private constructor(private tls_ctx_options: io.TlsContextOptions) {
         this.params = {
             client_id: '', 
             host_name: '',
@@ -42,8 +42,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param key_path - Path to private key, in PEM format
      */
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder();
-        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path);
+        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
         builder.params.port = 8883;
         
         if (io.is_alpn_available()) {
@@ -59,8 +58,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param private_key - Private key, in PEM format
      */
     static new_mtls_builder(cert: string, private_key: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder();
-        builder.tls_ctx_options = io.TlsContextOptions.create_client_with_mtls(cert, private_key);
+        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls(cert, private_key));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
@@ -70,38 +68,69 @@ export class AwsIotMqttConnectionConfigBuilder {
         return builder;
     }
 
-    with_certificate_authority_from_path(ca_path?: string, ca_file?: string) {
-        if (this.tls_ctx_options !== undefined) {
-            this.tls_ctx_options.override_default_trust_store(ca_path, ca_file);
-        }
-
+    /**
+     * Overrides the default system trust store.
+     * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are
+     * stored in a directory (e.g. /etc/ssl/certs).
+     * @param ca_filepath - Single file containing all trust CAs, in PEM format
+     */
+    with_certificate_authority_from_path(ca_dirpath?: string, ca_filepath?: string) {
+        this.tls_ctx_options.override_default_trust_store_from_path(ca_dirpath, ca_filepath);
         return this;
     }
 
+    /**
+     * Overrides the default system trust store.
+     * @param ca - Buffer containing all trust CAs, in PEM format
+     */
+    with_certificate_authority(ca: string) {
+        this.tls_ctx_options.override_default_trust_store(ca);
+        return this;
+    }
+
+    /**
+     * Configures the IoT endpoint for this connection
+     * @param endpoint The IoT endpoint to connect to
+     */
     with_endpoint(endpoint: string) {
         this.params.host_name = endpoint;
         return this;
     }
 
+    /**
+     * The port to connect to on the IoT endpoint
+     * @param port The port to connect to on the IoT endpoint. Usually 8883 for MQTT, or 443 for websockets
+     */
     with_port(port: number) {
         this.params.port = port;
         return this;
     }
 
+    /**
+     * Configures the client_id to use to connect to the IoT Core service
+     * @param client_id The client id for this connection. Needs to be unique across all devices/clients.
+     */
     with_client_id(client_id: string) {
         this.params.client_id = client_id;
         return this;
     }
 
+    /**
+     * Determines whether or not the service should try to resume prior subscriptions, if it has any
+     * @param clean_session true if the session should drop prior subscriptions when this client connects, false to resume the session
+     */
     with_clean_session(clean_session: boolean) {
         this.params.clean_session = clean_session;
         return this;
     }
 
+    /**
+     * Configures the connection to use MQTT over websockets. Forces the port to 443.
+     */
     with_use_websockets() {
         this.params.use_websocket = true;
 
-        if (this.tls_ctx_options !== undefined) {
+        if (this.tls_ctx_options) {
             this.tls_ctx_options.alpn_list = [];
             this.params.port = 443;
         }
@@ -109,33 +138,49 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
+    /**
+     * Configures MQTT keep-alive via PING messages. Note that this is not TCP keepalive.
+     * @param keep_alive How often in seconds to send an MQTT PING message to the service to keep the connection alive
+     */
     with_keep_alive_seconds(keep_alive: number) {
         this.params.keep_alive = keep_alive;
         return this;
     }
 
+    /**
+     * Configures the TCP socket timeout (in milliseconds)
+     * @param timeout_ms TCP socket timeout
+     */
     with_timeout_ms(timeout_ms: number) {
         this.params.timeout = timeout_ms;
         return this;
     }
 
+    /**
+     * Configures the will message to be sent when this client disconnects
+     * @param will The will topic, qos, and message
+     */
     with_will(will: MqttWill) {
         this.params.will = will;
         return this;
     }
 
+    /**
+     * Configures the amount of time a connection can take (in milliseconds) to CONNACK before it times out
+     * @param timeout_ms The maximum time it can take to connect to an endpoint before timing out the connection
+     */
     with_connect_timeout_ms(timeout: number) {
         this.params.connect_timeout = timeout;
         return this;
     }
 
+    /**
+     * Returns the configured MqttConnectionConfig
+     * @returns The configured MqttConnectionConfig
+     */
     build() {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
-        }
-
-        if (this.tls_ctx_options === undefined) {
-            throw 'tls options have to be specified'
         }
 
         this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);       

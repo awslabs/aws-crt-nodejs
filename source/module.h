@@ -20,6 +20,8 @@
 
 #include <node_api.h>
 
+enum aws_napi_log_subject { AWS_LS_NODE = 0x900 };
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
 /** Copies data from cur into a new ArrayBuffer, then returns a DataView to the buffer. */
@@ -35,6 +37,8 @@ void aws_napi_throw_last_error(napi_env env);
 struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);
 struct aws_event_loop_group *aws_napi_get_node_elg(void);
+
+const char *aws_napi_status_to_str(napi_status status);
 
 struct aws_napi_callback;
 typedef int(aws_napi_callback_params_builder)(napi_env env, napi_value *params, size_t *num_params, void *user_data);

@@ -160,6 +160,8 @@ export class TlsContextOptions {
     public ca_filepath?: string;
     /** Path to directory containing trust anchors. Only used on Unix-style systems. */
     public ca_dirpath?: string;
+    /** String with all trust anchors in it, in PEM format */
+    public certificate_authority?: string;
     /** List of ALPN protocols to be used on platforms which support ALPN */
     public alpn_list:string[] = [];
     /** Path to certificate, in PEM format */
@@ -184,14 +186,23 @@ export class TlsContextOptions {
      */
     public verify_peer: boolean = false;
 
-    /** overrides the default system trust store. 
+    /** 
+     * Overrides the default system trust store. 
      * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are 
      * stored in a directory (e.g. /etc/ssl/certs). 
      * @param ca_filepath - Single file containing all trust CAs, in PEM format
      */
-    override_default_trust_store(ca_dirpath?: string, ca_filepath?: string): void {
+    override_default_trust_store_from_path(ca_dirpath?: string, ca_filepath?: string) {
         this.ca_dirpath = ca_dirpath;
         this.ca_filepath = ca_filepath;
+    }
+
+    /**
+     * Overrides the default system trust store.
+     * @param certificate_authority - String containing all trust CAs, in PEM format
+     */
+    override_default_trust_store(certificate_authority: string) {
+        this.certificate_authority = certificate_authority;
     }
 
     /** 
@@ -280,6 +291,7 @@ export class ClientTlsContext extends NativeResource {
             ctx_opt.min_tls_version,
             ctx_opt.ca_filepath,
             ctx_opt.ca_dirpath,
+            ctx_opt.certificate_authority,
             ctx_opt.alpn_list.length > 0 ? ctx_opt.alpn_list.join(';') : undefined,
             ctx_opt.certificate_filepath,
             ctx_opt.certificate,
@@ -308,7 +320,8 @@ export class ServerTlsContext extends NativeResource {
             ctx_opt.min_tls_version,
             ctx_opt.ca_filepath,
             ctx_opt.ca_dirpath,
-            ctx_opt.alpn_list,
+            ctx_opt.certificate_authority,
+            ctx_opt.alpn_list.length > 0 ? ctx_opt.alpn_list.join(';') : undefined,
             ctx_opt.certificate_filepath,
             ctx_opt.certificate,
             ctx_opt.private_key_filepath,
