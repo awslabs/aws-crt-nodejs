@@ -173,6 +173,7 @@ void aws_napi_logger_destroy(struct aws_napi_logger_ctx *ctx) {
     aws_uv_context_release(ctx->uv_context);
 
     if (s_napi_logger.default_ctx == ctx) {
+        aws_logger_set(NULL);
         s_napi_logger.default_ctx = NULL;
     }
     aws_mem_release(ctx->allocator, ctx);

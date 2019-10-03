@@ -66,6 +66,7 @@ int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
  */
 struct aws_napi_context {
     napi_env env;
+    napi_ref ctx_weak_ref;
     struct aws_allocator *allocator;
     struct aws_napi_logger_ctx *logger;
 };

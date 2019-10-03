@@ -34,6 +34,8 @@
 
 #include <uv.h>
 
+AWS_STATIC_ASSERT(NAPI_VERSION >= 3); /* aws-crt-nodejs requires N-API version 3 or above */
+
 static struct aws_log_subject_info s_log_subject_infos[] = {
     DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODE, "node", "Node/N-API failures"),
 };
@@ -247,6 +249,17 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_callback_scope_mismatch:
             reason = "napi_callback_scope_mismatch";
             break;
+#if defined(NAPI_VERSION) && NAPI_VERSION >= 3
+        case napi_queue_full:
+            reason = "napi_queue_full";
+            break;
+        case napi_closing:
+            reason = "napi_closing";
+            break;
+        case napi_bigint_expected:
+            reason = "napi_bigint_expected";
+            break;
+#endif
     }
     return reason;
 }
@@ -336,14 +349,8 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
     /* If it's an Error, extract info from it and log it */
     if (is_error) {
         /* get the Error.message field */
-        napi_value node_message_key = NULL;
-        if ((status = napi_create_string_utf8(env, "message", NAPI_AUTO_LENGTH, &node_message_key))) {
-            AWS_LOGF_ERROR(
-                AWS_LS_NODE, "napi_create_string_utf8('message') failed: %s", aws_napi_status_to_str(status));
-            return;
-        }
         napi_value node_message = NULL;
-        if ((status = napi_get_property(env, node_exception, node_message_key, &node_message))) {
+        if ((status = napi_get_named_property(env, node_exception, "message", &node_message))) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODE, "napi_get_property(exception, 'message') failed: %s", aws_napi_status_to_str(status));
             return;
@@ -359,13 +366,8 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
         }
 
         /* get the Error.stack field */
-        napi_value node_stack_key = NULL;
-        if ((status = napi_create_string_utf8(env, "stack", NAPI_AUTO_LENGTH, &node_stack_key))) {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "napi_create_string_utf8('stack'): failed: %s", aws_napi_status_to_str(status));
-            return;
-        }
         napi_value node_stack = NULL;
-        if ((status = napi_get_property(env, node_exception, node_stack_key, &node_stack))) {
+        if ((status = napi_get_named_property(env, node_exception, "stack", &node_stack))) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODE, "napi_get_property(exception, 'stack') failed: %s", aws_napi_status_to_str(status));
             return;
@@ -476,21 +478,34 @@ cleanup:
     return result;
 }
 
+static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+    struct aws_napi_context *ctx = user_data;
+    napi_delete_reference(env, ctx->ctx_weak_ref);
+    aws_napi_logger_destroy(ctx->logger);
+    aws_mem_release(ctx->allocator, ctx);
+}
+
 static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env) {
     struct aws_napi_context *ctx = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_context));
     AWS_FATAL_ASSERT(ctx && "Failed to initialize napi context");
     ctx->allocator = allocator;
     ctx->logger = aws_napi_logger_new(allocator, env);
+
+    /* create an object to represent the context to this node env. napi_wrap initially
+     * returns a weak reference, so if we never increment the ref count, the object will
+     * be GC'ed when the module scope is cleaned up */
+    napi_status status = napi_ok;
+    napi_value node_context = NULL;
+    status = napi_create_object(env, &node_context);
+    AWS_FATAL_ASSERT(status == napi_ok && "Failed to create napi context");
+
+    status = napi_wrap(env, node_context, ctx, s_napi_context_finalize, NULL, &ctx->ctx_weak_ref);
+    AWS_FATAL_ASSERT(status == napi_ok && "Failed to wrap napi context");
+
     return ctx;
 }
-
-/*
-static void s_napi_context_finalize(void *user_data) {
-    struct aws_napi_context *ctx = user_data;
-    aws_napi_logger_destroy(ctx->logger);
-    aws_mem_release(ctx->allocator, ctx);
-}
-*/
 
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(
@@ -516,14 +531,13 @@ static bool s_create_and_register_function(
     return true;
 }
 
-napi_value s_register_napi_module(napi_env env, napi_value exports) {
+NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
 
     struct aws_allocator *allocator = aws_default_allocator();
 
     /* create context, register to have the context cleaned up before exit */
     struct aws_napi_context *ctx = s_napi_context_new(allocator, env);
     (void)ctx;
-    /*napi_add_env_cleanup_hook(env, s_napi_context_finalize, ctx);*/
 
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
@@ -592,5 +606,3 @@ napi_value s_register_napi_module(napi_env env, napi_value exports) {
 
     return exports;
 }
-
-NAPI_MODULE(aws_crt_nodejs, s_register_napi_module)
