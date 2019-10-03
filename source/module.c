@@ -500,6 +500,7 @@ static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocat
     napi_value node_context = NULL;
     status = napi_create_object(env, &node_context);
     AWS_FATAL_ASSERT(status == napi_ok && "Failed to create napi context");
+    
     status = napi_wrap(env, node_context, ctx, s_napi_context_finalize, NULL, &ctx->ctx_weak_ref);
     AWS_FATAL_ASSERT(status == napi_ok && "Failed to wrap napi context");
 
