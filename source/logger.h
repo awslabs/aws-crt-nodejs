@@ -21,7 +21,7 @@
 
 struct aws_napi_logger_ctx;
 
-/** 
+/**
  * Gets the logger instance. There is only 1 per process, in accordance with how logging
  * works within the CRT. However, there is 1 context per invocation of the module init
  * function. In node versions < 12, this is always 1. In 12 and above, there can be worker

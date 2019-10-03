@@ -20,9 +20,9 @@
 #include "http_connection_manager.h"
 #include "http_stream.h"
 #include "io.h"
+#include "logger.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
-#include "logger.h"
 
 #include <aws/common/clock.h>
 #include <aws/common/logging.h>

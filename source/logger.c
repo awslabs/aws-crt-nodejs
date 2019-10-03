@@ -42,7 +42,7 @@ struct console_log_args {
 static int s_console_log_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
     struct console_log_args *args = user_data;
 
-    if (napi_create_string_utf8(env, (const char*)aws_string_bytes(args->message), args->message->len, &params[0])) {
+    if (napi_create_string_utf8(env, (const char *)aws_string_bytes(args->message), args->message->len, &params[0])) {
         return AWS_OP_ERR;
     }
 
@@ -56,7 +56,6 @@ static void s_console_log(void *user_data) {
     aws_mem_release(&args->ctx->buffer_allocator, args->message);
     aws_mem_release(&args->ctx->buffer_allocator, args);
 }
-
 
 /* aws_log_pipeline components */
 struct {
