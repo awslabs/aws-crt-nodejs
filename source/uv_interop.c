@@ -103,18 +103,24 @@ static void s_uv_closed(uv_handle_t *handle) {
     aws_memory_pool_clean_up(&ctx->command_pool.pool);
     aws_mutex_clean_up(&ctx->command_queue.mutex);
     aws_mutex_clean_up(&ctx->command_pool.mutex);
-    aws_mem_release(ctx->allocator, ctx);
+    aws_mem_release(ctx->allocator, ctx);\
 }
 
-void aws_uv_context_release(struct aws_uv_context *ctx) {
-    aws_mutex_lock(&ctx->command_queue.mutex);
-    /* For now, don't bother supporting a final flush, it shouldn't be necessary, as when refs are
-       dropped the owning object should be on its way to death */
+static void s_context_release(void *user_data) {
+    struct aws_uv_context *ctx = user_data;
+    /* this should be the last command in the queue, so the queue should be empty */
     AWS_ASSERT(aws_linked_list_empty(&ctx->command_queue.queue));
-    aws_mutex_unlock(&ctx->command_queue.mutex);
 
     /* close uv handle, when it's dead, we finish cleanup in the callback */
     uv_close((uv_handle_t *)&ctx->async_handle, s_uv_closed);
+}
+
+void aws_uv_context_release(struct aws_uv_context *ctx) {
+    /* queue up deletion, which will flush the rest of the commands */
+    aws_uv_context_enqueue(ctx, s_context_release, ctx);
+
+    /* no one else should try to queue against this context now */
+    ctx->uv_loop = NULL;
 }
 
 void aws_uv_context_enqueue(struct aws_uv_context *ctx, aws_uv_callback_fn *callback, void *user_data) {
