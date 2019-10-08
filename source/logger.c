@@ -15,7 +15,6 @@
 
 #include "logger.h"
 #include "module.h"
-#include "uv_interop.h"
 
 #include <aws/common/log_channel.h>
 #include <aws/common/log_formatter.h>
@@ -26,36 +25,15 @@
 struct aws_napi_logger_ctx {
     napi_env env;
     struct aws_allocator *allocator;
-    struct aws_uv_context *uv_context;
-    struct aws_napi_callback console_log;
+    /* console.log */
+    napi_threadsafe_function console_log;
+    /* ring buffer for copying log messages for queueing */
     struct aws_ring_buffer buffer;
+    /* allocator that uses the ring buffer */
     struct aws_allocator buffer_allocator;
 };
 
 static AWS_THREAD_LOCAL struct aws_napi_logger_ctx *tl_logger_ctx;
-
-struct console_log_args {
-    struct aws_napi_logger_ctx *ctx;
-    struct aws_string *message;
-};
-
-static int s_console_log_params(napi_env env, napi_value *params, size_t *num_params, void *user_data) {
-    struct console_log_args *args = user_data;
-
-    if (napi_create_string_utf8(env, (const char *)aws_string_bytes(args->message), args->message->len, &params[0])) {
-        return AWS_OP_ERR;
-    }
-
-    *num_params = 1;
-    return AWS_OP_SUCCESS;
-}
-
-static void s_console_log(void *user_data) {
-    struct console_log_args *args = user_data;
-    aws_napi_callback_dispatch(&args->ctx->console_log, args);
-    aws_mem_release(&args->ctx->buffer_allocator, args->message);
-    aws_mem_release(&args->ctx->buffer_allocator, args);
-}
 
 /* aws_log_pipeline components */
 struct {
@@ -73,10 +51,7 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     /* this can only happen if someone tries to log after the main thread has cleaned up */
     AWS_FATAL_ASSERT(log_ctx && "No TLS log context, and no default fallback");
     struct aws_string *message = aws_string_new_from_string(&log_ctx->buffer_allocator, output);
-    struct console_log_args *args = aws_mem_acquire(&log_ctx->buffer_allocator, sizeof(struct console_log_args));
-    args->ctx = log_ctx;
-    args->message = message;
-    aws_uv_context_enqueue(log_ctx->uv_context, s_console_log, args);
+    AWS_NAPI_ENSURE(log_ctx->env, napi_call_threadsafe_function(log_ctx->console_log, message, napi_tsfn_nonblocking));
     return AWS_OP_SUCCESS;
 }
 
@@ -123,41 +98,83 @@ static void *s_ring_buffer_mem_calloc(struct aws_allocator *allocator, size_t nu
     return mem;
 }
 
-struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator, napi_env env) {
+/* called from every thread as its node environment shuts down */
+void s_finalize_console_log(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+
+    struct aws_napi_logger_ctx *ctx = finalize_data;
+    AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->console_log, napi_tsfn_release));
+    if (s_napi_logger.default_ctx == ctx) {
+        aws_logger_set(NULL);
+        s_napi_logger.default_ctx = NULL;
+    }
+}
+
+void s_call_console_log(napi_env env, napi_value console_log, void *context, void *user_data) {
+    struct aws_napi_logger_ctx *ctx = context;
+    (void)ctx;
+    struct aws_string *message = user_data;
+
+    napi_value node_this = NULL;
+    AWS_NAPI_ENSURE(env, napi_get_global(env, &node_this));
+
+    napi_value node_message = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char*)aws_string_bytes(message), message->len, &node_message));
+
+    //AWS_NAPI_ENSURE(env, napi_call_function(env, node_this, console_log, 1, &node_message, NULL));
+    napi_status status = napi_call_function(env, node_this, console_log, 1, &node_message, NULL);
+    (void)status;
+
+    /* return the message to the ring buffer */
+    aws_string_destroy(message);
+}
+
+struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator, napi_env env, napi_value node_log) {
+    /* The main thread can be re-initialized multiple times, so just return the one we already have */
+    if (tl_logger_ctx) {
+        return tl_logger_ctx;
+    }
+
     struct aws_napi_logger_ctx *ctx = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_logger_ctx));
     AWS_FATAL_ASSERT(ctx && "Failed to allocate new logging context");
-    AWS_FATAL_ASSERT(tl_logger_ctx == NULL && "Cannot initialize multiple logging contexts in a single thread");
-    tl_logger_ctx = ctx;
     ctx->env = env;
     ctx->allocator = allocator;
 
-    napi_status status = napi_ok;
-    int op_status = AWS_OP_ERR;
-    napi_value node_global = NULL;
-    status = napi_get_global(env, &node_global);
-    AWS_FATAL_ASSERT(status == napi_ok && "napi_get_global failed");
+    /* store this thread's context */
+    AWS_FATAL_ASSERT(tl_logger_ctx == NULL && "Cannot initialize multiple logging contexts in a single thread");
+    tl_logger_ctx = ctx;
 
-    napi_value node_console = NULL;
-    status = napi_get_named_property(env, node_global, "console", &node_console);
-    AWS_FATAL_ASSERT(status == napi_ok && "napi_get_property(global.console) failed");
+    if (s_napi_logger.default_ctx) {
+        ctx->console_log = s_napi_logger.default_ctx->console_log;
+        AWS_NAPI_ENSURE(env, napi_acquire_threadsafe_function(ctx->console_log));
+        return ctx;
+    }
 
-    napi_value node_console_log = NULL;
-    status = napi_get_named_property(env, node_console, "log", &node_console_log);
-    AWS_FATAL_ASSERT(status == napi_ok && "napi_get_property(console.log) failed");
+    napi_value node_resource_name = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, "console.log", NAPI_AUTO_LENGTH, &node_resource_name));
 
-    op_status = aws_napi_callback_init(&ctx->console_log, env, node_console_log, "console.log", s_console_log_params);
-    AWS_FATAL_ASSERT(op_status == AWS_OP_SUCCESS && "aws_napi_callback_init(console.log) failed");
+    AWS_NAPI_ENSURE(env, napi_create_threadsafe_function(
+        env,
+        node_log, /* function */
+        NULL, /* optional async resource */
+        node_resource_name, /* resource name, for debugging via AsyncHooks */
+        0, /* max queue size */
+        1, /* initial thread ref count */
+        ctx, /* finalize data */
+        s_finalize_console_log, /* finalizer */
+        ctx, /* user_data/context */
+        s_call_console_log, /* call dispatch */
+        &ctx->console_log)); /* resultant threadsafe function */
 
-    ctx->uv_context = aws_uv_context_new(env, allocator);
-    AWS_FATAL_ASSERT(ctx->uv_context && "aws_uv_context_new() failed");
-
+    /* stand up the ring buffer allocator for copying/queueing log messages */
     AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_ring_buffer_init(&ctx->buffer, ctx->allocator, 16 * 1024));
     ctx->buffer_allocator.mem_acquire = s_ring_buffer_mem_acquire;
     ctx->buffer_allocator.mem_release = s_ring_buffer_mem_release;
     ctx->buffer_allocator.mem_calloc = s_ring_buffer_mem_calloc;
     ctx->buffer_allocator.impl = &ctx->buffer;
 
-    /* The first context created will be the main thread, so make it the default */
+    /* The first context created will always be the main thread, so make it the default */
     if (s_napi_logger.default_ctx == NULL) {
         s_napi_logger.default_ctx = ctx;
     }
@@ -168,13 +185,6 @@ struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator,
 void aws_napi_logger_destroy(struct aws_napi_logger_ctx *ctx) {
     AWS_ASSERT(tl_logger_ctx == ctx);
     tl_logger_ctx = NULL;
-    aws_napi_callback_clean_up(&ctx->console_log);
-    aws_uv_context_release(ctx->uv_context);
-
-    if (s_napi_logger.default_ctx == ctx) {
-        aws_logger_set(NULL);
-        s_napi_logger.default_ctx = NULL;
-    }
     aws_mem_release(ctx->allocator, ctx);
 }
 

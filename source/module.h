@@ -16,6 +16,7 @@
  */
 
 #include <aws/common/byte_buf.h>
+#include <aws/common/logging.h>
 #include <aws/common/string.h>
 
 #include <node_api.h>
@@ -66,9 +67,35 @@ int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
  */
 struct aws_napi_context {
     napi_env env;
-    napi_ref ctx_weak_ref;
     struct aws_allocator *allocator;
     struct aws_napi_logger_ctx *logger;
 };
+
+#define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " #call " @ " #file "(" #line ")"
+
+/*
+ * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
+ */
+#define AWS_NAPI_CALL(env, call, on_fail)                                                                              \
+    do {                                                                                                               \
+        napi_status status = (call);                                                                                   \
+        if (status != napi_ok) {                                                                                       \
+            AWS_LOGF_ERROR(                                                                                            \
+                AWS_LS_NODE,                                                                                           \
+                _AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__) ": %s",                                     \
+                aws_napi_status_to_str(status));                                                                       \
+            on_fail;                                                                                                   \
+        }                                                                                                              \
+    } while (0)
+
+/*
+ * AWS_NAPI_ENSURE(env, napi_xxx(args...)) is for when logging is not available, or a failure should immediately
+ * end the process. The file and line of the call will be reported.
+ */
+#define AWS_NAPI_ENSURE(env, call)                                                                                     \
+    do {                                                                                                               \
+        napi_status status = (call);                                                                                   \
+        AWS_FATAL_ASSERT(status == napi_ok && _AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__));          \
+    } while (0)
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */

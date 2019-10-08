@@ -283,7 +283,7 @@ int aws_napi_callback_init(
         napi_throw_error(env, NULL, "Could not initialize async context");
         goto failure;
     }
-    if (napi_create_reference(env, callback, 1, &cb->callback)) {
+    if (napi_create_reference(env, callback, 0, &cb->callback)) {
         napi_throw_error(env, NULL, "Could not create reference to callback");
         goto failure;
     }
@@ -482,29 +482,48 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     (void)env;
     (void)finalize_hint;
     struct aws_napi_context *ctx = user_data;
-    napi_delete_reference(env, ctx->ctx_weak_ref);
+    //napi_delete_reference(env, ctx->ctx_weak_ref);
     aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
 }
 
-static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env) {
+static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env, napi_value exports) {
     struct aws_napi_context *ctx = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_context));
     AWS_FATAL_ASSERT(ctx && "Failed to initialize napi context");
     ctx->allocator = allocator;
-    ctx->logger = aws_napi_logger_new(allocator, env);
 
-    /* create an object to represent the context to this node env. napi_wrap initially
-     * returns a weak reference, so if we never increment the ref count, the object will
-     * be GC'ed when the module scope is cleaned up */
-    napi_status status = napi_ok;
-    napi_value node_context = NULL;
-    status = napi_create_object(env, &node_context);
-    AWS_FATAL_ASSERT(status == napi_ok && "Failed to create napi context");
-    
-    status = napi_wrap(env, node_context, ctx, s_napi_context_finalize, NULL, &ctx->ctx_weak_ref);
-    AWS_FATAL_ASSERT(status == napi_ok && "Failed to wrap napi context");
+    /* bind the context to exports, thus binding its lifetime to that object */
+    AWS_NAPI_ENSURE(env, napi_wrap(env, exports, ctx, s_napi_context_finalize, NULL, NULL));
 
     return ctx;
+}
+
+static napi_value aws_napi_logger_init(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value node_this;
+    AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, &num_args, &node_args[0], &node_this, NULL));
+    AWS_FATAL_ASSERT(num_args == AWS_ARRAY_SIZE(node_args) && "logger_init must be called with 2 arguments (exports, log_fn)");
+
+    napi_value node_exports = node_this;
+    AWS_FATAL_ASSERT(node_exports && !aws_napi_is_null_or_undefined(env, node_exports) && "this/exports must be non-null");
+
+    napi_value node_log = node_args[0];
+    AWS_FATAL_ASSERT(node_log && !aws_napi_is_null_or_undefined(env, node_log) && "log_fn must be non-null");
+
+    struct aws_napi_context *ctx = NULL;
+    AWS_NAPI_ENSURE(env, napi_unwrap(env, node_exports, (void **)&ctx));
+
+    ctx->logger = aws_napi_logger_new(ctx->allocator, env, node_log);
+    AWS_FATAL_ASSERT(ctx->logger && "Failed to initialize logger");
+
+    /* if we haven't yet, install the napi logger */
+    struct aws_logger *logger = aws_napi_logger_get();
+    if (logger != aws_logger_get()) {
+        aws_logger_set(logger);
+    }
+
+    return NULL;
 }
 
 /** Helper for creating and registering a function */
@@ -516,34 +535,28 @@ static bool s_create_and_register_function(
     size_t fn_name_len) {
 
     napi_value napi_fn;
-    napi_status status = napi_create_function(env, fn_name, fn_name_len, fn, NULL, &napi_fn);
-    if (status != napi_ok) {
+    AWS_NAPI_CALL(env, napi_create_function(env, fn_name, fn_name_len, fn, NULL, &napi_fn), {
         napi_throw_error(env, NULL, "Unable to wrap native function");
         return false;
-    }
+    });
 
-    status = napi_set_named_property(env, exports, fn_name, napi_fn);
-    if (status != napi_ok) {
+    AWS_NAPI_CALL(env, napi_set_named_property(env, exports, fn_name, napi_fn), {
         napi_throw_error(env, NULL, "Unable to populate exports");
         return false;
-    }
+    });
 
     return true;
 }
 
-NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
+/* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
 
     struct aws_allocator *allocator = aws_default_allocator();
-
-    /* create context, register to have the context cleaned up before exit */
-    struct aws_napi_context *ctx = s_napi_context_new(allocator, env);
-    (void)ctx;
+    /* context is bound to exports, will be cleaned up by finalizer */
+    s_napi_context_new(allocator, env, exports);
 
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
     aws_register_log_subject_info_list(&s_log_subject_list);
-
-    aws_logger_set(aws_napi_logger_get());
 
     /* Initalize the event loop group */
     aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
@@ -555,6 +568,8 @@ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
     if (!s_create_and_register_function(env, exports, aws_napi_##fn, #fn, sizeof(#fn))) {                              \
         return null;                                                                                                   \
     }
+
+    CREATE_AND_REGISTER_FN(logger_init)
 
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
