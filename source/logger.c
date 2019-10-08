@@ -104,11 +104,11 @@ void s_finalize_console_log(napi_env env, void *finalize_data, void *finalize_hi
     (void)finalize_hint;
 
     struct aws_napi_logger_ctx *ctx = finalize_data;
-    AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->console_log, napi_tsfn_release));
     if (s_napi_logger.default_ctx == ctx) {
         aws_logger_set(NULL);
         s_napi_logger.default_ctx = NULL;
     }
+    aws_mem_release(ctx->allocator, ctx);
 }
 
 void s_call_console_log(napi_env env, napi_value console_log, void *context, void *user_data) {
@@ -185,7 +185,7 @@ struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator,
 void aws_napi_logger_destroy(struct aws_napi_logger_ctx *ctx) {
     AWS_ASSERT(tl_logger_ctx == ctx);
     tl_logger_ctx = NULL;
-    aws_mem_release(ctx->allocator, ctx);
+    AWS_NAPI_ENSURE(NULL, napi_release_threadsafe_function(ctx->console_log, napi_tsfn_release));
 }
 
 struct aws_logger *aws_napi_logger_get(void) {

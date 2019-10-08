@@ -36,7 +36,7 @@
   "scripts": {
     "cmake": "cmake-js",
     "tsc": "tsc && tsc -p tsconfig.browser.json",
-    "test": "jest -i --detectOpenHandles",
+    "test": "jest -i",
     "install": "tsc && tsc -p tsconfig.browser.json && cmake-js compile -T install --CDCMAKE_EXPORT_COMPILE_COMMANDS=ON"
   },
   "devDependencies": {

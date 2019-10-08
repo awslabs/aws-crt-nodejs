@@ -126,7 +126,7 @@ class AsyncMonitor {
 }
 
 function clean_up() {
-    process.exit(0);
+    binding.logger_clean_up();
 }
 
 AsyncMonitor.install(clean_up);

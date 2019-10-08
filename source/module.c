@@ -482,8 +482,6 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     (void)env;
     (void)finalize_hint;
     struct aws_napi_context *ctx = user_data;
-    //napi_delete_reference(env, ctx->ctx_weak_ref);
-    aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
 }
 
@@ -501,7 +499,7 @@ static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocat
 static napi_value aws_napi_logger_init(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value node_this;
+    napi_value node_this = NULL;
     AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, &num_args, &node_args[0], &node_this, NULL));
     AWS_FATAL_ASSERT(num_args == AWS_ARRAY_SIZE(node_args) && "logger_init must be called with 2 arguments (exports, log_fn)");
 
@@ -522,6 +520,20 @@ static napi_value aws_napi_logger_init(napi_env env, napi_callback_info info) {
     if (logger != aws_logger_get()) {
         aws_logger_set(logger);
     }
+
+    return NULL;
+}
+
+static napi_value aws_napi_logger_clean_up(napi_env env, napi_callback_info info) {
+
+    napi_value node_this = NULL;
+    AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, NULL, NULL, &node_this, NULL));
+
+    struct aws_napi_context *ctx = NULL;
+    AWS_NAPI_ENSURE(env, napi_unwrap(env, node_this, (void **)&ctx));
+
+    /* release all node resources and the logger */
+    aws_napi_logger_destroy(ctx->logger);
 
     return NULL;
 }
@@ -570,6 +582,7 @@ static bool s_create_and_register_function(
     }
 
     CREATE_AND_REGISTER_FN(logger_init)
+    CREATE_AND_REGISTER_FN(logger_clean_up)
 
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
