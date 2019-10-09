@@ -26,30 +26,6 @@ catch (err) { /* When in the dist/lib folder, just leave lib */
     binding = require(binding_path);
 }
 
-// Ensure that clean up will be called before the process exits for any reason to
-// allow us to avoid GC/uv handle hangs
-// function clean_up() {
-//     console.log("SHUTDOWN");
-//     context_scope = null;
-//     global.gc();
-// }
-
-// process.on('SIGABRT', clean_up);
-// process.on('SIGTERM', clean_up);
-// process.on('SIGUSR1', clean_up);
-// process.on('SIGUSR2', clean_up);
-// process.on('exit', clean_up)
-// process.on('beforeExit', clean_up);
-
-// // Because we install an uncaughtException handler, node will change the exit code to 0
-// // We override that and force it to 1 (the default when an uncaughtException occurs) and
-// // report the error ourselves before we clean up
-// process.on('uncaughtException', (error) => {
-//     console.error(error);
-//     clean_up();
-//     process.exitCode = 1;
-// });
-
 // https://nodejs.org/api/async_hooks.html
 class AsyncMonitor {
     private active_handles = new Map<number, any>();
@@ -79,6 +55,7 @@ class AsyncMonitor {
                 this.log(`NEW id: ${async_id} type: ${handle.type} resource: ${handle.resource} execution_id: ${handle.execution_id}`);
             },
             destroy: (async_id) => {
+                if (this.ignore) return;
                 const handle = this.active_handles.get(async_id);
                 if (handle) {
                     this.log(`DEL id: ${async_id} type: ${handle.type} resource: ${handle.resource} execution_id: ${handle.execution_id}`);
@@ -93,6 +70,11 @@ class AsyncMonitor {
 
     private check_complete() {
         this.log(`HANDLES: ${this.active_handles.size}`);
+        if (this.jest && this.active_handles.size <= 8) {
+            for (const handle of this.active_handles.values()) {
+                this.log(`HANDLE: type: ${handle.type} resource: ${handle.resource} execution_id: ${handle.execution_id}`);
+            }
+        }
         if (this.jest && this.active_handles.size == 2) {
             let found_log = false;
             let found_jest = false;
@@ -129,7 +111,7 @@ function clean_up() {
     binding.logger_clean_up();
 }
 
-AsyncMonitor.install(clean_up);
+AsyncMonitor.install(clean_up, true);
 
 // Initialize the native module state once we've set up clean up
 binding.logger_init((message: string) => { console.log(message) });
