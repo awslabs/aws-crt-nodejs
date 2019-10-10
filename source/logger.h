@@ -34,7 +34,7 @@ struct aws_napi_logger_ctx;
  */
 struct aws_logger *aws_napi_logger_get(void);
 
-struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator, napi_env env, napi_value node_log);
+struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator, napi_env env);
 void aws_napi_logger_destroy(struct aws_napi_logger_ctx *logger);
 void aws_napi_logger_set_level(enum aws_log_level level);
 

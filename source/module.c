@@ -493,50 +493,52 @@ static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocat
     /* bind the context to exports, thus binding its lifetime to that object */
     AWS_NAPI_ENSURE(env, napi_wrap(env, exports, ctx, s_napi_context_finalize, NULL, NULL));
 
+    ctx->logger = aws_napi_logger_new(allocator, env);
+
     return ctx;
 }
 
-static napi_value aws_napi_logger_init(napi_env env, napi_callback_info info) {
-    napi_value node_args[1];
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value node_this = NULL;
-    AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, &num_args, &node_args[0], &node_this, NULL));
-    AWS_FATAL_ASSERT(num_args == AWS_ARRAY_SIZE(node_args) && "logger_init must be called with 2 arguments (exports, log_fn)");
+// static napi_value aws_napi_logger_init(napi_env env, napi_callback_info info) {
+//     napi_value node_args[1];
+//     size_t num_args = AWS_ARRAY_SIZE(node_args);
+//     napi_value node_this = NULL;
+//     AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, &num_args, &node_args[0], &node_this, NULL));
+//     AWS_FATAL_ASSERT(num_args == AWS_ARRAY_SIZE(node_args) && "logger_init must be called with 2 arguments (exports, log_fn)");
 
-    napi_value node_exports = node_this;
-    AWS_FATAL_ASSERT(node_exports && !aws_napi_is_null_or_undefined(env, node_exports) && "this/exports must be non-null");
+//     napi_value node_exports = node_this;
+//     AWS_FATAL_ASSERT(node_exports && !aws_napi_is_null_or_undefined(env, node_exports) && "this/exports must be non-null");
 
-    napi_value node_log = node_args[0];
-    AWS_FATAL_ASSERT(node_log && !aws_napi_is_null_or_undefined(env, node_log) && "log_fn must be non-null");
+//     napi_value node_log = node_args[0];
+//     AWS_FATAL_ASSERT(node_log && !aws_napi_is_null_or_undefined(env, node_log) && "log_fn must be non-null");
 
-    struct aws_napi_context *ctx = NULL;
-    AWS_NAPI_ENSURE(env, napi_unwrap(env, node_exports, (void **)&ctx));
+//     struct aws_napi_context *ctx = NULL;
+//     AWS_NAPI_ENSURE(env, napi_unwrap(env, node_exports, (void **)&ctx));
 
-    ctx->logger = aws_napi_logger_new(ctx->allocator, env, node_log);
-    AWS_FATAL_ASSERT(ctx->logger && "Failed to initialize logger");
+//     ctx->logger = aws_napi_logger_new(ctx->allocator, env);
+//     AWS_FATAL_ASSERT(ctx->logger && "Failed to initialize logger");
 
-    /* if we haven't yet, install the napi logger */
-    struct aws_logger *logger = aws_napi_logger_get();
-    if (logger != aws_logger_get()) {
-        aws_logger_set(logger);
-    }
+//     /* if we haven't yet, install the napi logger */
+//     struct aws_logger *logger = aws_napi_logger_get();
+//     if (logger != aws_logger_get()) {
+//         aws_logger_set(logger);
+//     }
 
-    return NULL;
-}
+//     return NULL;
+// }
 
-static napi_value aws_napi_logger_clean_up(napi_env env, napi_callback_info info) {
+// static napi_value aws_napi_logger_clean_up(napi_env env, napi_callback_info info) {
 
-    napi_value node_this = NULL;
-    AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, NULL, NULL, &node_this, NULL));
+//     napi_value node_this = NULL;
+//     AWS_NAPI_ENSURE(env, napi_get_cb_info(env, info, NULL, NULL, &node_this, NULL));
 
-    struct aws_napi_context *ctx = NULL;
-    AWS_NAPI_ENSURE(env, napi_unwrap(env, node_this, (void **)&ctx));
+//     struct aws_napi_context *ctx = NULL;
+//     AWS_NAPI_ENSURE(env, napi_unwrap(env, node_this, (void **)&ctx));
 
-    /* release all node resources and the logger */
-    aws_napi_logger_destroy(ctx->logger);
+//     /* release all node resources and the logger */
+//     aws_napi_logger_destroy(ctx->logger);
 
-    return NULL;
-}
+//     return NULL;
+// }
 
 /** Helper for creating and registering a function */
 static bool s_create_and_register_function(
@@ -581,8 +583,8 @@ static bool s_create_and_register_function(
         return null;                                                                                                   \
     }
 
-    CREATE_AND_REGISTER_FN(logger_init)
-    CREATE_AND_REGISTER_FN(logger_clean_up)
+    // CREATE_AND_REGISTER_FN(logger_init)
+    // CREATE_AND_REGISTER_FN(logger_clean_up)
 
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
