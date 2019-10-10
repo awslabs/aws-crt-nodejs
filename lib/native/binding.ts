@@ -26,6 +26,12 @@ catch (err) { /* When in the dist/lib folder, just leave lib */
     binding = require(binding_path);
 }
 
+// Skip the stream abstraction and any async writing, write directly to the C++
+// bound function for writing to stderr
+function crt_log(message: string) {
+    (process as any)._rawDebug(message);
+}
+
 // https://nodejs.org/api/async_hooks.html
 class AsyncMonitor {
     private active_handles = new Map<number, any>();
@@ -38,7 +44,7 @@ class AsyncMonitor {
         if (this.debug) {
             this.log = (message: string) => {
                 this.ignore = true;
-                console.log(message);
+                crt_log(message);
                 this.ignore = false;
             }
         }
@@ -114,7 +120,7 @@ function clean_up() {
 AsyncMonitor.install(clean_up, true);
 
 // Initialize the native module state once we've set up clean up
-binding.logger_init((message: string) => { console.log(message) });
+binding.logger_init(crt_log);
 
 export = binding;
 
