@@ -482,6 +482,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     (void)env;
     (void)finalize_hint;
     struct aws_napi_context *ctx = user_data;
+    aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
 }
 
@@ -494,6 +495,12 @@ static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocat
     AWS_NAPI_ENSURE(env, napi_wrap(env, exports, ctx, s_napi_context_finalize, NULL, NULL));
 
     ctx->logger = aws_napi_logger_new(allocator, env);
+
+    /* there's only one logger, so if the aws logger isn't ours, set it */
+    struct aws_logger *logger = aws_napi_logger_get();
+    if (logger != aws_logger_get()) {
+        aws_logger_set(logger);
+    }
 
     return ctx;
 }
