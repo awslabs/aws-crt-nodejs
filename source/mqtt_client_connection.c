@@ -98,7 +98,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     aws_napi_callback_clean_up(&binding->on_connection_resumed);
     napi_delete_reference(env, binding->node_external);
 
-    /* destroy the native connection, which will destroy the subscriptions and 
+    /* destroy the native connection, which will destroy the subscriptions and
      * queue destruction of all bound callbacks
      */
     aws_mqtt_client_connection_destroy(binding->connection);

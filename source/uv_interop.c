@@ -103,7 +103,7 @@ static void s_uv_closed(uv_handle_t *handle) {
     aws_memory_pool_clean_up(&ctx->command_pool.pool);
     aws_mutex_clean_up(&ctx->command_queue.mutex);
     aws_mutex_clean_up(&ctx->command_pool.mutex);
-    aws_mem_release(ctx->allocator, ctx);\
+    aws_mem_release(ctx->allocator, ctx);
 }
 
 static void s_context_release(void *user_data) {

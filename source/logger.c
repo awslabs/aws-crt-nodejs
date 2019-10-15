@@ -16,17 +16,17 @@
 #include "logger.h"
 #include "module.h"
 
+#include <aws/common/linked_list.h>
 #include <aws/common/log_channel.h>
 #include <aws/common/log_formatter.h>
 #include <aws/common/log_writer.h>
-#include <aws/common/linked_list.h>
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
-/* 
- * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into 
+/*
+ * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into
  * their env's instance, and all other event loop threads will call into the main thread's
- * instance. 
+ * instance.
  */
 struct aws_napi_logger_ctx {
     napi_env env;

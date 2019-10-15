@@ -71,7 +71,8 @@ struct aws_napi_context {
     struct aws_napi_logger_ctx *logger;
 };
 
-#define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " #call " @ " #file "(" #line ")"
+#define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " #call " @ " file "(" #line ")"
+#define _AWS_NAPI_PASTE(x) x
 
 /*
  * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
@@ -82,7 +83,7 @@ struct aws_napi_context {
         if (status != napi_ok) {                                                                                       \
             AWS_LOGF_ERROR(                                                                                            \
                 AWS_LS_NODE,                                                                                           \
-                _AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__) ": %s",                                     \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),              \
                 aws_napi_status_to_str(status));                                                                       \
             on_fail;                                                                                                   \
         }                                                                                                              \
@@ -95,7 +96,9 @@ struct aws_napi_context {
 #define AWS_NAPI_ENSURE(env, call)                                                                                     \
     do {                                                                                                               \
         napi_status status = (call);                                                                                   \
-        AWS_FATAL_ASSERT(status == napi_ok && _AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__));          \
+        if (status != napi_ok) {                                                                                       \
+            aws_fatal_assert(#call, __FILE__, __LINE__);                                                               \
+        }                                                                                                              \
     } while (0)
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */
