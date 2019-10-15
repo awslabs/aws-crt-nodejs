@@ -14,8 +14,6 @@
  */
 
 import * as path from 'path';
-// import * as async_hooks from 'async_hooks';
-// import { inspect } from 'util';
 
 let binding: any;
 try { /* when in the lib folder, it's in the dist directory */

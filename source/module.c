@@ -498,9 +498,6 @@ static bool s_create_and_register_function(
         return null;                                                                                                   \
     }
 
-    // CREATE_AND_REGISTER_FN(logger_init)
-    // CREATE_AND_REGISTER_FN(logger_clean_up)
-
     /* IO */
     CREATE_AND_REGISTER_FN(error_code_to_string)
     CREATE_AND_REGISTER_FN(error_code_to_name)
