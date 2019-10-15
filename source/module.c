@@ -34,7 +34,7 @@
 
 #include <uv.h>
 
-AWS_STATIC_ASSERT(NAPI_VERSION >= 3); /* aws-crt-nodejs requires N-API version 3 or above */
+AWS_STATIC_ASSERT(NAPI_VERSION >= 4); /* aws-crt-nodejs requires N-API version 3 or above */
 
 static struct aws_log_subject_info s_log_subject_infos[] = {
     DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODE, "node", "Node/N-API failures"),
