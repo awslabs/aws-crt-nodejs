@@ -60,7 +60,7 @@ struct log_message {
     struct aws_string *message;
 };
 
-/* custom aws_log_writer that writes via process._rawDebug() within the node env */
+/* custom aws_log_writer that writes via process._rawDebug() within the node env via threadsafe function */
 static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct aws_string *output) {
     (void)writer;
     struct aws_napi_logger_ctx *ctx = tl_logger_ctx ? tl_logger_ctx : s_napi_logger.default_ctx;
@@ -132,9 +132,11 @@ void s_threadsafe_log_finalize(napi_env env, void *finalize_data, void *finalize
     (void)finalize_hint;
 
     struct aws_napi_logger_ctx *ctx = finalize_data;
-    aws_napi_logger_destroy(ctx);
+    (void)ctx;
+    /* no-op, since the logger is cleaned up by the env context clean up */
 }
 
+/* batch drain the entire queue, subsequent queued calls will do no work */
 static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *context, void *user_data) {
     (void)user_data;
     struct aws_napi_logger_ctx *ctx = context;
@@ -166,9 +168,7 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
             env,
             napi_create_string_utf8(
                 env, (const char *)aws_string_bytes(msg->message), msg->message->len, &node_message));
-        //AWS_NAPI_ENSURE(env, napi_call_function(env, NULL, node_log_fn, 1, &node_message, NULL));
-        napi_status status = napi_call_function(env, node_process, node_log_fn, 1, &node_message, NULL);
-        (void)status;
+        AWS_NAPI_ENSURE(env, napi_call_function(env, node_process, node_log_fn, 1, &node_message, NULL));
 
         aws_string_destroy(msg->message);
         aws_mem_release(&ctx->buffer_allocator, msg);
@@ -187,9 +187,6 @@ void s_threadsafe_log_create(struct aws_napi_logger_ctx *ctx, napi_env env) {
     AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_global, "process", &node_process));
     napi_value node_rawdebug = NULL;
     AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_process, "_rawDebug", &node_rawdebug));
-
-    /* create a weak reference to process._rawDebug */
-    //AWS_NAPI_ENSURE(env, napi_create_reference(env, ctx->node_log_fn, 0, &ctx->node_log_fn));
 
     napi_value resource_name = NULL;
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, "aws_logger", 10, &resource_name));
@@ -243,6 +240,11 @@ struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator,
     /* The first context created will always be the main thread, so make it the default */
     if (s_napi_logger.default_ctx == NULL) {
         s_napi_logger.default_ctx = ctx;
+        /* there's only one logger, so if the aws logger isn't ours, set it */
+        struct aws_logger *logger = aws_napi_logger_get();
+        if (logger != aws_logger_get()) {
+            aws_logger_set(logger);
+        }
     }
 
     return ctx;
@@ -255,7 +257,7 @@ void aws_napi_logger_destroy(struct aws_napi_logger_ctx *ctx) {
         aws_logger_set(NULL);
         s_napi_logger.default_ctx = NULL;
     }
-    //AWS_NAPI_ENSURE(ctx->env, napi_delete_reference(ctx->env, ctx->node_log_fn));
+
     aws_mutex_clean_up(&ctx->msg_queue.mutex);
     /* don't need to worry about cleaning up the message queue, all of the memory comes from the ring buffer */
     aws_ring_buffer_clean_up(&ctx->buffer);
