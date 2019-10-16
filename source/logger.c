@@ -62,6 +62,8 @@ struct log_message {
     struct aws_string *message;
 };
 
+#include <aws/common/system_info.h>
+
 /* custom aws_log_writer that writes via process._rawDebug() within the node env via threadsafe function */
 static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct aws_string *output) {
     (void)writer;
@@ -69,18 +71,25 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     /* this can only happen if someone tries to log after the main thread has cleaned up */
     AWS_FATAL_ASSERT(ctx && "No TLS log context, and no default fallback");
 
+    /* 
+     * Pin the log drain function until we try to call it. If napi_closing is returned, the function
+     * has been released, which means we are shutting down, so we just bail 
+     */
+    AWS_NAPI_CALL(env, napi_acquire_threadsafe_function(ctx->log_drain), {
+        return (status == napi_closing) ? AWS_OP_SUCCESS : AWS_OP_ERR;
+    });
+    
     /* must allocate in the order things will be freed because we use a ring buffer */
     struct aws_string *message = aws_string_new_from_string(&ctx->buffer_allocator, output);
     struct log_message *msg = aws_mem_calloc(&ctx->buffer_allocator, 1, sizeof(struct log_message));
     msg->message = message;
 
-    /* queue up the message to be logged next time the async work runs */
+    /* queue up the message to be logged next time the function runs */
     aws_mutex_lock(&ctx->msg_queue.mutex);
     aws_linked_list_push_back(&ctx->msg_queue.messages, &msg->node);
     aws_mutex_unlock(&ctx->msg_queue.mutex);
 
-    /* pin the threadsafe function until we try to call it */
-    AWS_NAPI_ENSURE(ctx->env, napi_acquire_threadsafe_function(ctx->log_drain));
+    /* queue the call */
     AWS_NAPI_ENSURE(ctx->env, napi_call_threadsafe_function(ctx->log_drain, NULL, napi_tsfn_nonblocking));
     return AWS_OP_SUCCESS;
 }
@@ -134,8 +143,18 @@ void s_threadsafe_log_finalize(napi_env env, void *finalize_data, void *finalize
     (void)finalize_hint;
 
     struct aws_napi_logger_ctx *ctx = finalize_data;
-    (void)ctx;
-    /* no-op, since the logger is cleaned up by the env context clean up */
+
+    /* empty message queue, do not need to delete messages as they all come from the ring buffer */
+    struct aws_linked_list msgs;
+    aws_linked_list_init(&msgs);
+    aws_mutex_lock(&ctx->msg_queue.mutex);
+    aws_linked_list_swap_contents(&ctx->msg_queue.messages, &msgs);
+    aws_mutex_unlock(&ctx->msg_queue.mutex);
+
+    /* drop the ref to the function */
+    AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->log_drain, napi_tsfn_abort));
+
+    /* The rest is cleaned up by the env context clean up via aws_napi_logger_destroy() */
 }
 
 /* batch drain the entire queue, subsequent queued calls will do no work */
@@ -155,11 +174,14 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
         goto done;
     }
 
-    /* look up process */
+    /* 
+     * Look up `process` to use as this for the _rawDebug call, if these fail it's because the function 
+     * call was queued during shutdown, so we will just skip out of here
+     */
     napi_value node_global = NULL;
-    AWS_NAPI_ENSURE(env, napi_get_global(env, &node_global));
+    AWS_NAPI_CALL(env, napi_get_global(env, &node_global), { goto done; });
     napi_value node_process = NULL;
-    AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_global, "process", &node_process));
+    AWS_NAPI_CALL(env, napi_get_named_property(env, node_global, "process", &node_process), { goto done; });
 
     while (!aws_linked_list_empty(&msgs)) {
         struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&msgs);
