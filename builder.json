@@ -43,6 +43,6 @@
     ],
     "test": [
         ["node", "-p", "require('./dist/index')"],
-        ["npm", "run-script", "test"]
+        ["npm", "test", "--", "--detectOpenHandles"]
     ]
 }
