@@ -14,5 +14,6 @@ module.exports = {
     ],
     modulePathIgnorePatterns: [
         '/cmake-js/'
-    ]
+    ],
+    testRunner: "jest-circus/runner"
 }
