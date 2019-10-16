@@ -71,14 +71,14 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     /* this can only happen if someone tries to log after the main thread has cleaned up */
     AWS_FATAL_ASSERT(ctx && "No TLS log context, and no default fallback");
 
-    /* 
+    /*
      * Pin the log drain function until we try to call it. If napi_closing is returned, the function
-     * has been released, which means we are shutting down, so we just bail 
+     * has been released, which means we are shutting down, so we just bail
      */
     AWS_NAPI_CALL(env, napi_acquire_threadsafe_function(ctx->log_drain), {
         return (status == napi_closing) ? AWS_OP_SUCCESS : AWS_OP_ERR;
     });
-    
+
     /* must allocate in the order things will be freed because we use a ring buffer */
     struct aws_string *message = aws_string_new_from_string(&ctx->buffer_allocator, output);
     struct log_message *msg = aws_mem_calloc(&ctx->buffer_allocator, 1, sizeof(struct log_message));
@@ -151,7 +151,7 @@ void s_threadsafe_log_finalize(napi_env env, void *finalize_data, void *finalize
     aws_linked_list_swap_contents(&ctx->msg_queue.messages, &msgs);
     aws_mutex_unlock(&ctx->msg_queue.mutex);
 
-    /* drop the ref to the function */
+    /* Drop the ref to the function. All attempts to acquire will return napi_closing after this */
     AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->log_drain, napi_tsfn_abort));
 
     /* The rest is cleaned up by the env context clean up via aws_napi_logger_destroy() */
@@ -174,8 +174,8 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
         goto done;
     }
 
-    /* 
-     * Look up `process` to use as this for the _rawDebug call, if these fail it's because the function 
+    /*
+     * Look up `process` to use as this for the _rawDebug call, if these fail it's because the function
      * call was queued during shutdown, so we will just skip out of here
      */
     napi_value node_global = NULL;
