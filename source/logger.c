@@ -311,7 +311,7 @@ struct aws_logger *aws_napi_logger_get(void) {
         &s_napi_logger.formatter,
         &s_napi_logger.channel,
         &s_napi_logger.writer,
-        AWS_LL_DEBUG);
+        AWS_LL_WARN);
     AWS_FATAL_ASSERT(op_status == AWS_OP_SUCCESS && "Failed to initialize logger");
     return &s_napi_logger.logger;
 }

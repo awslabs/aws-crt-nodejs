@@ -105,9 +105,7 @@ napi_value aws_napi_io_logging_enable(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    if (log_level > AWS_LL_WARN) {
-        aws_napi_logger_set_level(log_level);
-    }
+    aws_napi_logger_set_level(log_level);
 
     return NULL;
 }
