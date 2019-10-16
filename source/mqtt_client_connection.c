@@ -212,6 +212,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     }
 
     binding->socket_options.type = AWS_SOCKET_STREAM;
+    binding->socket_options.domain = AWS_SOCKET_IPV4;
 
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
