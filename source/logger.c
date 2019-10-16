@@ -62,8 +62,6 @@ struct log_message {
     struct aws_string *message;
 };
 
-#include <aws/common/system_info.h>
-
 /* custom aws_log_writer that writes via process._rawDebug() within the node env via threadsafe function */
 static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct aws_string *output) {
     (void)writer;
