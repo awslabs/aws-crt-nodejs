@@ -49,7 +49,7 @@ struct aws_napi_logger_ctx {
 static AWS_THREAD_LOCAL struct aws_napi_logger_ctx *tl_logger_ctx;
 
 /* aws_log_pipeline components */
-struct {
+static struct {
     struct aws_logger logger;
     struct aws_log_formatter formatter;
     struct aws_log_writer writer;
