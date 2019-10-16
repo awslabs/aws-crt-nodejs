@@ -23,6 +23,8 @@
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
+#define LOG_RING_BUFFER_CAPACITY (64 * 1024)
+
 /*
  * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into
  * their env's instance, and all other event loop threads will call into the main thread's
@@ -228,7 +230,7 @@ struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator,
     tl_logger_ctx = ctx;
 
     /* stand up the ring buffer allocator for copying/queueing log messages */
-    AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_ring_buffer_init(&ctx->buffer, ctx->allocator, 16 * 1024));
+    AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_ring_buffer_init(&ctx->buffer, ctx->allocator, LOG_RING_BUFFER_CAPACITY));
     ctx->buffer_allocator.mem_acquire = s_ring_buffer_mem_acquire;
     ctx->buffer_allocator.mem_release = s_ring_buffer_mem_release;
     ctx->buffer_allocator.mem_calloc = s_ring_buffer_mem_calloc;
@@ -288,7 +290,7 @@ struct aws_logger *aws_napi_logger_get(void) {
         &s_napi_logger.formatter,
         &s_napi_logger.channel,
         &s_napi_logger.writer,
-        AWS_LL_WARN);
+        AWS_LL_DEBUG);
     AWS_FATAL_ASSERT(op_status == AWS_OP_SUCCESS && "Failed to initialize logger");
     return &s_napi_logger.logger;
 }
