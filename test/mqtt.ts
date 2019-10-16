@@ -19,6 +19,9 @@ import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
 
+jest.setTimeout(10000);
+jest.retryTimes(3);
+
 class Config {
     static readonly region = 'us-east-1';
 
@@ -100,7 +103,7 @@ test('MQTT Connect/Disconnect', async (done) => {
         done();
     })
     connection.connect();
-}, 10000);
+});
 
 test('MQTT Pub/Sub', async (done) => {
     const decoder = new TextDecoder('utf8');
@@ -136,7 +139,7 @@ test('MQTT Pub/Sub', async (done) => {
         done();
     })
     connection.connect();
-}, 10000);
+});
 
 test('MQTT Will', async (done) => {
     const aws_opts = await fetch_credentials();
@@ -165,4 +168,4 @@ test('MQTT Will', async (done) => {
         done();
     })
     connection.connect();
-}, 10000);
+});

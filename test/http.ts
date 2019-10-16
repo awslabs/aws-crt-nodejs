@@ -16,6 +16,9 @@
 import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
 
+jest.setTimeout(10000);
+jest.retryTimes(3);
+
 test('HTTP Headers', () => {
     let headers = new HttpHeaders([
         ['Host', 'www.amazon.com'],
