@@ -468,8 +468,7 @@ napi_status aws_napi_create_threadsafe_function(
 
     AWS_NAPI_CALL(
         env,
-        napi_create_threadsafe_function(
-            env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result),
+        napi_create_threadsafe_function(env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result),
         { return status; });
     /* convert to a weak reference */
     return napi_unref_threadsafe_function(env, *result);
