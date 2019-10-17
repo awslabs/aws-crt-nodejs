@@ -435,6 +435,65 @@ cleanup:
     return result;
 }
 
+napi_status aws_napi_dispatch_threadsafe_function(
+    napi_env env,
+    napi_threadsafe_function tsfn,
+    napi_value this_ptr,
+    napi_value function,
+    size_t argc,
+    napi_value *argv) {
+
+    napi_status call_status = napi_ok;
+    if (!this_ptr) {
+        AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
+    }
+    AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), { call_status = status; });
+    napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
+    return (call_status != napi_ok) ? call_status : release_status;
+}
+
+static void s_finalize_threadsafe_function(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+    napi_threadsafe_function tsfn = *(napi_threadsafe_function*)finalize_data;
+    AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(tsfn, napi_tsfn_abort));
+}
+
+napi_status aws_napi_create_threadsafe_function(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    napi_threadsafe_function *result) {
+
+    napi_value resource_name = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
+
+    AWS_NAPI_CALL(
+        env,
+        napi_create_threadsafe_function(
+            env,
+            function,
+            NULL,
+            resource_name,
+            0,
+            1,
+            result,
+            s_finalize_threadsafe_function,
+            context,
+            call_js,
+            result),
+        { return status; });
+    /* convert to a weak reference */
+    return napi_unref_threadsafe_function(env, *result);
+}
+
+napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
+    AWS_NAPI_ENSURE(env, napi_acquire_threadsafe_function(function));
+    return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
+}
+
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;

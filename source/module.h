@@ -60,6 +60,42 @@ int aws_napi_callback_init(
 int aws_napi_callback_clean_up(struct aws_napi_callback *cb);
 int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
 
+/**
+ * Wrapper around napi_call_function that automatically substitutes undefined for a null this_ptr
+ * and un-pins the function reference when the call completes. Also handles known recoverable
+ * call failure cases before returning. Does not care about return value, since this is a non-blocking
+ * call into node.
+ * 
+ * @return napi_ok - call was successful
+ *         napi_closing - function has been released, and is shutting down, execution is ok to continue though
+ *         other napi_status values - unhandled, up to caller
+ */
+napi_status aws_napi_dispatch_threadsafe_function(
+    napi_env env,
+    napi_threadsafe_function tsfn,
+    napi_value this_ptr,
+    napi_value function,
+    size_t argc,
+    napi_value *argv);
+
+/**
+ * Wrapper around napi_create_threadsafe_function that ensures it is a weak reference and cleans
+ * up when the last node reference is cleared.
+ */
+napi_status aws_napi_create_threadsafe_function(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    napi_threadsafe_function *result);
+
+/**
+ * Wrapper around napi_call_threadsafe_function that always queues (napi_tsfn_nonblocking)
+ * and pins the function reference until the call completes
+ */
+napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data);
+
 /*
  * One of these will be allocated each time the module init function is called
  * Any global state that isn't thread safe or requires clean up should be stored
