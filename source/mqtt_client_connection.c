@@ -32,7 +32,6 @@
 
 struct mqtt_connection_binding {
     struct aws_allocator *allocator;
-    struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_options;
     struct mqtt_nodejs_client *node_client;
     struct aws_mqtt_client_connection *connection;
@@ -211,9 +210,6 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         return NULL;
     }
 
-    binding->socket_options.type = AWS_SOCKET_STREAM;
-    binding->socket_options.domain = AWS_SOCKET_IPV4;
-
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -351,6 +347,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     napi_value result = NULL;
 
     struct aws_tls_ctx *tls_ctx = NULL;
+    struct aws_socket_options *socket_options = NULL;
     struct mqtt_connection_binding *binding = NULL;
 
     struct aws_byte_buf client_id;
@@ -412,10 +409,9 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         }
     }
 
-    napi_value node_connect_timeout = *arg++;
-    uint32_t connect_timeout = 0;
-    if (!aws_napi_is_null_or_undefined(env, node_connect_timeout)) {
-        if (napi_get_value_uint32(env, node_connect_timeout, &connect_timeout)) {
+    napi_value node_socket_options = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
+        if (napi_get_value_external(env, node_socket_options, (void **)&socket_options)) {
             napi_throw_type_error(env, NULL, "connect_timeout must be a Number");
             goto cleanup;
         }
@@ -538,11 +534,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.ping_timeout_ms = timeout;
     options.port = port_number;
 
-    /* copy the original socket options, and add connect timeout */
-    struct aws_socket_options socket_options = binding->socket_options;
-    socket_options.connect_timeout_ms = connect_timeout;
-
-    options.socket_options = &socket_options;
+    options.socket_options = socket_options;
     options.tls_options = tls_ctx ? &binding->tls_options : NULL;
     options.user_data = binding;
 

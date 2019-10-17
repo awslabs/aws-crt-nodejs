@@ -1,6 +1,3 @@
-[submodule "cmake-js"]
-	path = cmake-js
-	url = https://github.com/cmake-js/cmake-js.git
 [submodule "aws-common-runtime/aws-c-common"]
 	path = aws-common-runtime/aws-c-common
 	url = https://github.com/awslabs/aws-c-common.git

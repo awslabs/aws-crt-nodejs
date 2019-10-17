@@ -18,13 +18,13 @@ import * as platform from '../common/platform';
 
 /** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
 export class AwsIotMqttConnectionConfigBuilder {
-    private params: MqttConnectionConfig   
+    private params: MqttConnectionConfig
 
     private constructor(private tls_ctx_options: io.TlsContextOptions) {
         this.params = {
-            client_id: '', 
+            client_id: '',
             host_name: '',
-            connect_timeout: 3000, 
+            socket_options: new io.SocketOptions(),
             port: 8883,
             use_websocket: false,
             clean_session: false,
@@ -36,19 +36,19 @@ export class AwsIotMqttConnectionConfigBuilder {
         };
     }
 
-    /** 
-     * Create a new builder with mTLS file paths 
+    /**
+     * Create a new builder with mTLS file paths
      * @param cert_path - Path to certificate, in PEM format
      * @param key_path - Path to private key, in PEM format
      */
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
         let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
         builder.params.port = 8883;
-        
+
         if (io.is_alpn_available()) {
             builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
-        }   
-        
+        }
+
         return builder;
     }
 
@@ -166,11 +166,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configures the amount of time a connection can take (in milliseconds) to CONNACK before it times out
-     * @param timeout_ms The maximum time it can take to connect to an endpoint before timing out the connection
+     * Configures the common settings for the socket to use when opening a connection to the server
+     * @param socket_options The socket settings
      */
-    with_connect_timeout_ms(timeout: number) {
-        this.params.connect_timeout = timeout;
+    with_socket_options(socket_options: io.SocketOptions) {
+        this.params.socket_options = socket_options;
         return this;
     }
 
@@ -183,7 +183,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             throw 'client_id and endpoint are required';
         }
 
-        this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);       
-        return this.params;       
+        this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        return this.params;
     }
 }

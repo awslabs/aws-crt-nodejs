@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
 
@@ -24,7 +25,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         this.params = {
             client_id: '',
             host_name: '',
-            connect_timeout: 3000,
+            socket_options: new SocketOptions(),
             port: 8883,
             clean_session: false,
             keep_alive: undefined,
@@ -106,11 +107,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configures the amount of time a connection can take (in milliseconds) to CONNACK before it times out
-     * @param timeout_ms The maximum time it can take to connect to an endpoint before timing out the connection
+     * Configures the common settings for the socket to use when opening a connection to the server
+     * @param socket_options The socket settings
      */
-    with_connect_timeout_ms(timeout: number) {
-        this.params.connect_timeout = timeout;
+    with_socket_options(socket_options: SocketOptions) {
+        this.params.socket_options = socket_options;
         return this;
     }
 

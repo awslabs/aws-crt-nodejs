@@ -45,7 +45,7 @@
     "@types/node": "^10.12.18",
     "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
-    "cmake-js": "file:./cmake-js/",
+    "cmake-js": "^6.0.0",
     "jest": "^24.9.0",
     "jest-circus": "^24.9.0",
     "ts-jest": "^24.0.2",

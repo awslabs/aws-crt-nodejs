@@ -22,5 +22,16 @@ export enum TlsVersion {
     Default = 128,
 }
 
+export enum SocketType {
+    STREAM = 0,
+    DGRAM = 1,
+}
+
+export enum SocketDomain {
+    IPV4 = 0,
+    IPV6 = 1,
+    LOCAL = 2, /* UNIX domain/named pipes */
+}
+
 /** Base class for streams used as inputs to AWS CRT I/O facilities */
 export interface InputStreamBase { };

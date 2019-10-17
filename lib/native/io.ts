@@ -15,16 +15,16 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
-import { InputStreamBase, TlsVersion } from '../common/io';
+import { InputStreamBase, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
-export { TlsVersion } from '../common/io';
+export { TlsVersion, SocketType, SocketDomain } from '../common/io';
 
-/** 
+/**
  * Convert a native error code into a human-readable string
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
  * @see CrtError
- * 
+ *
  * nodejs only.
  */
 export function error_code_to_string(error_code: number): string {
@@ -61,18 +61,18 @@ export enum LogLevel {
     TRACE = 6
 }
 
-/** 
+/**
  * Enables logging of the native AWS CRT libraries.
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
- * 
+ *
  * nodejs only.
  */
 export function enable_logging(level: LogLevel) {
     crt_native.io_logging_enable(level);
 }
 
-/** 
- * Returns true if ALPN is available on this platform natively 
+/**
+ * Returns true if ALPN is available on this platform natively
  * @return true if ALPN is supported natively, false otherwise
  * nodejs only.
 */
@@ -80,7 +80,7 @@ export function is_alpn_available(): boolean {
     return crt_native.is_alpn_available();
 }
 
-/** 
+/**
  * Wraps a {@link Readable} for reading by native code, used to stream
  *  data into the AWS CRT libraries.
  */
@@ -97,11 +97,11 @@ export class InputStream extends NativeResource implements InputStreamBase {
     }
 }
 
-/** 
+/**
  * Represents native resources required to bootstrap a client connection
  * Things like a host resolver, event loop group, etc. There should only need
  * to be 1 of these per application, in most cases.
- * 
+ *
  * nodejs only.
  */
 export class ClientBootstrap extends NativeResource {
@@ -110,27 +110,16 @@ export class ClientBootstrap extends NativeResource {
     }
 }
 
-export enum SocketType {
-    STREAM = 0,
-    DGRAM = 1,
-}
-
-export enum SocketDomain {
-    IPV4 = 0,
-    IPV6 = 1,
-    LOCAL = 2, /* UNIX domain/named pipes */
-}
-
-/** 
- * Standard Berkeley socket style options. 
- * 
+/**
+ * Standard Berkeley socket style options.
+ *
  * nodejs only.
 */
 export class SocketOptions extends NativeResource {
     constructor(
-        type: SocketType,
-        domain: SocketDomain,
-        connect_timeout_ms: Number,
+        type = SocketType.STREAM,
+        domain = SocketDomain.IPV6,
+        connect_timeout_ms = 5000,
         keepalive = false,
         keep_alive_interval_sec = 0,
         keep_alive_timeout_sec = 0,
@@ -147,9 +136,9 @@ export class SocketOptions extends NativeResource {
     }
 }
 
-/** 
- * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}. 
- * 
+/**
+ * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
+ *
  * nodejs only.
  */
 export class TlsContextOptions {
@@ -175,20 +164,20 @@ export class TlsContextOptions {
     public pkcs12_filepath?: string;
     /** Password for PKCS#12. Currently, only supported on OSX. */
     public pkcs12_password?: string;
-    /** 
+    /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
      * It is much better to just override the default trust store and pass the self-signed
      * certificate as the ca_file argument.
-     * 
+     *
      * In server mode, this defaults to false. If you want to enforce mutual TLS on the server,
      * set this to true.
      */
     public verify_peer: boolean = false;
 
-    /** 
-     * Overrides the default system trust store. 
-     * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are 
-     * stored in a directory (e.g. /etc/ssl/certs). 
+    /**
+     * Overrides the default system trust store.
+     * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are
+     * stored in a directory (e.g. /etc/ssl/certs).
      * @param ca_filepath - Single file containing all trust CAs, in PEM format
      */
     override_default_trust_store_from_path(ca_dirpath?: string, ca_filepath?: string) {
@@ -204,7 +193,7 @@ export class TlsContextOptions {
         this.certificate_authority = certificate_authority;
     }
 
-    /** 
+    /**
      * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate - Client certificate, in PEM format
      * @param private_key - Client private key, in PEM format
@@ -217,7 +206,7 @@ export class TlsContextOptions {
         return opt;
     }
 
-    /** 
+    /**
      * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate_filepath - Path to client certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
@@ -230,7 +219,7 @@ export class TlsContextOptions {
         return opt;
     }
 
-    /** 
+    /**
      * Creates a TLS context with secure-by-default options, along with a client cert and password
      * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
      * @param pkcs12_password - PKCS#12 password
@@ -243,11 +232,11 @@ export class TlsContextOptions {
         return opt;
     }
 
-    /** 
+    /**
      * Creates TLS context with peer verification disabled, along with a certificate and private key
      * @param certificate_filepath - Path to certificate, in PEM format
-     * @param private_key_filepath - Path to private key, in PEM format 
-     *      
+     * @param private_key_filepath - Path to private key, in PEM format
+     *
      */
     static create_server_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -273,11 +262,11 @@ export class TlsContextOptions {
     }
 }
 
-/** 
- * TLS context used for client TLS communications over sockets. If no 
+/**
+ * TLS context used for client TLS communications over sockets. If no
  * options are supplied, the context will default to enabling peer verification
- * only. 
- * 
+ * only.
+ *
  * nodejs only.
  */
 export class ClientTlsContext extends NativeResource {
@@ -302,11 +291,11 @@ export class ClientTlsContext extends NativeResource {
     }
 }
 
-/** 
+/**
  * TLS context used for server TLS communications over sockets. If no
  * options are supplied, the context will default to disabling peer verification
- * only. 
- * 
+ * only.
+ *
  * nodejs only.
  */
 export class ServerTlsContext extends NativeResource {

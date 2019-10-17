@@ -28,7 +28,7 @@ class Config {
     public endpoint = "";
     public certificate = "";
     public private_key = "";
-    
+
     configured() {
         return this.certificate && this.private_key && this.endpoint;
     }
