@@ -12,8 +12,8 @@
 * permissions and limitations under the License.
 */
 
-export { TlsVersion } from "../common/io";
-import { InputStreamBase } from "../common/io";
+export { TlsVersion, SocketType, SocketDomain } from "../common/io";
+import { InputStreamBase, SocketType, SocketDomain } from "../common/io";
 
 export function is_alpn_available(): boolean {
     return false;
@@ -23,6 +23,23 @@ type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
 
 export class InputStream implements InputStreamBase {
     constructor(public data: BodyData) {
-        
+
+    }
+}
+
+/**
+ * Standard Berkeley socket style options.
+ *
+ * Provided for compatibility with nodejs, but this version is largely unused.
+*/
+export class SocketOptions {
+    constructor(
+        public type = SocketType.STREAM,
+        public domain = SocketDomain.IPV6,
+        public connect_timeout_ms = 5000,
+        public keepalive = false,
+        public keep_alive_interval_sec = 0,
+        public keep_alive_timeout_sec = 0,
+        public keep_alive_max_failed_probes = 0) {
     }
 }
