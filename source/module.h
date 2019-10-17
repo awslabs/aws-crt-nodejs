@@ -65,7 +65,7 @@ int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
  * and un-pins the function reference when the call completes. Also handles known recoverable
  * call failure cases before returning. Does not care about return value, since this is a non-blocking
  * call into node.
- * 
+ *
  * @return napi_ok - call was successful
  *         napi_closing - function has been released, and is shutting down, execution is ok to continue though
  *         other napi_status values - unhandled, up to caller

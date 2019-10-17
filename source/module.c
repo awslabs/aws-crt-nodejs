@@ -455,7 +455,7 @@ napi_status aws_napi_dispatch_threadsafe_function(
 static void s_finalize_threadsafe_function(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
-    napi_threadsafe_function tsfn = *(napi_threadsafe_function*)finalize_data;
+    napi_threadsafe_function tsfn = *(napi_threadsafe_function *)finalize_data;
     AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(tsfn, napi_tsfn_abort));
 }
 
@@ -473,17 +473,7 @@ napi_status aws_napi_create_threadsafe_function(
     AWS_NAPI_CALL(
         env,
         napi_create_threadsafe_function(
-            env,
-            function,
-            NULL,
-            resource_name,
-            0,
-            1,
-            result,
-            s_finalize_threadsafe_function,
-            context,
-            call_js,
-            result),
+            env, function, NULL, resource_name, 0, 1, result, s_finalize_threadsafe_function, context, call_js, result),
         { return status; });
     /* convert to a weak reference */
     return napi_unref_threadsafe_function(env, *result);
