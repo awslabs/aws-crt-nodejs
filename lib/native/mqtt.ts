@@ -36,8 +36,8 @@ export class MqttClient extends NativeResource {
 export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
-    connect_timeout: number;
     port: number;
+    socket_options: io.SocketOptions;
     use_websocket?: boolean;
     clean_session?: boolean;
     keep_alive?: number;
@@ -152,7 +152,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.host_name,
                     this.config.port,
                     this.config.tls_ctx ? this.config.tls_ctx.native_handle() : null,
-                    this.config.connect_timeout,
+                    this.config.socket_options.native_handle(),
                     this.config.keep_alive,
                     this.config.timeout,
                     will,

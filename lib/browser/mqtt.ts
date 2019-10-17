@@ -19,6 +19,7 @@ import * as trie from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
 import { CrtError } from "../browser";
+import { SocketOptions } from "./io";
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
@@ -28,7 +29,7 @@ export type AWSCredentials = WebsocketUtils.AWSCredentials;
 export interface MqttConnectionConfig {
     client_id: string;
     host_name: string;
-    connect_timeout?: number;
+    socket_options: SocketOptions;
     port: number;
     clean_session?: boolean;
     keep_alive?: number;
@@ -113,13 +114,13 @@ export class MqttClientConnection extends BufferedEventEmitter {
         readonly client: MqttClient,
         private config: MqttConnectionConfig) {
         super();
-        
+
         this.connection = new AsyncClient(new MqttClientInternal(
             this.create_websocket_stream,
             {
-                keepalive: this.config.keep_alive,
+                keepalive: this.config.socket_options.keepalive ? this.config.socket_options.keep_alive_interval_sec : 0,
                 clientId: this.config.client_id,
-                connectTimeout: this.config.connect_timeout,
+                connectTimeout: this.config.socket_options.connect_timeout_ms,
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
