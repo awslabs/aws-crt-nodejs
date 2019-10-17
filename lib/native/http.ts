@@ -291,6 +291,9 @@ export class HttpClientConnectionManager extends NativeResource {
                         handle
                     );
                     this.connections.set(handle, connection as HttpClientConnection);
+                    connection.on('close', () => {
+                        this.connections.delete(handle);
+                    })
                 }
                 resolve(connection);
             };

@@ -31,13 +31,13 @@ struct http_connection_binding {
 };
 
 /* finalizer called when node cleans up this object */
-static void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+static void s_http_connection_from_manager_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
     struct http_connection_binding *binding = finalize_data;
     struct aws_allocator *allocator = aws_default_allocator();
 
-    aws_http_connection_release(binding->connection);
+    /* no release call, the http_client_connection_manager has already released it */
     aws_mem_release(allocator, binding);
 }
 
@@ -55,7 +55,7 @@ napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_c
     binding->env = env;
     binding->connection = connection;
     napi_value node_external = NULL;
-    if (napi_create_external(env, binding, s_http_connection_binding_finalize, NULL, &node_external)) {
+    if (napi_create_external(env, binding, s_http_connection_from_manager_binding_finalize, NULL, &node_external)) {
         napi_throw_error(env, NULL, "Unable to create external for managed connection");
         aws_mem_release(aws_default_allocator(), binding);
         return NULL;
@@ -147,6 +147,17 @@ static void s_http_on_connection_shutdown(struct aws_http_connection *connection
         args->error_code = error_code;
         aws_uv_context_enqueue(binding->uv_context, s_http_on_connection_shutdown_dispatch, args);
     }
+}
+
+/* finalizer called when node cleans up this object */
+static void s_http_connection_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+    struct http_connection_binding *binding = finalize_data;
+    struct aws_allocator *allocator = aws_default_allocator();
+
+    aws_http_connection_release(binding->connection);
+    aws_mem_release(allocator, binding);
 }
 
 napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {

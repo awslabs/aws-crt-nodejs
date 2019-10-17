@@ -36,7 +36,7 @@
   "scripts": {
     "cmake": "cmake-js",
     "tsc": "tsc && tsc -p tsconfig.browser.json",
-    "test": "jest -i --detectOpenHandles",
+    "test": "jest -i",
     "install": "tsc && tsc -p tsconfig.browser.json && cmake-js compile -T install --CDCMAKE_EXPORT_COMPILE_COMMANDS=ON"
   },
   "devDependencies": {
@@ -47,6 +47,7 @@
     "aws-sdk": "^2.419.0",
     "cmake-js": "file:./cmake-js/",
     "jest": "^24.9.0",
+    "jest-circus": "^24.9.0",
     "ts-jest": "^24.0.2",
     "typescript": "^3.5.3",
     "yargs": "^13.2.4"

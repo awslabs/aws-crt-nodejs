@@ -26,4 +26,3 @@ catch (err) { /* When in the dist/lib folder, just leave lib */
 }
 
 export = binding;
-
