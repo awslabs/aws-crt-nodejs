@@ -230,7 +230,6 @@ void s_threadsafe_log_create(struct aws_napi_logger_ctx *ctx, napi_env env) {
 
     /* convert the threadsafe function to a weak ref (don't keep node open if it's still out there) */
     AWS_NAPI_ENSURE(env, napi_unref_threadsafe_function(env, ctx->log_drain));
-    AWS_NAPI_ENSURE(env, napi_acquire_threadsafe_function(ctx->log_drain)); /* main ref, dropped in finalize */
 }
 
 struct aws_napi_logger_ctx *aws_napi_logger_new(struct aws_allocator *allocator, napi_env env) {
