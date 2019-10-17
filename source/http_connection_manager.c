@@ -254,7 +254,8 @@ static void s_http_connection_manager_on_acquired_call(
     params[0] = connection_external;
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
 
     aws_mem_release(binding->allocator, args);
 }
