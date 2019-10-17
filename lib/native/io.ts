@@ -117,9 +117,9 @@ export class ClientBootstrap extends NativeResource {
 */
 export class SocketOptions extends NativeResource {
     constructor(
-        type: SocketType = SocketType.STREAM,
-        domain: SocketDomain = SocketDomain.IPV6,
-        connect_timeout_ms: number = 5000,
+        type = SocketType.STREAM,
+        domain = SocketDomain.IPV6,
+        connect_timeout_ms = 5000,
         keepalive = false,
         keep_alive_interval_sec = 0,
         keep_alive_timeout_sec = 0,

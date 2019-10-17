@@ -34,9 +34,9 @@ export class InputStream implements InputStreamBase {
 */
 export class SocketOptions {
     constructor(
-        public type: SocketType = SocketType.STREAM,
-        public domain: SocketDomain = SocketDomain.IPV6,
-        public connect_timeout_ms: number = 5000,
+        public type = SocketType.STREAM,
+        public domain = SocketDomain.IPV6,
+        public connect_timeout_ms = 5000,
         public keepalive = false,
         public keep_alive_interval_sec = 0,
         public keep_alive_timeout_sec = 0,
