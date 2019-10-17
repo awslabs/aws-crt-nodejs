@@ -447,7 +447,7 @@ napi_status aws_napi_dispatch_threadsafe_function(
     if (!this_ptr) {
         AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
     }
-    AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), { 
+    AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), {
         call_status = status;
         s_handle_failed_callback(env, status);
     });
