@@ -91,11 +91,14 @@ struct aws_napi_context {
 #define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " call " @ " file ":" #line
 #define _AWS_NAPI_PASTE(x) x
 
-#define AWS_NAPI_LOGF_ERROR(...) fprintf(stderr, __VA_ARGS__)
-#define AWS_NAPI_LOGF_FATAL(...) fprintf(stderr, __VA_ARGS__)
+#define _AWS_NAPI_VA_ARGS(...) , ##__VA_ARGS__
+
+#define AWS_NAPI_LOGF_ERROR(fmt, ...) fprintf(stderr, fmt "\n" _AWS_NAPI_VA_ARGS(__VA_ARGS__))
+#define AWS_NAPI_LOGF_FATAL(fmt, ...) fprintf(stderr, fmt "\n" _AWS_NAPI_VA_ARGS(__VA_ARGS__))
 
 /*
- * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error immediately
+ * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
+ * immediately
  */
 #define AWS_NAPI_CALL(env, call, on_fail)                                                                              \
     do {                                                                                                               \
@@ -117,7 +120,7 @@ struct aws_napi_context {
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
             AWS_NAPI_LOGF_FATAL(                                                                                       \
-                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s\n"),             \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),               \
                 aws_napi_status_to_str(status));                                                                       \
             aws_fatal_assert(#call, __FILE__, __LINE__);                                                               \
         }                                                                                                              \
