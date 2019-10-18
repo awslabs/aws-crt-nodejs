@@ -41,25 +41,6 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void);
 
 const char *aws_napi_status_to_str(napi_status status);
 
-struct aws_napi_callback;
-typedef int(aws_napi_callback_params_builder)(napi_env env, napi_value *params, size_t *num_params, void *user_data);
-
-struct aws_napi_callback {
-    napi_env env;
-    napi_async_context async_context;
-    napi_ref callback;
-    aws_napi_callback_params_builder *build_params;
-};
-
-int aws_napi_callback_init(
-    struct aws_napi_callback *cb,
-    napi_env env,
-    napi_value callback,
-    const char *name,
-    aws_napi_callback_params_builder *build_params);
-int aws_napi_callback_clean_up(struct aws_napi_callback *cb);
-int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
-
 /**
  * Wrapper around napi_call_function that automatically substitutes undefined for a null this_ptr
  * and un-pins the function reference when the call completes. Also handles known recoverable

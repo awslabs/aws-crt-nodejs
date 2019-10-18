@@ -17,7 +17,6 @@
 #include "http_connection.h"
 #include "io.h"
 #include "module.h"
-#include "uv_interop.h"
 
 #include <aws/http/connection_manager.h>
 #include <aws/io/socket.h>

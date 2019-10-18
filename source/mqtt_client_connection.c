@@ -18,7 +18,6 @@
 #include "module.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
-#include "uv_interop.h"
 
 #include <aws/mqtt/client.h>
 
