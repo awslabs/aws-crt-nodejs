@@ -95,14 +95,13 @@ struct aws_napi_context {
 #define AWS_NAPI_LOGF_FATAL(...) fprintf(stderr, __VA_ARGS__)
 
 /*
- * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
+ * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error immediately
  */
 #define AWS_NAPI_CALL(env, call, on_fail)                                                                              \
     do {                                                                                                               \
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
-            AWS_LOGF_ERROR(                                                                                            \
-                AWS_LS_NODE,                                                                                           \
+            AWS_NAPI_LOGF_ERROR(                                                                                       \
                 _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),               \
                 aws_napi_status_to_str(status));                                                                       \
             on_fail;                                                                                                   \
