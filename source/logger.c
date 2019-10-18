@@ -23,7 +23,7 @@
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
-#define LOG_RING_BUFFER_CAPACITY (256 * 1024)
+#define LOG_RING_BUFFER_CAPACITY (128 * 1024)
 
 /*
  * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into
@@ -116,7 +116,10 @@ static void *s_ring_buffer_mem_acquire(struct aws_allocator *allocator, size_t s
     struct aws_ring_buffer *buffer = allocator->impl;
     struct aws_byte_buf buf;
     AWS_ZERO_STRUCT(buf);
-    AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_ring_buffer_acquire(buffer, size + sizeof(size_t), &buf));
+    /* if the ring buffer is full, fall back to the normal allocator */
+    if (aws_ring_buffer_acquire(buffer, size + sizeof(size_t), &buf)) {
+        AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_byte_buf_init(&buf, buffer->allocator, size + sizeof(size_t)));
+    }
     *((size_t *)buf.buffer) = buf.capacity;
     return buf.buffer + sizeof(size_t);
 }
@@ -131,7 +134,15 @@ static void s_ring_buffer_mem_release(struct aws_allocator *allocator, void *ptr
         .len = 0,
     };
     struct aws_ring_buffer *buffer = allocator->impl;
-    aws_ring_buffer_release(buffer, &buf);
+
+    /* see if the memory comes from the ring buffer */
+    if (aws_ring_buffer_buf_belongs_to_pool(buffer, &buf)) {
+        aws_ring_buffer_release(buffer, &buf);
+        return;
+    }
+
+    /* release to the fallback allocator */
+    aws_mem_release(buffer->allocator, addr);
 }
 
 static void *s_ring_buffer_mem_calloc(struct aws_allocator *allocator, size_t num, size_t size) {
@@ -173,7 +184,7 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
     aws_linked_list_swap_contents(&ctx->msg_queue.messages, &msgs);
     aws_mutex_unlock(&ctx->msg_queue.mutex);
 
-    /* 
+    /*
      * If env is null, that means that the function is simply requesting that any resources be
      * freed for shutdown
      */
