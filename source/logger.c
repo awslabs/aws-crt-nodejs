@@ -173,6 +173,14 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
     aws_linked_list_swap_contents(&ctx->msg_queue.messages, &msgs);
     aws_mutex_unlock(&ctx->msg_queue.mutex);
 
+    /* 
+     * If env is null, that means that the function is simply requesting that any resources be
+     * freed for shutdown
+     */
+    if (!env) {
+        return;
+    }
+
     /* nothing to do, maybe next time... */
     if (aws_linked_list_empty(&msgs)) {
         goto done;
