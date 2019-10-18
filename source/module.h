@@ -94,17 +94,15 @@ struct aws_napi_context {
 #define _AWS_NAPI_TOSTRING(x) _AWS_NAPI_TOSTR(x)
 #define _AWS_NAPI_SOURCE __FILE__ ":" _AWS_NAPI_TOSTRING(__LINE__)
 
-#define _AWS_NAPI_VA_ARGS(...) , ##__VA_ARGS__
-
 #define AWS_NAPI_LOGF_ERROR(...)                                                                                       \
     do {                                                                                                               \
-        fprintf(stderr, __VA_ARGS__);                                                                                          \
+        fprintf(stderr, __VA_ARGS__);                                                                                  \
         fprintf(stderr, "\n");                                                                                         \
     } while (0)
 
 #define AWS_NAPI_LOGF_FATAL(...)                                                                                       \
     do {                                                                                                               \
-        fprintf(stderr, __VA_ARGS__);                                                                                          \
+        fprintf(stderr, __VA_ARGS__);                                                                                  \
         fprintf(stderr, "\n");                                                                                         \
     } while (0)
 
