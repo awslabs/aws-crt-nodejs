@@ -96,8 +96,17 @@ struct aws_napi_context {
 
 #define _AWS_NAPI_VA_ARGS(...) , ##__VA_ARGS__
 
-#define AWS_NAPI_LOGF_ERROR(fmt, ...) fprintf(stderr, fmt "\n" _AWS_NAPI_VA_ARGS(__VA_ARGS__))
-#define AWS_NAPI_LOGF_FATAL(fmt, ...) fprintf(stderr, fmt "\n" _AWS_NAPI_VA_ARGS(__VA_ARGS__))
+#define AWS_NAPI_LOGF_ERROR(...)                                                                                       \
+    do {                                                                                                               \
+        fprintf(stderr, __VA_ARGS__);                                                                                          \
+        fprintf(stderr, "\n");                                                                                         \
+    } while (0)
+
+#define AWS_NAPI_LOGF_FATAL(...)                                                                                       \
+    do {                                                                                                               \
+        fprintf(stderr, __VA_ARGS__);                                                                                          \
+        fprintf(stderr, "\n");                                                                                         \
+    } while (0)
 
 /*
  * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
