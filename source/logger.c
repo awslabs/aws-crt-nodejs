@@ -138,11 +138,10 @@ static void s_ring_buffer_mem_release(struct aws_allocator *allocator, void *ptr
     /* see if the memory comes from the ring buffer */
     if (aws_ring_buffer_buf_belongs_to_pool(buffer, &buf)) {
         aws_ring_buffer_release(buffer, &buf);
-        return;
+    } else {
+        /* release to the fallback allocator */
+        aws_mem_release(buffer->allocator, addr);
     }
-
-    /* release to the fallback allocator */
-    aws_mem_release(buffer->allocator, addr);
 }
 
 static void *s_ring_buffer_mem_calloc(struct aws_allocator *allocator, size_t num, size_t size) {
