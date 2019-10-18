@@ -36,37 +36,41 @@ static void s_on_response_call(napi_env env, napi_value on_response, void *conte
     struct http_stream_binding *binding = context;
     struct aws_http_message *response = user_data;
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    int32_t status_code = 0;
-    aws_http_message_get_response_status(response, &status_code);
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, status_code, &params[0]));
+        int32_t status_code = 0;
+        aws_http_message_get_response_status(response, &status_code);
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, status_code, &params[0]));
 
-    napi_value node_headers = NULL;
-    AWS_NAPI_ENSURE(env, napi_create_array(env, &node_headers));
-    params[1] = node_headers;
+        napi_value node_headers = NULL;
+        AWS_NAPI_ENSURE(env, napi_create_array(env, &node_headers));
+        params[1] = node_headers;
 
-    const size_t num_headers = aws_http_message_get_header_count(response);
-    for (size_t idx = 0; idx < num_headers; ++idx) {
-        struct aws_http_header header;
-        aws_http_message_get_header(response, &header, idx);
+        const size_t num_headers = aws_http_message_get_header_count(response);
+        for (size_t idx = 0; idx < num_headers; ++idx) {
+            struct aws_http_header header;
+            aws_http_message_get_header(response, &header, idx);
 
-        napi_value node_header = NULL;
-        AWS_NAPI_ENSURE(env, napi_create_array(env, &node_header));
+            napi_value node_header = NULL;
+            AWS_NAPI_ENSURE(env, napi_create_array(env, &node_header));
 
-        napi_value node_name = NULL;
-        napi_value node_value = NULL;
-        AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)header.name.ptr, header.name.len, &node_name));
+            napi_value node_name = NULL;
+            napi_value node_value = NULL;
+            AWS_NAPI_ENSURE(
+                env, napi_create_string_utf8(env, (const char *)header.name.ptr, header.name.len, &node_name));
+            AWS_NAPI_ENSURE(
+                env, napi_create_string_utf8(env, (const char *)header.value.ptr, header.value.len, &node_value));
+            AWS_NAPI_ENSURE(env, napi_set_element(env, node_header, 0, node_name));
+            AWS_NAPI_ENSURE(env, napi_set_element(env, node_header, 1, node_value));
+            AWS_NAPI_ENSURE(env, napi_set_element(env, node_headers, idx, node_header));
+        }
+
         AWS_NAPI_ENSURE(
-            env, napi_create_string_utf8(env, (const char *)header.value.ptr, header.value.len, &node_value));
-        AWS_NAPI_ENSURE(env, napi_set_element(env, node_header, 0, node_name));
-        AWS_NAPI_ENSURE(env, napi_set_element(env, node_header, 1, node_value));
-        AWS_NAPI_ENSURE(env, napi_set_element(env, node_headers, idx, node_header));
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_response, NULL, on_response, num_params, params));
     }
-
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_response, NULL, on_response, num_params, params));
 
     /* clean up the response buffer */
     aws_http_message_destroy(binding->response);
@@ -117,14 +121,16 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
     struct http_stream_binding *binding = context;
     struct on_body_args *args = user_data;
 
-    napi_value params[1];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[1];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(
-        env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
+        AWS_NAPI_ENSURE(
+            env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
+    }
 
     aws_byte_buf_clean_up(&args->chunk);
     aws_mem_release(binding->allocator, args);
@@ -159,12 +165,15 @@ static void s_on_complete_call(napi_env env, napi_value on_complete, void *conte
     struct http_stream_binding *binding = context;
     struct on_complete_args *args = user_data;
 
-    napi_value params[1];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[1];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
+    }
 
     aws_mem_release(binding->allocator, args);
 }

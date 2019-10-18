@@ -73,14 +73,16 @@ static void s_http_on_connection_setup_call(napi_env env, napi_value on_setup, v
     struct http_connection_binding *binding = context;
     struct on_connection_args *args = user_data;
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
+        AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_setup, NULL, on_setup, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_setup, NULL, on_setup, num_params, params));
+    }
 
     aws_mem_release(binding->allocator, args);
 }
@@ -100,14 +102,17 @@ static void s_http_on_connection_shutdown_call(napi_env env, napi_value on_shutd
     struct http_connection_binding *binding = context;
     struct on_connection_args *args = user_data;
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
+        AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_shutdown, NULL, on_shutdown, num_params, params));
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_shutdown, NULL, on_shutdown, num_params, params));
+    }
 
     aws_mem_release(binding->allocator, args);
 }

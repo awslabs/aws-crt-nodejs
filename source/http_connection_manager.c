@@ -49,7 +49,10 @@ static void s_http_connection_manager_shutdown_call(
     void *user_data) {
     struct http_connection_manager_binding *binding = context;
     (void)user_data;
-    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, binding->on_shutdown, NULL, on_shutdown, 0, NULL));
+    if (env) {
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_shutdown, NULL, on_shutdown, 0, NULL));
+    }
 }
 
 static void s_http_connection_manager_shutdown_complete(void *user_data) {
@@ -245,16 +248,18 @@ static void s_http_connection_manager_on_acquired_call(
     struct http_connection_manager_binding *binding = context;
     struct connection_acquired_args *args = user_data;
 
-    napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
-    AWS_FATAL_ASSERT(connection_external);
+    if (env) {
+        napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
+        AWS_FATAL_ASSERT(connection_external);
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
-    params[0] = connection_external;
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+        params[0] = connection_external;
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
+    }
 
     aws_mem_release(binding->allocator, args);
 }
