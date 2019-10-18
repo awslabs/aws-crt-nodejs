@@ -1102,7 +1102,7 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
 
     napi_value node_binding = *arg++;
     AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
-        napi_throw_error(env, NULL, "Failed to extract connection from first argument");
+        napi_throw_error(env, NULL, "Failed to extract binding from external");
         return NULL;
     });
 
