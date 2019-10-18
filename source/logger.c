@@ -23,7 +23,7 @@
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
-#define LOG_RING_BUFFER_CAPACITY (128 * 1024)
+#define LOG_RING_BUFFER_CAPACITY (64 * 1024)
 
 /*
  * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into
@@ -178,6 +178,12 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
      * freed for shutdown
      */
     if (!env) {
+        while (!aws_linked_list_empty(&msgs)) {
+            struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&msgs);
+            struct log_message *msg = AWS_CONTAINER_OF(list_node, struct log_message, node);
+            aws_string_destroy(msg->message);
+            aws_mem_release(&ctx->buffer_allocator, msg);
+        }
         return;
     }
 
