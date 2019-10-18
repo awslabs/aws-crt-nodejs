@@ -261,7 +261,7 @@ const char *aws_napi_status_to_str(napi_status status) {
     return reason;
 }
 
-static void s_handle_failed_callback(napi_env env, napi_status status) {
+static void s_handle_failed_callback(napi_env env, napi_value function, napi_status status) {
     /* Figure out if there's an exception pending, if so, no callbacks will ever succeed again until it's cleared */
     bool pending_exception = status == napi_pending_exception;
     AWS_NAPI_ENSURE(env, napi_is_exception_pending(env, &pending_exception));
@@ -283,6 +283,13 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
     /* figure out what the exception is */
     bool is_error = false;
     AWS_NAPI_ENSURE(env, napi_is_error(env, node_exception, &is_error));
+
+    napi_value node_function_name = NULL;
+    AWS_NAPI_ENSURE(env, napi_coerce_to_string(env, function, &node_function_name));
+    struct aws_string *function_name = aws_string_new_from_napi(env, node_function_name);
+    if (function_name) {
+        AWS_NAPI_LOGF_ERROR("Calling %s", (const char *)aws_string_bytes(function_name));
+    }
 
     /* If it's an Error, extract info from it and log it */
     if (is_error) {
@@ -345,7 +352,7 @@ napi_status aws_napi_dispatch_threadsafe_function(
     }
     AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), {
         call_status = status;
-        s_handle_failed_callback(env, status);
+        s_handle_failed_callback(env, function, status);
     });
     /* Must always decrement the ref count, or the function will be pinned */
     napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
