@@ -145,10 +145,10 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     napi_value node_args[7];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
-    }
+    });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
         napi_throw_error(env, NULL, "http_connection_new needs exactly 7 arguments");
         return NULL;
@@ -156,10 +156,10 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
 
     napi_value node_bootstrap = *arg++;
     struct client_bootstrap_binding *bootstrap_binding = NULL;
-    if (napi_get_value_external(env, node_bootstrap, (void **)&bootstrap_binding)) {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_bootstrap, (void **)&bootstrap_binding), {
         napi_throw_error(env, NULL, "Unable to extract bootstrap from external");
         return NULL;
-    }
+    });
 
     /* create node external to hold the connection wrapper, cleanup is required from here on out */
     struct http_connection_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct http_connection_binding));
@@ -211,10 +211,10 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
 
     napi_value node_port = *arg++;
     uint32_t port = 0;
-    if (napi_get_value_uint32(env, node_port, &port)) {
+    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_port, &port), {
         napi_throw_type_error(env, NULL, "port must be a Number");
         goto argument_error;
-    }
+    });
     options.port = (uint16_t)port;
 
     napi_value node_socket_options = *arg++;
@@ -232,15 +232,16 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_external = NULL;
-    if (napi_create_external(env, binding, s_http_connection_binding_finalize, binding, &node_external)) {
-        napi_throw_error(env, NULL, "Failed to create napi external for http_connection_binding");
-        goto create_external_failed;
-    }
+    AWS_NAPI_CALL(
+        env, napi_create_external(env, binding, s_http_connection_binding_finalize, binding, &node_external), {
+            napi_throw_error(env, NULL, "Failed to create napi external for http_connection_binding");
+            goto create_external_failed;
+        });
 
-    if (napi_create_reference(env, node_external, 1, &binding->node_external)) {
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_external), {
         napi_throw_error(env, NULL, "Failed to reference node_external");
         goto create_external_failed;
-    }
+    });
 
     options.bootstrap = aws_napi_get_client_bootstrap(bootstrap_binding);
     options.host_name = aws_byte_cursor_from_string(host_name);
@@ -290,10 +291,10 @@ done:
 napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to extract arguments");
         return NULL;
-    }
+    });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
         napi_throw_error(env, NULL, "http_connection_close takes exactly 1 argument");
         return NULL;
