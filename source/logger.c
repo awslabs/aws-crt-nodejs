@@ -69,6 +69,11 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     /* this can only happen if someone tries to log after the main thread has cleaned up */
     AWS_FATAL_ASSERT(ctx && "No TLS log context, and no default fallback");
 
+    /* if log_drain is null, it's been released and we can't use it anymore */
+    if (!ctx->log_drain) {
+        return AWS_OP_ERR;
+    }
+
     /*
      * Pin the log drain function until we try to call it. If napi_closing is returned, the function
      * has been released, which means we are shutting down, so we just bail
@@ -151,6 +156,7 @@ void s_threadsafe_log_finalize(napi_env env, void *finalize_data, void *finalize
 
     /* Drop the ref to the function. All attempts to acquire will return napi_closing after this */
     AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->log_drain, napi_tsfn_abort));
+    ctx->log_drain = NULL;
 
     /* The rest is cleaned up by the env context clean up via aws_napi_logger_destroy() */
 }
