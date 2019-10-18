@@ -114,6 +114,10 @@ struct aws_napi_context {
     do {                                                                                                               \
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
+            AWS_LOGF_FATAL(                                                                                            \
+                AWS_LS_NODE,                                                                                           \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),              \
+                aws_napi_status_to_str(status));                                                                       \
             aws_fatal_assert(#call, __FILE__, __LINE__);                                                               \
         }                                                                                                              \
     } while (0)
