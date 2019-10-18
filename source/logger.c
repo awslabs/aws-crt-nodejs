@@ -23,7 +23,7 @@
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
-#define LOG_RING_BUFFER_CAPACITY (64 * 1024)
+#define LOG_RING_BUFFER_CAPACITY (128 * 1024)
 
 /*
  * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into
