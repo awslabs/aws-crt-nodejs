@@ -88,8 +88,11 @@ struct aws_napi_context {
     struct aws_napi_logger_ctx *logger;
 };
 
-#define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " #call " @ " file "(" #line ")"
+#define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " call " @ " file ":" #line
 #define _AWS_NAPI_PASTE(x) x
+
+#define AWS_NAPI_LOGF_ERROR(...) fprintf(stderr, __VA_ARGS__)
+#define AWS_NAPI_LOGF_FATAL(...) fprintf(stderr, __VA_ARGS__)
 
 /*
  * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
@@ -100,7 +103,7 @@ struct aws_napi_context {
         if (status != napi_ok) {                                                                                       \
             AWS_LOGF_ERROR(                                                                                            \
                 AWS_LS_NODE,                                                                                           \
-                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),              \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),               \
                 aws_napi_status_to_str(status));                                                                       \
             on_fail;                                                                                                   \
         }                                                                                                              \
@@ -114,8 +117,8 @@ struct aws_napi_context {
     do {                                                                                                               \
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
-            fprintf(stderr,                                                                                            \
-                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),              \
+            AWS_NAPI_LOGF_ERROR(                                                                                       \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s\n"),             \
                 aws_napi_status_to_str(status));                                                                       \
             aws_fatal_assert(#call, __FILE__, __LINE__);                                                               \
         }                                                                                                              \

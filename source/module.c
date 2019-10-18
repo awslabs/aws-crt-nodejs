@@ -269,8 +269,7 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
     if (!pending_exception) {
         const napi_extended_error_info *node_error_info = NULL;
         AWS_NAPI_ENSURE(env, napi_get_last_error_info(env, &node_error_info));
-        AWS_LOGF_ERROR(
-            AWS_LS_NODE,
+        AWS_NAPI_LOGF_ERROR(
             "Extended error info: engine_error_code=%u error_code=%s error_message=%s",
             node_error_info->engine_error_code,
             aws_napi_status_to_str(node_error_info->error_code),
@@ -294,10 +293,10 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
         /* extract and log the message */
         struct aws_string *message = NULL;
         if ((message = aws_string_new_from_napi(env, node_message))) {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "Error: %s", aws_string_bytes(message));
+            AWS_NAPI_LOGF_ERROR("Error: %s", aws_string_bytes(message));
             aws_string_destroy(message);
         } else {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "aws_string_new_from_napi(exception.message) failed");
+            AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(exception.message) failed");
             return;
         }
 
@@ -308,10 +307,10 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
         /* extract and log the stack trace */
         struct aws_string *stacktrace = NULL;
         if ((stacktrace = aws_string_new_from_napi(env, node_stack))) {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "Stack:\n%s", aws_string_bytes(stacktrace));
+            AWS_NAPI_LOGF_ERROR("Stack:\n%s", aws_string_bytes(stacktrace));
             aws_string_destroy(stacktrace);
         } else {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "aws_string_new_from_napi(exception.stack) failed");
+            AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(exception.stack) failed");
             return;
         }
 
@@ -325,9 +324,9 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
 
     struct aws_string *error_str = NULL;
     if ((error_str = aws_string_new_from_napi(env, node_error_str))) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Error: %s", aws_string_bytes(error_str));
+        AWS_NAPI_LOGF_ERROR("Error: %s", aws_string_bytes(error_str));
     } else {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "aws_string_new_from_napi(ToString(exception)) failed");
+        AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(ToString(exception)) failed");
         return;
     }
 }
