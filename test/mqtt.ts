@@ -121,13 +121,11 @@ test('MQTT Pub/Sub', async () => {
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
     const promise = new Promise((resolve, reject) => {
-        connection.on('connect', (session_present) => {
+        connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
             const test_topic = '/test/me/senpai';
             const test_payload = 'NOTICE ME';
             connection.subscribe(test_topic, QoS.AtLeastOnce, (topic, payload) => {
-                connection.disconnect();
-
                 if (topic != test_topic) {
                     reject("Topic does not match");
                 }
@@ -139,7 +137,8 @@ test('MQTT Pub/Sub', async () => {
                     reject("Payloads do not match");
                 }
             });
-            connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+            await connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+            connection.disconnect();
         });
         connection.on('error', (error) => {
             reject(error);
