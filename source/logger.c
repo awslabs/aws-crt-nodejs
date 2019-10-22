@@ -122,7 +122,7 @@ static struct aws_log_writer_vtable s_napi_log_writer_vtable = {
     .clean_up = s_napi_log_writer_clean_up,
 };
 
-void aws_napi_logger_set_log_level(enum aws_log_level level) {
+void aws_napi_logger_set_level(enum aws_log_level level) {
     AWS_FATAL_ASSERT(s_napi_logger.logger.p_impl);
     ((struct aws_logger_pipeline *)s_napi_logger.logger.p_impl)->level = level;
 }

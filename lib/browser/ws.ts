@@ -90,7 +90,7 @@ function create_websocket_url(config: MqttConnectionConfig) {
         return sign_url('GET', url, credentials, service_name, time, day);
     }
     else if (protocol === 'wss-custom-auth') {
-        return `wss://${config.host_name}/${path}`
+        return `wss://${config.host_name}/${path}`;
     }
     throw new URIError(`Invalid protocol requested: ${protocol}`);
 }

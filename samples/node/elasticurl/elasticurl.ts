@@ -151,7 +151,7 @@ yargs.command('*', false, (yargs: any) => {
 
 function init_logging(argv: Args) {
     if (argv.verbose !== 'NONE') {
-        let level = io.LogLevel.NONE;
+        let level: io.LogLevel;
         switch (argv.verbose) {
             case 'ERROR':
                 level = io.LogLevel.ERROR;
@@ -170,7 +170,7 @@ function init_logging(argv: Args) {
                 level = io.LogLevel.TRACE;
                 break;
         }
-        io.enable_logging(level, argv.trace);
+        io.enable_logging(level);
     }
 }
 
@@ -181,9 +181,9 @@ function init_tls(argv: Args) {
 
     const tls_options = new io.TlsContextOptions();
     tls_options.alpn_list = argv.alpn_list;
-    tls_options.ca_file = argv.ca_file;
-    tls_options.ca_path = argv.ca_path;
-    tls_options.certificate_path = argv.cert;
+    tls_options.ca_filepath = argv.ca_file;
+    tls_options.ca_dirpath = argv.ca_path;
+    tls_options.certificate_filepath = argv.cert;
     tls_options.verify_peer = !argv.insecure;
     return new io.ClientTlsContext(tls_options);
 }
@@ -218,7 +218,7 @@ function main(argv: Args) {
         const on_body = (body: ArrayBuffer) => {
             const body_str = decoder.decode(body);
             argv.output.write(body_str);
-        }
+        };
 
         let headers = new http.HttpHeaders([
             ["host", argv.url.hostname],
@@ -261,7 +261,7 @@ function main(argv: Args) {
         if (argv.output !== process.stdout) {
             argv.output.close();
         }
-    }
+    };
 
     const connection = new http.HttpClientConnection(
         client_bootstrap,
