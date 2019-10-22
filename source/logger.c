@@ -23,6 +23,8 @@
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
+#include <ctype.h>
+
 #define LOG_RING_BUFFER_CAPACITY (128 * 1024)
 
 /*
@@ -74,6 +76,12 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
         return AWS_OP_ERR;
     }
 
+    /* node will append a newline, so strip the ones from the logger */
+    size_t newlines = 0;
+    while (isspace((const char)(aws_string_bytes(output)[output->len - newlines - 1])) && newlines < output->len) {
+        ++newlines;
+    }
+
     /*
      * Pin the log drain function until we try to call it. If napi_closing is returned, the function
      * has been released, which means we are shutting down, so we just bail
@@ -83,7 +91,7 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     });
 
     /* must allocate in the order things will be freed because we use a ring buffer */
-    struct aws_string *message = aws_string_new_from_string(&ctx->buffer_allocator, output);
+    struct aws_string *message = aws_string_new_from_array(&ctx->buffer_allocator, aws_string_bytes(output), output->len - newlines);
     struct log_message *msg = aws_mem_calloc(&ctx->buffer_allocator, 1, sizeof(struct log_message));
     msg->message = message;
 
