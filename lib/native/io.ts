@@ -309,7 +309,7 @@ export class ServerTlsContext extends NativeResource {
             ctx_opt.ca_filepath,
             ctx_opt.ca_dirpath,
             ctx_opt.certificate_authority,
-            ctx_opt.alpn_list.length > 0 ? ctx_opt.alpn_list.join(';') : undefined,
+            (ctx_opt.alpn_list && ctx_opt.alpn_list.length > 0) ? ctx_opt.alpn_list.join(';') : undefined,
             ctx_opt.certificate_filepath,
             ctx_opt.certificate,
             ctx_opt.private_key_filepath,
