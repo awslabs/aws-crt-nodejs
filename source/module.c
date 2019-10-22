@@ -284,11 +284,15 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
     bool is_error = false;
     AWS_NAPI_ENSURE(env, napi_is_error(env, node_exception, &is_error));
 
-    napi_value node_function_name = NULL;
-    AWS_NAPI_ENSURE(env, napi_coerce_to_string(env, function, &node_function_name));
-    struct aws_string *function_name = aws_string_new_from_napi(env, node_function_name);
-    if (function_name) {
-        AWS_NAPI_LOGF_ERROR("Calling %s", (const char *)aws_string_bytes(function_name));
+    /* 
+     * Convert the function to a string. If it's a lambda, this will produce the source of the lambda, if
+     * it's a class function or free function, it will produce the name 
+     */
+    napi_value node_function_str = NULL;
+    AWS_NAPI_ENSURE(env, napi_coerce_to_string(env, function, &node_function_str));
+    struct aws_string *function_str = aws_string_new_from_napi(env, node_function_str);
+    if (function_str) {
+        AWS_NAPI_LOGF_ERROR("Calling %s", (const char *)aws_string_bytes(function_str));
     }
 
     /* If it's an Error, extract info from it and log it */
