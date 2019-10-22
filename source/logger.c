@@ -71,15 +71,22 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     /* this can only happen if someone tries to log after the main thread has cleaned up */
     AWS_FATAL_ASSERT(ctx && "No TLS log context, and no default fallback");
 
-    /* if log_drain is null, it's been released and we can't use it anymore */
-    if (!ctx->log_drain) {
-        return AWS_OP_ERR;
-    }
-
     /* node will append a newline, so strip the ones from the logger */
     size_t newlines = 0;
     while (isspace((const char)(aws_string_bytes(output)[output->len - newlines - 1])) && newlines < output->len) {
         ++newlines;
+    }
+
+    /*
+     * If log_drain is null, it's been released and we can't use it anymore, but we don't want
+     * to lose logs at shutdown. Node should not close and re-open stderr at this point, so we'll
+     * just write to it immediately. These messages will escape any application log overrides.
+     */
+    if (!ctx->log_drain) {
+#ifdef AWS_NAPI_LOG_AFTER_SHUTDOWN
+        fprintf(stderr, "%*s", (int)(output->len - newlines), (const char *)aws_string_bytes(output));
+#endif
+        return AWS_OP_SUCCESS;
     }
 
     /*
@@ -91,7 +98,8 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     });
 
     /* must allocate in the order things will be freed because we use a ring buffer */
-    struct aws_string *message = aws_string_new_from_array(&ctx->buffer_allocator, aws_string_bytes(output), output->len - newlines);
+    struct aws_string *message =
+        aws_string_new_from_array(&ctx->buffer_allocator, aws_string_bytes(output), output->len - newlines);
     struct log_message *msg = aws_mem_calloc(&ctx->buffer_allocator, 1, sizeof(struct log_message));
     msg->message = message;
 
