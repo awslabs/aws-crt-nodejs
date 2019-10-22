@@ -106,7 +106,7 @@ test('MQTT Connect/Disconnect', async () => {
         })
         connection.connect();
     });
-    expect(promise).resolves.toBeTruthy();
+    await expect(promise).resolves.toBeTruthy();
 });
 
 test('MQTT Pub/Sub', async () => {
@@ -126,6 +126,8 @@ test('MQTT Pub/Sub', async () => {
             const test_topic = '/test/me/senpai';
             const test_payload = 'NOTICE ME';
             connection.subscribe(test_topic, QoS.AtLeastOnce, (topic, payload) => {
+                connection.disconnect();
+
                 if (topic != test_topic) {
                     reject("Topic does not match");
                 }
@@ -137,8 +139,7 @@ test('MQTT Pub/Sub', async () => {
                     reject("Payloads do not match");
                 }
             });
-            await connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-            connection.disconnect();
+            connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
         });
         connection.on('error', (error) => {
             reject(error);
@@ -148,7 +149,7 @@ test('MQTT Pub/Sub', async () => {
         })
         connection.connect();
     });
-    expect(promise).resolves.toBeTruthy();
+    await expect(promise).resolves.toBeTruthy();
 });
 
 test('MQTT Will', async () => {
@@ -181,5 +182,5 @@ test('MQTT Will', async () => {
         })
         connection.connect();
     });
-    expect(promise).resolves.toBeTruthy();
+    await expect(promise).resolves.toBeTruthy();
 });
