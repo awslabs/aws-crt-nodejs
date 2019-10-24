@@ -17,7 +17,6 @@
 #include "http_connection.h"
 #include "io.h"
 #include "module.h"
-#include "uv_interop.h"
 
 #include <aws/http/connection_manager.h>
 #include <aws/io/socket.h>
@@ -28,8 +27,7 @@ struct http_connection_manager_binding {
     struct aws_allocator *allocator;
     napi_env env;
     napi_ref node_external;
-    struct aws_napi_callback on_shutdown;
-    struct aws_uv_context *uv_context;
+    napi_threadsafe_function on_shutdown;
 };
 
 struct aws_http_connection_manager *aws_napi_get_http_connection_manager(
@@ -44,42 +42,24 @@ static void s_http_connection_manager_finalize(napi_env env, void *finalize_data
     aws_mem_release(binding->allocator, binding);
 }
 
-static int s_http_connection_manager_shutdown_params(
+static void s_http_connection_manager_shutdown_call(
     napi_env env,
-    napi_value *params,
-    size_t *num_params,
+    napi_value on_shutdown,
+    void *context,
     void *user_data) {
-    (void)env;
-    (void)params;
+    struct http_connection_manager_binding *binding = context;
     (void)user_data;
-    *num_params = 0;
-    return AWS_OP_SUCCESS;
-}
-
-static void s_http_connection_manager_on_shutdown_dispatch(void *user_data) {
-    struct http_connection_manager_binding *binding = user_data;
-    aws_napi_callback_dispatch(&binding->on_shutdown, binding);
-
-    /* no more node callbacks will be done, so clean up node stuff now */
-    napi_env env = binding->env;
-    napi_handle_scope handle_scope = NULL;
-    if (napi_open_handle_scope(env, &handle_scope)) {
-        napi_throw_error(env, NULL, "Unable to open handle scope for callback");
-        goto cleanup;
+    if (env) {
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_shutdown, NULL, on_shutdown, 0, NULL));
     }
-    napi_delete_reference(env, binding->node_external);
-    aws_napi_callback_clean_up(&binding->on_shutdown);
-    napi_close_handle_scope(env, handle_scope);
-
-    aws_uv_context_release(binding->uv_context);
-
-cleanup:
-    napi_close_handle_scope(env, handle_scope);
 }
 
 static void s_http_connection_manager_shutdown_complete(void *user_data) {
     struct http_connection_manager_binding *binding = user_data;
-    aws_uv_context_enqueue(binding->uv_context, s_http_connection_manager_on_shutdown_dispatch, binding);
+    if (binding->on_shutdown) {
+        AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_shutdown, NULL));
+    }
 }
 
 napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info info) {
@@ -89,10 +69,10 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
     napi_value node_args[8];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Unable to get callback info");
         return NULL;
-    }
+    });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
         napi_throw_error(env, NULL, "http_connection_manager_new takes exactly 8 arguments");
         return NULL;
@@ -108,10 +88,10 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
     napi_value node_bootstrap = *arg++;
     struct client_bootstrap_binding *client_bootstrap_binding = NULL;
-    if (napi_get_value_external(env, node_bootstrap, (void **)&client_bootstrap_binding)) {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_bootstrap, (void **)&client_bootstrap_binding), {
         napi_throw_type_error(env, NULL, "bootstrap must be a ClientBootstrap");
         return NULL;
-    }
+    });
     options.bootstrap = aws_napi_get_client_bootstrap(client_bootstrap_binding);
 
     napi_value node_host = *arg++;
@@ -120,6 +100,13 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
         return NULL;
     }
     options.host = aws_byte_cursor_from_buf(&host_buf);
+
+    struct http_connection_manager_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct http_connection_manager_binding));
+    AWS_FATAL_ASSERT(binding);
+
+    binding->allocator = allocator;
+    binding->env = env;
 
     napi_value node_port = *arg++;
     uint32_t port = 0;
@@ -131,37 +118,37 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
     napi_value node_max_conns = *arg++;
     uint32_t max_connections = 0;
-    if (napi_get_value_uint32(env, node_max_conns, &max_connections)) {
+    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_max_conns, &max_connections), {
         napi_throw_type_error(env, NULL, "max_connections must be a number");
         goto cleanup;
-    }
+    });
     options.max_connections = (size_t)max_connections;
 
     napi_value node_window_size = *arg++;
     uint32_t window_size = 16 * 1024;
-    if (napi_get_value_uint32(env, node_window_size, &window_size)) {
+    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_window_size, &window_size), {
         napi_throw_type_error(env, NULL, "initial_window_size must be a number");
         goto cleanup;
-    }
+    });
     options.initial_window_size = (size_t)window_size;
 
     napi_value node_socket_options = *arg++;
     const struct aws_socket_options *socket_options = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
-        if (napi_get_value_external(env, node_socket_options, (void **)&socket_options)) {
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&socket_options), {
             napi_throw_type_error(env, NULL, "socket_options must be undefined or a valid SocketOptions");
             goto cleanup;
-        }
+        });
     }
     options.socket_options = socket_options;
 
     napi_value node_tls = *arg++;
     struct aws_tls_ctx *tls_ctx = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_tls)) {
-        if (napi_get_value_external(env, node_tls, (void **)&tls_ctx)) {
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls, (void **)&tls_ctx), {
             napi_throw_type_error(env, NULL, "tls_ctx must be undefined or a valid ClientTlsContext");
             goto cleanup;
-        }
+        });
     }
     if (tls_ctx) {
         aws_tls_connection_options_init_from_ctx(&tls_connection_options, tls_ctx);
@@ -169,49 +156,41 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
     }
 
     napi_value node_on_shutdown = *arg++;
-    struct aws_napi_callback on_shutdown;
-    AWS_ZERO_STRUCT(on_shutdown);
     if (!aws_napi_is_null_or_undefined(env, node_on_shutdown)) {
-        if (aws_napi_callback_init(
-                &on_shutdown,
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
                 env,
                 node_on_shutdown,
-                "http_connection_manager_on_shutdown",
-                s_http_connection_manager_shutdown_params)) {
-            napi_throw_type_error(env, NULL, "on_shutdown must be a valid callback or undefined");
-            goto cleanup;
-        }
+                "aws_http_connection_manager_on_shutdown",
+                s_http_connection_manager_shutdown_call,
+                binding,
+                &binding->on_shutdown),
+            {
+                napi_throw_type_error(env, NULL, "on_shutdown must be a valid callback or undefined");
+                goto cleanup;
+            });
     }
 
     /* TODO: Insert Proxy here */
 
-    struct http_connection_manager_binding *binding =
-        aws_mem_calloc(allocator, 1, sizeof(struct http_connection_manager_binding));
-
-    binding->allocator = allocator;
-    binding->env = env;
-    binding->uv_context = aws_uv_context_new(env, allocator);
-    if (!binding->uv_context) {
-        aws_napi_throw_last_error(env);
-        goto binding_failed;
-    }
     options.shutdown_complete_callback = s_http_connection_manager_shutdown_complete;
     options.shutdown_complete_user_data = binding;
     binding->manager = aws_http_connection_manager_new(allocator, &options);
     if (!binding->manager) {
         aws_napi_throw_last_error(env);
-        goto binding_failed;
+        goto cleanup;
     }
-    binding->on_shutdown = on_shutdown;
+
     napi_value node_external = NULL;
-    if (napi_create_external(env, binding, s_http_connection_manager_finalize, NULL, &node_external)) {
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_http_connection_manager_finalize, NULL, &node_external), {
         napi_throw_error(env, NULL, "Unable to create node external");
         goto external_failed;
-    }
-    if (napi_create_reference(env, node_external, 1, &binding->node_external)) {
+    });
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_external), {
         napi_throw_error(env, NULL, "Unable to create reference to node external");
         goto external_failed;
-    }
+    });
 
     /* success, set the return value */
     result = node_external;
@@ -219,9 +198,6 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
 external_failed:
     aws_http_connection_manager_release(binding->manager);
-
-binding_failed:
-    aws_napi_callback_clean_up(&on_shutdown);
 
 cleanup:
 done:
@@ -236,10 +212,10 @@ napi_value aws_napi_http_connection_manager_close(napi_env env, napi_callback_in
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Unable to get callback info");
         return NULL;
-    }
+    });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
         napi_throw_error(env, NULL, "http_connection_manager_close takes exactly 1 argument");
         return NULL;
@@ -247,10 +223,10 @@ napi_value aws_napi_http_connection_manager_close(napi_env env, napi_callback_in
 
     napi_value node_external = *arg++;
     struct http_connection_manager_binding *binding = NULL;
-    if (napi_get_value_external(env, node_external, (void **)&binding) || !binding) {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
         napi_throw_type_error(env, NULL, "connection_manager must be a valid HttpConnectionManager");
         return NULL;
-    }
+    });
 
     aws_http_connection_manager_release(binding->manager);
 
@@ -259,34 +235,33 @@ napi_value aws_napi_http_connection_manager_close(napi_env env, napi_callback_in
 
 struct connection_acquired_args {
     struct http_connection_manager_binding *binding;
-    struct aws_napi_callback on_acquired;
+    napi_threadsafe_function on_acquired;
     struct aws_http_connection *connection;
     int error_code;
 };
 
-static int s_http_connection_manager_on_acquired_params(
+static void s_http_connection_manager_on_acquired_call(
     napi_env env,
-    napi_value *params,
-    size_t *num_params,
+    napi_value on_acquired,
+    void *context,
     void *user_data) {
+    struct http_connection_manager_binding *binding = context;
     struct connection_acquired_args *args = user_data;
-    napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
-    if (!connection_external) {
-        return AWS_OP_ERR;
-    }
-    params[0] = connection_external;
-    if (napi_create_int32(env, args->error_code, &params[1])) {
-        return AWS_OP_ERR;
+
+    if (env) {
+        napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
+        AWS_FATAL_ASSERT(connection_external);
+
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+        params[0] = connection_external;
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
+
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
     }
 
-    *num_params = 2;
-    return AWS_OP_SUCCESS;
-}
-
-static void s_http_connection_manager_on_acquired_dispatch(void *user_data) {
-    struct connection_acquired_args *args = user_data;
-    aws_napi_callback_dispatch(&args->on_acquired, args);
-    aws_mem_release(args->binding->allocator, args);
+    aws_mem_release(binding->allocator, args);
 }
 
 static void s_http_connection_manager_acquired(
@@ -297,17 +272,17 @@ static void s_http_connection_manager_acquired(
     args->connection = connection;
     args->error_code = error_code;
 
-    aws_uv_context_enqueue(args->binding->uv_context, s_http_connection_manager_on_acquired_dispatch, args);
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_acquired, args));
 }
 
 napi_value aws_napi_http_connection_manager_acquire(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Unable to get callback info");
         return NULL;
-    }
+    });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
         napi_throw_error(env, NULL, "http_connection_manager_acquire takes exactly 2 arguments");
         return NULL;
@@ -315,29 +290,30 @@ napi_value aws_napi_http_connection_manager_acquire(napi_env env, napi_callback_
 
     napi_value node_external = *arg++;
     struct http_connection_manager_binding *binding = NULL;
-    if (napi_get_value_external(env, node_external, (void **)&binding)) {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
         napi_throw_type_error(env, NULL, "connection_manager should be an external");
         return NULL;
-    }
+    });
 
     struct connection_acquired_args *args =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_acquired_args));
-    if (!args) {
-        aws_napi_throw_last_error(env);
-        return NULL;
-    }
+    AWS_FATAL_ASSERT(args);
     args->binding = binding;
 
     napi_value node_on_acquired = *arg++;
-    if (aws_napi_callback_init(
-            &args->on_acquired,
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
             env,
             node_on_acquired,
-            "http_connection_manager_on_acquired",
-            s_http_connection_manager_on_acquired_params)) {
-        napi_throw_type_error(env, NULL, "on_acquired should be a valid callback");
-        goto failed;
-    }
+            "aws_http_connection_manager_on_acquired",
+            s_http_connection_manager_on_acquired_call,
+            binding,
+            &args->on_acquired),
+        {
+            napi_throw_type_error(env, NULL, "on_acquired should be a valid callback");
+            goto failed;
+        });
 
     aws_http_connection_manager_acquire_connection(binding->manager, s_http_connection_manager_acquired, args);
     return NULL;
@@ -351,10 +327,10 @@ napi_value aws_napi_http_connection_manager_release(napi_env env, napi_callback_
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Unable to get callback info");
         return NULL;
-    }
+    });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
         napi_throw_error(env, NULL, "http_connection_manager_release takes exactly 2 arguments");
         return NULL;
@@ -362,17 +338,17 @@ napi_value aws_napi_http_connection_manager_release(napi_env env, napi_callback_
 
     napi_value node_external = *arg++;
     struct http_connection_manager_binding *binding = NULL;
-    if (napi_get_value_external(env, node_external, (void **)&binding)) {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
         napi_throw_type_error(env, NULL, "connection_manager should be an external");
         return NULL;
-    }
+    });
 
     napi_value node_connection = *arg++;
     struct http_connection_binding *connection_binding = NULL;
-    if (napi_get_value_external(env, node_connection, (void **)&connection_binding)) {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_connection, (void **)&connection_binding), {
         napi_throw_type_error(env, NULL, "connection should be an external");
         return NULL;
-    }
+    });
 
     struct aws_http_connection *connection = aws_napi_get_http_connection(connection_binding);
     if (aws_http_connection_manager_release_connection(binding->manager, connection)) {

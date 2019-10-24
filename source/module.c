@@ -261,55 +261,7 @@ const char *aws_napi_status_to_str(napi_status status) {
     return reason;
 }
 
-int aws_napi_callback_init(
-    struct aws_napi_callback *cb,
-    napi_env env,
-    napi_value callback,
-    const char *name,
-    aws_napi_callback_params_builder *build_params) {
-
-    cb->env = env;
-    cb->build_params = build_params;
-
-    napi_value resource_name = NULL;
-    AWS_NAPI_CALL(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name), {
-        napi_throw_error(env, NULL, "Could not create string to name async resource");
-        goto failure;
-    });
-    AWS_NAPI_CALL(env, napi_async_init(env, NULL, resource_name, &cb->async_context), {
-        napi_throw_error(env, NULL, "Could not initialize async context");
-        goto failure;
-    });
-    AWS_NAPI_CALL(env, napi_create_reference(env, callback, 0, &cb->callback), {
-        napi_throw_error(env, NULL, "Could not create reference to callback");
-        goto failure;
-    });
-
-    return AWS_OP_SUCCESS;
-
-failure:
-    aws_napi_callback_clean_up(cb);
-    return AWS_OP_ERR;
-}
-
-int aws_napi_callback_clean_up(struct aws_napi_callback *cb) {
-    if (cb->env) {
-        napi_handle_scope handle_scope = NULL;
-        AWS_NAPI_ENSURE(cb->env, napi_open_handle_scope(cb->env, &handle_scope));
-        if (cb->async_context) {
-            AWS_NAPI_ENSURE(cb->env, napi_async_destroy(cb->env, cb->async_context));
-        }
-        if (cb->callback) {
-            AWS_NAPI_ENSURE(cb->env, napi_delete_reference(cb->env, cb->callback));
-        }
-        AWS_NAPI_ENSURE(cb->env, napi_close_handle_scope(cb->env, handle_scope));
-    }
-
-    AWS_ZERO_STRUCT(*cb);
-    return AWS_OP_SUCCESS;
-}
-
-static void s_handle_failed_callback(napi_env env, napi_status status) {
+static void s_handle_failed_callback(napi_env env, napi_value function, napi_status status) {
     /* Figure out if there's an exception pending, if so, no callbacks will ever succeed again until it's cleared */
     bool pending_exception = status == napi_pending_exception;
     AWS_NAPI_ENSURE(env, napi_is_exception_pending(env, &pending_exception));
@@ -317,8 +269,7 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
     if (!pending_exception) {
         const napi_extended_error_info *node_error_info = NULL;
         AWS_NAPI_ENSURE(env, napi_get_last_error_info(env, &node_error_info));
-        AWS_LOGF_ERROR(
-            AWS_LS_NODE,
+        AWS_NAPI_LOGF_ERROR(
             "Extended error info: engine_error_code=%u error_code=%s error_message=%s",
             node_error_info->engine_error_code,
             aws_napi_status_to_str(node_error_info->error_code),
@@ -333,6 +284,17 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
     bool is_error = false;
     AWS_NAPI_ENSURE(env, napi_is_error(env, node_exception, &is_error));
 
+    /*
+     * Convert the function to a string. If it's a lambda, this will produce the source of the lambda, if
+     * it's a class function or free function, it will produce the name
+     */
+    napi_value node_function_str = NULL;
+    AWS_NAPI_ENSURE(env, napi_coerce_to_string(env, function, &node_function_str));
+    struct aws_string *function_str = aws_string_new_from_napi(env, node_function_str);
+    if (function_str) {
+        AWS_NAPI_LOGF_ERROR("Calling %s", (const char *)aws_string_bytes(function_str));
+    }
+
     /* If it's an Error, extract info from it and log it */
     if (is_error) {
         /* get the Error.message field */
@@ -342,10 +304,10 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
         /* extract and log the message */
         struct aws_string *message = NULL;
         if ((message = aws_string_new_from_napi(env, node_message))) {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "Error: %s", aws_string_bytes(message));
+            AWS_NAPI_LOGF_ERROR("Error: %s", aws_string_bytes(message));
             aws_string_destroy(message);
         } else {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "aws_string_new_from_napi(exception.message) failed");
+            AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(exception.message) failed");
             return;
         }
 
@@ -356,10 +318,10 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
         /* extract and log the stack trace */
         struct aws_string *stacktrace = NULL;
         if ((stacktrace = aws_string_new_from_napi(env, node_stack))) {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "Stack:\n%s", aws_string_bytes(stacktrace));
+            AWS_NAPI_LOGF_ERROR("Stack:\n%s", aws_string_bytes(stacktrace));
             aws_string_destroy(stacktrace);
         } else {
-            AWS_LOGF_ERROR(AWS_LS_NODE, "aws_string_new_from_napi(exception.stack) failed");
+            AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(exception.stack) failed");
             return;
         }
 
@@ -373,66 +335,57 @@ static void s_handle_failed_callback(napi_env env, napi_status status) {
 
     struct aws_string *error_str = NULL;
     if ((error_str = aws_string_new_from_napi(env, node_error_str))) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Error: %s", aws_string_bytes(error_str));
+        AWS_NAPI_LOGF_ERROR("Error: %s", aws_string_bytes(error_str));
     } else {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "aws_string_new_from_napi(ToString(exception)) failed");
+        AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(ToString(exception)) failed");
         return;
     }
 }
 
-int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data) {
-    if (!cb->callback) {
-        return AWS_OP_SUCCESS;
+napi_status aws_napi_dispatch_threadsafe_function(
+    napi_env env,
+    napi_threadsafe_function tsfn,
+    napi_value this_ptr,
+    napi_value function,
+    size_t argc,
+    napi_value *argv) {
+
+    napi_status call_status = napi_ok;
+    if (!this_ptr) {
+        AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
     }
+    AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), {
+        call_status = status;
+        s_handle_failed_callback(env, function, status);
+    });
+    /* Must always decrement the ref count, or the function will be pinned */
+    napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
+    return (call_status != napi_ok) ? call_status : release_status;
+}
 
-    napi_env env = cb->env;
-    napi_handle_scope handle_scope = NULL;
-    napi_callback_scope callback_scope = NULL;
-    int result = AWS_OP_ERR;
-    napi_status status = napi_ok;
+napi_status aws_napi_create_threadsafe_function(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    napi_threadsafe_function *result) {
 
-    AWS_NAPI_ENSURE(env, napi_open_handle_scope(env, &handle_scope));
+    napi_value resource_name = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
 
-    napi_value node_function = NULL;
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, cb->callback, &node_function));
-    if (!node_function) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Unable to resolve target function for callback");
-        goto cleanup;
-    }
+    AWS_NAPI_CALL(
+        env,
+        napi_create_threadsafe_function(env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result),
+        { return status; });
+    /* convert to a weak reference */
+    return napi_unref_threadsafe_function(env, *result);
+}
 
-    napi_value resource_object = NULL;
-    AWS_NAPI_ENSURE(env, napi_create_object(env, &resource_object));
-    AWS_NAPI_ENSURE(env, napi_open_callback_scope(env, resource_object, cb->async_context, &callback_scope));
-
-    napi_value this_object = NULL;
-    AWS_NAPI_ENSURE(env, napi_get_global(env, &this_object));
-
-    napi_value params[16];
-    size_t num_params = 0;
-    if (cb->build_params(env, params, &num_params, user_data)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Unable to prepare params for callback");
-        goto cleanup;
-    }
-    AWS_FATAL_ASSERT(num_params < AWS_ARRAY_SIZE(params));
-
-    if ((status = napi_make_callback(env, cb->async_context, this_object, node_function, num_params, params, NULL))) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODE, "Callback invocation failed: napi_make_callback failed: %s", aws_napi_status_to_str(status));
-        s_handle_failed_callback(env, status);
-        goto cleanup;
-    }
-
-    result = AWS_OP_SUCCESS;
-
-cleanup:
-    if (callback_scope) {
-        AWS_NAPI_ENSURE(env, napi_close_callback_scope(env, callback_scope));
-    }
-    if (handle_scope) {
-        AWS_NAPI_ENSURE(env, napi_close_handle_scope(env, handle_scope));
-    }
-
-    return result;
+napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
+    /* increase the ref count, gets decreased when the call completes */
+    AWS_NAPI_ENSURE(env, napi_acquire_threadsafe_function(function));
+    return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
 }
 
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {

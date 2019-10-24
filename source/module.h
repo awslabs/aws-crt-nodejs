@@ -41,24 +41,41 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void);
 
 const char *aws_napi_status_to_str(napi_status status);
 
-struct aws_napi_callback;
-typedef int(aws_napi_callback_params_builder)(napi_env env, napi_value *params, size_t *num_params, void *user_data);
-
-struct aws_napi_callback {
-    napi_env env;
-    napi_async_context async_context;
-    napi_ref callback;
-    aws_napi_callback_params_builder *build_params;
-};
-
-int aws_napi_callback_init(
-    struct aws_napi_callback *cb,
+/**
+ * Wrapper around napi_call_function that automatically substitutes undefined for a null this_ptr
+ * and un-pins the function reference when the call completes. Also handles known recoverable
+ * call failure cases before returning. Does not care about return value, since this is a non-blocking
+ * call into node.
+ *
+ * @return napi_ok - call was successful
+ *         napi_closing - function has been released, and is shutting down, execution is ok to continue though
+ *         other napi_status values - unhandled, up to caller
+ */
+napi_status aws_napi_dispatch_threadsafe_function(
     napi_env env,
-    napi_value callback,
+    napi_threadsafe_function tsfn,
+    napi_value this_ptr,
+    napi_value function,
+    size_t argc,
+    napi_value *argv);
+
+/**
+ * Wrapper around napi_create_threadsafe_function that ensures it is a weak reference and cleans
+ * up when the last node reference is cleared.
+ */
+napi_status aws_napi_create_threadsafe_function(
+    napi_env env,
+    napi_value function,
     const char *name,
-    aws_napi_callback_params_builder *build_params);
-int aws_napi_callback_clean_up(struct aws_napi_callback *cb);
-int aws_napi_callback_dispatch(struct aws_napi_callback *cb, void *user_data);
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    napi_threadsafe_function *result);
+
+/**
+ * Wrapper around napi_call_threadsafe_function that always queues (napi_tsfn_nonblocking)
+ * and pins the function reference until the call completes
+ */
+napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data);
 
 /*
  * One of these will be allocated each time the module init function is called
@@ -71,19 +88,34 @@ struct aws_napi_context {
     struct aws_napi_logger_ctx *logger;
 };
 
-#define _AWS_NAPI_ERROR_MSG(call, file, line) "N-API call failed: " #call " @ " file "(" #line ")"
+#define _AWS_NAPI_ERROR_MSG(call, source) "N-API call failed: " call "\n    @ " source
 #define _AWS_NAPI_PASTE(x) x
+#define _AWS_NAPI_TOSTR(x) #x
+#define _AWS_NAPI_TOSTRING(x) _AWS_NAPI_TOSTR(x)
+#define _AWS_NAPI_SOURCE __FILE__ ":" _AWS_NAPI_TOSTRING(__LINE__)
+
+#define AWS_NAPI_LOGF_ERROR(...)                                                                                       \
+    do {                                                                                                               \
+        fprintf(stderr, __VA_ARGS__);                                                                                  \
+        fprintf(stderr, "\n");                                                                                         \
+    } while (0)
+
+#define AWS_NAPI_LOGF_FATAL(...)                                                                                       \
+    do {                                                                                                               \
+        fprintf(stderr, __VA_ARGS__);                                                                                  \
+        fprintf(stderr, "\n");                                                                                         \
+    } while (0)
 
 /*
  * AWS_NAPI_CALL(env, napi_xxx(args...), { return NULL; }) will ensure that a failed result is logged as an error
+ * immediately
  */
 #define AWS_NAPI_CALL(env, call, on_fail)                                                                              \
     do {                                                                                                               \
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
-            AWS_LOGF_ERROR(                                                                                            \
-                AWS_LS_NODE,                                                                                           \
-                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG((call), __FILE__, __LINE__)) _AWS_NAPI_PASTE(": %s"),              \
+            AWS_NAPI_LOGF_ERROR(                                                                                       \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, _AWS_NAPI_SOURCE)) _AWS_NAPI_PASTE(": %s"),                 \
                 aws_napi_status_to_str(status));                                                                       \
             on_fail;                                                                                                   \
         }                                                                                                              \
@@ -97,6 +129,9 @@ struct aws_napi_context {
     do {                                                                                                               \
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
+            AWS_NAPI_LOGF_FATAL(                                                                                       \
+                _AWS_NAPI_PASTE(_AWS_NAPI_ERROR_MSG(#call, _AWS_NAPI_SOURCE)) _AWS_NAPI_PASTE(": %s"),                 \
+                aws_napi_status_to_str(status));                                                                       \
             aws_fatal_assert(#call, __FILE__, __LINE__);                                                               \
         }                                                                                                              \
     } while (0)

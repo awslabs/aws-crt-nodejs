@@ -23,7 +23,9 @@
 #include <aws/common/mutex.h>
 #include <aws/common/ring_buffer.h>
 
-#define LOG_RING_BUFFER_CAPACITY (64 * 1024)
+#include <ctype.h>
+
+#define LOG_RING_BUFFER_CAPACITY (128 * 1024)
 
 /*
  * One of these is allocated per napi_env/thread and stored in TLS. Worker threads will call into
@@ -69,6 +71,24 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     /* this can only happen if someone tries to log after the main thread has cleaned up */
     AWS_FATAL_ASSERT(ctx && "No TLS log context, and no default fallback");
 
+    /* node will append a newline, so strip the ones from the logger */
+    size_t newlines = 0;
+    while (isspace((const char)(aws_string_bytes(output)[output->len - newlines - 1])) && newlines < output->len) {
+        ++newlines;
+    }
+
+    /*
+     * If log_drain is null, it's been released and we can't use it anymore, but we don't want
+     * to lose logs at shutdown. Node should not close and re-open stderr at this point, so we'll
+     * just write to it immediately. These messages will escape any application log overrides.
+     */
+    if (!ctx->log_drain) {
+#ifdef AWS_NAPI_LOG_AFTER_SHUTDOWN
+        fprintf(stderr, "%*s", (int)(output->len - newlines), (const char *)aws_string_bytes(output));
+#endif
+        return AWS_OP_SUCCESS;
+    }
+
     /*
      * Pin the log drain function until we try to call it. If napi_closing is returned, the function
      * has been released, which means we are shutting down, so we just bail
@@ -78,7 +98,8 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
     });
 
     /* must allocate in the order things will be freed because we use a ring buffer */
-    struct aws_string *message = aws_string_new_from_string(&ctx->buffer_allocator, output);
+    struct aws_string *message =
+        aws_string_new_from_array(&ctx->buffer_allocator, aws_string_bytes(output), output->len - newlines);
     struct log_message *msg = aws_mem_calloc(&ctx->buffer_allocator, 1, sizeof(struct log_message));
     msg->message = message;
 
@@ -101,7 +122,7 @@ static struct aws_log_writer_vtable s_napi_log_writer_vtable = {
     .clean_up = s_napi_log_writer_clean_up,
 };
 
-void aws_napi_logger_set_log_level(enum aws_log_level level) {
+void aws_napi_logger_set_level(enum aws_log_level level) {
     AWS_FATAL_ASSERT(s_napi_logger.logger.p_impl);
     ((struct aws_logger_pipeline *)s_napi_logger.logger.p_impl)->level = level;
 }
@@ -111,7 +132,10 @@ static void *s_ring_buffer_mem_acquire(struct aws_allocator *allocator, size_t s
     struct aws_ring_buffer *buffer = allocator->impl;
     struct aws_byte_buf buf;
     AWS_ZERO_STRUCT(buf);
-    AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_ring_buffer_acquire(buffer, size + sizeof(size_t), &buf));
+    /* if the ring buffer is full, fall back to the normal allocator */
+    if (aws_ring_buffer_acquire(buffer, size + sizeof(size_t), &buf)) {
+        AWS_FATAL_ASSERT(AWS_OP_SUCCESS == aws_byte_buf_init(&buf, buffer->allocator, size + sizeof(size_t)));
+    }
     *((size_t *)buf.buffer) = buf.capacity;
     return buf.buffer + sizeof(size_t);
 }
@@ -126,7 +150,14 @@ static void s_ring_buffer_mem_release(struct aws_allocator *allocator, void *ptr
         .len = 0,
     };
     struct aws_ring_buffer *buffer = allocator->impl;
-    aws_ring_buffer_release(buffer, &buf);
+
+    /* see if the memory comes from the ring buffer */
+    if (aws_ring_buffer_buf_belongs_to_pool(buffer, &buf)) {
+        aws_ring_buffer_release(buffer, &buf);
+    } else {
+        /* release to the fallback allocator */
+        aws_mem_release(buffer->allocator, addr);
+    }
 }
 
 static void *s_ring_buffer_mem_calloc(struct aws_allocator *allocator, size_t num, size_t size) {
@@ -151,6 +182,7 @@ void s_threadsafe_log_finalize(napi_env env, void *finalize_data, void *finalize
 
     /* Drop the ref to the function. All attempts to acquire will return napi_closing after this */
     AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->log_drain, napi_tsfn_abort));
+    ctx->log_drain = NULL;
 
     /* The rest is cleaned up by the env context clean up via aws_napi_logger_destroy() */
 }
@@ -166,6 +198,20 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
     aws_mutex_lock(&ctx->msg_queue.mutex);
     aws_linked_list_swap_contents(&ctx->msg_queue.messages, &msgs);
     aws_mutex_unlock(&ctx->msg_queue.mutex);
+
+    /*
+     * If env is null, that means that the function is simply requesting that any resources be
+     * freed for shutdown
+     */
+    if (!env) {
+        while (!aws_linked_list_empty(&msgs)) {
+            struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&msgs);
+            struct log_message *msg = AWS_CONTAINER_OF(list_node, struct log_message, node);
+            aws_string_destroy(msg->message);
+            aws_mem_release(&ctx->buffer_allocator, msg);
+        }
+        return;
+    }
 
     /* nothing to do, maybe next time... */
     if (aws_linked_list_empty(&msgs)) {
@@ -310,7 +356,7 @@ struct aws_logger *aws_napi_logger_get(void) {
         &s_napi_logger.formatter,
         &s_napi_logger.channel,
         &s_napi_logger.writer,
-        AWS_LL_WARN);
+        AWS_LL_DEBUG);
     AWS_FATAL_ASSERT(op_status == AWS_OP_SUCCESS && "Failed to initialize logger");
     return &s_napi_logger.logger;
 }

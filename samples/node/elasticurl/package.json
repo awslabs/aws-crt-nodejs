@@ -5,7 +5,7 @@
   "main": "./dist/elasticurl.js",
   "scripts": {
     "test": "tsc && node ./dist/elasticurl.js -v TRACE -i https://example.com",
-    "install": "cd ../../../ && npm install --update-binary && cd samples/node/elasticurl && tsc"
+    "install": "tsc"
   },
   "repository": {
     "type": "git",
