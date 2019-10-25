@@ -262,6 +262,14 @@ export class TlsContextOptions {
     }
 }
 
+/**
+ * TLS context used for client/server TLS communications over sockets. 
+ * 
+ * @see ClientTlsContext
+ * @see ServerTlsContext
+ *
+ * nodejs only.
+ */
 export abstract class TlsContext extends NativeResource {
     constructor(ctx_opt: TlsContextOptions) {
         super(crt_native.io_tls_ctx_new(
