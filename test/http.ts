@@ -14,7 +14,7 @@
  */
 
 import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
-import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext } from "../lib/native/io";
+import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "../lib/native/io";
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
@@ -48,60 +48,58 @@ test('HTTP Headers', () => {
     }
 });
 
-async function test_connection(host: string, port: number, tls_ctx?: ClientTlsContext) {
+async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions) {
     const bootstrap = new ClientBootstrap();
     let setup_error_code: Number = -1;
     let shutdown_error_code: Number = -1;
     let connection_error: Error | undefined;
-    await new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
         let connection = new HttpClientConnection(
             bootstrap,
             host,
             port,
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
-            tls_ctx
+            tls_opts
         );
         connection.on('connect', () => {
             setup_error_code = 0;
             connection.close();
         });
         connection.on('close', () => {
-            shutdown_error_code = 0;
-            resolve();
+            if (!connection_error) {
+                shutdown_error_code = 0;
+                resolve(true);
+            }
         });
         connection.on('error', (error) => {
-            console.log(error);
             connection_error = error;
             reject(error);
         });
-    }).catch((reason) => {
-        console.log(reason);
-        expect(reason).toBeUndefined();
     });
+    await expect(promise).resolves.toBeTruthy();
 
     expect(setup_error_code).toEqual(0);
     expect(shutdown_error_code).toEqual(0);
     expect(connection_error).toBeUndefined();
 }
 
-test('HTTP Connection Create/Destroy', async (done) => {
-    await test_connection("s3.amazon.com", 80);
-    done();
-}, 30000);
+test('HTTP Connection Create/Destroy', async () => {
+    await test_connection("s3.amazonaws.com", 80);
+});
 
-test('HTTPS Connection Create/Destroy', async (done) => {
-    await test_connection("s3.amazonaws.com", 443, new ClientTlsContext());
-    done();
-}, 30000);
+test('HTTPS Connection Create/Destroy', async () => {
+    const host = "s3.amazonaws.com";
+    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
+});
 
-async function test_stream(method: string, host: string, port: number, tls_ctx?: ClientTlsContext) {
-    await new Promise((resolve, reject) => {
+async function test_stream(method: string, host: string, port: number, tls_opts?: TlsConnectionOptions) {
+    const promise = new Promise((resolve, reject) => {
         let connection = new HttpClientConnection(
             new ClientBootstrap(),
             host,
             port,
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
-            tls_ctx);
+            tls_opts);
         connection.on('connect', () => {
             let request = new HttpRequest(
                 method, '/', undefined,
@@ -128,24 +126,23 @@ async function test_stream(method: string, host: string, port: number, tls_ctx?:
             });
         });
         connection.on('close', () => {
-            resolve();
+            resolve(true);
         });
         connection.on('error', (error) => {
-            console.log(error);
-            expect(error).toBeUndefined();
-            resolve();
+            reject(error);
         });
     });
+
+    await expect(promise).resolves.toBeTruthy();
 }
 
-test('HTTP Stream GET', async (done) => {
+test('HTTP Stream GET', async () => {
     await test_stream('GET', 'example.com', 80);
-    done();
 });
 
-test('HTTPS Stream GET', async (done) => {
-    await test_stream('GET', 'example.com', 443, new ClientTlsContext());
-    done();
+test('HTTPS Stream GET', async () => {
+    const host = 'example.com';
+    await test_stream('GET', host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
 })
 
 test('HTTP Connection Manager create/destroy', () => {
@@ -163,7 +160,7 @@ test('HTTP Connection Manager create/destroy', () => {
     connection_manager.close();
 });
 
-test('HTTP Connection Manager acquire/release', async (done) => {
+test('HTTP Connection Manager acquire/release', async () => {
     const bootstrap = new ClientBootstrap();
     let connection_manager = new HttpClientConnectionManager(
         bootstrap,
@@ -181,10 +178,9 @@ test('HTTP Connection Manager acquire/release', async (done) => {
     connection_manager.release(connection);
 
     connection_manager.close();
-    done();
 });
 
-test('HTTP Connection Manager acquire/stream/release', async (done) => {
+test('HTTP Connection Manager acquire/stream/release', async () => {
     const bootstrap = new ClientBootstrap();
     let connection_manager = new HttpClientConnectionManager(
         bootstrap,
@@ -207,24 +203,31 @@ test('HTTP Connection Manager acquire/stream/release', async (done) => {
             ['user-agent', 'AWS CRT for NodeJS']
         ])
     );
-    let stream = connection.request(request);
-    stream.on('response', (status_code, headers) => {
-        expect(status_code).toBe(200);
-        expect(headers).toBeDefined();
-    });
-    stream.on('data', (body_data) => {
-        expect(body_data.byteLength).toBeGreaterThan(0);
-    });
-    stream.on('end', () => {
-        connection_manager.release(connection);
-        connection_manager.close();
-        done();
-    });
-    stream.on('error', (error) => {
-        connection_manager.release(connection);
-        connection_manager.close();
-        console.log(error);
-        expect(error).toBeUndefined();
-        done();
-    });
+
+    let connection_error: Error | undefined;
+
+    const promise = new Promise((resolve, reject) => {
+        let stream = connection.request(request);
+        stream.on('response', (status_code, headers) => {
+            expect(status_code).toBe(200);
+            expect(headers).toBeDefined();
+        });
+        stream.on('data', (body_data) => {
+            expect(body_data.byteLength).toBeGreaterThan(0);
+        });
+        stream.on('end', () => {
+            connection_manager.release(connection);
+            connection_manager.close();
+            if (!connection_error) {
+                resolve(true);
+            }
+        });
+        stream.on('error', (error) => {
+            connection_error = error;
+            reject(error);
+        });
+    })
+    
+    await expect(promise).resolves.toBeTruthy();
+    expect(connection_error).toBeUndefined();
 });

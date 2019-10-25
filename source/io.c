@@ -203,7 +203,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
     aws_tls_ctx_destroy(tls_ctx);
 }
 
-napi_value aws_napi_io_client_tls_ctx_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *alloc = aws_default_allocator();
     napi_status status = napi_ok;
@@ -435,7 +435,83 @@ cleanup:
     return result;
 }
 
-void s_socket_options_dtor(napi_env env, void *finalize_data, void *finalize_hint) {
+void s_tls_connection_options_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+    struct aws_tls_connection_options *tls_opts = finalize_data;
+    aws_tls_connection_options_clean_up(tls_opts);
+    aws_mem_release(aws_default_allocator(), tls_opts);
+}
+
+napi_value aws_napi_io_tls_connection_options_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_tls_connection_options_new requires exactly 3 arguments");
+        return NULL;
+    }
+
+    napi_value node_external = NULL; /* return value, external that wraps the aws_tls_connection_options */
+    struct aws_string *server_name = NULL;
+    struct aws_string *alpn_list = NULL;
+
+    napi_value node_tls_ctx = *arg++;
+    struct aws_tls_ctx *tls_ctx = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls_ctx, (void **)&tls_ctx), {
+        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to extract aws_tls_ctx from tls_ctx external"));
+        return NULL;
+    });
+
+    napi_value node_server_name = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_server_name)) {
+        server_name = aws_string_new_from_napi(env, node_server_name);
+        if (!server_name) {
+            AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert server_name to string"));
+            goto cleanup;
+        }
+    }
+
+    napi_value node_alpn_list = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_alpn_list)) {
+        alpn_list = aws_string_new_from_napi(env, node_alpn_list);
+        if (!alpn_list) {
+            AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert alpn_list to string"));
+            goto cleanup;
+        }
+    }
+
+    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_tls_connection_options *tls_opts =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_tls_connection_options));
+    AWS_FATAL_ASSERT(tls_opts && "Failed to allocate new aws_tls_connection_options");
+
+    aws_tls_connection_options_init_from_ctx(tls_opts, tls_ctx);
+
+    if (server_name) {
+        struct aws_byte_cursor server_name_cursor = aws_byte_cursor_from_string(server_name);
+        aws_tls_connection_options_set_server_name(tls_opts, allocator, &server_name_cursor);
+    }
+
+    if (alpn_list) {
+        aws_tls_connection_options_set_alpn_list(tls_opts, allocator, (const char *)aws_string_bytes(alpn_list));
+    }
+
+    AWS_NAPI_CALL(env, napi_create_external(env, tls_opts, s_tls_connection_options_finalize, NULL, &node_external), {
+        goto cleanup;
+    });
+
+cleanup:
+    aws_string_destroy(server_name);
+    aws_string_destroy(alpn_list);
+    return node_external;
+}
+
+void s_socket_options_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
 
@@ -511,7 +587,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
     *socket_options = options;
 
     napi_value node_external;
-    if (napi_create_external(env, socket_options, s_socket_options_dtor, NULL, &node_external)) {
+    if (napi_create_external(env, socket_options, s_socket_options_finalize, NULL, &node_external)) {
         aws_mem_release(allocator, socket_options);
         aws_napi_throw_last_error(env);
         return NULL;
