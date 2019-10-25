@@ -56,7 +56,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info);
 
 /**
  * Create a new aws_tls_connection_options to be managed by a napi_external
- */ 
+ */
 napi_value aws_napi_io_tls_connection_options_new(napi_env env, napi_callback_info info);
 
 /**

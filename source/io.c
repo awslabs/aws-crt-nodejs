@@ -475,7 +475,7 @@ napi_value aws_napi_io_tls_connection_options_new(napi_env env, napi_callback_in
             goto cleanup;
         }
     }
-    
+
     napi_value node_alpn_list = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_alpn_list)) {
         alpn_list = aws_string_new_from_napi(env, node_alpn_list);

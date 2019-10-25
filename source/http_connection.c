@@ -254,14 +254,14 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     options.on_setup = s_http_on_connection_setup;
     options.on_shutdown = s_http_on_connection_shutdown;
     options.user_data = binding;
-    
+
     if (tls_opts) {
         if (!tls_opts->server_name) {
             struct aws_byte_cursor server_name_cursor = aws_byte_cursor_from_string(host_name);
             aws_tls_connection_options_set_server_name(tls_opts, allocator, &server_name_cursor);
         }
         options.tls_options = tls_opts;
-    }    
+    }
 
     if (aws_http_client_connect(&options)) {
         aws_napi_throw_last_error(env);
