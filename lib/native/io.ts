@@ -262,20 +262,9 @@ export class TlsContextOptions {
     }
 }
 
-/**
- * TLS context used for client TLS communications over sockets. If no
- * options are supplied, the context will default to enabling peer verification
- * only.
- *
- * nodejs only.
- */
-export class ClientTlsContext extends NativeResource {
-    constructor(ctx_opt?: TlsContextOptions) {
-        if (!ctx_opt) {
-            ctx_opt = new TlsContextOptions()
-            ctx_opt.verify_peer = true;
-        }
-        super(crt_native.io_client_tls_ctx_new(
+export abstract class TlsContext extends NativeResource {
+    constructor(ctx_opt: TlsContextOptions) {
+        super(crt_native.io_tls_ctx_new(
             ctx_opt.min_tls_version,
             ctx_opt.ca_filepath,
             ctx_opt.ca_dirpath,
@@ -292,30 +281,50 @@ export class ClientTlsContext extends NativeResource {
 }
 
 /**
+ * TLS context used for client TLS communications over sockets. If no
+ * options are supplied, the context will default to enabling peer verification
+ * only.
+ *
+ * nodejs only.
+ */
+export class ClientTlsContext extends TlsContext {
+    constructor(ctx_opt?: TlsContextOptions) {
+        if (!ctx_opt) {
+            ctx_opt = new TlsContextOptions()
+            ctx_opt.verify_peer = true;
+        }
+        super(ctx_opt);
+    }
+}
+
+/**
  * TLS context used for server TLS communications over sockets. If no
  * options are supplied, the context will default to disabling peer verification
  * only.
  *
  * nodejs only.
  */
-export class ServerTlsContext extends NativeResource {
+export class ServerTlsContext extends TlsContext {
     constructor(ctx_opt?: TlsContextOptions) {
         if (!ctx_opt) {
             ctx_opt = new TlsContextOptions();
             ctx_opt.verify_peer = false;
         }
-        super(crt_native.io_client_tls_ctx_new(
-            ctx_opt.min_tls_version,
-            ctx_opt.ca_filepath,
-            ctx_opt.ca_dirpath,
-            ctx_opt.certificate_authority,
-            (ctx_opt.alpn_list && ctx_opt.alpn_list.length > 0) ? ctx_opt.alpn_list.join(';') : undefined,
-            ctx_opt.certificate_filepath,
-            ctx_opt.certificate,
-            ctx_opt.private_key_filepath,
-            ctx_opt.private_key,
-            ctx_opt.pkcs12_filepath,
-            ctx_opt.pkcs12_password,
-            ctx_opt.verify_peer));
+        super(ctx_opt);
+    }
+}
+
+/**
+ * TLS options that are unique to a given connection using a shared TlsContext.
+ * 
+ * nodejs only.
+ */
+export class TlsConnectionOptions extends NativeResource {
+    constructor(readonly tls_ctx: TlsContext, readonly server_name?: string, readonly alpn_list: string[] = []) {
+        super(crt_native.io_tls_connection_options_new(
+            tls_ctx.native_handle(),
+            server_name,
+            (alpn_list && alpn_list.length > 0) ? alpn_list.join(';') : undefined
+        ));
     }
 }

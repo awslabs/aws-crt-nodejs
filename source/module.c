@@ -458,7 +458,8 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(io_logging_enable)
     CREATE_AND_REGISTER_FN(is_alpn_available)
     CREATE_AND_REGISTER_FN(io_client_bootstrap_new)
-    CREATE_AND_REGISTER_FN(io_client_tls_ctx_new)
+    CREATE_AND_REGISTER_FN(io_tls_ctx_new)
+    CREATE_AND_REGISTER_FN(io_tls_connection_options_new);
     CREATE_AND_REGISTER_FN(io_socket_options_new)
     CREATE_AND_REGISTER_FN(io_input_stream_new)
     CREATE_AND_REGISTER_FN(io_input_stream_append)

@@ -16,7 +16,7 @@
 import crt_native = require('./binding');
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
-import { ClientBootstrap, ClientTlsContext, SocketOptions, InputStream } from './io';
+import { ClientBootstrap, SocketOptions, InputStream, TlsConnectionOptions } from './io';
 import { CrtError } from './error';
 import { HttpHeaders, HttpRequest } from '../common/http';
 export { HttpHeaders, HttpRequest } from '../common/http';
@@ -79,7 +79,7 @@ export class HttpClientConnection extends HttpConnection {
         host_name: string,
         port: number,
         protected socket_options: SocketOptions,
-        protected tls_ctx?: ClientTlsContext,
+        protected tls_opts?: TlsConnectionOptions,
         handle?: any) {
         
         super(handle
@@ -95,7 +95,7 @@ export class HttpClientConnection extends HttpConnection {
             host_name,
             port,
             socket_options.native_handle(),
-            tls_ctx ? tls_ctx.native_handle() : undefined
+            tls_opts ? tls_opts.native_handle() : undefined
         ));
     }
 
@@ -253,7 +253,7 @@ export class HttpClientConnectionManager extends NativeResource {
         readonly max_connections: number,
         readonly initial_window_size: number,
         readonly socket_options: SocketOptions,
-        readonly tls_ctx?: ClientTlsContext
+        readonly tls_opts?: TlsConnectionOptions
     ) {      
         super(crt_native.http_connection_manager_new(
             bootstrap.native_handle(),
@@ -262,7 +262,7 @@ export class HttpClientConnectionManager extends NativeResource {
             max_connections,
             initial_window_size,
             socket_options.native_handle(),
-            tls_ctx ? tls_ctx.native_handle() : undefined,
+            tls_opts ? tls_opts.native_handle() : undefined,
             undefined /* on_shutdown */
         ));
     }
@@ -287,7 +287,7 @@ export class HttpClientConnectionManager extends NativeResource {
                         this.host,
                         this.port,
                         this.socket_options,
-                        this.tls_ctx,
+                        this.tls_opts,
                         handle
                     );
                     this.connections.set(handle, connection as HttpClientConnection);

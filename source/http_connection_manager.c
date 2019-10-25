@@ -142,18 +142,15 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
     }
     options.socket_options = socket_options;
 
-    napi_value node_tls = *arg++;
-    struct aws_tls_ctx *tls_ctx = NULL;
-    if (!aws_napi_is_null_or_undefined(env, node_tls)) {
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls, (void **)&tls_ctx), {
-            napi_throw_type_error(env, NULL, "tls_ctx must be undefined or a valid ClientTlsContext");
+    napi_value node_tls_opts = *arg++;
+    struct aws_tls_connection_options *tls_opts = NULL;
+    if (!aws_napi_is_null_or_undefined(env, node_tls_opts)) {
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls_opts, (void **)&tls_opts), {
+            napi_throw_type_error(env, NULL, "tls_opts must be undefined or a valid TlsConnectionOptions");
             goto cleanup;
         });
     }
-    if (tls_ctx) {
-        aws_tls_connection_options_init_from_ctx(&tls_connection_options, tls_ctx);
-        options.tls_connection_options = &tls_connection_options;
-    }
+    options.tls_connection_options = tls_opts;
 
     napi_value node_on_shutdown = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_shutdown)) {

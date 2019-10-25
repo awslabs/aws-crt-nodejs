@@ -142,7 +142,8 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     struct aws_allocator *allocator = aws_default_allocator();
 
     napi_value result = NULL;
-    struct aws_tls_ctx *tls_ctx = NULL;
+    struct aws_tls_connection_options *tls_opts = NULL;
+    struct aws_string *host_name = NULL;
     struct aws_http_client_connection_options options = AWS_HTTP_CLIENT_CONNECTION_OPTIONS_INIT;
     options.allocator = allocator;
 
@@ -208,7 +209,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
 
     /* will be owned by tls_options */
     napi_value node_host_name = *arg++;
-    struct aws_string *host_name = aws_string_new_from_napi(env, node_host_name);
+    host_name = aws_string_new_from_napi(env, node_host_name);
     if (!host_name) {
         napi_throw_type_error(env, NULL, "host_name must be a String");
         goto argument_error;
@@ -228,9 +229,9 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto argument_error;
     });
 
-    napi_value node_tls_ctx = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_tls_ctx)) {
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls_ctx, (void **)&tls_ctx), {
+    napi_value node_tls_opts = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_tls_opts)) {
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls_opts, (void **)&tls_opts), {
             napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
             goto argument_error;
         });
@@ -253,13 +254,14 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     options.on_setup = s_http_on_connection_setup;
     options.on_shutdown = s_http_on_connection_shutdown;
     options.user_data = binding;
-    struct aws_tls_connection_options tls_options;
-    AWS_ZERO_STRUCT(tls_options);
-    if (tls_ctx) {
-        aws_tls_connection_options_init_from_ctx(&tls_options, tls_ctx);
-        tls_options.server_name = host_name;
-        options.tls_options = &tls_options;
-    }
+    
+    if (tls_opts) {
+        if (!tls_opts->server_name) {
+            struct aws_byte_cursor server_name_cursor = aws_byte_cursor_from_string(host_name);
+            aws_tls_connection_options_set_server_name(tls_opts, allocator, &server_name_cursor);
+        }
+        options.tls_options = tls_opts;
+    }    
 
     if (aws_http_client_connect(&options)) {
         aws_napi_throw_last_error(env);
@@ -284,12 +286,7 @@ failed_callbacks:
 alloc_failed:
 argument_error:
 done:
-    /* the tls connection options own the host name string and kill it */
-    aws_tls_connection_options_clean_up(&tls_options);
-    if (!tls_ctx) {
-        aws_string_destroy(host_name);
-    }
-
+    aws_string_destroy(host_name);
     return result;
 }
 
