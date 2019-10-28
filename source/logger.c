@@ -84,7 +84,7 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
      */
     if (!ctx->log_drain) {
 #ifdef AWS_NAPI_LOG_AFTER_SHUTDOWN
-        fprintf(stderr, "%*s", (int)(output->len - newlines), (const char *)aws_string_bytes(output));
+        fprintf(stderr, "%*s", (int)(output->len - newlines), aws_string_c_str(output));
 #endif
         return AWS_OP_SUCCESS;
     }
@@ -233,9 +233,7 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
 
         napi_value node_message = NULL;
         AWS_NAPI_ENSURE(
-            env,
-            napi_create_string_utf8(
-                env, (const char *)aws_string_bytes(msg->message), msg->message->len, &node_message));
+            env, napi_create_string_utf8(env, aws_string_c_str(msg->message), msg->message->len, &node_message));
         AWS_NAPI_ENSURE(env, napi_call_function(env, node_process, node_log_fn, 1, &node_message, NULL));
 
         aws_string_destroy(msg->message);
