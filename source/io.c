@@ -370,10 +370,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
     } else if (cert_path && pkey_path) {
         if (aws_tls_ctx_options_init_client_mtls_from_path(
-                &ctx_options,
-                alloc,
-                (const char *)aws_string_bytes(cert_path),
-                (const char *)aws_string_bytes(pkey_path))) {
+                &ctx_options, alloc, aws_string_c_str(cert_path), aws_string_c_str(pkey_path))) {
             aws_napi_throw_last_error(env);
             goto cleanup;
         }
@@ -389,16 +386,14 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
     } else if (ca_path || ca_file) {
         if (aws_tls_ctx_options_override_default_trust_store_from_path(
-                &ctx_options,
-                ca_path ? (const char *)aws_string_bytes(ca_path) : NULL,
-                ca_file ? (const char *)aws_string_bytes(ca_file) : NULL)) {
+                &ctx_options, ca_path ? aws_string_c_str(ca_path) : NULL, ca_file ? aws_string_c_str(ca_file) : NULL)) {
             aws_napi_throw_last_error(env);
             goto cleanup;
         }
     }
 
     if (alpn_list) {
-        aws_tls_ctx_options_set_alpn_list(&ctx_options, (const char *)aws_string_bytes(alpn_list));
+        aws_tls_ctx_options_set_alpn_list(&ctx_options, aws_string_c_str(alpn_list));
     }
 
     aws_tls_ctx_options_set_verify_peer(&ctx_options, verify_peer);
@@ -498,7 +493,7 @@ napi_value aws_napi_io_tls_connection_options_new(napi_env env, napi_callback_in
     }
 
     if (alpn_list) {
-        aws_tls_connection_options_set_alpn_list(tls_opts, allocator, (const char *)aws_string_bytes(alpn_list));
+        aws_tls_connection_options_set_alpn_list(tls_opts, allocator, aws_string_c_str(alpn_list));
     }
 
     AWS_NAPI_CALL(env, napi_create_external(env, tls_opts, s_tls_connection_options_finalize, NULL, &node_external), {
