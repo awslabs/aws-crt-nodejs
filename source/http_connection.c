@@ -94,7 +94,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
     if (!aws_napi_is_null_or_undefined(env, node_username)) {
         binding->auth_username = aws_string_new_from_napi(env, node_username);
         if (!binding->auth_username) {
-            AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert auth_username to string"));
+            napi_throw_type_error(env, NULL, "Unable to convert auth_username to string");
             goto cleanup;
         }
     }
@@ -103,7 +103,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
     if (!aws_napi_is_null_or_undefined(env, node_password)) {
         binding->auth_password = aws_string_new_from_napi(env, node_password);
         if (!binding->auth_password) {
-            AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert auth_password to string"));
+            napi_throw_type_error(env, NULL, "Unable to convert auth_password to string");
             goto cleanup;
         }
     }
@@ -354,6 +354,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
             napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
             goto argument_error;
         });
+        /* proxy_options are copied internally, no need to go nuts on copies */
         proxy_opts = &proxy_binding->native;
     }
 

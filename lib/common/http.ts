@@ -143,7 +143,7 @@ export class HttpHeaders {
 export enum HttpProxyAuthenticationType
 {
     None = 0,
-    Basic = 2,
+    Basic = 1,
 };
 
 /** Options used when connecting to an HTTP endpoint via a proxy */

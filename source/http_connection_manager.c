@@ -162,6 +162,7 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
         });
         proxy_options = aws_napi_get_http_proxy_options(binding);
     }
+    /* proxy_options are copied internally, no need to go nuts on copies */
     options.proxy_options = proxy_options;
 
     napi_value node_on_shutdown = *arg++;

@@ -493,7 +493,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
             napi_throw_type_error(env, NULL, "proxy_options must be an external");
             goto cleanup;
         });
-
+        /* proxy_options are copied internally, no need to go nuts on copies */
         proxy_options = aws_napi_get_http_proxy_options(binding);
     }
 
