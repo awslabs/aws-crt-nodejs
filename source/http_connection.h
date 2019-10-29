@@ -18,6 +18,11 @@
 
 #include <node_api.h>
 
+struct http_proxy_options_binding;
+
+napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info);
+struct aws_http_proxy_options *aws_napi_get_http_proxy_options(struct http_proxy_options_binding *binding);
+
 napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info);
 napi_value aws_napi_http_connection_close(napi_env env, napi_callback_info info);
 

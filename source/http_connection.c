@@ -20,6 +20,116 @@
 #include <aws/http/connection.h>
 #include <aws/io/tls_channel_handler.h>
 
+struct http_proxy_options_binding {
+    struct aws_http_proxy_options native;
+
+    struct aws_allocator *allocator;
+
+    struct aws_string *host_name;
+    struct aws_string *auth_username;
+    struct aws_string *auth_password;
+};
+
+void s_proxy_options_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+
+    struct http_proxy_options_binding *binding = finalize_data;
+
+    aws_string_destroy(binding->host_name);
+    aws_string_destroy(binding->auth_username);
+    aws_string_destroy(binding->auth_password);
+
+    aws_mem_release(binding->allocator, binding);
+}
+napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[6];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_tls_connection_options_new requires exactly 3 arguments");
+        return NULL;
+    }
+
+    napi_value node_external = NULL; /* return value, external that wraps the aws_tls_connection_options */
+
+    struct aws_allocator *allocator = aws_default_allocator();
+    struct http_proxy_options_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct http_proxy_options_binding));
+    AWS_FATAL_ASSERT(binding && "Failed to allocate new http_proxy_options_binding");
+    binding->allocator = allocator;
+
+    napi_value node_host_name = *arg++;
+    binding->host_name = aws_string_new_from_napi(env, node_host_name);
+    if (!binding->host_name) {
+        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert host_name to string"));
+        goto cleanup;
+    }
+
+    napi_value node_port = *arg++;
+    uint32_t port;
+    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_port, &port), {
+        napi_throw_type_error(env, NULL, "port must be a number");
+        goto cleanup;
+    });
+    binding->native.port = port;
+
+    napi_value node_auth_method = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_auth_method)) {
+        uint32_t auth_method = 0;
+        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_port, &auth_method), {
+            napi_throw_type_error(env, NULL, "auth_method must be a number");
+            goto cleanup;
+        });
+        binding->native.auth_type = auth_method;
+    }
+
+    napi_value node_username = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_username)) {
+        binding->auth_username = aws_string_new_from_napi(env, node_username);
+        if (!binding->auth_username) {
+            AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert auth_username to string"));
+            goto cleanup;
+        }
+    }
+
+    napi_value node_password = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_password)) {
+        binding->auth_password = aws_string_new_from_napi(env, node_password);
+        if (!binding->auth_password) {
+            AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert auth_password to string"));
+            goto cleanup;
+        }
+    }
+
+    napi_value node_tls_opts = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_tls_opts)) {
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls_opts, (void **)&binding->native.tls_options), {
+            napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
+            goto cleanup;
+        });
+    }
+
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_proxy_options_finalize, NULL, &node_external), {
+        goto cleanup;
+    });
+
+    return node_external;
+
+cleanup:
+    s_proxy_options_finalize(env, binding, NULL);
+    return NULL;
+}
+struct aws_http_proxy_options *aws_napi_get_http_proxy_options(struct http_proxy_options_binding *binding) {
+    return &binding->native;
+}
+
 struct http_connection_binding {
     struct aws_http_connection *connection;
     struct aws_allocator *allocator;
@@ -143,12 +253,13 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
     struct aws_tls_connection_options *tls_opts = NULL;
+    struct aws_http_proxy_options *proxy_opts = NULL;
     struct aws_string *host_name = NULL;
     struct aws_http_client_connection_options options = AWS_HTTP_CLIENT_CONNECTION_OPTIONS_INIT;
     options.allocator = allocator;
 
     /* parse/validate arguments */
-    napi_value node_args[7];
+    napi_value node_args[8];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -237,6 +348,16 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         });
     }
 
+    napi_value node_proxy_opts = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_proxy_opts)) {
+        struct http_proxy_options_binding *proxy_binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_opts, (void **)&proxy_binding), {
+            napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
+            goto argument_error;
+        });
+        proxy_opts = &proxy_binding->native;
+    }
+
     napi_value node_external = NULL;
     AWS_NAPI_CALL(
         env, napi_create_external(env, binding, s_http_connection_binding_finalize, binding, &node_external), {
@@ -253,6 +374,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     options.host_name = aws_byte_cursor_from_string(host_name);
     options.on_setup = s_http_on_connection_setup;
     options.on_shutdown = s_http_on_connection_shutdown;
+    options.proxy_options = proxy_opts;
     options.user_data = binding;
 
     if (tls_opts) {

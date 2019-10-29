@@ -18,8 +18,8 @@ import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, SocketOptions, InputStream, TlsConnectionOptions } from './io';
 import { CrtError } from './error';
-import { HttpHeaders, HttpRequest } from '../common/http';
-export { HttpHeaders, HttpRequest } from '../common/http';
+import { HttpHeaders, HttpRequest, HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
+export { HttpHeaders, HttpRequest, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
 /** Base class for HTTP connections */
@@ -55,6 +55,30 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     }
 }
 
+export class HttpProxyOptions extends CommonHttpProxyOptions {
+    constructor(
+        host_name: string,
+        port: number,
+        auth_method = HttpProxyAuthenticationType.None,
+        auth_username?: string,
+        auth_password?: string,
+        public tls_opts?: TlsConnectionOptions
+    ) {
+        super(host_name, port, auth_method, auth_username, auth_password);
+    }
+
+    create_native_handle() {
+        return crt_native.http_proxy_options_new(
+            this.host_name,
+            this.port,
+            this.auth_method,
+            this.auth_username,
+            this.auth_password,
+            this.tls_opts ? this.tls_opts.native_handle() : undefined,
+        );
+    }
+}
+
 /** Represents an HTTP connection from a client to a server */
 export class HttpClientConnection extends HttpConnection {
     private _on_setup(native_handle: any, error_code: number) {
@@ -80,26 +104,28 @@ export class HttpClientConnection extends HttpConnection {
         port: number,
         protected socket_options: SocketOptions,
         protected tls_opts?: TlsConnectionOptions,
+        protected proxy_options?: HttpProxyOptions,
         handle?: any) {
-        
+
         super(handle
             ? handle
             : crt_native.http_connection_new(
-            bootstrap.native_handle(),
-            (handle: any, error_code: number) => {
-                this._on_setup(handle, error_code);
-            },
-            (handle: any, error_code: number) => {
-                this._on_shutdown(handle, error_code);
-            },
-            host_name,
-            port,
-            socket_options.native_handle(),
-            tls_opts ? tls_opts.native_handle() : undefined
-        ));
+                bootstrap.native_handle(),
+                (handle: any, error_code: number) => {
+                    this._on_setup(handle, error_code);
+                },
+                (handle: any, error_code: number) => {
+                    this._on_shutdown(handle, error_code);
+                },
+                host_name,
+                port,
+                socket_options.native_handle(),
+                tls_opts ? tls_opts.native_handle() : undefined,
+                proxy_options ? proxy_options.create_native_handle() : undefined,
+            ));
     }
 
-    /** 
+    /**
      * Make a client initiated request to this connection.
      * @param request - The HttpRequest to attempt on this connection
      * @returns A new stream that will deliver events for the request
@@ -113,7 +139,7 @@ export class HttpClientConnection extends HttpConnection {
         const on_body_impl = (data: ArrayBuffer) => {
             stream._on_body(data);
         }
-        
+
         const on_complete_impl = (error_code: Number) => {
             stream._on_complete(error_code);
         }
@@ -134,10 +160,10 @@ export class HttpClientConnection extends HttpConnection {
     }
 }
 
-/** 
+/**
  * Represents a single http message exchange (request/response) in HTTP/1.1. In H2, it may
  * also represent a PUSH_PROMISE followed by the accompanying response.
- * 
+ *
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
  */
@@ -150,7 +176,7 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         this.cork();
     }
 
-    /** 
+    /**
      * Closes and ends all communication on this stream. Called automatically after the 'end'
      * event is delivered. Calling this manually is only necessary if you wish to terminate
      * communication mid-request/response.
@@ -187,7 +213,7 @@ export class HttpClientStream extends HttpStream {
         super(native_handle, connection);
     }
 
-    /** 
+    /**
      * HTTP status code returned from the server.
      * @return Either the status code, or undefined if the server response has not arrived yet.
      */
@@ -195,7 +221,7 @@ export class HttpClientStream extends HttpStream {
         return this.response_status_code;
     }
 
-    /** 
+    /**
      * Emitted when the header block arrives from the server.
      * HTTP/1.1 - After all leading headers have been delivered
      * H2 - After the initial header block has been delivered
@@ -203,9 +229,9 @@ export class HttpClientStream extends HttpStream {
     on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
 
     /**
-     * Emitted when inline headers are delivered while communicating over H2 
+     * Emitted when inline headers are delivered while communicating over H2
      * @param status_code - The HTTP status code returned from the server
-     * @param headers - The full set of headers returned from the server in the header block 
+     * @param headers - The full set of headers returned from the server in the header block
     */
     on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
 
@@ -221,7 +247,7 @@ export class HttpClientStream extends HttpStream {
      */
     on(event: 'error', listener: (error: Error) => void): this;
 
-    /** Emitted when stream has completed sucessfully. */
+    /** Emitted when stream has completed successfully. */
     on(event: 'end', listener: () => void): this;
 
     // Override to allow uncorking on ready and response
@@ -254,7 +280,7 @@ export class HttpClientConnectionManager extends NativeResource {
         readonly initial_window_size: number,
         readonly socket_options: SocketOptions,
         readonly tls_opts?: TlsConnectionOptions
-    ) {      
+    ) {
         super(crt_native.http_connection_manager_new(
             bootstrap.native_handle(),
             host,

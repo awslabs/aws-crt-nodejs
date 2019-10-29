@@ -17,7 +17,7 @@ import { InputStreamBase } from "./io";
 
 type HttpHeader = [string, string];
 
-/** 
+/**
  * Encapsulates an HTTP header block. Stores all headers in their original case format,
  * but allows for case-insensitive header lookup.
  */
@@ -32,8 +32,8 @@ export class HttpHeaders {
         }
     }
 
-    /** 
-     * Add a name/value pair 
+    /**
+     * Add a name/value pair
      * @param name - The header name
      * @param value - The header value
     */
@@ -46,8 +46,8 @@ export class HttpHeaders {
         }
     }
 
-    /** 
-     * Set a name/value pair, replacing any existing values for the name 
+    /**
+     * Set a name/value pair, replacing any existing values for the name
      * @param name - The header name
      * @param value - The header value
     */
@@ -69,7 +69,7 @@ export class HttpHeaders {
         return values;
     }
 
-    /** 
+    /**
      * Gets the first value for the given name, ignoring any additional values
      * @param name - The header name to look for
      * @param default_value - Value returned if no values are found for the given name
@@ -77,13 +77,13 @@ export class HttpHeaders {
      */
     get(name: string, default_value = "") {
         const values = this.headers[name.toLowerCase()];
-        if (!values) { 
+        if (!values) {
             return "";
         }
         return values[0][1] || default_value;
     }
 
-    /** 
+    /**
      * Removes all values for the given name
      * @param name - The header to remove all values for
      */
@@ -91,7 +91,7 @@ export class HttpHeaders {
         delete this.headers[name.toLowerCase()];
     }
 
-    /** 
+    /**
      * Removes a specific name/value pair
      * @param name - The header name to remove
      * @param value - The header value to remove
@@ -116,8 +116,8 @@ export class HttpHeaders {
         this.headers = {};
     }
 
-    /** 
-     * Iterator. Allows for: 
+    /**
+     * Iterator. Allows for:
      * let headers = new HttpHeaders();
      * ...
      * for (const header of headers) { }
@@ -137,6 +137,24 @@ export class HttpHeaders {
             flattened.push([key, this.headers[key][0][1]]);
         }
         return flattened;
+    }
+}
+
+export enum HttpProxyAuthenticationType
+{
+    None = 0,
+    Basic = 2,
+};
+
+/** Options used when connecting to an HTTP endpoint via a proxy */
+export class HttpProxyOptions {
+    constructor(
+        public host_name: string,
+        public port: number,
+        public auth_method = HttpProxyAuthenticationType.None,
+        public auth_username?: string,
+        public auth_password?: string
+    ) {
     }
 }
 
