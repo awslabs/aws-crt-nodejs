@@ -104,7 +104,7 @@ export class HttpClientConnection extends HttpConnection {
         port: number,
         protected socket_options: SocketOptions,
         protected tls_opts?: TlsConnectionOptions,
-        protected proxy_options?: HttpProxyOptions,
+        proxy_options?: HttpProxyOptions,
         handle?: any) {
 
         super(handle
@@ -279,7 +279,8 @@ export class HttpClientConnectionManager extends NativeResource {
         readonly max_connections: number,
         readonly initial_window_size: number,
         readonly socket_options: SocketOptions,
-        readonly tls_opts?: TlsConnectionOptions
+        readonly tls_opts?: TlsConnectionOptions,
+        readonly proxy_options?: HttpProxyOptions,
     ) {
         super(crt_native.http_connection_manager_new(
             bootstrap.native_handle(),
@@ -289,6 +290,7 @@ export class HttpClientConnectionManager extends NativeResource {
             initial_window_size,
             socket_options.native_handle(),
             tls_opts ? tls_opts.native_handle() : undefined,
+            proxy_options ? proxy_options.create_native_handle() : undefined,
             undefined /* on_shutdown */
         ));
     }
@@ -314,6 +316,7 @@ export class HttpClientConnectionManager extends NativeResource {
                         this.port,
                         this.socket_options,
                         this.tls_opts,
+                        this.proxy_options,
                         handle
                     );
                     this.connections.set(handle, connection as HttpClientConnection);

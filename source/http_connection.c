@@ -116,9 +116,8 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         });
     }
 
-    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_proxy_options_finalize, NULL, &node_external), {
-        goto cleanup;
-    });
+    AWS_NAPI_CALL(
+        env, napi_create_external(env, binding, s_proxy_options_finalize, NULL, &node_external), { goto cleanup; });
 
     return node_external;
 
