@@ -19,6 +19,8 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
+#include "http_connection.h"
+
 #include <aws/mqtt/client.h>
 
 #include <aws/io/socket.h>
@@ -345,7 +347,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     struct aws_byte_buf will_payload;
     AWS_ZERO_STRUCT(will_payload);
 
-    napi_value node_args[14];
+    napi_value node_args[15];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -483,6 +485,18 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         });
     }
 
+    napi_value node_proxy_options = *arg++;
+    struct aws_http_proxy_options *proxy_options = NULL;
+    if (!aws_napi_is_null_or_undefined(env, node_proxy_options)) {
+        struct http_proxy_options_binding *binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&binding), {
+            napi_throw_type_error(env, NULL, "proxy_options must be an external");
+            goto cleanup;
+        });
+        /* proxy_options are copied internally, no need to go nuts on copies */
+        proxy_options = aws_napi_get_http_proxy_options(binding);
+    }
+
     napi_value node_clean_session = *arg++;
     bool clean_session = false;
     if (!aws_napi_is_null_or_undefined(env, node_clean_session)) {
@@ -549,6 +563,14 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         if (aws_mqtt_client_connection_set_login(binding->connection, &username_cur, &password_cur)) {
             aws_napi_throw_last_error(env);
             goto cleanup;
+        }
+    }
+
+    if (use_websocket) {
+        aws_mqtt_client_connection_use_websockets(binding->connection, NULL, NULL, NULL, NULL);
+
+        if (proxy_options) {
+            aws_mqtt_client_connection_set_websocket_proxy_options(binding->connection, proxy_options);
         }
     }
 

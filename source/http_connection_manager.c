@@ -66,7 +66,7 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
     napi_value result = NULL;
 
-    napi_value node_args[8];
+    napi_value node_args[9];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -152,6 +152,19 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
     }
     options.tls_connection_options = tls_opts;
 
+    napi_value node_proxy_options = *arg++;
+    struct aws_http_proxy_options *proxy_options = NULL;
+    if (!aws_napi_is_null_or_undefined(env, node_proxy_options)) {
+        struct http_proxy_options_binding *binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&binding), {
+            napi_throw_type_error(env, NULL, "tls_opts must be undefined or a valid TlsConnectionOptions");
+            goto cleanup;
+        });
+        proxy_options = aws_napi_get_http_proxy_options(binding);
+    }
+    /* proxy_options are copied internally, no need to go nuts on copies */
+    options.proxy_options = proxy_options;
+
     napi_value node_on_shutdown = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_shutdown)) {
         AWS_NAPI_CALL(
@@ -168,8 +181,6 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
                 goto cleanup;
             });
     }
-
-    /* TODO: Insert Proxy here */
 
     options.shutdown_complete_callback = s_http_connection_manager_shutdown_complete;
     options.shutdown_complete_user_data = binding;

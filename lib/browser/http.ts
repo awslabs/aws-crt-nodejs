@@ -13,27 +13,42 @@
  * permissions and limitations under the License.
  */
 
-import { HttpHeaders, HttpRequest } from '../common/http';
-export { HttpHeaders, HttpRequest } from '../common/http';
+import { HttpHeaders, HttpRequest, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
+export { HttpHeaders, HttpRequest, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { InputStream } from './io';
 import { CrtError } from './error';
-const axios = require('axios').default;
+import * as axios from 'axios';
 
 export class HttpClientConnection extends BufferedEventEmitter {
     readonly axios: any;
     constructor(
         host_name: string,
         port: number,
-        scheme?: string
+        scheme?: string,
+        proxy_options?: HttpProxyOptions,
     ) {
         super();
         if (!scheme) {
             scheme = (port == 443) ? 'https' : 'http'
         }
-        this.axios = axios.create({
+        let axios_options: axios.AxiosRequestConfig = {
             baseURL: `${scheme}://${host_name}:${port}/`
-        });
+        };
+        if (proxy_options) {
+            axios_options.proxy = {
+                host: proxy_options.host_name,
+                port: proxy_options.port,
+            };
+
+            if (proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
+                axios_options.proxy.auth = {
+                    username: proxy_options.auth_username || "",
+                    password: proxy_options.auth_password || "",
+                };
+            }
+        }
+        this.axios = axios.default.create(axios_options);
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -41,10 +56,10 @@ export class HttpClientConnection extends BufferedEventEmitter {
 
     /** Emitted when the connection is connected and ready to start streams */
     on(event: 'connect', listener: () => void): this;
-    
+
     /** Emitted when an error occurs on the connection */
     on(event: 'error', listener: (error: Error) => void): this;
-    
+
     /** Emitted when the connection has completed */
     on(event: 'close', listener: () => void): this;
 
@@ -127,7 +142,7 @@ export class HttpClientStream extends BufferedEventEmitter {
      */
     on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
 
-    /** 
+    /**
      * Emitted when a body chunk arrives from the server
      * @param body_data - The chunk of body data
      */
@@ -212,7 +227,7 @@ export class HttpClientConnectionManager {
         readonly port: number,
         readonly max_connections: number
     ) {
-        
+
     }
 
     private remove(connection: HttpClientConnection) {
@@ -251,12 +266,12 @@ export class HttpClientConnectionManager {
                 return this.resolve(connection);
             }
         }
-        
+
         // If there's no more room, nothing can be resolved right now
         if ((this.live_connections.size + this.pending_connections.size) == this.max_connections) {
             return;
         }
-        
+
         // There's room, create a new connection
         let connection = new HttpClientConnection(this.host, this.port);
         this.pending_connections.add(connection);
@@ -284,7 +299,7 @@ export class HttpClientConnectionManager {
         connection.on('close', on_close);
     }
 
-    /** 
+    /**
      * Vends a connection from the pool
      * @returns A promise that results in an HttpClientConnection. When done with the connection, return
      *          it via {@link release}
@@ -299,8 +314,8 @@ export class HttpClientConnectionManager {
         });
     }
 
-    /** 
-     * Returns an unused connection to the pool 
+    /**
+     * Returns an unused connection to the pool
      * @param connection - The connection to return
     */
     release(connection: HttpClientConnection) {

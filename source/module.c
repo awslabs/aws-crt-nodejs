@@ -490,6 +490,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(hmac_sha256_compute)
 
     /* HTTP */
+    CREATE_AND_REGISTER_FN(http_proxy_options_new)
     CREATE_AND_REGISTER_FN(http_connection_new)
     CREATE_AND_REGISTER_FN(http_connection_close)
     CREATE_AND_REGISTER_FN(http_stream_new)
