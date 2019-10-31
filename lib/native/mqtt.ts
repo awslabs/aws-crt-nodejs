@@ -50,6 +50,7 @@ export interface MqttConnectionConfig {
     password?: string;
     tls_ctx?: io.ClientTlsContext;
     proxy_options?: HttpProxyOptions;
+    websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void;
 }
 
 const normalize_encoder = new TextEncoder();
@@ -166,6 +167,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.proxy_options ? this.config.proxy_options.create_native_handle() : undefined,
                     this.config.clean_session,
                     on_connect,
+                    this.config.websocket_handshake_transform,
                 );
             } catch (e) {
                 reject(e);
