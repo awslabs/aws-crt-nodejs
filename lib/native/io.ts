@@ -15,7 +15,7 @@
 
 import crt_native = require('./binding');
 import { NativeResource } from "./native_resource";
-import { InputStreamBase, TlsVersion, SocketType, SocketDomain } from '../common/io';
+import { TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
 export { TlsVersion, SocketType, SocketDomain } from '../common/io';
 
@@ -84,7 +84,7 @@ export function is_alpn_available(): boolean {
  * Wraps a {@link Readable} for reading by native code, used to stream
  *  data into the AWS CRT libraries.
  */
-export class InputStream extends NativeResource implements InputStreamBase {
+export class InputStream extends NativeResource {
     constructor(private source: Readable) {
         super(crt_native.io_input_stream_new(16 * 1024));
         this.source.on('data', (data) => {
@@ -263,8 +263,8 @@ export class TlsContextOptions {
 }
 
 /**
- * TLS context used for client/server TLS communications over sockets. 
- * 
+ * TLS context used for client/server TLS communications over sockets.
+ *
  * @see ClientTlsContext
  * @see ServerTlsContext
  *
@@ -324,7 +324,7 @@ export class ServerTlsContext extends TlsContext {
 
 /**
  * TLS options that are unique to a given connection using a shared TlsContext.
- * 
+ *
  * nodejs only.
  */
 export class TlsConnectionOptions extends NativeResource {

@@ -13,12 +13,26 @@
  * permissions and limitations under the License.
  */
 
-import { HttpHeaders, HttpRequest, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
-export { HttpHeaders, HttpRequest, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
+import { HttpHeaders, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
+export { HttpHeaders, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { InputStream } from './io';
 import { CrtError } from './error';
 import * as axios from 'axios';
+
+/** Represents a request to a web server from a client */
+export class HttpRequest {
+    constructor(
+        /** The verb to use for the request (i.e. GET, POST, PUT, DELETE, HEAD) */
+        public method: string,
+        /** The URI of the request */
+        public path: string,
+        /** The request body, in the case of a POST or PUT request */
+        public body?: InputStream,
+        /** Additional custom headers to send to the server */
+        public headers = new HttpHeaders()) {
+    }
+}
 
 export class HttpClientConnection extends BufferedEventEmitter {
     readonly axios: any;

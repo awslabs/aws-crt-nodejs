@@ -58,7 +58,7 @@ function sign_url(method: string,
     time: string = canonical_time(),
     day: string = canonical_day(time),
     payload: string = '') {
-    
+
     const signed_headers = 'host';
     const canonical_headers = `host:${url.hostname.toLowerCase()}\n`;
     const payload_hash = Crypto.SHA256(payload, { asBytes: true });
@@ -76,7 +76,7 @@ function sign_url(method: string,
     return signed_url;
 }
 
-function create_websocket_url(config: MqttConnectionConfig) {
+export function create_websocket_url(config: MqttConnectionConfig) {
     const time = canonical_time();
     const day = canonical_day(time);
     const path = '/mqtt';
@@ -93,11 +93,6 @@ function create_websocket_url(config: MqttConnectionConfig) {
         return `wss://${config.host_name}/${path}`;
     }
     throw new URIError(`Invalid protocol requested: ${protocol}`);
-}
-
-export function transform_websocket_url(original_url: string, config: MqttConnectionConfig) {
-    const url = create_websocket_url(config);
-    return url;
 }
 
 export function create_websocket_stream(config: MqttConnectionConfig) {

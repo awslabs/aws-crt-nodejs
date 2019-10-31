@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-import { InputStreamBase } from "./io";
-
 type HttpHeader = [string, string];
 
 /**
@@ -24,11 +22,32 @@ type HttpHeader = [string, string];
 export class HttpHeaders {
     // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
     private headers: { [index: string]: [HttpHeader] } = {};
+    private internal_message: any; /* Keep this for GC reasons */
+    private native_message: any; /* Actually an HttpRequest/Response from the native directory */
 
     /** Construct from a collection of [name, value] pairs */
-    constructor(headers: HttpHeader[] = []) {
+    constructor(headers: HttpHeader[] = [], internal_message?: any) {
+        if (internal_message) {
+            this.internal_message = internal_message;
+            this.native_message = internal_message.native_handle();
+
+            <void>this.internal_message;
+        }
+
         for (const header of headers) {
             this.add(header[0], header[1]);
+        }
+    }
+
+    get length(): number {
+        if (this.native_message) {
+            return this.native_message.num_headers;
+        } else {
+            let length = 0;
+            for (let key in this.headers) {
+                length += this.headers[key].length;
+            }
+            return length;
         }
     }
 
@@ -38,11 +57,15 @@ export class HttpHeaders {
      * @param value - The header value
     */
     add(name: string, value: string) {
-        let values = this.headers[name.toLowerCase()];
-        if (values) {
-            values.push([name, value]);
+        if (this.native_message) {
+            this.native_message.add_header(name, value);
         } else {
-            this.set(name, value);
+            let values = this.headers[name.toLowerCase()];
+            if (values) {
+                values.push([name, value]);
+            } else {
+                this.headers[name.toLowerCase()] = [[name, value]];
+            }
         }
     }
 
@@ -52,7 +75,11 @@ export class HttpHeaders {
      * @param value - The header value
     */
     set(name: string, value: string) {
-        this.headers[name.toLowerCase()] = [[name, value]];
+        if (this.native_message) {
+            this.native_message.set_header(name, value);
+        } else {
+            this.headers[name.toLowerCase()] = [[name, value]];
+        }
     }
 
     /**
@@ -61,10 +88,22 @@ export class HttpHeaders {
      * @return List of values, or empty list if none exist
      */
     get_values(name: string) {
-        const values_list = this.headers[name.toLowerCase()] || [];
+        const key = name.toLowerCase();
+
         const values = [];
-        for (const entry of values_list) {
-            values.push(entry[1]);
+        if (this.native_message) {
+            const len = this.length;
+            for (let i = 0; i < len; ++i) {
+                const header = this.native_message.get_header(i);
+                if (header[0].toLowerCase() === key) {
+                    values.push(header[1]);
+                }
+            }
+        } else {
+            const values_list = this.headers[key] || [];
+            for (const entry of values_list) {
+                values.push(entry[1]);
+            }
         }
         return values;
     }
@@ -76,11 +115,25 @@ export class HttpHeaders {
      * @return The first header value, or default if no values exist
      */
     get(name: string, default_value = "") {
-        const values = this.headers[name.toLowerCase()];
-        if (!values) {
-            return "";
+        const key = name.toLowerCase();
+
+        if (this.native_message) {
+            const len = this.length;
+            for (let i = 0; i < len; ++i) {
+                const header = this.native_message.get_header(i);
+                if (header[0].toLowerCase() === key) {
+                    return header[1];
+                }
+            }
+
+            return default_value;
+        } else {
+            const values = this.headers[key];
+            if (!values) {
+                return default_value;
+            }
+            return values[0][1] || default_value;
         }
-        return values[0][1] || default_value;
     }
 
     /**
@@ -88,7 +141,18 @@ export class HttpHeaders {
      * @param name - The header to remove all values for
      */
     remove(name: string) {
-        delete this.headers[name.toLowerCase()];
+        const key = name.toLowerCase();
+
+        if (this.native_message) {
+            for (let i = this.length - 1; i >= 0; --i) {
+                const header = this.native_message.get_header(i);
+                if (header[0].toLowerCase() === key) {
+                    this.native_message.erase_header(i);
+                }
+            }
+        } else {
+            delete this.headers[key];
+        }
     }
 
     /**
@@ -97,23 +161,40 @@ export class HttpHeaders {
      * @param value - The header value to remove
      */
     remove_value(name: string, value: string) {
-        let values = this.headers[name.toLowerCase()];
-        for (let idx = 0; idx < values.length; ++idx) {
-            const entry = values[idx];
-            if (entry[1] == value) {
-                if (values.length == 1) {
-                    delete this.headers[name.toLowerCase()];
-                } else {
-                    delete values[idx];
+        const key = name.toLowerCase();
+
+        if (this.native_message) {
+            for (let i = this.length - 1; i >= 0; --i) {
+                const header = this.native_message.get_header(i);
+                if (header[0].toLowerCase() === key && header[1] === value) {
+                    this.native_message.erase_header(i);
                 }
-                return;
+            }
+        } else {
+            let values = this.headers[key];
+            for (let idx = 0; idx < values.length; ++idx) {
+                const entry = values[idx];
+                if (entry[1] === value) {
+                    if (values.length === 1) {
+                        delete this.headers[key];
+                    } else {
+                        delete values[idx];
+                    }
+                    return;
+                }
             }
         }
     }
 
     /** Clears the entire header set */
     clear() {
-        this.headers = {};
+        if (this.native_message) {
+            for (let i = this.length - 1; i >= 0; --i) {
+                this.native_message.erase_header(i);
+            }
+        } else {
+            this.headers = {};
+        }
     }
 
     /**
@@ -123,18 +204,25 @@ export class HttpHeaders {
      * for (const header of headers) { }
     */
     *[Symbol.iterator]() {
-        for (const key in this.headers) {
-            const values = this.headers[key];
-            for (let entry of values) {
-                yield entry;
+        if (this.native_message) {
+            const len = this.length;
+            for (let i = 0; i < len; ++i) {
+                yield this.native_message.get_header(i);
+            }
+        } else {
+            for (const key in this.headers) {
+                const values = this.headers[key];
+                for (let entry of values) {
+                    yield entry;
+                }
             }
         }
     }
 
     _flatten(): string[][] {
         let flattened = [];
-        for (let key in this.headers) {
-            flattened.push([key, this.headers[key][0][1]]);
+        for (const pair of this) {
+            flattened.push(pair);
         }
         return flattened;
     }
@@ -155,19 +243,5 @@ export class HttpProxyOptions {
         public auth_username?: string,
         public auth_password?: string
     ) {
-    }
-}
-
-/** Represents a request to a web server from a client */
-export class HttpRequest {
-    constructor(
-        /** The verb to use for the request (i.e. GET, POST, PUT, DELETE, HEAD) */
-        public method: string,
-        /** The URI of the request */
-        public path: string,
-        /** The request body, in the case of a POST or PUT request */
-        public body?: InputStreamBase,
-        /** Additional custom headers to send to the server */
-        public headers = new HttpHeaders()) {
     }
 }

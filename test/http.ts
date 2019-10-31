@@ -20,32 +20,56 @@ jest.setTimeout(10000);
 jest.retryTimes(3);
 
 test('HTTP Headers', () => {
-    let headers = new HttpHeaders([
+    let js_headers = new HttpHeaders([
         ['Host', 'www.amazon.com'],
         ['Content-Length', '42']
     ]);
-    for (const header of headers) {
-        expect(['Host', 'Content-Length']).toContain(header[0]);
-        expect(['www.amazon.com', '42']).toContain(header[1]);
-    }
-    // Upgrade header does not exist
-    expect(headers.get('Upgrade')).toBeFalsy();
+    let native_request = new HttpRequest("", "", undefined, js_headers);
+    let native_headers = native_request.headers;
 
-    // Make sure case doesn't matter
-    expect(headers.get('HOST')).toBe('www.amazon.com');
+    /* Be sure to test JS AND native implementations */
+    for (let headers of [js_headers, native_headers]) {
 
-    // Remove Content-Length, and make sure host is all that's left
-    headers.remove('content-length');
-    for (const header of headers) {
-        expect(header[0]).toBe('Host');
-        expect(header[1]).toBe('www.amazon.com');
-    }
+        for (const header of headers) {
+            expect(['Host', 'Content-Length']).toContain(header[0]);
+            expect(['www.amazon.com', '42']).toContain(header[1]);
+        }
+        // Upgrade header does not exist
+        expect(headers.get('Upgrade')).toBeFalsy();
 
-    headers.clear();
-    for (const header of headers) {
-        // this should never be called
-        expect(header).toBeNull();
+        // Make sure case doesn't matter
+        expect(headers.get('HOST')).toBe('www.amazon.com');
+
+        // Remove Content-Length, and make sure host is all that's left
+        headers.remove('content-length');
+        for (const header of headers) {
+            expect(header[0]).toBe('Host');
+            expect(header[1]).toBe('www.amazon.com');
+        }
+
+        headers.clear();
+        for (const header of headers) {
+            // this should never be called
+            expect(header).toBeNull();
+        }
     }
+});
+
+test('HTTP Request', () => {
+    let request = new HttpRequest("GET", "/index.html");
+
+    expect(request.method).toBe("GET");
+    expect(request.path).toBe('/index.html');
+    expect(request.headers.length).toBe(0);
+
+    request.method = "POST";
+    request.path = "/test.html"
+
+    expect(request.method).toBe("POST");
+    expect(request.path).toBe('/test.html');
+
+    request.headers.add("Host", "www.amazon.com");
+    expect(request.headers.length).toBe(1);
 });
 
 async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions) {
@@ -227,7 +251,7 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
             reject(error);
         });
     })
-    
+
     await expect(promise).resolves.toBeTruthy();
     expect(connection_error).toBeUndefined();
 });
