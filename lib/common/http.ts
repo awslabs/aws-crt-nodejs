@@ -22,16 +22,12 @@ type HttpHeader = [string, string];
 export class HttpHeaders {
     // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
     private headers: { [index: string]: [HttpHeader] } = {};
-    private internal_message: any; /* Keep this for GC reasons */
     private native_message: any; /* Actually an HttpRequest/Response from the native directory */
 
     /** Construct from a collection of [name, value] pairs */
-    constructor(headers: HttpHeader[] = [], internal_message?: any) {
-        if (internal_message) {
-            this.internal_message = internal_message;
-            this.native_message = internal_message.native_handle();
-
-            <void>this.internal_message;
+    constructor(headers: HttpHeader[] = [], native_message?: any) {
+        if (native_message) {
+            this.native_message = native_message;
         }
 
         for (const header of headers) {
@@ -219,7 +215,7 @@ export class HttpHeaders {
         }
     }
 
-    _flatten(): string[][] {
+    _flatten(): HttpHeader[] {
         let flattened = [];
         for (const pair of this) {
             flattened.push(pair);

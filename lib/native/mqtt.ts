@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import crt_native = require('./binding');
+import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';

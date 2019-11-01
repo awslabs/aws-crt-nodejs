@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import crt_native = require('./binding');
+import crt_native from './binding';
 import { NativeResource } from "./native_resource";
 import { TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';

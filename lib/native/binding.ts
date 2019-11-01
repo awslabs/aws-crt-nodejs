@@ -25,4 +25,4 @@ catch (err) { /* When in the dist/lib folder, just leave lib */
     binding = require(binding_path);
 }
 
-export = binding;
+export default binding;

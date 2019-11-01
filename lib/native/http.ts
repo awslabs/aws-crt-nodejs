@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import crt_native = require('./binding');
+import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, SocketOptions, InputStream, TlsConnectionOptions } from './io';
@@ -23,25 +23,7 @@ export { HttpHeaders, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
 /** Represents a request to a web server from a client */
-export class HttpRequest extends NativeResource {
-    public get method() {
-        return this.native_handle().method;
-    }
-    public set method(value: string) {
-        this.native_handle().method = value;
-    }
-
-    public get path() {
-        return this.native_handle().path;
-    }
-    public set path(value: string) {
-        this.native_handle().path = value;
-    }
-
-    public set body(value: InputStream) {
-        this.native_handle().body = value;
-    }
-
+export class HttpRequest extends crt_native.http_request {
     public readonly headers: HttpHeaders;
 
     constructor(
@@ -54,7 +36,7 @@ export class HttpRequest extends NativeResource {
         /** Additional custom headers to send to the server */
         headers = new HttpHeaders()) {
 
-        super(new crt_native.http_request(method, path, body, headers._flatten()));
+        super(method, path, body, headers._flatten());
 
         this.headers = new HttpHeaders(undefined, this);
     }
@@ -183,7 +165,7 @@ export class HttpClientConnection extends HttpConnection {
         }
         const native_handle = crt_native.http_stream_new(
             this.native_handle(),
-            request.native_handle(),
+            request,
             on_complete_impl,
             on_response_impl,
             on_body_impl
