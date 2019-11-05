@@ -15,6 +15,7 @@
 
 #include "module.h"
 
+#include "auth.h"
 #include "crypto.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
@@ -504,6 +505,7 @@ static bool s_create_and_register_function(
 #undef CREATE_AND_REGISTER_FN
 
     AWS_NAPI_ENSURE(env, aws_napi_http_message_bind(env, exports));
+    AWS_NAPI_ENSURE(env, aws_napi_credentials_provider_bind(env, exports));
 
     return exports;
 }
