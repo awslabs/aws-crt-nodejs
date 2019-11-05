@@ -16,6 +16,7 @@
 #include "module.h"
 
 #include "class_binder.h"
+#include "http_message.h"
 
 #include <aws/http/request_response.h>
 
@@ -51,21 +52,25 @@ napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
             .type = napi_string,
             .getter = s_method_get,
             .setter = s_method_set,
+            .attributes = napi_enumerable | napi_writable,
         },
         {
             .name = "path",
             .type = napi_string,
             .getter = s_path_get,
             .setter = s_path_set,
+            .attributes = napi_enumerable | napi_writable,
         },
         {
             .name = "body",
             .setter = s_body_set,
+            .attributes = napi_enumerable | napi_writable,
         },
         {
             .name = "num_headers",
             .type = napi_number,
             .getter = s_num_headers_get,
+            .attributes = napi_enumerable,
         },
     };
 
@@ -225,8 +230,7 @@ static napi_value s_request_constructor(
 
             AWS_NAPI_CALL(
                 env,
-                napi_get_value_string_utf8(
-                    env, node_name, (char *)name_buf.buffer, name_buf.capacity, &name_buf.len),
+                napi_get_value_string_utf8(env, node_name, (char *)name_buf.buffer, name_buf.capacity, &name_buf.len),
                 {
                     napi_throw_error(env, NULL, "HTTP header name could not be extracted");
                     goto header_parse_error;

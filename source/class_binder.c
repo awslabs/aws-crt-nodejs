@@ -314,6 +314,7 @@ napi_status aws_napi_define_class(
 
     AWS_FATAL_ASSERT(constructor->name);
     AWS_FATAL_ASSERT(constructor->method);
+    AWS_FATAL_ASSERT(constructor->attributes == napi_default);
 
     struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
     impl->ctor_method = constructor;
@@ -337,11 +338,7 @@ napi_status aws_napi_define_class(
         desc->data = (void *)property;
         desc->getter = s_property_getter;
         desc->setter = s_property_setter;
-
-        desc->attributes = napi_default | napi_enumerable;
-        if (property->setter) {
-            desc->attributes |= napi_writable;
-        }
+        desc->attributes = property->attributes;
     }
 
     for (size_t method_i = 0; method_i < num_methods; ++method_i) {
@@ -354,7 +351,7 @@ napi_status aws_napi_define_class(
         desc->utf8name = method->name;
         desc->data = (void *)method;
         desc->method = s_method_call;
-        desc->attributes = napi_default;
+        desc->attributes = method->attributes;
     }
 
     AWS_NAPI_CALL(

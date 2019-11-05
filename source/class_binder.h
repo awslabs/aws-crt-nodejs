@@ -52,6 +52,8 @@ struct aws_napi_property_info {
 
     aws_napi_property_get_fn *getter;
     aws_napi_property_set_fn *setter;
+
+    napi_property_attributes attributes;
 };
 
 /***********************************************************************************************************************
@@ -69,6 +71,8 @@ struct aws_napi_method_info {
 
     size_t num_arguments; /* Number of *REQUIRED* arguments. 0 -> AWS_NAPI_METHOD_MAX_ARGS */
     napi_valuetype arg_types[AWS_NAPI_METHOD_MAX_ARGS];
+
+    napi_property_attributes attributes;
 };
 
 /***********************************************************************************************************************
