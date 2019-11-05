@@ -23,7 +23,7 @@ export { HttpHeaders, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
 /** Represents a request to a web server from a client */
-export class HttpRequest extends crt_native.http_request {
+export class HttpRequest extends crt_native.HttpRequest {
     public readonly headers: HttpHeaders;
 
     constructor(

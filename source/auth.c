@@ -30,7 +30,7 @@ static aws_napi_method_fn s_creds_provider_new_static;
     napi_status
     aws_napi_credentials_provider_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_constructor_info = {
-        .name = "credentials_provider",
+        .name = "CredentialsProvider",
         .method = s_creds_provider_constructor,
         .num_arguments = 1,
         .arg_types = {napi_external},
@@ -38,14 +38,14 @@ static aws_napi_method_fn s_creds_provider_new_static;
 
     static const struct aws_napi_method_info s_creds_provider_methods[] = {
         {
-            .name = "new_default",
+            .name = "newDefault",
             .method = s_creds_provider_constructor,
             .num_arguments = 1,
             .arg_types = {napi_external},
             .attributes = napi_static,
         },
         {
-            .name = "new_static",
+            .name = "newStatic",
             .method = s_creds_provider_new_static,
             .num_arguments = 2,
             .arg_types = {napi_string, napi_string, napi_string},
@@ -90,7 +90,7 @@ static napi_value s_creds_provider_constructor(
     struct aws_credentials_provider *provider = aws_credentials_provider_new_chain_default(allocator, &options);
 
     AWS_NAPI_CALL(env, napi_wrap(env, self, provider, s_napi_creds_provider_finalize, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to wrap credentials_provider");
+        napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
     });
 
@@ -119,7 +119,7 @@ static napi_value s_creds_provider_new_static(
     struct aws_credentials_provider *provider = aws_credentials_provider_new_static(allocator, access_key, secret_key, session_token);
 
     AWS_NAPI_CALL(env, napi_wrap(env, self, provider, s_napi_creds_provider_finalize, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to wrap credentials_provider");
+        napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
     });
 

@@ -39,7 +39,7 @@ static aws_napi_method_fn s_erase_header;
 napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
 
     static const struct aws_napi_method_info s_request_constructor_info = {
-        .name = "http_request",
+        .name = "HttpRequest",
         .method = s_request_constructor,
 
         .num_arguments = 0,
@@ -261,7 +261,7 @@ static napi_value s_request_constructor(
 header_parse_success:
 
     AWS_NAPI_CALL(env, napi_wrap(env, node_this, message, s_napi_http_request_finalize, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to wrap http_request");
+        napi_throw_error(env, NULL, "Failed to wrap HttpRequest");
         goto cleanup;
     });
 
