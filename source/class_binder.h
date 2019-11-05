@@ -43,8 +43,8 @@ struct aws_napi_argument {
 /***********************************************************************************************************************
  * Properties
  **********************************************************************************************************************/
-typedef napi_value(aws_napi_property_get_fn)(napi_env env, void *self, void *userdata);
-typedef void(aws_napi_property_set_fn)(napi_env env, void *self, const struct aws_napi_argument *value, void *userdata);
+typedef napi_value(aws_napi_property_get_fn)(napi_env env, void *self);
+typedef void(aws_napi_property_set_fn)(napi_env env, void *self, const struct aws_napi_argument *value);
 
 struct aws_napi_property_info {
     const char *name;
@@ -52,8 +52,6 @@ struct aws_napi_property_info {
 
     aws_napi_property_get_fn *getter;
     aws_napi_property_set_fn *setter;
-
-    void *userdata;
 };
 
 /***********************************************************************************************************************
@@ -63,8 +61,7 @@ typedef napi_value(aws_napi_method_fn)(
     napi_env env,
     void *self,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args,
-    void *userdata);
+    size_t num_args);
 
 struct aws_napi_method_info {
     const char *name;
@@ -72,8 +69,6 @@ struct aws_napi_method_info {
 
     size_t num_arguments; /* Number of *REQUIRED* arguments. 0 -> AWS_NAPI_METHOD_MAX_ARGS */
     napi_valuetype arg_types[AWS_NAPI_METHOD_MAX_ARGS];
-
-    void *userdata;
 };
 
 /***********************************************************************************************************************

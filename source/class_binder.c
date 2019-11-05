@@ -202,7 +202,7 @@ static napi_value s_property_getter(napi_env env, napi_callback_info info) {
 
     const struct aws_napi_property_info *property = data;
 
-    napi_value result = property->getter(env, self, property->userdata);
+    napi_value result = property->getter(env, self);
 
 #if DEBUG_BUILD
     /* In debug builds, validate that getters are returning the correct type */
@@ -246,7 +246,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    property->setter(env, self, &new_value, property->userdata);
+    property->setter(env, self, &new_value);
 
     s_argument_cleanup(env, &new_value);
 
@@ -293,7 +293,7 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
         }
     }
 
-    result = method->method(env, self, args, num_args, method->userdata);
+    result = method->method(env, self, args, num_args);
 
 cleanup_arguments:
     for (size_t i = 0; i < num_args; ++i) {
