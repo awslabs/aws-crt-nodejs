@@ -148,28 +148,31 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
         });
 
     } else {
-        const struct aws_napi_method_info *method_info = clazz->ctor_method;
+        const struct aws_napi_method_info *method = clazz->ctor_method;
 
-        struct aws_napi_argument args[AWS_NAPI_METHOD_MAX_ARGS];
-        AWS_ZERO_ARRAY(args);
+        /* If there is no ctor method, don't both doing anything more, just return the empty object */
+        if (method->method) {
+            struct aws_napi_argument args[AWS_NAPI_METHOD_MAX_ARGS];
+            AWS_ZERO_ARRAY(args);
 
-        if (num_args < method_info->num_arguments) {
-            napi_throw_error(env, NULL, "Class binder constructor given incorrect number of arguments");
-            return NULL;
-        }
-
-        for (size_t i = 0; i < num_args; ++i) {
-            if (s_argument_parse(
-                    env, node_args[i], method_info->arg_types[i], i >= method_info->num_arguments, &args[i])) {
-                goto cleanup_arguments;
+            if (num_args < method->num_arguments) {
+                napi_throw_error(env, NULL, "Class binder constructor given incorrect number of arguments");
+                return NULL;
             }
-        }
 
-        result = method_info->method(env, node_this, args, num_args);
+            for (size_t i = 0; i < num_args; ++i) {
+                if (s_argument_parse(
+                        env, node_args[i], method->arg_types[i], i >= method->num_arguments, &args[i])) {
+                    goto cleanup_arguments;
+                }
+            }
 
-    cleanup_arguments:
-        for (size_t i = 0; i < method_info->num_arguments; ++i) {
-            s_argument_cleanup(env, &args[i]);
+            method->method(env, node_this, args, num_args);
+
+        cleanup_arguments:
+            for (size_t i = 0; i < method->num_arguments; ++i) {
+                s_argument_cleanup(env, &args[i]);
+            }
         }
     }
 
@@ -313,7 +316,6 @@ napi_status aws_napi_define_class(
     struct aws_napi_class_info *clazz) {
 
     AWS_FATAL_ASSERT(constructor->name);
-    AWS_FATAL_ASSERT(constructor->method);
     AWS_FATAL_ASSERT(constructor->attributes == napi_default);
 
     struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
