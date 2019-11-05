@@ -19,9 +19,9 @@
 
 #include <aws/http/request_response.h>
 
-static napi_value s_request_constructor;
+static struct aws_napi_class_info s_request_clazz;
 
-static napi_value s_request_constructor_cb(napi_env env, napi_callback_info info);
+static aws_napi_method_fn s_request_constructor;
 
 static aws_napi_property_get_fn s_method_get;
 static aws_napi_property_set_fn s_method_set;
@@ -36,6 +36,14 @@ static aws_napi_method_fn s_get_header;
 static aws_napi_method_fn s_erase_header;
 
 napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
+
+    static const struct aws_napi_method_info s_request_constructor_info = {
+        .name = "http_request",
+        .method = s_request_constructor,
+
+        .num_arguments = 0,
+        .arg_types = {napi_string, napi_string, napi_external, napi_undefined},
+    };
 
     static const struct aws_napi_property_info s_request_properties[] = {
         {
@@ -91,31 +99,17 @@ napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
     return aws_napi_define_class(
         env,
         exports,
-        "http_request",
-        s_request_constructor_cb,
+        &s_request_constructor_info,
         s_request_properties,
         AWS_ARRAY_SIZE(s_request_properties),
         s_request_methods,
         AWS_ARRAY_SIZE(s_request_methods),
-        &s_request_constructor);
+        &s_request_clazz);
 }
-
-static AWS_THREAD_LOCAL bool s_is_wrapping = false;
 
 napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *message, napi_value *result) {
 
-    /* Create the external object to pass to the constructor */
-    napi_value to_wrap;
-    AWS_NAPI_ENSURE(env, napi_create_external(env, message, NULL, NULL, &to_wrap));
-
-    s_is_wrapping = true;
-    AWS_NAPI_CALL(env, napi_new_instance(env, s_request_constructor, 1, &to_wrap, result), {
-        napi_throw_error(env, NULL, "Failed to construct http_request object");
-        return status;
-    });
-    s_is_wrapping = false;
-
-    return napi_ok;
+    return aws_napi_wrap(env, &s_request_clazz, message, result);
 }
 
 struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value js_object) {
@@ -136,197 +130,144 @@ static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void
     aws_http_message_destroy(finalize_data);
 }
 
-static napi_value s_request_constructor_cb(napi_env env, napi_callback_info info) {
+static napi_value s_request_constructor(
+    napi_env env,
+    void *self,
+    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
+    size_t num_args) {
+
+    napi_value node_this = self;
 
     struct aws_allocator *alloc = aws_default_allocator();
+    struct aws_http_message *message = aws_http_message_new_request(alloc);
 
-    struct aws_http_message *message = NULL;
+    if (num_args >= 1 && args[0].type != napi_undefined) {
+        struct aws_byte_cursor method_cur = aws_byte_cursor_from_buf(&args[0].native.string);
+        aws_http_message_set_request_method(message, method_cur);
+    }
 
-    napi_value node_args[4];
-    napi_value node_this = NULL;
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, &node_this, NULL), {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+    if (num_args >= 2 && args[1].type != napi_undefined) {
+        struct aws_byte_cursor path_cur = aws_byte_cursor_from_buf(&args[1].native.string);
+        aws_http_message_set_request_path(message, path_cur);
+    }
+
+    if (num_args >= 3 && args[2].type != napi_undefined) {
+        aws_http_message_set_body_stream(message, args[2].native.external);
+    }
+
+    if (num_args >= 4 && args[3].type != napi_undefined) {
+        napi_value node_headers = args[3].node;
+
+        bool is_array = false;
+        if (napi_is_array(env, node_headers, &is_array) || !is_array) {
+            napi_throw_type_error(env, NULL, "headers must be an array of arrays");
+            goto cleanup;
+        }
+
+        uint32_t num_headers = 0;
+        AWS_NAPI_CALL(env, napi_get_array_length(env, node_headers, &num_headers), {
+            napi_throw_error(env, NULL, "Could not get length of header array");
+            goto cleanup;
+        });
+
+        struct aws_byte_buf name_buf;
+        struct aws_byte_buf value_buf;
+        aws_byte_buf_init(&name_buf, alloc, 256);
+        aws_byte_buf_init(&value_buf, alloc, 256);
+        for (uint32_t idx = 0; idx < num_headers; ++idx) {
+            napi_value node_header = NULL;
+            AWS_NAPI_CALL(env, napi_get_element(env, node_headers, idx, &node_header), {
+                napi_throw_error(env, NULL, "Failed to extract headers");
+                goto header_parse_error;
+            });
+
+            AWS_NAPI_CALL(env, napi_is_array(env, node_header, &is_array), {
+                napi_throw_error(env, NULL, "Cannot determine if headers are an array");
+                goto header_parse_error;
+            });
+            if (!is_array) {
+                napi_throw_type_error(env, NULL, "headers must be an array of 2 element arrays");
+                goto header_parse_error;
+            }
+
+            uint32_t num_parts = 0;
+            AWS_NAPI_CALL(env, napi_get_array_length(env, node_header, &num_parts), {
+                napi_throw_error(env, NULL, "Could not get length of header parts");
+                goto header_parse_error;
+            });
+            if (num_parts != 2) {
+                napi_throw_error(env, NULL, "Could not get length of header parts or length was not 2");
+                goto header_parse_error;
+            }
+            napi_value node_name = NULL;
+            napi_value node = NULL;
+            AWS_NAPI_CALL(env, napi_get_element(env, node_header, 0, &node_name), {
+                napi_throw_error(env, NULL, "Could not extract header name");
+                goto header_parse_error;
+            });
+            AWS_NAPI_CALL(env, napi_get_element(env, node_header, 1, &node), {
+                napi_throw_error(env, NULL, "Could not extract header value");
+                goto header_parse_error;
+            });
+            /* extract the length of the name and value strings, ensure the buffers can hold them, and
+            then copy the values out. Should result in buffer re-use most of the time. */
+            size_t length = 0;
+            AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node_name, NULL, 0, &length), {
+                napi_throw_type_error(env, NULL, "HTTP header was not a string or length could not be extracted");
+                goto header_parse_error;
+            });
+            aws_byte_buf_reserve(&name_buf, length);
+            AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node, NULL, 0, &length), {
+                napi_throw_type_error(env, NULL, "HTTP header was not a string or length could not be extracted");
+                goto header_parse_error;
+            });
+            aws_byte_buf_reserve(&value_buf, length);
+
+            AWS_NAPI_CALL(
+                env,
+                napi_get_value_string_utf8(
+                    env, node_name, (char *)name_buf.buffer, name_buf.capacity, &name_buf.len),
+                {
+                    napi_throw_error(env, NULL, "HTTP header name could not be extracted");
+                    goto header_parse_error;
+                });
+            AWS_NAPI_CALL(
+                env,
+                napi_get_value_string_utf8(env, node, (char *)value_buf.buffer, value_buf.capacity, &value_buf.len),
+                {
+                    napi_throw_error(env, NULL, "HTTP header value could not be extracted");
+                    goto header_parse_error;
+                });
+
+            struct aws_http_header header = {
+                .name = aws_byte_cursor_from_buf(&name_buf),
+                .value = aws_byte_cursor_from_buf(&value_buf),
+            };
+            aws_http_message_add_header(message, header);
+        }
+        aws_byte_buf_clean_up(&name_buf);
+        aws_byte_buf_clean_up(&value_buf);
+        goto header_parse_success;
+
+    header_parse_error:
+        aws_byte_buf_clean_up(&name_buf);
+        aws_byte_buf_clean_up(&value_buf);
+        goto cleanup;
+    }
+header_parse_success:
+
+    AWS_NAPI_CALL(env, napi_wrap(env, node_this, message, s_napi_http_request_finalize, NULL, NULL), {
+        napi_throw_error(env, NULL, "Failed to wrap http_request");
         goto cleanup;
     });
 
-    /* Check if we're constructing a new object, or wrapping an old one */
-    if (s_is_wrapping) {
-        AWS_FATAL_ASSERT(num_args == 1);
+    return node_this;
 
-        /* Arg 1 should be an external */
-        AWS_NAPI_ENSURE(env, napi_get_value_external(env, node_args[0], (void **)&message));
-
-        /* Wrap shouldn't take a finalizer, because it's very likely that this object isn't owned by JS */
-        AWS_NAPI_CALL(env, napi_wrap(env, node_this, message, NULL, NULL, NULL), {
-            napi_throw_error(env, NULL, "Failed to wrap http_request");
-            goto cleanup;
-        });
-
-        return node_this;
-
-    } else {
-        if (num_args > AWS_ARRAY_SIZE(node_args)) {
-            napi_throw_error(env, NULL, "http_request takes no more than 4 arguments");
-            goto cleanup;
-        }
-        if (node_this == NULL) {
-            napi_throw_error(env, NULL, "http_request must be called as a constructor");
-            goto cleanup;
-        }
-
-        message = aws_http_message_new_request(alloc);
-
-        napi_value node_method = *arg++;
-        if (!aws_napi_is_null_or_undefined(env, node_method)) {
-            struct aws_byte_buf method;
-            AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&method, env, node_method), {
-                napi_throw_error(env, NULL, "Failed to extract method from first argument");
-                goto cleanup;
-            });
-            struct aws_byte_cursor method_cur = aws_byte_cursor_from_buf(&method);
-            aws_http_message_set_request_method(message, method_cur);
-            aws_byte_buf_clean_up(&method);
-        }
-
-        napi_value node_path = *arg++;
-        if (!aws_napi_is_null_or_undefined(env, node_path)) {
-            struct aws_byte_buf path;
-            AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&path, env, node_path), {
-                napi_throw_error(env, NULL, "Failed to extract path from second argument");
-                goto cleanup;
-            });
-
-            struct aws_byte_cursor path_cur = aws_byte_cursor_from_buf(&path);
-            aws_http_message_set_request_path(message, path_cur);
-            aws_byte_buf_clean_up(&path);
-        }
-
-        napi_value node_stream = *arg++;
-        if (!aws_napi_is_null_or_undefined(env, node_stream)) {
-            struct aws_input_stream *body_stream = NULL;
-            AWS_NAPI_CALL(env, napi_get_value_external(env, node_stream, (void **)&body_stream), {
-                napi_throw_error(env, NULL, "Unable to acquire request body stream");
-                goto cleanup;
-            });
-
-            aws_http_message_set_body_stream(message, body_stream);
-        }
-
-        napi_value node_headers = *arg++;
-        if (!aws_napi_is_null_or_undefined(env, node_headers)) {
-            bool is_array = false;
-            if (napi_is_array(env, node_headers, &is_array) || !is_array) {
-                napi_throw_type_error(env, NULL, "headers must be an array of arrays");
-                goto cleanup;
-            }
-
-            uint32_t num_headers = 0;
-            AWS_NAPI_CALL(env, napi_get_array_length(env, node_headers, &num_headers), {
-                napi_throw_error(env, NULL, "Could not get length of header array");
-                goto cleanup;
-            });
-
-            struct aws_byte_buf name_buf;
-            struct aws_byte_buf value_buf;
-            aws_byte_buf_init(&name_buf, alloc, 256);
-            aws_byte_buf_init(&value_buf, alloc, 256);
-            for (uint32_t idx = 0; idx < num_headers; ++idx) {
-                napi_value node_header = NULL;
-                AWS_NAPI_CALL(env, napi_get_element(env, node_headers, idx, &node_header), {
-                    napi_throw_error(env, NULL, "Failed to extract headers");
-                    goto header_parse_error;
-                });
-
-                AWS_NAPI_CALL(env, napi_is_array(env, node_header, &is_array), {
-                    napi_throw_error(env, NULL, "Cannot determine if headers are an array");
-                    goto header_parse_error;
-                });
-                if (!is_array) {
-                    napi_throw_type_error(env, NULL, "headers must be an array of 2 element arrays");
-                    goto header_parse_error;
-                }
-
-                uint32_t num_parts = 0;
-                AWS_NAPI_CALL(env, napi_get_array_length(env, node_header, &num_parts), {
-                    napi_throw_error(env, NULL, "Could not get length of header parts");
-                    goto header_parse_error;
-                });
-                if (num_parts != 2) {
-                    napi_throw_error(env, NULL, "Could not get length of header parts or length was not 2");
-                    goto header_parse_error;
-                }
-                napi_value node_name = NULL;
-                napi_value node = NULL;
-                AWS_NAPI_CALL(env, napi_get_element(env, node_header, 0, &node_name), {
-                    napi_throw_error(env, NULL, "Could not extract header name");
-                    goto header_parse_error;
-                });
-                AWS_NAPI_CALL(env, napi_get_element(env, node_header, 1, &node), {
-                    napi_throw_error(env, NULL, "Could not extract header value");
-                    goto header_parse_error;
-                });
-                /* extract the length of the name and value strings, ensure the buffers can hold them, and
-                then copy the values out. Should result in buffer re-use most of the time. */
-                size_t length = 0;
-                AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node_name, NULL, 0, &length), {
-                    napi_throw_type_error(env, NULL, "HTTP header was not a string or length could not be extracted");
-                    goto header_parse_error;
-                });
-                aws_byte_buf_reserve(&name_buf, length);
-                AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node, NULL, 0, &length), {
-                    napi_throw_type_error(env, NULL, "HTTP header was not a string or length could not be extracted");
-                    goto header_parse_error;
-                });
-                aws_byte_buf_reserve(&value_buf, length);
-
-                AWS_NAPI_CALL(
-                    env,
-                    napi_get_value_string_utf8(
-                        env, node_name, (char *)name_buf.buffer, name_buf.capacity, &name_buf.len),
-                    {
-                        napi_throw_error(env, NULL, "HTTP header name could not be extracted");
-                        goto header_parse_error;
-                    });
-                AWS_NAPI_CALL(
-                    env,
-                    napi_get_value_string_utf8(env, node, (char *)value_buf.buffer, value_buf.capacity, &value_buf.len),
-                    {
-                        napi_throw_error(env, NULL, "HTTP header value could not be extracted");
-                        goto header_parse_error;
-                    });
-
-                struct aws_http_header header = {
-                    .name = aws_byte_cursor_from_buf(&name_buf),
-                    .value = aws_byte_cursor_from_buf(&value_buf),
-                };
-                aws_http_message_add_header(message, header);
-            }
-            aws_byte_buf_clean_up(&name_buf);
-            aws_byte_buf_clean_up(&value_buf);
-            goto header_parse_success;
-
-        header_parse_error:
-            aws_byte_buf_clean_up(&name_buf);
-            aws_byte_buf_clean_up(&value_buf);
-            goto cleanup;
-        }
-    header_parse_success:
-
-        AWS_NAPI_CALL(env, napi_wrap(env, node_this, message, s_napi_http_request_finalize, NULL, NULL), {
-            napi_throw_error(env, NULL, "Failed to wrap http_request");
-            goto cleanup;
-        });
-
-        return node_this;
-
-    cleanup:
-        if (message) {
-            aws_http_message_destroy(message);
-        }
-        return NULL;
+cleanup:
+    if (message) {
+        aws_http_message_destroy(message);
     }
+    return NULL;
 }
 
 /***********************************************************************************************************************

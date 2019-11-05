@@ -15,24 +15,37 @@
 
 #include "class_binder.h"
 
+struct aws_napi_class_info_impl {
+    const struct aws_napi_method_info *ctor_method;
+
+    napi_value constructor;
+    bool is_wrapping;
+};
+
+/* Make sure our static storage is big enough */
+AWS_STATIC_ASSERT(sizeof(struct aws_napi_class_info) >= sizeof(struct aws_napi_class_info_impl));
+
 /**
  * Populates an aws_napi_argument object from a napi value.
  *
- * \param env           The node environment.
- * \param value         The value to pull the value from.
- * \param expected_type The type you expect the value to be. Pass napi_undefined to accept anything.
- * \param out_value     The argument object to populate.
+ * \param env               The node environment.
+ * \param value             The value to pull the value from.
+ * \param expected_type     The type you expect the value to be. Pass napi_undefined to accept anything.
+ * \param accept_undefined  Whether or not to accept expected_type OR undefined
+ * \param out_value         The argument object to populate.
  */
 static napi_status s_argument_parse(
     napi_env env,
     napi_value value,
     napi_valuetype expected_type,
+    bool accept_undefined,
     struct aws_napi_argument *out_value) {
 
     out_value->node = value;
     AWS_NAPI_CALL(env, napi_typeof(env, value, &out_value->type), { return status; });
 
-    if (expected_type != napi_undefined && out_value->type != expected_type) {
+    if (expected_type != napi_undefined && out_value->type != expected_type &&
+        !(accept_undefined && out_value->type == napi_undefined)) {
         switch (expected_type) {
             case napi_string:
                 napi_throw_type_error(env, NULL, "Class binder argument expected a string");
@@ -48,7 +61,7 @@ static napi_status s_argument_parse(
         }
     }
 
-    switch (expected_type) {
+    switch (out_value->type) {
         case napi_string: {
             AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&out_value->native.string, env, value), { return status; });
 
@@ -98,6 +111,69 @@ static void s_argument_cleanup(napi_env env, struct aws_napi_argument *value) {
         default:
             break;
     }
+}
+
+/**
+ * Used as the class's constructor
+ */
+static napi_value s_constructor(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[AWS_NAPI_METHOD_MAX_ARGS];
+    napi_value node_this = NULL;
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    struct aws_napi_class_info_impl *clazz = NULL;
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, &node_this, (void **)&clazz), {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    });
+    if (num_args > AWS_NAPI_METHOD_MAX_ARGS) {
+        num_args = AWS_NAPI_METHOD_MAX_ARGS;
+    }
+
+    napi_value result = NULL;
+
+    /* Check if we're wrapping an existing object or creating a new one */
+    if (clazz->is_wrapping) {
+        AWS_FATAL_ASSERT(num_args == 1);
+
+        void *native = NULL;
+
+        /* Arg 1 should be an external */
+        AWS_NAPI_ENSURE(env, napi_get_value_external(env, node_args[0], &native));
+
+        /* Wrap shouldn't take a finalizer, because it's very likely that this object isn't owned by JS */
+        AWS_NAPI_CALL(env, napi_wrap(env, node_this, native, NULL, NULL, NULL), {
+            napi_throw_error(env, NULL, "Failed to wrap http_request");
+            return NULL;
+        });
+
+    } else {
+        const struct aws_napi_method_info *method_info = clazz->ctor_method;
+
+        struct aws_napi_argument args[AWS_NAPI_METHOD_MAX_ARGS];
+        AWS_ZERO_ARRAY(args);
+
+        if (num_args < method_info->num_arguments) {
+            napi_throw_error(env, NULL, "Class binder constructor given incorrect number of arguments");
+            return NULL;
+        }
+
+        for (size_t i = 0; i < num_args; ++i) {
+            if (s_argument_parse(
+                    env, node_args[i], method_info->arg_types[i], i >= method_info->num_arguments, &args[i])) {
+                goto cleanup_arguments;
+            }
+        }
+
+        result = method_info->method(env, node_this, args, num_args);
+
+    cleanup_arguments:
+        for (size_t i = 0; i < method_info->num_arguments; ++i) {
+            s_argument_cleanup(env, &args[i]);
+        }
+    }
+
+    return result;
 }
 
 /**
@@ -166,7 +242,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
     const struct aws_napi_property_info *property = data;
 
     struct aws_napi_argument new_value;
-    if (s_argument_parse(env, node_value, property->type, &new_value)) {
+    if (s_argument_parse(env, node_value, property->type, false, &new_value)) {
         return NULL;
     }
 
@@ -194,6 +270,9 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
+    if (num_args > AWS_NAPI_METHOD_MAX_ARGS) {
+        num_args = AWS_NAPI_METHOD_MAX_ARGS;
+    }
 
     struct aws_napi_method_info *method = data;
     if (num_args != method->num_arguments) {
@@ -208,8 +287,8 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
 
-    for (size_t i = 0; i < method->num_arguments; ++i) {
-        if (s_argument_parse(env, node_args[i], method->arg_types[i], &args[i])) {
+    for (size_t i = 0; i < num_args; ++i) {
+        if (s_argument_parse(env, node_args[i], method->arg_types[i], i >= method->num_arguments, &args[i])) {
             goto cleanup_arguments;
         }
     }
@@ -217,7 +296,7 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
     result = method->method(env, self, args, num_args, method->userdata);
 
 cleanup_arguments:
-    for (size_t i = 0; i < method->num_arguments; ++i) {
+    for (size_t i = 0; i < num_args; ++i) {
         s_argument_cleanup(env, &args[i]);
     }
     return result;
@@ -226,13 +305,18 @@ cleanup_arguments:
 napi_status aws_napi_define_class(
     napi_env env,
     napi_value exports,
-    const char *name,
-    napi_callback ctor,
+    const struct aws_napi_method_info *constructor,
     const struct aws_napi_property_info *properties,
     size_t num_properties,
     const struct aws_napi_method_info *methods,
     size_t num_methods,
-    napi_value *constructor) {
+    struct aws_napi_class_info *clazz) {
+
+    AWS_FATAL_ASSERT(constructor->name);
+    AWS_FATAL_ASSERT(constructor->method);
+
+    struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
+    impl->ctor_method = constructor;
 
     struct aws_allocator *allocator = aws_default_allocator();
 
@@ -247,6 +331,7 @@ napi_status aws_napi_define_class(
         const struct aws_napi_property_info *property = &properties[prop_i];
 
         AWS_FATAL_ASSERT(property->name);
+        AWS_FATAL_ASSERT(property->getter || property->setter);
 
         desc->utf8name = property->name;
         desc->data = (void *)property;
@@ -264,6 +349,7 @@ napi_status aws_napi_define_class(
         const struct aws_napi_method_info *method = &methods[method_i];
 
         AWS_FATAL_ASSERT(method->name);
+        AWS_FATAL_ASSERT(method->method);
 
         desc->utf8name = method->name;
         desc->data = (void *)method;
@@ -271,19 +357,42 @@ napi_status aws_napi_define_class(
         desc->attributes = napi_default;
     }
 
-    napi_value class_ctor = NULL;
     AWS_NAPI_CALL(
-        env, napi_define_class(env, name, NAPI_AUTO_LENGTH, ctor, NULL, num_descriptors, descriptors, &class_ctor), {
-            return status;
-        });
+        env,
+        napi_define_class(
+            env,
+            constructor->name,
+            NAPI_AUTO_LENGTH,
+            s_constructor,
+            clazz,
+            num_descriptors,
+            descriptors,
+            &impl->constructor),
+        { return status; });
 
     aws_mem_release(allocator, descriptors);
 
-    AWS_NAPI_CALL(env, napi_set_named_property(env, exports, name, class_ctor), { return status; });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, exports, constructor->name, impl->constructor), { return status; });
 
-    if (constructor) {
-        *constructor = class_ctor;
-    }
+    return napi_ok;
+}
+
+napi_status aws_napi_wrap(napi_env env, struct aws_napi_class_info *clazz, void *native, napi_value *result) {
+    struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
+
+    /* Create the external object to pass to the constructor */
+    napi_value to_wrap;
+    AWS_NAPI_CALL(env, napi_create_external(env, native, NULL, NULL, &to_wrap), {
+        napi_throw_error(env, NULL, "Failed to construct external argument");
+        return status;
+    });
+
+    impl->is_wrapping = true;
+    AWS_NAPI_CALL(env, napi_new_instance(env, impl->constructor, 1, &to_wrap, result), {
+        napi_throw_error(env, NULL, "Failed to construct class-bound object");
+        return status;
+    });
+    impl->is_wrapping = false;
 
     return napi_ok;
 }

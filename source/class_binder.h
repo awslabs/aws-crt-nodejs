@@ -18,8 +18,18 @@
 #include "module.h"
 
 /* Increment this as you find functions that require more arguments */
-#define AWS_NAPI_METHOD_MAX_ARGS 2
+#define AWS_NAPI_METHOD_MAX_ARGS 4
 
+/**
+ * Expected to be stored statically, but is for internal usage only.
+ */
+struct aws_napi_class_info {
+    uint8_t filler[24];
+};
+
+/**
+ * Passed as a parameter to functions accepting arguments.
+ */
 struct aws_napi_argument {
     napi_value node;
     napi_valuetype type;
@@ -60,7 +70,7 @@ struct aws_napi_method_info {
     const char *name;
     aws_napi_method_fn *method;
 
-    size_t num_arguments; /* 0 -> AWS_NAPI_METHOD_MAX_ARGS */
+    size_t num_arguments; /* Number of *REQUIRED* arguments. 0 -> AWS_NAPI_METHOD_MAX_ARGS */
     napi_valuetype arg_types[AWS_NAPI_METHOD_MAX_ARGS];
 
     void *userdata;
@@ -72,12 +82,13 @@ struct aws_napi_method_info {
 napi_status aws_napi_define_class(
     napi_env env,
     napi_value exports,
-    const char *name,
-    napi_callback ctor,
+    const struct aws_napi_method_info *constructor,
     const struct aws_napi_property_info *properties,
     size_t num_properties,
     const struct aws_napi_method_info *methods,
     size_t num_methods,
-    napi_value *constructor);
+    struct aws_napi_class_info *clazz);
+
+napi_status aws_napi_wrap(napi_env env, struct aws_napi_class_info *clazz, void *native, napi_value *result);
 
 #endif /* AWS_CRT_NODEJS_CLASS_BINDER_H */
