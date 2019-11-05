@@ -77,6 +77,7 @@ napi_status aws_napi_define_class(
     const struct aws_napi_property_info *properties,
     size_t num_properties,
     const struct aws_napi_method_info *methods,
-    size_t num_methods);
+    size_t num_methods,
+    napi_value *constructor);
 
 #endif /* AWS_CRT_NODEJS_CLASS_BINDER_H */

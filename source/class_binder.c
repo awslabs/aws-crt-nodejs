@@ -231,7 +231,8 @@ napi_status aws_napi_define_class(
     const struct aws_napi_property_info *properties,
     size_t num_properties,
     const struct aws_napi_method_info *methods,
-    size_t num_methods) {
+    size_t num_methods,
+    napi_value *constructor) {
 
     struct aws_allocator *allocator = aws_default_allocator();
 
@@ -279,6 +280,10 @@ napi_status aws_napi_define_class(
     aws_mem_release(allocator, descriptors);
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, exports, name, class_ctor), { return status; });
+
+    if (constructor) {
+        *constructor = class_ctor;
+    }
 
     return napi_ok;
 }
