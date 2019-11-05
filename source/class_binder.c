@@ -233,9 +233,11 @@ napi_status aws_napi_define_class(
     const struct aws_napi_method_info *methods,
     size_t num_methods) {
 
+    struct aws_allocator *allocator = aws_default_allocator();
+
     const size_t num_descriptors = num_properties + num_methods;
     napi_property_descriptor *descriptors =
-        aws_mem_calloc(aws_default_allocator(), num_descriptors, sizeof(napi_property_descriptor));
+        aws_mem_calloc(allocator, num_descriptors, sizeof(napi_property_descriptor));
 
     size_t desc_i = 0;
 
@@ -273,6 +275,8 @@ napi_status aws_napi_define_class(
         env, napi_define_class(env, name, NAPI_AUTO_LENGTH, ctor, NULL, num_descriptors, descriptors, &class_ctor), {
             return status;
         });
+
+    aws_mem_release(allocator, descriptors);
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, exports, name, class_ctor), { return status; });
 
