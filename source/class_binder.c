@@ -126,7 +126,7 @@ static napi_value s_property_getter(napi_env env, napi_callback_info info) {
 
     const struct aws_napi_property_info *property = data;
 
-    napi_value result = property->getter(env, self);
+    napi_value result = property->getter(env, self, property->userdata);
 
 #if DEBUG_BUILD
     /* In debug builds, validate that getters are returning the correct type */
@@ -170,7 +170,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    property->setter(env, self, &new_value);
+    property->setter(env, self, &new_value, property->userdata);
 
     s_argument_cleanup(env, &new_value);
 
@@ -195,8 +195,8 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
         return NULL;
     });
 
-    struct aws_napi_method_info *method_info = data;
-    if (num_args != method_info->num_arguments) {
+    struct aws_napi_method_info *method = data;
+    if (num_args != method->num_arguments) {
         napi_throw_error(env, NULL, "HttpRequest setter needs exactly 1 arguments");
         return NULL;
     }
@@ -208,16 +208,16 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
 
     napi_value result = NULL;
 
-    for (size_t i = 0; i < method_info->num_arguments; ++i) {
-        if (s_argument_parse(env, node_args[i], method_info->arg_types[i], &args[i])) {
+    for (size_t i = 0; i < method->num_arguments; ++i) {
+        if (s_argument_parse(env, node_args[i], method->arg_types[i], &args[i])) {
             goto cleanup_arguments;
         }
     }
 
-    result = method_info->method(env, self, args, num_args);
+    result = method->method(env, self, args, num_args, method->userdata);
 
 cleanup_arguments:
-    for (size_t i = 0; i < method_info->num_arguments; ++i) {
+    for (size_t i = 0; i < method->num_arguments; ++i) {
         s_argument_cleanup(env, &args[i]);
     }
     return result;
