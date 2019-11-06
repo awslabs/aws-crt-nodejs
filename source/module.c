@@ -401,7 +401,10 @@ struct aws_allocator *aws_napi_get_allocator() {
         int level = atoi(aws_string_c_str(value));
         if (level < AWS_MEMTRACE_NONE || level > AWS_MEMTRACE_STACKS) {
             /* this can't go through logging, because it happens before logging is set up */
-            fprintf(stderr, "AWS_CRT_MEMORY_TRACING is set to invalid value: %s, must be 0 (none), 1 (bytes), or 2 (stacks)", aws_string_bytes(value));
+            fprintf(
+                stderr,
+                "AWS_CRT_MEMORY_TRACING is set to invalid value: %s, must be 0 (none), 1 (bytes), or 2 (stacks)",
+                aws_string_bytes(value));
             level = AWS_MEMTRACE_NONE;
         }
         s_allocator = aws_mem_tracer_new(aws_default_allocator(), NULL, level, 16);
@@ -493,7 +496,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(native_memory_dump)
     CREATE_AND_REGISTER_FN(error_code_to_string)
     CREATE_AND_REGISTER_FN(error_code_to_name)
-    
+
     /* IO */
     CREATE_AND_REGISTER_FN(io_logging_enable)
     CREATE_AND_REGISTER_FN(is_alpn_available)
