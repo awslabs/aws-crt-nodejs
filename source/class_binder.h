@@ -34,8 +34,9 @@ struct aws_napi_argument {
     napi_value node;
     napi_valuetype type;
     union {
-        struct aws_byte_buf string;
+        bool boolean;
         int64_t number;
+        struct aws_byte_buf string;
         void *external;
     } native;
 };
@@ -88,6 +89,11 @@ napi_status aws_napi_define_class(
     size_t num_methods,
     struct aws_napi_class_info *clazz);
 
-napi_status aws_napi_wrap(napi_env env, struct aws_napi_class_info *clazz, void *native, napi_value *result);
+napi_status aws_napi_wrap(
+    napi_env env,
+    struct aws_napi_class_info *clazz,
+    void *native,
+    napi_finalize finalizer,
+    napi_value *result);
 
 #endif /* AWS_CRT_NODEJS_CLASS_BINDER_H */

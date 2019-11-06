@@ -62,6 +62,12 @@ static napi_status s_argument_parse(
     }
 
     switch (out_value->type) {
+        case napi_boolean: {
+            AWS_NAPI_CALL(env, napi_get_value_bool(env, value, &out_value->native.boolean), { return status; });
+
+            break;
+        }
+
         case napi_string: {
             AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&out_value->native.string, env, value), { return status; });
 
@@ -171,8 +177,7 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
             }
 
             for (size_t i = 0; i < num_args; ++i) {
-                if (s_argument_parse(
-                        env, node_args[i], method->arg_types[i], i >= method->num_arguments, &args[i])) {
+                if (s_argument_parse(env, node_args[i], method->arg_types[i], i >= method->num_arguments, &args[i])) {
                     goto cleanup_arguments;
                 }
             }
@@ -386,12 +391,18 @@ napi_status aws_napi_define_class(
     return napi_ok;
 }
 
-napi_status aws_napi_wrap(napi_env env, struct aws_napi_class_info *clazz, void *native, napi_value *result) {
+napi_status aws_napi_wrap(
+    napi_env env,
+    struct aws_napi_class_info *clazz,
+    void *native,
+    napi_finalize finalizer,
+    napi_value *result) {
+
     struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
 
     /* Create the external object to pass to the constructor */
     napi_value to_wrap;
-    AWS_NAPI_CALL(env, napi_create_external(env, native, NULL, NULL, &to_wrap), {
+    AWS_NAPI_CALL(env, napi_create_external(env, native, finalizer, clazz, &to_wrap), {
         napi_throw_error(env, NULL, "Failed to construct external argument");
         return status;
     });
