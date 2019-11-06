@@ -17,9 +17,11 @@
 
 #include <node_api.h>
 
+struct aws_credentials_provider;
+
 napi_status aws_napi_credentials_provider_bind(napi_env env, napi_value exports);
 
-napi_status aws_napi_credentials_provider_wrap(napi_env env, void *message, napi_value *result);
-void *aws_napi_credentials_provider_unwrap(napi_env env, napi_value js_object);
+napi_status aws_napi_credentials_provider_wrap(napi_env env, struct aws_credentials_provider *creds_provider, napi_value *result);
+struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env env, napi_value js_object);
 
 #endif /* AWS_CRT_NODEJS_AUTH_H */

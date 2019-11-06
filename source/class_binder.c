@@ -86,6 +86,16 @@ static napi_status s_argument_parse(
             break;
         }
 
+        case napi_object: {
+            /* Attempt to unwrap the object, just in case */
+            napi_status result = napi_unwrap(env, value, &out_value->native.external);
+            if (result != napi_ok) {
+                out_value->native.external = NULL;
+            }
+
+            break;
+        }
+
         default:
             /* Don't process, just leave as node value */
             break;

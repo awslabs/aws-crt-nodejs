@@ -27,8 +27,7 @@ static aws_napi_method_fn s_creds_provider_constructor;
 
 static aws_napi_method_fn s_creds_provider_new_static;
 
-    napi_status
-    aws_napi_credentials_provider_bind(napi_env env, napi_value exports) {
+napi_status aws_napi_credentials_provider_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_constructor_info = {
         .name = "CredentialsProvider",
         .method = s_creds_provider_constructor,
@@ -62,6 +61,19 @@ static aws_napi_method_fn s_creds_provider_new_static;
         s_creds_provider_methods,
         AWS_ARRAY_SIZE(s_creds_provider_methods),
         &s_creds_provider_clazz);
+}
+
+napi_status aws_napi_credentials_provider_wrap(
+    napi_env env,
+    struct aws_credentials_provider *creds_provider,
+    napi_value *result) {
+    return aws_napi_wrap(env, &s_creds_provider_clazz, creds_provider, result);
+}
+
+struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env env, napi_value js_object) {
+    struct aws_credentials_provider *creds_provider = NULL;
+    AWS_NAPI_CALL(env, napi_unwrap(env, js_object, (void **)&creds_provider), { return NULL; });
+    return creds_provider;
 }
 
 /***********************************************************************************************************************
@@ -116,7 +128,8 @@ static napi_value s_creds_provider_new_static(
         session_token = aws_byte_cursor_from_buf(&args[2].native.string);
     }
 
-    struct aws_credentials_provider *provider = aws_credentials_provider_new_static(allocator, access_key, secret_key, session_token);
+    struct aws_credentials_provider *provider =
+        aws_credentials_provider_new_static(allocator, access_key, secret_key, session_token);
 
     AWS_NAPI_CALL(env, napi_wrap(env, self, provider, s_napi_creds_provider_finalize, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
