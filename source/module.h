@@ -42,6 +42,12 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void);
 const char *aws_napi_status_to_str(napi_status status);
 
 /**
+ * Gets the allocator used to allocate native resources in the node environment, should be used
+ * by all binding code in this extension
+ */
+struct aws_allocator *aws_napi_get_allocator(void);
+
+/**
  * Wrapper around napi_call_function that automatically substitutes undefined for a null this_ptr
  * and un-pins the function reference when the call completes. Also handles known recoverable
  * call failure cases before returning. Does not care about return value, since this is a non-blocking
