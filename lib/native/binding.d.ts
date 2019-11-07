@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+import { InputStream } from "./io";
+
 type NativeHandle = any;
 type StringLike = string | ArrayBuffer | DataView;
 
@@ -96,6 +98,7 @@ export declare function mqtt_client_connection_connect(
     proxy_options?: NativeHandle,
     clean_session?: boolean,
     on_connect?: mqtt_on_connect,
+    websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void,
     ): void;
 export declare function mqtt_client_connection_reconnect(connection: NativeHandle, on_connect: mqtt_on_connect): void;
 export declare function mqtt_client_connection_publish(
@@ -143,10 +146,7 @@ export declare function http_connection_new(
 export declare function http_connection_close(connection: NativeHandle): void;
 export declare function http_stream_new(
     stream: NativeHandle,
-    method: StringLike,
-    path: StringLike,
-    body: NativeHandle | undefined,
-    headers: [string, string][],
+    request: HttpRequest,
     on_complete: (error_code: Number) => void,
     on_response: (status_code: Number, headers: [string, string][]) => void,
     on_body: (data: ArrayBuffer) => void,
@@ -169,3 +169,42 @@ export declare function http_connection_manager_acquire(
     on_acquired: (handle: any, error_code: number) => void,
 ): void;
 export declare function http_connection_manager_release(manager: NativeHandle, connection: NativeHandle): void;
+
+export declare class HttpRequest {
+    constructor(method?: string, path?: string, body?: InputStream, headers?: [string, string][]);
+
+    public method: string;
+    public path: string;
+    public body: InputStream;
+    public readonly num_headers: number;
+
+    public add_header(name: string, value: string): void;
+    public set_header(name: string, value: string): void;
+    public get_header(index: number): [string, string];
+    public erase_header(index: number): void;
+}
+
+/* Auth */
+export enum SigningAlgorithm {
+    SigV4Header,
+    SigV4QueryParam,
+}
+
+export declare class AwsCredentialsProvider {
+    constructor(bootstrap: NativeHandle);
+    static newDefault(bootstrap: NativeHandle): AwsCredentialsProvider;
+
+    static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
+}
+
+export declare class AwsSigningConfig {
+    public algorithm: SigningAlgorithm;
+    public provider: AwsCredentialsProvider;
+    public region: string;
+    public service: string;
+    public date: Date;
+    /* #TODO: bind should_sign_param */
+    public use_double_uri_encode: boolean;
+    public should_normalize_uri_path: boolean;
+    public sign_body: boolean;
+}

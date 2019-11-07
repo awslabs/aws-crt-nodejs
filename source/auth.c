@@ -93,7 +93,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
                 napi_object,
                 napi_string,
                 napi_string,
-                napi_undefined,
+                napi_object,
                 napi_undefined,
                 napi_boolean,
                 napi_boolean,
