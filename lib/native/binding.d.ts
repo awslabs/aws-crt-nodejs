@@ -16,9 +16,13 @@
 type NativeHandle = any;
 type StringLike = string | ArrayBuffer | DataView;
 
-/* IO */
+/* common */
+export declare function native_memory(): number;
+export declare function native_memory_dump(): void;
 export declare function error_code_to_string(error_code: number): string;
 export declare function error_code_to_name(error_code: number): string;
+
+/* IO */
 export declare function io_logging_enable(log_level: number): void;
 export declare function is_alpn_available(): boolean;
 export declare function io_client_bootstrap_new(): NativeHandle;
