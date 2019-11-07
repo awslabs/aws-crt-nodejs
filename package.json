@@ -42,14 +42,14 @@
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^24.0.18",
-    "@types/node": "^10.12.18",
+    "@types/node": "^10.17.4",
     "@types/ws": "^6.0.1",
     "aws-sdk": "^2.419.0",
     "cmake-js": "^6.0.0",
     "jest": "^24.9.0",
     "jest-circus": "^24.9.0",
     "ts-jest": "^24.0.2",
-    "typescript": "^3.5.3",
+    "typescript": "^3.7.2",
     "yargs": "^13.2.4"
   },
   "dependencies": {
