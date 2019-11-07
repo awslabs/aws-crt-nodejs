@@ -10,7 +10,7 @@ module.exports = {
         }
     },
     transform: {
-        "\\.js$": ['ts-jest'],
+        "binding.js$": ['ts-jest'],
     },
     testPathIgnorePatterns: [
         '/node_modules/'

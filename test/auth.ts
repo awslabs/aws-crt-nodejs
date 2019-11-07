@@ -31,6 +31,12 @@ test('AwsSigningConfig properties', () => {
     config.date = now;
     expect(config.date).toBe(now);
 
+    config.param_blacklist = ["abc"];
+    expect(config.param_blacklist).toContain("abc");
+    config.param_blacklist.push("def");
+    expect(config.param_blacklist).toContain("abc");
+    expect(config.param_blacklist).toContain("def");
+
     config.use_double_uri_encode = true;
     expect(config.use_double_uri_encode).toBe(true);
 

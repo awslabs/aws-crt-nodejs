@@ -25,6 +25,6 @@ napi_status aws_napi_credentials_provider_wrap(napi_env env, struct aws_credenti
 struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env env, napi_value js_object);
 
 struct aws_signing_config_aws;
-
+struct aws_signing_config_aws *aws_signing_config_aws_prepare_and_unwrap(napi_env env, napi_value js_object);
 
 #endif /* AWS_CRT_NODEJS_AUTH_H */

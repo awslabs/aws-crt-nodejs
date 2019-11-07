@@ -38,7 +38,8 @@ static aws_napi_property_get_fn s_service_get;
 static aws_napi_property_set_fn s_service_set;
 static aws_napi_property_get_fn s_date_get;
 static aws_napi_property_set_fn s_date_set;
-
+static aws_napi_property_get_fn s_param_blacklist_get;
+static aws_napi_property_set_fn s_param_blacklist_set;
 static aws_napi_property_get_fn s_use_double_uri_encode_get;
 static aws_napi_property_set_fn s_use_double_uri_encode_set;
 static aws_napi_property_get_fn s_should_normalize_uri_path_get;
@@ -137,9 +138,13 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .setter = s_date_set,
             .attributes = napi_enumerable | napi_writable,
         },
-
-        /* #TODO implement should_sign_param */
-
+        {
+            .name = "param_blacklist",
+            .type = napi_undefined,
+            .getter = s_param_blacklist_get,
+            .setter = s_param_blacklist_set,
+            .attributes = napi_enumerable | napi_writable,
+        },
         {
             .name = "use_double_uri_encode",
             .type = napi_boolean,
@@ -300,7 +305,86 @@ struct signing_config_binding {
     struct aws_byte_buf service;
 
     napi_ref date;
+    napi_ref node_param_blacklist;
+
+    struct aws_array_list param_blacklist; /* aws_string * */
 };
+
+struct aws_signing_config_aws *aws_signing_config_aws_prepare_and_unwrap(napi_env env, napi_value js_object) {
+
+    struct signing_config_binding *binding = NULL;
+    struct aws_allocator *allocator = aws_default_allocator();
+
+    AWS_NAPI_CALL(env, napi_unwrap(env, js_object, (void **)&binding), {
+        napi_throw_error(env, NULL, "Failed to unwrap aws_signing_config_aws");
+        return NULL;
+    });
+
+    /* Copy the node_param_blacklist into native memory */
+    if (binding->node_param_blacklist) {
+        napi_value node_param_blacklist = NULL;
+        AWS_NAPI_CALL(env, napi_get_reference_value(env, binding->node_param_blacklist, &node_param_blacklist), {
+            napi_throw_error(env, NULL, "Failed to unreference node_param_blacklist");
+            return NULL;
+        });
+
+        uint32_t blacklist_length = 0;
+        AWS_NAPI_CALL(env, napi_get_array_length(env, node_param_blacklist, &blacklist_length), {
+            napi_throw_error(env, NULL, "Failed to get the length of node_param_blacklist");
+            return NULL;
+        });
+
+        /* Initialize the string array */
+        int err = aws_array_list_init_dynamic(&binding->param_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
+        if (err == AWS_OP_ERR) {
+            aws_napi_throw_last_error(env);
+            return NULL;
+        }
+
+        /* Start copying the strings */
+        for (uint32_t i = 0; i < blacklist_length; ++i) {
+            napi_value param = NULL;
+            AWS_NAPI_CALL(env, napi_get_element(env, node_param_blacklist, i, &param), {
+                napi_throw_error(env, NULL, "Failed to get element from param blacklist");
+                return NULL;
+            });
+
+            struct aws_string *param_name = aws_string_new_from_napi(env, param);
+            if (!param_name) {
+                napi_throw_error(env, NULL, "param blacklist must be array of strings");
+                return NULL;
+            }
+
+            if (aws_array_list_push_back(&binding->param_blacklist, param_name)) {
+                aws_string_destroy(param_name);
+                aws_napi_throw_last_error(env);
+                return NULL;
+            }
+        }
+    }
+
+    return &binding->base;
+}
+
+static bool s_should_sign_param(const struct aws_byte_cursor *name, void *userdata) {
+    struct signing_config_binding *binding = userdata;
+
+    /* If there are params in the black_list, check them all */
+    if (binding->param_blacklist.length) {
+        const size_t num_blacklisted = aws_array_list_length(&binding->param_blacklist);
+        for (size_t i = 0; i < num_blacklisted; ++i) {
+            struct aws_string *blacklisted = NULL;
+            aws_array_list_get_at(&binding->param_blacklist, &blacklisted, i);
+            AWS_ASSUME(blacklisted);
+
+            if (aws_string_eq_byte_cursor_ignore_case(blacklisted, name)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 
 static void s_signing_config_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
@@ -316,6 +400,15 @@ static void s_signing_config_finalize(napi_env env, void *finalize_data, void *f
         napi_delete_reference(env, binding->date);
     }
 
+    const size_t num_blacklisted = binding->param_blacklist.length;
+    for (size_t i = 0; i < num_blacklisted; ++i) {
+        struct aws_string *blacklisted = NULL;
+        aws_array_list_get_at(&binding->param_blacklist, &blacklisted, i);
+        aws_string_destroy(blacklisted);
+    }
+
+    aws_array_list_clean_up(&binding->param_blacklist);
+
     aws_mem_release(allocator, binding);
 }
 
@@ -329,6 +422,8 @@ static napi_value s_signing_config_constructor(
 
     struct signing_config_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct signing_config_binding));
     binding->base.config_type = AWS_SIGNING_CONFIG_AWS;
+    binding->base.should_sign_param = s_should_sign_param;
+    binding->base.should_sign_param_ud = binding;
 
     if (num_args >= 1 && args[0].type == napi_number) {
         const int64_t algorithm_int = args[0].native.number;
@@ -372,7 +467,23 @@ static napi_value s_signing_config_constructor(
         });
     }
 
-    /* TODO: parse arguments 5 */
+    if (num_args >= 6 && args[5].type != napi_undefined) {
+        bool is_array = false;
+        AWS_NAPI_CALL(env, napi_is_array(env, args[5].node, &is_array), {
+            napi_throw_error(env, NULL, "Failed to check if parameter blacklist is an array");
+            goto cleanup;
+        });
+
+        if (!is_array) {
+            napi_throw_type_error(env, NULL, "parameter blacklist must be an array of strings");
+            goto cleanup;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, args[5].node, 1, &binding->node_param_blacklist), {
+            napi_throw_error(env, NULL, "Failed to create napi_reference for parameter blacklist");
+            goto cleanup;
+        });
+    }
 
     if (num_args >= 7 && args[6].type == napi_boolean) {
         binding->base.use_double_uri_encode = args[6].native.boolean;
@@ -532,6 +643,12 @@ void s_date_set(napi_env env, void *self, const struct aws_napi_argument *value)
 
     struct signing_config_binding *binding = self;
 
+    /* Clear previous reference */
+    if (binding->date) {
+        napi_delete_reference(env, binding->date);
+        binding->date = NULL;
+    }
+
     /* Create the reference so that the getter may return the exact date the user gave us */
     AWS_NAPI_CALL(env, napi_create_reference(env, value->node, 1, &binding->date), {
         /* Don't actually throw, since we can just recreate it next time */
@@ -543,7 +660,32 @@ void s_date_set(napi_env env, void *self, const struct aws_napi_argument *value)
     });
 }
 
-/* #TODO implement should_sign_param */
+napi_value s_param_blacklist_get(napi_env env, void *self) {
+
+    struct signing_config_binding *binding = self;
+
+    napi_value result = NULL;
+    if (binding->node_param_blacklist) {
+        AWS_NAPI_CALL(env, napi_get_reference_value(env, binding->node_param_blacklist, &result), { return NULL; });
+    }
+    return result;
+}
+void s_param_blacklist_set(napi_env env, void *self, const struct aws_napi_argument *value) {
+
+    struct signing_config_binding *binding = self;
+
+    /* Clear previous reference */
+    if (binding->node_param_blacklist) {
+        napi_delete_reference(env, binding->node_param_blacklist);
+        binding->node_param_blacklist = NULL;
+    }
+
+    /* Create the reference to be used later */
+    AWS_NAPI_CALL(env, napi_create_reference(env, value->node, 1, &binding->node_param_blacklist), {
+        napi_throw_error(env, NULL, "Failed to create napi_reference for parameter blacklist");
+        return;
+    });
+}
 
 napi_value s_use_double_uri_encode_get(napi_env env, void *self) {
 

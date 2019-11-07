@@ -13,4 +13,12 @@
  * permissions and limitations under the License.
  */
 
-export { AwsCredentialsProvider, AwsSigningConfig, SigningAlgorithm } from './binding';
+import crt_native from './binding';
+
+export enum SigningAlgorithm {
+    SigV4Header,
+    SigV4QueryParam,
+}
+
+export const AwsCredentialsProvider = crt_native.AwsCredentialsProvider;
+export const AwsSigningConfig = crt_native.AwsSigningConfig;
