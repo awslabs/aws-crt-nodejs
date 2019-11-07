@@ -447,7 +447,7 @@ static void s_print_stack_trace(int sig, siginfo_t *sig_info, void *user_data) {
 }
 #endif
 
-static void s_install_crash_handler() {
+static void s_install_crash_handler(void) {
 #if defined(_WIN32)
     SetUnhandledExceptionFilter(s_test_print_stack_trace);
 #elif defined(AWS_HAVE_EXECINFO)
