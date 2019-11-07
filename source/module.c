@@ -27,6 +27,7 @@
 #include <aws/common/clock.h>
 #include <aws/common/environment.h>
 #include <aws/common/logging.h>
+#include <aws/common/system_info.h>
 
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
@@ -427,6 +428,40 @@ napi_value aws_napi_native_memory_dump(napi_env env, napi_callback_info info) {
     return NULL;
 }
 
+#if defined(_WIN32)
+#    include <windows.h>
+static LONG WINAPI s_test_print_stack_trace(struct _EXCEPTION_POINTERS *exception_pointers) {
+#    if !defined(AWS_HEADER_CHECKER)
+    aws_backtrace_print(stderr, exception_pointers);
+#    endif
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#elif defined(AWS_HAVE_EXECINFO)
+#    include <signal.h>
+static void s_print_stack_trace(int sig, siginfo_t *sig_info, void *user_data) {
+    (void)sig;
+    (void)sig_info;
+    (void)user_data;
+    aws_backtrace_print(stderr, sig_info);
+    exit(-1);
+}
+#endif
+
+static void s_install_crash_handler() {
+#if defined(_WIN32)
+    SetUnhandledExceptionFilter(s_test_print_stack_trace);
+#elif defined(AWS_HAVE_EXECINFO)
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(struct sigaction));
+    sigemptyset(&sa.sa_mask);
+
+    sa.sa_flags = SA_NODEFER;
+    sa.sa_sigaction = s_print_stack_trace;
+
+    sigaction(SIGSEGV, &sa, NULL);
+#endif
+}
+
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
@@ -478,6 +513,7 @@ static bool s_create_and_register_function(
 }
 
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
+    s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
     /* context is bound to exports, will be cleaned up by finalizer */
