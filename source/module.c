@@ -435,7 +435,7 @@ napi_value aws_napi_native_memory_dump(napi_env env, napi_callback_info info) {
 
 #if defined(_WIN32)
 #    include <windows.h>
-static LONG WINAPI s_test_print_stack_trace(struct _EXCEPTION_POINTERS *exception_pointers) {
+static LONG WINAPI s_print_stack_trace(struct _EXCEPTION_POINTERS *exception_pointers) {
 #    if !defined(AWS_HEADER_CHECKER)
     aws_backtrace_print(stderr, exception_pointers);
 #    endif
@@ -454,7 +454,7 @@ static void s_print_stack_trace(int sig, siginfo_t *sig_info, void *user_data) {
 
 static void s_install_crash_handler(void) {
 #if defined(_WIN32)
-    SetUnhandledExceptionFilter(s_test_print_stack_trace);
+    SetUnhandledExceptionFilter(s_print_stack_trace);
 #elif defined(AWS_HAVE_EXECINFO)
     struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));
