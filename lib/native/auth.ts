@@ -15,4 +15,11 @@
 
 import crt_native from './binding';
 
-export const CredentialsProvider = crt_native.CredentialsProvider;
+export const AwsCredentialsProvider = crt_native.AwsCredentialsProvider;
+
+export enum SigningAlgorithm {
+    SigV4Header,
+    SigV4QueryParam,
+};
+
+export const AwsSigningConfig = crt_native.AwsSigningConfig;

@@ -505,7 +505,7 @@ static bool s_create_and_register_function(
 #undef CREATE_AND_REGISTER_FN
 
     AWS_NAPI_ENSURE(env, aws_napi_http_message_bind(env, exports));
-    AWS_NAPI_ENSURE(env, aws_napi_credentials_provider_bind(env, exports));
+    AWS_NAPI_ENSURE(env, aws_napi_auth_bind(env, exports));
 
     return exports;
 }

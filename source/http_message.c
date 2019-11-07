@@ -114,7 +114,7 @@ napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
 
 napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *message, napi_value *result) {
 
-    return aws_napi_wrap(env, &s_request_clazz, message, result);
+    return aws_napi_wrap(env, &s_request_clazz, message, NULL, result);
 }
 
 struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value js_object) {

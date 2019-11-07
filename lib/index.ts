@@ -24,6 +24,7 @@ import * as io from './native/io';
 import * as mqtt from './native/mqtt';
 import * as http from './native/http';
 import * as crypto from './native/crypto';
+import * as auth from './native/auth';
 import * as iot from './native/aws_iot';
 import { CrtError } from './native/error';
 
@@ -32,6 +33,7 @@ export {
     mqtt,
     http,
     crypto,
+    auth,
     iot,
     platform,
     resource_safety,

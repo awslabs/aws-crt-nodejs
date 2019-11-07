@@ -18,7 +18,7 @@
 #include "module.h"
 
 /* Increment this as you find functions that require more arguments */
-#define AWS_NAPI_METHOD_MAX_ARGS 4
+#define AWS_NAPI_METHOD_MAX_ARGS 9
 
 /**
  * Expected to be stored statically, but is for internal usage only.
