@@ -194,15 +194,15 @@ export class AwsCredentialsProvider {
 }
 
 export class AwsSigningConfig {
-    public algorithm: SigningAlgorithm;
-    public provider: AwsCredentialsProvider;
-    public region: string;
-    public service: string;
-    public date: Date;
-    public param_blacklist: string[];
-    public use_double_uri_encode: boolean;
-    public should_normalize_uri_path: boolean;
-    public sign_body: boolean;
+    public readonly algorithm: SigningAlgorithm;
+    public readonly provider: AwsCredentialsProvider;
+    public readonly region: string;
+    public readonly service: string;
+    public readonly date: Date;
+    public readonly param_blacklist: string[];
+    public readonly use_double_uri_encode: boolean;
+    public readonly should_normalize_uri_path: boolean;
+    public readonly sign_body: boolean;
 
     constructor(
         algorithm?: SigningAlgorithm,

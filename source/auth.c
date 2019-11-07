@@ -29,23 +29,14 @@ static struct aws_napi_class_info s_signing_config_clazz;
 static aws_napi_method_fn s_signing_config_constructor;
 
 static aws_napi_property_get_fn s_algorithm_get;
-static aws_napi_property_set_fn s_algorithm_set;
 static aws_napi_property_get_fn s_provider_get;
-static aws_napi_property_set_fn s_provider_set;
 static aws_napi_property_get_fn s_region_get;
-static aws_napi_property_set_fn s_region_set;
 static aws_napi_property_get_fn s_service_get;
-static aws_napi_property_set_fn s_service_set;
 static aws_napi_property_get_fn s_date_get;
-static aws_napi_property_set_fn s_date_set;
 static aws_napi_property_get_fn s_param_blacklist_get;
-static aws_napi_property_set_fn s_param_blacklist_set;
 static aws_napi_property_get_fn s_use_double_uri_encode_get;
-static aws_napi_property_set_fn s_use_double_uri_encode_set;
 static aws_napi_property_get_fn s_should_normalize_uri_path_get;
-static aws_napi_property_set_fn s_should_normalize_uri_path_set;
 static aws_napi_property_get_fn s_sign_body_get;
-static aws_napi_property_set_fn s_sign_body_set;
 
 napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_constructor_info = {
@@ -107,64 +98,55 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .name = "algorithm",
             .type = napi_number,
             .getter = s_algorithm_get,
-            .setter = s_algorithm_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "provider",
             .type = napi_object,
             .getter = s_provider_get,
-            .setter = s_provider_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "region",
             .type = napi_string,
             .getter = s_region_get,
-            .setter = s_region_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "service",
             .type = napi_string,
             .getter = s_service_get,
-            .setter = s_service_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "date",
             .type = napi_object, /* #TODO make napi_date */
             .getter = s_date_get,
-            .setter = s_date_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "param_blacklist",
             .type = napi_undefined,
             .getter = s_param_blacklist_get,
-            .setter = s_param_blacklist_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "use_double_uri_encode",
             .type = napi_boolean,
             .getter = s_use_double_uri_encode_get,
-            .setter = s_use_double_uri_encode_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "should_normalize_uri_path",
             .type = napi_boolean,
             .getter = s_should_normalize_uri_path_get,
-            .setter = s_should_normalize_uri_path_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
         {
             .name = "sign_body",
             .type = napi_boolean,
             .getter = s_sign_body_get,
-            .setter = s_sign_body_set,
-            .attributes = napi_enumerable | napi_writable,
+            .attributes = napi_enumerable,
         },
     };
 
@@ -509,7 +491,7 @@ cleanup:
     return NULL;
 }
 
-napi_value s_algorithm_get(napi_env env, void *self) {
+static napi_value s_algorithm_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -517,20 +499,8 @@ napi_value s_algorithm_get(napi_env env, void *self) {
     napi_create_uint32(env, binding->base.algorithm, &result);
     return result;
 }
-void s_algorithm_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
 
-    const int64_t algorithm_int = value->native.number;
-    if (algorithm_int < 0 || algorithm_int >= AWS_SIGNING_ALGORITHM_COUNT) {
-        napi_throw_error(env, NULL, "Signing algorithm value out of acceptable range");
-        return;
-    }
-
-    struct signing_config_binding *binding = self;
-    binding->base.algorithm = (enum aws_signing_algorithm)algorithm_int;
-}
-
-napi_value s_provider_get(napi_env env, void *self) {
+static napi_value s_provider_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -538,14 +508,8 @@ napi_value s_provider_get(napi_env env, void *self) {
     AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, binding->base.credentials_provider, &result), {});
     return result;
 }
-void s_provider_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
 
-    struct signing_config_binding *binding = self;
-    binding->base.credentials_provider = value->native.external;
-}
-
-napi_value s_region_get(napi_env env, void *self) {
+static napi_value s_region_get(napi_env env, void *self) {
     (void)env;
 
     struct signing_config_binding *binding = self;
@@ -554,21 +518,8 @@ napi_value s_region_get(napi_env env, void *self) {
     AWS_NAPI_CALL(env, napi_create_string_utf8(env, (const char *)binding->region.buffer, binding->region.len, &result), {});
     return result;
 }
-void s_region_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
 
-    struct signing_config_binding *binding = self;
-
-    /* Clean up whatever string was there */
-    aws_byte_buf_clean_up(&binding->region);
-
-    binding->region = value->native.string;
-    binding->base.region = aws_byte_cursor_from_buf(&binding->region);
-    /* Make sure the buffer doesn't get cleaned up automatically */
-    *(struct aws_allocator **)&value->native.string.allocator = NULL;
-}
-
-napi_value s_service_get(napi_env env, void *self) {
+static napi_value s_service_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -576,21 +527,8 @@ napi_value s_service_get(napi_env env, void *self) {
     AWS_NAPI_CALL(env, napi_create_string_utf8(env, (const char *)binding->service.buffer, binding->service.len, &result), {});
     return result;
 }
-void s_service_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
 
-    struct signing_config_binding *binding = self;
-
-    /* Clean up whatever string was there */
-    aws_byte_buf_clean_up(&binding->service);
-
-    binding->service = value->native.string;
-    binding->base.service = aws_byte_cursor_from_buf(&binding->service);
-    /* Make sure the buffer doesn't get cleaned up automatically */
-    *(struct aws_allocator **)&value->native.string.allocator = NULL;
-}
-
-napi_value s_date_get(napi_env env, void *self) {
+static napi_value s_date_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -639,28 +577,8 @@ napi_value s_date_get(napi_env env, void *self) {
 
     return result;
 }
-void s_date_set(napi_env env, void *self, const struct aws_napi_argument *value) {
 
-    struct signing_config_binding *binding = self;
-
-    /* Clear previous reference */
-    if (binding->date) {
-        napi_delete_reference(env, binding->date);
-        binding->date = NULL;
-    }
-
-    /* Create the reference so that the getter may return the exact date the user gave us */
-    AWS_NAPI_CALL(env, napi_create_reference(env, value->node, 1, &binding->date), {
-        /* Don't actually throw, since we can just recreate it next time */
-    });
-
-    AWS_NAPI_CALL(env, s_napi_get_date_value(env, value->node, &binding->base.date), {
-        napi_throw_error(env, NULL, "Failed to extract date value");
-        return;
-    });
-}
-
-napi_value s_param_blacklist_get(napi_env env, void *self) {
+static napi_value s_param_blacklist_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -670,24 +588,8 @@ napi_value s_param_blacklist_get(napi_env env, void *self) {
     }
     return result;
 }
-void s_param_blacklist_set(napi_env env, void *self, const struct aws_napi_argument *value) {
 
-    struct signing_config_binding *binding = self;
-
-    /* Clear previous reference */
-    if (binding->node_param_blacklist) {
-        napi_delete_reference(env, binding->node_param_blacklist);
-        binding->node_param_blacklist = NULL;
-    }
-
-    /* Create the reference to be used later */
-    AWS_NAPI_CALL(env, napi_create_reference(env, value->node, 1, &binding->node_param_blacklist), {
-        napi_throw_error(env, NULL, "Failed to create napi_reference for parameter blacklist");
-        return;
-    });
-}
-
-napi_value s_use_double_uri_encode_get(napi_env env, void *self) {
+static napi_value s_use_double_uri_encode_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -695,14 +597,8 @@ napi_value s_use_double_uri_encode_get(napi_env env, void *self) {
     AWS_NAPI_CALL(env, napi_get_boolean(env, binding->base.use_double_uri_encode, &result), {});
     return result;
 }
-void s_use_double_uri_encode_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
 
-    struct signing_config_binding *binding = self;
-    binding->base.use_double_uri_encode = value->native.boolean;
-}
-
-napi_value s_should_normalize_uri_path_get(napi_env env, void *self) {
+static napi_value s_should_normalize_uri_path_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
@@ -710,24 +606,12 @@ napi_value s_should_normalize_uri_path_get(napi_env env, void *self) {
     AWS_NAPI_CALL(env, napi_get_boolean(env, binding->base.should_normalize_uri_path, &result), {});
     return result;
 }
-void s_should_normalize_uri_path_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
 
-    struct signing_config_binding *binding = self;
-    binding->base.should_normalize_uri_path = value->native.boolean;
-}
-
-napi_value s_sign_body_get(napi_env env, void *self) {
+static napi_value s_sign_body_get(napi_env env, void *self) {
 
     struct signing_config_binding *binding = self;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(env, napi_get_boolean(env, binding->base.sign_body, &result), {});
     return result;
-}
-void s_sign_body_set(napi_env env, void *self, const struct aws_napi_argument *value) {
-    (void)env;
-
-    struct signing_config_binding *binding = self;
-    binding->base.sign_body = value->native.boolean;
 }

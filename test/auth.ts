@@ -16,33 +16,37 @@
 import { auth as native } from '../lib/index';
 
 test('AwsSigningConfig properties', () => {
-    let config = new native.AwsSigningConfig();
+    const now = new Date();
+    let config = new native.AwsSigningConfig(
+        native.SigningAlgorithm.SigV4QueryParam,
+        undefined,
+        'us-east-1',
+        'iotcore',
+        now,
+        ["abc"],
+        true,
+        true,
+        true,
+    );
 
-    config.algorithm = native.SigningAlgorithm.SigV4QueryParam;
     expect(config.algorithm).toBe(native.SigningAlgorithm.SigV4QueryParam);
 
-    config.region = 'us-east-1';
     expect(config.region).toBe('us-east-1');
 
-    config.service = 'iotcore';
     expect(config.service).toBe('iotcore');
 
-    const now = new Date();
-    config.date = now;
     expect(config.date).toBe(now);
 
-    config.param_blacklist = ["abc"];
+    expect(config.param_blacklist.length).toBe(1);
     expect(config.param_blacklist).toContain("abc");
     config.param_blacklist.push("def");
+    expect(config.param_blacklist.length).toBe(2);
     expect(config.param_blacklist).toContain("abc");
     expect(config.param_blacklist).toContain("def");
 
-    config.use_double_uri_encode = true;
     expect(config.use_double_uri_encode).toBe(true);
 
-    config.should_normalize_uri_path = true;
     expect(config.should_normalize_uri_path).toBe(true);
 
-    config.sign_body = true;
     expect(config.sign_body).toBe(true);
 });
