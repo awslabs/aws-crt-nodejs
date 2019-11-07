@@ -436,9 +436,7 @@ napi_value aws_napi_native_memory_dump(napi_env env, napi_callback_info info) {
 #if defined(_WIN32)
 #    include <windows.h>
 static LONG WINAPI s_print_stack_trace(struct _EXCEPTION_POINTERS *exception_pointers) {
-#    if !defined(AWS_HEADER_CHECKER)
     aws_backtrace_print(stderr, exception_pointers);
-#    endif
     return EXCEPTION_EXECUTE_HANDLER;
 }
 #elif defined(AWS_HAVE_EXECINFO)
