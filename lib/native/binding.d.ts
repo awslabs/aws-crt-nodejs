@@ -14,17 +14,7 @@
  */
 
 type NativeHandle = any;
-type StringLike = string
-                | ArrayBuffer
-                | DataView
-                | Int8Array
-                | Uint8Array
-                | Int16Array
-                | Uint16Array
-                | Int32Array
-                | Uint32Array
-                | Float32Array
-                | Float64Array;
+type StringLike = string | ArrayBuffer | DataView;
 
 /* IO */
 export declare function error_code_to_string(error_code: number): string;
