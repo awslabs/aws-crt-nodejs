@@ -433,6 +433,13 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
+
+    if (ctx->allocator != aws_default_allocator()) {
+        aws_mem_tracer_destroy(ctx->allocator);
+        if (s_allocator == ctx->allocator) {
+            s_allocator = NULL;
+        }
+    }
 }
 
 static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env, napi_value exports) {
