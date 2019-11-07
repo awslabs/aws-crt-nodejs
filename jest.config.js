@@ -9,6 +9,9 @@ module.exports = {
             tsConfig: '<rootDir>/test/tsconfig.json'
         }
     },
+    transform: {
+        "\\.js$": ['ts-jest'],
+    },
     testPathIgnorePatterns: [
         '/node_modules/'
     ],

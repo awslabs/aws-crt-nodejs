@@ -4,6 +4,7 @@
         "lib/index.ts",
         "lib/common/*.ts",
         "lib/native/*.ts",
+        "lib/native/binding.js",
         "scripts/**/*.ts",
     ]
 }

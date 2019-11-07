@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import crt_native = require('./binding');
+import crt_native from './binding';
 import { NativeResource } from "./native_resource";
 import { InputStreamBase, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
@@ -263,8 +263,8 @@ export class TlsContextOptions {
 }
 
 /**
- * TLS context used for client/server TLS communications over sockets. 
- * 
+ * TLS context used for client/server TLS communications over sockets.
+ *
  * @see ClientTlsContext
  * @see ServerTlsContext
  *
@@ -324,7 +324,7 @@ export class ServerTlsContext extends TlsContext {
 
 /**
  * TLS options that are unique to a given connection using a shared TlsContext.
- * 
+ *
  * nodejs only.
  */
 export class TlsConnectionOptions extends NativeResource {
