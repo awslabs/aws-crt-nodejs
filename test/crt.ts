@@ -19,8 +19,6 @@ process.env = Object.assign(process.env, { 'AWS_SDK_MEMORY_TRACING': '2' });
 import { crt } from '../lib/index';
 
 test('Native Memory', () => {
-    // Typical values seem to be around ~128K
-    expect(crt.native_memory()).toBeLessThan(256 * 1024);
     expect(crt.native_memory()).toBeGreaterThan(0);
 });
 
