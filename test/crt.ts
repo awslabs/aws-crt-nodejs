@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
- // Force memory tracing on for this suite
-process.env = Object.assign(process.env, { 'AWS_SDK_MEMORY_TRACING': '2' });
+// Force memory tracing on for this suite
+// Make sure env "AWS_SDK_MEMORY_TRACING=2"
 
 import { crt } from '../lib/index';
 

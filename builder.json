@@ -43,6 +43,6 @@
     ],
     "test": [
         ["node", "-p", "require('./dist/index')"],
-        ["npm", "test", "--", "--detectOpenHandles"]
+        ["env", "AWS_CRT_MEMORY_TRACING=2", "npm", "test", "--", "--detectOpenHandles"]
     ]
 }
