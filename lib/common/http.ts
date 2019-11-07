@@ -131,8 +131,8 @@ export class HttpHeaders {
         }
     }
 
-    _flatten(): string[][] {
-        let flattened = [];
+    _flatten(): [string, string][] {
+        let flattened: [string, string][] = [];
         for (let key in this.headers) {
             flattened.push([key, this.headers[key][0][1]]);
         }
