@@ -416,7 +416,10 @@ struct aws_allocator *aws_napi_get_allocator() {
 napi_value aws_napi_native_memory(napi_env env, napi_callback_info info) {
     (void)info;
     napi_value node_allocated = NULL;
-    size_t allocated = aws_mem_tracer_bytes(aws_napi_get_allocator());
+    size_t allocated = 0;
+    if (aws_napi_get_allocator() != aws_default_allocator()) {
+        allocated = aws_mem_tracer_bytes(aws_napi_get_allocator());
+    }
     AWS_NAPI_CALL(env, napi_create_int64(env, allocated, &node_allocated), { return NULL; });
     return node_allocated;
 }
@@ -424,7 +427,9 @@ napi_value aws_napi_native_memory(napi_env env, napi_callback_info info) {
 napi_value aws_napi_native_memory_dump(napi_env env, napi_callback_info info) {
     (void)info;
     (void)env;
-    aws_mem_tracer_dump(aws_napi_get_allocator());
+    if (aws_napi_get_allocator() != aws_default_allocator()) {
+        aws_mem_tracer_dump(aws_napi_get_allocator());
+    }
     return NULL;
 }
 
