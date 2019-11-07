@@ -78,7 +78,7 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
         return NULL;
     }
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     struct aws_http_connection_manager_options options;
     AWS_ZERO_STRUCT(options);
     struct aws_byte_buf host_buf;

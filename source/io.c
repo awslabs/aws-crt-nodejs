@@ -154,7 +154,7 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
 napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info info) {
     (void)info;
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct client_bootstrap_binding *binding = aws_mem_acquire(allocator, sizeof(struct client_bootstrap_binding));
     AWS_ZERO_STRUCT(*binding);
@@ -205,7 +205,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
 
 napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
-    struct aws_allocator *alloc = aws_default_allocator();
+    struct aws_allocator *alloc = aws_napi_get_allocator();
     napi_status status = napi_ok;
     (void)status;
 
@@ -435,7 +435,7 @@ void s_tls_connection_options_finalize(napi_env env, void *finalize_data, void *
     (void)finalize_hint;
     struct aws_tls_connection_options *tls_opts = finalize_data;
     aws_tls_connection_options_clean_up(tls_opts);
-    aws_mem_release(aws_default_allocator(), tls_opts);
+    aws_mem_release(aws_napi_get_allocator(), tls_opts);
 }
 
 napi_value aws_napi_io_tls_connection_options_new(napi_env env, napi_callback_info info) {
@@ -480,7 +480,7 @@ napi_value aws_napi_io_tls_connection_options_new(napi_env env, napi_callback_in
         }
     }
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     struct aws_tls_connection_options *tls_opts =
         aws_mem_calloc(allocator, 1, sizeof(struct aws_tls_connection_options));
     AWS_FATAL_ASSERT(tls_opts && "Failed to allocate new aws_tls_connection_options");
@@ -511,7 +511,7 @@ void s_socket_options_finalize(napi_env env, void *finalize_data, void *finalize
     (void)finalize_hint;
 
     struct aws_socket_options *socket_options = finalize_data;
-    aws_mem_release(aws_default_allocator(), socket_options);
+    aws_mem_release(aws_napi_get_allocator(), socket_options);
 }
 
 napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info) {
@@ -572,7 +572,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
         return NULL;
     }
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     struct aws_socket_options *socket_options = aws_mem_acquire(allocator, sizeof(struct aws_socket_options));
     if (!socket_options) {
         aws_napi_throw_last_error(env);
@@ -720,7 +720,7 @@ napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     struct aws_napi_input_stream_impl *impl = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_input_stream_impl));
     if (!impl) {
         napi_throw_error(env, NULL, "Unable to allocate native aws_input_stream");

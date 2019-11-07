@@ -37,7 +37,7 @@ static void s_hash_finalize(napi_env env, void *finalize_data, void *finalize_hi
 napi_value aws_napi_hash_md5_new(napi_env env, napi_callback_info info) {
 
     (void)info;
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct aws_hash *hash = aws_md5_new(allocator);
     if (!hash) {
@@ -54,7 +54,7 @@ napi_value aws_napi_hash_md5_new(napi_env env, napi_callback_info info) {
 napi_value aws_napi_hash_sha256_new(napi_env env, napi_callback_info info) {
 
     (void)info;
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct aws_hash *hash = aws_sha256_new(allocator);
     if (!hash) {
@@ -200,7 +200,7 @@ napi_value aws_napi_hash_md5_compute(napi_env env, napi_callback_info info) {
 
     struct aws_byte_cursor to_hash_cur = aws_byte_cursor_from_buf(&to_hash);
     struct aws_byte_buf out_buf = aws_byte_buf_from_empty_array(data, digest_size);
-    if (aws_md5_compute(aws_default_allocator(), &to_hash_cur, &out_buf, digest_size)) {
+    if (aws_md5_compute(aws_napi_get_allocator(), &to_hash_cur, &out_buf, digest_size)) {
         aws_napi_throw_last_error(env);
     }
 
@@ -257,7 +257,7 @@ napi_value aws_napi_hash_sha256_compute(napi_env env, napi_callback_info info) {
 
     struct aws_byte_cursor to_hash_cur = aws_byte_cursor_from_buf(&to_hash);
     struct aws_byte_buf out_buf = aws_byte_buf_from_empty_array(data, digest_size);
-    if (aws_sha256_compute(aws_default_allocator(), &to_hash_cur, &out_buf, digest_size)) {
+    if (aws_sha256_compute(aws_napi_get_allocator(), &to_hash_cur, &out_buf, digest_size)) {
         aws_napi_throw_last_error(env);
     }
 
@@ -291,7 +291,7 @@ static void s_hmac_finalize(napi_env env, void *finalize_data, void *finalize_hi
 napi_value aws_napi_hmac_sha256_new(napi_env env, napi_callback_info info) {
 
     (void)info;
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -465,7 +465,7 @@ napi_value aws_napi_hmac_sha256_compute(napi_env env, napi_callback_info info) {
 
     struct aws_byte_cursor to_hash_cur = aws_byte_cursor_from_buf(&to_hash);
     struct aws_byte_buf out_buf = aws_byte_buf_from_empty_array(data, digest_size);
-    if (aws_sha256_hmac_compute(aws_default_allocator(), &secret_cur, &to_hash_cur, &out_buf, digest_size)) {
+    if (aws_sha256_hmac_compute(aws_napi_get_allocator(), &secret_cur, &to_hash_cur, &out_buf, digest_size)) {
         aws_napi_throw_last_error(env);
     }
 
