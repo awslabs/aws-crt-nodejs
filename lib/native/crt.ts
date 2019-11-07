@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import crt_native = require('./binding');
+import crt_native from './binding';
 
 export function native_memory() {
     return crt_native.native_memory();
