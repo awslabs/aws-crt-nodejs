@@ -18,7 +18,7 @@
 struct aws_napi_class_info_impl {
     const struct aws_napi_method_info *ctor_method;
 
-    napi_value constructor;
+    napi_ref constructor;
     bool is_wrapping;
 };
 
@@ -293,15 +293,17 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
     }
 
     struct aws_napi_method_info *method = data;
-    if (num_args != method->num_arguments) {
-        napi_throw_error(env, NULL, "HttpRequest setter needs exactly 1 arguments");
+    if (num_args < method->num_arguments) {
+        napi_throw_error(env, NULL, "Bound class's method requires more arguments");
         return NULL;
     }
 
-    AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &self), {
-        napi_throw_error(env, NULL, "HttpRequest setter must be called on instance of HttpRequest");
-        return NULL;
-    });
+    if ((method->attributes & napi_static) == 0) {
+        AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &self), {
+            napi_throw_error(env, NULL, "Bound class's method must be called on instance of the class");
+            return NULL;
+        });
+    }
 
     napi_value result = NULL;
 
@@ -371,6 +373,7 @@ napi_status aws_napi_define_class(
         desc->attributes = method->attributes;
     }
 
+    napi_value node_constructor = NULL;
     AWS_NAPI_CALL(
         env,
         napi_define_class(
@@ -381,12 +384,16 @@ napi_status aws_napi_define_class(
             clazz,
             num_descriptors,
             descriptors,
-            &impl->constructor),
+            &node_constructor),
         { return status; });
 
+    /* Don't need descriptors anymore */
     aws_mem_release(allocator, descriptors);
 
-    AWS_NAPI_CALL(env, napi_set_named_property(env, exports, constructor->name, impl->constructor), { return status; });
+    /* Reference the constructor for later user */
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_constructor, 1, &impl->constructor), { return status; });
+
+    AWS_NAPI_CALL(env, napi_set_named_property(env, exports, constructor->name, node_constructor), { return status; });
 
     return napi_ok;
 }
@@ -407,8 +414,14 @@ napi_status aws_napi_wrap(
         return status;
     });
 
+    napi_value constructor = NULL;
+    AWS_NAPI_CALL(env, napi_get_reference_value(env, impl->constructor, &constructor), {
+        napi_throw_error(env, NULL, "Failed to dereference constructor value");
+        return status;
+    });
+
     impl->is_wrapping = true;
-    AWS_NAPI_CALL(env, napi_new_instance(env, impl->constructor, 1, &to_wrap, result), {
+    AWS_NAPI_CALL(env, napi_new_instance(env, constructor, 1, &to_wrap, result), {
         napi_throw_error(env, NULL, "Failed to construct class-bound object");
         return status;
     });

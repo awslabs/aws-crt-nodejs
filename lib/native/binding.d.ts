@@ -14,7 +14,7 @@
  */
 
 import { InputStream } from "./io";
-import { SigningAlgorithm } from "./auth";
+import { AwsSigningAlgorithm } from "./auth";
 
 type NativeHandle = any;
 type StringLike = string | ArrayBuffer | DataView;
@@ -194,7 +194,7 @@ export class AwsCredentialsProvider {
 }
 
 export class AwsSigningConfig {
-    public readonly algorithm: SigningAlgorithm;
+    public readonly algorithm: AwsSigningAlgorithm;
     public readonly provider: AwsCredentialsProvider;
     public readonly region: string;
     public readonly service: string;
@@ -205,7 +205,7 @@ export class AwsSigningConfig {
     public readonly sign_body: boolean;
 
     constructor(
-        algorithm?: SigningAlgorithm,
+        algorithm?: AwsSigningAlgorithm,
         provider?: AwsCredentialsProvider,
         region?: string,
         service?: string,
@@ -215,4 +215,12 @@ export class AwsSigningConfig {
         should_normalize_uri_path?: boolean,
         sign_body?: boolean,
     );
+}
+
+export class AwsSigner {
+    public sign_request(
+        request: HttpRequest,
+        config: AwsSigningConfig,
+        on_complete: (error_code: number) => void
+    ): void;
 }

@@ -14,11 +14,61 @@
  */
 
 import crt_native from './binding';
+import { HttpRequest } from './http';
+import { ClientBootstrap } from './io';
 
-export enum SigningAlgorithm {
+export enum AwsSigningAlgorithm {
     SigV4Header,
     SigV4QueryParam,
 }
 
-export const AwsCredentialsProvider = crt_native.AwsCredentialsProvider;
-export const AwsSigningConfig = crt_native.AwsSigningConfig;
+/* Subclass for the purpose of exposing a non-NativeHandle based API */
+export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
+    constructor(bootstrap: ClientBootstrap) {
+        super(bootstrap.native_handle());
+    }
+    static newDefault(bootstrap: ClientBootstrap): AwsCredentialsProvider {
+        return super.newDefault(bootstrap.native_handle());
+    }
+}
+
+export class AwsSigningConfig extends crt_native.AwsSigningConfig {
+    constructor(
+        algorithm = AwsSigningAlgorithm.SigV4Header,
+        provider?: AwsCredentialsProvider,
+        region?: string,
+        service?: string,
+        date = new Date(),
+        param_blacklist?: string[],
+        use_double_uri_encode = false,
+        should_normalize_uri_path = true,
+        sign_body = true,
+    ) {
+        super(
+            algorithm,
+            provider,
+            region,
+            service,
+            date,
+            param_blacklist,
+            use_double_uri_encode,
+            should_normalize_uri_path,
+            sign_body,
+        );
+    }
+}
+
+export class AwsSigner extends crt_native.AwsSigner {
+
+    public async sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
+        return new Promise((resolve, reject) => {
+            super.sign_request(request, config, (error_code) => {
+                if (error_code == 0) {
+                    resolve(request);
+                } else {
+                    reject(error_code);
+                }
+            });
+        });
+    }
+}

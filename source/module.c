@@ -34,6 +34,8 @@
 
 #include <aws/http/http.h>
 
+#include <aws/auth/auth.h>
+
 #include <uv.h>
 
 /* aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API */
@@ -441,6 +443,7 @@ static bool s_create_and_register_function(
 
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
+    aws_auth_library_init(allocator);
     aws_register_log_subject_info_list(&s_log_subject_list);
 
     /* Initialize the event loop group */
