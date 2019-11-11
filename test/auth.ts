@@ -65,7 +65,8 @@ const SIGV4TEST_UNSIGNED_HEADERS: [string, string][] = [
 ];
 const SIGV4TEST_SIGNED_HEADERS: [string, string][] = [
     ['Host', 'example.amazonaws.com'],
-    ['Authorization', 'AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31'],
+    ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+    ['Authorization', 'AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=726c5c4879a6b4ccbbd3b24edbd6b8826d34f87450fbbf4e85546fc7ba9c1642'],
     ['X-Amz-Date', DATE_STR.replace(/[-:]/g, '')],
 ]
 
@@ -91,7 +92,7 @@ test('AWS Signer SigV4 Headers', async () => {
         undefined,
         false,
         true,
-        false);
+        true);
 
     let http_request = new native_http.HttpRequest(
         SIGV4TEST_METHOD,
