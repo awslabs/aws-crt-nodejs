@@ -15,6 +15,18 @@
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
+import { HttpProxyOptions } from "./http";
+import { AwsCredentialsProvider, AwsSigner, AwsSigningConfig, AwsSigningAlgorithm } from "./auth";
+
+export interface WebsocketConfig {
+    credentials_provider: AwsCredentialsProvider;
+    signer?: AwsSigner;
+    create_signing_config?: () => AwsSigningConfig;
+
+    proxy_options?: HttpProxyOptions;
+    region: string;
+    service?: string;
+}
 
 /** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
 export class AwsIotMqttConnectionConfigBuilder {
@@ -63,6 +75,37 @@ export class AwsIotMqttConnectionConfigBuilder {
 
         if (io.is_alpn_available()) {
             builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
+    /**
+     * Configures the connection to use MQTT over websockets. Forces the port to 443.
+     */
+    static new_with_websockets(options?: WebsocketConfig) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(new io.TlsContextOptions());
+
+        builder.params.use_websocket = true;
+        builder.params.proxy_options = options?.proxy_options;
+
+        if (builder.tls_ctx_options) {
+            builder.tls_ctx_options.alpn_list = [];
+            builder.params.port = 443;
+        }
+
+        if (options) {
+            builder.params.websocket_handshake_transform = async (request, done) => {
+                const signer: AwsSigner = options.signer ?? new AwsSigner();
+                const signing_config = options.create_signing_config?.() ?? new AwsSigningConfig(AwsSigningAlgorithm.SigV4QueryParam, options.credentials_provider, options.region, options.service ?? "iotdevicegateway", new Date(), ["x-amz-date", "x-amz-security-token"], false, true, false);
+
+                try {
+                    await signer.sign_request(request, signing_config);
+                    done();
+                } catch {
+                    done(-1);
+                }
+            };
         }
 
         return builder;
@@ -121,20 +164,6 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_clean_session(clean_session: boolean) {
         this.params.clean_session = clean_session;
-        return this;
-    }
-
-    /**
-     * Configures the connection to use MQTT over websockets. Forces the port to 443.
-     */
-    with_use_websockets() {
-        this.params.use_websocket = true;
-
-        if (this.tls_ctx_options) {
-            this.tls_ctx_options.alpn_list = [];
-            this.params.port = 443;
-        }
-
         return this;
     }
 

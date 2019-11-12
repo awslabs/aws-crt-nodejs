@@ -239,17 +239,21 @@ static napi_value s_creds_provider_constructor(
     AWS_FATAL_ASSERT(num_args == 1);
 
     struct aws_allocator *allocator = aws_default_allocator();
+    napi_value node_self = self;
 
     struct aws_credentials_provider_chain_default_options options;
     options.bootstrap = args[0].native.external;
     struct aws_credentials_provider *provider = aws_credentials_provider_new_chain_default(allocator, &options);
 
-    AWS_NAPI_CALL(env, napi_wrap(env, self, provider, s_napi_creds_provider_finalize, NULL, NULL), {
+    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_self), {
         napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
     });
 
-    return self;
+    /* Reference is now held by the node object */
+    aws_credentials_provider_release(provider);
+
+    return node_self;
 }
 
 static napi_value s_creds_provider_new_static(
@@ -368,7 +372,7 @@ struct aws_signing_config_aws *aws_signing_config_aws_prepare_and_unwrap(napi_en
                 return NULL;
             }
 
-            if (aws_array_list_push_back(&binding->param_blacklist, param_name)) {
+            if (aws_array_list_push_back(&binding->param_blacklist, &param_name)) {
                 aws_string_destroy(param_name);
                 aws_napi_throw_last_error(env);
                 return NULL;

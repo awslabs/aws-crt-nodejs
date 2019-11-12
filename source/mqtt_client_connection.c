@@ -663,6 +663,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         struct transform_websocket_args *ws_tf_args =
             aws_mem_calloc(binding->allocator, 1, sizeof(struct transform_websocket_args));
         AWS_FATAL_ASSERT(ws_tf_args);
+        ws_tf_args->binding = binding;
 
         if (!aws_napi_is_null_or_undefined(env, node_transform_websocket)) {
             AWS_NAPI_CALL(

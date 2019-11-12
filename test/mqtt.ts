@@ -18,6 +18,7 @@ import { ClientBootstrap } from '../lib/native/io';
 import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
+import { AwsCredentialsProvider } from '../lib/native/auth';
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
@@ -93,7 +94,39 @@ test('MQTT Connect/Disconnect', async () => {
     const promise = new Promise((resolve, reject) => {
         connection.on('connect', (session_present) => {
             connection.disconnect();
-            
+
+            if (session_present) {
+                reject("Session present");
+            }
+        });
+        connection.on('error', (error) => {
+            reject(error);
+        })
+        connection.on('disconnect', () => {
+            resolve(true);
+        })
+        connection.connect();
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Websocket', async () => {
+    const aws_opts = await fetch_credentials();
+    const bootstrap = new ClientBootstrap();
+    const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets({
+            region: "us-east-1",
+            credentials_provider: AwsCredentialsProvider.newDefault(bootstrap),
+        })
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .build()
+    const client = new MqttClient(bootstrap);
+    const connection = client.new_connection(config);
+    const promise = new Promise((resolve, reject) => {
+        connection.on('connect', (session_present) => {
+            connection.disconnect();
+
             if (session_present) {
                 reject("Session present");
             }
