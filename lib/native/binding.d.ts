@@ -28,7 +28,9 @@ export function error_code_to_name(error_code: number): string;
 /* IO */
 export function io_logging_enable(log_level: number): void;
 export function is_alpn_available(): boolean;
+/* wraps aws_client_bootstrap #TODO: Wrap with ClassBinder */
 export function io_client_bootstrap_new(): NativeHandle;
+/* wraps aws_tls_context #TODO: Wrap with ClassBinder */
 export function io_tls_ctx_new(
     min_tls_version: number,
     ca_filepath?: StringLike,
@@ -43,11 +45,13 @@ export function io_tls_ctx_new(
     pkcs12_password?: StringLike,
     verify_peer?: boolean,
 ): NativeHandle;
+/* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */
 export function io_tls_connection_options_new(
     tls_ctx: NativeHandle,
     server_name?: StringLike,
     alpn_list?: StringLike
 ): NativeHandle;
+/* wraps aws_socket_options #TODO: Wrap with ClassBinder */
 export function io_socket_options_new(
     type: number,
     domain: number,
@@ -57,10 +61,12 @@ export function io_socket_options_new(
     keep_alive_max_failed_probes: number,
     keepalive: boolean
 ): NativeHandle;
+/* wraps aws_input_stream #TODO: Wrap with ClassBinder */
 export function io_input_stream_new(capacity: number): NativeHandle;
 export function io_input_stream_append(stream: NativeHandle, data?: Buffer): void;
 
 /* Crypto */
+/* wraps aws_hash structures #TODO: Wrap with ClassBinder */
 export function hash_md5_new(): void;
 export function hash_sha256_new(): void;
 export function hash_update(handle: NativeHandle, data: StringLike): void;
@@ -80,7 +86,7 @@ export function hmac_sha256_compute(secret: StringLike, data: StringLike, trunca
 /* MQTT Client */
 export function mqtt_client_new(client_bootstrap: NativeHandle): NativeHandle;
 
-/* MQTT Client Connection */
+/* MQTT Client Connection #TODO: Wrap with ClassBinder */
 export type mqtt_on_connect = (error_code: number, return_code: number, session_present: boolean) => void;
 export function mqtt_client_connection_new(
     client: NativeHandle,
@@ -130,6 +136,7 @@ export function mqtt_client_connection_disconnect(connection: NativeHandle, on_d
 export function mqtt_client_connection_close(connection: NativeHandle): void;
 
 /* HTTP */
+/* wraps aws_http_proxy_options #TODO: Wrap with ClassBinder */
 export function http_proxy_options_new(
     host_name: StringLike,
     port: number,
@@ -138,6 +145,7 @@ export function http_proxy_options_new(
     password?: StringLike,
     tls_options?: NativeHandle,
 ): NativeHandle;
+/* wraps aws_http_connection #TODO: Wrap with ClassBinder */
 export function http_connection_new(
     bootstrap: NativeHandle,
     on_setup: (handle: any, error_code: number) => void,
@@ -149,6 +157,7 @@ export function http_connection_new(
     proxy_options?: NativeHandle,
 ): NativeHandle;
 export function http_connection_close(connection: NativeHandle): void;
+/* wraps aws_http_stream #TODO: Wrap with ClassBinder */
 export function http_stream_new(
     stream: NativeHandle,
     request: HttpRequest,
@@ -157,6 +166,7 @@ export function http_stream_new(
     on_body: (data: ArrayBuffer) => void,
 ): NativeHandle;
 export function http_stream_close(stream: NativeHandle): void;
+/* wraps aws_http_connection_manager #TODO: Wrap with ClassBinder */
 export function http_connection_manager_new(
     bootstrap: NativeHandle,
     host: StringLike,

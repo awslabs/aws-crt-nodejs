@@ -137,8 +137,8 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
     napi_value node_args[AWS_NAPI_METHOD_MAX_ARGS];
     napi_value node_this = NULL;
     size_t num_args = AWS_ARRAY_SIZE(node_args);
-    struct aws_napi_class_info_impl *clazz = NULL;
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, &node_this, (void **)&clazz), {
+    struct aws_napi_class_info_impl *class_info = NULL;
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, &node_this, (void **)&class_info), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
@@ -149,7 +149,7 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
     napi_value result = NULL;
 
     /* Check if we're wrapping an existing object or creating a new one */
-    if (clazz->is_wrapping) {
+    if (class_info->is_wrapping) {
         AWS_FATAL_ASSERT(num_args == 1);
 
         void *native = NULL;
@@ -164,7 +164,7 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
         });
 
     } else {
-        const struct aws_napi_method_info *method = clazz->ctor_method;
+        const struct aws_napi_method_info *method = class_info->ctor_method;
 
         /* If there is no ctor method, don't both doing anything more, just return the empty object */
         if (method->method) {
@@ -330,12 +330,12 @@ napi_status aws_napi_define_class(
     size_t num_properties,
     const struct aws_napi_method_info *methods,
     size_t num_methods,
-    struct aws_napi_class_info *clazz) {
+    struct aws_napi_class_info *class_info) {
 
     AWS_FATAL_ASSERT(constructor->name);
     AWS_FATAL_ASSERT(constructor->attributes == napi_default);
 
-    struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
+    struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)class_info;
     impl->ctor_method = constructor;
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -381,7 +381,7 @@ napi_status aws_napi_define_class(
             constructor->name,
             NAPI_AUTO_LENGTH,
             s_constructor,
-            clazz,
+            class_info,
             num_descriptors,
             descriptors,
             &node_constructor),
@@ -400,16 +400,16 @@ napi_status aws_napi_define_class(
 
 napi_status aws_napi_wrap(
     napi_env env,
-    struct aws_napi_class_info *clazz,
+    struct aws_napi_class_info *class_info,
     void *native,
     napi_finalize finalizer,
     napi_value *result) {
 
-    struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
+    struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)class_info;
 
     /* Create the external object to pass to the constructor */
     napi_value to_wrap;
-    AWS_NAPI_CALL(env, napi_create_external(env, native, finalizer, clazz, &to_wrap), {
+    AWS_NAPI_CALL(env, napi_create_external(env, native, finalizer, class_info, &to_wrap), {
         napi_throw_error(env, NULL, "Failed to construct external argument");
         return status;
     });

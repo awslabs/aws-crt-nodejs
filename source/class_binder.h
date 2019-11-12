@@ -87,11 +87,11 @@ napi_status aws_napi_define_class(
     size_t num_properties,
     const struct aws_napi_method_info *methods,
     size_t num_methods,
-    struct aws_napi_class_info *clazz);
+    struct aws_napi_class_info *class_info);
 
 napi_status aws_napi_wrap(
     napi_env env,
-    struct aws_napi_class_info *clazz,
+    struct aws_napi_class_info *class_info,
     void *native,
     napi_finalize finalizer,
     napi_value *result);

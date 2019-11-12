@@ -24,11 +24,11 @@
 #include <aws/auth/signer.h>
 #include <aws/auth/signing_config.h>
 
-static struct aws_napi_class_info s_creds_provider_clazz;
+static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
 static aws_napi_method_fn s_creds_provider_new_static;
 
-static struct aws_napi_class_info s_signing_config_clazz;
+static struct aws_napi_class_info s_signing_config_class_info;
 static aws_napi_method_fn s_signing_config_constructor;
 
 static aws_napi_property_get_fn s_algorithm_get;
@@ -41,7 +41,7 @@ static aws_napi_property_get_fn s_use_double_uri_encode_get;
 static aws_napi_property_get_fn s_should_normalize_uri_path_get;
 static aws_napi_property_get_fn s_sign_body_get;
 
-static struct aws_napi_class_info s_signer_clazz;
+static struct aws_napi_class_info s_signer_class_info;
 static aws_napi_method_fn s_signer_constructor;
 static aws_napi_method_fn s_signer_sign_request;
 
@@ -80,7 +80,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             0,
             s_creds_provider_methods,
             AWS_ARRAY_SIZE(s_creds_provider_methods),
-            &s_creds_provider_clazz),
+            &s_creds_provider_class_info),
         { return status; });
 
     static const struct aws_napi_method_info s_signing_config_constructor_info = {
@@ -167,7 +167,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             AWS_ARRAY_SIZE(s_signing_config_properties),
             NULL,
             0,
-            &s_signing_config_clazz),
+            &s_signing_config_class_info),
         { return status; });
 
     static const struct aws_napi_method_info s_signer_constructor_info = {
@@ -194,7 +194,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             0,
             s_signer_methods,
             AWS_ARRAY_SIZE(s_signer_methods),
-            &s_signer_clazz),
+            &s_signer_class_info),
         { return status; });
 
     return napi_ok;
@@ -218,7 +218,7 @@ napi_status aws_napi_credentials_provider_wrap(
 
     aws_credentials_provider_acquire(creds_provider);
 
-    return aws_napi_wrap(env, &s_creds_provider_clazz, creds_provider, s_napi_creds_provider_finalize, result);
+    return aws_napi_wrap(env, &s_creds_provider_class_info, creds_provider, s_napi_creds_provider_finalize, result);
 }
 
 struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env env, napi_value js_object) {
