@@ -20,6 +20,7 @@ import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
 
 /* node specific libs */
+import * as crt from './native/crt';
 import * as io from './native/io';
 import * as mqtt from './native/mqtt';
 import * as http from './native/http';
@@ -29,6 +30,7 @@ import * as iot from './native/aws_iot';
 import { CrtError } from './native/error';
 
 export {
+    crt,
     io,
     mqtt,
     http,

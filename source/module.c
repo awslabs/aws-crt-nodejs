@@ -27,7 +27,9 @@
 #include "mqtt_client_connection.h"
 
 #include <aws/common/clock.h>
+#include <aws/common/environment.h>
 #include <aws/common/logging.h>
+#include <aws/common/system_info.h>
 
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
@@ -67,7 +69,7 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
         AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node_str, NULL, 0, &length), { return status; });
 
         /* Node requires that the null terminator be written */
-        if (aws_byte_buf_init(buf, aws_default_allocator(), length + 1)) {
+        if (aws_byte_buf_init(buf, aws_napi_get_allocator(), length + 1)) {
             return napi_generic_failure;
         }
 
@@ -152,7 +154,7 @@ struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str) {
         return NULL;
     }
 
-    struct aws_string *string = aws_string_new_from_array(aws_default_allocator(), temp_buf.buffer, temp_buf.len);
+    struct aws_string *string = aws_string_new_from_array(aws_napi_get_allocator(), temp_buf.buffer, temp_buf.len);
     aws_byte_buf_clean_up(&temp_buf);
     return string;
 }
@@ -392,12 +394,94 @@ napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function
     return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
 }
 
+AWS_STATIC_STRING_FROM_LITERAL(s_mem_tracing_env_var, "AWS_CRT_MEMORY_TRACING");
+static struct aws_allocator *s_allocator = NULL;
+struct aws_allocator *aws_napi_get_allocator() {
+    if (AWS_UNLIKELY(s_allocator == NULL)) {
+        struct aws_string *value = NULL;
+        if (aws_get_environment_value(aws_default_allocator(), s_mem_tracing_env_var, &value) || value == NULL) {
+            return s_allocator = aws_default_allocator();
+        }
+
+        int level = atoi(aws_string_c_str(value));
+        if (level < AWS_MEMTRACE_NONE || level > AWS_MEMTRACE_STACKS) {
+            /* this can't go through logging, because it happens before logging is set up */
+            fprintf(
+                stderr,
+                "AWS_CRT_MEMORY_TRACING is set to invalid value: %s, must be 0 (none), 1 (bytes), or 2 (stacks)",
+                aws_string_bytes(value));
+            level = AWS_MEMTRACE_NONE;
+        }
+        s_allocator = aws_mem_tracer_new(aws_default_allocator(), NULL, level, 16);
+    }
+    return s_allocator;
+}
+
+napi_value aws_napi_native_memory(napi_env env, napi_callback_info info) {
+    (void)info;
+    napi_value node_allocated = NULL;
+    size_t allocated = 0;
+    if (aws_napi_get_allocator() != aws_default_allocator()) {
+        allocated = aws_mem_tracer_bytes(aws_napi_get_allocator());
+    }
+    AWS_NAPI_CALL(env, napi_create_int64(env, allocated, &node_allocated), { return NULL; });
+    return node_allocated;
+}
+
+napi_value aws_napi_native_memory_dump(napi_env env, napi_callback_info info) {
+    (void)info;
+    (void)env;
+    if (aws_napi_get_allocator() != aws_default_allocator()) {
+        aws_mem_tracer_dump(aws_napi_get_allocator());
+    }
+    return NULL;
+}
+
+#if defined(_WIN32)
+#    include <windows.h>
+static LONG WINAPI s_print_stack_trace(struct _EXCEPTION_POINTERS *exception_pointers) {
+    aws_backtrace_print(stderr, exception_pointers);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#elif defined(AWS_HAVE_EXECINFO)
+#    include <signal.h>
+static void s_print_stack_trace(int sig, siginfo_t *sig_info, void *user_data) {
+    (void)sig;
+    (void)sig_info;
+    (void)user_data;
+    aws_backtrace_print(stderr, sig_info);
+    exit(-1);
+}
+#endif
+
+static void s_install_crash_handler(void) {
+#if defined(_WIN32)
+    SetUnhandledExceptionFilter(s_print_stack_trace);
+#elif defined(AWS_HAVE_EXECINFO)
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(struct sigaction));
+    sigemptyset(&sa.sa_mask);
+
+    sa.sa_flags = SA_NODEFER;
+    sa.sa_sigaction = s_print_stack_trace;
+
+    sigaction(SIGSEGV, &sa, NULL);
+#endif
+}
+
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
+
+    if (ctx->allocator != aws_default_allocator()) {
+        aws_mem_tracer_destroy(ctx->allocator);
+        if (s_allocator == ctx->allocator) {
+            s_allocator = NULL;
+        }
+    }
 }
 
 static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env, napi_value exports) {
@@ -436,8 +520,9 @@ static bool s_create_and_register_function(
 }
 
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
+    s_install_crash_handler();
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     /* context is bound to exports, will be cleaned up by finalizer */
     s_napi_context_new(allocator, env, exports);
 
@@ -457,9 +542,13 @@ static bool s_create_and_register_function(
         return null;                                                                                                   \
     }
 
-    /* IO */
+    /* Common */
+    CREATE_AND_REGISTER_FN(native_memory)
+    CREATE_AND_REGISTER_FN(native_memory_dump)
     CREATE_AND_REGISTER_FN(error_code_to_string)
     CREATE_AND_REGISTER_FN(error_code_to_name)
+
+    /* IO */
     CREATE_AND_REGISTER_FN(io_logging_enable)
     CREATE_AND_REGISTER_FN(is_alpn_available)
     CREATE_AND_REGISTER_FN(io_client_bootstrap_new)

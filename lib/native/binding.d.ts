@@ -19,9 +19,13 @@ import { AwsSigningAlgorithm } from "./auth";
 type NativeHandle = any;
 type StringLike = string | ArrayBuffer | DataView;
 
-/* IO */
+/* common */
+export function native_memory(): number;
+export function native_memory_dump(): void;
 export function error_code_to_string(error_code: number): string;
 export function error_code_to_name(error_code: number): string;
+
+/* IO */
 export function io_logging_enable(log_level: number): void;
 export function is_alpn_available(): boolean;
 export function io_client_bootstrap_new(): NativeHandle;

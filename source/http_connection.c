@@ -59,7 +59,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
 
     napi_value node_external = NULL; /* return value, external that wraps the aws_tls_connection_options */
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     struct http_proxy_options_binding *binding =
         aws_mem_calloc(allocator, 1, sizeof(struct http_proxy_options_binding));
     AWS_FATAL_ASSERT(binding && "Failed to allocate new http_proxy_options_binding");
@@ -155,7 +155,7 @@ struct aws_http_connection *aws_napi_get_http_connection(struct http_connection_
 
 napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_connection *connection) {
     struct http_connection_binding *binding =
-        aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct http_connection_binding));
+        aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct http_connection_binding));
     if (!binding) {
         aws_napi_throw_last_error(env);
         return NULL;
@@ -168,7 +168,7 @@ napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_c
         napi_create_external(env, binding, s_http_connection_from_manager_binding_finalize, NULL, &node_external),
         {
             napi_throw_error(env, NULL, "Unable to create external for managed connection");
-            aws_mem_release(aws_default_allocator(), binding);
+            aws_mem_release(aws_napi_get_allocator(), binding);
             return NULL;
         });
     return node_external;
@@ -201,7 +201,8 @@ static void s_http_on_connection_setup(struct aws_http_connection *connection, i
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
     if (binding->on_setup) {
-        struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
+        struct on_connection_args *args =
+            aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct on_connection_args));
         args->binding = binding;
         args->error_code = error_code;
         AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_setup, args));
@@ -231,7 +232,8 @@ static void s_http_on_connection_shutdown(struct aws_http_connection *connection
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
     if (binding->on_shutdown) {
-        struct on_connection_args *args = aws_mem_calloc(aws_default_allocator(), 1, sizeof(struct on_connection_args));
+        struct on_connection_args *args =
+            aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct on_connection_args));
         args->binding = binding;
         args->error_code = error_code;
         AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_shutdown, args));
@@ -249,7 +251,7 @@ static void s_http_connection_binding_finalize(napi_env env, void *finalize_data
 }
 
 napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     napi_value result = NULL;
     struct aws_tls_connection_options *tls_opts = NULL;

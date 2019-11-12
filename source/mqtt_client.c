@@ -32,7 +32,7 @@ static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *fina
 
 napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info) {
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct mqtt_nodejs_client *node_client = NULL;
 

@@ -177,7 +177,7 @@ static void s_on_connection_resumed(
 
 napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info info) {
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     napi_value result = NULL;
 
     struct mqtt_connection_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct mqtt_connection_binding));
@@ -808,7 +808,7 @@ static void s_on_publish_complete(
 
 napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_info info) {
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct publish_args));
     AWS_FATAL_ASSERT(args);

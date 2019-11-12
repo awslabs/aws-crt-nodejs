@@ -92,7 +92,7 @@ static int s_on_response_headers(
     }
 
     if (!binding->response) {
-        binding->response = aws_http_message_new_response(aws_default_allocator());
+        binding->response = aws_http_message_new_response(aws_napi_get_allocator());
     }
     return aws_http_message_add_header_array(binding->response, header_array, num_headers);
 }
@@ -193,7 +193,7 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
     (void)env;
     (void)finalize_hint;
     struct http_stream_binding *binding = finalize_data;
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     aws_http_message_destroy(binding->request);
     aws_http_message_destroy(binding->response);
     aws_input_stream_destroy(binding->body_stream);
@@ -201,7 +201,7 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
 }
 
 napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     napi_value result = NULL;
 
     napi_value node_args[5];

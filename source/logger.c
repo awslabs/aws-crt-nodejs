@@ -335,7 +335,7 @@ struct aws_logger *aws_napi_logger_get(void) {
         return &s_napi_logger.logger;
     }
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     s_napi_logger.writer.allocator = allocator;
     s_napi_logger.writer.vtable = &s_napi_log_writer_vtable;
@@ -350,7 +350,7 @@ struct aws_logger *aws_napi_logger_get(void) {
 
     op_status = aws_logger_init_from_external(
         &s_napi_logger.logger,
-        aws_default_allocator(),
+        aws_napi_get_allocator(),
         &s_napi_logger.formatter,
         &s_napi_logger.channel,
         &s_napi_logger.writer,
