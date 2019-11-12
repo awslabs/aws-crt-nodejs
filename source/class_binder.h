@@ -44,8 +44,8 @@ struct aws_napi_argument {
 /***********************************************************************************************************************
  * Properties
  **********************************************************************************************************************/
-typedef napi_value(aws_napi_property_get_fn)(napi_env env, void *self);
-typedef void(aws_napi_property_set_fn)(napi_env env, void *self, const struct aws_napi_argument *value);
+typedef napi_value(aws_napi_property_get_fn)(napi_env env, void *native_this);
+typedef void(aws_napi_property_set_fn)(napi_env env, void *native_this, const struct aws_napi_argument *value);
 
 struct aws_napi_property_info {
     const char *name;
@@ -62,7 +62,7 @@ struct aws_napi_property_info {
  **********************************************************************************************************************/
 typedef napi_value(aws_napi_method_fn)(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args);
 

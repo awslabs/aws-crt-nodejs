@@ -199,7 +199,7 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
  */
 static napi_value s_property_getter(napi_env env, napi_callback_info info) {
 
-    void *self = NULL;
+    void *native_this = NULL;
 
     napi_value node_this = NULL;
     size_t num_args = 0;
@@ -213,14 +213,14 @@ static napi_value s_property_getter(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &self), {
+    AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &native_this), {
         napi_throw_error(env, NULL, "Class binder property getter must be called on a wrapped object");
         return NULL;
     });
 
     const struct aws_napi_property_info *property = data;
 
-    napi_value result = property->getter(env, self);
+    napi_value result = property->getter(env, native_this);
 
 #if DEBUG_BUILD
     /* In debug builds, validate that getters are returning the correct type */
@@ -237,7 +237,7 @@ static napi_value s_property_getter(napi_env env, napi_callback_info info) {
  */
 static napi_value s_property_setter(napi_env env, napi_callback_info info) {
 
-    void *self = NULL;
+    void *native_this = NULL;
 
     napi_value node_this = NULL;
     napi_value node_value;
@@ -252,7 +252,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &self), {
+    AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &native_this), {
         napi_throw_error(env, NULL, "Class binder setter must be called on instance of a wrapped object");
         return NULL;
     });
@@ -264,7 +264,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    property->setter(env, self, &new_value);
+    property->setter(env, native_this, &new_value);
 
     s_argument_cleanup(env, &new_value);
 
@@ -276,7 +276,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
  */
 static napi_value s_method_call(napi_env env, napi_callback_info info) {
 
-    void *self = NULL;
+    void *native_this = NULL;
     struct aws_napi_argument args[AWS_NAPI_METHOD_MAX_ARGS];
     AWS_ZERO_ARRAY(args);
 
@@ -299,7 +299,7 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
     }
 
     if ((method->attributes & napi_static) == 0) {
-        AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &self), {
+        AWS_NAPI_CALL(env, napi_unwrap(env, node_this, &native_this), {
             napi_throw_error(env, NULL, "Bound class's method must be called on instance of the class");
             return NULL;
         });
@@ -313,7 +313,7 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
         }
     }
 
-    result = method->method(env, self, args, num_args);
+    result = method->method(env, native_this, args, num_args);
 
 cleanup_arguments:
     for (size_t i = 0; i < num_args; ++i) {

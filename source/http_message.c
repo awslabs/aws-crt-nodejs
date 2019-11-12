@@ -137,11 +137,11 @@ static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void
 
 static napi_value s_request_constructor(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
-    napi_value node_this = self;
+    napi_value node_this = native_this;
 
     struct aws_allocator *alloc = aws_napi_get_allocator();
     struct aws_http_message *message = aws_http_message_new_request(alloc);
@@ -278,10 +278,10 @@ cleanup:
  * Properties
  **********************************************************************************************************************/
 
-static napi_value s_method_get(napi_env env, void *self) {
+static napi_value s_method_get(napi_env env, void *native_this) {
 
     struct aws_byte_cursor result_cur;
-    aws_http_message_get_request_method(self, &result_cur);
+    aws_http_message_get_request_method(native_this, &result_cur);
 
     napi_value result = NULL;
     AWS_NAPI_CALL(
@@ -290,17 +290,17 @@ static napi_value s_method_get(napi_env env, void *self) {
     return result;
 }
 
-static void s_method_set(napi_env env, void *self, const struct aws_napi_argument *value) {
+static void s_method_set(napi_env env, void *native_this, const struct aws_napi_argument *value) {
     (void)env;
 
     struct aws_byte_cursor new_value_cur = aws_byte_cursor_from_buf(&value->native.string);
-    aws_http_message_set_request_method(self, new_value_cur);
+    aws_http_message_set_request_method(native_this, new_value_cur);
 }
 
-static napi_value s_path_get(napi_env env, void *self) {
+static napi_value s_path_get(napi_env env, void *native_this) {
 
     struct aws_byte_cursor result_cur;
-    aws_http_message_get_request_path(self, &result_cur);
+    aws_http_message_get_request_path(native_this, &result_cur);
 
     napi_value result = NULL;
     AWS_NAPI_CALL(
@@ -309,21 +309,21 @@ static napi_value s_path_get(napi_env env, void *self) {
     return result;
 }
 
-static void s_path_set(napi_env env, void *self, const struct aws_napi_argument *value) {
+static void s_path_set(napi_env env, void *native_this, const struct aws_napi_argument *value) {
     (void)env;
 
     struct aws_byte_cursor new_value_cur = aws_byte_cursor_from_buf(&value->native.string);
-    aws_http_message_set_request_path(self, new_value_cur);
+    aws_http_message_set_request_path(native_this, new_value_cur);
 }
 
-static void s_body_set(napi_env env, void *self, const struct aws_napi_argument *value) {
+static void s_body_set(napi_env env, void *native_this, const struct aws_napi_argument *value) {
     (void)env;
 
-    aws_http_message_set_body_stream(self, value->native.external);
+    aws_http_message_set_body_stream(native_this, value->native.external);
 }
 
-static napi_value s_num_headers_get(napi_env env, void *self) {
-    const size_t header_count = aws_http_message_get_header_count(self);
+static napi_value s_num_headers_get(napi_env env, void *native_this) {
+    const size_t header_count = aws_http_message_get_header_count(native_this);
 
     napi_value result = NULL;
     AWS_NAPI_CALL(env, napi_create_uint32(env, (uint32_t)header_count, &result), { return NULL; });
@@ -336,7 +336,7 @@ static napi_value s_num_headers_get(napi_env env, void *self) {
 
 static napi_value s_add_header(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
@@ -347,7 +347,7 @@ static napi_value s_add_header(
         .value = aws_byte_cursor_from_buf(&args[1].native.string),
     };
 
-    if (aws_http_message_add_header(self, new_header)) {
+    if (aws_http_message_add_header(native_this, new_header)) {
         aws_napi_throw_last_error(env);
     }
 
@@ -356,7 +356,7 @@ static napi_value s_add_header(
 
 static napi_value s_set_header(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
@@ -370,10 +370,10 @@ static napi_value s_set_header(
     bool found_name = false;
     size_t last_found_idx = 0;
 
-    const size_t num_headers = aws_http_message_get_header_count(self);
+    const size_t num_headers = aws_http_message_get_header_count(native_this);
     for (size_t i = num_headers;; --i) {
         struct aws_http_header header;
-        if (aws_http_message_get_header(self, &header, i)) {
+        if (aws_http_message_get_header(native_this, &header, i)) {
             aws_napi_throw_last_error(env);
             return NULL;
         }
@@ -382,7 +382,7 @@ static napi_value s_set_header(
 
             /* If we already knew about a header with this key, delete it, and keep track of the new one */
             if (found_name) {
-                if (aws_http_message_erase_header(self, last_found_idx)) {
+                if (aws_http_message_erase_header(native_this, last_found_idx)) {
                     aws_napi_throw_last_error(env);
                     return NULL;
                 }
@@ -400,12 +400,12 @@ static napi_value s_set_header(
 
     /* If we found the header, replace it. Otherwise, add it. */
     if (found_name) {
-        if (aws_http_message_set_header(self, new_header, last_found_idx)) {
+        if (aws_http_message_set_header(native_this, new_header, last_found_idx)) {
             aws_napi_throw_last_error(env);
             return NULL;
         }
     } else {
-        if (aws_http_message_add_header(self, new_header)) {
+        if (aws_http_message_add_header(native_this, new_header)) {
             aws_napi_throw_last_error(env);
             return NULL;
         }
@@ -416,7 +416,7 @@ static napi_value s_set_header(
 
 static napi_value s_get_header(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
@@ -428,7 +428,7 @@ static napi_value s_get_header(
     }
 
     struct aws_http_header header;
-    if (aws_http_message_get_header(self, &header, args[0].native.number)) {
+    if (aws_http_message_get_header(native_this, &header, args[0].native.number)) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
@@ -448,7 +448,7 @@ static napi_value s_get_header(
 
 static napi_value s_erase_header(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
@@ -459,7 +459,7 @@ static napi_value s_erase_header(
         return NULL;
     }
 
-    if (aws_http_message_erase_header(self, args[0].native.number)) {
+    if (aws_http_message_erase_header(native_this, args[0].native.number)) {
         aws_napi_throw_last_error(env);
         return NULL;
     }

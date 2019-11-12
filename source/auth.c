@@ -232,20 +232,20 @@ struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env e
 
 static napi_value s_creds_provider_constructor(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
     AWS_FATAL_ASSERT(num_args == 1);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    napi_value node_self = self;
+    napi_value node_this = native_this;
 
     struct aws_credentials_provider_chain_default_options options;
     options.bootstrap = args[0].native.external;
     struct aws_credentials_provider *provider = aws_credentials_provider_new_chain_default(allocator, &options);
 
-    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_self), {
+    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
         napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
     });
@@ -253,19 +253,19 @@ static napi_value s_creds_provider_constructor(
     /* Reference is now held by the node object */
     aws_credentials_provider_release(provider);
 
-    return node_self;
+    return node_this;
 }
 
 static napi_value s_creds_provider_new_static(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
     AWS_FATAL_ASSERT(num_args >= 2);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    napi_value node_self = self;
+    napi_value node_this = native_this;
 
     struct aws_byte_cursor access_key = aws_byte_cursor_from_buf(&args[0].native.string);
     struct aws_byte_cursor secret_key = aws_byte_cursor_from_buf(&args[1].native.string);
@@ -279,7 +279,7 @@ static napi_value s_creds_provider_new_static(
     struct aws_credentials_provider *provider =
         aws_credentials_provider_new_static(allocator, access_key, secret_key, session_token);
 
-    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_self), {
+    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
         napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
     });
@@ -287,7 +287,7 @@ static napi_value s_creds_provider_new_static(
     /* Reference is now held by the node object */
     aws_credentials_provider_release(provider);
 
-    return node_self;
+    return node_this;
 }
 
 /***********************************************************************************************************************
@@ -435,7 +435,7 @@ static void s_signing_config_finalize(napi_env env, void *finalize_data, void *f
 
 static napi_value s_signing_config_constructor(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
@@ -518,40 +518,40 @@ static napi_value s_signing_config_constructor(
         binding->base.sign_body = args[8].native.boolean;
     }
 
-    AWS_NAPI_CALL(env, napi_wrap(env, self, binding, s_signing_config_finalize, allocator, NULL), {
+    AWS_NAPI_CALL(env, napi_wrap(env, native_this, binding, s_signing_config_finalize, allocator, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap HttpRequest");
         goto cleanup;
     });
 
-    return self;
+    return native_this;
 
 cleanup:
     s_signing_config_finalize(env, binding, allocator);
     return NULL;
 }
 
-static napi_value s_algorithm_get(napi_env env, void *self) {
+static napi_value s_algorithm_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     napi_create_uint32(env, binding->base.algorithm, &result);
     return result;
 }
 
-static napi_value s_provider_get(napi_env env, void *self) {
+static napi_value s_provider_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, binding->base.credentials_provider, &result), {});
     return result;
 }
 
-static napi_value s_region_get(napi_env env, void *self) {
+static napi_value s_region_get(napi_env env, void *native_this) {
     (void)env;
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(
@@ -559,9 +559,9 @@ static napi_value s_region_get(napi_env env, void *self) {
     return result;
 }
 
-static napi_value s_service_get(napi_env env, void *self) {
+static napi_value s_service_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(
@@ -569,9 +569,9 @@ static napi_value s_service_get(napi_env env, void *self) {
     return result;
 }
 
-static napi_value s_date_get(napi_env env, void *self) {
+static napi_value s_date_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
 
@@ -622,9 +622,9 @@ static napi_value s_date_get(napi_env env, void *self) {
     return result;
 }
 
-static napi_value s_param_blacklist_get(napi_env env, void *self) {
+static napi_value s_param_blacklist_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     if (binding->node_param_blacklist) {
@@ -633,27 +633,27 @@ static napi_value s_param_blacklist_get(napi_env env, void *self) {
     return result;
 }
 
-static napi_value s_use_double_uri_encode_get(napi_env env, void *self) {
+static napi_value s_use_double_uri_encode_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(env, napi_get_boolean(env, binding->base.use_double_uri_encode, &result), {});
     return result;
 }
 
-static napi_value s_should_normalize_uri_path_get(napi_env env, void *self) {
+static napi_value s_should_normalize_uri_path_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(env, napi_get_boolean(env, binding->base.should_normalize_uri_path, &result), {});
     return result;
 }
 
-static napi_value s_sign_body_get(napi_env env, void *self) {
+static napi_value s_sign_body_get(napi_env env, void *native_this) {
 
-    struct signing_config_binding *binding = self;
+    struct signing_config_binding *binding = native_this;
 
     napi_value result = NULL;
     AWS_NAPI_CALL(env, napi_get_boolean(env, binding->base.sign_body, &result), {});
@@ -673,7 +673,7 @@ static void s_napi_signer_finalize(napi_env env, void *finalize_data, void *fina
 
 static napi_value s_signer_constructor(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
@@ -684,12 +684,12 @@ static napi_value s_signer_constructor(
 
     struct aws_signer *signer = aws_signer_new_aws(allocator);
 
-    AWS_NAPI_CALL(env, napi_wrap(env, self, signer, s_napi_signer_finalize, allocator, NULL), {
+    AWS_NAPI_CALL(env, napi_wrap(env, native_this, signer, s_napi_signer_finalize, allocator, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap AwsSigner");
         return NULL;
     });
 
-    return self;
+    return native_this;
 }
 
 struct signer_sign_request_state {
@@ -738,14 +738,14 @@ static void s_signer_sign_request_complete(struct aws_signing_result *result, in
 
 static napi_value s_signer_sign_request(
     napi_env env,
-    void *self,
+    void *native_this,
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
     AWS_FATAL_ASSERT(num_args == 3);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    struct aws_signer *signer = self;
+    struct aws_signer *signer = native_this;
 
     struct signer_sign_request_state *state = aws_mem_calloc(allocator, 1, sizeof(struct signer_sign_request_state));
 
