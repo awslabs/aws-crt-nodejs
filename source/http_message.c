@@ -143,7 +143,7 @@ static napi_value s_request_constructor(
 
     napi_value node_this = self;
 
-    struct aws_allocator *alloc = aws_default_allocator();
+    struct aws_allocator *alloc = aws_napi_get_allocator();
     struct aws_http_message *message = aws_http_message_new_request(alloc);
 
     if (num_args >= 1 && args[0].type != napi_undefined) {

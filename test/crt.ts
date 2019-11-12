@@ -19,6 +19,8 @@
 import { crt } from '../lib/index';
 
 test('Native Memory', () => {
-    expect(crt.native_memory()).toBeGreaterThan(0);
+    if (process.env["AWS_CRT_MEMORY_TRACING"]) {
+        expect(crt.native_memory()).toBeGreaterThan(0);
+    }
 });
 

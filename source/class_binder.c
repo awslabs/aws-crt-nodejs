@@ -338,7 +338,7 @@ napi_status aws_napi_define_class(
     struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)clazz;
     impl->ctor_method = constructor;
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     const size_t num_descriptors = num_properties + num_methods;
     napi_property_descriptor *descriptors =

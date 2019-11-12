@@ -238,7 +238,7 @@ static napi_value s_creds_provider_constructor(
 
     AWS_FATAL_ASSERT(num_args == 1);
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     napi_value node_self = self;
 
     struct aws_credentials_provider_chain_default_options options;
@@ -264,7 +264,7 @@ static napi_value s_creds_provider_new_static(
 
     AWS_FATAL_ASSERT(num_args >= 2);
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     napi_value node_self = self;
 
     struct aws_byte_cursor access_key = aws_byte_cursor_from_buf(&args[0].native.string);
@@ -329,7 +329,7 @@ struct signing_config_binding {
 struct aws_signing_config_aws *aws_signing_config_aws_prepare_and_unwrap(napi_env env, napi_value js_object) {
 
     struct signing_config_binding *binding = NULL;
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     AWS_NAPI_CALL(env, napi_unwrap(env, js_object, (void **)&binding), {
         napi_throw_error(env, NULL, "Failed to unwrap aws_signing_config_aws");
@@ -435,7 +435,7 @@ static napi_value s_signing_config_constructor(
     const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
     size_t num_args) {
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct signing_config_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct signing_config_binding));
     binding->base.config_type = AWS_SIGNING_CONFIG_AWS;
@@ -676,7 +676,7 @@ static napi_value s_signer_constructor(
     AWS_FATAL_ASSERT(num_args == 0);
     (void)args;
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct aws_signer *signer = aws_signer_new_aws(allocator);
 
@@ -722,7 +722,7 @@ static void s_signer_sign_request_complete_call(napi_env env, napi_value on_comp
 static void s_signer_sign_request_complete(struct aws_signing_result *result, int error_code, void *userdata) {
 
     struct signer_sign_request_state *state = userdata;
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     aws_signable_destroy(state->signable);
 
@@ -740,7 +740,7 @@ static napi_value s_signer_sign_request(
 
     AWS_FATAL_ASSERT(num_args == 3);
 
-    struct aws_allocator *allocator = aws_default_allocator();
+    struct aws_allocator *allocator = aws_napi_get_allocator();
     struct aws_signer *signer = self;
 
     struct signer_sign_request_state *state = aws_mem_calloc(allocator, 1, sizeof(struct signer_sign_request_state));
