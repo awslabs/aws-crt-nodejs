@@ -426,6 +426,10 @@ static void s_signing_config_finalize(napi_env env, void *finalize_data, void *f
 
     aws_array_list_clean_up(&binding->param_blacklist);
 
+    if (binding->base.credentials_provider) {
+        aws_credentials_provider_release(binding->base.credentials_provider);
+    }
+
     aws_mem_release(allocator, binding);
 }
 
