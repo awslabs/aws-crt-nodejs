@@ -14,12 +14,14 @@
  */
 
 import { auth as native, http as native_http } from '../lib/index';
+import { AwsCredentialsProvider } from '../lib/native/auth';
 
 test('AwsSigningConfig properties', () => {
     const now = new Date();
+    const provider = AwsCredentialsProvider.newStatic("key", "secret");
     let config = new native.AwsSigningConfig(
         native.AwsSigningAlgorithm.SigV4QueryParam,
-        undefined,
+        provider,
         'us-east-1',
         'iotcore',
         now,
