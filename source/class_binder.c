@@ -25,7 +25,7 @@ struct aws_napi_class_info_impl {
 /* Make sure our static storage is big enough */
 AWS_STATIC_ASSERT(sizeof(struct aws_napi_class_info) >= sizeof(struct aws_napi_class_info_impl));
 
-/**
+/*
  * Populates an aws_napi_argument object from a napi value.
  *
  * \param env               The node environment.
@@ -110,7 +110,7 @@ static napi_status s_argument_parse(
     return napi_ok;
 }
 
-/**
+/*
  * Cleans up an aws_napi_argument object populated by s_argument_parse.
  *
  * \param env           The node environment.
@@ -129,7 +129,7 @@ static void s_argument_cleanup(napi_env env, struct aws_napi_argument *value) {
     }
 }
 
-/**
+/*
  * Used as the class's constructor
  */
 static napi_value s_constructor(napi_env env, napi_callback_info info) {
@@ -150,15 +150,21 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
 
     /* Check if we're wrapping an existing object or creating a new one */
     if (class_info->is_wrapping) {
-        AWS_FATAL_ASSERT(num_args == 1);
+        AWS_FATAL_ASSERT(num_args == 2);
 
         void *native = NULL;
+        void *finalizer = NULL;
 
         /* Arg 1 should be an external */
         AWS_NAPI_ENSURE(env, napi_get_value_external(env, node_args[0], &native));
+        /* Arg 2 should be the finalizer */
+        napi_valuetype arg2_type = napi_undefined;
+        AWS_NAPI_ENSURE(env, napi_typeof(env, node_args[1], &arg2_type));
+        if (arg2_type == napi_external) {
+            AWS_NAPI_ENSURE(env, napi_get_value_external(env, node_args[1], &finalizer));
+        }
 
-        /* Wrap shouldn't take a finalizer, because it's very likely that this object isn't owned by JS */
-        AWS_NAPI_CALL(env, napi_wrap(env, node_this, native, NULL, NULL, NULL), {
+        AWS_NAPI_CALL(env, napi_wrap(env, node_this, native, (napi_finalize)finalizer, class_info, NULL), {
             napi_throw_error(env, NULL, "Failed to wrap http_request");
             return NULL;
         });
@@ -200,7 +206,7 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
     return result;
 }
 
-/**
+/*
  * Callback used to return the value of a property. Expects 0 arguments.
  */
 static napi_value s_property_getter(napi_env env, napi_callback_info info) {
@@ -226,6 +232,11 @@ static napi_value s_property_getter(napi_env env, napi_callback_info info) {
 
     const struct aws_napi_property_info *property = data;
 
+    if (!property->getter) {
+        napi_throw_error(env, NULL, "Property is not readable");
+        return NULL;
+    }
+
     napi_value result = property->getter(env, native_this);
 
 #if DEBUG_BUILD
@@ -238,7 +249,7 @@ static napi_value s_property_getter(napi_env env, napi_callback_info info) {
     return result;
 }
 
-/**
+/*
  * Callback used to set the value of a property. Expects 1 argument.
  */
 static napi_value s_property_setter(napi_env env, napi_callback_info info) {
@@ -265,6 +276,11 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
 
     const struct aws_napi_property_info *property = data;
 
+    if (!property->setter) {
+        napi_throw_error(env, NULL, "Property is not writable");
+        return NULL;
+    }
+
     struct aws_napi_argument new_value;
     if (s_argument_parse(env, node_value, property->type, false, &new_value)) {
         return NULL;
@@ -277,7 +293,7 @@ static napi_value s_property_setter(napi_env env, napi_callback_info info) {
     return NULL;
 }
 
-/**
+/*
  * Callback used to call a method on a bound object.
  */
 static napi_value s_method_call(napi_env env, napi_callback_info info) {
@@ -436,12 +452,23 @@ napi_status aws_napi_wrap(
 
     struct aws_napi_class_info_impl *impl = (struct aws_napi_class_info_impl *)class_info;
 
+    napi_value ctor_args[2];
+
     /* Create the external object to pass to the constructor */
-    napi_value to_wrap;
-    AWS_NAPI_CALL(env, napi_create_external(env, native, finalizer, class_info, &to_wrap), {
+    AWS_NAPI_CALL(env, napi_create_external(env, native, NULL, NULL, &ctor_args[0]), {
         napi_throw_error(env, NULL, "Failed to construct external argument");
         return status;
     });
+
+    /* Wrap the finalizer in another external */
+    if (finalizer) {
+        AWS_NAPI_CALL(env, napi_create_external(env, (void *)finalizer, NULL, NULL, &ctor_args[1]), {
+            napi_throw_error(env, NULL, "Failed to construct finalizer argument");
+            return status;
+        });
+    } else {
+        AWS_NAPI_ENSURE(env, napi_get_undefined(env, &ctor_args[1]));
+    }
 
     napi_value constructor = NULL;
     AWS_NAPI_CALL(env, napi_get_reference_value(env, impl->constructor, &constructor), {
@@ -450,11 +477,13 @@ napi_status aws_napi_wrap(
     });
 
     impl->is_wrapping = true;
-    AWS_NAPI_CALL(env, napi_new_instance(env, constructor, 1, &to_wrap, result), {
+    AWS_NAPI_CALL(env, napi_new_instance(env, constructor, 2, ctor_args, result), {
         napi_throw_error(env, NULL, "Failed to construct class-bound object");
         return status;
     });
     impl->is_wrapping = false;
+
+    /* The constructor function will have called napi_wrap onto result */
 
     return napi_ok;
 }
