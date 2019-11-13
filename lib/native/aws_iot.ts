@@ -104,8 +104,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                         options.region,
                         options.service ?? "iotdevicegateway",
                         new Date(),
-                        ["x-amz-date",
-                        "x-amz-security-token"],
+                        ["x-amz-date", "x-amz-security-token"],
                         false,
                         true,
                         false);

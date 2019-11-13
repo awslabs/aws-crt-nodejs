@@ -201,9 +201,9 @@ export class HttpRequest {
 
 /* Auth */
 export class AwsCredentialsProvider {
-    constructor(bootstrap: NativeHandle);
-    static newDefault(bootstrap: NativeHandle): AwsCredentialsProvider;
+    protected constructor();
 
+    static newDefault(bootstrap: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
 }
 

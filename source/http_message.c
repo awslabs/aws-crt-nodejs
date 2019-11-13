@@ -135,33 +135,28 @@ static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void
     aws_http_message_destroy(finalize_data);
 }
 
-static napi_value s_request_constructor(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
-
-    napi_value node_this = native_this;
+static napi_value s_request_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
     struct aws_allocator *alloc = aws_napi_get_allocator();
     struct aws_http_message *message = aws_http_message_new_request(alloc);
+    const struct aws_napi_argument *arg = NULL;
 
-    if (num_args >= 1 && args[0].type != napi_undefined) {
-        struct aws_byte_cursor method_cur = aws_byte_cursor_from_buf(&args[0].native.string);
+    if (aws_napi_method_next_argument(napi_string, cb_info, &arg)) {
+        struct aws_byte_cursor method_cur = aws_byte_cursor_from_buf(&arg->native.string);
         aws_http_message_set_request_method(message, method_cur);
     }
 
-    if (num_args >= 2 && args[1].type != napi_undefined) {
-        struct aws_byte_cursor path_cur = aws_byte_cursor_from_buf(&args[1].native.string);
+    if (aws_napi_method_next_argument(napi_string, cb_info, &arg)) {
+        struct aws_byte_cursor path_cur = aws_byte_cursor_from_buf(&arg->native.string);
         aws_http_message_set_request_path(message, path_cur);
     }
 
-    if (num_args >= 3 && args[2].type != napi_undefined) {
-        aws_http_message_set_body_stream(message, args[2].native.external);
+    if (aws_napi_method_next_argument(napi_external, cb_info, &arg)) {
+        aws_http_message_set_body_stream(message, arg->native.external);
     }
 
-    if (num_args >= 4 && args[3].type != napi_undefined) {
-        napi_value node_headers = args[3].node;
+    if (aws_napi_method_next_argument(napi_undefined, cb_info, &arg)) {
+        napi_value node_headers = arg->node;
 
         bool is_array = false;
         if (napi_is_array(env, node_headers, &is_array) || !is_array) {
@@ -258,8 +253,9 @@ static napi_value s_request_constructor(
         aws_byte_buf_clean_up(&value_buf);
         goto cleanup;
     }
-header_parse_success:
+header_parse_success:;
 
+    napi_value node_this = cb_info->native_this;
     AWS_NAPI_CALL(env, napi_wrap(env, node_this, message, s_napi_http_request_finalize, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap HttpRequest");
         goto cleanup;
@@ -334,18 +330,19 @@ static napi_value s_num_headers_get(napi_env env, void *native_this) {
  * Methods
  **********************************************************************************************************************/
 
-static napi_value s_add_header(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_add_header(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 2);
+    AWS_FATAL_ASSERT(cb_info->num_args == 2);
+    struct aws_http_message *native_this = cb_info->native_this;
+    const struct aws_napi_argument *arg = NULL;
 
-    struct aws_http_header new_header = {
-        .name = aws_byte_cursor_from_buf(&args[0].native.string),
-        .value = aws_byte_cursor_from_buf(&args[1].native.string),
-    };
+    struct aws_http_header new_header;
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    new_header.name = aws_byte_cursor_from_buf(&arg->native.string);
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    new_header.value = aws_byte_cursor_from_buf(&arg->native.string);
 
     if (aws_http_message_add_header(native_this, new_header)) {
         aws_napi_throw_last_error(env);
@@ -354,18 +351,19 @@ static napi_value s_add_header(
     return NULL;
 }
 
-static napi_value s_set_header(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_set_header(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 2);
+    AWS_FATAL_ASSERT(cb_info->num_args == 2);
+    struct aws_http_message *native_this = cb_info->native_this;
+    const struct aws_napi_argument *arg = NULL;
 
-    struct aws_http_header new_header = {
-        .name = aws_byte_cursor_from_buf(&args[0].native.string),
-        .value = aws_byte_cursor_from_buf(&args[1].native.string),
-    };
+    struct aws_http_header new_header;
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    new_header.name = aws_byte_cursor_from_buf(&arg->native.string);
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    new_header.value = aws_byte_cursor_from_buf(&arg->native.string);
 
     bool found_name = false;
     size_t last_found_idx = 0;
@@ -414,21 +412,21 @@ static napi_value s_set_header(
     return NULL;
 }
 
-static napi_value s_get_header(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_get_header(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 1);
+    AWS_FATAL_ASSERT(cb_info->num_args == 1);
+    struct aws_http_message *native_this = cb_info->native_this;
+    const struct aws_napi_argument *arg = NULL;
 
-    if (args[0].native.number < 0 || (size_t)args[0].native.number > SIZE_MAX) {
+    aws_napi_method_next_argument(napi_number, cb_info, &arg);
+    const int64_t index = arg->native.number;
+    if (index < 0 || (size_t)index > SIZE_MAX) {
         napi_throw_error(env, NULL, "Header index is out of bounds");
         return NULL;
     }
 
     struct aws_http_header header;
-    if (aws_http_message_get_header(native_this, &header, args[0].native.number)) {
+    if (aws_http_message_get_header(native_this, &header, (size_t)index)) {
         aws_napi_throw_last_error(env);
         return NULL;
     }
@@ -446,20 +444,20 @@ static napi_value s_get_header(
     return node_header;
 }
 
-static napi_value s_erase_header(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_erase_header(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 1);
+    AWS_FATAL_ASSERT(cb_info->num_args == 1);
+    struct aws_http_message *native_this = cb_info->native_this;
+    const struct aws_napi_argument *arg = NULL;
 
-    if (args[0].native.number < 0 || (size_t)args[0].native.number > SIZE_MAX) {
+    aws_napi_method_next_argument(napi_number, cb_info, &arg);
+    const int64_t index = arg->native.number;
+    if (index < 0 || (size_t)index > SIZE_MAX) {
         napi_throw_error(env, NULL, "Header index is out of bounds");
         return NULL;
     }
 
-    if (aws_http_message_erase_header(native_this, args[0].native.number)) {
+    if (aws_http_message_erase_header(native_this, (size_t)index)) {
         aws_napi_throw_last_error(env);
         return NULL;
     }

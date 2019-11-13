@@ -24,9 +24,6 @@ export enum AwsSigningAlgorithm {
 
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
 export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
-    constructor(bootstrap: ClientBootstrap) {
-        super(bootstrap.native_handle());
-    }
     static newDefault(bootstrap: ClientBootstrap): AwsCredentialsProvider {
         return super.newDefault(bootstrap.native_handle());
     }
@@ -35,8 +32,8 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
 export class AwsSigningConfig extends crt_native.AwsSigningConfig {
     constructor(
         algorithm = AwsSigningAlgorithm.SigV4Header,
-        provider?: AwsCredentialsProvider,
-        region?: string,
+        provider: AwsCredentialsProvider,
+        region: string,
         service?: string,
         date = new Date(),
         param_blacklist?: string[],

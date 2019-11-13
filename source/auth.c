@@ -26,6 +26,7 @@
 
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
+static aws_napi_method_fn s_creds_provider_new_default;
 static aws_napi_method_fn s_creds_provider_new_static;
 
 static struct aws_napi_class_info s_signing_config_class_info;
@@ -56,7 +57,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_methods[] = {
         {
             .name = "newDefault",
-            .method = s_creds_provider_constructor,
+            .method = s_creds_provider_new_default,
             .num_arguments = 1,
             .arg_types = {napi_external},
             .attributes = napi_static,
@@ -230,21 +231,27 @@ struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env e
     return creds_provider;
 }
 
-static napi_value s_creds_provider_constructor(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_creds_provider_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 1);
+    (void)env;
+
+    /* Don't do any construction, object should be empty except prototype and wrapped value */
+    return cb_info->native_this;
+}
+
+static napi_value s_creds_provider_new_default(napi_env env, const struct aws_napi_callback_info *cb_info) {
+
+    AWS_FATAL_ASSERT(cb_info->num_args == 1);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    napi_value node_this = native_this;
+    const struct aws_napi_argument *arg = NULL;
 
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
     struct aws_credentials_provider_chain_default_options options;
-    options.bootstrap = args[0].native.external;
+    options.bootstrap = arg->native.external;
     struct aws_credentials_provider *provider = aws_credentials_provider_new_chain_default(allocator, &options);
 
+    napi_value node_this = NULL;
     AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
         napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
@@ -256,29 +263,29 @@ static napi_value s_creds_provider_constructor(
     return node_this;
 }
 
-static napi_value s_creds_provider_new_static(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_creds_provider_new_static(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args >= 2);
+    AWS_FATAL_ASSERT(cb_info->num_args >= 2);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    napi_value node_this = native_this;
+    const struct aws_napi_argument *arg = NULL;
 
-    struct aws_byte_cursor access_key = aws_byte_cursor_from_buf(&args[0].native.string);
-    struct aws_byte_cursor secret_key = aws_byte_cursor_from_buf(&args[1].native.string);
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    struct aws_byte_cursor access_key = aws_byte_cursor_from_buf(&arg->native.string);
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    struct aws_byte_cursor secret_key = aws_byte_cursor_from_buf(&arg->native.string);
 
     struct aws_byte_cursor session_token;
     AWS_ZERO_STRUCT(session_token);
-    if (num_args >= 3 && args[2].type == napi_string) {
-        session_token = aws_byte_cursor_from_buf(&args[2].native.string);
+    if (aws_napi_method_next_argument(napi_string, cb_info, &arg)) {
+        session_token = aws_byte_cursor_from_buf(&arg->native.string);
     }
 
     struct aws_credentials_provider *provider =
         aws_credentials_provider_new_static(allocator, access_key, secret_key, session_token);
 
+    napi_value node_this = NULL;
     AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
         napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
         return NULL;
@@ -297,11 +304,15 @@ static napi_value s_creds_provider_new_static(
 /* #TODO #TBT to that time in the future when we deleted this because we had napi_get_date_value */
 static napi_status s_napi_get_date_value(napi_env env, napi_value value, struct aws_date_time *result) {
 
+    napi_valuetype t = napi_undefined;
+
     napi_value prototype = NULL;
     AWS_NAPI_CALL(env, napi_get_prototype(env, value, &prototype), { return status; });
+    napi_typeof(env, prototype, &t);
 
     napi_value valueOfFn = NULL;
     AWS_NAPI_CALL(env, napi_get_named_property(env, prototype, "getTime", &valueOfFn), { return status; });
+    napi_typeof(env, valueOfFn, &t);
 
     napi_value node_result = NULL;
     AWS_NAPI_CALL(env, napi_call_function(env, value, valueOfFn, 0, NULL, &node_result), { return status; });
@@ -323,7 +334,11 @@ struct signing_config_binding {
     napi_ref date;
     napi_ref node_param_blacklist;
 
-    struct aws_array_list param_blacklist; /* aws_string * */
+    /**
+     * aws_string *
+     * this exists so that when should_sign_param is called from off thread, we don't have to hit Node every single time
+     */
+    struct aws_array_list param_blacklist;
 };
 
 struct aws_signing_config_aws *aws_signing_config_aws_prepare_and_unwrap(napi_env env, napi_value js_object) {
@@ -433,11 +448,7 @@ static void s_signing_config_finalize(napi_env env, void *finalize_data, void *f
     aws_mem_release(allocator, binding);
 }
 
-static napi_value s_signing_config_constructor(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_signing_config_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
@@ -446,8 +457,12 @@ static napi_value s_signing_config_constructor(
     binding->base.should_sign_param = s_should_sign_param;
     binding->base.should_sign_param_ud = binding;
 
-    if (num_args >= 1 && args[0].type == napi_number) {
-        const int64_t algorithm_int = args[0].native.number;
+    const struct aws_napi_argument *arg = NULL;
+
+    if (aws_napi_method_next_argument(napi_number, cb_info, &arg)) {
+        AWS_FATAL_ASSERT(arg == &cb_info->arguments[0]);
+
+        const int64_t algorithm_int = arg->native.number;
         if (algorithm_int < 0 || algorithm_int >= AWS_SIGNING_ALGORITHM_COUNT) {
             napi_throw_error(env, NULL, "Signing algorithm value out of acceptable range");
             goto cleanup;
@@ -456,41 +471,41 @@ static napi_value s_signing_config_constructor(
         binding->base.algorithm = (enum aws_signing_algorithm)algorithm_int;
     }
 
-    if (num_args >= 2 && args[1].type == napi_object) {
-        binding->base.credentials_provider = args[1].native.external;
+    if (aws_napi_method_next_argument(napi_object, cb_info, &arg)) {
+        binding->base.credentials_provider = arg->native.external;
     }
 
-    if (num_args >= 3 && args[2].type == napi_string) {
-        binding->region = args[2].native.string;
+    if (aws_napi_method_next_argument(napi_string, cb_info, &arg)) {
+        binding->region = arg->native.string;
         binding->base.region = aws_byte_cursor_from_buf(&binding->region);
         /* Make sure the buffer doesn't get cleaned up automatically */
-        *(struct aws_allocator **)&args[2].native.string.allocator = NULL;
+        *(struct aws_allocator **)&arg->native.string.allocator = NULL;
     }
 
-    if (num_args >= 4 && args[3].type == napi_string) {
-        binding->service = args[3].native.string;
+    if (aws_napi_method_next_argument(napi_string, cb_info, &arg)) {
+        binding->service = arg->native.string;
         binding->base.service = aws_byte_cursor_from_buf(&binding->service);
         /* Make sure the buffer doesn't get cleaned up automatically */
-        *(struct aws_allocator **)&args[3].native.string.allocator = NULL;
+        *(struct aws_allocator **)&arg->native.string.allocator = NULL;
     }
 
     /* #TODO eventually check for napi_date type (node v11) */
-    if (num_args >= 5 && args[4].type != napi_undefined) {
+    if (aws_napi_method_next_argument(napi_object, cb_info, &arg)) {
         /* Create the reference so that the getter may return the exact date the user gave us */
-        AWS_NAPI_CALL(env, napi_create_reference(env, args[4].node, 1, &binding->date), {
+        AWS_NAPI_CALL(env, napi_create_reference(env, arg->node, 1, &binding->date), {
             napi_throw_error(env, NULL, "Failed to create reference to date object");
             goto cleanup;
         });
 
-        AWS_NAPI_CALL(env, s_napi_get_date_value(env, args[4].node, &binding->base.date), {
+        AWS_NAPI_CALL(env, s_napi_get_date_value(env, arg->node, &binding->base.date), {
             napi_throw_error(env, NULL, "Failed to extract date value");
             goto cleanup;
         });
     }
 
-    if (num_args >= 6 && args[5].type != napi_undefined) {
+    if (aws_napi_method_next_argument(napi_object, cb_info, &arg)) {
         bool is_array = false;
-        AWS_NAPI_CALL(env, napi_is_array(env, args[5].node, &is_array), {
+        AWS_NAPI_CALL(env, napi_is_array(env, arg->node, &is_array), {
             napi_throw_error(env, NULL, "Failed to check if parameter blacklist is an array");
             goto cleanup;
         });
@@ -500,30 +515,30 @@ static napi_value s_signing_config_constructor(
             goto cleanup;
         }
 
-        AWS_NAPI_CALL(env, napi_create_reference(env, args[5].node, 1, &binding->node_param_blacklist), {
+        AWS_NAPI_CALL(env, napi_create_reference(env, arg->node, 1, &binding->node_param_blacklist), {
             napi_throw_error(env, NULL, "Failed to create napi_reference for parameter blacklist");
             goto cleanup;
         });
     }
 
-    if (num_args >= 7 && args[6].type == napi_boolean) {
-        binding->base.use_double_uri_encode = args[6].native.boolean;
+    if (aws_napi_method_next_argument(napi_boolean, cb_info, &arg)) {
+        binding->base.use_double_uri_encode = arg->native.boolean;
     }
 
-    if (num_args >= 8 && args[7].type == napi_boolean) {
-        binding->base.should_normalize_uri_path = args[7].native.boolean;
+    if (aws_napi_method_next_argument(napi_boolean, cb_info, &arg)) {
+        binding->base.should_normalize_uri_path = arg->native.boolean;
     }
 
-    if (num_args >= 9 && args[8].type == napi_boolean) {
-        binding->base.sign_body = args[8].native.boolean;
+    if (aws_napi_method_next_argument(napi_boolean, cb_info, &arg)) {
+        binding->base.sign_body = arg->native.boolean;
     }
 
-    AWS_NAPI_CALL(env, napi_wrap(env, native_this, binding, s_signing_config_finalize, allocator, NULL), {
+    AWS_NAPI_CALL(env, napi_wrap(env, cb_info->native_this, binding, s_signing_config_finalize, allocator, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap HttpRequest");
         goto cleanup;
     });
 
-    return native_this;
+    return cb_info->native_this;
 
 cleanup:
     s_signing_config_finalize(env, binding, allocator);
@@ -671,25 +686,20 @@ static void s_napi_signer_finalize(napi_env env, void *finalize_data, void *fina
     aws_signer_destroy(finalize_data);
 }
 
-static napi_value s_signer_constructor(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_signer_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 0);
-    (void)args;
+    AWS_FATAL_ASSERT(cb_info->num_args == 0);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct aws_signer *signer = aws_signer_new_aws(allocator);
 
-    AWS_NAPI_CALL(env, napi_wrap(env, native_this, signer, s_napi_signer_finalize, allocator, NULL), {
+    AWS_NAPI_CALL(env, napi_wrap(env, cb_info->native_this, signer, s_napi_signer_finalize, allocator, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap AwsSigner");
         return NULL;
     });
 
-    return native_this;
+    return cb_info->native_this;
 }
 
 struct signer_sign_request_state {
@@ -713,8 +723,7 @@ static void s_signer_sign_request_complete_call(napi_env env, napi_value on_comp
     napi_value args[1];
     napi_create_int32(env, state->error_code, &args[0]);
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, state->on_complete, NULL, on_complete, 2, args));
+    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, state->on_complete, NULL, on_complete, 2, args));
 
     /* Release references */
     napi_delete_reference(env, state->node_config);
@@ -736,31 +745,31 @@ static void s_signer_sign_request_complete(struct aws_signing_result *result, in
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(state->on_complete, allocator));
 }
 
-static napi_value s_signer_sign_request(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args) {
+static napi_value s_signer_sign_request(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(num_args == 3);
+    AWS_FATAL_ASSERT(cb_info->num_args == 3);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    struct aws_signer *signer = native_this;
+    struct aws_signer *signer = cb_info->native_this;
+    const struct aws_napi_argument *arg = NULL;
 
     struct signer_sign_request_state *state = aws_mem_calloc(allocator, 1, sizeof(struct signer_sign_request_state));
 
-    napi_create_reference(env, args[0].node, 1, &state->node_request);
-    state->request = aws_napi_http_message_unwrap(env, args[0].node);
+    aws_napi_method_next_argument(napi_object, cb_info, &arg);
+    napi_create_reference(env, arg->node, 1, &state->node_request);
+    state->request = aws_napi_http_message_unwrap(env, arg->node);
     state->signable = aws_signable_new_http_request(allocator, state->request);
 
-    napi_create_reference(env, args[1].node, 1, &state->node_config);
-    state->config = aws_signing_config_aws_prepare_and_unwrap(env, args[1].node);
+    aws_napi_method_next_argument(napi_object, cb_info, &arg);
+    napi_create_reference(env, arg->node, 1, &state->node_config);
+    state->config = aws_signing_config_aws_prepare_and_unwrap(env, arg->node);
 
+    aws_napi_method_next_argument(napi_function, cb_info, &arg);
     AWS_NAPI_CALL(
         env,
         aws_napi_create_threadsafe_function(
             env,
-            args[2].node,
+            arg->node,
             "aws_signer_on_signing_complete",
             s_signer_sign_request_complete_call,
             state,

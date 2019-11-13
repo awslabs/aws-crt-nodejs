@@ -182,7 +182,13 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
                 }
             }
 
-            method->method(env, node_this, args, num_args);
+            struct aws_napi_callback_info cb_info = {
+                .native_this = node_this,
+                .arguments = args,
+                .num_args = num_args,
+            };
+
+            method->method(env, &cb_info);
 
         cleanup_arguments:
             for (size_t i = 0; i < method->num_arguments; ++i) {
@@ -313,13 +319,36 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
         }
     }
 
-    result = method->method(env, native_this, args, num_args);
+    struct aws_napi_callback_info cb_info = {
+        .native_this = native_this,
+        .arguments = args,
+        .num_args = num_args,
+    };
+
+    result = method->method(env, &cb_info);
 
 cleanup_arguments:
     for (size_t i = 0; i < num_args; ++i) {
         s_argument_cleanup(env, &args[i]);
     }
     return result;
+}
+
+bool aws_napi_method_next_argument(
+    napi_valuetype expected_type,
+    const struct aws_napi_callback_info *cb_info,
+    const struct aws_napi_argument **next_arg) {
+
+    if (!*next_arg) {
+        *next_arg = cb_info->arguments;
+    } else {
+        (*next_arg)++;
+    }
+
+    const size_t current_index = (*next_arg) - cb_info->arguments;
+    return current_index <= cb_info->num_args
+        && ((expected_type == napi_undefined && (*next_arg)->type != napi_undefined)
+        || (expected_type == (*next_arg)->type));
 }
 
 napi_status aws_napi_define_class(

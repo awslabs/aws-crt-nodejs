@@ -41,6 +41,15 @@ struct aws_napi_argument {
     } native;
 };
 
+/**
+ * Passed to methods
+ */
+struct aws_napi_callback_info {
+    void *native_this;
+    const struct aws_napi_argument *arguments;
+    size_t num_args;
+};
+
 /***********************************************************************************************************************
  * Properties
  **********************************************************************************************************************/
@@ -60,11 +69,7 @@ struct aws_napi_property_info {
 /***********************************************************************************************************************
  * Methods
  **********************************************************************************************************************/
-typedef napi_value(aws_napi_method_fn)(
-    napi_env env,
-    void *native_this,
-    const struct aws_napi_argument args[static AWS_NAPI_METHOD_MAX_ARGS],
-    size_t num_args);
+typedef napi_value(aws_napi_method_fn)(napi_env env, const struct aws_napi_callback_info *cb_info);
 
 struct aws_napi_method_info {
     const char *name;
@@ -79,6 +84,12 @@ struct aws_napi_method_info {
 /***********************************************************************************************************************
  * API
  **********************************************************************************************************************/
+
+bool aws_napi_method_next_argument(
+    napi_valuetype expected_type,
+    const struct aws_napi_callback_info *cb_info,
+    const struct aws_napi_argument **next_arg);
+
 napi_status aws_napi_define_class(
     napi_env env,
     napi_value exports,
