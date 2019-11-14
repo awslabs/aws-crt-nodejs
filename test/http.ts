@@ -14,10 +14,12 @@
  */
 
 import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
-import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "../lib/native/io";
+import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions, LogLevel, enable_logging } from "../lib/native/io";
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
+
+enable_logging(LogLevel.TRACE);
 
 test('HTTP Headers', () => {
     let js_headers = new HttpHeaders([
