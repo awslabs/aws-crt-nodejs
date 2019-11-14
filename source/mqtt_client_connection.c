@@ -1016,7 +1016,8 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
             napi_create_external_arraybuffer(env, args->payload.buffer, args->payload.len, NULL, NULL, &params[1]));
 
         AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
     }
 
     aws_string_destroy(args->topic);
@@ -1078,7 +1079,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe_to_any(napi_env env, napi_c
         aws_napi_create_threadsafe_function(
             env, node_handler, "on_any_publish", s_on_any_publish_call, binding, &binding->on_any_publish),
         { return NULL; });
-    
+
     if (aws_mqtt_client_connection_set_on_any_publish_handler(binding->connection, s_on_any_publish, binding)) {
         napi_throw_error(env, NULL, "Unable to set on_any_publish handler");
         return NULL;
