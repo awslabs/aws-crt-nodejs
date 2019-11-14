@@ -200,8 +200,8 @@ test('MQTT On Any Publish', async () => {
         const test_topic = '/test/me/senpai';
         const test_payload = 'NOTICE ME';
         // have to subscribe or else the broker won't send us the message
-        connection.subscribe(test_topic, QoS.AtLeastOnce, (topic, payload) => { });
-        connection.on('publish', (topic, payload) => {
+        connection.subscribe(test_topic, QoS.AtLeastOnce);
+        connection.on('message', (topic, payload) => {
             connection.disconnect();
             if (topic != test_topic) {
                 reject("Topic does not match");

@@ -114,7 +114,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
 
-    on(event: 'publish', listener: (topic: string, payload: Buffer) => void): this;
+    on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
 
     // Override to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -218,7 +218,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void) {
+    async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
@@ -296,6 +296,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     private _on_any_publish(topic: string, payload: Buffer) {
-        this.emit('publish', topic, payload);
+        this.emit('message', topic, payload);
     }
 }
