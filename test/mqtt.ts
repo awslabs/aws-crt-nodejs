@@ -36,7 +36,7 @@ class Config {
     static _cached: Config;
 };
 
-async function fetch_credentials() : Promise<Config> {
+async function fetch_credentials(): Promise<Config> {
     if (Config._cached) {
         return Config._cached;
     }
@@ -93,7 +93,7 @@ test('MQTT Connect/Disconnect', async () => {
     const promise = new Promise((resolve, reject) => {
         connection.on('connect', (session_present) => {
             connection.disconnect();
-            
+
             if (session_present) {
                 reject("Session present");
             }
@@ -176,6 +176,50 @@ test('MQTT Will', async () => {
         });
         connection.on('error', (error) => {
             reject(error)
+        })
+        connection.on('disconnect', () => {
+            resolve(true);
+        })
+        connection.connect();
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT On Any Publish', async () => {
+    const decoder = new TextDecoder('utf8');
+    const aws_opts = await fetch_credentials();
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_timeout_ms(5000)
+        .build()
+    const client = new MqttClient(new ClientBootstrap());
+    const connection = client.new_connection(config);
+    const promise = new Promise((resolve, reject) => {
+        const test_topic = '/test/me/senpai';
+        const test_payload = 'NOTICE ME';
+        // have to subscribe or else the broker won't send us the message
+        connection.subscribe(test_topic, QoS.AtLeastOnce, (topic, payload) => { });
+        connection.on('publish', (topic, payload) => {
+            connection.disconnect();
+            if (topic != test_topic) {
+                reject("Topic does not match");
+            }
+            if (payload === undefined) {
+                reject("Undefined payload");
+            }
+            const payload_str = decoder.decode(payload);
+            if (payload_str !== test_payload) {
+                reject("Payloads do not match");
+            }
+        });
+        connection.on('connect', async (session_present) => {
+            expect(session_present).toBeFalsy();
+            connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+        });
+        connection.on('error', (error) => {
+            reject(error);
         })
         connection.on('disconnect', () => {
             resolve(true);

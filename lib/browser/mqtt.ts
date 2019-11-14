@@ -159,6 +159,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
 
+    on(event: 'publish', listener: (topic: string, payload: Buffer) => void): this;
+
     // Override to allow uncorking on connect
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -191,6 +193,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (callback) {
             callback(topic, payload);
         }
+        this.emit('publish', topic, payload);
     }
 
     private _reject(reject: (reason: any) => void) {

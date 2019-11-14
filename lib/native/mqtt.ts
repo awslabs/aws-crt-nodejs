@@ -114,6 +114,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
 
+    on(event: 'publish', listener: (topic: string, payload: Buffer) => void): this;
 
     // Override to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -150,6 +151,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.will.retain)
                 : undefined;
             try {
+                crt_native.mqtt_client_connection_subscribe_to_any(this.native_handle(), this._on_any_publish.bind(this));
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
                     this.config.client_id,
@@ -291,5 +293,9 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
+    }
+
+    private _on_any_publish(topic: string, payload: Buffer) {
+        this.emit('publish', topic, payload);
     }
 }
