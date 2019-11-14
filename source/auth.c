@@ -740,8 +740,10 @@ static void s_signer_sign_request_complete(struct aws_signing_result *result, in
 
     aws_signable_destroy(state->signable);
 
-    aws_apply_signing_result_to_http_request(state->request, allocator, result);
     state->error_code = error_code;
+    if (error_code == AWS_ERROR_SUCCESS) {
+        aws_apply_signing_result_to_http_request(state->request, allocator, result);
+    }
 
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(state->on_complete, allocator));
 }
