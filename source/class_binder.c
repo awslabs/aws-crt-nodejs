@@ -362,9 +362,9 @@ bool aws_napi_method_next_argument(
     }
 
     const size_t current_index = (*next_arg) - cb_info->arguments;
-    return current_index <= cb_info->num_args
-        && ((expected_type == napi_undefined && (*next_arg)->type != napi_undefined)
-        || (expected_type == (*next_arg)->type));
+    return current_index <= cb_info->num_args &&
+           ((expected_type == napi_undefined && (*next_arg)->type != napi_undefined) ||
+            (expected_type == (*next_arg)->type));
 }
 
 napi_status aws_napi_define_class(

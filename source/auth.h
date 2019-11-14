@@ -21,7 +21,10 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports);
 
 struct aws_credentials_provider;
 
-napi_status aws_napi_credentials_provider_wrap(napi_env env, struct aws_credentials_provider *creds_provider, napi_value *result);
+napi_status aws_napi_credentials_provider_wrap(
+    napi_env env,
+    struct aws_credentials_provider *creds_provider,
+    napi_value *result);
 struct aws_credentials_provider *aws_napi_credentials_provider_unwrap(napi_env env, napi_value js_object);
 
 struct aws_signing_config_aws;
