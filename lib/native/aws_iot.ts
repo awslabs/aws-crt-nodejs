@@ -112,8 +112,8 @@ export class AwsIotMqttConnectionConfigBuilder {
                 try {
                     await signer.sign_request(request, signing_config);
                     done();
-                } catch {
-                    done(-1);
+                } catch(error) {
+                    done(error);
                 }
             };
         }
