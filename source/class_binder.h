@@ -24,7 +24,7 @@
  * Expected to be stored statically, but is for internal usage only.
  */
 struct aws_napi_class_info {
-    uint8_t filler[24];
+    uint8_t filler[40];
 };
 
 /**
