@@ -562,6 +562,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(mqtt_client_connection_reconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe_to_any)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_close)

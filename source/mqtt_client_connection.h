@@ -23,6 +23,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
 napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback_info info);
 napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_info info);
 napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info info);
+napi_value aws_napi_mqtt_client_connection_subscribe_to_any(napi_env env, napi_callback_info info);
 napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
 napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info);
 
