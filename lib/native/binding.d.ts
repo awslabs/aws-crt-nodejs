@@ -119,7 +119,7 @@ export declare function mqtt_client_connection_subscribe(
 ): void;
 export function mqtt_client_connection_subscribe_to_any(
     connection: NativeHandle,
-    on_publish: (topic: string, payload: Buffer) => void
+    on_publish?: (topic: string, payload: Buffer) => void
 ): void;
 export declare function mqtt_client_connection_unsubscribe(
     connection: NativeHandle,

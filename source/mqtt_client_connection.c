@@ -886,6 +886,11 @@ static void s_on_publish(
     (void)topic;
 
     struct subscription *sub = user_data;
+    /* users can use a null handler to sub to a topic, and then handle it with the any handler */
+    if (!sub->on_publish) {
+        return;
+    }
+
     struct mqtt_connection_binding *binding = NULL;
     AWS_NAPI_ENSURE(NULL, napi_get_threadsafe_function_context(sub->on_publish, (void **)&binding));
 
@@ -926,17 +931,15 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
 
     struct subscription *sub = aws_mem_calloc(binding->allocator, 1, sizeof(struct subscription));
-    struct suback_args *suback = aws_mem_calloc(binding->allocator, 1, sizeof(struct suback_args));
-    AWS_FATAL_ASSERT(sub && suback);
-    sub->binding = suback->binding = binding;
+    struct suback_args *suback = NULL;
+    AWS_FATAL_ASSERT(sub);
+    sub->binding = binding;
 
     napi_value node_topic = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&sub->topic, env, node_topic), {
         napi_throw_type_error(env, NULL, "topic must be a String");
         goto cleanup;
     });
-
-    suback->topic = aws_byte_cursor_from_buf(&sub->topic);
 
     napi_value node_qos = *arg++;
     enum aws_mqtt_qos qos = 0;
@@ -946,23 +949,25 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
 
     napi_value node_on_publish = *arg++;
-    if (aws_napi_is_null_or_undefined(env, node_on_publish)) {
-        napi_throw_type_error(env, NULL, "on_publish callback is required");
-        goto cleanup;
-    }
-    AWS_NAPI_CALL(
-        env,
-        aws_napi_create_threadsafe_function(
+    if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
+        AWS_NAPI_CALL(
             env,
-            node_on_publish,
-            "aws_mqtt_client_connection_on_publish",
-            s_on_publish_call,
-            binding,
-            &sub->on_publish),
-        { goto cleanup; });
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_publish,
+                "aws_mqtt_client_connection_on_publish",
+                s_on_publish_call,
+                binding,
+                &sub->on_publish),
+            { goto cleanup; });
+    }
 
     napi_value node_on_suback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_suback)) {
+        suback = aws_mem_calloc(binding->allocator, 1, sizeof(struct suback_args));
+        AWS_FATAL_ASSERT(suback);
+        suback->binding = binding;
+        suback->topic = aws_byte_cursor_from_buf(&sub->topic);
         AWS_NAPI_CALL(
             env,
             aws_napi_create_threadsafe_function(
