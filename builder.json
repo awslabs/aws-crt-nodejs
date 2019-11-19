@@ -37,7 +37,7 @@
             "--out={build_dir}",
             "--CDCMAKE_PREFIX_PATH=/opt/openssl",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-            "-T", "install", "--debug"
+            "-T", "install"
         ],
         ["npm", "run-script", "tsc"]
     ],
