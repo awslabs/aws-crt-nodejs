@@ -14,7 +14,7 @@
  */
 
 import * as AWS from 'aws-sdk';
-import { ClientBootstrap } from '../lib/native/io';
+import { ClientBootstrap, enable_logging, LogLevel } from '../lib/native/io';
 import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
@@ -201,6 +201,7 @@ test('MQTT Will', async () => {
 });
 
 test('MQTT On Any Publish', async () => {
+    enable_logging(LogLevel.TRACE);
     const decoder = new TextDecoder('utf8');
     const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
