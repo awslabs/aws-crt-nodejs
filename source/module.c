@@ -462,6 +462,9 @@ static void s_install_crash_handler(void) {
     sa.sa_sigaction = s_print_stack_trace;
 
     sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
 #endif
 }
 
@@ -562,7 +565,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(mqtt_client_connection_reconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
-    CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe_to_any)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_on_message)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_close)

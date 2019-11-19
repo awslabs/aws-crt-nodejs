@@ -151,7 +151,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.will.retain)
                 : undefined;
             try {
-                crt_native.mqtt_client_connection_subscribe_to_any(this.native_handle(), this._on_any_publish.bind(this));
+                crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
                     this.config.client_id,
