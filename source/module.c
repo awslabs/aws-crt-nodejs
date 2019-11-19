@@ -462,6 +462,8 @@ static void s_install_crash_handler(void) {
     sa.sa_sigaction = s_print_stack_trace;
 
     sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
 #endif
 }
 
