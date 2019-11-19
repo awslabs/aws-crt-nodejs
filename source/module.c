@@ -464,6 +464,7 @@ static void s_install_crash_handler(void) {
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
     sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
 #endif
 }
 
