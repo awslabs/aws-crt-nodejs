@@ -18,6 +18,7 @@ import { ClientBootstrap, enable_logging, LogLevel } from '../lib/native/io';
 import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
+import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
@@ -100,7 +101,7 @@ test('MQTT Connect/Disconnect', async () => {
     const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .build()
     const client = new MqttClient(new ClientBootstrap());
@@ -129,7 +130,7 @@ test('MQTT Pub/Sub', async () => {
     const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_timeout_ms(5000)
         .build()
@@ -171,7 +172,7 @@ test('MQTT Will', async () => {
     const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_will(new MqttWill(
             '/last/will/and/testament',
@@ -206,7 +207,7 @@ test('MQTT On Any Publish', async () => {
     const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_timeout_ms(5000)
         .build()
