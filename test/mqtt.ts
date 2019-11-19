@@ -14,7 +14,7 @@
  */
 
 import * as AWS from 'aws-sdk';
-import { ClientBootstrap, enable_logging, LogLevel } from '../lib/native/io';
+import { ClientBootstrap } from '../lib/native/io';
 import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
