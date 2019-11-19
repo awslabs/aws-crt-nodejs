@@ -1053,7 +1053,7 @@ static void s_on_any_publish(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_any_publish, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_subscribe_to_any(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
@@ -1062,7 +1062,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe_to_any(napi_env env, napi_c
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe_to_any needs exactly 2 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_on_message needs exactly 2 arguments");
         return NULL;
     }
 

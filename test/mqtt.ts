@@ -59,7 +59,12 @@ async function fetch_credentials(): Promise<Config> {
                 reject(error);
             }
 
-            config.endpoint = JSON.parse(data.SecretString as string).endpoint;
+            try {
+                config.endpoint = data.SecretString as string;
+            } catch (err) {
+                reject(err);
+            }
+            
             resolve_if_done();
         });
         client.getSecretValue({ SecretId: 'unit-test/certificate' }, (error, data) => {
@@ -67,7 +72,12 @@ async function fetch_credentials(): Promise<Config> {
                 reject(error);
             }
 
-            config.certificate = data.SecretString as string;
+            try {
+                config.certificate = data.SecretString as string;
+            } catch (err) {
+                reject(err);
+            }
+            
             resolve_if_done();
         });
         client.getSecretValue({ SecretId: 'unit-test/privatekey' }, (error, data) => {
@@ -75,7 +85,12 @@ async function fetch_credentials(): Promise<Config> {
                 reject(error);
             }
 
-            config.private_key = data.SecretString as string;
+            try {
+                config.private_key = data.SecretString as string;
+            } catch (err) {
+                reject(err);
+            }
+            
             resolve_if_done();
         });
     });

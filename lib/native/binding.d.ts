@@ -117,7 +117,7 @@ export declare function mqtt_client_connection_subscribe(
     on_publish?: (topic: string, payload: ArrayBuffer) => void,
     on_suback?: (packet_id: number, topic: string, qos: any, error_code: number) => void,
 ): void;
-export function mqtt_client_connection_subscribe_to_any(
+export function mqtt_client_connection_on_message(
     connection: NativeHandle,
     on_publish?: (topic: string, payload: Buffer) => void
 ): void;
