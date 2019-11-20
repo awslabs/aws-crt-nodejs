@@ -44,6 +44,7 @@ struct mqtt_connection_binding {
     napi_ref node_external;
     napi_threadsafe_function on_connection_interrupted;
     napi_threadsafe_function on_connection_resumed;
+    napi_threadsafe_function on_any_publish;
 };
 
 static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
@@ -999,6 +1000,11 @@ static void s_on_publish(
     (void)topic;
 
     struct subscription *sub = user_data;
+    /* users can use a null handler to sub to a topic, and then handle it with the any handler */
+    if (!sub->on_publish) {
+        return;
+    }
+
     struct mqtt_connection_binding *binding = NULL;
     AWS_NAPI_ENSURE(NULL, napi_get_threadsafe_function_context(sub->on_publish, (void **)&binding));
 
@@ -1007,7 +1013,7 @@ static void s_on_publish(
 
     args->topic = aws_byte_cursor_from_buf(&sub->topic);
     args->on_publish = sub->on_publish;
-    /* this is freed after being delivered to node in s_dispatch_on_publish */
+    /* this is freed after being delivered to node in s_on_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
         aws_mem_release(binding->allocator, args);
         AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
@@ -1039,17 +1045,15 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
 
     struct subscription *sub = aws_mem_calloc(binding->allocator, 1, sizeof(struct subscription));
-    struct suback_args *suback = aws_mem_calloc(binding->allocator, 1, sizeof(struct suback_args));
-    AWS_FATAL_ASSERT(sub && suback);
-    sub->binding = suback->binding = binding;
+    struct suback_args *suback = NULL;
+    AWS_FATAL_ASSERT(sub);
+    sub->binding = binding;
 
     napi_value node_topic = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&sub->topic, env, node_topic), {
         napi_throw_type_error(env, NULL, "topic must be a String");
         goto cleanup;
     });
-
-    suback->topic = aws_byte_cursor_from_buf(&sub->topic);
 
     napi_value node_qos = *arg++;
     enum aws_mqtt_qos qos = 0;
@@ -1059,23 +1063,25 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
 
     napi_value node_on_publish = *arg++;
-    if (aws_napi_is_null_or_undefined(env, node_on_publish)) {
-        napi_throw_type_error(env, NULL, "on_publish callback is required");
-        goto cleanup;
-    }
-    AWS_NAPI_CALL(
-        env,
-        aws_napi_create_threadsafe_function(
+    if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
+        AWS_NAPI_CALL(
             env,
-            node_on_publish,
-            "aws_mqtt_client_connection_on_publish",
-            s_on_publish_call,
-            binding,
-            &sub->on_publish),
-        { goto cleanup; });
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_publish,
+                "aws_mqtt_client_connection_on_publish",
+                s_on_publish_call,
+                binding,
+                &sub->on_publish),
+            { goto cleanup; });
+    }
 
     napi_value node_on_suback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_suback)) {
+        suback = aws_mem_calloc(binding->allocator, 1, sizeof(struct suback_args));
+        AWS_FATAL_ASSERT(suback);
+        suback->binding = binding;
+        suback->topic = aws_byte_cursor_from_buf(&sub->topic);
         AWS_NAPI_CALL(
             env,
             aws_napi_create_threadsafe_function(
@@ -1106,6 +1112,97 @@ cleanup:
 
     aws_mem_release(binding->allocator, sub);
     aws_mem_release(binding->allocator, suback);
+
+    return NULL;
+}
+
+struct on_any_publish_args {
+    struct aws_string *topic;
+    struct aws_byte_buf payload;
+};
+
+static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
+    struct mqtt_connection_binding *binding = context;
+    struct on_any_publish_args *args = user_data;
+
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
+        AWS_NAPI_ENSURE(
+            env,
+            napi_create_external_arraybuffer(env, args->payload.buffer, args->payload.len, NULL, NULL, &params[1]));
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
+    }
+
+    aws_string_destroy(args->topic);
+    aws_byte_buf_clean_up(&args->payload);
+    aws_mem_release(binding->allocator, args);
+}
+
+static void s_on_any_publish(
+    struct aws_mqtt_client_connection *connection,
+    const struct aws_byte_cursor *topic,
+    const struct aws_byte_cursor *payload,
+    void *user_data) {
+
+    (void)connection;
+
+    struct mqtt_connection_binding *binding = user_data;
+    struct on_any_publish_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_publish_args));
+    AWS_FATAL_ASSERT(args);
+
+    args->topic = aws_string_new_from_array(binding->allocator, topic->ptr, topic->len);
+    /* this is freed after being delivered to node in s_on_any_publish_call */
+    if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
+        aws_mem_release(binding->allocator, args);
+        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
+        return;
+    }
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_any_publish, args));
+}
+
+napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    });
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "mqtt_client_connection_on_message needs exactly 2 arguments");
+        return NULL;
+    }
+
+    napi_value node_binding = *arg++;
+    struct mqtt_connection_binding *binding = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(env, NULL, "Unable to extract external");
+        return NULL;
+    });
+
+    napi_value node_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, node_handler)) {
+        napi_throw_error(env, NULL, "handler must not be null or undefined");
+        return NULL;
+    }
+
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env, node_handler, "on_any_publish", s_on_any_publish_call, binding, &binding->on_any_publish),
+        { return NULL; });
+
+    if (aws_mqtt_client_connection_set_on_any_publish_handler(binding->connection, s_on_any_publish, binding)) {
+        napi_throw_error(env, NULL, "Unable to set on_any_publish handler");
+        return NULL;
+    }
 
     return NULL;
 }

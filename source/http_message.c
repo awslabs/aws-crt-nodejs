@@ -71,11 +71,11 @@ napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
     AWS_NAPI_CALL(
         env,
         aws_napi_define_class(
-        env,
-        exports,
-        &s_request_constructor_info,
-        s_request_properties,
-        AWS_ARRAY_SIZE(s_request_properties),
+            env,
+            exports,
+            &s_request_constructor_info,
+            s_request_properties,
+            AWS_ARRAY_SIZE(s_request_properties),
             NULL,
             0,
             &s_request_class_info),
@@ -128,10 +128,10 @@ static napi_value s_request_constructor(napi_env env, const struct aws_napi_call
     const struct aws_napi_argument *arg = NULL;
 
     aws_napi_method_next_argument(napi_string, cb_info, &arg);
-        struct aws_byte_cursor method_cur = aws_byte_cursor_from_buf(&arg->native.string);
+    struct aws_byte_cursor method_cur = aws_byte_cursor_from_buf(&arg->native.string);
 
     aws_napi_method_next_argument(napi_string, cb_info, &arg);
-        struct aws_byte_cursor path_cur = aws_byte_cursor_from_buf(&arg->native.string);
+    struct aws_byte_cursor path_cur = aws_byte_cursor_from_buf(&arg->native.string);
 
     if (aws_napi_method_next_argument(napi_object, cb_info, &arg)) {
         AWS_NAPI_ENSURE(env, napi_create_reference(env, arg->node, 1, &binding->node_headers));
@@ -141,18 +141,18 @@ static napi_value s_request_constructor(napi_env env, const struct aws_napi_call
         aws_http_headers_release(headers); /* the message retains a reference */
     } else {
         binding->native = aws_http_message_new_request(alloc);
-        }
+    }
 
     if (!binding->native) {
         aws_napi_throw_last_error(env);
-            goto cleanup;
-            }
+        goto cleanup;
+    }
     aws_http_message_set_request_method(binding->native, method_cur);
     aws_http_message_set_request_path(binding->native, path_cur);
 
     if (aws_napi_method_next_argument(napi_external, cb_info, &arg)) {
         aws_http_message_set_body_stream(binding->native, arg->native.external);
-            }
+    }
 
     napi_value node_this = cb_info->native_this;
     AWS_NAPI_CALL(env, napi_wrap(env, node_this, binding, s_napi_http_request_finalize, NULL, NULL), {
@@ -166,7 +166,7 @@ cleanup:
     if (binding) {
         if (binding->native) {
             aws_http_message_destroy(binding->native);
-    }
+        }
         aws_mem_release(alloc, binding);
     }
     return NULL;

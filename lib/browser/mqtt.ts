@@ -49,7 +49,7 @@ export class MqttClient {
 
 type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
 
-class TopicTrie extends trie.Trie<SubscriptionCallback> {
+class TopicTrie extends trie.Trie<SubscriptionCallback|undefined> {
     constructor() {
         super('/');
     }
@@ -154,6 +154,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
 
+    on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
+
     // Override to allow uncorking on connect
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -186,6 +188,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (callback) {
             callback(topic, payload);
         }
+        this.emit('message', topic, payload);
     }
 
     private _reject(reject: (reason: any) => void) {
@@ -235,7 +238,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
             });
     }
 
-    async subscribe(topic: string, qos: QoS, on_message: (topic: string, payload: ArrayBuffer) => void): Promise<MqttSubscribeRequest> {
+    async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void): Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
         return this.connection.subscribe(topic, { qos: qos })
             .catch((reason: any) => {
