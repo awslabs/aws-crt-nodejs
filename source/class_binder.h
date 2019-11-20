@@ -110,4 +110,6 @@ napi_status aws_napi_wrap(
     napi_finalize finalizer,
     napi_value *result);
 
+napi_status aws_napi_define_function(napi_env env, napi_value exports, struct aws_napi_method_info *method);
+
 #endif /* AWS_CRT_NODEJS_CLASS_BINDER_H */

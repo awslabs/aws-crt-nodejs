@@ -490,3 +490,30 @@ napi_status aws_napi_wrap(
 
     return napi_ok;
 }
+
+napi_status aws_napi_define_function(napi_env env, napi_value exports, struct aws_napi_method_info *method) {
+
+    /* Set static attribute so that s_method_call doesn't try to unwrap the this object */
+    method->attributes = napi_static;
+
+    /* Create the function object */
+    napi_value node_function = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_function(env, method->name, NAPI_AUTO_LENGTH, s_method_call, method, &node_function), {
+            return status;
+        });
+
+    /* Initialize the name from the symbol if necessary, otherwise use the utf8 name */
+    napi_value node_name = NULL;
+    if (method->symbol) {
+        AWS_NAPI_CALL(env, s_get_symbol(env, method->symbol, &node_name), { return status; });
+    } else {
+        AWS_NAPI_CALL(
+            env, napi_create_string_utf8(env, method->name, NAPI_AUTO_LENGTH, &node_name), { return status; });
+    }
+
+    /* Export the function */
+    AWS_NAPI_CALL(env, napi_set_property(env, exports, node_name, node_function), { return status; });
+
+    return napi_ok;
+}
