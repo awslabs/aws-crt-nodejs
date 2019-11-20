@@ -724,7 +724,9 @@ static void s_signer_sign_request_complete_call(napi_env env, napi_value on_comp
     napi_value args[1];
     napi_create_int32(env, state->error_code, &args[0]);
 
-    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, state->on_complete, NULL, on_complete, 2, args));
+    AWS_NAPI_ENSURE(
+        env,
+        aws_napi_dispatch_threadsafe_function(env, state->on_complete, NULL, on_complete, AWS_ARRAY_SIZE(args), args));
 
     /* Release references */
     napi_delete_reference(env, state->node_config);
