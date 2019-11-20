@@ -45,7 +45,11 @@ async function fetch_credentials(): Promise<Config> {
     return new Promise((resolve, reject) => {
         try {
             const client = new AWS.SecretsManager({
-                region: Config.region
+                region: Config.region,
+                httpOptions: {
+                    connectTimeout: 3000,
+                    timeout: 5000
+                }
             });
 
             const config = new Config();
