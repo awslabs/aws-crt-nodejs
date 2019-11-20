@@ -17,7 +17,6 @@
 
 #include <node_api.h>
 
-
 napi_status aws_napi_http_message_bind(napi_env env, napi_value exports);
 
 struct aws_http_message;

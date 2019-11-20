@@ -94,9 +94,22 @@ struct http_request_binding {
     napi_ref node_headers;
 };
 
+/* Need a special finalizer to avoid releasing a request object we don't own */
+static void s_napi_wrapped_http_request_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+
+    struct http_request_binding *binding = finalize_data;
+    struct aws_allocator *allocator = finalize_hint;
+
+    aws_mem_release(allocator, binding);
+}
+
 napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *message, napi_value *result) {
 
-    return aws_napi_wrap(env, &s_request_class_info, message, NULL, result);
+    struct http_request_binding *binding =
+        aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct http_request_binding));
+    binding->native = message;
+    return aws_napi_wrap(env, &s_request_class_info, binding, s_napi_wrapped_http_request_finalize, result);
 }
 
 struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value js_object) {
@@ -112,9 +125,12 @@ struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value j
 
 static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
-    (void)finalize_hint;
 
-    aws_http_message_destroy(finalize_data);
+    struct http_request_binding *binding = finalize_data;
+    struct aws_allocator *allocator = finalize_hint;
+
+    aws_http_message_destroy(binding->native);
+    aws_mem_release(allocator, binding);
 }
 
 static napi_value s_request_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
@@ -155,7 +171,7 @@ static napi_value s_request_constructor(napi_env env, const struct aws_napi_call
     }
 
     napi_value node_this = cb_info->native_this;
-    AWS_NAPI_CALL(env, napi_wrap(env, node_this, binding, s_napi_http_request_finalize, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_wrap(env, node_this, binding, s_napi_http_request_finalize, alloc, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap HttpRequest");
         goto cleanup;
     });

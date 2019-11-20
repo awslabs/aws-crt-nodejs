@@ -19,7 +19,7 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import { HttpProxyOptions } from './http';
+import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
@@ -50,7 +50,7 @@ export interface MqttConnectionConfig {
     password?: string;
     tls_ctx?: io.ClientTlsContext;
     proxy_options?: HttpProxyOptions;
-    websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void;
+    websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
 }
 
 const normalize_encoder = new TextEncoder();
