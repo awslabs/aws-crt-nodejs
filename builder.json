@@ -19,6 +19,12 @@
         },
         "windows": {
             "enabled": false
+        },
+        "macos": {
+            "variables": {
+                "c": "clang",
+                "cxx": "clang++"
+            }
         }
     },
     "targets": {
