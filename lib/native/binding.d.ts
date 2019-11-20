@@ -15,6 +15,7 @@
 
 import { InputStream } from "./io";
 import { AwsSigningAlgorithm } from "./auth";
+import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 
 type NativeHandle = any;
 type StringLike = string | ArrayBuffer | DataView;
@@ -162,7 +163,7 @@ export function http_stream_new(
     stream: NativeHandle,
     request: HttpRequest,
     on_complete: (error_code: Number) => void,
-    on_response: (status_code: Number, headers: [string, string][]) => void,
+    on_response: (status_code: Number, headers: HttpHeader[]) => void,
     on_body: (data: ArrayBuffer) => void,
 ): NativeHandle;
 export function http_stream_close(stream: NativeHandle): void;
@@ -185,18 +186,34 @@ export function http_connection_manager_acquire(
 ): void;
 export function http_connection_manager_release(manager: NativeHandle, connection: NativeHandle): void;
 
+export class HttpHeaders implements CommonHttpHeaders {
+    constructor(headers?: HttpHeader[]);
+
+    public readonly length: number;
+
+    public get(key: string): string;
+    public get_values(key: string): string[];
+    public get_index(index: number): HttpHeader;
+
+    public [Symbol.iterator](): Iterator<HttpHeader>;
+
+    public add(key: string, value: string): void;
+    public set(key: string, value: string): void;
+
+    public remove(key: string): void;
+    public remove_value(key: string, value: string): void;
+    public clear(): void;
+
+    public _flatten(): HttpHeader[];
+}
+
 export class HttpRequest {
-    constructor(method?: string, path?: string, body?: InputStream, headers?: [string, string][]);
+    constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream);
 
     public method: string;
     public path: string;
+    public readonly headers: HttpHeaders;
     public body: InputStream;
-    public readonly num_headers: number;
-
-    public add_header(name: string, value: string): void;
-    public set_header(name: string, value: string): void;
-    public get_header(index: number): [string, string];
-    public erase_header(index: number): void;
 }
 
 /* Auth */

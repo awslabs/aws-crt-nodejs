@@ -1,5 +1,5 @@
-#ifndef AWS_CRT_NODEJS_HTTP_MESSAGE_H
-#define AWS_CRT_NODEJS_HTTP_MESSAGE_H
+#ifndef AWS_CRT_NODEJS_HTTP_HEADERS_H
+#define AWS_CRT_NODEJS_HTTP_HEADERS_H
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -17,11 +17,10 @@
 
 #include <node_api.h>
 
+napi_status aws_napi_http_headers_bind(napi_env env, napi_value exports);
 
-napi_status aws_napi_http_message_bind(napi_env env, napi_value exports);
+struct aws_http_headers;
+napi_status aws_napi_http_headers_wrap(napi_env env, struct aws_http_headers *headers, napi_value *result);
+struct aws_http_headers *aws_napi_http_headers_unwrap(napi_env env, napi_value js_object);
 
-struct aws_http_message;
-napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *message, napi_value *result);
-struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value js_object);
-
-#endif /* AWS_CRT_NODEJS_HTTP_MESSAGE_H */
+#endif /* AWS_CRT_NODEJS_HTTP_HEADERS_H */

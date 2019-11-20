@@ -16,31 +16,17 @@
 import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
-import { ClientBootstrap, SocketOptions, InputStream, TlsConnectionOptions } from './io';
+import { ClientBootstrap, SocketOptions, TlsConnectionOptions } from './io';
 import { CrtError } from './error';
-import { HttpHeaders, HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
-export { HttpHeaders, HttpProxyAuthenticationType } from '../common/http';
+import { HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
+export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
-/** Represents a request to a web server from a client */
-export class HttpRequest extends crt_native.HttpRequest {
-    public readonly headers: HttpHeaders;
+export type HttpHeaders = crt_native.HttpHeaders;
+export const HttpHeaders = crt_native.HttpHeaders;
 
-    constructor(
-        /** The verb to use for the request (i.e. GET, POST, PUT, DELETE, HEAD) */
-        method: string,
-        /** The URI of the request */
-        path: string,
-        /** The request body, in the case of a POST or PUT request */
-        body?: InputStream,
-        /** Additional custom headers to send to the server */
-        headers = new HttpHeaders()) {
-
-        super(method, path, body, headers._flatten());
-
-        this.headers = new HttpHeaders(undefined, this);
-    }
-}
+export type HttpRequest = crt_native.HttpRequest;
+export const HttpRequest = crt_native.HttpRequest;
 
 /** Base class for HTTP connections */
 export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {

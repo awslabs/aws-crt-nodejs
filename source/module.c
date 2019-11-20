@@ -19,6 +19,7 @@
 #include "crypto.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
+#include "http_headers.h"
 #include "http_message.h"
 #include "http_stream.h"
 #include "io.h"
@@ -596,6 +597,7 @@ static bool s_create_and_register_function(
 
 #undef CREATE_AND_REGISTER_FN
 
+    AWS_NAPI_ENSURE(env, aws_napi_http_headers_bind(env, exports));
     AWS_NAPI_ENSURE(env, aws_napi_http_message_bind(env, exports));
     AWS_NAPI_ENSURE(env, aws_napi_auth_bind(env, exports));
 

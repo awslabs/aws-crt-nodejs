@@ -185,6 +185,7 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
             }
 
             struct aws_napi_callback_info cb_info = {
+                .node_this = node_this,
                 .native_this = node_this,
                 .arguments = args,
                 .num_args = num_args,
@@ -332,6 +333,7 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
     }
 
     struct aws_napi_callback_info cb_info = {
+        .node_this = node_this,
         .native_this = native_this,
         .arguments = args,
         .num_args = num_args,
@@ -363,6 +365,17 @@ bool aws_napi_method_next_argument(
             (expected_type == (*next_arg)->type));
 }
 
+static napi_status s_get_symbol(napi_env env, const char *symbol_name, napi_value *result) {
+    napi_value global = NULL;
+    AWS_NAPI_CALL(env, napi_get_global(env, &global), { return status; });
+
+    napi_value symbol = NULL;
+    AWS_NAPI_CALL(env, napi_get_named_property(env, global, "Symbol", &symbol), { return status; });
+    AWS_NAPI_CALL(env, napi_get_named_property(env, symbol, symbol_name, result), { return status; });
+
+    return napi_ok;
+}
+
 napi_status aws_napi_define_class(
     napi_env env,
     napi_value exports,
@@ -391,10 +404,14 @@ napi_status aws_napi_define_class(
         napi_property_descriptor *desc = &descriptors[desc_i++];
         const struct aws_napi_property_info *property = &properties[prop_i];
 
-        AWS_FATAL_ASSERT(property->name);
+        AWS_FATAL_ASSERT(property->name || property->symbol);
         AWS_FATAL_ASSERT(property->getter || property->setter);
 
-        desc->utf8name = property->name;
+        if (property->symbol) {
+            AWS_NAPI_CALL(env, s_get_symbol(env, property->symbol, &desc->name), { return status; });
+        } else {
+            desc->utf8name = property->name;
+        }
         desc->data = (void *)property;
         desc->getter = s_property_getter;
         desc->setter = s_property_setter;
@@ -405,10 +422,14 @@ napi_status aws_napi_define_class(
         napi_property_descriptor *desc = &descriptors[desc_i++];
         const struct aws_napi_method_info *method = &methods[method_i];
 
-        AWS_FATAL_ASSERT(method->name);
+        AWS_FATAL_ASSERT(method->name || method->symbol);
         AWS_FATAL_ASSERT(method->method);
 
-        desc->utf8name = method->name;
+        if (method->symbol) {
+            AWS_NAPI_CALL(env, s_get_symbol(env, method->symbol, &desc->name), { return status; });
+        } else {
+            desc->utf8name = method->name;
+        }
         desc->data = (void *)method;
         desc->method = s_method_call;
         desc->attributes = method->attributes;

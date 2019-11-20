@@ -99,7 +99,6 @@ test('AWS Signer SigV4 Headers', async () => {
     let http_request = new native_http.HttpRequest(
         SIGV4TEST_METHOD,
         SIGV4TEST_PATH,
-        undefined,
         new native_http.HttpHeaders(SIGV4TEST_UNSIGNED_HEADERS));
 
     const signing_result = await signer.sign_request(http_request, signing_config);

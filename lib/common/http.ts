@@ -13,96 +13,31 @@
  * permissions and limitations under the License.
  */
 
-type HttpHeader = [string, string];
+export type HttpHeader = [string, string];
 
-/**
- * Encapsulates an HTTP header block. Stores all headers in their original case format,
- * but allows for case-insensitive header lookup.
- */
-export class HttpHeaders {
-    // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
-    private headers: { [index: string]: [HttpHeader] } = {};
-    private native_message: any; /* Actually an HttpRequest/Response from the native directory */
-
-    /** Construct from a collection of [name, value] pairs */
-    constructor(headers: HttpHeader[] = [], native_message?: any) {
-        if (native_message) {
-            this.native_message = native_message;
-        }
-
-        for (const header of headers) {
-            this.add(header[0], header[1]);
-        }
-    }
-
-    get length(): number {
-        if (this.native_message) {
-            return this.native_message.num_headers;
-        } else {
-            let length = 0;
-            for (let key in this.headers) {
-                length += this.headers[key].length;
-            }
-            return length;
-        }
-    }
+export interface HttpHeaders {
+    readonly length: number;
 
     /**
      * Add a name/value pair
      * @param name - The header name
      * @param value - The header value
     */
-    add(name: string, value: string) {
-        if (this.native_message) {
-            this.native_message.add_header(name, value);
-        } else {
-            let values = this.headers[name.toLowerCase()];
-            if (values) {
-                values.push([name, value]);
-            } else {
-                this.headers[name.toLowerCase()] = [[name, value]];
-            }
-        }
-    }
+    add(name: string, value: string): void;
 
     /**
      * Set a name/value pair, replacing any existing values for the name
      * @param name - The header name
      * @param value - The header value
     */
-    set(name: string, value: string) {
-        if (this.native_message) {
-            this.native_message.set_header(name, value);
-        } else {
-            this.headers[name.toLowerCase()] = [[name, value]];
-        }
-    }
+    set(name: string, value: string): void;
 
     /**
      * Get the list of values for the given name
      * @param name - The header name to look for
      * @return List of values, or empty list if none exist
      */
-    get_values(name: string) {
-        const key = name.toLowerCase();
-
-        const values = [];
-        if (this.native_message) {
-            const len = this.length;
-            for (let i = 0; i < len; ++i) {
-                const header = this.native_message.get_header(i);
-                if (header[0].toLowerCase() === key) {
-                    values.push(header[1]);
-                }
-            }
-        } else {
-            const values_list = this.headers[key] || [];
-            for (const entry of values_list) {
-                values.push(entry[1]);
-            }
-        }
-        return values;
-    }
+    get_values(name: string): string[];
 
     /**
      * Gets the first value for the given name, ignoring any additional values
@@ -110,88 +45,23 @@ export class HttpHeaders {
      * @param default_value - Value returned if no values are found for the given name
      * @return The first header value, or default if no values exist
      */
-    get(name: string, default_value = "") {
-        const key = name.toLowerCase();
-
-        if (this.native_message) {
-            const len = this.length;
-            for (let i = 0; i < len; ++i) {
-                const header = this.native_message.get_header(i);
-                if (header[0].toLowerCase() === key) {
-                    return header[1];
-                }
-            }
-
-            return default_value;
-        } else {
-            const values = this.headers[key];
-            if (!values) {
-                return default_value;
-            }
-            return values[0][1] || default_value;
-        }
-    }
+    get(name: string, default_value?: string): string;
 
     /**
      * Removes all values for the given name
      * @param name - The header to remove all values for
      */
-    remove(name: string) {
-        const key = name.toLowerCase();
-
-        if (this.native_message) {
-            for (let i = this.length - 1; i >= 0; --i) {
-                const header = this.native_message.get_header(i);
-                if (header[0].toLowerCase() === key) {
-                    this.native_message.erase_header(i);
-                }
-            }
-        } else {
-            delete this.headers[key];
-        }
-    }
+    remove(name: string): void;
 
     /**
      * Removes a specific name/value pair
      * @param name - The header name to remove
      * @param value - The header value to remove
      */
-    remove_value(name: string, value: string) {
-        const key = name.toLowerCase();
-
-        if (this.native_message) {
-            for (let i = this.length - 1; i >= 0; --i) {
-                const header = this.native_message.get_header(i);
-                if (header[0].toLowerCase() === key && header[1] === value) {
-                    this.native_message.erase_header(i);
-                }
-            }
-        } else {
-            let values = this.headers[key];
-            for (let idx = 0; idx < values.length; ++idx) {
-                const entry = values[idx];
-                if (entry[1] === value) {
-                    if (values.length === 1) {
-                        delete this.headers[key];
-                    } else {
-                        delete values[idx];
-                    }
-                    return;
-                }
-            }
-        }
-    }
+    remove_value(name: string, value: string): void;
 
     /** Clears the entire header set */
-    clear() {
-        if (this.native_message) {
-            for (let i = this.length - 1; i >= 0; --i) {
-                this.native_message.erase_header(i);
-            }
-        } else {
-            this.headers = {};
-        }
-    }
+    clear(): void;
 
     /**
      * Iterator. Allows for:
@@ -199,29 +69,9 @@ export class HttpHeaders {
      * ...
      * for (const header of headers) { }
     */
-    *[Symbol.iterator]() {
-        if (this.native_message) {
-            const len = this.length;
-            for (let i = 0; i < len; ++i) {
-                yield this.native_message.get_header(i);
-            }
-        } else {
-            for (const key in this.headers) {
-                const values = this.headers[key];
-                for (let entry of values) {
-                    yield entry;
-                }
-            }
-        }
-    }
+    [Symbol.iterator](): Iterator<HttpHeader>;
 
-    _flatten(): HttpHeader[] {
-        let flattened = [];
-        for (const pair of this) {
-            flattened.push(pair);
-        }
-        return flattened;
-    }
+    _flatten(): HttpHeader[];
 }
 
 export enum HttpProxyAuthenticationType

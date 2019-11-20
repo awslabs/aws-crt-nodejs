@@ -45,6 +45,7 @@ struct aws_napi_argument {
  * Passed to methods
  */
 struct aws_napi_callback_info {
+    napi_value node_this;
     void *native_this;
     const struct aws_napi_argument *arguments;
     size_t num_args;
@@ -58,6 +59,7 @@ typedef void(aws_napi_property_set_fn)(napi_env env, void *native_this, const st
 
 struct aws_napi_property_info {
     const char *name;
+    const char *symbol;
     napi_valuetype type;
 
     aws_napi_property_get_fn *getter;
@@ -73,6 +75,7 @@ typedef napi_value(aws_napi_method_fn)(napi_env env, const struct aws_napi_callb
 
 struct aws_napi_method_info {
     const char *name;
+    const char *symbol;
     aws_napi_method_fn *method;
 
     size_t num_arguments; /* Number of *REQUIRED* arguments. 0 -> AWS_NAPI_METHOD_MAX_ARGS */

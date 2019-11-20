@@ -13,27 +13,38 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders, HttpRequest } from "../lib/native/http";
+import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders as NativeHeaders, HttpRequest } from "../lib/native/http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "../lib/native/io";
+import { HttpHeader } from "../lib/common/http";
+import { HttpHeaders as BrowserHeaders } from "../lib/browser/http";
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
 
 test('HTTP Headers', () => {
-    let js_headers = new HttpHeaders([
+    const header_array: HttpHeader[] = [
         ['Host', 'www.amazon.com'],
-        ['Content-Length', '42']
-    ]);
-    let native_request = new HttpRequest("", "", undefined, js_headers);
+        ['Content-Length', '42'],
+    ];
+    let js_headers = new BrowserHeaders(header_array);
+    let native_request = new HttpRequest("", "", new NativeHeaders(header_array));
     let native_headers = native_request.headers;
 
     /* Be sure to test JS AND native implementations */
     for (let headers of [js_headers, native_headers]) {
 
+        const iterator = headers[Symbol.iterator].call(headers);
+        <unknown>iterator;
+        const next = iterator.next.call(iterator);
+        <unknown>next;
+
+        let found_headers = 0;
         for (const header of headers) {
             expect(['Host', 'Content-Length']).toContain(header[0]);
             expect(['www.amazon.com', '42']).toContain(header[1]);
+            found_headers++;
         }
+        expect(found_headers).toBe(2);
         // Upgrade header does not exist
         expect(headers.get('Upgrade')).toBeFalsy();
 
@@ -42,10 +53,13 @@ test('HTTP Headers', () => {
 
         // Remove Content-Length, and make sure host is all that's left
         headers.remove('content-length');
+        found_headers = 0;
         for (const header of headers) {
             expect(header[0]).toBe('Host');
             expect(header[1]).toBe('www.amazon.com');
+            found_headers++;
         }
+        expect(found_headers).toBe(1);
 
         headers.clear();
         for (const header of headers) {
@@ -126,8 +140,9 @@ async function test_stream(method: string, host: string, port: number, tls_opts?
             tls_opts);
         connection.on('connect', () => {
             let request = new HttpRequest(
-                method, '/', undefined,
-                new HttpHeaders([
+                method,
+                '/',
+                new NativeHeaders([
                     ['host', host],
                     ['user-agent', 'AWS CRT for NodeJS']
                 ])
@@ -221,8 +236,9 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
     expect(connection).toBeDefined();
 
     let request = new HttpRequest(
-        'GET', '/', undefined,
-        new HttpHeaders([
+        'GET',
+        '/',
+        new NativeHeaders([
             ['host', 'example.com'],
             ['user-agent', 'AWS CRT for NodeJS']
         ])
