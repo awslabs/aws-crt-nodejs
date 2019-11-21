@@ -96,16 +96,13 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (options) {
             builder.params.websocket_handshake_transform = async (request, done) => {
                 const signing_config = options.create_signing_config?.()
-                    ?? new AwsSigningConfig(
-                        AwsSigningAlgorithm.SigV4QueryParam,
-                        options.credentials_provider,
-                        options.region,
-                        options.service ?? "iotdevicegateway",
-                        new Date(),
-                        ["x-amz-date", "x-amz-security-token"],
-                        false,
-                        true,
-                        false);
+                    ?? {
+                        algorithm: AwsSigningAlgorithm.SigV4QueryParam,
+                        provider: options.credentials_provider,
+                        region: options.region,
+                        service: options.service ?? "iotdevicegateway",
+                        param_blacklist: ["x-amz-date", "x-amz-security-token"],
+                    };
 
                 try {
                     await sign_request_aws(request, signing_config);

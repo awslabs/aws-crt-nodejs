@@ -228,28 +228,16 @@ export class AwsCredentialsProvider {
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
 }
 
-export class AwsSigningConfig {
-    public readonly algorithm: AwsSigningAlgorithm;
-    public readonly provider: AwsCredentialsProvider;
-    public readonly region: string;
-    public readonly service: string;
-    public readonly date: Date;
-    public readonly param_blacklist: string[];
-    public readonly use_double_uri_encode: boolean;
-    public readonly should_normalize_uri_path: boolean;
-    public readonly sign_body: boolean;
-
-    constructor(
-        algorithm?: AwsSigningAlgorithm,
-        provider?: AwsCredentialsProvider,
-        region?: string,
-        service?: string,
-        date?: Date,
-        param_blacklist?: string[],
-        use_double_uri_encode?: boolean,
-        should_normalize_uri_path?: boolean,
-        sign_body?: boolean,
-    );
+export interface AwsSigningConfig {
+    algorithm: AwsSigningAlgorithm;
+    provider: AwsCredentialsProvider;
+    region: string;
+    service?: string;
+    date?: Date;
+    param_blacklist?: string[];
+    use_double_uri_encode?: boolean;
+    should_normalize_uri_path?: boolean;
+    sign_body?: boolean;
 }
 
 export function sign_request_aws(

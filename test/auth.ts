@@ -14,44 +14,7 @@
  */
 
 import { auth as native, http as native_http } from '../lib/index';
-import { AwsCredentialsProvider, sign_request_aws } from '../lib/native/auth';
-
-test('AwsSigningConfig properties', () => {
-    const now = new Date();
-    const provider = AwsCredentialsProvider.newStatic("key", "secret");
-    let config = new native.AwsSigningConfig(
-        native.AwsSigningAlgorithm.SigV4QueryParam,
-        provider,
-        'us-east-1',
-        'iotcore',
-        now,
-        ["abc"],
-        true,
-        true,
-        true,
-    );
-
-    expect(config.algorithm).toBe(native.AwsSigningAlgorithm.SigV4QueryParam);
-
-    expect(config.region).toBe('us-east-1');
-
-    expect(config.service).toBe('iotcore');
-
-    expect(config.date).toBe(now);
-
-    expect(config.param_blacklist.length).toBe(1);
-    expect(config.param_blacklist).toContain("abc");
-    config.param_blacklist.push("def");
-    expect(config.param_blacklist.length).toBe(2);
-    expect(config.param_blacklist).toContain("abc");
-    expect(config.param_blacklist).toContain("def");
-
-    expect(config.use_double_uri_encode).toBe(true);
-
-    expect(config.should_normalize_uri_path).toBe(true);
-
-    expect(config.sign_body).toBe(true);
-});
+import { sign_request_aws } from '../lib/native/auth';
 
 const DATE_STR = '2015-08-30T12:36:00Z';
 
@@ -79,16 +42,13 @@ test('AWS Signer SigV4 Headers', async () => {
         SIGV4TEST_SECRET_ACCESS_KEY,
     );
 
-    const signing_config = new native.AwsSigningConfig(
-        native.AwsSigningAlgorithm.SigV4Header,
-        credentials_provider,
-        SIGV4TEST_REGION,
-        SIGV4TEST_SERVICE,
-        new Date(DATE_STR),
-        undefined,
-        false,
-        true,
-        false);
+    const signing_config: native.AwsSigningConfig = {
+        algorithm: native.AwsSigningAlgorithm.SigV4Header,
+        provider: credentials_provider,
+        region: SIGV4TEST_REGION,
+        service: SIGV4TEST_SERVICE,
+        date: new Date(DATE_STR),
+    };
 
     let http_request = new native_http.HttpRequest(
         SIGV4TEST_METHOD,

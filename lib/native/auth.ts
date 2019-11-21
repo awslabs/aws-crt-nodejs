@@ -29,41 +29,20 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
     }
 }
 
-export class AwsSigningConfig extends crt_native.AwsSigningConfig {
-    constructor(
-        algorithm = AwsSigningAlgorithm.SigV4Header,
-        provider: AwsCredentialsProvider,
-        region: string,
-        service?: string,
-        date = new Date(),
-        param_blacklist?: string[],
-        use_double_uri_encode = false,
-        should_normalize_uri_path = true,
-        sign_body = true,
-    ) {
-        super(
-            algorithm,
-            provider,
-            region,
-            service,
-            date,
-            param_blacklist,
-            use_double_uri_encode,
-            should_normalize_uri_path,
-            sign_body,
-        );
-    }
-}
-
+export type AwsSigningConfig = crt_native.AwsSigningConfig;
 
 export async function sign_request_aws(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
     return new Promise((resolve, reject) => {
-        crt_native.sign_request_aws(request, config, (error_code) => {
-            if (error_code == 0) {
-                resolve(request);
-            } else {
-                reject(error_code);
-            }
-        });
+        try {
+            crt_native.sign_request_aws(request, config, (error_code) => {
+                if (error_code == 0) {
+                    resolve(request);
+                } else {
+                    reject(error_code);
+                }
+            });
+        } catch (error) {
+            reject(error);
+        }
     });
 }
