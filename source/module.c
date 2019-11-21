@@ -202,8 +202,8 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
 
 /* The napi_status enum has grown, and is not bound by N-API versioning */
 #if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wswitch"
 #endif
 
 const char *aws_napi_status_to_str(napi_status status) {
@@ -270,7 +270,7 @@ const char *aws_napi_status_to_str(napi_status status) {
 }
 
 #if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
 
 static void s_handle_failed_callback(napi_env env, napi_value function, napi_status status) {
