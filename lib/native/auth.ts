@@ -55,17 +55,15 @@ export class AwsSigningConfig extends crt_native.AwsSigningConfig {
     }
 }
 
-export class AwsSigner extends crt_native.AwsSigner {
 
-    public async sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
-        return new Promise((resolve, reject) => {
-            super.sign_request(request, config, (error_code) => {
-                if (error_code == 0) {
-                    resolve(request);
-                } else {
-                    reject(error_code);
-                }
-            });
+export async function sign_request_aws(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
+    return new Promise((resolve, reject) => {
+        crt_native.sign_request_aws(request, config, (error_code) => {
+            if (error_code == 0) {
+                resolve(request);
+            } else {
+                reject(error_code);
+            }
         });
-    }
+    });
 }

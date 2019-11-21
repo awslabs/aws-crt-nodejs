@@ -22,7 +22,7 @@
 
 #include <aws/auth/credentials.h>
 #include <aws/auth/signable.h>
-#include <aws/auth/signer.h>
+#include <aws/auth/signing.h>
 #include <aws/auth/signing_config.h>
 
 static struct aws_napi_class_info s_creds_provider_class_info;
@@ -43,9 +43,7 @@ static aws_napi_property_get_fn s_use_double_uri_encode_get;
 static aws_napi_property_get_fn s_should_normalize_uri_path_get;
 static aws_napi_property_get_fn s_sign_body_get;
 
-static struct aws_napi_class_info s_signer_class_info;
-static aws_napi_method_fn s_signer_constructor;
-static aws_napi_method_fn s_signer_sign_request;
+static aws_napi_method_fn s_sign_request_aws;
 
 napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_constructor_info = {
@@ -172,32 +170,14 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             &s_signing_config_class_info),
         { return status; });
 
-    static const struct aws_napi_method_info s_signer_constructor_info = {
-        .name = "AwsSigner",
-        .method = s_signer_constructor,
+    static struct aws_napi_method_info s_signer_request_method = {
+        .name = "sign_request_aws",
+        .method = s_sign_request_aws,
+        .num_arguments = 3,
+        .arg_types = {napi_object, napi_object, napi_function},
     };
 
-    static const struct aws_napi_method_info s_signer_methods[] = {
-        {
-            .name = "sign_request",
-            .method = s_signer_sign_request,
-            .num_arguments = 3,
-            .arg_types = {napi_object, napi_object, napi_function},
-        },
-    };
-
-    AWS_NAPI_CALL(
-        env,
-        aws_napi_define_class(
-            env,
-            exports,
-            &s_signer_constructor_info,
-            NULL,
-            0,
-            s_signer_methods,
-            AWS_ARRAY_SIZE(s_signer_methods),
-            &s_signer_class_info),
-        { return status; });
+    AWS_NAPI_CALL(env, aws_napi_define_function(env, exports, &s_signer_request_method), { return status; });
 
     return napi_ok;
 }
@@ -271,20 +251,20 @@ static napi_value s_creds_provider_new_static(napi_env env, const struct aws_nap
     struct aws_allocator *allocator = aws_napi_get_allocator();
     const struct aws_napi_argument *arg = NULL;
 
-    aws_napi_method_next_argument(napi_string, cb_info, &arg);
-    struct aws_byte_cursor access_key = aws_byte_cursor_from_buf(&arg->native.string);
+    struct aws_credentials_provider_static_options options;
+    AWS_ZERO_STRUCT(options);
 
     aws_napi_method_next_argument(napi_string, cb_info, &arg);
-    struct aws_byte_cursor secret_key = aws_byte_cursor_from_buf(&arg->native.string);
+    options.access_key_id = aws_byte_cursor_from_buf(&arg->native.string);
 
-    struct aws_byte_cursor session_token;
-    AWS_ZERO_STRUCT(session_token);
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    options.secret_access_key = aws_byte_cursor_from_buf(&arg->native.string);
+
     if (aws_napi_method_next_argument(napi_string, cb_info, &arg)) {
-        session_token = aws_byte_cursor_from_buf(&arg->native.string);
+        options.session_token = aws_byte_cursor_from_buf(&arg->native.string);
     }
 
-    struct aws_credentials_provider *provider =
-        aws_credentials_provider_new_static(allocator, access_key, secret_key, session_token);
+    struct aws_credentials_provider *provider = aws_credentials_provider_new_static(allocator, &options);
 
     napi_value node_this = NULL;
     AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
@@ -677,31 +657,8 @@ static napi_value s_sign_body_get(napi_env env, void *native_this) {
 }
 
 /***********************************************************************************************************************
- * Signer
+ * Signing
  **********************************************************************************************************************/
-
-static void s_napi_signer_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
-    (void)finalize_hint;
-
-    aws_signer_destroy(finalize_data);
-}
-
-static napi_value s_signer_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
-
-    AWS_FATAL_ASSERT(cb_info->num_args == 0);
-
-    struct aws_allocator *allocator = aws_napi_get_allocator();
-
-    struct aws_signer *signer = aws_signer_new_aws(allocator);
-
-    AWS_NAPI_CALL(env, napi_wrap(env, cb_info->native_this, signer, s_napi_signer_finalize, allocator, NULL), {
-        napi_throw_error(env, NULL, "Failed to wrap AwsSigner");
-        return NULL;
-    });
-
-    return cb_info->native_this;
-}
 
 struct signer_sign_request_state {
     napi_ref node_config;
@@ -716,7 +673,7 @@ struct signer_sign_request_state {
     int error_code;
 };
 
-static void s_signer_sign_request_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
+static void s_sign_request_aws_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
 
     struct signer_sign_request_state *state = context;
     struct aws_allocator *allocator = user_data;
@@ -735,7 +692,7 @@ static void s_signer_sign_request_complete_call(napi_env env, napi_value on_comp
     aws_mem_release(allocator, state);
 }
 
-static void s_signer_sign_request_complete(struct aws_signing_result *result, int error_code, void *userdata) {
+static void s_sign_request_aws_complete(struct aws_signing_result *result, int error_code, void *userdata) {
 
     struct signer_sign_request_state *state = userdata;
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -750,12 +707,11 @@ static void s_signer_sign_request_complete(struct aws_signing_result *result, in
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(state->on_complete, allocator));
 }
 
-static napi_value s_signer_sign_request(napi_env env, const struct aws_napi_callback_info *cb_info) {
+static napi_value s_sign_request_aws(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
     AWS_FATAL_ASSERT(cb_info->num_args == 3);
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-    struct aws_signer *signer = cb_info->native_this;
     const struct aws_napi_argument *arg = NULL;
 
     struct signer_sign_request_state *state = aws_mem_calloc(allocator, 1, sizeof(struct signer_sign_request_state));
@@ -773,22 +729,17 @@ static napi_value s_signer_sign_request(napi_env env, const struct aws_napi_call
     AWS_NAPI_CALL(
         env,
         aws_napi_create_threadsafe_function(
-            env,
-            arg->node,
-            "aws_signer_on_signing_complete",
-            s_signer_sign_request_complete_call,
-            state,
-            &state->on_complete),
+            env, arg->node, "aws_signer_on_signing_complete", s_sign_request_aws_complete_call, state, &state->on_complete),
         {
             napi_throw_type_error(env, NULL, "on_shutdown must be a valid callback or undefined");
             return NULL;
         });
 
-    if (aws_signer_sign_request(
-            signer,
+    if (aws_sign_request_aws(
+            allocator,
             state->signable,
             (struct aws_signing_config_base *)state->config,
-            s_signer_sign_request_complete,
+            s_sign_request_aws_complete,
             state)) {
 
         aws_napi_throw_last_error(env);

@@ -16,11 +16,10 @@ import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
-import { AwsCredentialsProvider, AwsSigner, AwsSigningConfig, AwsSigningAlgorithm } from "./auth";
+import { AwsCredentialsProvider, AwsSigningConfig, AwsSigningAlgorithm, sign_request_aws } from "./auth";
 
 export interface WebsocketConfig {
     credentials_provider: AwsCredentialsProvider;
-    signer?: AwsSigner;
     create_signing_config?: () => AwsSigningConfig;
 
     proxy_options?: HttpProxyOptions;
@@ -96,7 +95,6 @@ export class AwsIotMqttConnectionConfigBuilder {
 
         if (options) {
             builder.params.websocket_handshake_transform = async (request, done) => {
-                const signer: AwsSigner = options.signer ?? new AwsSigner();
                 const signing_config = options.create_signing_config?.()
                     ?? new AwsSigningConfig(
                         AwsSigningAlgorithm.SigV4QueryParam,
@@ -110,7 +108,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                         false);
 
                 try {
-                    await signer.sign_request(request, signing_config);
+                    await sign_request_aws(request, signing_config);
                     done();
                 } catch(error) {
                     done(error);

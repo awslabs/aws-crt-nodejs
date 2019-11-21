@@ -252,10 +252,8 @@ export class AwsSigningConfig {
     );
 }
 
-export class AwsSigner {
-    public sign_request(
-        request: HttpRequest,
-        config: AwsSigningConfig,
-        on_complete: (error_code: number) => void
-    ): void;
-}
+export function sign_request_aws(
+    request: HttpRequest,
+    config: AwsSigningConfig,
+    on_complete: (error_code: number) => void
+): void;

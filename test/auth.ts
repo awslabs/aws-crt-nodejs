@@ -14,7 +14,7 @@
  */
 
 import { auth as native, http as native_http } from '../lib/index';
-import { AwsCredentialsProvider } from '../lib/native/auth';
+import { AwsCredentialsProvider, sign_request_aws } from '../lib/native/auth';
 
 test('AwsSigningConfig properties', () => {
     const now = new Date();
@@ -70,15 +70,9 @@ const SIGV4TEST_SIGNED_HEADERS: [string, string][] = [
     ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
     ['Authorization', 'AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31'],
     ['X-Amz-Date', DATE_STR.replace(/[-:]/g, '')],
-]
-
-test('AWS Signer Constructor', () => {
-
-    new native.AwsSigner();
-});
+];
 
 test('AWS Signer SigV4 Headers', async () => {
-    const signer = new native.AwsSigner();
 
     const credentials_provider = native.AwsCredentialsProvider.newStatic(
         SIGV4TEST_ACCESS_KEY_ID,
@@ -101,7 +95,7 @@ test('AWS Signer SigV4 Headers', async () => {
         SIGV4TEST_PATH,
         new native_http.HttpHeaders(SIGV4TEST_UNSIGNED_HEADERS));
 
-    const signing_result = await signer.sign_request(http_request, signing_config);
+    const signing_result = await sign_request_aws(http_request, signing_config);
 
     expect(http_request).toBe(signing_result); // should be same object
 
