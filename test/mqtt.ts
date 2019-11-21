@@ -43,62 +43,78 @@ async function fetch_credentials(): Promise<Config> {
     }
 
     return new Promise((resolve, reject) => {
-        const client = new AWS.SecretsManager({
-            region: Config.region
-        });
+        try {
+            const timeout = setTimeout(reject, 5000);
+            const client = new AWS.SecretsManager({
+                region: Config.region,
+                httpOptions: {
+                    connectTimeout: 3000,
+                    timeout: 5000
+                }
+            });
 
-        const config = new Config();
-        const resolve_if_done = () => {
-            if (config.configured()) {
-                Config._cached = config;
-                resolve(config);
+            const config = new Config();
+            const resolve_if_done = () => {
+                if (config.configured()) {
+                    clearTimeout(timeout);
+                    Config._cached = config;
+                    resolve(config);
+                }
             }
+
+            client.getSecretValue({ SecretId: 'unit-test/endpoint' }, (error, data) => {
+                if (error) {
+                    reject(error);
+                }
+
+                try {
+                    config.endpoint = data.SecretString as string;
+                } catch (err) {
+                    reject(err);
+                }
+
+                resolve_if_done();
+            });
+            client.getSecretValue({ SecretId: 'unit-test/certificate' }, (error, data) => {
+                if (error) {
+                    reject(error);
+                }
+
+                try {
+                    config.certificate = data.SecretString as string;
+                } catch (err) {
+                    reject(err);
+                }
+
+                resolve_if_done();
+            });
+            client.getSecretValue({ SecretId: 'unit-test/privatekey' }, (error, data) => {
+                if (error) {
+                    reject(error);
+                }
+
+                try {
+                    config.private_key = data.SecretString as string;
+                } catch (err) {
+                    reject(err);
+                }
+
+                resolve_if_done();
+            });
+        } catch (err) {
+            reject(err);
         }
-
-        client.getSecretValue({ SecretId: 'unit-test/endpoint' }, (error, data) => {
-            if (error) {
-                reject(error);
-            }
-
-            try {
-                config.endpoint = data.SecretString as string;
-            } catch (err) {
-                reject(err);
-            }
-            
-            resolve_if_done();
-        });
-        client.getSecretValue({ SecretId: 'unit-test/certificate' }, (error, data) => {
-            if (error) {
-                reject(error);
-            }
-
-            try {
-                config.certificate = data.SecretString as string;
-            } catch (err) {
-                reject(err);
-            }
-            
-            resolve_if_done();
-        });
-        client.getSecretValue({ SecretId: 'unit-test/privatekey' }, (error, data) => {
-            if (error) {
-                reject(error);
-            }
-
-            try {
-                config.private_key = data.SecretString as string;
-            } catch (err) {
-                reject(err);
-            }
-            
-            resolve_if_done();
-        });
     });
 }
 
 test('MQTT Connect/Disconnect', async () => {
-    const aws_opts = await fetch_credentials();
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+    
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -126,8 +142,14 @@ test('MQTT Connect/Disconnect', async () => {
 });
 
 test('MQTT Pub/Sub', async () => {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+
     const decoder = new TextDecoder('utf8');
-    const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -169,7 +191,13 @@ test('MQTT Pub/Sub', async () => {
 });
 
 test('MQTT Will', async () => {
-    const aws_opts = await fetch_credentials();
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -202,8 +230,14 @@ test('MQTT Will', async () => {
 });
 
 test('MQTT On Any Publish', async () => {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+
     const decoder = new TextDecoder('utf8');
-    const aws_opts = await fetch_credentials();
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
