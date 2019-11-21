@@ -205,6 +205,12 @@ struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return &s_node_uv_elg;
 }
 
+/* The napi_status enum has grown, and is not bound by N-API versioning */
+#if defined(__clang__) || defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wswitch"
+#endif
+
 const char *aws_napi_status_to_str(napi_status status) {
     const char *reason = "UNKNOWN";
     switch (status) {
@@ -267,6 +273,10 @@ const char *aws_napi_status_to_str(napi_status status) {
     }
     return reason;
 }
+
+#if defined(__clang__) || defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#endif
 
 static void s_handle_failed_callback(napi_env env, napi_value function, napi_status status) {
     /* Figure out if there's an exception pending, if so, no callbacks will ever succeed again until it's cleared */
