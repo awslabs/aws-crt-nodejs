@@ -174,7 +174,13 @@ test('MQTT Connect/Disconnect', async () => {
 });
 
 test('MQTT Websocket', async () => {
-    const aws_opts = await fetch_credentials();
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+
     const bootstrap = new ClientBootstrap();
     const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets({
             region: "us-east-1",
