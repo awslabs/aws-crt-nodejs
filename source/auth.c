@@ -30,7 +30,7 @@ static aws_napi_method_fn s_creds_provider_constructor;
 static aws_napi_method_fn s_creds_provider_new_default;
 static aws_napi_method_fn s_creds_provider_new_static;
 
-static aws_napi_method_fn s_sign_request_aws;
+static aws_napi_method_fn s_aws_sign_request;
 
 napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_constructor_info = {
@@ -71,8 +71,8 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
         { return status; });
 
     static struct aws_napi_method_info s_signer_request_method = {
-        .name = "sign_request_aws",
-        .method = s_sign_request_aws,
+        .name = "aws_sign_request",
+        .method = s_aws_sign_request,
         .num_arguments = 3,
         .arg_types = {napi_object, napi_object, napi_function},
     };
@@ -218,7 +218,7 @@ static bool s_should_sign_param(const struct aws_byte_cursor *name, void *userda
     return true;
 }
 
-static void s_sign_request_aws_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
+static void s_aws_sign_request_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
 
     struct signer_sign_request_state *state = context;
     struct aws_allocator *allocator = user_data;
@@ -244,7 +244,7 @@ static void s_sign_request_aws_complete_call(napi_env env, napi_value on_complet
     aws_mem_release(allocator, state);
 }
 
-static void s_sign_request_aws_complete(struct aws_signing_result *result, int error_code, void *userdata) {
+static void s_aws_sign_request_complete(struct aws_signing_result *result, int error_code, void *userdata) {
 
     struct signer_sign_request_state *state = userdata;
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -288,7 +288,7 @@ static bool s_get_named_property(
     return true;
 }
 
-static napi_value s_sign_request_aws(napi_env env, const struct aws_napi_callback_info *cb_info) {
+static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
     AWS_FATAL_ASSERT(cb_info->num_args == 3);
 
@@ -480,7 +480,7 @@ static napi_value s_sign_request_aws(napi_env env, const struct aws_napi_callbac
             env,
             arg->node,
             "aws_signer_on_signing_complete",
-            s_sign_request_aws_complete_call,
+            s_aws_sign_request_complete_call,
             state,
             &state->on_complete),
         {
@@ -492,7 +492,7 @@ static napi_value s_sign_request_aws(napi_env env, const struct aws_napi_callbac
             allocator,
             state->signable,
             (struct aws_signing_config_base *)&config,
-            s_sign_request_aws_complete,
+            s_aws_sign_request_complete,
             state)) {
 
         aws_napi_throw_last_error(env);

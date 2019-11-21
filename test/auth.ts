@@ -14,7 +14,7 @@
  */
 
 import { auth as native, http as native_http } from '../lib/index';
-import { sign_request_aws } from '../lib/native/auth';
+import { aws_sign_request } from '../lib/native/auth';
 
 const DATE_STR = '2015-08-30T12:36:00Z';
 
@@ -55,7 +55,7 @@ test('AWS Signer SigV4 Headers', async () => {
         SIGV4TEST_PATH,
         new native_http.HttpHeaders(SIGV4TEST_UNSIGNED_HEADERS));
 
-    const signing_result = await sign_request_aws(http_request, signing_config);
+    const signing_result = await aws_sign_request(http_request, signing_config);
 
     expect(http_request).toBe(signing_result); // should be same object
 

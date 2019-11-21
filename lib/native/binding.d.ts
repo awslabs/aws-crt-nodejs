@@ -240,7 +240,7 @@ export interface AwsSigningConfig {
     sign_body?: boolean;
 }
 
-export function sign_request_aws(
+export function aws_sign_request(
     request: HttpRequest,
     config: AwsSigningConfig,
     on_complete: (error_code: number) => void

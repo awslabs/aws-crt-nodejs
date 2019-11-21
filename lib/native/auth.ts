@@ -31,10 +31,10 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
 
 export type AwsSigningConfig = crt_native.AwsSigningConfig;
 
-export async function sign_request_aws(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
+export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
     return new Promise((resolve, reject) => {
         try {
-            crt_native.sign_request_aws(request, config, (error_code) => {
+            crt_native.aws_sign_request(request, config, (error_code) => {
                 if (error_code == 0) {
                     resolve(request);
                 } else {

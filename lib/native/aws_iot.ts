@@ -16,7 +16,7 @@ import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
-import { AwsCredentialsProvider, AwsSigningConfig, AwsSigningAlgorithm, sign_request_aws } from "./auth";
+import { AwsCredentialsProvider, AwsSigningConfig, AwsSigningAlgorithm, aws_sign_request } from "./auth";
 
 export interface WebsocketConfig {
     credentials_provider: AwsCredentialsProvider;
@@ -105,7 +105,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                     };
 
                 try {
-                    await sign_request_aws(request, signing_config);
+                    await aws_sign_request(request, signing_config);
                     done();
                 } catch(error) {
                     done(error);
