@@ -71,6 +71,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Unable to convert host_name to string"));
         goto cleanup;
     }
+    binding->native.host = aws_byte_cursor_from_string(binding->host_name);
 
     napi_value node_port = *arg++;
     uint32_t port;

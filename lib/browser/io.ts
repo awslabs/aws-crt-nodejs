@@ -13,7 +13,7 @@
 */
 
 export { TlsVersion, SocketType, SocketDomain } from "../common/io";
-import { InputStreamBase, SocketType, SocketDomain } from "../common/io";
+import { SocketType, SocketDomain } from "../common/io";
 
 export function is_alpn_available(): boolean {
     return false;
@@ -21,7 +21,7 @@ export function is_alpn_available(): boolean {
 
 type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
 
-export class InputStream implements InputStreamBase {
+export class InputStream {
     constructor(public data: BodyData) {
 
     }

@@ -102,21 +102,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private subscriptions = new TopicTrie();
     private connection_count = 0;
 
-    private create_websocket_stream = (client: MqttClientInternal) => {
-        return WebsocketUtils.create_websocket_stream(this.config);
-    }
-
-    private transform_websocket_url = (url: string, options: IClientOptions, client: MqttClientInternal) => {
-        return WebsocketUtils.transform_websocket_url(url, this.config);
-    }
-
     constructor(
         readonly client: MqttClient,
         private config: MqttConnectionConfig) {
         super();
 
+        const create_websocket_stream = (client: MqttClientInternal) => WebsocketUtils.create_websocket_stream(this.config);
+        const transform_websocket_url = (url: string, options: IClientOptions, client: MqttClientInternal) => WebsocketUtils.create_websocket_url(this.config);
+
         this.connection = new AsyncClient(new MqttClientInternal(
-            this.create_websocket_stream,
+            create_websocket_stream,
             {
                 keepalive: this.config.socket_options.keepalive ? this.config.socket_options.keep_alive_interval_sec : 0,
                 clientId: this.config.client_id,
@@ -131,7 +126,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     qos: this.config.will.qos,
                     retain: this.config.will.retain,
                 } : undefined,
-                transformWsUrl: (config.websocket || {}).protocol != 'wss-custom-auth' ? this.transform_websocket_url : undefined
+                transformWsUrl: (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined
             }
         ));
     }

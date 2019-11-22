@@ -15,9 +15,12 @@
 
 #include "module.h"
 
+#include "auth.h"
 #include "crypto.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
+#include "http_headers.h"
+#include "http_message.h"
 #include "http_stream.h"
 #include "io.h"
 #include "logger.h"
@@ -33,6 +36,8 @@
 #include <aws/io/tls_channel_handler.h>
 
 #include <aws/http/http.h>
+
+#include <aws/auth/auth.h>
 
 #include <uv.h>
 
@@ -537,9 +542,10 @@ static bool s_create_and_register_function(
 
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
+    aws_auth_library_init(allocator);
     aws_register_log_subject_info_list(&s_log_subject_list);
 
-    /* Initalize the event loop group */
+    /* Initialize the event loop group */
     aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
 
     napi_value null;
@@ -604,6 +610,10 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(http_connection_manager_release)
 
 #undef CREATE_AND_REGISTER_FN
+
+    AWS_NAPI_ENSURE(env, aws_napi_http_headers_bind(env, exports));
+    AWS_NAPI_ENSURE(env, aws_napi_http_message_bind(env, exports));
+    AWS_NAPI_ENSURE(env, aws_napi_auth_bind(env, exports));
 
     return exports;
 }

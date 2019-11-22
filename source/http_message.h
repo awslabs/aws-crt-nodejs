@@ -1,3 +1,5 @@
+#ifndef AWS_CRT_NODEJS_HTTP_MESSAGE_H
+#define AWS_CRT_NODEJS_HTTP_MESSAGE_H
 /*
  * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -13,22 +15,12 @@
  * permissions and limitations under the License.
  */
 
-export enum TlsVersion {
-    SSLv3 = 0,
-    TLSv1 = 1,
-    TLSv1_1 = 2,
-    TLSv1_2 = 3,
-    TLSv1_3 = 4,
-    Default = 128,
-}
+#include <node_api.h>
 
-export enum SocketType {
-    STREAM = 0,
-    DGRAM = 1,
-}
+napi_status aws_napi_http_message_bind(napi_env env, napi_value exports);
 
-export enum SocketDomain {
-    IPV4 = 0,
-    IPV6 = 1,
-    LOCAL = 2, /* UNIX domain/named pipes */
-}
+struct aws_http_message;
+napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *message, napi_value *result);
+struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value js_object);
+
+#endif /* AWS_CRT_NODEJS_HTTP_MESSAGE_H */

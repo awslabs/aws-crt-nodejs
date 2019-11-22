@@ -19,7 +19,7 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
 import { TextEncoder } from 'util';
-import { HttpProxyOptions } from './http';
+import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
@@ -50,6 +50,7 @@ export interface MqttConnectionConfig {
     password?: string;
     tls_ctx?: io.ClientTlsContext;
     proxy_options?: HttpProxyOptions;
+    websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
 }
 
 const normalize_encoder = new TextEncoder();
@@ -168,6 +169,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.proxy_options ? this.config.proxy_options.create_native_handle() : undefined,
                     this.config.clean_session,
                     on_connect,
+                    this.config.websocket_handshake_transform,
                 );
             } catch (e) {
                 reject(e);

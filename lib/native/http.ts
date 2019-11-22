@@ -16,11 +16,17 @@
 import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
-import { ClientBootstrap, SocketOptions, InputStream, TlsConnectionOptions } from './io';
+import { ClientBootstrap, SocketOptions, TlsConnectionOptions } from './io';
 import { CrtError } from './error';
-import { HttpHeaders, HttpRequest, HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
-export { HttpHeaders, HttpRequest, HttpProxyAuthenticationType } from '../common/http';
+import { HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
+export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
+
+export type HttpHeaders = crt_native.HttpHeaders;
+export const HttpHeaders = crt_native.HttpHeaders;
+
+export type HttpRequest = crt_native.HttpRequest;
+export const HttpRequest = crt_native.HttpRequest;
 
 /** Base class for HTTP connections */
 export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -145,10 +151,7 @@ export class HttpClientConnection extends HttpConnection {
         }
         const native_handle = crt_native.http_stream_new(
             this.native_handle(),
-            request.method,
-            request.path,
-            request.body ? (request.body as InputStream).native_handle() : undefined,
-            request.headers._flatten(),
+            request,
             on_complete_impl,
             on_response_impl,
             on_body_impl

@@ -15,6 +15,7 @@
 
 #include "http_stream.h"
 #include "http_connection.h"
+#include "http_message.h"
 #include "module.h"
 
 #include <aws/http/request_response.h>
@@ -203,7 +204,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     struct aws_allocator *allocator = aws_napi_get_allocator();
     napi_value result = NULL;
 
-    napi_value node_args[8];
+    napi_value node_args[5];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -211,7 +212,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "http_stream_new needs exactly 8 arguments");
+        napi_throw_error(env, NULL, "http_stream_new needs exactly 5 arguments");
         return NULL;
     }
 
@@ -222,127 +223,8 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
         return NULL;
     });
 
-    napi_value node_method = *arg++;
-    struct aws_string *method = aws_string_new_from_napi(env, node_method);
-    napi_value node_path = *arg++;
-    struct aws_string *path = aws_string_new_from_napi(env, node_path);
-    struct aws_byte_buf body;
-    AWS_ZERO_STRUCT(body);
-    if (!method) {
-        napi_throw_error(env, NULL, "method must be a string");
-        goto argument_error;
-    }
-
-    if (!path) {
-        napi_throw_error(env, NULL, "path must be a string");
-        goto argument_error;
-    }
-
-    struct aws_input_stream *body_stream = NULL;
-    napi_value node_stream = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_stream)) {
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_stream, (void **)&body_stream), {
-            napi_throw_error(env, NULL, "Unable to acquire request body stream");
-            goto argument_error;
-        });
-    }
-
-    struct aws_http_message *request = aws_http_message_new_request(allocator);
-    if (!request) {
-        aws_napi_throw_last_error(env);
-        goto argument_error;
-    }
-    aws_http_message_set_request_method(request, aws_byte_cursor_from_string(method));
-    aws_http_message_set_request_path(request, aws_byte_cursor_from_string(path));
-    aws_http_message_set_body_stream(request, body_stream);
-
-    napi_value node_headers = *arg++;
-    bool is_array = false;
-    if (napi_is_array(env, node_headers, &is_array) || !is_array) {
-        napi_throw_error(env, NULL, "headers must be an array of arrays");
-        goto argument_error;
-    }
-
-    uint32_t num_headers = 0;
-    AWS_NAPI_CALL(env, napi_get_array_length(env, node_headers, &num_headers), {
-        napi_throw_error(env, NULL, "Could not get length of header array");
-        goto argument_error;
-    });
-
-    struct aws_byte_buf name_buf;
-    struct aws_byte_buf value_buf;
-    aws_byte_buf_init(&name_buf, allocator, 256);
-    aws_byte_buf_init(&value_buf, allocator, 256);
-    for (uint32_t idx = 0; idx < num_headers; ++idx) {
-        napi_value node_header = NULL;
-        AWS_NAPI_CALL(env, napi_get_element(env, node_headers, idx, &node_header), {
-            napi_throw_error(env, NULL, "Failed to extract headers");
-            goto argument_error;
-        });
-
-        AWS_NAPI_CALL(env, napi_is_array(env, node_header, &is_array), {
-            napi_throw_error(env, NULL, "Cannot determine if headers are an array");
-            goto argument_error;
-        });
-        if (!is_array) {
-            napi_throw_error(env, NULL, "headers must be an array of 2 element arrays");
-            goto argument_error;
-        }
-
-        uint32_t num_parts = 0;
-        AWS_NAPI_CALL(env, napi_get_array_length(env, node_header, &num_parts), {
-            napi_throw_error(env, NULL, "Could not get length of header parts");
-            goto argument_error;
-        });
-        if (num_parts != 2) {
-            napi_throw_error(env, NULL, "Could not get length of header parts or length was not 2");
-            goto argument_error;
-        }
-        napi_value node_name = NULL;
-        napi_value node_value = NULL;
-        AWS_NAPI_CALL(env, napi_get_element(env, node_header, 0, &node_name), {
-            napi_throw_error(env, NULL, "Could not extract header name");
-            goto argument_error;
-        });
-        AWS_NAPI_CALL(env, napi_get_element(env, node_header, 1, &node_value), {
-            napi_throw_error(env, NULL, "Could not extract header value");
-            goto argument_error;
-        });
-        /* extract the length of the name and value strings, ensure the buffers can hold them, and
-           then copy the values out. Should result in buffer re-use most of the time. */
-        size_t length = 0;
-        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node_name, NULL, 0, &length), {
-            napi_throw_error(env, NULL, "HTTP header was not a string or length could not be extracted");
-            goto argument_error;
-        });
-        aws_byte_buf_reserve(&name_buf, length);
-        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node_value, NULL, 0, &length), {
-            napi_throw_error(env, NULL, "HTTP header was not a string or length could not be extracted");
-            goto argument_error;
-        });
-        aws_byte_buf_reserve(&value_buf, length);
-
-        AWS_NAPI_CALL(
-            env,
-            napi_get_value_string_utf8(env, node_name, (char *)name_buf.buffer, name_buf.capacity, &name_buf.len),
-            {
-                napi_throw_error(env, NULL, "HTTP header name could not be extracted");
-                goto argument_error;
-            });
-        AWS_NAPI_CALL(
-            env,
-            napi_get_value_string_utf8(env, node_value, (char *)value_buf.buffer, value_buf.capacity, &value_buf.len),
-            {
-                napi_throw_error(env, NULL, "HTTP header value could not be extracted");
-                goto argument_error;
-            });
-
-        struct aws_http_header header = {.name = aws_byte_cursor_from_buf(&name_buf),
-                                         .value = aws_byte_cursor_from_buf(&value_buf)};
-        aws_http_message_add_header(request, header);
-    }
-    aws_byte_buf_clean_up(&name_buf);
-    aws_byte_buf_clean_up(&value_buf);
+    napi_value node_request = *arg++;
+    struct aws_http_message *request = aws_napi_http_message_unwrap(env, node_request);
 
     napi_value node_on_complete = *arg++;
     napi_value node_on_response = *arg++;
@@ -355,7 +237,6 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
     }
 
     binding->allocator = allocator;
-    binding->body_stream = body_stream;
     binding->request = request;
 
     AWS_NAPI_CALL(
@@ -444,14 +325,7 @@ failed_callbacks:
     }
     aws_mem_release(allocator, binding);
 failed_binding_alloc:
-    aws_http_message_destroy(request);
-    aws_byte_buf_clean_up(&body);
-    aws_input_stream_destroy(body_stream);
-
-argument_error:
 done:
-    aws_string_destroy(method);
-    aws_string_destroy(path);
 
     return result;
 }
