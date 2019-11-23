@@ -256,7 +256,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
             return result;
         }
         status = napi_get_value_uint32(env, node_number, &min_tls_version);
-        AWS_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
+        AWS_FATAL_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
     }
 
     napi_value node_ca_file = *arg++;
@@ -358,7 +358,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
 
         status = napi_get_value_bool(env, node_bool, &verify_peer);
-        AWS_ASSERT(status == napi_ok);
+        AWS_FATAL_ASSERT(status == napi_ok);
     }
 
     if (certificate.buffer && private_key.buffer) {
