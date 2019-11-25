@@ -38,7 +38,7 @@
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
         [
-            "npm", "run-script", "cmake", "--", "compile",
+            "node", "node_modules/.bin/cmake-js", "compile",
             "--cc={c}", "--cxx={cxx}",
             "--out={build_dir}",
             "--CDCMAKE_PREFIX_PATH=/opt/openssl",
