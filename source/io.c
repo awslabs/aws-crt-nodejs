@@ -342,7 +342,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     if (!aws_napi_is_null_or_undefined(env, node_pkcs12_password)) {
         if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_pwd, env, node_pkcs12_password)) {
-            napi_throw_type_error(env, NULL, "pcks12_password must be a String (or convertible to a String)");
+            napi_throw_type_error(env, NULL, "pkcs12_password must be a String (or convertible to a String)");
             goto cleanup;
         }
     }

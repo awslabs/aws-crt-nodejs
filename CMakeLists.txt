@@ -97,5 +97,13 @@ find_package(aws-c-mqtt REQUIRED)
 find_package(aws-c-auth REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} AWS::aws-c-auth AWS::aws-c-http AWS::aws-c-mqtt)
 
+if (CMAKE_JS_PLATFORM AND CMAKE_JS_ARCH)
+    # When run from build.ts, these are set
+    set(destination bin/${CMAKE_JS_PLATFORM}-${CMAKE_JS_ARCH})
+else()
+    # If not, default to "native"
+    set(destination bin/native)
+endif()
+
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
-    DESTINATION "native")
+    DESTINATION ${destination})
