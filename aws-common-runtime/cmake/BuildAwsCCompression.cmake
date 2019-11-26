@@ -1,8 +1,8 @@
 if("${TARGET_ARCH}" STREQUAL ANDROID)
     ExternalProject_Add(AwsCCompression
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${AWS_C_COMPRESSION_URL}
-            GIT_TAG ${AWS_C_COMPRESSION_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${AWS_C_COMPRESSION_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""
@@ -23,8 +23,8 @@ if("${TARGET_ARCH}" STREQUAL ANDROID)
 elseif(MSVC)
     ExternalProject_Add(AwsCCompression
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${AWS_C_COMPRESSION_URL}
-            GIT_TAG ${AWS_C_COMPRESSION_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${AWS_C_COMPRESSION_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""

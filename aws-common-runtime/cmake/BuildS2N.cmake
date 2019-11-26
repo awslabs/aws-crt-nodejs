@@ -1,8 +1,8 @@
 if("${TARGET_ARCH}" STREQUAL ANDROID)
     ExternalProject_Add(S2N
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${S2N_URL}
-            GIT_TAG ${S2N_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${S2N_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""
