@@ -40,7 +40,7 @@
 CMakeCache.txt
 CMakeFiles
 CMakeScripts
-#TODO Testing
+Testing
 Makefile
 cmake_install.cmake
 install_manifest.txt
@@ -169,6 +169,5 @@ deps_build/
 **/docs/
 
 # Skip large submodule files
-# aws-common-runtime/*/tests/ #TODO re-ignore once all modules support -DBUILD_TESTING=OFF
 aws-common-runtime/s2n/tests/
 aws-common-runtime/aws-c-common/.cbmc-batch/
