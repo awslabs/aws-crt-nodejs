@@ -169,5 +169,5 @@ deps_build/
 **/docs/
 
 # Skip large submodule files
-aws-common-runtime/s2n/tests/
+aws-common-runtime/*/tests/
 aws-common-runtime/aws-c-common/.cbmc-batch/
