@@ -1,0 +1,11 @@
+{
+    "extends": "./tsconfig.base",
+    "compilerOptions": {
+        "outDir": "dist.scripts",
+        "declaration": false,
+        "sourceMap": false
+    },
+    "include": [
+        "scripts/**/*.ts"
+    ]
+}
