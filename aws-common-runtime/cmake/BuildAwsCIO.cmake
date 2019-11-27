@@ -1,8 +1,8 @@
 if("${TARGET_ARCH}" STREQUAL ANDROID)
     ExternalProject_Add(AwsCIO
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${AWS_C_IO_URL}
-            GIT_TAG ${AWS_C_IO_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${AWS_C_IO_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""
@@ -24,8 +24,8 @@ if("${TARGET_ARCH}" STREQUAL ANDROID)
 elseif(MSVC)
     ExternalProject_Add(AwsCIO
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${AWS_C_IO_URL}
-            GIT_TAG ${AWS_C_IO_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${AWS_C_IO_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""

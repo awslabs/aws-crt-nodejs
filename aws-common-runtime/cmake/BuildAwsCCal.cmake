@@ -1,12 +1,13 @@
 if("${TARGET_ARCH}" STREQUAL ANDROID)
     ExternalProject_Add(AwsCCal
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${AWS_C_CAL_URL}
-            GIT_TAG ${AWS_C_CAL_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${AWS_C_CAL_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""
             CMAKE_ARGS
+            -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
             -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
@@ -23,12 +24,13 @@ if("${TARGET_ARCH}" STREQUAL ANDROID)
 elseif(MSVC)
     ExternalProject_Add(AwsCCal
             PREFIX ${AWS_DEPS_BUILD_DIR}
-            GIT_REPOSITORY ${AWS_C_CAL_URL}
-            GIT_TAG ${AWS_C_CAL_SHA}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${AWS_C_CAL_DIR}
             BUILD_IN_SOURCE 0
             LIST_SEPARATOR |
             UPDATE_COMMAND ""
             CMAKE_ARGS
+            -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
             -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
             -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}

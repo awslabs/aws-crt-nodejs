@@ -155,12 +155,12 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
     napi_value node_proxy_options = *arg++;
     struct aws_http_proxy_options *proxy_options = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_proxy_options)) {
-        struct http_proxy_options_binding *binding = NULL;
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&binding), {
+        struct http_proxy_options_binding *proxy_binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&proxy_binding), {
             napi_throw_type_error(env, NULL, "tls_opts must be undefined or a valid TlsConnectionOptions");
             goto cleanup;
         });
-        proxy_options = aws_napi_get_http_proxy_options(binding);
+        proxy_options = aws_napi_get_http_proxy_options(proxy_binding);
     }
     /* proxy_options are copied internally, no need to go nuts on copies */
     options.proxy_options = proxy_options;

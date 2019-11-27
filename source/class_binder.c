@@ -15,6 +15,10 @@
 
 #include "class_binder.h"
 
+#ifdef _MSC_VER
+#    pragma warning(disable : 4204)
+#endif /* _MSC_VER */
+
 struct aws_napi_class_info_impl {
     const struct aws_napi_method_info *ctor_method;
 
@@ -187,9 +191,9 @@ static napi_value s_constructor(napi_env env, napi_callback_info info) {
             struct aws_napi_callback_info cb_info = {
                 .node_this = node_this,
                 .native_this = node_this,
-                .arguments = args,
                 .num_args = num_args,
             };
+            cb_info.arguments = args;
 
             method->method(env, &cb_info);
 
@@ -335,9 +339,9 @@ static napi_value s_method_call(napi_env env, napi_callback_info info) {
     struct aws_napi_callback_info cb_info = {
         .node_this = node_this,
         .native_this = native_this,
-        .arguments = args,
         .num_args = num_args,
     };
+    cb_info.arguments = args;
 
     result = method->method(env, &cb_info);
 

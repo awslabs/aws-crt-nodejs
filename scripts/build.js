@@ -12,25 +12,26 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-import { platform, arch } from "os";
-import { exit } from "process";
-import * as path from "path";
-import * as fs from "fs";
+const os = require('os');
+const process = require("process");
+const path = require("path");
+const fs = require("fs");
 const cmake = require("cmake-js");
 
-const binaryDir = path.join('dist', 'bin', `${platform}-${arch}`, 'aws-crt-nodejs.node');
-if (fs.existsSync(binaryDir)) {
-    // Don't continue if the binding already exists
-    exit(0);
+const binaryDir = path.join('dist', 'bin', `${os.platform}-${os.arch}`, 'aws-crt-nodejs.node');
+if (!process.argv.includes('--rebuild') && fs.existsSync(binaryDir)) {
+    // Don't continue if the binding already exists (unless --rebuild is specified)
+    process.exit(0);
 }
 
 // Run the build
 var buildSystem = new cmake.BuildSystem({
     target: "install",
+    debug: process.argv.includes('--debug'),
     cMakeOptions: {
         CMAKE_EXPORT_COMPILE_COMMANDS: true,
-        CMAKE_JS_PLATFORM: platform,
-        CMAKE_JS_ARCH: arch,
+        CMAKE_JS_PLATFORM: os.platform,
+        CMAKE_JS_ARCH: os.arch,
     },
 });
 buildSystem.build();

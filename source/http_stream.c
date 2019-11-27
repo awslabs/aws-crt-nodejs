@@ -12,14 +12,18 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
 #include "http_stream.h"
+
 #include "http_connection.h"
 #include "http_message.h"
 #include "module.h"
 
 #include <aws/http/request_response.h>
 #include <aws/io/stream.h>
+
+#ifdef _MSC_VER
+#    pragma warning(disable : 4204)
+#endif /* _MSC_VER */
 
 struct http_stream_binding {
     struct aws_http_stream *stream;
@@ -49,8 +53,13 @@ static void s_on_response_call(napi_env env, napi_value on_response, void *conte
         AWS_NAPI_ENSURE(env, napi_create_array(env, &node_headers));
         params[1] = node_headers;
 
-        const size_t num_headers = aws_http_message_get_header_count(response);
-        for (size_t idx = 0; idx < num_headers; ++idx) {
+        size_t num_headers = aws_http_message_get_header_count(response);
+        /* This should never happen, but hey, you never know */
+        if (num_headers > UINT32_MAX) {
+            num_headers = UINT32_MAX;
+        }
+
+        for (uint32_t idx = 0; idx < num_headers; ++idx) {
             struct aws_http_header header;
             aws_http_message_get_header(response, &header, idx);
 

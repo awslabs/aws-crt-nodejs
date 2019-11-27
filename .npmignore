@@ -152,7 +152,6 @@ deps_build/
 
 # Skip source-only files
 /lib/
-/scripts/
 /test/
 /samples/
 /tsconfig*.json

@@ -228,6 +228,12 @@ export class AwsCredentialsProvider {
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
 }
 
+export enum AwsBodySigningConfigType {
+    AWS_BODY_SIGNING_OFF = 0,
+    AWS_BODY_SIGNING_ON = 1,
+    AWS_BODY_SIGNING_UNSIGNED_PAYLOAD = 2,
+}
+
 export interface AwsSigningConfig {
     algorithm: AwsSigningAlgorithm;
     provider: AwsCredentialsProvider;
@@ -237,7 +243,7 @@ export interface AwsSigningConfig {
     param_blacklist?: string[];
     use_double_uri_encode?: boolean;
     should_normalize_uri_path?: boolean;
-    sign_body?: boolean;
+    body_signing_type?: AwsBodySigningConfigType;
 }
 
 export function aws_sign_request(

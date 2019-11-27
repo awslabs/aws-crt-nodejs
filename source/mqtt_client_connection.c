@@ -12,12 +12,10 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
-#include <node_api.h>
+#include "mqtt_client_connection.h"
 
 #include "module.h"
 #include "mqtt_client.h"
-#include "mqtt_client_connection.h"
 
 #include "http_connection.h"
 #include "http_message.h"
@@ -29,8 +27,6 @@
 
 #include <aws/common/linked_list.h>
 #include <aws/common/mutex.h>
-
-#include <uv.h>
 
 struct mqtt_connection_binding {
     struct aws_allocator *allocator;
@@ -176,7 +172,7 @@ static void s_on_connection_resumed(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_resumed, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info cb_info) {
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
     napi_value result = NULL;
@@ -187,7 +183,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         goto cleanup;
     });
@@ -338,7 +334,7 @@ struct transform_websocket_args {
     void *complete_ctx;
 };
 
-static napi_value s_napi_transform_websocket_complete(napi_env env, napi_callback_info info) {
+static napi_value s_napi_transform_websocket_complete(napi_env env, napi_callback_info cb_info) {
 
     struct transform_websocket_args *args = NULL;
     int error_code = AWS_ERROR_SUCCESS;
@@ -346,7 +342,7 @@ static napi_value s_napi_transform_websocket_complete(napi_env env, napi_callbac
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, (void **)&args), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, (void **)&args), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         goto cleanup;
     });
@@ -418,7 +414,7 @@ void s_transform_websocket(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->transform_websocket, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_info cb_info) {
 
     napi_value result = NULL;
 
@@ -442,7 +438,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     napi_value node_args[16];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         goto cleanup;
     });
@@ -580,13 +576,13 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     napi_value node_proxy_options = *arg++;
     struct aws_http_proxy_options *proxy_options = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_proxy_options)) {
-        struct http_proxy_options_binding *binding = NULL;
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&binding), {
+        struct http_proxy_options_binding *proxy_binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&proxy_binding), {
             napi_throw_type_error(env, NULL, "proxy_options must be an external");
             goto cleanup;
         });
         /* proxy_options are copied internally, no need to go nuts on copies */
-        proxy_options = aws_napi_get_http_proxy_options(binding);
+        proxy_options = aws_napi_get_http_proxy_options(proxy_binding);
     }
 
     napi_value node_clean_session = *arg++;
@@ -631,10 +627,10 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.clean_session = clean_session;
     options.client_id = client_id_cur;
     options.host_name = server_name_cur;
-    options.keep_alive_time_secs = keep_alive_time;
+    options.keep_alive_time_secs = (uint16_t)keep_alive_time;
     options.on_connection_complete = s_on_connected;
     options.ping_timeout_ms = timeout;
-    options.port = port_number;
+    options.port = (uint16_t)port_number;
 
     options.socket_options = socket_options;
     options.tls_options = tls_ctx ? &binding->tls_options : NULL;
@@ -709,14 +705,14 @@ cleanup:
  * Reconnect
  ******************************************************************************/
 
-napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback_info cb_info) {
 
     struct mqtt_connection_binding *binding = NULL;
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
@@ -846,11 +842,12 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     });
 
     napi_value node_qos = *arg++;
-    enum aws_mqtt_qos qos = 0;
-    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_qos, &qos), {
+    uint32_t qos_uint = 0;
+    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_qos, &qos_uint), {
         napi_throw_type_error(env, NULL, "qos must be a number");
         goto cleanup;
     });
+    enum aws_mqtt_qos qos = (enum aws_mqtt_qos)qos_uint;
 
     napi_value node_retain = *arg++;
     bool retain = false;
@@ -1023,12 +1020,12 @@ static void s_on_publish(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_publish, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info cb_info) {
 
     napi_value node_args[5];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
@@ -1056,11 +1053,12 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
 
     napi_value node_qos = *arg++;
-    enum aws_mqtt_qos qos = 0;
-    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_qos, &qos), {
+    uint32_t qos_uint = 0;
+    AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_qos, &qos_uint), {
         napi_throw_type_error(env, NULL, "qos must be a number");
         goto cleanup;
     });
+    enum aws_mqtt_qos qos = (enum aws_mqtt_qos)qos_uint;
 
     napi_value node_on_publish = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
@@ -1167,11 +1165,11 @@ static void s_on_any_publish(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_any_publish, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info cb_info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
@@ -1259,12 +1257,12 @@ static void s_on_unsubscribe_complete(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_unsuback, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info cb_info) {
 
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
@@ -1355,14 +1353,14 @@ static void s_on_disconnected(struct aws_mqtt_client_connection *connection, voi
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_disconnect, args));
 }
 
-napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callback_info cb_info) {
 
     struct mqtt_connection_binding *binding = NULL;
 
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
     });
