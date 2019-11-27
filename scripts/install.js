@@ -14,12 +14,15 @@
  */
 const os = require('os');
 const process = require("process");
+const path = require("path");
 const fs = require("fs");
 const cmake = require("cmake-js");
 
-// Copy the binding files over verbatim
-fs.copyFileSync('lib/native/binding.js', 'dist/native/binding.js');
-fs.copyFileSync('lib/native/binding.d.ts', 'dist/native/binding.d.ts');
+const binaryDir = path.join('dist', 'bin', `${os.platform}-${os.arch}`, 'aws-crt-nodejs.node');
+if (fs.existsSync(binaryDir)) {
+    // Don't continue if the binding already exists (unless --rebuild is specified)
+    process.exit(0);
+}
 
 // Run the build
 var buildSystem = new cmake.BuildSystem({
