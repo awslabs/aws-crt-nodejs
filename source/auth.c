@@ -466,10 +466,12 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             config.should_normalize_uri_path = true;
         }
 
-        if (s_get_named_property(env, js_config, "sign_body", napi_boolean, &current_value)) {
-            napi_get_value_bool(env, current_value, &config.sign_body);
+        if (s_get_named_property(env, js_config, "body_signing_type", napi_boolean, &current_value)) {
+            uint32_t body_signing_type = 0;
+            napi_get_value_uint32(env, current_value, &body_signing_type);
+            config.body_signing_type = (enum aws_body_signing_config_type)body_signing_type;
         } else {
-            config.sign_body = false;
+            config.body_signing_type = AWS_BODY_SIGNING_OFF;
         }
     }
 
