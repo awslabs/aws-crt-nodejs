@@ -22,7 +22,7 @@
 #include <aws/io/stream.h>
 
 #ifdef _MSC_VER
-#    pragma warning(disable: 4204)
+#    pragma warning(disable : 4204)
 #endif /* _MSC_VER */
 
 struct http_stream_binding {

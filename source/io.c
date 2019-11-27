@@ -25,8 +25,8 @@
 #include <aws/io/tls_channel_handler.h>
 
 #ifdef _MSC_VER
-#    pragma warning(disable: 4456) /* When nesting AWS_NAPI_CALL and AWS_NAPI_ENSURE, status's shadow eachother */
-#endif /* _MSC_VER */
+#    pragma warning(disable : 4456) /* When nesting AWS_NAPI_CALL and AWS_NAPI_ENSURE, status's shadow eachother */
+#endif
 
 napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) {
 
@@ -537,7 +537,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
         napi_throw_type_error(env, NULL, "First argument (type) must be a Number between 0 and 1");
         return NULL;
     }
-    options.type =(enum aws_socket_type)enum_value;
+    options.type = (enum aws_socket_type)enum_value;
 
     if (napi_get_value_uint32(env, node_args[1], &enum_value) || enum_value > AWS_SOCKET_LOCAL) {
         napi_throw_type_error(env, NULL, "Second argument (domain) must be a Number between 0 and 2");

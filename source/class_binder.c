@@ -16,7 +16,7 @@
 #include "class_binder.h"
 
 #ifdef _MSC_VER
-#    pragma warning(disable: 4204)
+#    pragma warning(disable : 4204)
 #endif /* _MSC_VER */
 
 struct aws_napi_class_info_impl {

@@ -28,7 +28,7 @@
 #define LOG_RING_BUFFER_CAPACITY (128 * 1024)
 
 #ifdef _MSC_VER
-#    pragma warning(disable: 4204)
+#    pragma warning(disable : 4204)
 #endif /* _MSC_VER */
 
 /*
