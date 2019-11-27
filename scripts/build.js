@@ -14,7 +14,6 @@
  */
 const os = require('os');
 const process = require("process");
-const fs = require("fs");
 const cmake = require("cmake-js");
 
 // Run the build
