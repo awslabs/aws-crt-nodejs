@@ -1,6 +1,6 @@
 {
   "name": "aws-crt",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "NodeJS bindings to the aws-c-* libraries",
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
@@ -11,10 +11,10 @@
   "main": "./dist/index.js",
   "browser": "./dist.browser/browser.js",
   "scripts": {
-    "tsc": "tsc -p tsconfig.scripts.json && tsc && tsc -p tsconfig.browser.json",
+    "tsc": "tsc && tsc -p tsconfig.browser.json",
     "test": "jest --verbose",
-    "prepare": "tsc -p tsconfig.scripts.json && tsc && tsc -p tsconfig.browser.json && node ./dist.scripts/build.js",
-    "install": "node ./dist.scripts/build.js"
+    "prepare": "npm run tsc && node ./scripts/build.js --rebuild",
+    "install": "node ./scripts/build.js"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
