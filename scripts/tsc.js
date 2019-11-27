@@ -19,6 +19,5 @@ const child_process = require("child_process");
 child_process.execSync("node node_modules/.bin/tsc -p tsconfig.json");
 child_process.execSync("node node_modules/.bin/tsc -p tsconfig.browser.json");
 
-// Copy the binding files over verbatim
-fs.copyFileSync('lib/native/binding.js', 'dist/native/binding.js');
+// Copy the binding declaration file over verbatim
 fs.copyFileSync('lib/native/binding.d.ts', 'dist/native/binding.d.ts');
