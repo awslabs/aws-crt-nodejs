@@ -278,9 +278,9 @@ const char *aws_napi_status_to_str(napi_status status) {
 #    pragma GCC diagnostic pop
 #endif
 
-static void s_handle_failed_callback(napi_env env, napi_value function, napi_status status) {
+static void s_handle_failed_callback(napi_env env, napi_value function, napi_status reason) {
     /* Figure out if there's an exception pending, if so, no callbacks will ever succeed again until it's cleared */
-    bool pending_exception = status == napi_pending_exception;
+    bool pending_exception = reason == napi_pending_exception;
     AWS_NAPI_ENSURE(env, napi_is_exception_pending(env, &pending_exception));
     /* if there's no pending exception, but failure occurred, log what we can find and get out */
     if (!pending_exception) {
