@@ -24,6 +24,10 @@
 #include <aws/io/stream.h>
 #include <aws/io/tls_channel_handler.h>
 
+#ifdef _MSC_VER
+#    pragma warning(disable: 4456) /* When nesting AWS_NAPI_CALL and AWS_NAPI_ENSURE, status's shadow eachother */
+#endif /* _MSC_VER */
+
 napi_value aws_napi_error_code_to_string(napi_env env, napi_callback_info info) {
 
     size_t num_args = 1;
@@ -527,20 +531,25 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
     }
 
     struct aws_socket_options options;
-    if (napi_get_value_uint32(env, node_args[0], &options.type) || options.type > AWS_SOCKET_DGRAM) {
+
+    uint32_t enum_value = 0;
+    if (napi_get_value_uint32(env, node_args[0], &enum_value) || enum_value > AWS_SOCKET_DGRAM) {
         napi_throw_type_error(env, NULL, "First argument (type) must be a Number between 0 and 1");
         return NULL;
     }
+    options.type =(enum aws_socket_type)enum_value;
 
-    if (napi_get_value_uint32(env, node_args[1], &options.domain) || options.domain > AWS_SOCKET_LOCAL) {
+    if (napi_get_value_uint32(env, node_args[1], &enum_value) || enum_value > AWS_SOCKET_LOCAL) {
         napi_throw_type_error(env, NULL, "Second argument (domain) must be a Number between 0 and 2");
         return NULL;
     }
+    options.domain = (enum aws_socket_domain)enum_value;
 
-    if (napi_get_value_uint32(env, node_args[2], &options.connect_timeout_ms)) {
+    if (napi_get_value_uint32(env, node_args[2], &enum_value) || enum_value > UINT16_MAX) {
         napi_throw_type_error(env, NULL, "Third argument (connect_timeout_ms) must be a Number");
         return NULL;
     }
+    options.connect_timeout_ms = (uint16_t)enum_value;
 
     uint32_t keep_alive_interval_sec;
     if (napi_get_value_uint32(env, node_args[3], &keep_alive_interval_sec)) {
@@ -548,7 +557,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
             env, NULL, "Fourth argument (keep_alive_interval_sec) must be a Number between 0 and 32767");
         return NULL;
     }
-    options.keep_alive_interval_sec = (keep_alive_interval_sec > 0x7fff) ? 0x7fff : keep_alive_interval_sec;
+    options.keep_alive_interval_sec = (keep_alive_interval_sec > 0x7fff) ? 0x7fff : (uint16_t)keep_alive_interval_sec;
 
     uint32_t keep_alive_timeout_sec;
     if (napi_get_value_uint32(env, node_args[4], &keep_alive_timeout_sec)) {
@@ -556,7 +565,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
             env, NULL, "Fifth argument (keep_alive_timeout_sec) must be a Number between 0 and 32767");
         return NULL;
     }
-    options.keep_alive_timeout_sec = (keep_alive_timeout_sec > 0x7fff) ? 0x7fff : keep_alive_timeout_sec;
+    options.keep_alive_timeout_sec = (keep_alive_timeout_sec > 0x7fff) ? 0x7fff : (uint16_t)keep_alive_timeout_sec;
 
     uint32_t keep_alive_max_failed_probes;
     if (napi_get_value_uint32(env, node_args[5], &keep_alive_max_failed_probes)) {
@@ -565,7 +574,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
         return NULL;
     }
     options.keep_alive_max_failed_probes =
-        (keep_alive_max_failed_probes > 0x7fff) ? 0x7fff : keep_alive_max_failed_probes;
+        (keep_alive_max_failed_probes > 0x7fff) ? 0x7fff : (uint16_t)keep_alive_max_failed_probes;
 
     if (napi_get_value_bool(env, node_args[6], &options.keepalive)) {
         napi_throw_type_error(env, NULL, "Seventh argument (keepalive) must be a Boolean value");

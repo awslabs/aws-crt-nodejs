@@ -79,7 +79,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         napi_throw_type_error(env, NULL, "port must be a number");
         goto cleanup;
     });
-    binding->native.port = port;
+    binding->native.port = (uint16_t)port;
 
     napi_value node_auth_method = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_auth_method)) {

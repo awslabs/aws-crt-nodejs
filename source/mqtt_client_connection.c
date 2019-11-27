@@ -12,10 +12,10 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+#include "mqtt_client_connection.h"
 
 #include "module.h"
 #include "mqtt_client.h"
-#include "mqtt_client_connection.h"
 
 #include "http_connection.h"
 #include "http_message.h"
@@ -27,8 +27,6 @@
 
 #include <aws/common/linked_list.h>
 #include <aws/common/mutex.h>
-
-#include <uv.h>
 
 struct mqtt_connection_binding {
     struct aws_allocator *allocator;

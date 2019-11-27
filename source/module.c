@@ -12,7 +12,6 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
 #include "module.h"
 
 #include "auth.h"
@@ -103,17 +102,17 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
         /* Try TypedArray */
         AWS_NAPI_CALL(env, napi_is_typedarray(env, node_str, &is_expected), { return status; });
         if (is_expected) {
-            napi_typedarray_type type = napi_uint8_array;
+            napi_typedarray_type array_type = napi_uint8_array;
             size_t length = 0;
             AWS_NAPI_CALL(
-                env, napi_get_typedarray_info(env, node_str, &type, &length, (void **)&buf->buffer, NULL, NULL), {
+                env, napi_get_typedarray_info(env, node_str, &array_type, &length, (void **)&buf->buffer, NULL, NULL), {
                     return status;
                 });
 
             size_t element_size = 0;
 
             /* whoever added napi_bigint64_array to the node api deserves a good thrashing!!!! */
-            int type_hack = type;
+            int type_hack = array_type;
             switch (type_hack) {
                 case napi_int8_array:
                 case napi_uint8_array:
@@ -319,8 +318,8 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
         AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_exception, "message", &node_message));
 
         /* extract and log the message */
-        struct aws_string *message = NULL;
-        if ((message = aws_string_new_from_napi(env, node_message))) {
+        struct aws_string *message = aws_string_new_from_napi(env, node_message);
+        if (message) {
             AWS_NAPI_LOGF_ERROR("Error: %s", aws_string_bytes(message));
             aws_string_destroy(message);
         } else {
@@ -333,8 +332,8 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
         AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_exception, "stack", &node_stack));
 
         /* extract and log the stack trace */
-        struct aws_string *stacktrace = NULL;
-        if ((stacktrace = aws_string_new_from_napi(env, node_stack))) {
+        struct aws_string *stacktrace = aws_string_new_from_napi(env, node_stack);
+        if (stacktrace) {
             AWS_NAPI_LOGF_ERROR("Stack:\n%s", aws_string_bytes(stacktrace));
             aws_string_destroy(stacktrace);
         } else {
@@ -350,8 +349,8 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
     napi_value node_error_str = NULL;
     AWS_NAPI_ENSURE(env, napi_coerce_to_string(env, node_exception, &node_error_str));
 
-    struct aws_string *error_str = NULL;
-    if ((error_str = aws_string_new_from_napi(env, node_error_str))) {
+    struct aws_string *error_str = aws_string_new_from_napi(env, node_error_str);
+    if (error_str) {
         AWS_NAPI_LOGF_ERROR("Error: %s", aws_string_bytes(error_str));
     } else {
         AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(ToString(exception)) failed");
