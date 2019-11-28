@@ -12,18 +12,12 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-const os = require('os');
-const process = require("process");
-const cmake = require("cmake-js");
+const fs = require("fs");
+const child_process = require("child_process");
 
-// Run the build
-var buildSystem = new cmake.BuildSystem({
-    target: "install",
-    debug: process.argv.includes('--debug'),
-    cMakeOptions: {
-        CMAKE_EXPORT_COMPILE_COMMANDS: true,
-        CMAKE_JS_PLATFORM: os.platform,
-        CMAKE_JS_ARCH: os.arch,
-    },
-});
-buildSystem.build();
+// Run TSC
+child_process.execSync("node node_modules/.bin/tsc -p tsconfig.json");
+child_process.execSync("node node_modules/.bin/tsc -p tsconfig.browser.json");
+
+// Copy the binding declaration file over verbatim
+fs.copyFileSync('lib/native/binding.d.ts', 'dist/native/binding.d.ts');
