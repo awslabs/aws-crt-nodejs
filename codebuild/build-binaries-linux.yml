@@ -6,4 +6,8 @@ phases:
   build:
     commands:
       - cd aws-crt-nodejs
-      - bash ./codebuild/test-version-exists.sh
+      - bash ./codebuild/build-binaries-unix.sh
+
+artifacts:
+  files:
+    - 'dist/bin/*'
