@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 set -x
+
+# #TODO remove later for reasons
+exit 0
+
 # force a failure if there's no tag
 git describe --tags
 # now get the tag
