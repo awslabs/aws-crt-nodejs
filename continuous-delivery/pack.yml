@@ -12,6 +12,7 @@ phases:
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_win64/* $DIST_BIN
       - ls $DIST_BIN
       - npm pack
+      - cp aws-crt-*.tgz ..
 
 artifacts:
   files:
