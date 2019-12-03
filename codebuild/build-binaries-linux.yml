@@ -3,6 +3,9 @@ phases:
   install:
     runtime-versions:
       nodejs: 10
+    commands:
+      - sudo apt-get update
+      - sudo apt-get install cmake3
   build:
     commands:
       - cd aws-crt-nodejs
