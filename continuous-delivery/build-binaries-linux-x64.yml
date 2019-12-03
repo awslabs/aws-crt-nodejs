@@ -1,0 +1,15 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+  build:
+    commands:
+      - mkdir bin
+      - cd aws-crt-nodejs
+      - bash ./continuous-delivery/build-binaries-unix.sh
+      - cp -r dist/bin/* ../bin
+
+artifacts:
+  files:
+    - 'bin/**/*'
