@@ -3,6 +3,8 @@ phases:
   install:
     runtime-versions:
       nodejs: 10
+    commands:
+      - apt-get install -y cmake
   build:
     commands:
       - mkdir bin
