@@ -4,8 +4,8 @@ phases:
     runtime-versions:
       nodejs: 10
     commands:
-      - apt-get update
-      - apt-get install cmake3
+      - apt-get update -qq
+      - apt-get install -y -qq cmake
   build:
     commands:
       - cd aws-crt-nodejs
@@ -13,4 +13,4 @@ phases:
 
 artifacts:
   files:
-    - 'dist/bin/*'
+    - 'dist/bin/**/*'
