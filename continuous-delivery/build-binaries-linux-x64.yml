@@ -7,11 +7,11 @@ phases:
       - apt-get install -y cmake
   build:
     commands:
-      - mkdir bin
+      - mkdir linux-x64
       - cd aws-crt-nodejs
       - bash ./continuous-delivery/build-binaries-unix.sh
-      - cp -r dist/bin/* ../bin
+      - cp -r dist/bin/linux-x64* ../linux-x64
 
 artifacts:
   files:
-    - 'bin/**/*'
+    - 'linux-x64/**/*'
