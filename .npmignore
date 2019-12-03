@@ -164,7 +164,7 @@ deps_build/
 **/builder.json
 **/.travis*
 **/.github/
-**/codebuild/
+**/continuous-delivery/
 **/docs/
 
 # Skip large submodule files

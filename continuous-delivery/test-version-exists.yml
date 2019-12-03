@@ -6,4 +6,4 @@ phases:
   build:
     commands:
       - cd aws-crt-nodejs
-      - bash ./codebuild/test-version-exists.sh
+      - bash ./continuous-delivery/test-version-exists.sh
