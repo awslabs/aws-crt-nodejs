@@ -1,0 +1,18 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+  build:
+    commands:
+      - cd aws-crt-nodejs
+      - export DIST_BIN=$CODEBUILD_SRC_DIR/dist/bin
+      - mkdir -p $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_osx/* $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_win64/* $DIST_BIN
+      - ls $DIST_BIN
+      - npm pack
+
+artifacts:
+  files:
+    - 'aws-crt-*.tgz'
