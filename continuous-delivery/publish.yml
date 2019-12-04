@@ -1,0 +1,11 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+    commands:
+      - aws secretsmanager get-secret-value --secret-id prod/npm-registry/.npmrc --region us-east-1 | jq -r .SecretString > .npmrc
+  build:
+    commands:
+      - cat .npmrc
+      - ls
