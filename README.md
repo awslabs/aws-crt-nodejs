@@ -2,8 +2,6 @@
 
 Node.js bindings for the AWS Common Runtime.
 
-> Note that this module currently only supports Linux and macOS.
-
 ## License
 
 This library is licensed under the Apache 2.0 License.
@@ -13,10 +11,14 @@ This library is licensed under the Apache 2.0 License.
 ### Dependencies
 
 Requirements:
+* Node.js 10.16 or newer
+
+### Build Dependencies
+
+If you'd like to run a custom build, you'll need the following:
 * Clang 3.9+ or GCC 4.4+
 * libssl-dev (on Linux/Unix POSIX platforms)
 * cmake 3.1+
-* Node.js 10.x or newer
 
 #### Linux/Unix
 ```bash
@@ -37,4 +39,6 @@ $ export AWS_C_INSTALL=/path/to/install/root/
 $ git submodule update --init
 # Build the package
 $ npm install
+# Rebuild with your changes
+$ node ./scripts/build.js
 ```
