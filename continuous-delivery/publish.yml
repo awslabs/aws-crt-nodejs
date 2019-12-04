@@ -7,5 +7,4 @@ phases:
     commands:
       - cd $CODEBUILD_SRC_DIR_aws_crt_nodejs_packed
       - aws secretsmanager get-secret-value --secret-id prod/npm-registry/.npmrc --region us-east-1 | jq -r .SecretString > .npmrc
-      - cat .npmrc
-      - ls
+      - npm --userconfig ./.npmrc publish aws-crt-*.tgz
