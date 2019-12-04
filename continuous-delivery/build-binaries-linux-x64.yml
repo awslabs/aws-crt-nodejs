@@ -10,7 +10,7 @@ phases:
       - mkdir linux-x64
       - cd aws-crt-nodejs
       - bash ./continuous-delivery/build-binaries-unix.sh
-      - cp -r dist/bin/linux-x64* ../linux-x64
+      - cp -r dist/bin/linux-x64/* ../linux-x64
 
 artifacts:
   files:
