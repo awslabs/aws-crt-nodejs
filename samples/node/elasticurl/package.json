@@ -23,8 +23,8 @@
   },
   "homepage": "https://github.com/awslabs/aws-crt-nodejs#readme",
   "devDependencies": {
-    "typescript": "^3.5.3",
-    "@types/node": "^10.12.18"
+    "@types/node": "^10.17.6",
+    "typescript": "^3.7.3"
   },
   "dependencies": {
     "aws-crt": "file:../../../",
