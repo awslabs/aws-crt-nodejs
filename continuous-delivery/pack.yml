@@ -1,0 +1,21 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+  build:
+    commands:
+      - cd aws-crt-nodejs
+      - export DIST_BIN=dist/bin
+      - mkdir -p $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_x64/* $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_osx_x64/* $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_win_x64/* $DIST_BIN
+      - ls $DIST_BIN
+      - npm install --unsafe-perm
+      - npm pack --unsafe-perm
+      - cp aws-crt-*.tgz ..
+
+artifacts:
+  files:
+    - 'aws-crt-*.tgz'

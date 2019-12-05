@@ -164,9 +164,10 @@ deps_build/
 **/builder.json
 **/.travis*
 **/.github/
-**/codebuild/
+**/continuous-delivery/
 **/docs/
 
 # Skip large submodule files
 aws-common-runtime/*/tests/
-aws-common-runtime/aws-c-common/.cbmc-batch/
+aws-common-runtime/*/.cbmc-batch/
+aws-common-runtime/*/codebuild/
