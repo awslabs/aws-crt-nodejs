@@ -1,6 +1,7 @@
 ## AWS CRT Node.js
 
 Node.js bindings for the AWS Common Runtime.
+This package also includes a pure JS implementation useable from browsers and old versions of Node.
 
 ## License
 
@@ -8,10 +9,10 @@ This library is licensed under the Apache 2.0 License.
 
 ## Building the project
 
-### Dependencies
+### Native Dependencies
 
 Requirements:
-* Node.js 10.16 or newer
+* Node.js including support for N-API 4 or higher (see [here](https://nodejs.org/api/n-api.html#n_api_n_api_version_matrix) for minimum versions)
 
 ### Build Dependencies
 
