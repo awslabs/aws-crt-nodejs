@@ -194,7 +194,7 @@ function main(argv: Args) {
     const client_bootstrap = new io.ClientBootstrap();
     const tls_ctx = init_tls(argv);
     const socket_options = new io.SocketOptions(io.SocketType.STREAM, io.SocketDomain.IPV4, argv.connect_timeout);
-    
+
     // if port is not supplied, derive it from scheme
     let port = Number.parseInt(argv.url.port);
     if (argv.url.protocol === 'http:' && !argv.url.port) {
@@ -240,7 +240,7 @@ function main(argv: Args) {
         }
 
         return new Promise((resolve, reject) => {
-            const request = new http.HttpRequest(argv.method, argv.url.toString(), body_stream, headers);
+            const request = new http.HttpRequest(argv.method, argv.url.toString(), headers, body_stream);
             const stream = connection.request(request);
             stream.on('response', on_response);
             stream.on('data', on_body);
@@ -263,12 +263,13 @@ function main(argv: Args) {
         }
     };
 
+    const tls_opts = tls_ctx ? new io.TlsConnectionOptions(tls_ctx) : undefined;
     const connection = new http.HttpClientConnection(
         client_bootstrap,
         argv.url.hostname,
         port,
         socket_options,
-        tls_ctx);
+        tls_opts);
     connection.on('connect', async () => {
         if (argv.data) {
             const data: string = await new Promise((resolve, reject) => {
@@ -287,7 +288,7 @@ function main(argv: Args) {
         } else {
             await make_request(connection);
         }
-        
+
         finish();
     });
     connection.on('error', (error) => {
