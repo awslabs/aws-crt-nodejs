@@ -155,6 +155,11 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
     aws_mem_release(allocator, binding);
 }
 
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4204 4221) /* non-standard aggregate initializer warnings */
+#endif
+
 napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info info) {
     (void)info;
 
@@ -199,6 +204,10 @@ clean_up:
 
     return NULL;
 }
+
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
 
 /** Finalizer for a tls_ctx external */
 static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
