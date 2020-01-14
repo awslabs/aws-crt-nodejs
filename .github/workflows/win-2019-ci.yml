@@ -14,5 +14,5 @@ jobs:
     - name: Build and test
       run: |
         set CODEBUILD_SRC_DIR=%CD%
-        python3 -c "from urllib.request import urlretrieve; urlretrieve('https://raw.githubusercontent.com/awslabs/aws-c-common/master/codebuild/builder.py', 'builder.py')"
-        python3 builder.py build windows-default-default-windows-x64
+        python -c "from urllib.request import urlretrieve; urlretrieve('https://raw.githubusercontent.com/awslabs/aws-c-common/master/codebuild/builder.py', 'builder.py')"
+        python builder.py build windows-default-default-windows-x64
