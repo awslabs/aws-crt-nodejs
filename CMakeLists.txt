@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
-
+project(aws-crt-nodejs C)
 option(BUILD_DEPS "Builds aws common runtime dependencies as part of build, only do this if you don't want to control your dependency chain." ON)
+
+include(CTest)
 
 # ensure that the release build has symbols
 if (NOT CMAKE_BUILD_TYPE)
@@ -17,51 +19,39 @@ if (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib64")
     set(FIND_LIBRARY_USE_LIB64_PATHS true)
 endif()
 
+# This is required in order to append /lib/cmake to each element in CMAKE_PREFIX_PATH
+set(AWS_MODULE_DIR "/${CMAKE_INSTALL_LIBDIR}/cmake")
+string(REPLACE ";" "${AWS_MODULE_DIR};" AWS_MODULE_PATH "${CMAKE_PREFIX_PATH}${AWS_MODULE_DIR}")
+# Append that generated list to the module search path
+list(APPEND CMAKE_MODULE_PATH ${AWS_MODULE_PATH})
+
 if (BUILD_DEPS)
-    set(AWS_DEPS_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/deps CACHE STRING "If BUILD_DEPS is on, aws common runtime dependencies build in this directory.")
-    set(AWS_DEPS_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/deps/install)
+    message(STATUS "Using submodule dependencies")
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/aws-common-runtime/aws-c-common/cmake")
+    include(AwsFindPackage)
 
-    list(APPEND CMAKE_PREFIX_PATH ${AWS_DEPS_INSTALL_DIR})
+    set(IN_SOURCE_BUILD ON)
+    set(BUILD_TESTING_PREV ${BUILD_TESTING})
+    set(BUILD_TESTING OFF)
 
-    string(REPLACE ";" "|" CMAKE_PREFIX_PATH_BAR "${CMAKE_PREFIX_PATH}")
-
-    file(MAKE_DIRECTORY ${AWS_DEPS_BUILD_DIR})
-    execute_process(
-            COMMAND ${CMAKE_COMMAND} -G ${CMAKE_GENERATOR}
-            -DTARGET_ARCH=${TARGET_ARCH}
-            -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-            -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
-            -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH_BAR}
-            -DCMAKE_INSTALL_PREFIX=${AWS_DEPS_INSTALL_DIR}
-            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/bin
-            -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-            ${CMAKE_CURRENT_SOURCE_DIR}/aws-common-runtime
-            WORKING_DIRECTORY ${AWS_DEPS_BUILD_DIR}
-            RESULT_VARIABLE BUILD_AWSCRT_EXIT_CODE
-    )
-
-    if (NOT ${BUILD_AWSCRT_EXIT_CODE} EQUAL 0)
-        message(FATAL_ERROR "Failed to configure aws crt libraries.")
-    endif()
-    execute_process(COMMAND ${CMAKE_COMMAND} --build ${AWS_DEPS_BUILD_DIR} --config ${CMAKE_BUILD_TYPE}
-            RESULT_VARIABLE BUILD_AWSCRT_EXIT_CODE)
-
-    if (NOT ${BUILD_AWSCRT_EXIT_CODE} EQUAL 0)
-        message(FATAL_ERROR "Failed to build aws crt libraries.")
+    add_subdirectory(aws-common-runtime/aws-c-common)
+    if (UNIX AND NOT APPLE)
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/aws-common-runtime/s2n/cmake/modules")
+        find_package(LibCrypto REQUIRED)
+        add_subdirectory(aws-common-runtime/s2n)
     endif()
 
-    #the following two lines are done in this branch intentionally, don't move it. project() does some magic that
-    #we don't want happening until we're done with the above code.
-    list(APPEND CMAKE_PREFIX_PATH "${AWS_DEPS_INSTALL_DIR}")
-
-    project(aws-crt-nodejs C)
-
+    add_subdirectory(aws-common-runtime/aws-c-io)
+    add_subdirectory(aws-common-runtime/aws-c-cal)
+    add_subdirectory(aws-common-runtime/aws-c-compression)
+    add_subdirectory(aws-common-runtime/aws-c-http)
+    add_subdirectory(aws-common-runtime/aws-c-auth)
+    add_subdirectory(aws-common-runtime/aws-c-mqtt)
+    
+    set(BUILD_TESTING ${BUILD_TESTING_PREV})
 else()
-    #the following two lines are done in this branch intentionally, don't move it. project() does some magic that
-    #we want happening exactly right now.
-    project(aws-crt-nodejs C)
-
+    include(AwsFindPackage)
+    set(IN_SOURCE_BUILD OFF)
 endif()
 
 if (POLICY CMP0069)
@@ -79,23 +69,23 @@ file(GLOB AWS_CRT_SRC
        "source/*.c"
 )
 
-add_library(${CMAKE_PROJECT_NAME} SHARED ${AWS_CRT_SRC})
-aws_set_common_properties(${CMAKE_PROJECT_NAME})
-aws_prepare_symbol_visibility_args(${CMAKE_PROJECT_NAME} "AWS_CRT_NODEJS")
-aws_add_sanitizers(${CMAKE_PROJECT_NAME})
+add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
+aws_set_common_properties(${PROJECT_NAME})
+aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
+aws_add_sanitizers(${PROJECT_NAME})
 
 # Gives our library file a .node extension without any "lib" prefix
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
         ${CMAKE_JS_INC})
 
-find_package(aws-c-http REQUIRED)
-find_package(aws-c-mqtt REQUIRED)
-find_package(aws-c-auth REQUIRED)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} AWS::aws-c-auth AWS::aws-c-http AWS::aws-c-mqtt)
+aws_use_package(aws-c-http REQUIRED)
+aws_use_package(aws-c-mqtt REQUIRED)
+aws_use_package(aws-c-auth REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
 if (CMAKE_JS_PLATFORM AND CMAKE_JS_ARCH)
     # When run from build.ts, these are set
