@@ -3,7 +3,7 @@ name: CI
 on: [push]
 
 jobs:
-  Win VS2017:
+  WinVS2017:
 
     runs-on: windows-latest
 
