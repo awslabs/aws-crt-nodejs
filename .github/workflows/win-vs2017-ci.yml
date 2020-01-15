@@ -3,7 +3,7 @@ name: CI
 on: [push]
 
 jobs:
-  Win2019:
+  Win VS2017:
 
     runs-on: windows-latest
 
@@ -15,4 +15,4 @@ jobs:
       run: |
         set CODEBUILD_SRC_DIR=%CD%
         python -c "from urllib.request import urlretrieve; urlretrieve('https://raw.githubusercontent.com/awslabs/aws-c-common/master/codebuild/builder.py', 'builder.py')"
-        python builder.py build windows-default-default-windows-x64
+        python builder.py build windows-msvc-2017-default-windows-x64
