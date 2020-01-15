@@ -36,6 +36,7 @@
     "downstream": [],
     "build": [
         ["where", "npm"],
+        ["npm", "--version"],
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
         [
