@@ -58,7 +58,7 @@ class TopicTrie extends trie.Trie<SubscriptionCallback|undefined> {
         const parts = this.split_key(key);
         let current = this.root;
         let parent = undefined;
-        for (const part in parts) {
+        for (const part of parts) {
             let child = current.children.get(part);
             if (!child) {
                 child = current.children.get('#');
