@@ -25,7 +25,7 @@ import { AwsCredentialsProvider } from '../lib/native/auth';
 import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
-jest.retryTimes(30);
+jest.retryTimes(3);
 
 class Config {
     static readonly region = 'us-east-1';
