@@ -1,6 +1,6 @@
 {
   "name": "aws-crt",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "NodeJS bindings to the aws-c-* libraries",
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
