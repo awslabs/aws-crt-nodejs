@@ -25,7 +25,6 @@ import { AwsCredentialsProvider } from '../lib/native/auth';
 import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
-jest.retryTimes(3);
 
 class Config {
     static readonly region = 'us-east-1';
@@ -256,14 +255,12 @@ test('MQTT Pub/Sub', async () => {
                 if (payload_str !== test_payload) {
                     reject("Payloads do not match");
                 }
+		resolve(true);
             });
             connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
         });
         connection.on('error', (error) => {
             reject(error);
-        })
-        connection.on('disconnect', () => {
-            resolve(true);
         })
         connection.connect();
     });
@@ -343,6 +340,8 @@ test('MQTT On Any Publish', async () => {
             if (payload_str !== test_payload) {
                 reject("Payloads do not match");
             }
+
+	    resolve(true);
         });
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -350,9 +349,6 @@ test('MQTT On Any Publish', async () => {
         });
         connection.on('error', (error) => {
             reject(error);
-        })
-        connection.on('disconnect', () => {
-            resolve(true);
         })
         connection.connect();
     });
