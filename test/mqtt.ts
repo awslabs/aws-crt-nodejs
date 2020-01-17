@@ -15,6 +15,9 @@
 
 import * as AWS from 'aws-sdk';
 import { ClientBootstrap } from '../lib/native/io';
+
+import * as io from '../lib/native/io';
+
 import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
 import { TextDecoder } from 'util';
@@ -22,7 +25,7 @@ import { AwsCredentialsProvider } from '../lib/native/auth';
 import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
-jest.retryTimes(3);
+jest.retryTimes(30);
 
 class Config {
     static readonly region = 'us-east-1';
@@ -216,6 +219,9 @@ test('MQTT Websocket', async () => {
 });
 
 test('MQTT Pub/Sub', async () => {
+
+    io.enable_logging(io.LogLevel.TRACE);
+	
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
