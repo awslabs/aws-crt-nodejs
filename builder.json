@@ -39,6 +39,7 @@
         ["npm", "install", "--ignore-scripts"],
         [
             "node", "node_modules/.bin/cmake-js", "compile",
+            "--cc={c}", "--cxx={cxx}",
             "--out={build_dir}",
             "--CDCMAKE_PREFIX_PATH=/opt/openssl",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
