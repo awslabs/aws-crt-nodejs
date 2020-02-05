@@ -1,45 +1,36 @@
-## AWS CRT Node.js
+## AWS CRT JS
 
-Node.js bindings for the AWS Common Runtime.
-This package also includes a pure JS implementation useable from browsers and old versions of Node.
+NodeJS/Browser bindings for the AWS Common Runtime
 
 ## License
 
-This library is licensed under the Apache 2.0 License.
+This library is licensed under the Apache 2.0 License. 
 
-## Building the project
+## Building the package
 
-### Native Dependencies
+### Prereqs:
+* Node 10.x+
+* npm
+* CMake 3.1+
+* Linux: gcc 5+ or clang 3.6+
+    * If your compiler can compile node, it can compile this library
+* Windows: Visual Studio 2015+
+* OSX: XCode or brew-installed llvm
 
-Requirements:
-* Node.js including support for N-API 4 or higher (see [here](https://nodejs.org/api/n-api.html#n_api_n_api_version_matrix) for minimum versions)
+To build the package locally
+````bash
+npm install
+````
 
-### Build Dependencies
+## Using From Your NodeJS Application
 
-If you'd like to run a custom build, you'll need the following:
-* Clang 3.9+ or GCC 4.4+
-* libssl-dev (on Linux/Unix POSIX platforms)
-* cmake 3.1+
+Normally, you just declare `aws-crt` as a dependency in your package.json file.
 
-#### Linux/Unix
-```bash
-$ apt-get install cmake3 libssl-dev -y
-```
+## Using From Your Browser Application
 
-#### OSX
-```bash
-$ brew install cmake
-```
+You can either add it to package.json (if using a tool like webpack), or just import the ```dist.browser/``` folder into your web project
 
-### Running the build
-
-```bash
-# If you have the aws-c-* libraries installed already, set AWS_C_INSTALL to the install prefix
-$ export AWS_C_INSTALL=/path/to/install/root/
-# If you don't have them installed, run this instead to fetch them locally
-$ git submodule update --init
-# Build the package
-$ npm install
-# Rebuild with your changes
-$ node ./scripts/build.js
-```
+### Installing from npm
+````bash
+npm install aws-crt
+````
