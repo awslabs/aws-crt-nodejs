@@ -33,7 +33,6 @@
         ["npm", "run-script", "tsc"]
     ],
     "test_steps": [
-        ["node", "-p", "require('./dist/index')"],
         ["env", "AWS_CRT_MEMORY_TRACING=2", "npm", "test"]
     ]
 }
