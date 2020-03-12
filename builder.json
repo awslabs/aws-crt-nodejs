@@ -1,40 +1,27 @@
 {
     "name": "aws-crt-nodejs",
+    "packages": [
+        "nodejs"
+    ],
     "hosts": {
-        "linux": {
-            "architectures": {
-                "x64": {
-                    "image": "123124136734.dkr.ecr.us-east-1.amazonaws.com/aws-common-runtime/nodejs:10"
-                },
-                "x86": {
-                    "enabled": false
-                }
-            }
-        },
-        "al2012": {
-            "enabled": false
-        },
         "manylinux": {
             "enabled": false
-        },
-        "windows": {
-            "enabled": false
-        },
-        "macos": {
-            "variables": {
-                "c": "clang",
-                "cxx": "clang++"
-            }
         }
     },
     "targets": {
         "android": {
             "enabled": false
+        },
+        "linux": {
+            "x86": {
+                "enabled": false
+            }
         }
     },
+    "imports": ["s2n"],
     "upstream": [],
     "downstream": [],
-    "build": [
+    "build_steps": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
         [
@@ -47,7 +34,7 @@
         ],
         ["npm", "run-script", "tsc"]
     ],
-    "test": [
+    "test_steps": [
         ["node", "-p", "require('./dist/index')"],
         ["env", "AWS_CRT_MEMORY_TRACING=2", "npm", "test"]
     ]
