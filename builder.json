@@ -26,9 +26,10 @@
         ["npm", "install", "--ignore-scripts"],
         [
             "node", "node_modules/.bin/cmake-js", "compile",
-            "--cc={c}", "--cxx={cxx}",
             "--out={build_dir}",
-            "--CDCMAKE_PREFIX_PATH=/opt/openssl",
+            "--CDLibCrypto_INCLUDE_DIR={source_dir}/{libcrypto_path}/include",
+            "--CDLibCrypto_STATIC_LIBRARY={source_dir}/{libcrypto_path}/lib/libcrypto.a",
+            "--CDLibCrypto_SHARED_LIBRARY={source_dir}/{libcrypto_path}/lib/libcrypto.so",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-T", "install"
         ],
