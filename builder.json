@@ -18,6 +18,7 @@
     "imports": ["nodejs", "s2n"],
     "upstream": [],
     "downstream": [],
+    "deps_dir": "deps",
     "build_steps": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
