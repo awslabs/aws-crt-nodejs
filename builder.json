@@ -25,9 +25,7 @@
         [
             "node", "node_modules/.bin/cmake-js", "compile",
             "--out={build_dir}",
-            "--CDLibCrypto_INCLUDE_DIR={source_dir}/{libcrypto_path}/include",
-            "--CDLibCrypto_STATIC_LIBRARY={source_dir}/{libcrypto_path}/lib/libcrypto.a",
-            "--CDLibCrypto_SHARED_LIBRARY={source_dir}/{libcrypto_path}/lib/libcrypto.so",
+            "--CDCMAKE_PREFIX_PATH={source_dir}/{libcrypto_path}",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-T", "install"
         ],
