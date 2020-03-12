@@ -1,8 +1,5 @@
 {
     "name": "aws-crt-nodejs",
-    "apt_packages": [
-        "nodejs"
-    ],
     "hosts": {
         "manylinux": {
             "enabled": false
@@ -18,7 +15,7 @@
             }
         }
     },
-    "imports": ["s2n"],
+    "imports": ["nodejs", "s2n"],
     "upstream": [],
     "downstream": [],
     "build_steps": [
