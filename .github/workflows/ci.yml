@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [armv6, armv7, arm64]
+        arch: [arm64]
     steps:
     - name: Build ${{ env.PACKAGE_NAME }}
       run: |
