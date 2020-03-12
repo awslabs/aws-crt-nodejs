@@ -32,6 +32,7 @@ var buildSystem = new cmake.BuildSystem({
         CMAKE_EXPORT_COMPILE_COMMANDS: true,
         CMAKE_JS_PLATFORM: os.platform,
         CMAKE_JS_ARCH: os.arch,
+        S2N_NO_PQ_ASM: true,
     },
 });
 buildSystem.build();
