@@ -1,6 +1,6 @@
 {
     "name": "aws-crt-nodejs",
-    "packages": [
+    "apt_packages": [
         "nodejs"
     ],
     "hosts": {
