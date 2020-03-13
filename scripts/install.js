@@ -32,8 +32,6 @@ var buildSystem = new cmake.BuildSystem({
         CMAKE_EXPORT_COMPILE_COMMANDS: true,
         CMAKE_JS_PLATFORM: os.platform,
         CMAKE_JS_ARCH: os.arch,
-        LibCrypto_INCLUDE_DIR: path.join(path.dirname(process.execPath), 'include', 'node'),
-        LibCrypto_SHARED_LIBRARY: process.execPath
     },
 });
 buildSystem.build();

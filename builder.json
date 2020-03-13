@@ -22,8 +22,13 @@
     "build_steps": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
-        ["npm", "run", "prepare"],
-        ["npm", "install"],
+        [
+            "node", "node_modules/.bin/cmake-js", "compile",
+            "--out={build_dir}",
+            "--CDCMAKE_PREFIX_PATH={source_dir}/{libcrypto_path}",
+            "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+            "-T", "install"
+        ],
         ["npm", "run-script", "tsc"]
     ],
     "test_steps": [
