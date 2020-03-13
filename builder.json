@@ -21,7 +21,9 @@
     "deps_dir": "deps",
     "build_steps": [
         ["git", "submodule", "update", "--init", "--recursive"],
-        ["npm", "run", "prepare"]
+        ["npm", "install", "--ignore-scripts"],
+        ["npm", "install"],
+        ["npm", "run-script", "tsc"]
     ],
     "test_steps": [
         ["env", "AWS_CRT_MEMORY_TRACING=2", "npm", "test"]
