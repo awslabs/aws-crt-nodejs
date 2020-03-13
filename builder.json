@@ -18,12 +18,25 @@
             "x86": {
                 "enabled": false
             }
+        },
+        "windows": {
+            "build_env": {
+                "AWS_CRT_MEMORY_TRACING": "2"
+            },
+            "!build_steps": [
+                ["npm", "install"]
+            ],
+            "!test_steps": [
+                ["npm", "test"]
+            ]
         }
     },
     "upstream": [],
     "downstream": [],
+    "pre_build_steps": [
+        ["git", "submodule", "update", "--init", "--recursive"]
+    ],
     "build_steps": [
-        ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
         [
             "node", "node_modules/.bin/cmake-js", "compile",
