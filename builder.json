@@ -1,54 +1,51 @@
 {
     "name": "aws-crt-nodejs",
+    "imports": [
+        "nodejs"
+    ],
+    "deps_dir": "deps",
     "hosts": {
-        "linux": {
-            "architectures": {
-                "x64": {
-                    "image": "123124136734.dkr.ecr.us-east-1.amazonaws.com/aws-common-runtime/nodejs:10"
-                },
-                "x86": {
-                    "enabled": false
-                }
-            }
-        },
-        "al2012": {
-            "enabled": false
-        },
         "manylinux": {
             "enabled": false
-        },
-        "windows": {
-            "enabled": false
-        },
-        "macos": {
-            "variables": {
-                "c": "clang",
-                "cxx": "clang++"
-            }
         }
     },
     "targets": {
         "android": {
             "enabled": false
+        },
+        "linux": {
+            "imports": ["s2n"],
+            "x86": {
+                "enabled": false
+            }
+        },
+        "windows": {
+            "!build_steps": [
+                ["npm", "install"]
+            ],
+            "!test_steps": []
         }
     },
     "upstream": [],
     "downstream": [],
-    "build": [
-        ["git", "submodule", "update", "--init", "--recursive"],
+    "pre_build_steps": [
+        ["git", "submodule", "update", "--init", "--recursive"]
+    ],
+    "build_steps": [
         ["npm", "install", "--ignore-scripts"],
         [
             "node", "node_modules/.bin/cmake-js", "compile",
-            "--cc={c}", "--cxx={cxx}",
             "--out={build_dir}",
-            "--CDCMAKE_PREFIX_PATH=/opt/openssl",
+            "--CDCMAKE_PREFIX_PATH={source_dir}/{libcrypto_path}",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-T", "install"
         ],
         ["npm", "run-script", "tsc"]
     ],
-    "test": [
-        ["node", "-p", "require('./dist/index')"],
-        ["env", "AWS_CRT_MEMORY_TRACING=2", "npm", "test"]
+    "test_env": {
+        "AWS_CRT_MEMORY_TRACING": "2"
+    },
+    "test_steps": [
+        ["npm", "test"]
     ]
 }
