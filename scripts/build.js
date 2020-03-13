@@ -13,7 +13,6 @@
  * permissions and limitations under the License.
  */
 const os = require('os');
-const path = require('path');
 const process = require("process");
 const cmake = require("cmake-js");
 
