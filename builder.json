@@ -20,14 +20,8 @@
             }
         },
         "windows": {
-            "build_env": {
-                "AWS_CRT_MEMORY_TRACING": "2"
-            },
             "!build_steps": [
                 ["npm", "install"]
-            ],
-            "!test_steps": [
-                ["npm", "test"]
             ]
         }
     },
@@ -47,7 +41,10 @@
         ],
         ["npm", "run-script", "tsc"]
     ],
+    "test_env": {
+        "AWS_CRT_MEMORY_TRACING": "2"
+    },
     "test_steps": [
-        ["env", "AWS_CRT_MEMORY_TRACING=2", "npm", "test"]
+        ["npm", "test"]
     ]
 }
