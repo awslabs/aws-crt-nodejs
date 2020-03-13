@@ -58,18 +58,19 @@ jobs:
         docker pull $DOCKER_IMAGE
         docker run --env GITHUB_REF $DOCKER_IMAGE build -p ${{ env.PACKAGE_NAME }} --spec=downstream --compiler=gcc-${{ matrix.version }}
 
-  linux-arm:
-    name: ARM (${{ matrix.arch }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
-    steps:
-    - name: Build ${{ env.PACKAGE_NAME }}
-      run: |
-        python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
-        chmod a+x builder
-        ./builder build -p ${{ env.PACKAGE_NAME }} --target=linux-${{ matrix.arch }} --spec=downstream
+  # re-enable when aws-crt-node supports arm
+  # linux-arm:
+  #   name: ARM (${{ matrix.arch }})
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       arch: [arm64]
+  #   steps:
+  #   - name: Build ${{ env.PACKAGE_NAME }}
+  #     run: |
+  #       python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
+  #       chmod a+x builder
+  #       ./builder build -p ${{ env.PACKAGE_NAME }} --target=linux-${{ matrix.arch }} --spec=downstream
 
   windows:
     runs-on: windows-latest
