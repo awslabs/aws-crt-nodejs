@@ -25,7 +25,6 @@
         [
             "node", "node_modules/.bin/cmake-js", "compile",
             "--out={build_dir}",
-            "--CDCMAKE_PREFIX_PATH={source_dir}/{libcrypto_path}",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-T", "install"
         ],
