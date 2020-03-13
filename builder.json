@@ -1,5 +1,9 @@
 {
     "name": "aws-crt-nodejs",
+    "imports": [
+        "nodejs"
+    ],
+    "deps_dir": "deps",
     "hosts": {
         "manylinux": {
             "enabled": false
@@ -10,15 +14,14 @@
             "enabled": false
         },
         "linux": {
+            "imports": ["s2n"],
             "x86": {
                 "enabled": false
             }
         }
     },
-    "imports": ["nodejs", "s2n"],
     "upstream": [],
     "downstream": [],
-    "deps_dir": "deps",
     "build_steps": [
         ["git", "submodule", "update", "--init", "--recursive"],
         ["npm", "install", "--ignore-scripts"],
