@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 const os = require('os');
+const path = require('path');
 const process = require("process");
 const cmake = require("cmake-js");
 
@@ -24,6 +25,8 @@ var buildSystem = new cmake.BuildSystem({
         CMAKE_EXPORT_COMPILE_COMMANDS: true,
         CMAKE_JS_PLATFORM: os.platform,
         CMAKE_JS_ARCH: os.arch,
+        LibCrypto_INCLUDE_DIR: path.join(path.dirname(process.argv0), 'include', 'node'),
+        LibCrypto_SHARED_LIBRARY: process.execPath
     },
 });
 buildSystem.build();
