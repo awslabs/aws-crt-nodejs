@@ -22,7 +22,8 @@
         "windows": {
             "!build_steps": [
                 ["npm", "install"]
-            ]
+            ],
+            "!test_steps": []
         }
     },
     "upstream": [],
