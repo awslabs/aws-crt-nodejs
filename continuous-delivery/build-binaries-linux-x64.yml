@@ -4,10 +4,7 @@ phases:
     commands:
       - mkdir linux-x64
       - cd aws-crt-nodejs
-      - pwd
-      - env
-      - ls -l builder.json
-      - builder build --project=.
+      - builder build --project=aws-crt-nodejs
       - cp -r dist/bin/linux-x64/* ../linux-x64
 
 artifacts:
