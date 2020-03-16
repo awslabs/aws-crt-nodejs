@@ -1,10 +1,5 @@
 version: 0.2
 phases:
-  install:
-    runtime-versions:
-      nodejs: 10
-    commands:
-      - apt-get install -y cmake
   build:
     commands:
       - mkdir linux-x64
