@@ -5,7 +5,7 @@ phases:
       - mkdir linux-x64
       - cd aws-crt-nodejs
       - builder --version=v0.6.0 build --project=aws-crt-nodejs run_tests=false
-
+      - find . -name "*.node"
       - cp -r dist/bin/native/* ../linux-x64
 
 artifacts:
