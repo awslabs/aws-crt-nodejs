@@ -1,16 +1,11 @@
 version: 0.2
 phases:
-  install:
-    runtime-versions:
-      nodejs: 10
-    commands:
-      - apt-get install -y cmake
   build:
     commands:
       - mkdir linux-x64
       - cd aws-crt-nodejs
-      - bash ./continuous-delivery/build-binaries-unix.sh
-      - cp -r dist/bin/linux-x64/* ../linux-x64
+      - builder build --project=aws-crt-nodejs run_tests=false
+      - cp -r /root/aws-crt-nodejs/dist/bin/native/* ../linux-x64/
 
 artifacts:
   files:

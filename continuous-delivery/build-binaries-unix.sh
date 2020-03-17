@@ -1,2 +1,2 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash	
 npm install --unsafe-perm
