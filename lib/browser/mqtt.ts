@@ -113,9 +113,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.connection = new AsyncClient(new MqttClientInternal(
             create_websocket_stream,
             {
-                keepalive: this.config.socket_options.keepalive ? this.config.socket_options.keep_alive_interval_sec : 0,
+                // service default is 1200 seconds
+                keepalive: this.config.keep_alive ? this.config.keep_alive : 1200,
                 clientId: this.config.client_id,
-                connectTimeout: this.config.socket_options.connect_timeout_ms,
+                connectTimeout: this.config.timeout ? this.config.timeout : 30,
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
