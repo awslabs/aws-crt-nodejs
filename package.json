@@ -18,24 +18,24 @@
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
-    "@types/jest": "^24.0.23",
-    "@types/node": "^10.17.6",
-    "@types/uuid": "^3.4.6",
+    "@types/jest": "^24.9.1",
+    "@types/node": "^10.17.17",
+    "@types/uuid": "^3.4.8",
     "@types/ws": "^6.0.4",
-    "aws-sdk": "^2.585.0",
-    "jest": "^24.9.0",
-    "jest-circus": "^24.9.0",
-    "ts-jest": "^24.2.0",
-    "typescript": "^3.7.3",
-    "uuid": "^3.3.3",
-    "yargs": "^13.3.0"
+    "aws-sdk": "^2.640.0",
+    "cmake-js": "^6.1.0",
+    "jest": "^25.1.0",
+    "jest-circus": "^25.1.0",
+    "ts-jest": "^25.2.1",
+    "typescript": "^3.8.3",
+    "uuid": "^3.4.0",
+    "yargs": "^13.3.2"
   },
   "dependencies": {
-    "async-mqtt": "^2.4.2",
-    "axios": "^0.19.0",
-    "cmake-js": "^6.0.0",
-    "crypto-js": "^3.1.9-1",
+    "async-mqtt": "^2.5.0",
+    "axios": "^0.19.2",
+    "crypto-js": "^3.3.0",
     "mqtt": "^2.3.1",
-    "websocket-stream": "^5.5.0"
+    "websocket-stream": "^5.5.2"
   }
 }
