@@ -16,7 +16,6 @@ const os = require('os');
 const process = require("process");
 const path = require("path");
 const fs = require("fs");
-const cmake = require("cmake-js");
 
 const binaryDir = path.join('dist', 'bin', `${os.platform}-${os.arch}`, 'aws-crt-nodejs.node');
 if (fs.existsSync(binaryDir)) {
@@ -25,6 +24,7 @@ if (fs.existsSync(binaryDir)) {
 }
 
 // Run the build
+const cmake = require("cmake-js");
 var buildSystem = new cmake.BuildSystem({
     target: "install",
     debug: process.argv.includes('--debug'),
