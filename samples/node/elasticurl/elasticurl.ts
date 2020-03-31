@@ -128,7 +128,7 @@ yargs.command('*', false, (yargs: any) => {
     .option('verbose', {
         alias: 'v',
         description: 'ERROR|WARN|INFO|DEBUG|TRACE: log level. Default is none.',
-        choices: ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'],
+        choices: ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'NONE'],
         default: 'NONE'
     })
     .help()
@@ -251,6 +251,7 @@ function main(argv: Args) {
                 connection.close();
                 resolve();
             });
+            stream.activate();
         });
     };
 
@@ -264,13 +265,15 @@ function main(argv: Args) {
     };
 
     const tls_opts = tls_ctx ? new io.TlsConnectionOptions(tls_ctx) : undefined;
-    const connection = new http.HttpClientConnection(
+    let connection = new http.HttpClientConnection(
         client_bootstrap,
         argv.url.hostname,
         port,
         socket_options,
         tls_opts);
+
     connection.on('connect', async () => {
+        console.log('hullo')
         if (argv.data) {
             const data: string = await new Promise((resolve, reject) => {
                 let data = "";

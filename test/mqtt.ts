@@ -163,9 +163,11 @@ test('MQTT Connect/Disconnect', async () => {
             if (session_present) {
                 reject("Session present");
             }
+
         });
         connection.on('error', (error) => {
             reject(error);
+
         })
         connection.on('disconnect', () => {
             resolve(true);

@@ -602,6 +602,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(http_connection_new)
     CREATE_AND_REGISTER_FN(http_connection_close)
     CREATE_AND_REGISTER_FN(http_stream_new)
+    CREATE_AND_REGISTER_FN(http_stream_activate)
     CREATE_AND_REGISTER_FN(http_stream_close)
     CREATE_AND_REGISTER_FN(http_connection_manager_new)
     CREATE_AND_REGISTER_FN(http_connection_manager_close)

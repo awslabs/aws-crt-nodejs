@@ -162,6 +162,8 @@ napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_c
     }
     binding->env = env;
     binding->connection = connection;
+    binding->allocator = aws_napi_get_allocator();
+
     napi_value node_external = NULL;
     AWS_NAPI_CALL(
         env,

@@ -47,7 +47,6 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
     (void)env;
     (void)finalize_hint;
     struct mqtt_connection_binding *binding = finalize_data;
-
     aws_mem_release(binding->allocator, binding);
 }
 
@@ -62,7 +61,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_disconnect needs exactly 1 argument");
+        napi_throw_error(env, NULL, "mqtt_client_connection_close needs exactly 1 argument");
         return NULL;
     }
 
@@ -72,8 +71,9 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         return NULL;
     });
 
-    /* no more node interop will be done, free node resources */
-    napi_delete_reference(env, binding->node_external);
+    if (binding->node_external) {
+        napi_delete_reference(env, binding->node_external);
+    }
 
     /* destroy the native connection, which will destroy the subscriptions and
      * queue destruction of all bound callbacks

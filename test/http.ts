@@ -130,7 +130,7 @@ test('HTTPS Connection Create/Destroy', async () => {
     await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
 });
 
-async function test_stream(method: string, host: string, port: number, tls_opts?: TlsConnectionOptions) {
+async function test_stream(method: string, host: string, port: number, activate: boolean, tls_opts?: TlsConnectionOptions) {
     const promise = new Promise((resolve, reject) => {
         let connection = new HttpClientConnection(
             new ClientBootstrap(),
@@ -147,7 +147,7 @@ async function test_stream(method: string, host: string, port: number, tls_opts?
                     ['user-agent', 'AWS CRT for NodeJS']
                 ])
             );
-            let stream = connection.request(request);
+            let stream = connection.request(request);            
             stream.on('response', (status_code, headers) => {
                 expect(status_code).toBe(200);
                 expect(headers).toBeDefined();
@@ -163,6 +163,11 @@ async function test_stream(method: string, host: string, port: number, tls_opts?
                 console.log(error);
                 expect(error).toBeUndefined();
             });
+            if (activate) {
+                stream.activate();
+            } else {
+                resolve(true);
+            }
         });
         connection.on('close', () => {
             resolve(true);
@@ -176,13 +181,17 @@ async function test_stream(method: string, host: string, port: number, tls_opts?
 }
 
 test('HTTP Stream GET', async () => {
-    await test_stream('GET', 'example.com', 80);
+    await test_stream('GET', 'example.com', 80, true, undefined);
 });
 
 test('HTTPS Stream GET', async () => {
     const host = 'example.com';
-    await test_stream('GET', host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
-})
+    await test_stream('GET', host, 443, true, new TlsConnectionOptions(new ClientTlsContext(), host));
+});
+
+test('HTTP Stream UnActivated', async () => {
+    await test_stream('GET', 'example.com', 80, false, undefined);
+});
 
 test('HTTP Connection Manager create/destroy', () => {
     const bootstrap = new ClientBootstrap();
@@ -266,6 +275,7 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
             connection_error = error;
             reject(error);
         });
+        stream.activate();
     })
 
     await expect(promise).resolves.toBeTruthy();
