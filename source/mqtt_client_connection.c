@@ -71,6 +71,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         return NULL;
     });
 
+    /* no more node interop will be done, free node resources */
     if (binding->node_external) {
         napi_delete_reference(env, binding->node_external);
     }
