@@ -170,6 +170,7 @@ export function http_stream_new(
     on_response: (status_code: Number, headers: HttpHeader[]) => void,
     on_body: (data: ArrayBuffer) => void,
 ): NativeHandle;
+export function http_stream_activate(stream: NativeHandle): void;
 export function http_stream_close(stream: NativeHandle): void;
 /* wraps aws_http_connection_manager #TODO: Wrap with ClassBinder */
 export function http_connection_manager_new(

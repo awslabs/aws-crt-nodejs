@@ -162,6 +162,8 @@ napi_value aws_napi_http_connection_from_manager(napi_env env, struct aws_http_c
     }
     binding->env = env;
     binding->connection = connection;
+    binding->allocator = aws_napi_get_allocator();
+
     napi_value node_external = NULL;
     AWS_NAPI_CALL(
         env,
@@ -201,8 +203,7 @@ static void s_http_on_connection_setup(struct aws_http_connection *connection, i
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
     if (binding->on_setup) {
-        struct on_connection_args *args =
-            aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct on_connection_args));
+        struct on_connection_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_connection_args));
         args->binding = binding;
         args->error_code = error_code;
         AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_setup, args));
@@ -232,8 +233,7 @@ static void s_http_on_connection_shutdown(struct aws_http_connection *connection
     struct http_connection_binding *binding = user_data;
     binding->connection = connection;
     if (binding->on_shutdown) {
-        struct on_connection_args *args =
-            aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct on_connection_args));
+        struct on_connection_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_connection_args));
         args->binding = binding;
         args->error_code = error_code;
         AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_shutdown, args));

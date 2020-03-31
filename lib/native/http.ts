@@ -179,6 +179,10 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         this.cork();
     }
 
+    activate() {
+        crt_native.http_stream_activate(this.native_handle());
+    }
+
     /**
      * Closes and ends all communication on this stream. Called automatically after the 'end'
      * event is delivered. Calling this manually is only necessary if you wish to terminate

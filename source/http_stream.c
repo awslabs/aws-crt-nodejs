@@ -34,7 +34,6 @@ struct http_stream_binding {
     napi_threadsafe_function on_body;
     struct aws_http_message *response; /* used to buffer response headers/status code */
     struct aws_http_message *request;
-    struct aws_input_stream *body_stream; /* stream pointing at request body */
 };
 
 static void s_on_response_call(napi_env env, napi_value on_response, void *context, void *user_data) {
@@ -185,6 +184,7 @@ static void s_on_complete_call(napi_env env, napi_value on_complete, void *conte
             aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
     }
 
+    AWS_NAPI_ENSURE(env, napi_delete_reference(env, binding->node_external));
     aws_mem_release(binding->allocator, args);
 }
 
@@ -202,11 +202,10 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
     (void)env;
     (void)finalize_hint;
     struct http_stream_binding *binding = finalize_data;
-    struct aws_allocator *allocator = aws_napi_get_allocator();
+
     aws_http_message_destroy(binding->request);
     aws_http_message_destroy(binding->response);
-    aws_input_stream_destroy(binding->body_stream);
-    aws_mem_release(allocator, binding);
+    aws_mem_release(binding->allocator, binding);
 }
 
 napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
@@ -292,18 +291,11 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
         .on_response_header_block_done = s_on_response_header_block_done,
         .on_response_body = s_on_response_body,
         .on_complete = s_on_complete,
-        .manual_window_management = false,
     };
 
     /* becomes the native_handle for the JS object */
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_http_stream_binding_finalize, NULL, &result), {
         napi_throw_error(env, NULL, "Unable to create stream external");
-        goto failed_external;
-    });
-
-    AWS_NAPI_CALL(env, napi_create_reference(env, result, 1, &binding->node_external), {
-        napi_throw_error(env, NULL, "Unable to reference stream external");
-        result = NULL;
         goto failed_external;
     });
 
@@ -339,6 +331,33 @@ done:
     return result;
 }
 
+napi_value aws_napi_http_stream_activate(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    });
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "http_stream_activate needs exactly 1 arguments");
+        return NULL;
+    }
+
+    struct http_stream_binding *binding = NULL;
+    AWS_NAPI_ENSURE(env, napi_get_value_external(env, node_args[0], (void **)&binding));
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_args[0], 1, &binding->node_external), {
+        napi_throw_error(env, NULL, "Unable to reference stream external");
+    });
+
+    if (aws_http_stream_activate(binding->stream)) {
+        AWS_NAPI_ENSURE(env, napi_delete_reference(env, binding->node_external));
+        aws_napi_throw_last_error(env);
+    }
+
+    return NULL;
+}
+
 napi_value aws_napi_http_stream_close(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -347,13 +366,12 @@ napi_value aws_napi_http_stream_close(napi_env env, napi_callback_info info) {
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "http_stream_new needs exactly 8 arguments");
+        napi_throw_error(env, NULL, "http_stream_close needs exactly 1 arguments");
         return NULL;
     }
 
     struct http_stream_binding *binding = NULL;
     AWS_NAPI_ENSURE(env, napi_get_value_external(env, node_args[0], (void **)&binding));
-    AWS_NAPI_ENSURE(env, napi_delete_reference(env, binding->node_external));
 
     aws_http_stream_release(binding->stream);
 

@@ -400,7 +400,7 @@ napi_status aws_napi_create_threadsafe_function(
 
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
     /* increase the ref count, gets decreased when the call completes */
-    AWS_NAPI_ENSURE(env, napi_acquire_threadsafe_function(function));
+    AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));
     return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
 }
 
@@ -602,6 +602,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(http_connection_new)
     CREATE_AND_REGISTER_FN(http_connection_close)
     CREATE_AND_REGISTER_FN(http_stream_new)
+    CREATE_AND_REGISTER_FN(http_stream_activate)
     CREATE_AND_REGISTER_FN(http_stream_close)
     CREATE_AND_REGISTER_FN(http_connection_manager_new)
     CREATE_AND_REGISTER_FN(http_connection_manager_close)
