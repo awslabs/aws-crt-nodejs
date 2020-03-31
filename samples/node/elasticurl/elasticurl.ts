@@ -25,7 +25,7 @@ const yargs = require('yargs');
 yargs.command('*', false, (yargs: any) => {
     yargs.option('url', {
         description: 'URL to make request to. HTTPS is assumed unless port 80 is specified or HTTP is specified in the scheme.',
-        type: 'string',
+        type: 'URL',
         default: new URL(url)
     })
     .option('cacert', {
@@ -188,7 +188,7 @@ function init_tls(argv: Args) {
     return new io.ClientTlsContext(tls_options);
 }
 
-function main(argv: Args) {
+async function main(argv: Args){
     init_logging(argv);
 
     const client_bootstrap = new io.ClientBootstrap();
@@ -265,36 +265,48 @@ function main(argv: Args) {
     };
 
     const tls_opts = tls_ctx ? new io.TlsConnectionOptions(tls_ctx) : undefined;
-    let connection = new http.HttpClientConnection(
-        client_bootstrap,
-        argv.url.hostname,
-        port,
-        socket_options,
-        tls_opts);
-
-    connection.on('connect', async () => {
-        console.log('hullo')
-        if (argv.data) {
-            const data: string = await new Promise((resolve, reject) => {
-                let data = "";
-                argv.data.on('error', (error: Error) => {
-                    reject(error);
-                })
-                argv.data.on('data', (chunk: Buffer | string) => {
-                    data += chunk.toString();
+    const conn_promise = new Promise((resolve_conn) => {
+        let connection = new http.HttpClientConnection(
+            client_bootstrap,
+            argv.url.hostname,
+            port,
+            socket_options,
+            tls_opts);
+        
+        connection.on('connect', async () => {
+            if (argv.data) {
+                const data: string = await new Promise((resolve_stream, reject_stream) => {
+                    let data = "";
+                    argv.data.on('error', (error: Error) => {
+                        reject_stream(error);
+                    })
+                    argv.data.on('data', (chunk: Buffer | string) => {
+                        data += chunk.toString();
+                    });
+                    argv.data.on('end', () => {
+                        resolve_stream(data);
+                    });
                 });
-                argv.data.on('end', () => {
-                    resolve(data);
-                });
-            });
-            await make_request(connection, data);
-        } else {
-            await make_request(connection);
-        }
+                await make_request(connection, data);
+                connection.close()
+            } else {
+                await make_request(connection);
+                connection.close()
+            }
 
-        finish();
+            finish();
+        });
+        connection.on('close', () => {
+            resolve_conn();
+        });
+        connection.on('error', (error) => {
+            finish(error);
+            resolve_conn();
+        });
     });
-    connection.on('error', (error) => {
-        finish(error);
-    });
+    
+    // make it wait as long as possible once the promise completes we'll turn it off.
+    const timer = setTimeout(() => {}, 2147483647);
+    await conn_promise;
+    clearTimeout(timer);
 }
