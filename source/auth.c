@@ -218,6 +218,30 @@ static bool s_should_sign_param(const struct aws_byte_cursor *name, void *userda
     return true;
 }
 
+static void s_destroy_signing_binding(
+    napi_env env,
+    struct aws_allocator *allocator,
+    struct signer_sign_request_state *binding) {
+    if (binding == NULL) {
+        return;
+    }
+
+    /* Release references */
+    napi_delete_reference(env, binding->node_request);
+
+    const size_t num_blacklisted = binding->param_blacklist.length;
+    for (size_t i = 0; i < num_blacklisted; ++i) {
+        struct aws_string *blacklisted = NULL;
+        aws_array_list_get_at(&binding->param_blacklist, &blacklisted, i);
+        aws_string_destroy(blacklisted);
+    }
+    aws_array_list_clean_up(&binding->param_blacklist);
+
+    aws_signable_destroy(binding->signable);
+
+    aws_mem_release(allocator, binding);
+}
+
 static void s_aws_sign_request_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
 
     struct signer_sign_request_state *state = context;
@@ -230,26 +254,13 @@ static void s_aws_sign_request_complete_call(napi_env env, napi_value on_complet
         env,
         aws_napi_dispatch_threadsafe_function(env, state->on_complete, NULL, on_complete, AWS_ARRAY_SIZE(args), args));
 
-    /* Release references */
-    napi_delete_reference(env, state->node_request);
-
-    const size_t num_blacklisted = state->param_blacklist.length;
-    for (size_t i = 0; i < num_blacklisted; ++i) {
-        struct aws_string *blacklisted = NULL;
-        aws_array_list_get_at(&state->param_blacklist, &blacklisted, i);
-        aws_string_destroy(blacklisted);
-    }
-    aws_array_list_clean_up(&state->param_blacklist);
-
-    aws_mem_release(allocator, state);
+    s_destroy_signing_binding(env, allocator, state);
 }
 
 static void s_aws_sign_request_complete(struct aws_signing_result *result, int error_code, void *userdata) {
 
     struct signer_sign_request_state *state = userdata;
     struct aws_allocator *allocator = aws_napi_get_allocator();
-
-    aws_signable_destroy(state->signable);
 
     state->error_code = error_code;
     if (error_code == AWS_ERROR_SUCCESS) {
@@ -326,12 +337,24 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         if (s_get_named_property(env, js_config, "algorithm", napi_number, &current_value)) {
             int32_t algorithm_int = 0;
             napi_get_value_int32(env, current_value, &algorithm_int);
-            if (algorithm_int < 0 || algorithm_int >= AWS_SIGNING_ALGORITHM_COUNT) {
+            if (algorithm_int < 0) {
                 napi_throw_error(env, NULL, "Signing algorithm value out of acceptable range");
                 goto error;
             }
 
             config.algorithm = (enum aws_signing_algorithm)algorithm_int;
+        }
+
+        /* Get transform */
+        if (s_get_named_property(env, js_config, "transform", napi_number, &current_value)) {
+            int32_t transform_int = 0;
+            napi_get_value_int32(env, current_value, &transform_int);
+            if (transform_int < 0) {
+                napi_throw_error(env, NULL, "Signing transform value out of acceptable range");
+                goto error;
+            }
+
+            config.transform = (enum aws_signing_request_transform)transform_int;
         }
 
         /* Get provider */
@@ -344,12 +367,10 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
         /* Get region */
         if (!s_get_named_property(env, js_config, "region", napi_string, &current_value)) {
-
             napi_throw_type_error(env, NULL, "Region string is required");
             goto error;
         }
         if (aws_byte_buf_init_from_napi(&region_buf, env, current_value)) {
-
             napi_throw_error(env, NULL, "Failed to build region buffer");
             goto error;
         }
@@ -357,9 +378,7 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
         /* Get service */
         if (s_get_named_property(env, js_config, "service", napi_string, &current_value)) {
-
             if (aws_byte_buf_init_from_napi(&service_buf, env, current_value)) {
-
                 napi_throw_error(env, NULL, "Failed to build service buffer");
                 goto error;
             }
@@ -370,7 +389,6 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         /* Get date */
         /* #TODO eventually check for napi_date type (node v11) */
         if (s_get_named_property(env, js_config, "date", napi_object, &current_value)) {
-
             napi_value prototype = NULL;
             AWS_NAPI_CALL(env, napi_get_prototype(env, current_value, &prototype), {
                 napi_throw_type_error(env, NULL, "Date param must be a Date object");
@@ -397,7 +415,6 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
             aws_date_time_init_epoch_millis(&config.date, (uint64_t)ms_since_epoch);
         } else {
-
             aws_date_time_init_now(&config.date);
         }
 
@@ -473,6 +490,17 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         } else {
             config.body_signing_type = AWS_BODY_SIGNING_OFF;
         }
+
+        /* Get expiration time */
+        if (s_get_named_property(env, js_config, "expiration_in_seconds", napi_number, &current_value)) {
+            int64_t expiration_in_seconds = 0;
+            napi_get_value_int64(env, current_value, &expiration_in_seconds);
+            if (expiration_in_seconds < 0) {
+                napi_throw_error(env, NULL, "Signing expiration time in seconds must be non-negative");
+                goto error;
+            }
+            config.expiration_in_seconds = (uint64_t)expiration_in_seconds;
+        }
     }
 
     aws_napi_method_next_argument(napi_function, cb_info, &arg);
@@ -498,10 +526,16 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             state)) {
 
         aws_napi_throw_last_error(env);
-        goto error;
     }
 
+    goto done;
+
 error:
+    // Additional cleanup needed when we didn't successfully bind the on_complete function
+    s_destroy_signing_binding(env, allocator, state);
+
+done:
+    // Shared cleanup
     aws_credentials_provider_release(config.credentials_provider);
     aws_byte_buf_clean_up(&region_buf);
     aws_byte_buf_clean_up(&service_buf);

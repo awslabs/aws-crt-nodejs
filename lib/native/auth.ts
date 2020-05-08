@@ -18,8 +18,12 @@ import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
 export enum AwsSigningAlgorithm {
-    SigV4Header,
-    SigV4QueryParam,
+    SigV4
+}
+
+export enum AwsSigningTransform {
+    Header,
+    QueryParam
 }
 
 /* Subclass for the purpose of exposing a non-NativeHandle based API */

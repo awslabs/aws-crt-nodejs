@@ -43,7 +43,8 @@ test('AWS Signer SigV4 Headers', async () => {
     );
 
     const signing_config: native.AwsSigningConfig = {
-        algorithm: native.AwsSigningAlgorithm.SigV4Header,
+        algorithm: native.AwsSigningAlgorithm.SigV4,
+	    transform: native.AwsSigningTransform.Header,
         provider: credentials_provider,
         region: SIGV4TEST_REGION,
         service: SIGV4TEST_SERVICE,

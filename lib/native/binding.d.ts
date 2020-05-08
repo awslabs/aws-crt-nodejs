@@ -14,7 +14,7 @@
  */
 
 import { InputStream } from "./io";
-import { AwsSigningAlgorithm } from "./auth";
+import { AwsSigningAlgorithm, AwsSigningTransform } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 
 type NativeHandle = any;
@@ -237,6 +237,7 @@ export enum AwsBodySigningConfigType {
 
 export interface AwsSigningConfig {
     algorithm: AwsSigningAlgorithm;
+    transform: AwsSigningTransform;
     provider: AwsCredentialsProvider;
     region: string;
     service?: string;
@@ -245,6 +246,7 @@ export interface AwsSigningConfig {
     use_double_uri_encode?: boolean;
     should_normalize_uri_path?: boolean;
     body_signing_type?: AwsBodySigningConfigType;
+    expiration_in_seconds?: number;
 }
 
 export function aws_sign_request(

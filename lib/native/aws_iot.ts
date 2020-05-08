@@ -16,7 +16,7 @@ import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
-import { AwsCredentialsProvider, AwsSigningConfig, AwsSigningAlgorithm, aws_sign_request } from "./auth";
+import { AwsCredentialsProvider, AwsSigningConfig, AwsSigningAlgorithm, AwsSigningTransform, aws_sign_request } from "./auth";
 
 export interface WebsocketConfig {
     credentials_provider: AwsCredentialsProvider;
@@ -97,7 +97,8 @@ export class AwsIotMqttConnectionConfigBuilder {
             builder.params.websocket_handshake_transform = async (request, done) => {
                 const signing_config = options.create_signing_config?.()
                     ?? {
-                        algorithm: AwsSigningAlgorithm.SigV4QueryParam,
+                        algorithm: AwsSigningAlgorithm.SigV4,
+			            transform: AwsSigningTransform.QueryParam,
                         provider: options.credentials_provider,
                         region: options.region,
                         service: options.service ?? "iotdevicegateway",
