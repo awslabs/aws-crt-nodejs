@@ -28,6 +28,7 @@
     "jest-circus": "^25.1.0",
     "jest-runtime": "^25.2.4",
     "ts-jest": "^25.3.0",
+    "typedoc": "^0.17.6",
     "typescript": "^3.8.3",
     "uuid": "^3.4.0",
     "yargs": "^13.3.2"
