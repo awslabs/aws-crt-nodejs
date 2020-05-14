@@ -14,6 +14,6 @@
  */
 
 /**
- * The types that are acceptable to pass for hashing.
+ * The types that are acceptable to use as input for hashing.
  */
 export type Hashable = string | ArrayBuffer | DataView | Buffer;

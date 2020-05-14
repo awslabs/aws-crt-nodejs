@@ -15,12 +15,21 @@
 export { TlsVersion, SocketType, SocketDomain } from "../common/io";
 import { SocketType, SocketDomain } from "../common/io";
 
+/**
+ * @return false, as ALPN is not configurable from the browser
+ *
+ * @category TLS
+*/
 export function is_alpn_available(): boolean {
     return false;
 }
 
 type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
 
+/** 
+ * Wrapper for any sort of body data in requests. As the browser does not implement streaming,
+ * this is merely an interface wrapper around a memory buffer.
+ */
 export class InputStream {
     constructor(public data: BodyData) {
 

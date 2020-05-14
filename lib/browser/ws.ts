@@ -16,15 +16,23 @@ import { MqttConnectionConfig } from "./mqtt";
 import WebsocketStream = require("websocket-stream");
 import * as Crypto from "crypto-js";
 
+/** Options for websocket based connections in browser */
 export interface WebsocketOptions {
+    /** Additional headers to add */
     headers?: { [index: string]: string };
+    /** Websocket protocol, used during Upgrade */
     protocol?: string;
 }
 
+/** Standard AWS Credentials */
 export interface AWSCredentials {
+    /** Optional region */
     aws_region?: string,
+    /** AWS access id */
     aws_access_id: string,
+    /** AWS secret access key */
     aws_secret_key: string,
+    /** STS token if one has been vended (by a {@link CredentialsProvider}) */
     aws_sts_token?: string
 }
 
@@ -76,6 +84,7 @@ function sign_url(method: string,
     return signed_url;
 }
 
+/** @internal */
 export function create_websocket_url(config: MqttConnectionConfig) {
     const time = canonical_time();
     const day = canonical_day(time);
@@ -95,6 +104,7 @@ export function create_websocket_url(config: MqttConnectionConfig) {
     throw new URIError(`Invalid protocol requested: ${protocol}`);
 }
 
+/** @internal */
 export function create_websocket_stream(config: MqttConnectionConfig) {
     const url = create_websocket_url(config);
     return WebsocketStream(url, ['mqttv3.1'], config.websocket);

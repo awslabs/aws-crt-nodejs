@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>MqttRequest | aws-crt - v1.0.0-dev</title>
+	<title>AwsBodySigningConfigType | aws-crt - v1.0.0-dev</title>
 	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -52,68 +52,65 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="../modules/_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
 				</li>
 				<li>
-					<a href="_common_mqtt_.mqttrequest.html">MqttRequest</a>
+					<a href="_native_binding_d_.awsbodysigningconfigtype.html">AwsBodySigningConfigType</a>
 				</li>
 			</ul>
-			<h1>Interface MqttRequest</h1>
+			<h1>Enumeration AwsBodySigningConfigType</h1>
 		</div>
 	</div>
 </header>
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
-			<section class="tsd-panel tsd-comment">
-				<div class="tsd-comment tsd-typography">
-					<div class="lead">
-						<p>Every request sent returns an MqttRequest</p>
-					</div>
-				</div>
-			</section>
-			<section class="tsd-panel tsd-hierarchy">
-				<h3>Hierarchy</h3>
-				<ul class="tsd-hierarchy">
-					<li>
-						<span class="target">MqttRequest</span>
-						<ul class="tsd-hierarchy">
-							<li>
-								<a href="_common_mqtt_.mqttsubscriberequest.html" class="tsd-signature-type">MqttSubscribeRequest</a>
-							</li>
-						</ul>
-					</li>
-				</ul>
-			</section>
 			<section class="tsd-panel-group tsd-index-group">
 				<h2>Index</h2>
 				<section class="tsd-panel tsd-index-panel">
 					<div class="tsd-index-content">
 						<section class="tsd-index-section ">
-							<h3>Properties</h3>
+							<h3>Enumeration members</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="_common_mqtt_.mqttrequest.html#packet_id" class="tsd-kind-icon">packet_<wbr>id</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="_native_binding_d_.awsbodysigningconfigtype.html#aws_body_signing_off" class="tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>OFF</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="_native_binding_d_.awsbodysigningconfigtype.html#aws_body_signing_on" class="tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>ON</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="_native_binding_d_.awsbodysigningconfigtype.html#aws_body_signing_unsigned_payload" class="tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>UNSIGNED_<wbr>PAYLOAD</a></li>
 							</ul>
 						</section>
 					</div>
 				</section>
 			</section>
 			<section class="tsd-panel-group tsd-member-group ">
-				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="packet_id" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> packet_<wbr>id</h3>
-					<div class="tsd-signature tsd-kind-icon">packet_<wbr>id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
+				<h2>Enumeration members</h2>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="aws_body_signing_off" class="tsd-anchor"></a>
+					<h3>AWS_<wbr>BODY_<wbr>SIGNING_<wbr>OFF</h3>
+					<div class="tsd-signature tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>OFF<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 0</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/common/mqtt.ts#L53">lib/common/mqtt.ts:53</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L242">lib/native/binding.d.ts:242</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Packet ID being acknowledged when the request completes</p>
-						</div>
-					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="aws_body_signing_on" class="tsd-anchor"></a>
+					<h3>AWS_<wbr>BODY_<wbr>SIGNING_<wbr>ON</h3>
+					<div class="tsd-signature tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>ON<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 1</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L243">lib/native/binding.d.ts:243</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="aws_body_signing_unsigned_payload" class="tsd-anchor"></a>
+					<h3>AWS_<wbr>BODY_<wbr>SIGNING_<wbr>UNSIGNED_<wbr>PAYLOAD</h3>
+					<div class="tsd-signature tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>UNSIGNED_<wbr>PAYLOAD<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 2</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L244">lib/native/binding.d.ts:244</a></li>
+						</ul>
+					</aside>
 				</section>
 			</section>
 		</div>
@@ -135,7 +132,7 @@
 					<li class=" tsd-kind-module">
 						<a href="../modules/_common_io_.html">&quot;common/io&quot;</a>
 					</li>
-					<li class="current tsd-kind-module">
+					<li class=" tsd-kind-module">
 						<a href="../modules/_common_mqtt_.html">&quot;common/mqtt&quot;</a>
 					</li>
 					<li class=" tsd-kind-module">
@@ -156,7 +153,7 @@
 					<li class=" tsd-kind-module">
 						<a href="../modules/_native_binding_.html">&quot;native/binding&quot;</a>
 					</li>
-					<li class=" tsd-kind-module">
+					<li class="current tsd-kind-module">
 						<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
 					</li>
 					<li class=" tsd-kind-module">
@@ -184,30 +181,24 @@
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-enum tsd-parent-kind-module">
-						<a href="../enums/_common_mqtt_.qos.html" class="tsd-kind-icon">QoS</a>
-					</li>
-					<li class=" tsd-kind-class tsd-parent-kind-module">
-						<a href="../classes/_common_mqtt_.mqttwill.html" class="tsd-kind-icon">Mqtt<wbr>Will</a>
-					</li>
 				</ul>
 				<ul class="current">
-					<li class="current tsd-kind-interface tsd-parent-kind-module">
-						<a href="_common_mqtt_.mqttrequest.html" class="tsd-kind-icon">Mqtt<wbr>Request</a>
+					<li class="current tsd-kind-enum tsd-parent-kind-module">
+						<a href="_native_binding_d_.awsbodysigningconfigtype.html" class="tsd-kind-icon">Aws<wbr>Body<wbr>Signing<wbr>Config<wbr>Type</a>
 						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="_common_mqtt_.mqttrequest.html#packet_id" class="tsd-kind-icon">packet_<wbr>id</a>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="_native_binding_d_.awsbodysigningconfigtype.html#aws_body_signing_off" class="tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>OFF</a>
+							</li>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="_native_binding_d_.awsbodysigningconfigtype.html#aws_body_signing_on" class="tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>ON</a>
+							</li>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="_native_binding_d_.awsbodysigningconfigtype.html#aws_body_signing_unsigned_payload" class="tsd-kind-icon">AWS_<wbr>BODY_<wbr>SIGNING_<wbr>UNSIGNED_<wbr>PAYLOAD</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
-					<li class=" tsd-kind-interface tsd-parent-kind-module">
-						<a href="_common_mqtt_.mqttsubscriberequest.html" class="tsd-kind-icon">Mqtt<wbr>Subscribe<wbr>Request</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
-						<a href="../modules/_common_mqtt_.html#payload" class="tsd-kind-icon">Payload</a>
-					</li>
 				</ul>
 			</nav>
 		</div>
@@ -224,11 +215,10 @@
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>

@@ -13,6 +13,11 @@
  * permissions and limitations under the License.
  */
 
+/** 
+ * TLS Version 
+ * 
+ * @category TLS
+ */
 export enum TlsVersion {
     SSLv3 = 0,
     TLSv1 = 1,
@@ -22,13 +27,29 @@ export enum TlsVersion {
     Default = 128,
 }
 
+/**
+ * @category I/O
+ */
 export enum SocketType {
+    /**
+     * A streaming socket sends reliable messages over a two-way connection.
+     * This means TCP when used with {@link SocketDomain.IPV4}/{@link SocketDomain.IPV6},
+     * and Unix domain sockets when used with {@link SocketDomain.LOCAL }
+      */
     STREAM = 0,
+    /**
+     * A datagram socket is connectionless and sends unreliable messages.
+     * This means UDP when used with {@link SocketDomain.IPV4}/{@link SocketDomain.IPV6}.
+     * {@link SocketDomain.LOCAL} is not compatible with {@link DGRAM}
+     */
     DGRAM = 1,
 }
 
+/**
+ * @category I/O
+ */
 export enum SocketDomain {
     IPV4 = 0,
     IPV6 = 1,
-    LOCAL = 2, /* UNIX domain/named pipes */
+    LOCAL = 2, /** UNIX domain socket/Windows named pipes */
 }

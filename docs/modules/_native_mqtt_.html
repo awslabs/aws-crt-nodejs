@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>&quot;native/mqtt&quot; | aws-crt</title>
-	<meta name="description" content="Documentation for aws-crt">
+	<title>&quot;native/mqtt&quot; | aws-crt - v1.0.0-dev</title>
+	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
 </head>
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">aws-crt</a>
+					<a href="../index.html" class="title">aws-crt - v1.0.0-dev</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -38,10 +38,6 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
-							<input type="checkbox" id="tsd-filter-externals" checked />
-							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
-							<input type="checkbox" id="tsd-filter-only-exported" />
-							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -94,18 +90,6 @@
 								<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/_native_mqtt_.mqttconnectionconfig.html" class="tsd-kind-icon">Mqtt<wbr>Connection<wbr>Config</a></li>
 							</ul>
 						</section>
-						<section class="tsd-index-section tsd-is-not-exported">
-							<h3>Variables</h3>
-							<ul class="tsd-index-list">
-								<li class="tsd-kind-variable tsd-parent-kind-module tsd-is-not-exported"><a href="_native_mqtt_.html#normalize_encoder" class="tsd-kind-icon">normalize_<wbr>encoder</a></li>
-							</ul>
-						</section>
-						<section class="tsd-index-section tsd-is-not-exported">
-							<h3>Functions</h3>
-							<ul class="tsd-index-list">
-								<li class="tsd-kind-function tsd-parent-kind-module tsd-is-not-exported"><a href="_native_mqtt_.html#normalize_payload" class="tsd-kind-icon">normalize_<wbr>payload</a></li>
-							</ul>
-						</section>
 					</div>
 				</section>
 			</section>
@@ -142,45 +126,6 @@
 					Re-exports <a href="../enums/_common_mqtt_.qos.html">QoS</a>
 				</section>
 			</section>
-			<section class="tsd-panel-group tsd-member-group tsd-is-not-exported">
-				<h2>Variables</h2>
-				<section class="tsd-panel tsd-member tsd-kind-variable tsd-parent-kind-module tsd-is-not-exported">
-					<a name="normalize_encoder" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagConst">Const</span> normalize_<wbr>encoder</h3>
-					<div class="tsd-signature tsd-kind-icon">normalize_<wbr>encoder<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">TextEncoder</span><span class="tsd-signature-symbol"> = new TextEncoder()</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L56">lib/native/mqtt.ts:56</a></li>
-						</ul>
-					</aside>
-				</section>
-			</section>
-			<section class="tsd-panel-group tsd-member-group tsd-is-not-exported">
-				<h2>Functions</h2>
-				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module tsd-is-not-exported">
-					<a name="normalize_payload" class="tsd-anchor"></a>
-					<h3>normalize_<wbr>payload</h3>
-					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module tsd-is-not-exported">
-						<li class="tsd-signature tsd-kind-icon">normalize_<wbr>payload<span class="tsd-signature-symbol">(</span>payload<span class="tsd-signature-symbol">: </span><a href="_native_mqtt_.html#payload" class="tsd-signature-type">Payload</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L57">lib/native/mqtt.ts:57</a></li>
-								</ul>
-							</aside>
-							<h4 class="tsd-parameters-title">Parameters</h4>
-							<ul class="tsd-parameters">
-								<li>
-									<h5>payload: <a href="_native_mqtt_.html#payload" class="tsd-signature-type">Payload</a></h5>
-								</li>
-							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
-						</li>
-					</ul>
-				</section>
-			</section>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 			<nav class="tsd-navigation primary">
@@ -188,8 +133,62 @@
 					<li class="globals  ">
 						<a href="../globals.html"><em>Globals</em></a>
 					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_crypto_.html">&quot;common/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_event_.html">&quot;common/event&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_http_.html">&quot;common/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_io_.html">&quot;common/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_platform_.html">&quot;common/platform&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_resource_safety_.html">&quot;common/resource_<wbr>safety&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_index_.html">&quot;index&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_auth_.html">&quot;native/auth&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_aws_iot_.html">&quot;native/aws_<wbr>iot&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_binding_.html">&quot;native/binding&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_crt_.html">&quot;native/crt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_crypto_.html">&quot;native/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_error_.html">&quot;native/error&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_http_.html">&quot;native/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_io_.html">&quot;native/io&quot;</a>
+					</li>
 					<li class="current tsd-kind-module">
 						<a href="_native_mqtt_.html">&quot;native/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_native_resource_.html">&quot;native/native_<wbr>resource&quot;</a>
 					</li>
 				</ul>
 			</nav>
@@ -222,12 +221,6 @@
 					<li class=" tsd-kind-interface tsd-parent-kind-module">
 						<a href="../interfaces/_native_mqtt_.mqttconnectionconfig.html" class="tsd-kind-icon">Mqtt<wbr>Connection<wbr>Config</a>
 					</li>
-					<li class=" tsd-kind-variable tsd-parent-kind-module tsd-is-not-exported">
-						<a href="_native_mqtt_.html#normalize_encoder" class="tsd-kind-icon">normalize_<wbr>encoder</a>
-					</li>
-					<li class=" tsd-kind-function tsd-parent-kind-module tsd-is-not-exported">
-						<a href="_native_mqtt_.html#normalize_payload" class="tsd-kind-icon">normalize_<wbr>payload</a>
-					</li>
 				</ul>
 			</nav>
 		</div>
@@ -242,17 +235,15 @@
 				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
 				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
 			</ul>
 		</div>
 	</div>

@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>HttpRequest | aws-crt</title>
-	<meta name="description" content="Documentation for aws-crt">
+	<title>HttpRequest | aws-crt - v1.0.0-dev</title>
+	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
 </head>
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">aws-crt</a>
+					<a href="../index.html" class="title">aws-crt - v1.0.0-dev</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -38,10 +38,6 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
-							<input type="checkbox" id="tsd-filter-externals" checked />
-							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
-							<input type="checkbox" id="tsd-filter-only-exported" />
-							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -56,10 +52,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="../modules/_browser_http_.html">&quot;browser/http&quot;</a>
+					<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
 				</li>
 				<li>
-					<a href="_browser_http_.httprequest.html">HttpRequest</a>
+					<a href="_native_binding_d_.httprequest.html">HttpRequest</a>
 				</li>
 			</ul>
 			<h1>Class HttpRequest</h1>
@@ -72,8 +68,9 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>Represents a request to a web server from a client</p>
+						<p>Definition for an outgoing HTTP request.</p>
 					</div>
+					<p>The request may be transformed (ex: signing the request) before its data is eventually sent.</p>
 				</div>
 			</section>
 			<section class="tsd-panel tsd-hierarchy">
@@ -91,16 +88,16 @@
 						<section class="tsd-index-section ">
 							<h3>Constructors</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="_browser_http_.httprequest.html#constructor" class="tsd-kind-icon">constructor</a></li>
+								<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="_native_binding_d_.httprequest.html#constructor" class="tsd-kind-icon">constructor</a></li>
 							</ul>
 						</section>
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_browser_http_.httprequest.html#body" class="tsd-kind-icon">body</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_browser_http_.httprequest.html#headers" class="tsd-kind-icon">headers</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_browser_http_.httprequest.html#method" class="tsd-kind-icon">method</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_browser_http_.httprequest.html#path" class="tsd-kind-icon">path</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_native_binding_d_.httprequest.html#body" class="tsd-kind-icon">body</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_native_binding_d_.httprequest.html#headers" class="tsd-kind-icon">headers</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_native_binding_d_.httprequest.html#method" class="tsd-kind-icon">method</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_native_binding_d_.httprequest.html#path" class="tsd-kind-icon">path</a></li>
 							</ul>
 						</section>
 					</div>
@@ -112,13 +109,13 @@
 					<a name="constructor" class="tsd-anchor"></a>
 					<h3>constructor</h3>
 					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">new <wbr>Http<wbr>Request<span class="tsd-signature-symbol">(</span>method<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, path<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, headers<span class="tsd-signature-symbol">?: </span><a href="_browser_http_.httpheaders.html" class="tsd-signature-type">HttpHeaders</a>, body<span class="tsd-signature-symbol">?: </span><a href="_browser_io_.inputstream.html" class="tsd-signature-type">InputStream</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_browser_http_.httprequest.html" class="tsd-signature-type">HttpRequest</a></li>
+						<li class="tsd-signature tsd-kind-icon">new <wbr>Http<wbr>Request<span class="tsd-signature-symbol">(</span>method<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, path<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, headers<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.httpheaders.html" class="tsd-signature-type">HttpHeaders</a>, body<span class="tsd-signature-symbol">?: </span><a href="_native_io_.inputstream.html" class="tsd-signature-type">InputStream</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/browser/http.ts#L153">lib/browser/http.ts:153</a></li>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L220">lib/native/binding.d.ts:220</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-parameters-title">Parameters</h4>
@@ -130,13 +127,13 @@
 									<h5>path: <span class="tsd-signature-type">string</span></h5>
 								</li>
 								<li>
-									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> headers: <a href="_browser_http_.httpheaders.html" class="tsd-signature-type">HttpHeaders</a><span class="tsd-signature-symbol"> = new HttpHeaders()</span></h5>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> headers: <a href="_native_binding_d_.httpheaders.html" class="tsd-signature-type">HttpHeaders</a></h5>
 								</li>
 								<li>
-									<h5><span class="tsd-flag ts-flagOptional">Optional</span> body: <a href="_browser_io_.inputstream.html" class="tsd-signature-type">InputStream</a></h5>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> body: <a href="_native_io_.inputstream.html" class="tsd-signature-type">InputStream</a></h5>
 								</li>
 							</ul>
-							<h4 class="tsd-returns-title">Returns <a href="_browser_http_.httprequest.html" class="tsd-signature-type">HttpRequest</a></h4>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a></h4>
 						</li>
 					</ul>
 				</section>
@@ -145,31 +142,31 @@
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
 					<a name="body" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> body</h3>
-					<div class="tsd-signature tsd-kind-icon">body<span class="tsd-signature-symbol">:</span> <a href="_browser_io_.inputstream.html" class="tsd-signature-type">InputStream</a></div>
+					<h3>body</h3>
+					<div class="tsd-signature tsd-kind-icon">body<span class="tsd-signature-symbol">:</span> <a href="_native_io_.inputstream.html" class="tsd-signature-type">InputStream</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/browser/http.ts#L162">lib/browser/http.ts:162</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L230">lib/native/binding.d.ts:230</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>The request body, in the case of a POST or PUT request</p>
+							<p>Optional body as a stream</p>
 						</div>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
 					<a name="headers" class="tsd-anchor"></a>
-					<h3>headers</h3>
-					<div class="tsd-signature tsd-kind-icon">headers<span class="tsd-signature-symbol">:</span> <a href="_browser_http_.httpheaders.html" class="tsd-signature-type">HttpHeaders</a></div>
+					<h3><span class="tsd-flag ts-flagReadonly">Readonly</span> headers</h3>
+					<div class="tsd-signature tsd-kind-icon">headers<span class="tsd-signature-symbol">:</span> <a href="_native_binding_d_.httpheaders.html" class="tsd-signature-type">HttpHeaders</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/browser/http.ts#L160">lib/browser/http.ts:160</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L228">lib/native/binding.d.ts:228</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Additional custom headers to send to the server</p>
+							<p>Optional headers.</p>
 						</div>
 					</div>
 				</section>
@@ -179,12 +176,12 @@
 					<div class="tsd-signature tsd-kind-icon">method<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/browser/http.ts#L156">lib/browser/http.ts:156</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L224">lib/native/binding.d.ts:224</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>The verb to use for the request (i.e. GET, POST, PUT, DELETE, HEAD)</p>
+							<p>HTTP request method (verb). Default value is &quot;GET&quot;.</p>
 						</div>
 					</div>
 				</section>
@@ -194,12 +191,12 @@
 					<div class="tsd-signature tsd-kind-icon">path<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/browser/http.ts#L158">lib/browser/http.ts:158</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L226">lib/native/binding.d.ts:226</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>The URI of the request</p>
+							<p>HTTP path-and-query value. Default value is &quot;/&quot;.</p>
 						</div>
 					</div>
 				</section>
@@ -211,64 +208,91 @@
 					<li class="globals  ">
 						<a href="../globals.html"><em>Globals</em></a>
 					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_crypto_.html">&quot;common/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_event_.html">&quot;common/event&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_http_.html">&quot;common/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_io_.html">&quot;common/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_platform_.html">&quot;common/platform&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_resource_safety_.html">&quot;common/resource_<wbr>safety&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_index_.html">&quot;index&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_auth_.html">&quot;native/auth&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_aws_iot_.html">&quot;native/aws_<wbr>iot&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_.html">&quot;native/binding&quot;</a>
+					</li>
 					<li class="current tsd-kind-module">
-						<a href="../modules/_browser_http_.html">&quot;browser/http&quot;</a>
+						<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crt_.html">&quot;native/crt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crypto_.html">&quot;native/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_error_.html">&quot;native/error&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_http_.html">&quot;native/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_io_.html">&quot;native/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_mqtt_.html">&quot;native/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_native_resource_.html">&quot;native/native_<wbr>resource&quot;</a>
 					</li>
 				</ul>
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-reference tsd-parent-kind-module">
-						<a href="../modules/_browser_http_.html#httpheader" class="tsd-kind-icon">Http<wbr>Header</a>
-					</li>
-					<li class=" tsd-kind-reference tsd-parent-kind-module">
-						<a href="../modules/_browser_http_.html#httpproxyauthenticationtype" class="tsd-kind-icon">Http<wbr>Proxy<wbr>Authentication<wbr>Type</a>
-					</li>
-					<li class=" tsd-kind-reference tsd-parent-kind-module">
-						<a href="../modules/_browser_http_.html#httpproxyoptions" class="tsd-kind-icon">Http<wbr>Proxy<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-class tsd-parent-kind-module">
-						<a href="_browser_http_.httpclientconnection.html" class="tsd-kind-icon">Http<wbr>Client<wbr>Connection</a>
-					</li>
-					<li class=" tsd-kind-class tsd-parent-kind-module">
-						<a href="_browser_http_.httpclientconnectionmanager.html" class="tsd-kind-icon">Http<wbr>Client<wbr>Connection<wbr>Manager</a>
-					</li>
-					<li class=" tsd-kind-class tsd-parent-kind-module">
-						<a href="_browser_http_.httpclientstream.html" class="tsd-kind-icon">Http<wbr>Client<wbr>Stream</a>
-					</li>
-					<li class=" tsd-kind-class tsd-parent-kind-module">
-						<a href="_browser_http_.httpheaders.html" class="tsd-kind-icon">Http<wbr>Headers</a>
-					</li>
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-class tsd-parent-kind-module">
-						<a href="_browser_http_.httprequest.html" class="tsd-kind-icon">Http<wbr>Request</a>
+						<a href="_native_binding_d_.httprequest.html" class="tsd-kind-icon">Http<wbr>Request</a>
 						<ul>
 							<li class=" tsd-kind-constructor tsd-parent-kind-class">
-								<a href="_browser_http_.httprequest.html#constructor" class="tsd-kind-icon">constructor</a>
+								<a href="_native_binding_d_.httprequest.html#constructor" class="tsd-kind-icon">constructor</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-class">
-								<a href="_browser_http_.httprequest.html#body" class="tsd-kind-icon">body</a>
+								<a href="_native_binding_d_.httprequest.html#body" class="tsd-kind-icon">body</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-class">
-								<a href="_browser_http_.httprequest.html#headers" class="tsd-kind-icon">headers</a>
+								<a href="_native_binding_d_.httprequest.html#headers" class="tsd-kind-icon">headers</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-class">
-								<a href="_browser_http_.httprequest.html#method" class="tsd-kind-icon">method</a>
+								<a href="_native_binding_d_.httprequest.html#method" class="tsd-kind-icon">method</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-class">
-								<a href="_browser_http_.httprequest.html#path" class="tsd-kind-icon">path</a>
+								<a href="_native_binding_d_.httprequest.html#path" class="tsd-kind-icon">path</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
-					<li class=" tsd-kind-interface tsd-parent-kind-module tsd-is-not-exported">
-						<a href="../interfaces/_browser_http_.pendingrequest.html" class="tsd-kind-icon">Pending<wbr>Request</a>
-					</li>
-					<li class=" tsd-kind-function tsd-parent-kind-module tsd-is-not-exported">
-						<a href="../modules/_browser_http_.html#stream_request" class="tsd-kind-icon">stream_<wbr>request</a>
-					</li>
 				</ul>
 			</nav>
 		</div>
@@ -283,11 +307,9 @@
 				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
 				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
 				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
 				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
 			</ul>

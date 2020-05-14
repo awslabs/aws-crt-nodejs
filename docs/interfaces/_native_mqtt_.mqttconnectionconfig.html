@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>MqttConnectionConfig | aws-crt</title>
-	<meta name="description" content="Documentation for aws-crt">
+	<title>MqttConnectionConfig | aws-crt - v1.0.0-dev</title>
+	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
 </head>
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">aws-crt</a>
+					<a href="../index.html" class="title">aws-crt - v1.0.0-dev</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -38,10 +38,6 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
-							<input type="checkbox" id="tsd-filter-externals" checked />
-							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
-							<input type="checkbox" id="tsd-filter-only-exported" />
-							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -69,6 +65,13 @@
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>Configuration options for an MQTT connection</p>
+					</div>
+				</div>
+			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
@@ -111,9 +114,21 @@
 					<div class="tsd-signature tsd-kind-icon">clean_<wbr>session<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L45">lib/native/mqtt.ts:45</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L73">lib/native/mqtt.ts:73</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Whether or not to start a clean session with each reconnect.
+								If True, the server will forget all subscriptions with each reconnect.
+								Set False to request that the server resume an existing session
+								or start a new session that may be resumed after a connection loss.
+								The <code>session_present</code> bool in the connection callback informs
+								whether an existing session was successfully resumed.
+								If an existing session is resumed, the server remembers previous subscriptions
+							and sends mesages (with QoS1 or higher) that were published while the client was offline.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="client_id" class="tsd-anchor"></a>
@@ -121,9 +136,15 @@
 					<div class="tsd-signature tsd-kind-icon">client_<wbr>id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L40">lib/native/mqtt.ts:40</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L54">lib/native/mqtt.ts:54</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>ID to place in CONNECT packet. Must be unique across all devices/clients.
+							If an ID is already in use, the other client will be disconnected.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="host_name" class="tsd-anchor"></a>
@@ -131,9 +152,14 @@
 					<div class="tsd-signature tsd-kind-icon">host_<wbr>name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L41">lib/native/mqtt.ts:41</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L56">lib/native/mqtt.ts:56</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Server name to connect to</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="keep_alive" class="tsd-anchor"></a>
@@ -141,9 +167,17 @@
 					<div class="tsd-signature tsd-kind-icon">keep_<wbr>alive<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L46">lib/native/mqtt.ts:46</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L80">lib/native/mqtt.ts:80</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The keep alive value, in seconds, to send in CONNECT packet.
+								A PING will automatically be sent at this interval.
+								The server will assume the connection is lost if no PING is received after 1.5X this value.
+							This duration must be longer than <a href="_native_mqtt_.mqttconnectionconfig.html#timeout">timeout</a>.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="password" class="tsd-anchor"></a>
@@ -151,9 +185,14 @@
 					<div class="tsd-signature tsd-kind-icon">password<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L50">lib/native/mqtt.ts:50</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L98">lib/native/mqtt.ts:98</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Password to connect with</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="port" class="tsd-anchor"></a>
@@ -161,9 +200,14 @@
 					<div class="tsd-signature tsd-kind-icon">port<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L42">lib/native/mqtt.ts:42</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L58">lib/native/mqtt.ts:58</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Server port to connect to</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="proxy_options" class="tsd-anchor"></a>
@@ -171,9 +215,14 @@
 					<div class="tsd-signature tsd-kind-icon">proxy_<wbr>options<span class="tsd-signature-symbol">:</span> <a href="../modules/_native_mqtt_.html#httpproxyoptions" class="tsd-signature-type">HttpProxyOptions</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L52">lib/native/mqtt.ts:52</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L105">lib/native/mqtt.ts:105</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Optional proxy options</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="socket_options" class="tsd-anchor"></a>
@@ -181,9 +230,14 @@
 					<div class="tsd-signature tsd-kind-icon">socket_<wbr>options<span class="tsd-signature-symbol">:</span> <a href="../classes/_native_io_.socketoptions.html" class="tsd-signature-type">SocketOptions</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L43">lib/native/mqtt.ts:43</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L60">lib/native/mqtt.ts:60</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Optional socket options</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="timeout" class="tsd-anchor"></a>
@@ -191,9 +245,19 @@
 					<div class="tsd-signature tsd-kind-icon">timeout<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L47">lib/native/mqtt.ts:47</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L89">lib/native/mqtt.ts:89</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Milliseconds to wait for ping response before client assumes
+								the connection is invalid and attempts to reconnect.
+								This duration must be shorter than keep_alive_secs.
+								Alternatively, TCP keep-alive via :attr:<code>SocketOptions.keep_alive</code>
+								may accomplish this in a more efficient (low-power) scenario,
+							but keep-alive options may not work the same way on every platform and OS version.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="tls_ctx" class="tsd-anchor"></a>
@@ -201,9 +265,15 @@
 					<div class="tsd-signature tsd-kind-icon">tls_<wbr>ctx<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">io.ClientTlsContext</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L51">lib/native/mqtt.ts:51</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L103">lib/native/mqtt.ts:103</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>TLS context for secure socket connections.
+							If None is provided, then an unencrypted connection is used.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="use_websocket" class="tsd-anchor"></a>
@@ -211,9 +281,14 @@
 					<div class="tsd-signature tsd-kind-icon">use_<wbr>websocket<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L44">lib/native/mqtt.ts:44</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L62">lib/native/mqtt.ts:62</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>If true, connect to MQTT over websockets</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="username" class="tsd-anchor"></a>
@@ -221,19 +296,31 @@
 					<div class="tsd-signature tsd-kind-icon">username<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L49">lib/native/mqtt.ts:49</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L96">lib/native/mqtt.ts:96</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Username to connect with</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="websocket_handshake_transform" class="tsd-anchor"></a>
 					<h3><span class="tsd-flag ts-flagOptional">Optional</span> websocket_<wbr>handshake_<wbr>transform</h3>
-					<div class="tsd-signature tsd-kind-icon">websocket_<wbr>handshake_<wbr>transform<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>request<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">HttpRequest</span>, done<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></div>
+					<div class="tsd-signature tsd-kind-icon">websocket_<wbr>handshake_<wbr>transform<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>request<span class="tsd-signature-symbol">: </span><a href="../classes/_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a>, done<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L53">lib/native/mqtt.ts:53</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L111">lib/native/mqtt.ts:111</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Optional function to transform websocket handshake request.
+								If provided, function is called each time a websocket connection is attempted.
+							The function may modify the HTTP request before it is sent to the server.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="will" class="tsd-anchor"></a>
@@ -241,9 +328,15 @@
 					<div class="tsd-signature tsd-kind-icon">will<span class="tsd-signature-symbol">:</span> <a href="../modules/_native_mqtt_.html#mqttwill" class="tsd-signature-type">MqttWill</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/mqtt.ts#L48">lib/native/mqtt.ts:48</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/mqtt.ts#L94">lib/native/mqtt.ts:94</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Will to send with CONNECT packet. The will is
+							published by the server when its connection to the client is unexpectedly lost.</p>
+						</div>
+					</div>
 				</section>
 			</section>
 		</div>
@@ -253,8 +346,62 @@
 					<li class="globals  ">
 						<a href="../globals.html"><em>Globals</em></a>
 					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_crypto_.html">&quot;common/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_event_.html">&quot;common/event&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_http_.html">&quot;common/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_io_.html">&quot;common/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_platform_.html">&quot;common/platform&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_resource_safety_.html">&quot;common/resource_<wbr>safety&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_index_.html">&quot;index&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_auth_.html">&quot;native/auth&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_aws_iot_.html">&quot;native/aws_<wbr>iot&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_.html">&quot;native/binding&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crt_.html">&quot;native/crt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crypto_.html">&quot;native/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_error_.html">&quot;native/error&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_http_.html">&quot;native/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_io_.html">&quot;native/io&quot;</a>
+					</li>
 					<li class="current tsd-kind-module">
 						<a href="../modules/_native_mqtt_.html">&quot;native/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_native_resource_.html">&quot;native/native_<wbr>resource&quot;</a>
 					</li>
 				</ul>
 			</nav>
@@ -335,12 +482,6 @@
 					</li>
 				</ul>
 				<ul class="after-current">
-					<li class=" tsd-kind-variable tsd-parent-kind-module tsd-is-not-exported">
-						<a href="../modules/_native_mqtt_.html#normalize_encoder" class="tsd-kind-icon">normalize_<wbr>encoder</a>
-					</li>
-					<li class=" tsd-kind-function tsd-parent-kind-module tsd-is-not-exported">
-						<a href="../modules/_native_mqtt_.html#normalize_payload" class="tsd-kind-icon">normalize_<wbr>payload</a>
-					</li>
 				</ul>
 			</nav>
 		</div>
@@ -355,18 +496,16 @@
 				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
 				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
 				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
 			</ul>
 		</div>
 	</div>

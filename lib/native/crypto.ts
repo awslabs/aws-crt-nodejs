@@ -22,7 +22,8 @@ import { Hashable } from "../common/crypto";
  */
 abstract class Hash extends NativeResource {
     /**
-     * Apply data to the hash.
+     * Digest additional data.
+     * @param data Additional data to digest
      */
     update(data: Hashable) {
         crt_native.hash_update(this.native_handle(), data);
@@ -88,7 +89,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
  */
 abstract class Hmac extends NativeResource {
     /**
-     * Apply data to the hash.
+     * Digest additional data.
      */
     update(data: Hashable) {
         crt_native.hmac_update(this.native_handle(), data);

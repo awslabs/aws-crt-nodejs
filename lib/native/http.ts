@@ -36,6 +36,11 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
         this._super(native_handle);
     }
 
+    /**
+     * Close the connection.
+     * Shutdown is asynchronous. This call has no effect if the connection is already
+     * closing.
+     */
     close() {
         crt_native.http_connection_close(this.native_handle());
     }
@@ -49,7 +54,8 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     /** Emitted when the connection has completed */
     on(event: 'close', listener: () => void): this;
 
-    // Override to allow uncorking on ready
+    /** @internal */
+    // Overridden to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
         if (event == 'connect') {
@@ -61,7 +67,19 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     }
 }
 
+/** Proxy options for HTTP clients. */
 export class HttpProxyOptions extends CommonHttpProxyOptions {
+    /**
+     * 
+     * @param host_name Name of the proxy server to connect through
+     * @param port Port number of the proxy server to connect through
+     * @param auth_method Type of proxy authentication to use. Default is {@link HttpProxyAuthenticationType.None}
+     * @param auth_username Username to use when `auth_type` is {@link HttpProxyAuthenticationType.Basic}
+     * @param auth_password Password to use when `auth_type` is {@link HttpProxyAuthenticationType.Basic}
+     * @param tls_opts Optional TLS connection options for the connection to the proxy host.
+     *                 Must be distinct from the {@link TlsConnectionOptions} provided to
+     *                 the HTTP connection
+     */
     constructor(
         host_name: string,
         port: number,
@@ -73,6 +91,7 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
         super(host_name, port, auth_method, auth_username, auth_password);
     }
 
+    /** @internal */
     create_native_handle() {
         return crt_native.http_proxy_options_new(
             this.host_name,
@@ -104,6 +123,14 @@ export class HttpClientConnection extends HttpConnection {
         this.emit('close');
     }
 
+    /** Asynchronously establish a new HttpClientConnection. 
+     * @param bootstrap Client bootstrap to use when initiating socket connection.
+     * @param host_name Host to connect to
+     * @param port Port to connect to on host
+     * @param socket_options Socket options
+     * @param tls_opts Optional TLS connection options
+     * @param proxy_options Optional proxy options
+    */
     constructor(
         protected bootstrap: ClientBootstrap,
         host_name: string,
@@ -132,7 +159,11 @@ export class HttpClientConnection extends HttpConnection {
     }
 
     /**
-     * Make a client initiated request to this connection.
+     * Create {@link HttpClientStream} to carry out the request/response exchange.
+     *
+     * NOTE: The stream sends no data until :meth:`HttpClientStream.activate()`
+     * is called. Call {@link HttpStream.activate} when you're ready for 
+     * callbacks and events to fire.
      * @param request - The HttpRequest to attempt on this connection
      * @returns A new stream that will deliver events for the request
      */
@@ -170,7 +201,7 @@ export class HttpClientConnection extends HttpConnection {
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
  */
-class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
+export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
     protected constructor(
         native_handle: any,
         readonly connection: HttpConnection) {
@@ -179,6 +210,12 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         this.cork();
     }
 
+    /**
+     * Begin sending the request.
+     * 
+     * The stream does nothing until this is called. Call activate() when you
+     * are ready for its callbacks and events to fire.
+     */
     activate() {
         crt_native.http_stream_activate(this.native_handle());
     }
@@ -192,10 +229,12 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
         crt_native.http_stream_close(this.native_handle());
     }
 
+    /** @internal */
     _on_body(data: ArrayBuffer) {
         this.emit('data', data);
     }
 
+    /** @internal */
     _on_complete(error_code: Number) {
         if (error_code) {
             this.emit('error', new CrtError(error_code));
@@ -210,7 +249,14 @@ class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements Re
     }
 }
 
-/** Represents a stream created on a client HTTP connection. {@see HttpStream} */
+/** 
+ * Stream that sends a request and receives a response.
+ *
+ * Create an HttpClientStream with {@link HttpClientConnection.request}.
+ *
+ * NOTE: The stream sends no data until {@link HttpStream.activate} is called. 
+ * Call {@link HttpStream.activate} when you're ready for callbacks and events to fire.
+ */
 export class HttpClientStream extends HttpStream {
     private response_status_code?: Number;
     constructor(
@@ -257,7 +303,8 @@ export class HttpClientStream extends HttpStream {
     /** Emitted when stream has completed successfully. */
     on(event: 'end', listener: () => void): this;
 
-    // Override to allow uncorking on ready and response
+    /** @internal */
+    // Overridden to allow uncorking on ready and response
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
         if (event == 'response') {
@@ -268,6 +315,7 @@ export class HttpClientStream extends HttpStream {
         return this;
     }
 
+    /** @internal */
     _on_response(status_code: Number, header_array: [string, string][]) {
         this.response_status_code = status_code;
         let headers = new HttpHeaders(header_array);
@@ -278,7 +326,25 @@ export class HttpClientStream extends HttpStream {
 /** Creates, manages, and vends connections to a given host/port endpoint */
 export class HttpClientConnectionManager extends NativeResource {
     private connections = new Map<any, HttpClientConnection>();
+/** Asynchronously establish a new HttpClientConnection.
+     * @param bootstrap Client bootstrap to use when initiating socket connection.
+     * @param host_name Host to connect to
+     * @param port Port to connect to on host
+     * @param socket_options Socket options
+     * @param tls_opts Optional TLS connection options
+     * @param proxy_options Optional proxy options
+    */
 
+    /**
+     * @param bootstrap Client bootstrap to use when initiating socket connections
+     * @param host Host to connect to
+     * @param port Port to connect to on host
+     * @param max_connections Maximum number of connections to pool
+     * @param initial_window_size Optional initial window size
+     * @param socket_options Socket options to use when initiating socket connections
+     * @param tls_opts Optional TLS connection options
+     * @param proxy_options Optional proxy options
+     */
     constructor(
         readonly bootstrap: ClientBootstrap,
         readonly host: string,

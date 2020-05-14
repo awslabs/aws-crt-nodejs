@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>InputStream | aws-crt</title>
-	<meta name="description" content="Documentation for aws-crt">
+	<title>InputStream | aws-crt - v1.0.0-dev</title>
+	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
 </head>
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">aws-crt</a>
+					<a href="../index.html" class="title">aws-crt - v1.0.0-dev</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -38,10 +38,6 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
-							<input type="checkbox" id="tsd-filter-externals" checked />
-							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
-							<input type="checkbox" id="tsd-filter-only-exported" />
-							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -72,16 +68,17 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>Wraps a {@link Readable} for reading by native code, used to stream
+						<p>Wraps a <code>Readable</code> for reading by native code, used to stream
 						data into the AWS CRT libraries.</p>
 					</div>
+					<p>nodejs only.</p>
 				</div>
 			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<a href="_native_native_resource_.nativeresource.html" class="tsd-signature-type">NativeResource</a>
+						<span class="tsd-signature-type">NativeResource</span>
 						<ul class="tsd-hierarchy">
 							<li>
 								<span class="target">InputStream</span>
@@ -98,12 +95,6 @@
 							<h3>Constructors</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-overwrite"><a href="_native_io_.inputstream.html#constructor" class="tsd-kind-icon">constructor</a></li>
-							</ul>
-						</section>
-						<section class="tsd-index-section tsd-is-private tsd-is-private-protected">
-							<h3>Properties</h3>
-							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><a href="_native_io_.inputstream.html#source" class="tsd-kind-icon">source</a></li>
 							</ul>
 						</section>
 						<section class="tsd-index-section tsd-is-inherited">
@@ -126,9 +117,9 @@
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
-								<p>Overrides <a href="_native_native_resource_.nativeresource.html">NativeResource</a>.<a href="_native_native_resource_.nativeresource.html#constructor">constructor</a></p>
+								<p>Overrides NativeResource.__constructor</p>
 								<ul>
-									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/io.ts#L87">lib/native/io.ts:87</a></li>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/io.ts#L96">lib/native/io.ts:96</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-parameters-title">Parameters</h4>
@@ -142,19 +133,6 @@
 					</ul>
 				</section>
 			</section>
-			<section class="tsd-panel-group tsd-member-group tsd-is-private tsd-is-private-protected">
-				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-private">
-					<a name="source" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagPrivate">Private</span> source</h3>
-					<div class="tsd-signature tsd-kind-icon">source<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Readable</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/io.ts#L88">lib/native/io.ts:88</a></li>
-						</ul>
-					</aside>
-				</section>
-			</section>
 			<section class="tsd-panel-group tsd-member-group tsd-is-inherited">
 				<h2>Methods</h2>
 				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
@@ -166,9 +144,9 @@
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
-								<p>Inherited from <a href="_native_native_resource_.nativeresource.html">NativeResource</a>.<a href="_native_native_resource_.nativeresource.html#native_handle">native_handle</a></p>
+								<p>Inherited from NativeResource.native_handle</p>
 								<ul>
-									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/native_resource.ts#L21">lib/native/native_resource.ts:21</a></li>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/native_resource.ts#L22">lib/native/native_resource.ts:22</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">any</span></h4>
@@ -183,8 +161,62 @@
 					<li class="globals  ">
 						<a href="../globals.html"><em>Globals</em></a>
 					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_crypto_.html">&quot;common/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_event_.html">&quot;common/event&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_http_.html">&quot;common/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_io_.html">&quot;common/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_platform_.html">&quot;common/platform&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_resource_safety_.html">&quot;common/resource_<wbr>safety&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_index_.html">&quot;index&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_auth_.html">&quot;native/auth&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_aws_iot_.html">&quot;native/aws_<wbr>iot&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_.html">&quot;native/binding&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crt_.html">&quot;native/crt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crypto_.html">&quot;native/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_error_.html">&quot;native/error&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_http_.html">&quot;native/http&quot;</a>
+					</li>
 					<li class="current tsd-kind-module">
 						<a href="../modules/_native_io_.html">&quot;native/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_mqtt_.html">&quot;native/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_native_resource_.html">&quot;native/native_<wbr>resource&quot;</a>
 					</li>
 				</ul>
 			</nav>
@@ -215,9 +247,6 @@
 						<ul>
 							<li class=" tsd-kind-constructor tsd-parent-kind-class tsd-is-overwrite">
 								<a href="_native_io_.inputstream.html#constructor" class="tsd-kind-icon">constructor</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-class tsd-is-private">
-								<a href="_native_io_.inputstream.html#source" class="tsd-kind-icon">source</a>
 							</li>
 							<li class=" tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
 								<a href="_native_io_.inputstream.html#native_handle" class="tsd-kind-icon">native_<wbr>handle</a>
@@ -267,11 +296,9 @@
 				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
 				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
 				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
 			</ul>
 			<ul class="tsd-legend">
@@ -282,9 +309,6 @@
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
 			</ul>
 		</div>
 	</div>

@@ -1,0 +1,1878 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>&quot;native/binding.d&quot; | aws-crt - v1.0.0-dev</title>
+	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">aws-crt - v1.0.0-dev</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../globals.html">Globals</a>
+				</li>
+				<li>
+					<a href="_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+				</li>
+			</ul>
+			<h1>Module &quot;native/binding.d&quot;</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Enumerations</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-enum tsd-parent-kind-module"><a href="../enums/_native_binding_d_.awsbodysigningconfigtype.html" class="tsd-kind-icon">Aws<wbr>Body<wbr>Signing<wbr>Config<wbr>Type</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Classes</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-class tsd-parent-kind-module"><a href="../classes/_native_binding_d_.awscredentialsprovider.html" class="tsd-kind-icon">Aws<wbr>Credentials<wbr>Provider</a></li>
+								<li class="tsd-kind-class tsd-parent-kind-module"><a href="../classes/_native_binding_d_.httpheaders.html" class="tsd-kind-icon">Http<wbr>Headers</a></li>
+								<li class="tsd-kind-class tsd-parent-kind-module"><a href="../classes/_native_binding_d_.httprequest.html" class="tsd-kind-icon">Http<wbr>Request</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Interfaces</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/_native_binding_d_.awssigningconfig.html" class="tsd-kind-icon">Aws<wbr>Signing<wbr>Config</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Type aliases</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="_native_binding_d_.html#nativehandle" class="tsd-kind-icon">Native<wbr>Handle</a></li>
+								<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="_native_binding_d_.html#stringlike" class="tsd-kind-icon">String<wbr>Like</a></li>
+								<li class="tsd-kind-type-alias tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_on_connect" class="tsd-kind-icon">mqtt_<wbr>on_<wbr>connect</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Functions</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#aws_sign_request" class="tsd-kind-icon">aws_<wbr>sign_<wbr>request</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#error_code_to_name" class="tsd-kind-icon">error_<wbr>code_<wbr>to_<wbr>name</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#error_code_to_string" class="tsd-kind-icon">error_<wbr>code_<wbr>to_<wbr>string</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hash_digest" class="tsd-kind-icon">hash_<wbr>digest</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hash_md5_compute" class="tsd-kind-icon">hash_<wbr>md5_<wbr>compute</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hash_md5_new" class="tsd-kind-icon">hash_<wbr>md5_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hash_sha256_compute" class="tsd-kind-icon">hash_<wbr>sha256_<wbr>compute</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hash_sha256_new" class="tsd-kind-icon">hash_<wbr>sha256_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hash_update" class="tsd-kind-icon">hash_<wbr>update</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hmac_digest" class="tsd-kind-icon">hmac_<wbr>digest</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hmac_md5_compute" class="tsd-kind-icon">hmac_<wbr>md5_<wbr>compute</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hmac_md5_new" class="tsd-kind-icon">hmac_<wbr>md5_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hmac_sha256_compute" class="tsd-kind-icon">hmac_<wbr>sha256_<wbr>compute</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hmac_sha256_new" class="tsd-kind-icon">hmac_<wbr>sha256_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#hmac_update" class="tsd-kind-icon">hmac_<wbr>update</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_connection_close" class="tsd-kind-icon">http_<wbr>connection_<wbr>close</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_connection_manager_acquire" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>acquire</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_connection_manager_close" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>close</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_connection_manager_new" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_connection_manager_release" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>release</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_connection_new" class="tsd-kind-icon">http_<wbr>connection_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_proxy_options_new" class="tsd-kind-icon">http_<wbr>proxy_<wbr>options_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_stream_activate" class="tsd-kind-icon">http_<wbr>stream_<wbr>activate</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_stream_close" class="tsd-kind-icon">http_<wbr>stream_<wbr>close</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#http_stream_new" class="tsd-kind-icon">http_<wbr>stream_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_client_bootstrap_new" class="tsd-kind-icon">io_<wbr>client_<wbr>bootstrap_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_input_stream_append" class="tsd-kind-icon">io_<wbr>input_<wbr>stream_<wbr>append</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_input_stream_new" class="tsd-kind-icon">io_<wbr>input_<wbr>stream_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_logging_enable" class="tsd-kind-icon">io_<wbr>logging_<wbr>enable</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_socket_options_new" class="tsd-kind-icon">io_<wbr>socket_<wbr>options_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_tls_connection_options_new" class="tsd-kind-icon">io_<wbr>tls_<wbr>connection_<wbr>options_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#io_tls_ctx_new" class="tsd-kind-icon">io_<wbr>tls_<wbr>ctx_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#is_alpn_available" class="tsd-kind-icon">is_<wbr>alpn_<wbr>available</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_close" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>close</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_connect" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>connect</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_disconnect" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>disconnect</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_new" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_on_message" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>on_<wbr>message</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_publish" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>publish</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_reconnect" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>reconnect</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_subscribe" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>subscribe</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_connection_unsubscribe" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>unsubscribe</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#mqtt_client_new" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>new</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#native_memory" class="tsd-kind-icon">native_<wbr>memory</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-module"><a href="_native_binding_d_.html#native_memory_dump" class="tsd-kind-icon">native_<wbr>memory_<wbr>dump</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Type aliases</h2>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-parent-kind-module">
+					<a name="nativehandle" class="tsd-anchor"></a>
+					<h3>Native<wbr>Handle</h3>
+					<div class="tsd-signature tsd-kind-icon">Native<wbr>Handle<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">any</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L20">lib/native/binding.d.ts:20</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-parent-kind-module">
+					<a name="stringlike" class="tsd-anchor"></a>
+					<h3>String<wbr>Like</h3>
+					<div class="tsd-signature tsd-kind-icon">String<wbr>Like<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">DataView</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L21">lib/native/binding.d.ts:21</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-parent-kind-module">
+					<a name="mqtt_on_connect" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>on_<wbr>connect</h3>
+					<div class="tsd-signature tsd-kind-icon">mqtt_<wbr>on_<wbr>connect<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, return_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, session_present<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L91">lib/native/binding.d.ts:91</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+							<li class="tsd-parameter-signature">
+								<ul class="tsd-signatures tsd-kind-type-literal tsd-parent-kind-type-alias">
+									<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, return_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, session_present<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+								</ul>
+								<ul class="tsd-descriptions">
+									<li class="tsd-description">
+										<h4 class="tsd-parameters-title">Parameters</h4>
+										<ul class="tsd-parameters">
+											<li>
+												<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+											</li>
+											<li>
+												<h5>return_code: <span class="tsd-signature-type">number</span></h5>
+											</li>
+											<li>
+												<h5>session_present: <span class="tsd-signature-type">boolean</span></h5>
+											</li>
+										</ul>
+										<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+									</li>
+								</ul>
+							</li>
+						</ul>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Functions</h2>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="aws_sign_request" class="tsd-anchor"></a>
+					<h3>aws_<wbr>sign_<wbr>request</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">aws_<wbr>sign_<wbr>request<span class="tsd-signature-symbol">(</span>request<span class="tsd-signature-symbol">: </span><a href="../classes/_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a>, config<span class="tsd-signature-symbol">: </span><a href="../interfaces/_native_binding_d_.awssigningconfig.html" class="tsd-signature-type">AwsSigningConfig</a>, on_complete<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L259">lib/native/binding.d.ts:259</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>request: <a href="../classes/_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a></h5>
+								</li>
+								<li>
+									<h5>config: <a href="../interfaces/_native_binding_d_.awssigningconfig.html" class="tsd-signature-type">AwsSigningConfig</a></h5>
+								</li>
+								<li>
+									<h5>on_complete: <span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="error_code_to_name" class="tsd-anchor"></a>
+					<h3>error_<wbr>code_<wbr>to_<wbr>name</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">error_<wbr>code_<wbr>to_<wbr>name<span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L27">lib/native/binding.d.ts:27</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="error_code_to_string" class="tsd-anchor"></a>
+					<h3>error_<wbr>code_<wbr>to_<wbr>string</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">error_<wbr>code_<wbr>to_<wbr>string<span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L26">lib/native/binding.d.ts:26</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hash_digest" class="tsd-anchor"></a>
+					<h3>hash_<wbr>digest</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hash_<wbr>digest<span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, truncate_to<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L74">lib/native/binding.d.ts:74</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>handle: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> truncate_to: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hash_md5_compute" class="tsd-anchor"></a>
+					<h3>hash_<wbr>md5_<wbr>compute</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hash_<wbr>md5_<wbr>compute<span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, truncate_to<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L76">lib/native/binding.d.ts:76</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>data: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> truncate_to: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hash_md5_new" class="tsd-anchor"></a>
+					<h3>hash_<wbr>md5_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hash_<wbr>md5_<wbr>new<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L71">lib/native/binding.d.ts:71</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hash_sha256_compute" class="tsd-anchor"></a>
+					<h3>hash_<wbr>sha256_<wbr>compute</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hash_<wbr>sha256_<wbr>compute<span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, truncate_to<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L77">lib/native/binding.d.ts:77</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>data: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> truncate_to: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hash_sha256_new" class="tsd-anchor"></a>
+					<h3>hash_<wbr>sha256_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hash_<wbr>sha256_<wbr>new<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L72">lib/native/binding.d.ts:72</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hash_update" class="tsd-anchor"></a>
+					<h3>hash_<wbr>update</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hash_<wbr>update<span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, data<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L73">lib/native/binding.d.ts:73</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>handle: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>data: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hmac_digest" class="tsd-anchor"></a>
+					<h3>hmac_<wbr>digest</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hmac_<wbr>digest<span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, truncate_to<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L82">lib/native/binding.d.ts:82</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>handle: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> truncate_to: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hmac_md5_compute" class="tsd-anchor"></a>
+					<h3>hmac_<wbr>md5_<wbr>compute</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hmac_<wbr>md5_<wbr>compute<span class="tsd-signature-symbol">(</span>secret<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, data<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, truncate_to<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L84">lib/native/binding.d.ts:84</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>secret: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>data: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> truncate_to: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hmac_md5_new" class="tsd-anchor"></a>
+					<h3>hmac_<wbr>md5_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hmac_<wbr>md5_<wbr>new<span class="tsd-signature-symbol">(</span>secret<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L79">lib/native/binding.d.ts:79</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>secret: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hmac_sha256_compute" class="tsd-anchor"></a>
+					<h3>hmac_<wbr>sha256_<wbr>compute</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hmac_<wbr>sha256_<wbr>compute<span class="tsd-signature-symbol">(</span>secret<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, data<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, truncate_to<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">DataView</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L85">lib/native/binding.d.ts:85</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>secret: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>data: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> truncate_to: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">DataView</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hmac_sha256_new" class="tsd-anchor"></a>
+					<h3>hmac_<wbr>sha256_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hmac_<wbr>sha256_<wbr>new<span class="tsd-signature-symbol">(</span>secret<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L80">lib/native/binding.d.ts:80</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>secret: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="hmac_update" class="tsd-anchor"></a>
+					<h3>hmac_<wbr>update</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">hmac_<wbr>update<span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, data<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L81">lib/native/binding.d.ts:81</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>handle: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>data: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_connection_close" class="tsd-anchor"></a>
+					<h3>http_<wbr>connection_<wbr>close</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>connection_<wbr>close<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L164">lib/native/binding.d.ts:164</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_connection_manager_acquire" class="tsd-anchor"></a>
+					<h3>http_<wbr>connection_<wbr>manager_<wbr>acquire</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>acquire<span class="tsd-signature-symbol">(</span>manager<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_acquired<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L188">lib/native/binding.d.ts:188</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>manager: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>on_acquired: <span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>handle: <span class="tsd-signature-type">any</span></h5>
+														</li>
+														<li>
+															<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_connection_manager_close" class="tsd-anchor"></a>
+					<h3>http_<wbr>connection_<wbr>manager_<wbr>close</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>close<span class="tsd-signature-symbol">(</span>manager<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L187">lib/native/binding.d.ts:187</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>manager: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_connection_manager_new" class="tsd-anchor"></a>
+					<h3>http_<wbr>connection_<wbr>manager_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>new<span class="tsd-signature-symbol">(</span>bootstrap<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, host<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, port<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, max_connections<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, window_size<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, socket_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, tls_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, proxy_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_shutdown<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L176">lib/native/binding.d.ts:176</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>bootstrap: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>host: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>port: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>max_connections: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>window_size: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> socket_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> tls_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> proxy_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_shutdown: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_connection_manager_release" class="tsd-anchor"></a>
+					<h3>http_<wbr>connection_<wbr>manager_<wbr>release</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>release<span class="tsd-signature-symbol">(</span>manager<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L192">lib/native/binding.d.ts:192</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>manager: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_connection_new" class="tsd-anchor"></a>
+					<h3>http_<wbr>connection_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>connection_<wbr>new<span class="tsd-signature-symbol">(</span>bootstrap<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_setup<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span>, on_shutdown<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span>, host_name<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, port<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, socket_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, tls_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, proxy_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L154">lib/native/binding.d.ts:154</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>bootstrap: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>on_setup: <span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>handle: <span class="tsd-signature-type">any</span></h5>
+														</li>
+														<li>
+															<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+								<li>
+									<h5>on_shutdown: <span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>handle<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>handle: <span class="tsd-signature-type">any</span></h5>
+														</li>
+														<li>
+															<h5>error_code: <span class="tsd-signature-type">number</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+								<li>
+									<h5>host_name: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>port: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> socket_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> tls_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> proxy_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_proxy_options_new" class="tsd-anchor"></a>
+					<h3>http_<wbr>proxy_<wbr>options_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>proxy_<wbr>options_<wbr>new<span class="tsd-signature-symbol">(</span>host_name<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, port<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, auth_method<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span>, username<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, password<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, tls_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L145">lib/native/binding.d.ts:145</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>host_name: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>port: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> auth_method: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> username: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> password: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> tls_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_stream_activate" class="tsd-anchor"></a>
+					<h3>http_<wbr>stream_<wbr>activate</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>stream_<wbr>activate<span class="tsd-signature-symbol">(</span>stream<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L173">lib/native/binding.d.ts:173</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>stream: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_stream_close" class="tsd-anchor"></a>
+					<h3>http_<wbr>stream_<wbr>close</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>stream_<wbr>close<span class="tsd-signature-symbol">(</span>stream<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L174">lib/native/binding.d.ts:174</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>stream: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="http_stream_new" class="tsd-anchor"></a>
+					<h3>http_<wbr>stream_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">http_<wbr>stream_<wbr>new<span class="tsd-signature-symbol">(</span>stream<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, request<span class="tsd-signature-symbol">: </span><a href="../classes/_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a>, on_complete<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span>, on_response<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>status_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Number</span>, headers<span class="tsd-signature-symbol">: </span><a href="_common_http_.html#httpheader" class="tsd-signature-type">HttpHeader</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span>, on_body<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L166">lib/native/binding.d.ts:166</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>stream: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>request: <a href="../classes/_native_binding_d_.httprequest.html" class="tsd-signature-type">HttpRequest</a></h5>
+								</li>
+								<li>
+									<h5>on_complete: <span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>error_code: <span class="tsd-signature-type">Number</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+								<li>
+									<h5>on_response: <span class="tsd-signature-symbol">(</span>status_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Number</span>, headers<span class="tsd-signature-symbol">: </span><a href="_common_http_.html#httpheader" class="tsd-signature-type">HttpHeader</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>status_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Number</span>, headers<span class="tsd-signature-symbol">: </span><a href="_common_http_.html#httpheader" class="tsd-signature-type">HttpHeader</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>status_code: <span class="tsd-signature-type">Number</span></h5>
+														</li>
+														<li>
+															<h5>headers: <a href="_common_http_.html#httpheader" class="tsd-signature-type">HttpHeader</a><span class="tsd-signature-symbol">[]</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+								<li>
+									<h5>on_body: <span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></h5>
+									<ul class="tsd-parameters">
+										<li class="tsd-parameter-signature">
+											<ul class="tsd-signatures tsd-kind-type-literal">
+												<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+											</ul>
+											<ul class="tsd-descriptions">
+												<li class="tsd-description">
+													<h4 class="tsd-parameters-title">Parameters</h4>
+													<ul class="tsd-parameters">
+														<li>
+															<h5>data: <span class="tsd-signature-type">ArrayBuffer</span></h5>
+														</li>
+													</ul>
+													<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_client_bootstrap_new" class="tsd-anchor"></a>
+					<h3>io_<wbr>client_<wbr>bootstrap_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>client_<wbr>bootstrap_<wbr>new<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L33">lib/native/binding.d.ts:33</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_input_stream_append" class="tsd-anchor"></a>
+					<h3>io_<wbr>input_<wbr>stream_<wbr>append</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>input_<wbr>stream_<wbr>append<span class="tsd-signature-symbol">(</span>stream<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, data<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L67">lib/native/binding.d.ts:67</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>stream: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> data: <span class="tsd-signature-type">Buffer</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_input_stream_new" class="tsd-anchor"></a>
+					<h3>io_<wbr>input_<wbr>stream_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>input_<wbr>stream_<wbr>new<span class="tsd-signature-symbol">(</span>capacity<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L66">lib/native/binding.d.ts:66</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>capacity: <span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_logging_enable" class="tsd-anchor"></a>
+					<h3>io_<wbr>logging_<wbr>enable</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>logging_<wbr>enable<span class="tsd-signature-symbol">(</span>log_level<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L30">lib/native/binding.d.ts:30</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>log_level: <span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_socket_options_new" class="tsd-anchor"></a>
+					<h3>io_<wbr>socket_<wbr>options_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>socket_<wbr>options_<wbr>new<span class="tsd-signature-symbol">(</span>type<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, domain<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, connect_timeout_ms<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, keep_alive_interval_sec<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, keep_alive_timeout_sec<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, keep_alive_max_failed_probes<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, keepalive<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L56">lib/native/binding.d.ts:56</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>type: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>domain: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>connect_timeout_ms: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>keep_alive_interval_sec: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>keep_alive_timeout_sec: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>keep_alive_max_failed_probes: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>keepalive: <span class="tsd-signature-type">boolean</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_tls_connection_options_new" class="tsd-anchor"></a>
+					<h3>io_<wbr>tls_<wbr>connection_<wbr>options_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>tls_<wbr>connection_<wbr>options_<wbr>new<span class="tsd-signature-symbol">(</span>tls_ctx<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, server_name<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, alpn_list<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L50">lib/native/binding.d.ts:50</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>tls_ctx: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> server_name: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> alpn_list: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="io_tls_ctx_new" class="tsd-anchor"></a>
+					<h3>io_<wbr>tls_<wbr>ctx_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">io_<wbr>tls_<wbr>ctx_<wbr>new<span class="tsd-signature-symbol">(</span>min_tls_version<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, ca_filepath<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, ca_dirpath<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, certificate_authority<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, alpn_list<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, certificate_filepath<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, certificate<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, private_key_filepath<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, private_key<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, pkcs12_filepath<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, pkcs12_password<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, verify_peer<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L35">lib/native/binding.d.ts:35</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>min_tls_version: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> ca_filepath: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> ca_dirpath: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> certificate_authority: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> alpn_list: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> certificate_filepath: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> certificate: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> private_key_filepath: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> private_key: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> pkcs12_filepath: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> pkcs12_password: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> verify_peer: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="is_alpn_available" class="tsd-anchor"></a>
+					<h3>is_<wbr>alpn_<wbr>available</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">is_<wbr>alpn_<wbr>available<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L31">lib/native/binding.d.ts:31</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_close" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>close</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>close<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L141">lib/native/binding.d.ts:141</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_connect" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>connect</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>connect<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, client_id<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, server_name<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, port<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, tls_ctx<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, socket_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, keep_alive_time<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span>, timeout<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span>, will<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>payload<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">String</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Object</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">DataView</span><span class="tsd-signature-symbol">; </span>qos<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>retain<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">; </span>topic<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol"> }</span>, username<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, password<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, use_websocket<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span>, proxy_options<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, clean_session<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span>, on_connect<span class="tsd-signature-symbol">?: </span><a href="_native_binding_d_.html#mqtt_on_connect" class="tsd-signature-type">mqtt_on_connect</a>, websocket_handshake_transform<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>request<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, done<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L97">lib/native/binding.d.ts:97</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>client_id: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>server_name: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>port: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> tls_ctx: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> socket_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> keep_alive_time: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> timeout: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> will: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>payload<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">String</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Object</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">DataView</span><span class="tsd-signature-symbol">; </span>qos<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>retain<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">; </span>topic<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a><span class="tsd-signature-symbol"> }</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> username: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> password: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> use_websocket: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> proxy_options: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> clean_session: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_connect: <a href="_native_binding_d_.html#mqtt_on_connect" class="tsd-signature-type">mqtt_on_connect</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> websocket_handshake_transform: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>request<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, done<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_disconnect" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>disconnect</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>disconnect<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_disconnect<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L140">lib/native/binding.d.ts:140</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_disconnect: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_new" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>new<span class="tsd-signature-symbol">(</span>client<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_interrupted<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span>, on_resumed<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>return_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, session_present<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L92">lib/native/binding.d.ts:92</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>client: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_interrupted: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_resumed: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>return_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, session_present<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_on_message" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>on_<wbr>message</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>on_<wbr>message<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_publish<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>topic<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, payload<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L131">lib/native/binding.d.ts:131</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_publish: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>topic<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, payload<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_publish" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>publish</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>publish<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, topic<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, payload<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, qos<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, retain<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span>, on_publish<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>packet_id<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L116">lib/native/binding.d.ts:116</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>topic: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>payload: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>qos: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>retain: <span class="tsd-signature-type">boolean</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_publish: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>packet_id<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_reconnect" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>reconnect</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>reconnect<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, on_connect<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#mqtt_on_connect" class="tsd-signature-type">mqtt_on_connect</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L115">lib/native/binding.d.ts:115</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>on_connect: <a href="_native_binding_d_.html#mqtt_on_connect" class="tsd-signature-type">mqtt_on_connect</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_subscribe" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>subscribe</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>subscribe<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, topic<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, qos<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, on_publish<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>topic<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, payload<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span>, on_suback<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>packet_id<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, topic<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, qos<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L124">lib/native/binding.d.ts:124</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>topic: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5>qos: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_publish: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>topic<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, payload<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_suback: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>packet_id<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, topic<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, qos<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_connection_unsubscribe" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>connection_<wbr>unsubscribe</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>unsubscribe<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a>, topic<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a>, on_unsuback<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>packet_id<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L135">lib/native/binding.d.ts:135</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+								<li>
+									<h5>topic: <a href="_native_binding_d_.html#stringlike" class="tsd-signature-type">StringLike</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> on_unsuback: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>packet_id<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, error_code<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="mqtt_client_new" class="tsd-anchor"></a>
+					<h3>mqtt_<wbr>client_<wbr>new</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">mqtt_<wbr>client_<wbr>new<span class="tsd-signature-symbol">(</span>client_bootstrap<span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L88">lib/native/binding.d.ts:88</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>client_bootstrap: <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="_native_binding_d_.html#nativehandle" class="tsd-signature-type">NativeHandle</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="native_memory" class="tsd-anchor"></a>
+					<h3>native_<wbr>memory</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">native_<wbr>memory<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L24">lib/native/binding.d.ts:24</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-module">
+					<a name="native_memory_dump" class="tsd-anchor"></a>
+					<h3>native_<wbr>memory_<wbr>dump</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
+						<li class="tsd-signature tsd-kind-icon">native_<wbr>memory_<wbr>dump<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/binding.d.ts#L25">lib/native/binding.d.ts:25</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class="globals  ">
+						<a href="../globals.html"><em>Globals</em></a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_crypto_.html">&quot;common/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_event_.html">&quot;common/event&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_http_.html">&quot;common/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_io_.html">&quot;common/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_platform_.html">&quot;common/platform&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_common_resource_safety_.html">&quot;common/resource_<wbr>safety&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_index_.html">&quot;index&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_auth_.html">&quot;native/auth&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_aws_iot_.html">&quot;native/aws_<wbr>iot&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_binding_.html">&quot;native/binding&quot;</a>
+					</li>
+					<li class="current tsd-kind-module">
+						<a href="_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_crt_.html">&quot;native/crt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_crypto_.html">&quot;native/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_error_.html">&quot;native/error&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_http_.html">&quot;native/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_io_.html">&quot;native/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_mqtt_.html">&quot;native/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="_native_native_resource_.html">&quot;native/native_<wbr>resource&quot;</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-enum tsd-parent-kind-module">
+						<a href="../enums/_native_binding_d_.awsbodysigningconfigtype.html" class="tsd-kind-icon">Aws<wbr>Body<wbr>Signing<wbr>Config<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-class tsd-parent-kind-module">
+						<a href="../classes/_native_binding_d_.awscredentialsprovider.html" class="tsd-kind-icon">Aws<wbr>Credentials<wbr>Provider</a>
+					</li>
+					<li class=" tsd-kind-class tsd-parent-kind-module">
+						<a href="../classes/_native_binding_d_.httpheaders.html" class="tsd-kind-icon">Http<wbr>Headers</a>
+					</li>
+					<li class=" tsd-kind-class tsd-parent-kind-module">
+						<a href="../classes/_native_binding_d_.httprequest.html" class="tsd-kind-icon">Http<wbr>Request</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-module">
+						<a href="../interfaces/_native_binding_d_.awssigningconfig.html" class="tsd-kind-icon">Aws<wbr>Signing<wbr>Config</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#nativehandle" class="tsd-kind-icon">Native<wbr>Handle</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#stringlike" class="tsd-kind-icon">String<wbr>Like</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_on_connect" class="tsd-kind-icon">mqtt_<wbr>on_<wbr>connect</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#aws_sign_request" class="tsd-kind-icon">aws_<wbr>sign_<wbr>request</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#error_code_to_name" class="tsd-kind-icon">error_<wbr>code_<wbr>to_<wbr>name</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#error_code_to_string" class="tsd-kind-icon">error_<wbr>code_<wbr>to_<wbr>string</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hash_digest" class="tsd-kind-icon">hash_<wbr>digest</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hash_md5_compute" class="tsd-kind-icon">hash_<wbr>md5_<wbr>compute</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hash_md5_new" class="tsd-kind-icon">hash_<wbr>md5_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hash_sha256_compute" class="tsd-kind-icon">hash_<wbr>sha256_<wbr>compute</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hash_sha256_new" class="tsd-kind-icon">hash_<wbr>sha256_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hash_update" class="tsd-kind-icon">hash_<wbr>update</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hmac_digest" class="tsd-kind-icon">hmac_<wbr>digest</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hmac_md5_compute" class="tsd-kind-icon">hmac_<wbr>md5_<wbr>compute</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hmac_md5_new" class="tsd-kind-icon">hmac_<wbr>md5_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hmac_sha256_compute" class="tsd-kind-icon">hmac_<wbr>sha256_<wbr>compute</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hmac_sha256_new" class="tsd-kind-icon">hmac_<wbr>sha256_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#hmac_update" class="tsd-kind-icon">hmac_<wbr>update</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_connection_close" class="tsd-kind-icon">http_<wbr>connection_<wbr>close</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_connection_manager_acquire" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>acquire</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_connection_manager_close" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>close</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_connection_manager_new" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_connection_manager_release" class="tsd-kind-icon">http_<wbr>connection_<wbr>manager_<wbr>release</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_connection_new" class="tsd-kind-icon">http_<wbr>connection_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_proxy_options_new" class="tsd-kind-icon">http_<wbr>proxy_<wbr>options_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_stream_activate" class="tsd-kind-icon">http_<wbr>stream_<wbr>activate</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_stream_close" class="tsd-kind-icon">http_<wbr>stream_<wbr>close</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#http_stream_new" class="tsd-kind-icon">http_<wbr>stream_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_client_bootstrap_new" class="tsd-kind-icon">io_<wbr>client_<wbr>bootstrap_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_input_stream_append" class="tsd-kind-icon">io_<wbr>input_<wbr>stream_<wbr>append</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_input_stream_new" class="tsd-kind-icon">io_<wbr>input_<wbr>stream_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_logging_enable" class="tsd-kind-icon">io_<wbr>logging_<wbr>enable</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_socket_options_new" class="tsd-kind-icon">io_<wbr>socket_<wbr>options_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_tls_connection_options_new" class="tsd-kind-icon">io_<wbr>tls_<wbr>connection_<wbr>options_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#io_tls_ctx_new" class="tsd-kind-icon">io_<wbr>tls_<wbr>ctx_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#is_alpn_available" class="tsd-kind-icon">is_<wbr>alpn_<wbr>available</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_close" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>close</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_connect" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>connect</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_disconnect" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>disconnect</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_new" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_on_message" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>on_<wbr>message</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_publish" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>publish</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_reconnect" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>reconnect</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_subscribe" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>subscribe</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_connection_unsubscribe" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>connection_<wbr>unsubscribe</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#mqtt_client_new" class="tsd-kind-icon">mqtt_<wbr>client_<wbr>new</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#native_memory" class="tsd-kind-icon">native_<wbr>memory</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-module">
+						<a href="_native_binding_d_.html#native_memory_dump" class="tsd-kind-icon">native_<wbr>memory_<wbr>dump</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
+				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
+				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+<script>if (location.protocol == 'file:') document.write('<script src="../assets/js/search.js"><' + '/script>');</script>
+</body>
+</html>

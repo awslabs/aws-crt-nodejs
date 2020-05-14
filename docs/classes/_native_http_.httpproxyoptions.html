@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>HttpProxyOptions | aws-crt</title>
-	<meta name="description" content="Documentation for aws-crt">
+	<title>HttpProxyOptions | aws-crt - v1.0.0-dev</title>
+	<meta name="description" content="Documentation for aws-crt - v1.0.0-dev">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
 </head>
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">aws-crt</a>
+					<a href="../index.html" class="title">aws-crt - v1.0.0-dev</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -38,10 +38,6 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
-							<input type="checkbox" id="tsd-filter-externals" checked />
-							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
-							<input type="checkbox" id="tsd-filter-only-exported" />
-							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -69,6 +65,13 @@
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>Proxy options for HTTP clients.</p>
+					</div>
+				</div>
+			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
@@ -103,12 +106,6 @@
 								<li class="tsd-kind-property tsd-parent-kind-class"><a href="_native_http_.httpproxyoptions.html#tls_opts" class="tsd-kind-icon">tls_<wbr>opts</a></li>
 							</ul>
 						</section>
-						<section class="tsd-index-section ">
-							<h3>Methods</h3>
-							<ul class="tsd-index-list">
-								<li class="tsd-kind-method tsd-parent-kind-class"><a href="_native_http_.httpproxyoptions.html#create_native_handle" class="tsd-kind-icon">create_<wbr>native_<wbr>handle</a></li>
-							</ul>
-						</section>
 					</div>
 				</section>
 			</section>
@@ -125,28 +122,62 @@
 							<aside class="tsd-sources">
 								<p>Overrides <a href="_common_http_.httpproxyoptions.html">HttpProxyOptions</a>.<a href="_common_http_.httpproxyoptions.html#constructor">constructor</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/http.ts#L64">lib/native/http.ts:64</a></li>
+									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/http.ts#L71">lib/native/http.ts:71</a></li>
 								</ul>
 							</aside>
+							<div class="tsd-comment tsd-typography">
+							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
 									<h5>host_name: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<div class="lead">
+											<p>Name of the proxy server to connect through</p>
+										</div>
+									</div>
 								</li>
 								<li>
 									<h5>port: <span class="tsd-signature-type">number</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<div class="lead">
+											<p>Port number of the proxy server to connect through</p>
+										</div>
+									</div>
 								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> auth_method: <a href="../enums/_common_http_.httpproxyauthenticationtype.html" class="tsd-signature-type">HttpProxyAuthenticationType</a><span class="tsd-signature-symbol"> = HttpProxyAuthenticationType.None</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<div class="lead">
+											<p>Type of proxy authentication to use. Default is <a href="../enums/_common_http_.httpproxyauthenticationtype.html#none">HttpProxyAuthenticationType.None</a></p>
+										</div>
+									</div>
 								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagOptional">Optional</span> auth_username: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<div class="lead">
+											<p>Username to use when <code>auth_type</code> is <a href="../enums/_common_http_.httpproxyauthenticationtype.html#basic">HttpProxyAuthenticationType.Basic</a></p>
+										</div>
+									</div>
 								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagOptional">Optional</span> auth_password: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<div class="lead">
+											<p>Password to use when <code>auth_type</code> is <a href="../enums/_common_http_.httpproxyauthenticationtype.html#basic">HttpProxyAuthenticationType.Basic</a></p>
+										</div>
+									</div>
 								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagOptional">Optional</span> tls_opts: <a href="_native_io_.tlsconnectionoptions.html" class="tsd-signature-type">TlsConnectionOptions</a></h5>
+									<div class="tsd-comment tsd-typography">
+										<div class="lead">
+											<p>Optional TLS connection options for the connection to the proxy host.
+												Must be distinct from the <a href="_native_io_.tlsconnectionoptions.html">TlsConnectionOptions</a> provided to
+											the HTTP connection</p>
+										</div>
+									</div>
 								</li>
 							</ul>
 							<h4 class="tsd-returns-title">Returns <a href="_native_http_.httpproxyoptions.html" class="tsd-signature-type">HttpProxyOptions</a></h4>
@@ -163,7 +194,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="_common_http_.httpproxyoptions.html">HttpProxyOptions</a>.<a href="_common_http_.httpproxyoptions.html#auth_method">auth_method</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/common/http.ts#L88">lib/common/http.ts:88</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/common/http.ts#L104">lib/common/http.ts:104</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -174,7 +205,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="_common_http_.httpproxyoptions.html">HttpProxyOptions</a>.<a href="_common_http_.httpproxyoptions.html#auth_password">auth_password</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/common/http.ts#L90">lib/common/http.ts:90</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/common/http.ts#L106">lib/common/http.ts:106</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -185,7 +216,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="_common_http_.httpproxyoptions.html">HttpProxyOptions</a>.<a href="_common_http_.httpproxyoptions.html#auth_username">auth_username</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/common/http.ts#L89">lib/common/http.ts:89</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/common/http.ts#L105">lib/common/http.ts:105</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -196,7 +227,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="_common_http_.httpproxyoptions.html">HttpProxyOptions</a>.<a href="_common_http_.httpproxyoptions.html#host_name">host_name</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/common/http.ts#L86">lib/common/http.ts:86</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/common/http.ts#L102">lib/common/http.ts:102</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -207,7 +238,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="_common_http_.httpproxyoptions.html">HttpProxyOptions</a>.<a href="_common_http_.httpproxyoptions.html#port">port</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/common/http.ts#L87">lib/common/http.ts:87</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/common/http.ts#L103">lib/common/http.ts:103</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -217,29 +248,16 @@
 					<div class="tsd-signature tsd-kind-icon">tls_<wbr>opts<span class="tsd-signature-symbol">:</span> <a href="_native_io_.tlsconnectionoptions.html" class="tsd-signature-type">TlsConnectionOptions</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/http.ts#L71">lib/native/http.ts:71</a></li>
+							<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/5db7d91/lib/native/http.ts#L89">lib/native/http.ts:89</a></li>
 						</ul>
 					</aside>
-				</section>
-			</section>
-			<section class="tsd-panel-group tsd-member-group ">
-				<h2>Methods</h2>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-					<a name="create_native_handle" class="tsd-anchor"></a>
-					<h3>create_<wbr>native_<wbr>handle</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">create_<wbr>native_<wbr>handle<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/awslabs/aws-crt-nodejs/blob/11192fd/lib/native/http.ts#L76">lib/native/http.ts:76</a></li>
-								</ul>
-							</aside>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">any</span></h4>
-						</li>
-					</ul>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Optional TLS connection options for the connection to the proxy host.
+								Must be distinct from the <a href="_native_io_.tlsconnectionoptions.html">TlsConnectionOptions</a> provided to
+							the HTTP connection</p>
+						</div>
+					</div>
 				</section>
 			</section>
 		</div>
@@ -249,8 +267,62 @@
 					<li class="globals  ">
 						<a href="../globals.html"><em>Globals</em></a>
 					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_crypto_.html">&quot;common/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_event_.html">&quot;common/event&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_http_.html">&quot;common/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_io_.html">&quot;common/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_mqtt_.html">&quot;common/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_platform_.html">&quot;common/platform&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_common_resource_safety_.html">&quot;common/resource_<wbr>safety&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_index_.html">&quot;index&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_auth_.html">&quot;native/auth&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_aws_iot_.html">&quot;native/aws_<wbr>iot&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_.html">&quot;native/binding&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_binding_d_.html">&quot;native/binding.d&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crt_.html">&quot;native/crt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_crypto_.html">&quot;native/crypto&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_error_.html">&quot;native/error&quot;</a>
+					</li>
 					<li class="current tsd-kind-module">
 						<a href="../modules/_native_http_.html">&quot;native/http&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_io_.html">&quot;native/io&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_mqtt_.html">&quot;native/mqtt&quot;</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="../modules/_native_native_resource_.html">&quot;native/native_<wbr>resource&quot;</a>
 					</li>
 				</ul>
 			</nav>
@@ -300,14 +372,11 @@
 							<li class=" tsd-kind-property tsd-parent-kind-class">
 								<a href="_native_http_.httpproxyoptions.html#tls_opts" class="tsd-kind-icon">tls_<wbr>opts</a>
 							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class">
-								<a href="_native_http_.httpproxyoptions.html#create_native_handle" class="tsd-kind-icon">create_<wbr>native_<wbr>handle</a>
-							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
-					<li class=" tsd-kind-class tsd-parent-kind-module tsd-is-not-exported">
+					<li class=" tsd-kind-class tsd-parent-kind-module">
 						<a href="_native_http_.httpstream.html" class="tsd-kind-icon">Http<wbr>Stream</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
@@ -336,14 +405,11 @@
 				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
 				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
 				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
 				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>

@@ -17,7 +17,7 @@ import crt_native from './binding';
 import { isNumber } from 'util';
 
 /**
- * Represents an error encountered in native code. Can also be used to convert an error code(Number) into
+ * Represents an error encountered in native code. Can also be used to convert a numeric error code into
  * a human-readable string.
  */
 export class CrtError extends Error {

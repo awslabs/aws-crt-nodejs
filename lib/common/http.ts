@@ -13,8 +13,23 @@
  * permissions and limitations under the License.
  */
 
+ /** HTTP protocol version */
+export enum HttpVersion {
+    Unknown = 0,
+    /** HTTP/1.0 */
+    Http1_0 = 1,
+    /** HTTP/1.1 */
+    Http1_1 = 2,
+    /** HTTP/2 */
+    Http2 = 3,
+}
+
+ /**
+  * Headers are exposed as 2 element arrays: [name, value]
+  */
 export type HttpHeader = [string, string];
 
+/** @internal */
 export interface HttpHeaders {
     readonly length: number;
 
@@ -71,6 +86,7 @@ export interface HttpHeaders {
     */
     [Symbol.iterator](): Iterator<HttpHeader>;
 
+    /** @hidden */
     _flatten(): HttpHeader[];
 }
 

@@ -140,6 +140,7 @@ export class HttpHeaders implements CommonHttpHeaders {
         }
     }
 
+    /** @internal */
     _flatten(): HttpHeader[] {
         let flattened = [];
         for (const pair of this) {

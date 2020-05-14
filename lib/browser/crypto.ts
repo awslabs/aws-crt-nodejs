@@ -20,10 +20,19 @@ import { TextEncoder } from "util";
 export class Md5Hash {
     private hash?: Crypto.WordArray;
     
+    /**
+     * Digests additional data
+     * @param data Additional data to digest
+     */
     update(data: Hashable) {
         this.hash = Crypto.MD5(data.toString(), this.hash ? this.hash.toString() : undefined);
     }
 
+    /**
+     * Completes the hash computation and returns the final digest.
+     *
+     * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+     */
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
@@ -50,10 +59,19 @@ export function hash_md5(data: Hashable, truncate_to?: number): DataView {
 export class Sha256Hash {
     private hash?: Crypto.WordArray;
 
+    /**
+     * Digests additional data
+     * @param data Additional data to digest
+     */
     update(data: Hashable) {
         this.hash = Crypto.SHA256(data.toString(), this.hash ? this.hash.toString() : undefined);
     }
 
+    /**
+    * Completes the hash computation and returns the final digest.
+    *
+    * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+    */
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
@@ -86,10 +104,19 @@ export class Sha256Hmac {
         this.hmac = Crypto.algo.HMAC.create(Crypto.algo.SHA256, secret);
     }
 
+    /**
+     * Digests additional data
+     * @param data Additional data to digest
+     */
     update(data: Hashable) {
         this.hmac.update(data.toString());
     }
 
+    /**
+    * Completes the hash computation and returns the final digest.
+    *
+    * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+    */
     finalize(truncate_to?: number): DataView {
         const digest = this.hmac.finalize();
         const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.length);

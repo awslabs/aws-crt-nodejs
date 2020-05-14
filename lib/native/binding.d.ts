@@ -212,12 +212,21 @@ export class HttpHeaders implements CommonHttpHeaders {
     public _flatten(): HttpHeader[];
 }
 
+/**
+ * Definition for an outgoing HTTP request.
+ *
+ * The request may be transformed (ex: signing the request) before its data is eventually sent.
+ */
 export class HttpRequest {
     constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream);
 
+    /** HTTP request method (verb). Default value is "GET". */
     public method: string;
+    /** HTTP path-and-query value. Default value is "/". */
     public path: string;
+    /** Optional headers. */
     public readonly headers: HttpHeaders;
+    /** Optional body as a stream */
     public body: InputStream;
 }
 
