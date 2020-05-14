@@ -13,8 +13,29 @@
  * permissions and limitations under the License.
  */
 
+ /** 
+  * HTTP protocol version 
+  * 
+  * @category HTTP
+  */
+export enum HttpVersion {
+    Unknown = 0,
+    /** HTTP/1.0 */
+    Http1_0 = 1,
+    /** HTTP/1.1 */
+    Http1_1 = 2,
+    /** HTTP/2 */
+    Http2 = 3,
+}
+
+ /**
+  * Headers are exposed as 2 element arrays: [name, value]
+  * 
+  * @category HTTP
+  */
 export type HttpHeader = [string, string];
 
+/** @internal */
 export interface HttpHeaders {
     readonly length: number;
 
@@ -71,16 +92,26 @@ export interface HttpHeaders {
     */
     [Symbol.iterator](): Iterator<HttpHeader>;
 
+    /** @hidden */
     _flatten(): HttpHeader[];
 }
 
+/**
+ * Proxy authentication types
+ * 
+ * @category HTTP
+ */
 export enum HttpProxyAuthenticationType
 {
     None = 0,
     Basic = 1,
 };
 
-/** Options used when connecting to an HTTP endpoint via a proxy */
+/** 
+ * Options used when connecting to an HTTP endpoint via a proxy 
+ * 
+ * @category HTTP
+ */
 export class HttpProxyOptions {
     constructor(
         public host_name: string,

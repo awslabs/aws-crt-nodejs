@@ -20,6 +20,11 @@ import { InputStream } from './io';
 import { CrtError } from './error';
 import * as axios from 'axios';
 
+/**
+ * A collection of HTTP headers
+ * 
+ * @category HTTP
+ */
 export class HttpHeaders implements CommonHttpHeaders {
     // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
     private headers: { [index: string]: [HttpHeader] } = {};
@@ -140,6 +145,7 @@ export class HttpHeaders implements CommonHttpHeaders {
         }
     }
 
+    /** @internal */
     _flatten(): HttpHeader[] {
         let flattened = [];
         for (const pair of this) {

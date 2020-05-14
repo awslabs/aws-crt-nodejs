@@ -1,0 +1,13 @@
+{
+    "mode": "file",
+    "inputFiles": ["lib"],
+    "exclude": ["lib/native/binding.js"],
+    "out": "docs",
+    "includeDeclarations": true,
+    "excludeExternals": true,
+    "excludeNotExported": true,
+    "excludePrivate": true,
+    "stripInternal": true,
+    "includeVersion": true,
+    "listInvalidSymbolLinks": true
+}

@@ -12,6 +12,7 @@
 * permissions and limitations under the License.
 */
 
+/** @internal */
 export class Node<T> {
     constructor(
         public key?: string,
@@ -20,14 +21,16 @@ export class Node<T> {
     }
 }
 
+/** @internal */
 export type KeySplitter = (key: string) => string[];
+/** @internal */
 export enum TrieOp {
     Insert,
     Delete,
     Find,
 };
 
-
+/** @internal */
 export class Trie<T> {
     protected root = new Node<T>();
     protected split_key: KeySplitter;

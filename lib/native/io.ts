@@ -43,7 +43,10 @@ export function error_code_to_name(error_code: number): string {
     return crt_native.error_code_to_name(error_code);
 }
 
-/** The amount of detail that will be logged */
+/** 
+ * The amount of detail that will be logged 
+ * @category Logging
+ */
 export enum LogLevel {
     /** No logging whatsoever. Equivalent to never calling {@link enable_logging}. */
     NONE = 0,
@@ -66,6 +69,7 @@ export enum LogLevel {
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
  * nodejs only.
+ * @category Logging
  */
 export function enable_logging(level: LogLevel) {
     crt_native.io_logging_enable(level);
@@ -74,15 +78,20 @@ export function enable_logging(level: LogLevel) {
 /**
  * Returns true if ALPN is available on this platform natively
  * @return true if ALPN is supported natively, false otherwise
+ * 
  * nodejs only.
+ * @category TLS
 */
 export function is_alpn_available(): boolean {
     return crt_native.is_alpn_available();
 }
 
 /**
- * Wraps a {@link Readable} for reading by native code, used to stream
+ * Wraps a ```Readable``` for reading by native code, used to stream
  *  data into the AWS CRT libraries.
+ * 
+ * nodejs only.
+ * @category I/O
  */
 export class InputStream extends NativeResource {
     constructor(private source: Readable) {
@@ -103,6 +112,7 @@ export class InputStream extends NativeResource {
  * to be 1 of these per application, in most cases.
  *
  * nodejs only.
+ * @category I/O
  */
 export class ClientBootstrap extends NativeResource {
     constructor() {
@@ -114,6 +124,7 @@ export class ClientBootstrap extends NativeResource {
  * Standard Berkeley socket style options.
  *
  * nodejs only.
+ * @category I/O
 */
 export class SocketOptions extends NativeResource {
     constructor(
@@ -140,6 +151,7 @@ export class SocketOptions extends NativeResource {
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
+ * @category TLS
  */
 export class TlsContextOptions {
     /** Minimum version of TLS to support. Uses OS/system default if unspecified. */
@@ -269,6 +281,7 @@ export class TlsContextOptions {
  * @see ServerTlsContext
  *
  * nodejs only.
+ * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
     constructor(ctx_opt: TlsContextOptions) {
@@ -294,6 +307,7 @@ export abstract class TlsContext extends NativeResource {
  * only.
  *
  * nodejs only.
+ * @category TLS
  */
 export class ClientTlsContext extends TlsContext {
     constructor(ctx_opt?: TlsContextOptions) {
@@ -311,6 +325,7 @@ export class ClientTlsContext extends TlsContext {
  * only.
  *
  * nodejs only.
+ * @category TLS
  */
 export class ServerTlsContext extends TlsContext {
     constructor(ctx_opt?: TlsContextOptions) {
@@ -326,6 +341,7 @@ export class ServerTlsContext extends TlsContext {
  * TLS options that are unique to a given connection using a shared TlsContext.
  *
  * nodejs only.
+ * @category TLS
  */
 export class TlsConnectionOptions extends NativeResource {
     constructor(readonly tls_ctx: TlsContext, readonly server_name?: string, readonly alpn_list: string[] = []) {
