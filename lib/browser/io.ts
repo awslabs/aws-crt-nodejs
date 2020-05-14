@@ -29,6 +29,8 @@ type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
 /** 
  * Wrapper for any sort of body data in requests. As the browser does not implement streaming,
  * this is merely an interface wrapper around a memory buffer.
+ * 
+ * @category I/O
  */
 export class InputStream {
     constructor(public data: BodyData) {
@@ -40,6 +42,7 @@ export class InputStream {
  * Standard Berkeley socket style options.
  *
  * Provided for compatibility with nodejs, but this version is largely unused.
+ * @category I/O
 */
 export class SocketOptions {
     constructor(

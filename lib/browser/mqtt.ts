@@ -23,10 +23,16 @@ import { SocketOptions } from "./io";
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
+/** @category MQTT */
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
+/** @category MQTT */
 export type AWSCredentials = WebsocketUtils.AWSCredentials;
 
-/** Configuration options for an MQTT connection */
+/** 
+ * Configuration options for an MQTT connection 
+ * 
+ * @category MQTT
+ */
 export interface MqttConnectionConfig {
     /**
     * ID to place in CONNECT packet. Must be unique across all devices/clients.
@@ -81,7 +87,11 @@ export interface MqttConnectionConfig {
     credentials?: AWSCredentials;
 }
 
-/** MQTT client */
+/** 
+ * MQTT client 
+ * 
+ * @category MQTT
+ */
 export class MqttClient {
     /**
      * Creates a new {@link MqttClientConnection}
@@ -93,6 +103,9 @@ export class MqttClient {
     }
 }
 
+/**
+ * @category MQTT
+ */
 type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
 
 /** @internal */
@@ -149,7 +162,11 @@ function normalize_payload(payload: Payload) {
     return payload_data;
 }
 
-/** MQTT client connection */
+/** 
+ * MQTT client connection 
+ * 
+ * @category MQTT
+ */
 export class MqttClientConnection extends BufferedEventEmitter {
     private connection: AsyncClient;
     private subscriptions = new TopicTrie();

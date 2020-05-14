@@ -1,6 +1,7 @@
 {
     "mode": "file",
-    "inputFiles": ["lib", "lib/browser"],
+    "inputFiles": ["lib"],
+    "exclude": ["lib/native/binding.js"],
     "out": "docs",
     "includeDeclarations": true,
     "excludeExternals": true,

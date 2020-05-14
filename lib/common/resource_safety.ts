@@ -16,6 +16,8 @@
 /**
  * If you have a resource that you want typescript to enforce close is implemented
  * and/or you want to use the below 'using' function, then implement this interface.
+ * 
+ * @category System
  */ 
 export interface ResourceSafe {
     close(): void;
@@ -31,6 +33,8 @@ export interface ResourceSafe {
  *     res.do_the_thing();
  * });
  * ```
+ * 
+ * @category System
  */
 export async function using<T extends ResourceSafe>(resource : T, func: (resource: T) => void) {
     try {

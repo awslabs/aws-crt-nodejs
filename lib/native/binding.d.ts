@@ -22,6 +22,8 @@ import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
  * @internal
  */
 type NativeHandle = any;
+
+/** @category System */
 type StringLike = string | ArrayBuffer | DataView;
 
 /* common */
@@ -259,23 +261,70 @@ export function http_connection_manager_acquire(
 /** @internal */
 export function http_connection_manager_release(manager: NativeHandle, connection: NativeHandle): void;
 
-/** @internal */
+/**
+ * A collection of HTTP headers
+ *
+ * @category HTTP
+ */
 export class HttpHeaders implements CommonHttpHeaders {
+    /** Construct from a collection of [name, value] pairs */
     constructor(headers?: HttpHeader[]);
 
     public readonly length: number;
 
+    /**
+     * Gets the first value for the given name, ignoring any additional values
+     * @param name - The header name to look for
+     * @param default_value - Value returned if no values are found for the given name
+     * @return The first header value, or default if no values exist
+     */
     public get(key: string): string;
+    /**
+     * Get the list of values for the given name
+     * @param name - The header name to look for
+     * @return List of values, or empty list if none exist
+     */
     public get_values(key: string): string[];
+
+    /** @internal */
     public get_index(index: number): HttpHeader;
 
+    /**
+     * Iterator. Allows for:
+     * let headers = new HttpHeaders();
+     * ...
+     * for (const header of headers) { }
+    */
     public [Symbol.iterator](): Iterator<HttpHeader>;
 
+    /**
+     * Add a name/value pair
+     * @param name - The header name
+     * @param value - The header value
+    */
     public add(key: string, value: string): void;
+
+    /**
+     * Set a name/value pair, replacing any existing values for the name
+     * @param name - The header name
+     * @param value - The header value
+    */
     public set(key: string, value: string): void;
 
+    /**
+     * Removes all values for the given name
+     * @param name - The header to remove all values for
+     */
     public remove(key: string): void;
+
+    /**
+     * Removes a specific name/value pair
+     * @param name - The header name to remove
+     * @param value - The header value to remove
+     */
     public remove_value(key: string, value: string): void;
+    
+    /** Clears the entire header set */
     public clear(): void;
 
     /** @internal */
@@ -372,6 +421,7 @@ export interface AwsSigningConfig {
     body_signing_type?: AwsBodySigningConfigType;
 }
 
+/** @internal */
 export function aws_sign_request(
     request: HttpRequest,
     config: AwsSigningConfig,

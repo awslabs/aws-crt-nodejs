@@ -17,6 +17,8 @@ import { EventEmitter } from 'events';
 
 /**
  * Events are named via string or symbol
+ * 
+ * @category Events
  */
 type EventKey = string | symbol;
 
@@ -38,6 +40,8 @@ class BufferedEvent {
  * ```process.nextTick()```, not during the {@link BufferedEventEmitter.on} call.
  * 
  * See also: [Node writable streams](https://nodejs.org/api/stream.html#stream_writable_cork)
+ * 
+ * @category Events
  */
 export class BufferedEventEmitter extends EventEmitter {
     private corked = false;

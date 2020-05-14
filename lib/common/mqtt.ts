@@ -16,6 +16,8 @@
  /**
   * MQTT Quality of Service
   * [MQTT-4.3]
+  * 
+  * @category MQTT
   */
 export enum QoS {
     /**
@@ -44,16 +46,28 @@ export enum QoS {
     ExactlyOnce = 2,
 }
 
-/** Possible types of data to send via publish or receive via subscription */
+/** 
+ * Possible types of data to send via publish or receive via subscription 
+ * 
+ * @category MQTT
+ */
 export type Payload = String | Object | DataView;
 
-/** Every request sent returns an MqttRequest */
+/** 
+ * Every request sent returns an MqttRequest 
+ * 
+ * @category MQTT
+ */
 export interface MqttRequest {
     /** Packet ID being acknowledged when the request completes */
     packet_id?: number;
 }
 
-/** Subscription SUBACK result */
+/** 
+ * Subscription SUBACK result 
+ * 
+ * @category MQTT
+ */
 export interface MqttSubscribeRequest extends MqttRequest {
     /** Topic filter of the SUBSCRIBE packet being acknowledged */
     topic: string;
@@ -71,6 +85,8 @@ export interface MqttSubscribeRequest extends MqttRequest {
  * receiving a DISCONNECT packet.
  *
  * [MQTT - 3.1.2 - 8]
+ * 
+ * @category MQTT
  */
 export class MqttWill {
     constructor(

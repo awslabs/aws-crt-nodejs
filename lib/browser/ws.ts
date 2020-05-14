@@ -16,7 +16,11 @@ import { MqttConnectionConfig } from "./mqtt";
 import WebsocketStream = require("websocket-stream");
 import * as Crypto from "crypto-js";
 
-/** Options for websocket based connections in browser */
+/** 
+ * Options for websocket based connections in browser 
+ * 
+ * @category HTTP
+ */
 export interface WebsocketOptions {
     /** Additional headers to add */
     headers?: { [index: string]: string };

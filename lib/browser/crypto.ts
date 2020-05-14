@@ -17,6 +17,11 @@ import * as Crypto from "crypto-js";
 import { Hashable } from "../common/crypto";
 import { TextEncoder } from "util";
 
+/**
+ * Object that allows for continuous MD5 hashing of data.
+ *
+ * @category Crypto
+ */
 export class Md5Hash {
     private hash?: Crypto.WordArray;
     
@@ -49,6 +54,8 @@ export class Md5Hash {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ * 
+ * @category Crypto
  */
 export function hash_md5(data: Hashable, truncate_to?: number): DataView {
     const md5 = new Md5Hash();
@@ -56,6 +63,11 @@ export function hash_md5(data: Hashable, truncate_to?: number): DataView {
     return md5.finalize(truncate_to);
 }
 
+/**
+ * Object that allows for continuous SHA256 hashing of data.
+ *
+ * @category Crypto
+ */
 export class Sha256Hash {
     private hash?: Crypto.WordArray;
 
@@ -87,6 +99,8 @@ export class Sha256Hash {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ * 
+ * @category Crypto
  */
 export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
     const digest = Crypto.SHA256(data.toString()).toString();
@@ -96,6 +110,11 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
     return new DataView(bytes.buffer);
 }
 
+/**
+ * Object that allows for continuous hashing of data with an hmac secret.
+ *
+ * @category Crypto
+ */
 export class Sha256Hmac {
     private hmac: any;
 
@@ -133,6 +152,8 @@ export class Sha256Hmac {
  * @param secret The key to use for the HMAC process
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ * 
+ * @category Crypto
  */
 export function hmac_sha256(secret: Hashable, data: Hashable, truncate_to?: number): DataView {
     const hmac = new Sha256Hmac(secret);

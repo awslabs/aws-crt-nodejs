@@ -23,9 +23,15 @@ import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+
+/** @category MQTT */
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
-/** MQTT client */
+/** 
+ * MQTT client 
+ * 
+ * @category MQTT
+ */
 export class MqttClient extends NativeResource {
     /**
      * @param bootstrap The {@link ClientBootstrap} to use for socket connections
@@ -45,7 +51,11 @@ export class MqttClient extends NativeResource {
     }
 }
 
-/** Configuration options for an MQTT connection */
+/** 
+ * Configuration options for an MQTT connection 
+ * 
+ * @category MQTT
+ */
 export interface MqttConnectionConfig {
     /** 
      * ID to place in CONNECT packet. Must be unique across all devices/clients.
@@ -111,6 +121,7 @@ export interface MqttConnectionConfig {
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
 }
 
+/** @internal */
 const normalize_encoder = new TextEncoder();
 function normalize_payload(payload: Payload) {
     let payload_data: DataView;
@@ -133,7 +144,11 @@ function normalize_payload(payload: Payload) {
     return payload_data;
 }
 
-/** MQTT client connection */
+/** 
+ * MQTT client connection 
+ * 
+ * @category MQTT
+ */
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     readonly tls_ctx?: io.ClientTlsContext; // this reference keeps the tls_ctx alive beyond the life of the connection
 

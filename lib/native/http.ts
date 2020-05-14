@@ -22,13 +22,21 @@ import { HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 
+/** @category HTTP */
 export type HttpHeaders = crt_native.HttpHeaders;
+/** @category HTTP */
 export const HttpHeaders = crt_native.HttpHeaders;
 
+/** @category HTTP */
 export type HttpRequest = crt_native.HttpRequest;
+/** @category HTTP */
 export const HttpRequest = crt_native.HttpRequest;
 
-/** Base class for HTTP connections */
+/** 
+ * Base class for HTTP connections 
+ * 
+ * @category HTTP
+ */
 export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
 
     protected constructor(native_handle: any) {
@@ -67,7 +75,11 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     }
 }
 
-/** Proxy options for HTTP clients. */
+/** 
+ * Proxy options for HTTP clients. 
+ * 
+ * @category HTTP
+ */
 export class HttpProxyOptions extends CommonHttpProxyOptions {
     /**
      * 
@@ -104,7 +116,11 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
     }
 }
 
-/** Represents an HTTP connection from a client to a server */
+/** 
+ * Represents an HTTP connection from a client to a server
+ * 
+ * @category HTTP
+ */
 export class HttpClientConnection extends HttpConnection {
     private _on_setup(native_handle: any, error_code: number) {
         if (error_code) {
@@ -200,6 +216,8 @@ export class HttpClientConnection extends HttpConnection {
  *
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
+ * 
+ * @category HTTP
  */
 export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
     protected constructor(
@@ -256,6 +274,8 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
  *
  * NOTE: The stream sends no data until {@link HttpStream.activate} is called. 
  * Call {@link HttpStream.activate} when you're ready for callbacks and events to fire.
+ * 
+ * @category HTTP
  */
 export class HttpClientStream extends HttpStream {
     private response_status_code?: Number;
@@ -323,7 +343,11 @@ export class HttpClientStream extends HttpStream {
     }
 }
 
-/** Creates, manages, and vends connections to a given host/port endpoint */
+/** 
+ * Creates, manages, and vends connections to a given host/port endpoint 
+ * 
+ * @category HTTP
+ */
 export class HttpClientConnectionManager extends NativeResource {
     private connections = new Map<any, HttpClientConnection>();
 /** Asynchronously establish a new HttpClientConnection.

@@ -20,6 +20,8 @@ import * as platform from "../common/platform";
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
+ * 
+ * @category IoT
  */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig
