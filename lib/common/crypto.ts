@@ -14,6 +14,8 @@
  */
 
 /**
- * The types that are acceptable to pass for hashing.
+ * The types that are acceptable to use as input for hashing.
+ * 
+ * @category Crypto
  */
 export type Hashable = string | ArrayBuffer | DataView | Buffer;

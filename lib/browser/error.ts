@@ -13,7 +13,11 @@
  * permissions and limitations under the License.
  */
 
- /** Represents an error thrown by the CRT browser shim */
+ /** 
+  * Represents an error thrown by the CRT browser shim 
+  * 
+  * @category System
+  */
 export class CrtError extends Error {
     /** @var error - The original error, provided for context. Could be any type, often from underlying libraries */
     constructor(readonly error: any) {

@@ -15,12 +15,23 @@
 export { TlsVersion, SocketType, SocketDomain } from "../common/io";
 import { SocketType, SocketDomain } from "../common/io";
 
+/**
+ * @return false, as ALPN is not configurable from the browser
+ *
+ * @category TLS
+*/
 export function is_alpn_available(): boolean {
     return false;
 }
 
 type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
 
+/** 
+ * Wrapper for any sort of body data in requests. As the browser does not implement streaming,
+ * this is merely an interface wrapper around a memory buffer.
+ * 
+ * @category I/O
+ */
 export class InputStream {
     constructor(public data: BodyData) {
 
@@ -31,6 +42,7 @@ export class InputStream {
  * Standard Berkeley socket style options.
  *
  * Provided for compatibility with nodejs, but this version is largely unused.
+ * @category I/O
 */
 export class SocketOptions {
     constructor(

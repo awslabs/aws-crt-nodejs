@@ -1,6 +1,6 @@
 {
   "name": "aws-crt",
-  "version": "1.1.3",
+  "version": "1.0.0-dev",
   "description": "NodeJS/browser bindings to the aws-c-* libraries",
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
@@ -10,6 +10,7 @@
   "license": "Apache-2.0",
   "main": "./dist/index.js",
   "browser": "./dist.browser/browser.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "tsc": "node ./scripts/tsc.js",
     "test": "jest --verbose",
@@ -28,6 +29,7 @@
     "jest-circus": "^25.1.0",
     "jest-runtime": "^25.2.4",
     "ts-jest": "^25.3.0",
+    "typedoc": "^0.17.6",
     "typescript": "^3.8.3",
     "uuid": "^3.4.0",
     "yargs": "^13.3.2"
