@@ -21,7 +21,6 @@
  * * 2 - Track active memory usage, and also track callstacks for every allocation.
  *   This incurs a performance penalty, depending on the cost of the platform's
  *   stack unwinding/backtrace API.
- * @packageDocumentation
  * @module aws-crt
  * @category System
  */
