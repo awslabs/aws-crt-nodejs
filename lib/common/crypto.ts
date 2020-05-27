@@ -15,7 +15,8 @@
 
 /**
  * The types that are acceptable to use as input for hashing.
- * 
+ *
+ * @module aws-crt
  * @category Crypto
  */
 export type Hashable = string | ArrayBuffer | DataView | Buffer;

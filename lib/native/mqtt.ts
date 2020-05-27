@@ -27,9 +27,10 @@ import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../co
 /** @category MQTT */
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
-/** 
- * MQTT client 
- * 
+/**
+ * MQTT client
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export class MqttClient extends NativeResource {
@@ -51,15 +52,16 @@ export class MqttClient extends NativeResource {
     }
 }
 
-/** 
- * Configuration options for an MQTT connection 
- * 
+/**
+ * Configuration options for an MQTT connection
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export interface MqttConnectionConfig {
-    /** 
+    /**
      * ID to place in CONNECT packet. Must be unique across all devices/clients.
-     * If an ID is already in use, the other client will be disconnected. 
+     * If an ID is already in use, the other client will be disconnected.
      */
     client_id: string;
     /** Server name to connect to */
@@ -144,9 +146,10 @@ function normalize_payload(payload: Payload) {
     return payload_data;
 }
 
-/** 
- * MQTT client connection 
- * 
+/**
+ * MQTT client connection
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
@@ -266,10 +269,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         });
     }
 
-    /** 
+    /**
      * The connection will automatically reconnect. To cease reconnection attempts, call {@link disconnect}.
      * To resume the connection, call {@link connect}.
-     * @deprecated 
+     * @deprecated
      */
     async reconnect() {
         return new Promise<boolean>((resolve, reject) => {
@@ -293,10 +296,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         });
     }
 
-    /** 
+    /**
      * Publish message (async).
      * If the device is offline, the PUBLISH packet will be sent once the connection resumes.
-     * 
+     *
      * @param topic Topic name
      * @param payload Contents of message
      * @param qos Quality of Service for delivering this message
@@ -304,7 +307,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *               delivered to future subscribers whose subscriptions match the topic name
      * @returns Promise which returns a {@link MqttRequest} which will contain the packet id of
      *          the PUBLISH packet.
-     * 
+     *
      * * For QoS 0, completes as soon as the packet is sent.
      * * For QoS 1, completes when PUBACK is received.
      * * For QoS 2, completes when PUBCOMP is received.
@@ -340,7 +343,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      * Once subscribed, `callback` is invoked each time a message matching
      * the `topic` is received. It is possible for such messages to arrive before
      * the SUBACK is received.
-     * 
+     *
      * @param topic Subscribe to this topic filter, which may include wildcards
      * @param qos Maximum requested QoS that server may use when sending messages to the client.
      *            The server may grant a lower QoS in the SUBACK
@@ -397,8 +400,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         });
     }
 
-    /** 
-     * Close the connection (async). 
+    /**
+     * Close the connection (async).
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {

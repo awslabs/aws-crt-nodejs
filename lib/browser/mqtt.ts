@@ -28,9 +28,10 @@ export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
 /** @category MQTT */
 export type AWSCredentials = WebsocketUtils.AWSCredentials;
 
-/** 
- * Configuration options for an MQTT connection 
- * 
+/**
+ * Configuration options for an MQTT connection
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export interface MqttConnectionConfig {
@@ -87,9 +88,10 @@ export interface MqttConnectionConfig {
     credentials?: AWSCredentials;
 }
 
-/** 
- * MQTT client 
- * 
+/**
+ * MQTT client
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export class MqttClient {
@@ -104,12 +106,13 @@ export class MqttClient {
 }
 
 /**
+ * @module aws-crt
  * @category MQTT
  */
 type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
 
 /** @internal */
-class TopicTrie extends trie.Trie<SubscriptionCallback|undefined> {
+class TopicTrie extends trie.Trie<SubscriptionCallback | undefined> {
     constructor() {
         super('/');
     }
@@ -162,9 +165,10 @@ function normalize_payload(payload: Payload) {
     return payload_data;
 }
 
-/** 
- * MQTT client connection 
- * 
+/**
+ * MQTT client connection
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export class MqttClientConnection extends BufferedEventEmitter {
@@ -310,19 +314,19 @@ export class MqttClientConnection extends BufferedEventEmitter {
         });
     }
 
-    /** 
+    /**
      * The connection will automatically reconnect. To cease reconnection attempts, call {@link disconnect}.
      * To resume the connection, call {@link connect}.
-     * @deprecated 
+     * @deprecated
      */
     async reconnect() {
         return this.connect();
     }
 
-    /** 
+    /**
      * Publish message (async).
      * If the device is offline, the PUBLISH packet will be sent once the connection resumes.
-     * 
+     *
      * @param topic Topic name
      * @param payload Contents of message
      * @param qos Quality of Service for delivering this message
@@ -330,7 +334,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *               delivered to future subscribers whose subscriptions match the topic name
      * @returns Promise which returns a {@link MqttRequest} which will contain the packet id of
      *          the PUBLISH packet.
-     * 
+     *
      * * For QoS 0, completes as soon as the packet is sent.
      * * For QoS 1, completes when PUBACK is received.
      * * For QoS 2, completes when PUBCOMP is received.
@@ -356,7 +360,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * Once subscribed, `callback` is invoked each time a message matching
      * the `topic` is received. It is possible for such messages to arrive before
      * the SUBACK is received.
-     * 
+     *
      * @param topic Subscribe to this topic filter, which may include wildcards
      * @param qos Maximum requested QoS that server may use when sending messages to the client.
      *            The server may grant a lower QoS in the SUBACK
@@ -377,14 +381,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
             });
     }
 
-     /**
-     * Unsubscribe from a topic filter (async).
-     * The client sends an UNSUBSCRIBE packet, and the server responds with an UNSUBACK.
-     * @param topic The topic filter to unsubscribe from. May contain wildcards.
-     * @returns Promise wihch returns a {@link MqttRequest} which will contain the packet id
-     *          of the UNSUBSCRIBE packet being acknowledged. Promise is resolved when an
-     *          UNSUBACK is received from the server or is rejected when an exception occurs.
-     */
+    /**
+    * Unsubscribe from a topic filter (async).
+    * The client sends an UNSUBSCRIBE packet, and the server responds with an UNSUBACK.
+    * @param topic The topic filter to unsubscribe from. May contain wildcards.
+    * @returns Promise wihch returns a {@link MqttRequest} which will contain the packet id
+    *          of the UNSUBSCRIBE packet being acknowledged. Promise is resolved when an
+    *          UNSUBACK is received from the server or is rejected when an exception occurs.
+    */
     async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
         return this.connection.unsubscribe(topic)
@@ -396,8 +400,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
             });
     }
 
-    /** 
-     * Close the connection (async). 
+    /**
+     * Close the connection (async).
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {

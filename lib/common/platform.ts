@@ -13,9 +13,10 @@
  * permissions and limitations under the License.
  */
 
-/** 
- * Returns true if this script is running under nodejs 
- * 
+/**
+ * Returns true if this script is running under nodejs
+ *
+ * @module aws-crt
  * @category System
  */
 export function is_nodejs() {
@@ -24,18 +25,20 @@ export function is_nodejs() {
         typeof process.versions.node !== 'undefined');
 }
 
-/** 
- * Returns true if this script is running in a browser 
- * 
+/**
+ * Returns true if this script is running in a browser
+ *
+ * @module aws-crt
  * @category System
  */
 export function is_browser() {
     return !is_nodejs();
 }
 
-/** 
- * Returns the package information for aws-crt-nodejs 
- * 
+/**
+ * Returns the package information for aws-crt-nodejs
+ *
+ * @module aws-crt
  * @category System
  */
 export function package_info() {
@@ -43,7 +46,7 @@ export function package_info() {
         const pkg = require('../../package.json');
         return pkg;
     }
-    catch (err) { 
+    catch (err) {
         return {
             name: 'aws-crt-nodejs',
             version: 'UNKNOWN'
@@ -51,9 +54,10 @@ export function package_info() {
     }
 }
 
-/** 
- * Returns the AWS CRT version 
- * 
+/**
+ * Returns the AWS CRT version
+ *
+ * @module aws-crt
  * @category System
  */
 export function crt_version() {

@@ -20,11 +20,12 @@ import { TextEncoder } from "util";
 /**
  * Object that allows for continuous MD5 hashing of data.
  *
+ * @module aws-crt
  * @category Crypto
  */
 export class Md5Hash {
     private hash?: Crypto.WordArray;
-    
+
     /**
      * Digests additional data
      * @param data Additional data to digest
@@ -54,7 +55,8 @@ export class Md5Hash {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
- * 
+ *
+ * @module aws-crt
  * @category Crypto
  */
 export function hash_md5(data: Hashable, truncate_to?: number): DataView {
@@ -66,6 +68,7 @@ export function hash_md5(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous SHA256 hashing of data.
  *
+ * @module aws-crt
  * @category Crypto
  */
 export class Sha256Hash {
@@ -99,7 +102,8 @@ export class Sha256Hash {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
- * 
+ *
+ * @module aws-crt
  * @category Crypto
  */
 export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
@@ -113,6 +117,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous hashing of data with an hmac secret.
  *
+ * @module aws-crt
  * @category Crypto
  */
 export class Sha256Hmac {
@@ -152,7 +157,8 @@ export class Sha256Hmac {
  * @param secret The key to use for the HMAC process
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
- * 
+ *
+ * @module aws-crt
  * @category Crypto
  */
 export function hmac_sha256(secret: Hashable, data: Hashable, truncate_to?: number): DataView {

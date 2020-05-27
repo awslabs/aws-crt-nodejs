@@ -13,11 +13,12 @@
  * permissions and limitations under the License.
  */
 
- /** 
-  * HTTP protocol version 
-  * 
-  * @category HTTP
-  */
+/**
+ * HTTP protocol version
+ *
+ * @module aws-crt
+* @category HTTP
+ */
 export enum HttpVersion {
     Unknown = 0,
     /** HTTP/1.0 */
@@ -28,11 +29,12 @@ export enum HttpVersion {
     Http2 = 3,
 }
 
- /**
-  * Headers are exposed as 2 element arrays: [name, value]
-  * 
-  * @category HTTP
-  */
+/**
+ * Headers are exposed as 2 element arrays: [name, value]
+ *
+ * @module aws-crt
+* @category HTTP
+ */
 export type HttpHeader = [string, string];
 
 /** @internal */
@@ -98,18 +100,19 @@ export interface HttpHeaders {
 
 /**
  * Proxy authentication types
- * 
+ *
+ * @module aws-crt
  * @category HTTP
  */
-export enum HttpProxyAuthenticationType
-{
+export enum HttpProxyAuthenticationType {
     None = 0,
     Basic = 1,
 };
 
-/** 
- * Options used when connecting to an HTTP endpoint via a proxy 
- * 
+/**
+ * Options used when connecting to an HTTP endpoint via a proxy
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpProxyOptions {

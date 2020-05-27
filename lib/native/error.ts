@@ -19,7 +19,8 @@ import { isNumber } from 'util';
 /**
  * Represents an error encountered in native code. Can also be used to convert a numeric error code into
  * a human-readable string.
- * 
+ *
+ * @module aws-crt
  * @category System
  */
 export class CrtError extends Error {
@@ -36,7 +37,7 @@ export class CrtError extends Error {
     }
 }
 
-function extract_message(error: any) : string {
+function extract_message(error: any): string {
     if (isNumber(error)) {
         return crt_native.error_code_to_string(error);
     } else if (error instanceof CrtError) {
