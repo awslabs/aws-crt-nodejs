@@ -24,6 +24,7 @@
 #include <aws/auth/signable.h>
 #include <aws/auth/signing.h>
 #include <aws/auth/signing_config.h>
+#include <aws/auth/signing_result.h>
 
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
@@ -345,16 +346,16 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             config.algorithm = (enum aws_signing_algorithm)algorithm_int;
         }
 
-        /* Get transform */
-        if (s_get_named_property(env, js_config, "transform", napi_number, &current_value)) {
-            int32_t transform_int = 0;
-            napi_get_value_int32(env, current_value, &transform_int);
-            if (transform_int < 0) {
-                napi_throw_error(env, NULL, "Signing transform value out of acceptable range");
+        /* Get signature type */
+        if (s_get_named_property(env, js_config, "signature_type", napi_number, &current_value)) {
+            int32_t signature_type_int = 0;
+            napi_get_value_int32(env, current_value, &signature_type_int);
+            if (signature_type_int < 0) {
+                napi_throw_error(env, NULL, "Signing signature type value out of acceptable range");
                 goto error;
             }
 
-            config.transform = (enum aws_signing_request_transform)transform_int;
+            config.signature_type = (enum aws_signature_type)signature_type_int;
         }
 
         /* Get provider */
@@ -483,12 +484,22 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             config.should_normalize_uri_path = true;
         }
 
-        if (s_get_named_property(env, js_config, "body_signing_type", napi_boolean, &current_value)) {
-            uint32_t body_signing_type = 0;
-            napi_get_value_uint32(env, current_value, &body_signing_type);
-            config.body_signing_type = (enum aws_body_signing_config_type)body_signing_type;
+        /* Get signed body value */
+        if (s_get_named_property(env, js_config, "signed_body_value", napi_number, &current_value)) {
+            int32_t signed_body_value = 0;
+            napi_get_value_int32(env, current_value, &signed_body_value);
+            config.signed_body_value = (enum aws_signed_body_value_type)signed_body_value;
         } else {
-            config.body_signing_type = AWS_BODY_SIGNING_OFF;
+            config.signed_body_value = AWS_SBVT_PAYLOAD;
+        }
+
+        /* Get signed body header */
+        if (s_get_named_property(env, js_config, "signed_body_header", napi_number, &current_value)) {
+            int32_t signed_body_header = 0;
+            napi_get_value_int32(env, current_value, &signed_body_header);
+            config.signed_body_header = (enum aws_signed_body_header_type)signed_body_header;
+        } else {
+            config.signed_body_header = AWS_SBHT_NONE;
         }
 
         /* Get expiration time */

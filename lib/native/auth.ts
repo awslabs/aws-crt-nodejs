@@ -21,9 +21,24 @@ export enum AwsSigningAlgorithm {
     SigV4
 }
 
-export enum AwsSigningTransform {
-    Header,
-    QueryParam
+export enum AwsSignatureType {
+    HttpRequestViaHeaders,
+    HttpRequestViaQueryParams,
+    HttpRequestChunk,
+    HttpRequestEvent
+}
+
+export enum AwsSignedBodyValueType {
+    Empty ,
+    Payload,
+    UnsignedPayload ,
+    StreamingAws4HmacSha256Payload ,
+    StreamingAws4HmacSha256Events
+}
+
+export enum AwsSignedBodyHeaderType {
+    None,
+    XAmzContentSha256
 }
 
 /* Subclass for the purpose of exposing a non-NativeHandle based API */

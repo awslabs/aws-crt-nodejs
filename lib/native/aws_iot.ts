@@ -12,11 +12,18 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-import { MqttConnectionConfig, MqttWill } from "./mqtt";
+import {MqttConnectionConfig, MqttWill} from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
-import { HttpProxyOptions } from "./http";
-import { AwsCredentialsProvider, AwsSigningConfig, AwsSigningAlgorithm, AwsSigningTransform, aws_sign_request } from "./auth";
+import {HttpProxyOptions} from "./http";
+import {
+    aws_sign_request,
+    AwsCredentialsProvider,
+    AwsSignatureType,
+    AwsSignedBodyValueType,
+    AwsSigningAlgorithm,
+    AwsSigningConfig
+} from "./auth";
 
 export interface WebsocketConfig {
     credentials_provider: AwsCredentialsProvider;
@@ -98,11 +105,12 @@ export class AwsIotMqttConnectionConfigBuilder {
                 const signing_config = options.create_signing_config?.()
                     ?? {
                         algorithm: AwsSigningAlgorithm.SigV4,
-			            transform: AwsSigningTransform.QueryParam,
+			            signature_type: AwsSignatureType.HttpRequestViaQueryParams,
                         provider: options.credentials_provider,
                         region: options.region,
                         service: options.service ?? "iotdevicegateway",
                         param_blacklist: ["x-amz-date", "x-amz-security-token"],
+                        signed_body_value: AwsSignedBodyValueType.Empty,
                     };
 
                 try {

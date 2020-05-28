@@ -14,7 +14,7 @@
  */
 
 import { InputStream } from "./io";
-import { AwsSigningAlgorithm, AwsSigningTransform } from "./auth";
+import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValueType, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 
 type NativeHandle = any;
@@ -229,15 +229,11 @@ export class AwsCredentialsProvider {
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
 }
 
-export enum AwsBodySigningConfigType {
-    AWS_BODY_SIGNING_OFF = 0,
-    AWS_BODY_SIGNING_ON = 1,
-    AWS_BODY_SIGNING_UNSIGNED_PAYLOAD = 2,
-}
+
 
 export interface AwsSigningConfig {
     algorithm: AwsSigningAlgorithm;
-    transform: AwsSigningTransform;
+    signature_type: AwsSignatureType;
     provider: AwsCredentialsProvider;
     region: string;
     service?: string;
@@ -245,7 +241,8 @@ export interface AwsSigningConfig {
     param_blacklist?: string[];
     use_double_uri_encode?: boolean;
     should_normalize_uri_path?: boolean;
-    body_signing_type?: AwsBodySigningConfigType;
+    signed_body_value?: AwsSignedBodyValueType;
+    signed_body_header?: AwsSignedBodyHeaderType;
     expiration_in_seconds?: number;
 }
 
