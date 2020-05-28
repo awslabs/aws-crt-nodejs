@@ -43,8 +43,9 @@ export function error_code_to_name(error_code: number): string {
     return crt_native.error_code_to_name(error_code);
 }
 
-/** 
- * The amount of detail that will be logged 
+/**
+ * The amount of detail that will be logged
+ * @module aws-crt
  * @category Logging
  */
 export enum LogLevel {
@@ -69,6 +70,7 @@ export enum LogLevel {
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
  * nodejs only.
+ * @module aws-crt
  * @category Logging
  */
 export function enable_logging(level: LogLevel) {
@@ -78,8 +80,9 @@ export function enable_logging(level: LogLevel) {
 /**
  * Returns true if ALPN is available on this platform natively
  * @return true if ALPN is supported natively, false otherwise
- * 
+ *
  * nodejs only.
+ * @module aws-crt
  * @category TLS
 */
 export function is_alpn_available(): boolean {
@@ -89,8 +92,9 @@ export function is_alpn_available(): boolean {
 /**
  * Wraps a ```Readable``` for reading by native code, used to stream
  *  data into the AWS CRT libraries.
- * 
+ *
  * nodejs only.
+ * @module aws-crt
  * @category I/O
  */
 export class InputStream extends NativeResource {
@@ -112,6 +116,7 @@ export class InputStream extends NativeResource {
  * to be 1 of these per application, in most cases.
  *
  * nodejs only.
+ * @module aws-crt
  * @category I/O
  */
 export class ClientBootstrap extends NativeResource {
@@ -124,6 +129,7 @@ export class ClientBootstrap extends NativeResource {
  * Standard Berkeley socket style options.
  *
  * nodejs only.
+ * @module aws-crt
  * @category I/O
 */
 export class SocketOptions extends NativeResource {
@@ -151,6 +157,7 @@ export class SocketOptions extends NativeResource {
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
+ * @module aws-crt
  * @category TLS
  */
 export class TlsContextOptions {
@@ -163,7 +170,7 @@ export class TlsContextOptions {
     /** String with all trust anchors in it, in PEM format */
     public certificate_authority?: string;
     /** List of ALPN protocols to be used on platforms which support ALPN */
-    public alpn_list:string[] = [];
+    public alpn_list: string[] = [];
     /** Path to certificate, in PEM format */
     public certificate_filepath?: string;
     /** Certificate, in PEM format */
@@ -281,6 +288,7 @@ export class TlsContextOptions {
  * @see ServerTlsContext
  *
  * nodejs only.
+ * @module aws-crt
  * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
@@ -307,6 +315,7 @@ export abstract class TlsContext extends NativeResource {
  * only.
  *
  * nodejs only.
+ * @module aws-crt
  * @category TLS
  */
 export class ClientTlsContext extends TlsContext {
@@ -325,6 +334,7 @@ export class ClientTlsContext extends TlsContext {
  * only.
  *
  * nodejs only.
+ * @module aws-crt
  * @category TLS
  */
 export class ServerTlsContext extends TlsContext {
@@ -341,6 +351,7 @@ export class ServerTlsContext extends TlsContext {
  * TLS options that are unique to a given connection using a shared TlsContext.
  *
  * nodejs only.
+ * @module aws-crt
  * @category TLS
  */
 export class TlsConnectionOptions extends NativeResource {

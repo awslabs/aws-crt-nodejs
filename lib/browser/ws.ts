@@ -16,9 +16,10 @@ import { MqttConnectionConfig } from "./mqtt";
 import WebsocketStream = require("websocket-stream");
 import * as Crypto from "crypto-js";
 
-/** 
- * Options for websocket based connections in browser 
- * 
+/**
+ * Options for websocket based connections in browser
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export interface WebsocketOptions {
@@ -50,7 +51,7 @@ function canonical_time() {
         `${zero_pad(now.getUTCHours())}${zero_pad(now.getUTCMinutes())}${zero_pad(now.getUTCSeconds())}Z`;
 }
 
-function canonical_day(time : string = canonical_time()) {
+function canonical_day(time: string = canonical_time()) {
     return time.substring(0, time.indexOf('T'));
 }
 

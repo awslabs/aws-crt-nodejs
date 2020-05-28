@@ -18,6 +18,7 @@ import { SocketType, SocketDomain } from "../common/io";
 /**
  * @return false, as ALPN is not configurable from the browser
  *
+ * @module aws-crt
  * @category TLS
 */
 export function is_alpn_available(): boolean {
@@ -26,10 +27,11 @@ export function is_alpn_available(): boolean {
 
 type BodyData = string | object | ArrayBuffer | ArrayBufferView | Blob | File;
 
-/** 
+/**
  * Wrapper for any sort of body data in requests. As the browser does not implement streaming,
  * this is merely an interface wrapper around a memory buffer.
- * 
+ *
+ * @module aws-crt
  * @category I/O
  */
 export class InputStream {
@@ -42,6 +44,7 @@ export class InputStream {
  * Standard Berkeley socket style options.
  *
  * Provided for compatibility with nodejs, but this version is largely unused.
+ * @module aws-crt
  * @category I/O
 */
 export class SocketOptions {

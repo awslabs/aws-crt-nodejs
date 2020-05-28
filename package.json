@@ -18,6 +18,7 @@
     "install": "node ./scripts/install.js"
   },
   "devDependencies": {
+    "@convergencelabs/typedoc-plugin-custom-modules": "^0.4.0",
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^24.9.1",
     "@types/node": "^10.17.17",
@@ -29,7 +30,7 @@
     "jest-circus": "^25.1.0",
     "jest-runtime": "^25.2.4",
     "ts-jest": "^25.3.0",
-    "typedoc": "^0.17.6",
+    "typedoc": "^0.17.7",
     "typescript": "^3.8.3",
     "uuid": "^3.4.0",
     "yargs": "^13.3.2"

@@ -28,10 +28,11 @@ export interface WebsocketConfig {
     service?: string;
 }
 
-/** 
+/**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
- * 
+ *
+ * @module aws-crt
  * @category IoT
  */
 export class AwsIotMqttConnectionConfigBuilder {
@@ -103,17 +104,17 @@ export class AwsIotMqttConnectionConfigBuilder {
             builder.params.websocket_handshake_transform = async (request, done) => {
                 const signing_config = options.create_signing_config?.()
                     ?? {
-                        algorithm: AwsSigningAlgorithm.SigV4QueryParam,
-                        provider: options.credentials_provider,
-                        region: options.region,
-                        service: options.service ?? "iotdevicegateway",
-                        param_blacklist: ["x-amz-date", "x-amz-security-token"],
-                    };
+                    algorithm: AwsSigningAlgorithm.SigV4QueryParam,
+                    provider: options.credentials_provider,
+                    region: options.region,
+                    service: options.service ?? "iotdevicegateway",
+                    param_blacklist: ["x-amz-date", "x-amz-security-token"],
+                };
 
                 try {
                     await aws_sign_request(request, signing_config);
                     done();
-                } catch(error) {
+                } catch (error) {
                     done(error);
                 }
             };

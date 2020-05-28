@@ -22,7 +22,8 @@ import * as axios from 'axios';
 
 /**
  * A collection of HTTP headers
- * 
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpHeaders implements CommonHttpHeaders {
