@@ -15,8 +15,16 @@
 
 import { EventEmitter } from 'events';
 
+/**
+ * Events are named via string or symbol
+ * 
+ * @category Events
+ */
 type EventKey = string | symbol;
 
+/**
+ * @internal
+ */
 class BufferedEvent {
     public next?: BufferedEvent;
     public args: any[];
@@ -27,8 +35,13 @@ class BufferedEvent {
 
 /** 
  * Provides buffered event emitting semantics, similar to many Node-style streams.
- * Subclasses will override {@link BufferedEventEmitter#on} and trigger uncorking.
- * Note that uncorking should always be done next tick, not during the on() call!
+ * Subclasses will override {@link BufferedEventEmitter.on} and trigger uncorking.
+ * NOTE: It is HIGHLY recommended that uncorking should always be done via 
+ * ```process.nextTick()```, not during the {@link BufferedEventEmitter.on} call.
+ * 
+ * See also: [Node writable streams](https://nodejs.org/api/stream.html#stream_writable_cork)
+ * 
+ * @category Events
  */
 export class BufferedEventEmitter extends EventEmitter {
     private corked = false;
@@ -39,10 +52,20 @@ export class BufferedEventEmitter extends EventEmitter {
         super();
     }
 
+    /** 
+     * Forces all written events to be buffered in memory. The buffered data will be
+     * flushed when {@link BufferedEventEmitter.uncork} is called.
+     */
     cork() {
         this.corked = true;
     }
 
+    /**
+     * Flushes all data buffered since {@link BufferedEventEmitter.cork} was called.
+     * 
+     * NOTE: It is HIGHLY recommended that uncorking should always be done via
+     * ``` process.nextTick```, not during the ```EventEmitter.on()``` call.
+     */
     uncork() {
         this.corked = false;
         while (this.eventQueue) {
@@ -52,6 +75,13 @@ export class BufferedEventEmitter extends EventEmitter {
         }
     }
 
+    /**
+     * Synchronously calls each of the listeners registered for the event key supplied
+     * in registration order. If the {@link BufferedEventEmitter} is currently corked,
+     * the event will be buffered until {@link BufferedEventEmitter.uncork} is called.
+     * @param event The name of the event
+     * @param args Event payload
+     */
     emit(event: EventKey, ...args: any[]): boolean {
         if (this.corked) {
             // queue requests in order

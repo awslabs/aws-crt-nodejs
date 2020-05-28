@@ -3,9 +3,12 @@ phases:
   install:
     runtime-versions:
       nodejs: 10
-  build:
+  pre_build:
     commands:
       - cd aws-crt-nodejs
+      - bash ./continuous-delivery/update-version.sh
+  build:
+    commands:
       - export DIST_BIN=dist/bin
       - mkdir -p $DIST_BIN
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_x64/* $DIST_BIN

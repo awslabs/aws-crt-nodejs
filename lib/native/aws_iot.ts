@@ -25,6 +25,7 @@ import {
     AwsSigningConfig
 } from "./auth";
 
+/** @category IoT */
 export interface WebsocketConfig {
     credentials_provider: AwsCredentialsProvider;
     create_signing_config?: () => AwsSigningConfig;
@@ -34,7 +35,12 @@ export interface WebsocketConfig {
     service?: string;
 }
 
-/** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
+/** 
+ * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
+ * a {@link MqttClientConnection}, configured for use with AWS IoT.
+ * 
+ * @category IoT
+ */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig
 

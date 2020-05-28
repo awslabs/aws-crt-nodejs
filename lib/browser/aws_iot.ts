@@ -17,7 +17,12 @@ import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
 
-/** Creates a MqttConnectionConfig to simplify configuring a connection to IoT services */
+/**
+ * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
+ * a {@link MqttClientConnection}, configured for use with AWS IoT.
+ * 
+ * @category IoT
+ */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig
 
