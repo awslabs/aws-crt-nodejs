@@ -13,12 +13,13 @@
  * permissions and limitations under the License.
  */
 
- /**
-  * MQTT Quality of Service
-  * [MQTT-4.3]
-  * 
-  * @category MQTT
-  */
+/**
+ * MQTT Quality of Service
+ * [MQTT-4.3]
+ *
+ * @module aws-crt
+* @category MQTT
+ */
 export enum QoS {
     /**
      * QoS 0 - At most once delivery
@@ -46,16 +47,18 @@ export enum QoS {
     ExactlyOnce = 2,
 }
 
-/** 
- * Possible types of data to send via publish or receive via subscription 
- * 
+/**
+ * Possible types of data to send via publish or receive via subscription
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export type Payload = String | Object | DataView;
 
-/** 
- * Every request sent returns an MqttRequest 
- * 
+/**
+ * Every request sent returns an MqttRequest
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export interface MqttRequest {
@@ -63,9 +66,10 @@ export interface MqttRequest {
     packet_id?: number;
 }
 
-/** 
- * Subscription SUBACK result 
- * 
+/**
+ * Subscription SUBACK result
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export interface MqttSubscribeRequest extends MqttRequest {
@@ -79,13 +83,14 @@ export interface MqttSubscribeRequest extends MqttRequest {
 
 /**
  * A Will message is published by the server if a client is lost unexpectedly.
- * 
+ *
  * The Will message is stored on the server when a client connects.
  * It is published if the client connection is lost without the server
  * receiving a DISCONNECT packet.
  *
  * [MQTT - 3.1.2 - 8]
- * 
+ *
+ * @module aws-crt
  * @category MQTT
  */
 export class MqttWill {

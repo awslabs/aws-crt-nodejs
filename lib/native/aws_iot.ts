@@ -35,10 +35,11 @@ export interface WebsocketConfig {
     service?: string;
 }
 
-/** 
+/**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
- * 
+ *
+ * @module aws-crt
  * @category IoT
  */
 export class AwsIotMqttConnectionConfigBuilder {
@@ -122,7 +123,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                 try {
                     await aws_sign_request(request, signing_config);
                     done();
-                } catch(error) {
+                } catch (error) {
                     done(error);
                 }
             };

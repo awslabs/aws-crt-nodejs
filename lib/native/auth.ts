@@ -17,9 +17,10 @@ import crt_native from './binding';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
-/** 
- * AWS signing algorithm enumeration. 
- * 
+/**
+ * AWS signing algorithm enumeration.
+ *
+ * @module aws-crt
  * @category Auth
  */
 export enum AwsSigningAlgorithm {
@@ -83,7 +84,8 @@ export enum AwsSignedBodyHeaderType {
 
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
- * 
+ *
+ * @module aws-crt
  * @category Auth
  */
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
@@ -97,7 +99,8 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
  * Configuration for use in AWS-related signing.
  * AwsSigningConfig is immutable.
  * It is good practice to use a new config for each signature, or the date might get too old.
- * 
+ *
+ * @module aws-crt
  * @category Auth
  */
 export type AwsSigningConfig = crt_native.AwsSigningConfig;
@@ -128,7 +131,8 @@ export type AwsSigningConfig = crt_native.AwsSigningConfig;
  * @returns A Future whose result will be the signed
  *       {@link HttpRequest}. The future will contain an exception
  *       if the signing process fails.
- * 
+ *
+ * @module aws-crt
  * @category Auth
  */
 export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {

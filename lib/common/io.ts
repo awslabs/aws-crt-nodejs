@@ -13,9 +13,10 @@
  * permissions and limitations under the License.
  */
 
-/** 
- * TLS Version 
- * 
+/**
+ * TLS Version
+ *
+ * @module aws-crt
  * @category TLS
  */
 export enum TlsVersion {
@@ -28,6 +29,7 @@ export enum TlsVersion {
 }
 
 /**
+ * @module aws-crt
  * @category I/O
  */
 export enum SocketType {
@@ -46,6 +48,7 @@ export enum SocketType {
 }
 
 /**
+ * @module aws-crt
  * @category I/O
  */
 export enum SocketDomain {

@@ -17,8 +17,8 @@ import { InputStream } from "./io";
 import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValueType, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 
-/** 
- * Type used to store pointers to CRT native resources 
+/**
+ * Type used to store pointers to CRT native resources
  * @internal
  */
 type NativeHandle = any;
@@ -129,7 +129,7 @@ export function mqtt_client_connection_new(
     on_interrupted?: (error_code: number) => void,
     on_resumed?: (return_code: number, session_present: boolean) => void,
 ): NativeHandle;
-    
+
 /** @internal */
 export function mqtt_client_connection_connect(
     connection: NativeHandle,
@@ -149,7 +149,7 @@ export function mqtt_client_connection_connect(
     on_connect?: mqtt_on_connect,
     websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void,
 ): void;
-    
+
 /** @internal */
 export function mqtt_client_connection_reconnect(connection: NativeHandle, on_connect: mqtt_on_connect): void;
 
@@ -162,7 +162,7 @@ export function mqtt_client_connection_publish(
     retain: boolean,
     on_publish?: (packet_id: number, error_code: number) => void,
 ): void;
-    
+
 /** @internal */
 export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
@@ -184,7 +184,7 @@ export function mqtt_client_connection_unsubscribe(
     topic: StringLike,
     on_unsuback?: (packet_id: number, error_code: number) => void,
 ): void;
-    
+
 /** @internal */
 export function mqtt_client_connection_disconnect(connection: NativeHandle, on_disconnect?: () => void): void;
 
@@ -264,6 +264,7 @@ export function http_connection_manager_release(manager: NativeHandle, connectio
 /**
  * A collection of HTTP headers
  *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpHeaders implements CommonHttpHeaders {
@@ -323,7 +324,7 @@ export class HttpHeaders implements CommonHttpHeaders {
      * @param value - The header value to remove
      */
     public remove_value(key: string, value: string): void;
-    
+
     /** Clears the entire header set */
     public clear(): void;
 
@@ -373,15 +374,15 @@ export interface AwsSigningConfig {
     region: string;
     /** Name of service to sign a request for */
     service?: string;
-    /** 
+    /**
      * Date and time to use during the signing process. If not provided then
-     * the current time in UTC is used. Naive dates (lacking timezone info) 
-     * are assumed to be in local time 
+     * the current time in UTC is used. Naive dates (lacking timezone info)
+     * are assumed to be in local time
      */
     date?: Date;
     /**
-     * Parameters to skip when signing. 
-     * 
+     * Parameters to skip when signing.
+     *
      * Skipping auth-required params will result in an unusable signature.
      * Headers injected by the signing process are not skippable.
      * This function does not override the internal check function
@@ -392,7 +393,7 @@ export interface AwsSigningConfig {
      */
     param_blacklist?: string[];
     /**
-     * Set true to double-encode the resource path when constructing the 
+     * Set true to double-encode the resource path when constructing the
      * canonical request. By default, all services except S3 use double encoding.
      */
     use_double_uri_encode?: boolean;

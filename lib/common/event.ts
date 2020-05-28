@@ -17,7 +17,8 @@ import { EventEmitter } from 'events';
 
 /**
  * Events are named via string or symbol
- * 
+ *
+ * @module aws-crt
  * @category Events
  */
 type EventKey = string | symbol;
@@ -33,14 +34,15 @@ class BufferedEvent {
     }
 }
 
-/** 
+/**
  * Provides buffered event emitting semantics, similar to many Node-style streams.
  * Subclasses will override {@link BufferedEventEmitter.on} and trigger uncorking.
- * NOTE: It is HIGHLY recommended that uncorking should always be done via 
+ * NOTE: It is HIGHLY recommended that uncorking should always be done via
  * ```process.nextTick()```, not during the {@link BufferedEventEmitter.on} call.
- * 
+ *
  * See also: [Node writable streams](https://nodejs.org/api/stream.html#stream_writable_cork)
- * 
+ *
+ * @module aws-crt
  * @category Events
  */
 export class BufferedEventEmitter extends EventEmitter {
@@ -52,7 +54,7 @@ export class BufferedEventEmitter extends EventEmitter {
         super();
     }
 
-    /** 
+    /**
      * Forces all written events to be buffered in memory. The buffered data will be
      * flushed when {@link BufferedEventEmitter.uncork} is called.
      */
@@ -62,7 +64,7 @@ export class BufferedEventEmitter extends EventEmitter {
 
     /**
      * Flushes all data buffered since {@link BufferedEventEmitter.cork} was called.
-     * 
+     *
      * NOTE: It is HIGHLY recommended that uncorking should always be done via
      * ``` process.nextTick```, not during the ```EventEmitter.on()``` call.
      */

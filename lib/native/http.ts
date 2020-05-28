@@ -32,9 +32,10 @@ export type HttpRequest = crt_native.HttpRequest;
 /** @category HTTP */
 export const HttpRequest = crt_native.HttpRequest;
 
-/** 
- * Base class for HTTP connections 
- * 
+/**
+ * Base class for HTTP connections
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -75,14 +76,15 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     }
 }
 
-/** 
- * Proxy options for HTTP clients. 
- * 
+/**
+ * Proxy options for HTTP clients.
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpProxyOptions extends CommonHttpProxyOptions {
     /**
-     * 
+     *
      * @param host_name Name of the proxy server to connect through
      * @param port Port number of the proxy server to connect through
      * @param auth_method Type of proxy authentication to use. Default is {@link HttpProxyAuthenticationType.None}
@@ -116,9 +118,10 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
     }
 }
 
-/** 
+/**
  * Represents an HTTP connection from a client to a server
- * 
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnection extends HttpConnection {
@@ -139,7 +142,7 @@ export class HttpClientConnection extends HttpConnection {
         this.emit('close');
     }
 
-    /** Asynchronously establish a new HttpClientConnection. 
+    /** Asynchronously establish a new HttpClientConnection.
      * @param bootstrap Client bootstrap to use when initiating socket connection.
      * @param host_name Host to connect to
      * @param port Port to connect to on host
@@ -178,7 +181,7 @@ export class HttpClientConnection extends HttpConnection {
      * Create {@link HttpClientStream} to carry out the request/response exchange.
      *
      * NOTE: The stream sends no data until :meth:`HttpClientStream.activate()`
-     * is called. Call {@link HttpStream.activate} when you're ready for 
+     * is called. Call {@link HttpStream.activate} when you're ready for
      * callbacks and events to fire.
      * @param request - The HttpRequest to attempt on this connection
      * @returns A new stream that will deliver events for the request
@@ -216,7 +219,8 @@ export class HttpClientConnection extends HttpConnection {
  *
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
- * 
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -230,7 +234,7 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
 
     /**
      * Begin sending the request.
-     * 
+     *
      * The stream does nothing until this is called. Call activate() when you
      * are ready for its callbacks and events to fire.
      */
@@ -267,14 +271,15 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
     }
 }
 
-/** 
+/**
  * Stream that sends a request and receives a response.
  *
  * Create an HttpClientStream with {@link HttpClientConnection.request}.
  *
- * NOTE: The stream sends no data until {@link HttpStream.activate} is called. 
+ * NOTE: The stream sends no data until {@link HttpStream.activate} is called.
  * Call {@link HttpStream.activate} when you're ready for callbacks and events to fire.
- * 
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpClientStream extends HttpStream {
@@ -343,21 +348,22 @@ export class HttpClientStream extends HttpStream {
     }
 }
 
-/** 
- * Creates, manages, and vends connections to a given host/port endpoint 
- * 
+/**
+ * Creates, manages, and vends connections to a given host/port endpoint
+ *
+ * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnectionManager extends NativeResource {
     private connections = new Map<any, HttpClientConnection>();
-/** Asynchronously establish a new HttpClientConnection.
-     * @param bootstrap Client bootstrap to use when initiating socket connection.
-     * @param host_name Host to connect to
-     * @param port Port to connect to on host
-     * @param socket_options Socket options
-     * @param tls_opts Optional TLS connection options
-     * @param proxy_options Optional proxy options
-    */
+    /** Asynchronously establish a new HttpClientConnection.
+         * @param bootstrap Client bootstrap to use when initiating socket connection.
+         * @param host_name Host to connect to
+         * @param port Port to connect to on host
+         * @param socket_options Socket options
+         * @param tls_opts Optional TLS connection options
+         * @param proxy_options Optional proxy options
+        */
 
     /**
      * @param bootstrap Client bootstrap to use when initiating socket connections
