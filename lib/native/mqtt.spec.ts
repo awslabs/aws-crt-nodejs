@@ -14,14 +14,14 @@
  */
 
 import * as AWS from 'aws-sdk';
-import { ClientBootstrap } from '../lib/native/io';
+import { ClientBootstrap } from './io';
 
-import * as io from '../lib/native/io';
+import * as io from './io';
 
-import { MqttClient, QoS, MqttWill } from '../lib/native/mqtt';
-import { AwsIotMqttConnectionConfigBuilder } from '../lib/native/aws_iot';
+import { MqttClient, QoS, MqttWill } from './mqtt';
+import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 import { TextDecoder } from 'util';
-import { AwsCredentialsProvider } from '../lib/native/auth';
+import { AwsCredentialsProvider } from './auth';
 import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
@@ -114,7 +114,7 @@ async function fetch_credentials(): Promise<Config> {
                 resolve_if_done();
             });
 
-            client.getSecretValue({ SecretId: 'unit-test/cognitopool'}, (error, data) => {
+            client.getSecretValue({ SecretId: 'unit-test/cognitopool' }, (error, data) => {
                 if (error) {
                     return reject(error);
                 }
@@ -187,13 +187,13 @@ test('MQTT Websocket', async () => {
 
     const bootstrap = new ClientBootstrap();
     const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets({
-            region: "us-east-1",
-            credentials_provider: AwsCredentialsProvider.newStatic(
-                aws_opts.access_key,
-                aws_opts.secret_key,
-                aws_opts.session_token
-            ),
-        })
+        region: "us-east-1",
+        credentials_provider: AwsCredentialsProvider.newStatic(
+            aws_opts.access_key,
+            aws_opts.secret_key,
+            aws_opts.session_token
+        ),
+    })
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${new Date()}`)
         .with_endpoint(aws_opts.endpoint)
@@ -222,7 +222,7 @@ test('MQTT Websocket', async () => {
 test('MQTT Pub/Sub', async () => {
 
     io.enable_logging(io.LogLevel.TRACE);
-	
+
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
@@ -257,7 +257,7 @@ test('MQTT Pub/Sub', async () => {
                 if (payload_str !== test_payload) {
                     reject("Payloads do not match");
                 }
-		resolve(true);
+                resolve(true);
             });
             connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
         });
@@ -343,7 +343,7 @@ test('MQTT On Any Publish', async () => {
                 reject("Payloads do not match");
             }
 
-	    resolve(true);
+            resolve(true);
         });
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();

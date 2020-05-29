@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-import { crypto as native } from '../lib/index';
-import { crypto as browser } from '../lib/browser';
+import { crypto as native } from '../index';
+import { crypto as browser } from '../browser';
 
 test('md5 multi-part matches', () => {
     const parts = ['ABC', '123', 'XYZ'];
@@ -26,7 +26,7 @@ test('md5 multi-part matches', () => {
     });
     const native_hash = native_md5.finalize();
     const browser_hash = browser_md5.finalize();
-    
+
     expect(native_hash).toEqual(browser_hash);
 });
 
@@ -34,7 +34,7 @@ test('md5 one-shot matches', () => {
     const data = 'ABC123XYZ';
     const native_hash = native.hash_md5(data);
     const browser_hash = browser.hash_md5(data);
-    
+
     expect(native_hash).toEqual(browser_hash);
 });
 
