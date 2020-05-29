@@ -11,7 +11,9 @@
         "al2": {
             "packages": [
                 "libXScrnSaver-devel",
-                "libXcomposite"
+                "libXcomposite",
+                "libXcursor",
+                "gtk3"
             ],
             "+test_steps": [
                 [
