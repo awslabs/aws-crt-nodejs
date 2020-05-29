@@ -10,7 +10,8 @@
         },
         "al2": {
             "packages": [
-                "libXScrnSaver-devel"
+                "libXScrnSaver-devel",
+                "libXcomposite"
             ],
             "+test_steps": [
                 [
