@@ -3,8 +3,6 @@ const { setup: setupPuppeteer } = require('jest-environment-puppeteer');
  * Sets up the environment for running tests with Jest + Puppeteer
  */
 module.exports = async function globalSetup(globalConfig) {
-    globalConfig.launch = {
-        args: ['--no-sandbox']
-    }
+    process.env.CI = true
     await setupPuppeteer(globalConfig);
 };
