@@ -21,54 +21,6 @@ import { HttpHeaders as BrowserHeaders } from "../browser/http";
 jest.setTimeout(10000);
 jest.retryTimes(3);
 
-test('HTTP Headers', () => {
-    const header_array: HttpHeader[] = [
-        ['Host', 'www.amazon.com'],
-        ['Content-Length', '42'],
-    ];
-    let js_headers = new BrowserHeaders(header_array);
-    let native_request = new HttpRequest("", "", new NativeHeaders(header_array));
-    let native_headers = native_request.headers;
-
-    /* Be sure to test JS AND native implementations */
-    for (let headers of [js_headers, native_headers]) {
-
-        const iterator = headers[Symbol.iterator].call(headers);
-        <unknown>iterator;
-        const next = iterator.next.call(iterator);
-        <unknown>next;
-
-        let found_headers = 0;
-        for (const header of headers) {
-            expect(['Host', 'Content-Length']).toContain(header[0]);
-            expect(['www.amazon.com', '42']).toContain(header[1]);
-            found_headers++;
-        }
-        expect(found_headers).toBe(2);
-        // Upgrade header does not exist
-        expect(headers.get('Upgrade')).toBeFalsy();
-
-        // Make sure case doesn't matter
-        expect(headers.get('HOST')).toBe('www.amazon.com');
-
-        // Remove Content-Length, and make sure host is all that's left
-        headers.remove('content-length');
-        found_headers = 0;
-        for (const header of headers) {
-            expect(header[0]).toBe('Host');
-            expect(header[1]).toBe('www.amazon.com');
-            found_headers++;
-        }
-        expect(found_headers).toBe(1);
-
-        headers.clear();
-        for (const header of headers) {
-            // this should never be called
-            expect(header).toBeNull();
-        }
-    }
-});
-
 test('HTTP Request', () => {
     let request = new HttpRequest("GET", "/index.html");
 
