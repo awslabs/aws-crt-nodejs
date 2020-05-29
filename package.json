@@ -13,8 +13,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "tsc": "node ./scripts/tsc.js",
-    "test": "npm run test:node",
-    "test:node": "jest --verbose --config test/native/jest.config.js --forceExit",
+    "test": "npm run test:native",
+    "test:node": "npm run test:native",
+    "test:native": "jest --verbose --config test/native/jest.config.js --forceExit",
     "test:browser": "npm install jest-puppeteer puppeteer @types/puppeteer && jest --verbose --config test/browser/jest.config.js --forceExit",
     "prepare": "npm run tsc && node ./scripts/build.js",
     "install": "node ./scripts/install.js"
