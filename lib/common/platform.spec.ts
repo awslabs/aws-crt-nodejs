@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -12,16 +12,13 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-const os = require('os');
-const process = require("process");
-const path = require("path");
-const fs = require("fs");
 
-const binaryDir = path.join('dist', 'bin', `${os.platform}-${os.arch}`, 'aws-crt-nodejs.node');
-if (fs.existsSync(binaryDir)) {
-    // Don't continue if the binding already exists (unless --rebuild is specified)
-    process.exit(0);
-}
+import * as platform from './platform'
 
-// Run the build
-require('./build.js');
+test('platform.is_nodejs is correct', () => {
+    expect(platform.is_nodejs()).not.toEqual(platform.is_browser());
+});
+
+test('platform.is_browser is correct', () => {
+    expect(platform.is_browser()).not.toEqual(platform.is_nodejs());
+});

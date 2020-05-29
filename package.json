@@ -13,7 +13,12 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "tsc": "node ./scripts/tsc.js",
-    "test": "jest --verbose",
+    "test": "npm run test:native",
+    "test:node": "npm run test:native",
+    "test:native": "jest --verbose --config test/native/jest.config.js --forceExit",
+    "test:browser": "jest --verbose --config test/browser/jest.config.js --forceExit",
+    "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
+    "install:puppeteer": "npm install --no-save jest-puppeteer puppeteer @types/puppeteer",
     "prepare": "npm run tsc && node ./scripts/build.js",
     "install": "node ./scripts/install.js"
   },
@@ -27,7 +32,6 @@
     "aws-sdk": "^2.640.0",
     "cmake-js": "^6.1.0",
     "jest": "^25.1.0",
-    "jest-circus": "^25.1.0",
     "jest-runtime": "^25.2.4",
     "ts-jest": "^25.3.0",
     "typedoc": "^0.17.7",

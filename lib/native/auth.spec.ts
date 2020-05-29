@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-import { auth as native, http as native_http } from '../lib/index';
-import { aws_sign_request } from '../lib/native/auth';
+import { auth as native, http as native_http } from '../index';
+import { aws_sign_request } from './auth';
 
 const DATE_STR = '2015-08-30T12:36:00Z';
 

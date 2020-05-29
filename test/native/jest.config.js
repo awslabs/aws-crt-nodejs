@@ -1,8 +1,11 @@
 
 module.exports = {
     testEnvironment: "node",
-    rootDir: '.',
-    testMatch: ['<rootDir>/test/*.ts'],
+    rootDir: '../../',
+    testMatch: [
+        '<rootDir>/lib/common/*.spec.ts',
+        '<rootDir>/lib/native/*.spec.ts',
+    ],
     preset: 'ts-jest',
     globals: {
         'ts-jest': {
@@ -11,6 +14,7 @@ module.exports = {
     },
     transform: {
         "binding.js$": ['ts-jest'],
+        "^.+\\.ts?$": ['ts-jest'],
     },
     testPathIgnorePatterns: [
         '/node_modules/'
@@ -18,5 +22,4 @@ module.exports = {
     modulePathIgnorePatterns: [
         '/cmake-js/'
     ],
-    testRunner: "jest-circus/runner"
 }

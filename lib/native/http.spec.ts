@@ -13,10 +13,10 @@
  * permissions and limitations under the License.
  */
 
-import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders as NativeHeaders, HttpRequest } from "../lib/native/http";
-import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "../lib/native/io";
-import { HttpHeader } from "../lib/common/http";
-import { HttpHeaders as BrowserHeaders } from "../lib/browser/http";
+import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders as NativeHeaders, HttpRequest } from "./http";
+import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "./io";
+import { HttpHeader } from "../common/http";
+import { HttpHeaders as BrowserHeaders } from "../browser/http";
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
@@ -147,7 +147,7 @@ async function test_stream(method: string, host: string, port: number, activate:
                     ['user-agent', 'AWS CRT for NodeJS']
                 ])
             );
-            let stream = connection.request(request);            
+            let stream = connection.request(request);
             stream.on('response', (status_code, headers) => {
                 expect(status_code).toBe(200);
                 expect(headers).toBeDefined();
