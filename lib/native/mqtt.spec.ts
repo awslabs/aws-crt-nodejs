@@ -15,9 +15,6 @@
 
 import * as AWS from 'aws-sdk';
 import { ClientBootstrap } from './io';
-
-import * as io from './io';
-
 import { MqttClient, QoS, MqttWill } from './mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 import { TextDecoder } from 'util';
@@ -221,7 +218,7 @@ test('MQTT Websocket', async () => {
 
 test('MQTT Pub/Sub', async () => {
 
-    io.enable_logging(io.LogLevel.TRACE);
+    //io.enable_logging(io.LogLevel.TRACE);
 
     let aws_opts: Config;
     try {

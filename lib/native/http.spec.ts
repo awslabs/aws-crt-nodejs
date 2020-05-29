@@ -15,8 +15,6 @@
 
 import { HttpClientConnectionManager, HttpClientConnection, HttpHeaders as NativeHeaders, HttpRequest } from "./http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "./io";
-import { HttpHeader } from "../common/http";
-import { HttpHeaders as BrowserHeaders } from "../browser/http";
 
 jest.setTimeout(10000);
 jest.retryTimes(3);

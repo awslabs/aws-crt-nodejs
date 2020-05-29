@@ -45,3 +45,20 @@ test('HTTP Headers', () => {
         expect(header).toBeNull();
     }
 });
+
+test('HTTP Request', () => {
+    let request = new HttpRequest("GET", "/index.html");
+
+    expect(request.method).toBe("GET");
+    expect(request.path).toBe('/index.html');
+    expect(request.headers.length).toBe(0);
+
+    request.method = "POST";
+    request.path = "/test.html"
+
+    expect(request.method).toBe("POST");
+    expect(request.path).toBe('/test.html');
+
+    request.headers.add("Host", "www.amazon.com");
+    expect(request.headers.length).toBe(1);
+});
