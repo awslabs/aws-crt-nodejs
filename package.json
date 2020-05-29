@@ -18,7 +18,7 @@
     "test:native": "jest --verbose --config test/native/jest.config.js --forceExit",
     "test:browser": "jest --verbose --config test/browser/jest.config.js --forceExit",
     "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
-    "install:puppeteer": "npm install jest-puppeteer puppeteer @types/puppeteer",
+    "install:puppeteer": "npm install --no-save jest-puppeteer puppeteer @types/puppeteer",
     "prepare": "npm run tsc && node ./scripts/build.js",
     "install": "node ./scripts/install.js"
   },
@@ -33,7 +33,6 @@
     "cmake-js": "^6.1.0",
     "jest": "^25.1.0",
     "jest-runtime": "^25.2.4",
-    "puppeteer": "^3.1.0",
     "ts-jest": "^25.3.0",
     "typedoc": "^0.17.7",
     "typescript": "^3.8.3",
@@ -41,11 +40,9 @@
     "yargs": "^13.3.2"
   },
   "dependencies": {
-    "@types/puppeteer": "^3.0.0",
     "async-mqtt": "^2.5.0",
     "axios": "^0.19.2",
     "crypto-js": "^3.3.0",
-    "jest-puppeteer": "^4.4.0",
     "mqtt": "^2.3.1",
     "websocket-stream": "^5.5.2"
   }
