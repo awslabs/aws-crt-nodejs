@@ -13,7 +13,10 @@
                 "libXScrnSaver-devel",
                 "libXcomposite",
                 "libXcursor",
-                "gtk3"
+                "gtk3",
+                "alsa-lib",
+                "atk",
+                "cups-libs"
             ],
             "+test_steps": [
                 [
