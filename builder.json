@@ -9,6 +9,7 @@
             "enabled": false
         },
         "al2": {
+            "_comment": "these dependencies are for headless chrome as part of puppeteer",
             "packages": [
                 "libXScrnSaver-devel",
                 "libXcomposite",
