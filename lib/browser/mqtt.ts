@@ -12,8 +12,8 @@
 * permissions and limitations under the License.
 */
 
-import { MqttClient as MqttClientInternal, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket } from "mqtt";
-import { AsyncClient } from "async-mqtt";
+import { AsyncClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket } from "async-mqtt";
+import { MqttClient as _MqttClient } from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as trie from "./trie";
 
@@ -154,7 +154,7 @@ class TopicTrie extends trie.Trie<SubscriptionCallback | undefined> {
  * @param payload The payload to convert
  * @internal
  */
-function normalize_payload(payload: Payload) {
+function normalize_payload(payload: Payload): string {
     let payload_data: string = payload.toString();
     if (payload instanceof DataView) {
         payload_data = new TextDecoder('utf8').decode(payload as DataView);
@@ -185,10 +185,19 @@ export class MqttClientConnection extends BufferedEventEmitter {
         private config: MqttConnectionConfig) {
         super();
 
-        const create_websocket_stream = (client: MqttClientInternal) => WebsocketUtils.create_websocket_stream(this.config);
-        const transform_websocket_url = (url: string, options: IClientOptions, client: MqttClientInternal) => WebsocketUtils.create_websocket_url(this.config);
+        const create_websocket_stream = (client: _MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
+        const transform_websocket_url = (url: string, options: IClientOptions, client: _MqttClient) => WebsocketUtils.create_websocket_url(this.config);
 
-        this.connection = new AsyncClient(new MqttClientInternal(
+        const will = this.config.will ? {
+            topic: this.config.will.topic,
+            payload: normalize_payload(this.config.will.payload),
+            qos: this.config.will.qos,
+            retain: this.config.will.retain,
+        } : undefined;
+
+        const websocketXform = (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
+
+        this.connection = new AsyncClient(new _MqttClient(
             create_websocket_stream,
             {
                 // service default is 1200 seconds
@@ -199,13 +208,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 username: this.config.username,
                 password: this.config.password,
                 reconnectPeriod: 0,
-                will: this.config.will ? {
-                    topic: this.config.will.topic,
-                    payload: normalize_payload(this.config.will.payload),
-                    qos: this.config.will.qos,
-                    retain: this.config.will.retain,
-                } : undefined,
-                transformWsUrl: (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined
+                will: will,
+                transformWsUrl: websocketXform,
             }
         ));
     }
