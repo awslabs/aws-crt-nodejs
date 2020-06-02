@@ -13,13 +13,11 @@
  * permissions and limitations under the License.
  */
 const fs = require("fs");
-const path = require("path");
 const child_process = require("child_process");
 
 // Run TSC
-const tsc = '.' + path.sep + path.join('node_modules', '.bin', 'tsc');
-child_process.execSync(`${tsc} -p tsconfig.json`);
-child_process.execSync(`${tsc} -p tsconfig.browser.json`);
+child_process.execSync(`tsc -p tsconfig.json`, {stdio: 'inherit'});
+child_process.execSync(`tsc -p tsconfig.browser.json`, {stdio: 'inherit'});
 
 // Copy the binding declaration file over verbatim
 fs.copyFileSync('lib/native/binding.d.ts', 'dist/native/binding.d.ts');
