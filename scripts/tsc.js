@@ -16,10 +16,16 @@ const fs = require("fs");
 const path = require("path");
 const child_process = require("child_process");
 
+function run(cmd) {
+    console.log(`> ${cmd}`)
+    child_process.execSync(cmd, {
+        stdio: "inherit"
+    });
+}
+
 // Run TSC
-const tsc = '.' + path.sep + path.join('node_modules', '.bin', 'tsc');
-child_process.execSync(`${tsc} -p tsconfig.json`);
-child_process.execSync(`${tsc} -p tsconfig.browser.json`);
+run('npx tsc -p tsconfig.json')
+run('npx tsc -p tsconfig.browser.json');
 
 // Copy the binding declaration file over verbatim
 fs.copyFileSync('lib/native/binding.d.ts', 'dist/native/binding.d.ts');
