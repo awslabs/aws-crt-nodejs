@@ -81,19 +81,16 @@ async function test_connection(host: string, port: number, tls_opts?: TlsConnect
             tls_opts
         );
         connection.on('connect', () => {
-            console.log('CONNECTED')
             setup_error_code = 0;
             connection.close();
         });
         connection.on('close', () => {
-            console.log('CLOSED')
             if (!connection_error) {
                 shutdown_error_code = 0;
                 resolve(true);
             }
         });
         connection.on('error', (error) => {
-            console.log('ERROR: ', error)
             connection_error = error;
             reject(error);
         });

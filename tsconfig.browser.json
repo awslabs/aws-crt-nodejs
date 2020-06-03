@@ -6,6 +6,7 @@
         "lib/browser/*.ts"
     ],
     "compilerOptions": {
+        "target": "es5",
         "outDir": "dist.browser",
         "paths": {
             "@awscrt": [
