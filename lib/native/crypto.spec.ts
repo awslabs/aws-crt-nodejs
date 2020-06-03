@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-import { crypto as native } from '../index';
-import { crypto as browser } from '../browser';
+import * as native from './crypto';
+import * as browser from '../browser/crypto';
 
 test('md5 multi-part matches', () => {
     const parts = ['ABC', '123', 'XYZ'];
