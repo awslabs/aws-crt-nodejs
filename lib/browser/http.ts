@@ -20,6 +20,8 @@ import { CrtError } from './error';
 import axios = require('axios');
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from '@awscrt/io';
 
+require('./polyfills')
+
 /**
  * A collection of HTTP headers
  *
