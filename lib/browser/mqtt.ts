@@ -12,7 +12,7 @@
 * permissions and limitations under the License.
 */
 
-import { AsyncClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket } from "async-mqtt";
+import { AsyncClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket, IConnackPacket } from "async-mqtt";
 import { MqttClient as _MqttClient } from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as trie from "./trie";
@@ -212,6 +212,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 transformWsUrl: websocketXform,
             }
         ));
+
+        this.connection.on('connect', this.on_connect);
+        this.connection.on('error', this.on_error);
+        this.connection.on('message', this.on_message);
+        this.connection.on('offline', this.on_offline);
+        this.connection.on('end', this.on_disconnected);
     }
 
     /** Emitted when the connection is ready and is about to start sending response data */
@@ -254,6 +260,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         return this;
     }
 
+    private on_connect = (connack: IConnackPacket) => {
+        this.on_online(connack.sessionPresent);
+    }
+
     private on_online = (session_present: boolean) => {
         if (++this.connection_count == 1) {
             this.emit('connect', session_present);
@@ -270,6 +280,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.emit('disconnect');
     }
 
+    private on_error = (error: Error) => {
+        this.emit('error', new CrtError(error))
+    }
+
     private on_message = (topic: string, payload: Buffer, packet: any) => {
         const callback = this.subscriptions.find(topic);
         if (callback) {
@@ -277,14 +291,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
         this.emit('message', topic, payload);
     }
-
-    private _reject(reject: (reason: any) => void) {
-        return (reason: any) => {
-            reject(reason);
-            this.emit('error', new CrtError(reason));
-        }
-    }
-
 
     /**
      * Open the actual connection to the server (async).
@@ -295,26 +301,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     async connect() {
         return new Promise<boolean>((resolve, reject) => {
-            reject = this._reject(reject);
-
-            try {
-                this.connection.on('connect',
-                    (connack: { sessionPresent: boolean, rc: number }) => {
-                        resolve(connack.sessionPresent);
-                        this.on_online(connack.sessionPresent);
-                    }
-                );
-                this.connection.on('error',
-                    (error: string) => {
-                        reject(`Failed to connect: error=${error}`);
-                    }
-                );
-                this.connection.on('message', this.on_message);
-                this.connection.on('offline', this.on_offline);
-                this.connection.on('end', this.on_disconnected);
-            } catch (e) {
-                reject(e);
-            }
+            this.connection.once('connect', (connack: IConnackPacket) => {
+                resolve(connack.sessionPresent);
+            });
+            this.connection.once('error', (error: Error) => {
+                reject(new CrtError(error));
+            });
         });
     }
 
