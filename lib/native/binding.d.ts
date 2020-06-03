@@ -401,9 +401,9 @@ export interface AwsSigningConfig {
      * Whether the resource paths are normalized when building the canonical request.
      */
     should_normalize_uri_path?: boolean;
-    /** */
+    /** Controls what body value should be used when building the canonical request */
     signed_body_value?: AwsSignedBodyValueType;
-    /** */
+    /** Controls what header, if any, should be added to the request, containing the body value */
     signed_body_header?: AwsSignedBodyHeaderType;
     /** Query param signing only: how long the pre-signed URL is valid for */
     expiration_in_seconds?: number;
