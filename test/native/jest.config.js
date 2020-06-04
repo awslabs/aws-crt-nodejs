@@ -9,7 +9,7 @@ module.exports = {
     preset: 'ts-jest',
     globals: {
         'ts-jest': {
-            tsConfig: '<rootDir>/test/tsconfig.json'
+            tsConfig: '<rootDir>/tsconfig.json'
         }
     },
     transform: {
@@ -22,4 +22,10 @@ module.exports = {
     modulePathIgnorePatterns: [
         '/cmake-js/'
     ],
+    setupFiles: ['<rootDir>/test/native/jest.setup.ts'],
+    moduleNameMapper: {
+        '@common/(.+)': '<rootDir>/lib/common/$1',
+        '@awscrt/(.+)': '<rootDir>/lib/native/$1',
+        '@awscrt': '<rootDir>/lib/index.ts'
+    }
 }

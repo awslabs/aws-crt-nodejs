@@ -16,9 +16,11 @@
 import { HttpHeader, HttpHeaders as CommonHttpHeaders, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
 export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
-import { InputStream } from './io';
 import { CrtError } from './error';
-import * as axios from 'axios';
+import axios = require('axios');
+import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from '@awscrt/io';
+
+require('./polyfills')
 
 /**
  * A collection of HTTP headers
@@ -173,15 +175,15 @@ export class HttpRequest {
 export class HttpClientConnection extends BufferedEventEmitter {
     readonly axios: any;
     constructor(
+        protected boostrap: ClientBootstrap,
         host_name: string,
         port: number,
-        scheme?: string,
+        protected socket_options: SocketOptions,
+        protected tls_opts?: TlsConnectionOptions,
         proxy_options?: HttpProxyOptions,
     ) {
         super();
-        if (!scheme) {
-            scheme = (port == 443) ? 'https' : 'http'
-        }
+        let scheme = (tls_opts) ? 'https' : 'http'
         let axios_options: axios.AxiosRequestConfig = {
             baseURL: `${scheme}://${host_name}:${port}/`
         };
@@ -236,6 +238,10 @@ export class HttpClientConnection extends BufferedEventEmitter {
     _on_end(stream: HttpClientStream) {
         this.emit('close');
     }
+
+    close() {
+        this.emit('close');
+    }
 }
 
 function stream_request(connection: HttpClientConnection, request: HttpRequest) {
@@ -288,6 +294,18 @@ export class HttpClientStream extends BufferedEventEmitter {
     }
 
     /**
+     * Begin sending the request.
+     *
+     * The stream does nothing until this is called. Call activate() when you
+     * are ready for its callbacks and events to fire.
+     */
+    activate() {
+        setTimeout(() => {
+            this.uncork();
+        }, 0);
+    }
+
+    /**
      * Emitted when the header block arrives from the server.
      */
     on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
@@ -308,13 +326,7 @@ export class HttpClientStream extends BufferedEventEmitter {
     on(event: 'end', listener: () => void): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        if (event == 'ready' || event == 'response') {
-            setTimeout(() => {
-                this.uncork();
-            }, 0);
-        }
-        return this;
+        return super.on(event, listener);
     }
 
     // Private helpers for stream_request()
@@ -373,9 +385,14 @@ export class HttpClientConnectionManager {
     private pending_requests: PendingRequest[] = [];
 
     constructor(
+        readonly bootstrap: ClientBootstrap,
         readonly host: string,
         readonly port: number,
-        readonly max_connections: number
+        readonly max_connections: number,
+        readonly initial_window_size: number,
+        readonly socket_options: SocketOptions,
+        readonly tls_opts?: TlsConnectionOptions,
+        readonly proxy_options?: HttpProxyOptions
     ) {
 
     }
@@ -423,7 +440,13 @@ export class HttpClientConnectionManager {
         }
 
         // There's room, create a new connection
-        let connection = new HttpClientConnection(this.host, this.port);
+        let connection = new HttpClientConnection(
+            this.bootstrap,
+            this.host,
+            this.port,
+            this.socket_options,
+            this.tls_opts,
+            this.proxy_options);
         this.pending_connections.add(connection);
         const on_connect = () => {
             this.pending_connections.delete(connection);

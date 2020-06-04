@@ -8,7 +8,7 @@ module.exports = {
     preset: 'jest-puppeteer',
     globals: {
         'ts-jest': {
-            tsConfig: '<rootDir>/test/tsconfig.json'
+            tsConfig: '<rootDir>/tsconfig.browser.json'
         }
     },
     transform: {
@@ -24,4 +24,9 @@ module.exports = {
     globalSetup: '<rootDir>/test/browser/jest.setup.js',
     globalTeardown: '<rootDir>/test/browser/jest.teardown.js',
     setupFilesAfterEnv: ['<rootDir>/test/browser/jest.setup.ts'],
+    moduleNameMapper: {
+        '@common/(.+)': '<rootDir>/lib/common/$1',
+        '@awscrt/(.+)': '<rootDir>/lib/browser/$1',
+        '@awscrt': '<rootDir>/lib/browser.ts'
+    }
 }

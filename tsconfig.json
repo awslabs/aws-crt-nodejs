@@ -5,5 +5,15 @@
         "lib/common/*.ts",
         "lib/native/*.ts",
         "lib/native/binding.js",
-    ]
+    ],
+    "compilerOptions": {
+        "paths": {
+            "@awscrt": [
+                "lib/index.ts"
+            ],
+            "@awscrt/*": [
+                "lib/native/*"
+            ]
+        }
+    }
 }

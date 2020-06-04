@@ -1,11 +1,20 @@
 {
     "extends": "./tsconfig.base",
-    "compilerOptions": {
-        "outDir": "dist.browser",
-    },
     "include": [
         "lib/browser.ts",
         "lib/common/*.ts",
         "lib/browser/*.ts"
-    ]
+    ],
+    "compilerOptions": {
+        "target": "es5",
+        "outDir": "dist.browser",
+        "paths": {
+            "@awscrt": [
+                "lib/browser.ts"
+            ],
+            "@awscrt/*": [
+                "lib/browser/*"
+            ]
+        }
+    }
 }

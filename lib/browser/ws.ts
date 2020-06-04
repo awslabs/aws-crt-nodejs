@@ -114,4 +114,3 @@ export function create_websocket_stream(config: MqttConnectionConfig) {
     const url = create_websocket_url(config);
     return WebsocketStream(url, ['mqttv3.1'], config.websocket);
 }
-
