@@ -194,6 +194,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
         maybeProxyOptions?: HttpProxyOptions,
     ) {
         super();
+        this.cork();
 
         this.bootstrap = (bootstrapOrHost instanceof ClientBootstrap) ? bootstrapOrHost : new ClientBootstrap();
         const host_name = (bootstrapOrHost instanceof String) ? bootstrapOrHost : hostOrPort as string;
