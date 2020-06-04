@@ -255,10 +255,6 @@ export class HttpClientConnection extends BufferedEventEmitter {
         return stream_request(this, request);
     }
 
-    _on_end(stream: HttpClientStream) {
-        this.emit('close');
-    }
-
     close() {
         this.emit('close');
         this._axios = undefined;
@@ -304,6 +300,7 @@ export class HttpClientStream extends BufferedEventEmitter {
     private encoder = new TextEncoder();
     private constructor(readonly connection: HttpClientConnection) {
         super();
+        this.cork();
     }
 
     /**
@@ -369,7 +366,7 @@ export class HttpClientStream extends BufferedEventEmitter {
         }
         this.emit('data', data);
         this.emit('end');
-        this.connection._on_end(this);
+        this.connection.close();
     }
 
     // Gather as much information as possible from the axios error
