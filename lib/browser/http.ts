@@ -173,34 +173,54 @@ export class HttpRequest {
 }
 
 export class HttpClientConnection extends BufferedEventEmitter {
-    readonly axios: any;
+    public _axios: any;
+    private axios_options: axios.AxiosRequestConfig;
+    protected bootstrap: ClientBootstrap;
+    protected socket_options?: SocketOptions;
+    protected tls_options?: TlsConnectionOptions;
+    protected proxy_options?: HttpProxyOptions;
+
+    /**
+     * Browser-specific overload of constructor without bootstrap
+     */
+    constructor(host_name: string, port: number, socket_options?: SocketOptions, tls_options?: TlsConnectionOptions, proxy_options?: HttpProxyOptions);
+    constructor(bootstrap: ClientBootstrap, host_name: string, port: number, socket_options?: SocketOptions, tls_options?: TlsConnectionOptions, proxy_options?: HttpProxyOptions);
     constructor(
-        protected bootstrap: ClientBootstrap,
-        host_name: string,
-        port: number,
-        protected socket_options: SocketOptions,
-        protected tls_opts?: TlsConnectionOptions,
-        proxy_options?: HttpProxyOptions,
+        bootstrapOrHost: ClientBootstrap | string,
+        hostOrPort: string | number,
+        portOrSocketOptions?: number | SocketOptions,
+        socketOptionsOrTlsOptions?: SocketOptions | TlsConnectionOptions,
+        tlsOptionsOrProxyOptions?: TlsConnectionOptions | HttpProxyOptions,
+        maybeProxyOptions?: HttpProxyOptions,
     ) {
         super();
-        let scheme = (tls_opts) ? 'https' : 'http'
-        let axios_options: axios.AxiosRequestConfig = {
+
+        this.bootstrap = (bootstrapOrHost instanceof ClientBootstrap) ? bootstrapOrHost : new ClientBootstrap();
+        const host_name = (bootstrapOrHost instanceof String) ? bootstrapOrHost : hostOrPort as string;
+        const port = (portOrSocketOptions instanceof SocketOptions) ? hostOrPort as number : portOrSocketOptions as number;
+        this.socket_options = (portOrSocketOptions instanceof SocketOptions) ? portOrSocketOptions : socketOptionsOrTlsOptions as SocketOptions;
+        this.tls_options = (socketOptionsOrTlsOptions instanceof TlsConnectionOptions) ? socketOptionsOrTlsOptions : tlsOptionsOrProxyOptions as TlsConnectionOptions;
+        this.proxy_options = (tlsOptionsOrProxyOptions instanceof HttpProxyOptions) ? tlsOptionsOrProxyOptions : maybeProxyOptions;
+        const scheme = (this.tls_options) ? 'https' : 'http'
+
+        this.axios_options = {
             baseURL: `${scheme}://${host_name}:${port}/`
         };
-        if (proxy_options) {
-            axios_options.proxy = {
-                host: proxy_options.host_name,
-                port: proxy_options.port,
+
+        if (this.proxy_options) {
+            this.axios_options.proxy = {
+                host: this.proxy_options.host_name,
+                port: this.proxy_options.port,
             };
 
-            if (proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
-                axios_options.proxy.auth = {
-                    username: proxy_options.auth_username || "",
-                    password: proxy_options.auth_password || "",
+            if (this.proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
+                this.axios_options.proxy.auth = {
+                    username: this.proxy_options.auth_username || "",
+                    password: this.proxy_options.auth_password || "",
                 };
             }
         }
-        this.axios = axios.default.create(axios_options);
+        this._axios = axios.default.create(this.axios_options);
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -241,6 +261,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
 
     close() {
         this.emit('close');
+        this._axios = undefined;
     }
 }
 
@@ -259,7 +280,7 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
     }
     let body = (request.body) ? (request.body as InputStream).data : undefined;
     let stream = HttpClientStream._create(connection);
-    stream.connection.axios.request({
+    stream.connection._axios.request({
         url: request.path,
         method: request.method.toLowerCase(),
         headers: _to_object(request.headers),
@@ -359,16 +380,16 @@ export class HttpClientStream extends BufferedEventEmitter {
             this.response_status_code = error.response.status;
             info += `status_code=${error.response.status}`;
             if (error.response.headers) {
-                info += `headers=${error.response.headers}`;
+                info += ` headers=${JSON.stringify(error.response.headers)}`;
             }
             if (error.response.data) {
-                info += `data=${error.response.data}`;
+                info += ` data=${error.response.data}`;
             }
         } else {
             info = "No response from server";
         }
 
-        this.emit('error', new Error(`msg=${error.message}, XHR=${error.request}, info=${info}`));
+        this.emit('error', new Error(`msg=${error.message}, connection=${JSON.stringify(this.connection)}, info=${info}`));
     }
 }
 
