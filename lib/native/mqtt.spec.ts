@@ -218,8 +218,6 @@ test('MQTT Websocket', async () => {
 
 test('MQTT Pub/Sub', async () => {
 
-    //io.enable_logging(io.LogLevel.TRACE);
-
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();

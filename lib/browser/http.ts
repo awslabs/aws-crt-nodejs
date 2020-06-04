@@ -183,7 +183,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
         proxy_options?: HttpProxyOptions,
     ) {
         super();
-        let scheme = (tls_opts || port == 443) ? 'https' : 'http'
+        let scheme = (tls_opts) ? 'https' : 'http'
         let axios_options: axios.AxiosRequestConfig = {
             baseURL: `${scheme}://${host_name}:${port}/`
         };
