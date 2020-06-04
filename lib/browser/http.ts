@@ -175,7 +175,7 @@ export class HttpRequest {
 export class HttpClientConnection extends BufferedEventEmitter {
     readonly axios: any;
     constructor(
-        protected boostrap: ClientBootstrap,
+        protected bootstrap: ClientBootstrap,
         host_name: string,
         port: number,
         protected socket_options: SocketOptions,
