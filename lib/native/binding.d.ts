@@ -381,9 +381,9 @@ export interface AwsSigningConfig {
      */
     date?: Date;
     /**
-     * Parameters to skip when signing.
+     * Headers to skip when signing.
      *
-     * Skipping auth-required params will result in an unusable signature.
+     * Skipping auth-required headers will result in an unusable signature.
      * Headers injected by the signing process are not skippable.
      * This function does not override the internal check function
      * (x-amzn-trace-id, user-agent), but rather supplements it.
@@ -391,7 +391,7 @@ export interface AwsSigningConfig {
      * true to both the internal check (skips x-amzn-trace-id, user-agent)
      * and is found in this list (if defined)
      */
-    param_blacklist?: string[];
+    header_blacklist?: string[];
     /**
      * Set true to double-encode the resource path when constructing the
      * canonical request. By default, all services except S3 use double encoding.
@@ -401,6 +401,11 @@ export interface AwsSigningConfig {
      * Whether the resource paths are normalized when building the canonical request.
      */
     should_normalize_uri_path?: boolean;
+    /**
+     * Should the session token be omitted from the signing process?  This should only be
+     * true when making a websocket handshake with IoT Core.
+     */
+    omit_session_token?: boolean;
     /** Controls what body value should be used when building the canonical request */
     signed_body_value?: AwsSignedBodyValueType;
     /** Controls what header, if any, should be added to the request, containing the body value */

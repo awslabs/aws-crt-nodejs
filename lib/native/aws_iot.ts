@@ -116,8 +116,8 @@ export class AwsIotMqttConnectionConfigBuilder {
                         provider: options.credentials_provider,
                         region: options.region,
                         service: options.service ?? "iotdevicegateway",
-                        param_blacklist: ["x-amz-date", "x-amz-security-token"],
                         signed_body_value: AwsSignedBodyValueType.Empty,
+                        omit_session_token: true,
                     };
 
                 try {

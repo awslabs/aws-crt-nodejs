@@ -192,22 +192,22 @@ struct signer_sign_request_state {
      * aws_string *
      * this exists so that when should_sign_param is called from off thread, we don't have to hit Node every single time
      */
-    struct aws_array_list param_blacklist;
+    struct aws_array_list header_blacklist;
 
     napi_threadsafe_function on_complete;
 
     int error_code;
 };
 
-static bool s_should_sign_param(const struct aws_byte_cursor *name, void *userdata) {
+static bool s_should_sign_header(const struct aws_byte_cursor *name, void *userdata) {
     struct signer_sign_request_state *state = userdata;
 
     /* If there are params in the black_list, check them all */
-    if (state->param_blacklist.length) {
-        const size_t num_blacklisted = aws_array_list_length(&state->param_blacklist);
+    if (state->header_blacklist.length) {
+        const size_t num_blacklisted = aws_array_list_length(&state->header_blacklist);
         for (size_t i = 0; i < num_blacklisted; ++i) {
             struct aws_string *blacklisted = NULL;
-            aws_array_list_get_at(&state->param_blacklist, &blacklisted, i);
+            aws_array_list_get_at(&state->header_blacklist, &blacklisted, i);
             AWS_ASSUME(blacklisted);
 
             if (aws_string_eq_byte_cursor_ignore_case(blacklisted, name)) {
@@ -230,13 +230,13 @@ static void s_destroy_signing_binding(
     /* Release references */
     napi_delete_reference(env, binding->node_request);
 
-    const size_t num_blacklisted = binding->param_blacklist.length;
+    const size_t num_blacklisted = binding->header_blacklist.length;
     for (size_t i = 0; i < num_blacklisted; ++i) {
         struct aws_string *blacklisted = NULL;
-        aws_array_list_get_at(&binding->param_blacklist, &blacklisted, i);
+        aws_array_list_get_at(&binding->header_blacklist, &blacklisted, i);
         aws_string_destroy(blacklisted);
     }
-    aws_array_list_clean_up(&binding->param_blacklist);
+    aws_array_list_clean_up(&binding->header_blacklist);
 
     aws_signable_destroy(binding->signable);
 
@@ -420,27 +420,27 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         }
 
         /* Get param blacklist */
-        if (s_get_named_property(env, js_config, "param_blacklist", napi_object, &current_value)) {
+        if (s_get_named_property(env, js_config, "header_blacklist", napi_object, &current_value)) {
             bool is_array = false;
             AWS_NAPI_CALL(env, napi_is_array(env, current_value, &is_array), {
-                napi_throw_error(env, NULL, "Failed to check if parameter blacklist is an array");
+                napi_throw_error(env, NULL, "Failed to check if header blacklist is an array");
                 goto error;
             });
 
             if (!is_array) {
-                napi_throw_type_error(env, NULL, "parameter blacklist must be an array of strings");
+                napi_throw_type_error(env, NULL, "header blacklist must be an array of strings");
                 goto error;
             }
 
             uint32_t blacklist_length = 0;
             AWS_NAPI_CALL(env, napi_get_array_length(env, current_value, &blacklist_length), {
-                napi_throw_error(env, NULL, "Failed to get the length of node_param_blacklist");
+                napi_throw_error(env, NULL, "Failed to get the length of node_header_blacklist");
                 goto error;
             });
 
             /* Initialize the string array */
             int err = aws_array_list_init_dynamic(
-                &state->param_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
+                &state->header_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
             if (err == AWS_OP_ERR) {
                 aws_napi_throw_last_error(env);
                 goto error;
@@ -448,40 +448,52 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
             /* Start copying the strings */
             for (uint32_t i = 0; i < blacklist_length; ++i) {
-                napi_value param = NULL;
-                AWS_NAPI_CALL(env, napi_get_element(env, current_value, i, &param), {
+                napi_value header = NULL;
+                AWS_NAPI_CALL(env, napi_get_element(env, current_value, i, &header), {
                     napi_throw_error(env, NULL, "Failed to get element from param blacklist");
                     goto error;
                 });
 
-                struct aws_string *param_name = aws_string_new_from_napi(env, param);
-                if (!param_name) {
-                    napi_throw_error(env, NULL, "param blacklist must be array of strings");
+                struct aws_string *header_name = aws_string_new_from_napi(env, header);
+                if (!header_name) {
+                    napi_throw_error(env, NULL, "header blacklist must be array of strings");
                     goto error;
                 }
 
-                if (aws_array_list_push_back(&state->param_blacklist, &param_name)) {
-                    aws_string_destroy(param_name);
+                if (aws_array_list_push_back(&state->header_blacklist, &header_name)) {
+                    aws_string_destroy(header_name);
                     aws_napi_throw_last_error(env);
                     goto error;
                 }
             }
 
-            config.should_sign_param = s_should_sign_param;
-            config.should_sign_param_ud = state;
+            config.should_sign_header = s_should_sign_header;
+            config.should_sign_header_ud = state;
         }
 
         /* Get bools */
         if (s_get_named_property(env, js_config, "use_double_uri_encode", napi_boolean, &current_value)) {
-            napi_get_value_bool(env, current_value, &config.use_double_uri_encode);
+            bool property_value = true;
+            napi_get_value_bool(env, current_value, &property_value);
+            config.flags.use_double_uri_encode = property_value;
         } else {
-            config.use_double_uri_encode = true;
+            config.flags.use_double_uri_encode = true;
         }
 
         if (s_get_named_property(env, js_config, "should_normalize_uri_path", napi_boolean, &current_value)) {
-            napi_get_value_bool(env, current_value, &config.should_normalize_uri_path);
+            bool property_value = true;
+            napi_get_value_bool(env, current_value, &property_value);
+            config.flags.should_normalize_uri_path = property_value;
         } else {
-            config.should_normalize_uri_path = true;
+            config.flags.should_normalize_uri_path = true;
+        }
+
+        if (s_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value)) {
+            bool property_value = true;
+            napi_get_value_bool(env, current_value, &property_value);
+            config.flags.should_normalize_uri_path = property_value;
+        } else {
+            config.flags.omit_session_token = false;
         }
 
         /* Get signed body value */
