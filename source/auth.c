@@ -24,6 +24,7 @@
 #include <aws/auth/signable.h>
 #include <aws/auth/signing.h>
 #include <aws/auth/signing_config.h>
+#include <aws/auth/signing_result.h>
 
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
@@ -191,22 +192,22 @@ struct signer_sign_request_state {
      * aws_string *
      * this exists so that when should_sign_param is called from off thread, we don't have to hit Node every single time
      */
-    struct aws_array_list param_blacklist;
+    struct aws_array_list header_blacklist;
 
     napi_threadsafe_function on_complete;
 
     int error_code;
 };
 
-static bool s_should_sign_param(const struct aws_byte_cursor *name, void *userdata) {
+static bool s_should_sign_header(const struct aws_byte_cursor *name, void *userdata) {
     struct signer_sign_request_state *state = userdata;
 
     /* If there are params in the black_list, check them all */
-    if (state->param_blacklist.length) {
-        const size_t num_blacklisted = aws_array_list_length(&state->param_blacklist);
+    if (state->header_blacklist.length) {
+        const size_t num_blacklisted = aws_array_list_length(&state->header_blacklist);
         for (size_t i = 0; i < num_blacklisted; ++i) {
             struct aws_string *blacklisted = NULL;
-            aws_array_list_get_at(&state->param_blacklist, &blacklisted, i);
+            aws_array_list_get_at(&state->header_blacklist, &blacklisted, i);
             AWS_ASSUME(blacklisted);
 
             if (aws_string_eq_byte_cursor_ignore_case(blacklisted, name)) {
@@ -216,6 +217,30 @@ static bool s_should_sign_param(const struct aws_byte_cursor *name, void *userda
     }
 
     return true;
+}
+
+static void s_destroy_signing_binding(
+    napi_env env,
+    struct aws_allocator *allocator,
+    struct signer_sign_request_state *binding) {
+    if (binding == NULL) {
+        return;
+    }
+
+    /* Release references */
+    napi_delete_reference(env, binding->node_request);
+
+    const size_t num_blacklisted = binding->header_blacklist.length;
+    for (size_t i = 0; i < num_blacklisted; ++i) {
+        struct aws_string *blacklisted = NULL;
+        aws_array_list_get_at(&binding->header_blacklist, &blacklisted, i);
+        aws_string_destroy(blacklisted);
+    }
+    aws_array_list_clean_up(&binding->header_blacklist);
+
+    aws_signable_destroy(binding->signable);
+
+    aws_mem_release(allocator, binding);
 }
 
 static void s_aws_sign_request_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
@@ -230,26 +255,13 @@ static void s_aws_sign_request_complete_call(napi_env env, napi_value on_complet
         env,
         aws_napi_dispatch_threadsafe_function(env, state->on_complete, NULL, on_complete, AWS_ARRAY_SIZE(args), args));
 
-    /* Release references */
-    napi_delete_reference(env, state->node_request);
-
-    const size_t num_blacklisted = state->param_blacklist.length;
-    for (size_t i = 0; i < num_blacklisted; ++i) {
-        struct aws_string *blacklisted = NULL;
-        aws_array_list_get_at(&state->param_blacklist, &blacklisted, i);
-        aws_string_destroy(blacklisted);
-    }
-    aws_array_list_clean_up(&state->param_blacklist);
-
-    aws_mem_release(allocator, state);
+    s_destroy_signing_binding(env, allocator, state);
 }
 
 static void s_aws_sign_request_complete(struct aws_signing_result *result, int error_code, void *userdata) {
 
     struct signer_sign_request_state *state = userdata;
     struct aws_allocator *allocator = aws_napi_get_allocator();
-
-    aws_signable_destroy(state->signable);
 
     state->error_code = error_code;
     if (error_code == AWS_ERROR_SUCCESS) {
@@ -326,12 +338,24 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         if (s_get_named_property(env, js_config, "algorithm", napi_number, &current_value)) {
             int32_t algorithm_int = 0;
             napi_get_value_int32(env, current_value, &algorithm_int);
-            if (algorithm_int < 0 || algorithm_int >= AWS_SIGNING_ALGORITHM_COUNT) {
+            if (algorithm_int < 0) {
                 napi_throw_error(env, NULL, "Signing algorithm value out of acceptable range");
                 goto error;
             }
 
             config.algorithm = (enum aws_signing_algorithm)algorithm_int;
+        }
+
+        /* Get signature type */
+        if (s_get_named_property(env, js_config, "signature_type", napi_number, &current_value)) {
+            int32_t signature_type_int = 0;
+            napi_get_value_int32(env, current_value, &signature_type_int);
+            if (signature_type_int < 0) {
+                napi_throw_error(env, NULL, "Signing signature type value out of acceptable range");
+                goto error;
+            }
+
+            config.signature_type = (enum aws_signature_type)signature_type_int;
         }
 
         /* Get provider */
@@ -344,12 +368,10 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
         /* Get region */
         if (!s_get_named_property(env, js_config, "region", napi_string, &current_value)) {
-
             napi_throw_type_error(env, NULL, "Region string is required");
             goto error;
         }
         if (aws_byte_buf_init_from_napi(&region_buf, env, current_value)) {
-
             napi_throw_error(env, NULL, "Failed to build region buffer");
             goto error;
         }
@@ -357,9 +379,7 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
         /* Get service */
         if (s_get_named_property(env, js_config, "service", napi_string, &current_value)) {
-
             if (aws_byte_buf_init_from_napi(&service_buf, env, current_value)) {
-
                 napi_throw_error(env, NULL, "Failed to build service buffer");
                 goto error;
             }
@@ -370,7 +390,6 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         /* Get date */
         /* #TODO eventually check for napi_date type (node v11) */
         if (s_get_named_property(env, js_config, "date", napi_object, &current_value)) {
-
             napi_value prototype = NULL;
             AWS_NAPI_CALL(env, napi_get_prototype(env, current_value, &prototype), {
                 napi_throw_type_error(env, NULL, "Date param must be a Date object");
@@ -397,32 +416,31 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
             aws_date_time_init_epoch_millis(&config.date, (uint64_t)ms_since_epoch);
         } else {
-
             aws_date_time_init_now(&config.date);
         }
 
         /* Get param blacklist */
-        if (s_get_named_property(env, js_config, "param_blacklist", napi_object, &current_value)) {
+        if (s_get_named_property(env, js_config, "header_blacklist", napi_object, &current_value)) {
             bool is_array = false;
             AWS_NAPI_CALL(env, napi_is_array(env, current_value, &is_array), {
-                napi_throw_error(env, NULL, "Failed to check if parameter blacklist is an array");
+                napi_throw_error(env, NULL, "Failed to check if header blacklist is an array");
                 goto error;
             });
 
             if (!is_array) {
-                napi_throw_type_error(env, NULL, "parameter blacklist must be an array of strings");
+                napi_throw_type_error(env, NULL, "header blacklist must be an array of strings");
                 goto error;
             }
 
             uint32_t blacklist_length = 0;
             AWS_NAPI_CALL(env, napi_get_array_length(env, current_value, &blacklist_length), {
-                napi_throw_error(env, NULL, "Failed to get the length of node_param_blacklist");
+                napi_throw_error(env, NULL, "Failed to get the length of node_header_blacklist");
                 goto error;
             });
 
             /* Initialize the string array */
             int err = aws_array_list_init_dynamic(
-                &state->param_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
+                &state->header_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
             if (err == AWS_OP_ERR) {
                 aws_napi_throw_last_error(env);
                 goto error;
@@ -430,48 +448,81 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
             /* Start copying the strings */
             for (uint32_t i = 0; i < blacklist_length; ++i) {
-                napi_value param = NULL;
-                AWS_NAPI_CALL(env, napi_get_element(env, current_value, i, &param), {
+                napi_value header = NULL;
+                AWS_NAPI_CALL(env, napi_get_element(env, current_value, i, &header), {
                     napi_throw_error(env, NULL, "Failed to get element from param blacklist");
                     goto error;
                 });
 
-                struct aws_string *param_name = aws_string_new_from_napi(env, param);
-                if (!param_name) {
-                    napi_throw_error(env, NULL, "param blacklist must be array of strings");
+                struct aws_string *header_name = aws_string_new_from_napi(env, header);
+                if (!header_name) {
+                    napi_throw_error(env, NULL, "header blacklist must be array of strings");
                     goto error;
                 }
 
-                if (aws_array_list_push_back(&state->param_blacklist, &param_name)) {
-                    aws_string_destroy(param_name);
+                if (aws_array_list_push_back(&state->header_blacklist, &header_name)) {
+                    aws_string_destroy(header_name);
                     aws_napi_throw_last_error(env);
                     goto error;
                 }
             }
 
-            config.should_sign_param = s_should_sign_param;
-            config.should_sign_param_ud = state;
+            config.should_sign_header = s_should_sign_header;
+            config.should_sign_header_ud = state;
         }
 
         /* Get bools */
         if (s_get_named_property(env, js_config, "use_double_uri_encode", napi_boolean, &current_value)) {
-            napi_get_value_bool(env, current_value, &config.use_double_uri_encode);
+            bool property_value = true;
+            napi_get_value_bool(env, current_value, &property_value);
+            config.flags.use_double_uri_encode = property_value;
         } else {
-            config.use_double_uri_encode = true;
+            config.flags.use_double_uri_encode = true;
         }
 
         if (s_get_named_property(env, js_config, "should_normalize_uri_path", napi_boolean, &current_value)) {
-            napi_get_value_bool(env, current_value, &config.should_normalize_uri_path);
+            bool property_value = true;
+            napi_get_value_bool(env, current_value, &property_value);
+            config.flags.should_normalize_uri_path = property_value;
         } else {
-            config.should_normalize_uri_path = true;
+            config.flags.should_normalize_uri_path = true;
         }
 
-        if (s_get_named_property(env, js_config, "body_signing_type", napi_boolean, &current_value)) {
-            uint32_t body_signing_type = 0;
-            napi_get_value_uint32(env, current_value, &body_signing_type);
-            config.body_signing_type = (enum aws_body_signing_config_type)body_signing_type;
+        if (s_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value)) {
+            bool property_value = true;
+            napi_get_value_bool(env, current_value, &property_value);
+            config.flags.omit_session_token = property_value;
         } else {
-            config.body_signing_type = AWS_BODY_SIGNING_OFF;
+            config.flags.omit_session_token = false;
+        }
+
+        /* Get signed body value */
+        if (s_get_named_property(env, js_config, "signed_body_value", napi_number, &current_value)) {
+            int32_t signed_body_value = 0;
+            napi_get_value_int32(env, current_value, &signed_body_value);
+            config.signed_body_value = (enum aws_signed_body_value_type)signed_body_value;
+        } else {
+            config.signed_body_value = AWS_SBVT_PAYLOAD;
+        }
+
+        /* Get signed body header */
+        if (s_get_named_property(env, js_config, "signed_body_header", napi_number, &current_value)) {
+            int32_t signed_body_header = 0;
+            napi_get_value_int32(env, current_value, &signed_body_header);
+            config.signed_body_header = (enum aws_signed_body_header_type)signed_body_header;
+        } else {
+            config.signed_body_header = AWS_SBHT_NONE;
+        }
+
+        /* Get expiration time */
+        if (s_get_named_property(env, js_config, "expiration_in_seconds", napi_number, &current_value)) {
+            int64_t expiration_in_seconds = 0;
+            napi_get_value_int64(env, current_value, &expiration_in_seconds);
+            if (expiration_in_seconds < 0) {
+                napi_throw_error(env, NULL, "Signing expiration time in seconds must be non-negative");
+                goto error;
+            }
+            config.expiration_in_seconds = (uint64_t)expiration_in_seconds;
         }
     }
 
@@ -498,10 +549,16 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             state)) {
 
         aws_napi_throw_last_error(env);
-        goto error;
     }
 
+    goto done;
+
 error:
+    // Additional cleanup needed when we didn't successfully bind the on_complete function
+    s_destroy_signing_binding(env, allocator, state);
+
+done:
+    // Shared cleanup
     aws_credentials_provider_release(config.credentials_provider);
     aws_byte_buf_clean_up(&region_buf);
     aws_byte_buf_clean_up(&service_buf);

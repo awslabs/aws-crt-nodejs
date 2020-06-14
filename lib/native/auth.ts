@@ -24,10 +24,62 @@ import { ClientBootstrap } from './io';
  * @category Auth
  */
 export enum AwsSigningAlgorithm {
-    /** Use Signature Version 4 to sign headers. */
-    SigV4Header,
-    /** Use Signature Version 4 to sign query parameters. */
-    SigV4QueryParam,
+    /** Use the Aws signature version 4 signing process to sign the request */  
+    SigV4
+}
+
+/**
+ * AWS signature type enumeration.
+ *
+ * @category Auth
+ */
+export enum AwsSignatureType {
+    /** Sign an http request and apply the signing results as headers */
+    HttpRequestViaHeaders,
+
+    /** Sign an http request and apply the signing results as query params */
+    HttpRequestViaQueryParams,
+
+    /** Sign an http request payload chunk */
+    HttpRequestChunk,
+
+    /** Sign an event stream event */
+    HttpRequestEvent
+}
+
+/**
+ * AWS signed body value enumeration.
+ *
+ * @category Auth
+ */
+export enum AwsSignedBodyValueType {
+    /** Use the SHA-256 of the empty string as the canonical request payload value */
+    Empty ,
+
+    /** Use the SHA-256 of the request payload as the canonical request payload value  */
+    Payload,
+
+    /** Use the literal string 'UNSIGNED-PAYLOAD' as the canonical request payload value  */
+    UnsignedPayload ,
+
+    /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD' as the canonical request payload value  */
+    StreamingAws4HmacSha256Payload ,
+
+    /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-EVENTS' as the canonical request payload value  */
+    StreamingAws4HmacSha256Events
+}
+
+/**
+ * AWS signed body header enumeration.
+ *
+ * @category Auth
+ */
+export enum AwsSignedBodyHeaderType {
+    /** Do not add a header containing the canonical request payload value */
+    None,
+
+    /** Add the X-Amz-Content-Sha256 header with the canonical request payload value */
+    XAmzContentSha256
 }
 
 /**

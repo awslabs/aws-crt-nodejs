@@ -14,7 +14,7 @@
  */
 
 import { InputStream } from "./io";
-import { AwsSigningAlgorithm } from "./auth";
+import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValueType, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 
 /**
@@ -358,25 +358,6 @@ export class AwsCredentialsProvider {
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
 }
 
-/** Body signing config enumeration */
-export enum AwsBodySigningConfigType {
-    /**
-     * No attempts will be made to sign the payload, and no "x-amz-content-sha256"
-     * header will be added to the request.
-     */
-    AWS_BODY_SIGNING_OFF = 0,
-    /**
-     * The body will be signed and "x-amz-content-sha256" will contain
-     * the value of the signature.
-     */
-    AWS_BODY_SIGNING_ON = 1,
-    /**
-     * The body will not be signed, but "x-amz-content-sha256" will contain
-     * the value "UNSIGNED-PAYLOAD". This value is currently only used for Amazon S3.
-     */
-    AWS_BODY_SIGNING_UNSIGNED_PAYLOAD = 2,
-}
-
 /**
  * Configuration for use in AWS-related signing.
  * AwsSigningConfig is immutable.
@@ -385,6 +366,8 @@ export enum AwsBodySigningConfigType {
 export interface AwsSigningConfig {
     /** Which signing process to invoke */
     algorithm: AwsSigningAlgorithm;
+    /** What kind of signature to compute */
+    signature_type: AwsSignatureType;
     /** Credentials provider to fetch signing credentials with */
     provider: AwsCredentialsProvider;
     /** The region to sign against */
@@ -398,9 +381,9 @@ export interface AwsSigningConfig {
      */
     date?: Date;
     /**
-     * Parameters to skip when signing.
+     * Headers to skip when signing.
      *
-     * Skipping auth-required params will result in an unusable signature.
+     * Skipping auth-required headers will result in an unusable signature.
      * Headers injected by the signing process are not skippable.
      * This function does not override the internal check function
      * (x-amzn-trace-id, user-agent), but rather supplements it.
@@ -408,7 +391,7 @@ export interface AwsSigningConfig {
      * true to both the internal check (skips x-amzn-trace-id, user-agent)
      * and is found in this list (if defined)
      */
-    param_blacklist?: string[];
+    header_blacklist?: string[];
     /**
      * Set true to double-encode the resource path when constructing the
      * canonical request. By default, all services except S3 use double encoding.
@@ -418,8 +401,17 @@ export interface AwsSigningConfig {
      * Whether the resource paths are normalized when building the canonical request.
      */
     should_normalize_uri_path?: boolean;
-    /** Controls how the payload will be signed. */
-    body_signing_type?: AwsBodySigningConfigType;
+    /**
+     * Should the session token be omitted from the signing process?  This should only be
+     * true when making a websocket handshake with IoT Core.
+     */
+    omit_session_token?: boolean;
+    /** Controls what body value should be used when building the canonical request */
+    signed_body_value?: AwsSignedBodyValueType;
+    /** Controls what header, if any, should be added to the request, containing the body value */
+    signed_body_header?: AwsSignedBodyHeaderType;
+    /** Query param signing only: how long the pre-signed URL is valid for */
+    expiration_in_seconds?: number;
 }
 
 /** @internal */

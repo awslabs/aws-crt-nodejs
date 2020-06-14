@@ -30,7 +30,6 @@ const SIGV4TEST_UNSIGNED_HEADERS: [string, string][] = [
 ];
 const SIGV4TEST_SIGNED_HEADERS: [string, string][] = [
     ['Host', 'example.amazonaws.com'],
-    ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
     ['Authorization', 'AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31'],
     ['X-Amz-Date', DATE_STR.replace(/[-:]/g, '')],
 ];
@@ -43,11 +42,14 @@ test('AWS Signer SigV4 Headers', async () => {
     );
 
     const signing_config: native.AwsSigningConfig = {
-        algorithm: native.AwsSigningAlgorithm.SigV4Header,
+        algorithm: native.AwsSigningAlgorithm.SigV4,
+	    signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
         provider: credentials_provider,
         region: SIGV4TEST_REGION,
         service: SIGV4TEST_SERVICE,
         date: new Date(DATE_STR),
+        signed_body_value: native.AwsSignedBodyValueType.Empty,
+        signed_body_header: native.AwsSignedBodyHeaderType.None,
     };
 
     let http_request = new native_http.HttpRequest(
