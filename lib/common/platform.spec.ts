@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -12,19 +12,13 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-const fs = require("fs");
-const child_process = require("child_process");
 
-function run(cmd) {
-    console.log(`> ${cmd}`)
-    child_process.execSync(cmd, {
-        stdio: "inherit"
-    });
-}
+import * as platform from './platform'
 
-// Run TSC
-run('npx tsc -p tsconfig.json')
-run('npx tsc -p tsconfig.browser.json');
+test('platform.is_nodejs is correct', () => {
+    expect(platform.is_nodejs()).not.toEqual(platform.is_browser());
+});
 
-// Copy the binding declaration file over verbatim
-fs.copyFileSync('lib/native/binding.d.ts', 'dist/native/binding.d.ts');
+test('platform.is_browser is correct', () => {
+    expect(platform.is_browser()).not.toEqual(platform.is_nodejs());
+});

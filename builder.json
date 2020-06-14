@@ -7,6 +7,25 @@
     "hosts": {
         "manylinux": {
             "enabled": false
+        },
+        "al2": {
+            "_comment": "these dependencies are for headless chrome as part of puppeteer, see https://github.com/puppeteer/puppeteer/blob/master/docs/troubleshooting.md#chrome-headless-doesnt-launch-on-unix",
+            "packages": [
+                "libXScrnSaver-devel",
+                "libXcomposite",
+                "libXcursor",
+                "gtk3",
+                "alsa-lib",
+                "atk",
+                "cups-libs"
+            ],
+            "+test_steps": [
+                [
+                    "npm",
+                    "run",
+                    "test:browser:ci"
+                ]
+            ]
         }
     },
     "targets": {
@@ -14,14 +33,19 @@
             "enabled": false
         },
         "linux": {
-            "imports": ["s2n"],
+            "imports": [
+                "s2n"
+            ],
             "x86": {
                 "enabled": false
             }
         },
         "windows": {
             "!build_steps": [
-                ["npm", "install"]
+                [
+                    "npm",
+                    "install"
+                ]
             ],
             "!test_steps": []
         }
@@ -29,23 +53,43 @@
     "upstream": [],
     "downstream": [],
     "pre_build_steps": [
-        ["git", "submodule", "update", "--init", "--recursive"]
+        [
+            "git",
+            "submodule",
+            "update",
+            "--init",
+            "--recursive"
+        ]
     ],
     "build_steps": [
-        ["npm", "install", "--ignore-scripts"],
         [
-            "node", "node_modules/.bin/cmake-js", "compile",
+            "npm",
+            "install",
+            "--ignore-scripts"
+        ],
+        [
+            "node",
+            "node_modules/.bin/cmake-js",
+            "compile",
             "--out={build_dir}",
             "--CDCMAKE_PREFIX_PATH={source_dir}/{libcrypto_path}",
             "--CDCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-            "-T", "install"
+            "-T",
+            "install"
         ],
-        ["npm", "run-script", "tsc"]
+        [
+            "npm",
+            "run-script",
+            "tsc"
+        ]
     ],
     "test_env": {
         "AWS_CRT_MEMORY_TRACING": "2"
     },
     "test_steps": [
-        ["npm", "test"]
+        [
+            "npm",
+            "test"
+        ]
     ]
 }

@@ -12,8 +12,8 @@
 * permissions and limitations under the License.
 */
 
-import * as io from '../lib/native/io';
-import { CrtError } from '../lib/native/error';
+import * as io from './io';
+import { CrtError } from './error';
 
 test('Error Resolve', () => {
     const err = new CrtError(0);

@@ -24,14 +24,4 @@ if (fs.existsSync(binaryDir)) {
 }
 
 // Run the build
-const cmake = require("cmake-js");
-var buildSystem = new cmake.BuildSystem({
-    target: "install",
-    debug: process.argv.includes('--debug'),
-    cMakeOptions: {
-        CMAKE_EXPORT_COMPILE_COMMANDS: true,
-        CMAKE_JS_PLATFORM: os.platform,
-        CMAKE_JS_ARCH: os.arch,
-    },
-});
-buildSystem.build();
+require('./build.js');
