@@ -491,7 +491,7 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
         if (s_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value)) {
             bool property_value = true;
             napi_get_value_bool(env, current_value, &property_value);
-            config.flags.should_normalize_uri_path = property_value;
+            config.flags.omit_session_token = property_value;
         } else {
             config.flags.omit_session_token = false;
         }
