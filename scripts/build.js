@@ -10,6 +10,7 @@ options = {
     CMAKE_EXPORT_COMPILE_COMMANDS: true,
     CMAKE_JS_PLATFORM: os.platform,
     CMAKE_JS_ARCH: os.arch,
+    BUILD_TESTING: 'OFF',
 }
 
 // Convert any -D arguments to this script to cmake -D arguments
