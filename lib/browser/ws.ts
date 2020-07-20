@@ -76,7 +76,7 @@ function sign_url(method: string,
     if (credentials.aws_sts_token) {
         query_params += `&X-Amz-Security-Token=${encodeURIComponent(credentials.aws_sts_token)}`;
     }
-    const signed_url = `${url.protocol}${url.hostname}${url.pathname}${query_params}`;
+    const signed_url = `${url.protocol}//${url.hostname}${url.pathname}${query_params}`;
     return signed_url;
 }
 

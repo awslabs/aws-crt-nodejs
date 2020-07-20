@@ -5,7 +5,7 @@
 
 import * as Crypto from "crypto-js";
 import { Hashable } from "../common/crypto";
-import { TextEncoder } from "util";
+import { TextEncoder } from "./polyfills";
 
 /**
  * Object that allows for continuous MD5 hashing of data.

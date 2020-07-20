@@ -26,6 +26,7 @@ module.exports = {
     moduleNameMapper: {
         '@common/(.+)': '<rootDir>/lib/common/$1',
         '@awscrt/(.+)': '<rootDir>/lib/native/$1',
-        '@awscrt': '<rootDir>/lib/index.ts'
+        '@awscrt': '<rootDir>/lib/index.ts',
+        '@test/(.+)': '<rootDir>/test/$1'
     }
 }

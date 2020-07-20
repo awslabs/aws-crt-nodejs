@@ -8,7 +8,7 @@ import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
-import { TextEncoder } from 'util';
+import { TextEncoder } from './polyfills';
 import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
