@@ -2,11 +2,11 @@
 
 NodeJS/Browser bindings for the AWS Common Runtime
 
+[API Docs](https://awslabs.github.io/aws-crt-nodejs/)
+
 ## License
 
 This library is licensed under the Apache 2.0 License. 
-
-[API Docs](https://awslabs.github.io/aws-crt-nodejs/)
 
 ## Mac-Only TLS Behavior
 
