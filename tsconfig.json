@@ -13,6 +13,9 @@
             ],
             "@awscrt/*": [
                 "lib/native/*"
+            ],
+            "@test/*": [
+                "test/*"
             ]
         }
     }

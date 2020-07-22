@@ -1,3 +1,7 @@
+/**
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0.
+ */
 
 import { HttpClientConnectionManager, HttpClientConnection, HttpHeader, HttpHeaders, HttpRequest } from "@awscrt/http";
 import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "@awscrt/io";
