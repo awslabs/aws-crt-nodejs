@@ -8,7 +8,7 @@ export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../co
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import axios = require('axios');
-import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from '@awscrt/io';
+import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 
 require('./polyfills')
 
