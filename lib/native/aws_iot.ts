@@ -83,20 +83,11 @@ export class AwsIotMqttConnectionConfigBuilder {
         return builder;
     }
 
-    /**
-     * Configures the connection to use MQTT over websockets. Forces the port to 443.
-     */
-    static new_with_websockets(options?: WebsocketConfig) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(new io.TlsContextOptions());
+    static new_websocket_builder(...args: any[]) {
+        return this.new_with_websockets(...args);
+    }
 
-        builder.params.use_websocket = true;
-        builder.params.proxy_options = options?.proxy_options;
-
-        if (builder.tls_ctx_options) {
-            builder.tls_ctx_options.alpn_list = [];
-            builder.params.port = 443;
-        }
-
+    private static configure_websocket_handshake(builder: AwsIotMqttConnectionConfigBuilder, options?: WebsocketConfig) {
         if (options) {
             builder.params.websocket_handshake_transform = async (request, done) => {
                 const signing_config = options.create_signing_config?.()
@@ -118,6 +109,25 @@ export class AwsIotMqttConnectionConfigBuilder {
                 }
             };
         }
+
+        return builder;
+    }
+
+    /**
+     * Configures the connection to use MQTT over websockets. Forces the port to 443.
+     */
+    static new_with_websockets(options?: WebsocketConfig) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(new io.TlsContextOptions());
+
+        builder.params.use_websocket = true;
+        builder.params.proxy_options = options?.proxy_options;
+
+        if (builder.tls_ctx_options) {
+            builder.tls_ctx_options.alpn_list = [];
+            builder.params.port = 443;
+        }
+
+        this.configure_websocket_handshake(builder, options);
 
         return builder;
     }
@@ -212,6 +222,21 @@ export class AwsIotMqttConnectionConfigBuilder {
     with_socket_options(socket_options: io.SocketOptions) {
         this.params.socket_options = socket_options;
         return this;
+    }
+
+    /**
+     * Configures AWS credentials (usually from Cognito) for this connection
+     * @param aws_region The service region to connect to
+     * @param aws_access_id IAM Access ID
+     * @param aws_secret_key IAM Secret Key
+     * @param aws_sts_token STS token from Cognito (optional)
+     */
+    with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
+        return AwsIotMqttConnectionConfigBuilder.configure_websocket_handshake(this, {
+            credentials_provider: AwsCredentialsProvider.newStatic(aws_access_id, aws_secret_key, aws_sts_token),
+            region: aws_region,
+            service: "iotdevicegateway",
+        });
     }
 
     /**

@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { AsyncClient, IClientOptions, ISubscriptionGrant, IUnsubackPacket, IPublishPacket, IConnackPacket } from "async-mqtt";
-import { MqttClient as _MqttClient } from "mqtt";
+import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
-import * as trie from "./trie";
+import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
 import { CrtError } from "../browser";
-import { SocketOptions } from "./io";
+import { ClientBootstrap, SocketOptions } from "./io";
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
@@ -86,6 +85,9 @@ export interface MqttConnectionConfig {
  * @category MQTT
  */
 export class MqttClient {
+    constructor(bootstrap?: ClientBootstrap) {
+
+    }
     /**
      * Creates a new {@link MqttClientConnection}
      * @param config Configuration for the connection
@@ -103,12 +105,12 @@ export class MqttClient {
 type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
 
 /** @internal */
-class TopicTrie extends trie.Trie<SubscriptionCallback | undefined> {
+class TopicTrie extends Trie<SubscriptionCallback | undefined> {
     constructor() {
         super('/');
     }
 
-    protected find_node(key: string, op: trie.TrieOp) {
+    protected find_node(key: string, op: TrieOp) {
         const parts = this.split_key(key);
         let current = this.root;
         let parent = undefined;
@@ -123,8 +125,8 @@ class TopicTrie extends trie.Trie<SubscriptionCallback | undefined> {
                 child = current.children.get('+');
             }
             if (!child) {
-                if (op == trie.TrieOp.Insert) {
-                    current.children.set(part, child = new trie.Node(part));
+                if (op == TrieOp.Insert) {
+                    current.children.set(part, child = new TrieNode(part));
                 }
                 else {
                     return undefined;
@@ -133,7 +135,7 @@ class TopicTrie extends trie.Trie<SubscriptionCallback | undefined> {
             parent = current;
             current = child;
         }
-        if (parent && op == trie.TrieOp.Delete) {
+        if (parent && op == TrieOp.Delete) {
             parent.children.delete(current.key!);
         }
         return current;
@@ -163,7 +165,7 @@ function normalize_payload(payload: Payload): string {
  * @category MQTT
  */
 export class MqttClientConnection extends BufferedEventEmitter {
-    private connection: AsyncClient;
+    private connection: mqtt.MqttClient;
     private subscriptions = new TopicTrie();
     private connection_count = 0;
 
@@ -176,8 +178,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
         private config: MqttConnectionConfig) {
         super();
 
-        const create_websocket_stream = (client: _MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
-        const transform_websocket_url = (url: string, options: IClientOptions, client: _MqttClient) => WebsocketUtils.create_websocket_url(this.config);
+        const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
+        const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
 
         const will = this.config.will ? {
             topic: this.config.will.topic,
@@ -188,7 +190,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const websocketXform = (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
 
-        this.connection = new AsyncClient(new _MqttClient(
+        this.connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
                 // service default is 1200 seconds
@@ -202,7 +204,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 will: will,
                 transformWsUrl: websocketXform,
             }
-        ));
+        );
 
         this.connection.on('connect', this.on_connect);
         this.connection.on('error', this.on_error);
@@ -240,18 +242,11 @@ export class MqttClientConnection extends BufferedEventEmitter {
     on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
 
     /** @internal */
-    // Overridden to allow uncorking on connect
     on(event: string | symbol, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        if (event == 'connect') {
-            process.nextTick(() => {
-                this.uncork();
-            })
-        }
-        return this;
+        return super.on(event, listener);
     }
 
-    private on_connect = (connack: IConnackPacket) => {
+    private on_connect = (connack: mqtt.IConnackPacket) => {
         this.on_online(connack.sessionPresent);
     }
 
@@ -291,13 +286,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *          true for resuming an existing session, or false if the session is new
      */
     async connect() {
+        setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
-            this.connection.once('connect', (connack: IConnackPacket) => {
+            const on_connect_error = (error: Error) => {
+                reject(new CrtError(error));
+            };
+            this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
+                this.connection.removeListener('error', on_connect_error);
                 resolve(connack.sessionPresent);
             });
-            this.connection.once('error', (error: Error) => {
-                reject(new CrtError(error));
-            });
+            this.connection.once('error', on_connect_error);
         });
     }
 
@@ -328,13 +326,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
         let payload_data = normalize_payload(payload);
-        return this.connection.publish(topic, payload_data, { qos: qos, retain: retain })
-            .catch((reason) => {
-                this.emit('error', new CrtError(reason));
-            })
-            .then((value) => {
-                return { packet_id: (value as IPublishPacket).messageId };
+        return new Promise((resolve, reject) => {
+            this.connection.publish(topic, payload_data, { qos: qos, retain: retain }, (error, packet) => {
+                if (error) {
+                    reject(new CrtError(error));
+                    return this.on_error(error);
+                }
+                resolve({ packet_id: (packet as mqtt.IPublishPacket).messageId })
             });
+        });
     }
 
     /**
@@ -358,14 +358,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void): Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
-        return this.connection.subscribe(topic, { qos: qos })
-            .catch((reason: any) => {
-                this.emit('error', new CrtError(reason));
-            })
-            .then((value) => {
-                const sub = (value as ISubscriptionGrant[])[0];
-                return { topic: sub.topic, qos: sub.qos };
+        return new Promise((resolve, reject) => {
+            this.connection.subscribe(topic, { qos: qos }, (error, packet) => {
+                if (error) {
+                    reject(new CrtError(error))
+                    return this.on_error(error);
+                }
+                const sub = (packet as mqtt.ISubscriptionGrant[])[0];
+                resolve({ topic: sub.topic, qos: sub.qos });
             });
+        });
     }
 
     /**
@@ -378,13 +380,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
     */
     async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
-        return this.connection.unsubscribe(topic)
-            .catch((reason: any) => {
-                this.emit('error', new CrtError(reason));
-            })
-            .then((value) => {
-                return { packet_id: (value as IUnsubackPacket).messageId };
+        return new Promise((resolve, reject) => {
+            this.connection.unsubscribe(topic, undefined, (error, packet) => {
+                if (error) {
+                    reject(new CrtError(error));
+                    return this.on_error(error);
+                }
+                resolve({ packet_id: (packet as mqtt.IUnsubackPacket).messageId });
             });
+
+        });
     }
 
     /**
@@ -392,6 +397,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {
-        return this.connection.end();
+        return new Promise((resolve) => {
+            this.connection.end(undefined, undefined, () => {
+                resolve();
+            })
+        });
     }
 }
