@@ -4,7 +4,7 @@ NodeJS/Browser bindings for the AWS Common Runtime
 
 ## License
 
-This library is licensed under the Apache 2.0 License. 
+This library is licensed under the Apache 2.0 License.
 
 [API Docs](https://awslabs.github.io/aws-crt-nodejs/)
 
@@ -12,7 +12,7 @@ This library is licensed under the Apache 2.0 License.
 ## Building the package
 
 ### Prereqs:
-* Node 10.x+
+* Node 10.16+
 * npm
 * CMake 3.1+
 * Linux: gcc 5+ or clang 3.6+
