@@ -4,7 +4,6 @@
  */
 #include "mqtt_client_connection.h"
 
-#include "module.h"
 #include "mqtt_client.h"
 
 #include "http_connection.h"

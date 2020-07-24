@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
+#include "module.h"
 
 struct http_proxy_options_binding;
 

@@ -6,7 +6,6 @@
 
 #include "http_connection.h"
 #include "http_message.h"
-#include "module.h"
 
 #include <aws/http/request_response.h>
 #include <aws/io/stream.h>

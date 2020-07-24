@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #include "crypto.h"
-#include "module.h"
 
 #include <aws/cal/hash.h>
 #include <aws/cal/hmac.h>

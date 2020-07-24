@@ -5,9 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
-
-#include <aws/common/common.h>
+#include "module.h"
 
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/host_resolver.h>

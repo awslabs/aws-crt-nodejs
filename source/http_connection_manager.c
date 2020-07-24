@@ -6,7 +6,6 @@
 #include "http_connection_manager.h"
 #include "http_connection.h"
 #include "io.h"
-#include "module.h"
 
 #include <aws/http/connection_manager.h>
 #include <aws/io/socket.h>

@@ -8,7 +8,6 @@
 #include "class_binder.h"
 #include "http_message.h"
 #include "io.h"
-#include "module.h"
 
 #include <aws/auth/credentials.h>
 #include <aws/auth/signable.h>

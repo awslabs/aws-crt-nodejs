@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
+#include "module.h"
 
 napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info);
 napi_value aws_napi_http_stream_activate(napi_env env, napi_callback_info info);

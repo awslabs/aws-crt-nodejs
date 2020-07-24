@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
+#include "module.h"
 
 napi_status aws_napi_http_message_bind(napi_env env, napi_value exports);
 

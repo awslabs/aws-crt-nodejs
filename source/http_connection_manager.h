@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
+#include "module.h"
 
 struct aws_http_connection_manager;
 struct http_connection_manager_binding;

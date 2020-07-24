@@ -4,7 +4,6 @@
  */
 #include "mqtt_client.h"
 #include "io.h"
-#include "module.h"
 
 static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 

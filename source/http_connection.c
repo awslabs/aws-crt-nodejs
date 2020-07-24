@@ -5,7 +5,6 @@
 
 #include "http_connection.h"
 #include "io.h"
-#include "module.h"
 
 #include <aws/http/connection.h>
 #include <aws/io/tls_channel_handler.h>
