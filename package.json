@@ -31,7 +31,6 @@
     "@types/uuid": "^3.4.8",
     "@types/ws": "^6.0.4",
     "aws-sdk": "^2.640.0",
-    "cmake-js": "^6.1.0",
     "jest": "^25.1.0",
     "jest-puppeteer": "^4.4.0",
     "jest-runtime": "^25.2.4",
@@ -44,6 +43,7 @@
   },
   "dependencies": {
     "axios": "^0.19.2",
+    "cmake-js": "^6.1.0",
     "crypto-js": "^3.3.0",
     "fastestsmallesttextencoderdecoder": "^1.0.21",
     "mqtt": "^4.1.0",
