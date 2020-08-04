@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
+#include "module.h"
 
 #include <aws/mqtt/client.h>
 

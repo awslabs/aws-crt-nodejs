@@ -4,7 +4,6 @@
  */
 #include "io.h"
 #include "logger.h"
-#include "module.h"
 
 #include <aws/common/logging.h>
 #include <aws/common/mutex.h>

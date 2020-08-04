@@ -5,9 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <node_api.h>
-
-#include <aws/common/common.h>
+#include "module.h"
 
 AWS_EXTERN_C_BEGIN
 

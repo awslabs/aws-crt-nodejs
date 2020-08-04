@@ -4,7 +4,6 @@
  */
 
 #include "logger.h"
-#include "module.h"
 
 #include <aws/common/linked_list.h>
 #include <aws/common/log_channel.h>

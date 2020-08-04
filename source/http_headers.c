@@ -5,7 +5,6 @@
 #include "http_headers.h"
 
 #include "class_binder.h"
-#include "module.h"
 
 #include <aws/http/request_response.h>
 

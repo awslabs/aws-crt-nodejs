@@ -5,9 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-#include <aws/common/logging.h>
-
-#include <node_api.h>
+#include "module.h"
 
 struct aws_napi_logger_ctx;
 

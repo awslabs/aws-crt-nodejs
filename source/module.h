@@ -10,6 +10,7 @@
 #include <aws/common/string.h>
 
 #define WIN32_LEAN_AND_MEAN
+#define NAPI_VERSION 4
 #include <node_api.h>
 
 enum aws_napi_log_subject { AWS_LS_NODE = 0x900 };
