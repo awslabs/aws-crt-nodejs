@@ -8,7 +8,7 @@ export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../co
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import axios = require('axios');
-import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from '@awscrt/io';
+import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 import { TextEncoder } from './polyfills';
 
 /**
@@ -392,13 +392,15 @@ export class HttpClientConnectionManager {
     private free_connections: HttpClientConnection[] = [];
     private pending_requests: PendingRequest[] = [];
 
+
     constructor(
-        readonly bootstrap: ClientBootstrap,
+        readonly bootstrap?: ClientBootstrap,
+        // @ts-ignore
         readonly host: string,
         readonly port: number,
         readonly max_connections: number,
         readonly initial_window_size: number,
-        readonly socket_options: SocketOptions,
+        readonly socket_options?: SocketOptions,
         readonly tls_opts?: TlsConnectionOptions,
         readonly proxy_options?: HttpProxyOptions
     ) {
@@ -449,7 +451,6 @@ export class HttpClientConnectionManager {
 
         // There's room, create a new connection
         let connection = new HttpClientConnection(
-            this.bootstrap,
             this.host,
             this.port,
             this.socket_options,
