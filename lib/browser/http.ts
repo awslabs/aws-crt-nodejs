@@ -394,8 +394,7 @@ export class HttpClientConnectionManager {
 
 
     constructor(
-        readonly bootstrap?: ClientBootstrap,
-        // @ts-ignore
+        readonly bootstrap: ClientBootstrap | undefined,
         readonly host: string,
         readonly port: number,
         readonly max_connections: number,
