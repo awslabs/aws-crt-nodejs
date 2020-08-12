@@ -11,16 +11,6 @@ function log(msg: string) {
     $('#console').append(`<pre>${msg}</pre>`);
 }
 
-/*
-        readonly bootstrap: ClientBootstrap,
-        readonly host: string,
-        readonly port: number,
-        readonly max_connections: number,
-        readonly initial_window_size: number,
-        readonly socket_options: SocketOptions,
-        readonly tls_opts?: TlsConnectionOptions,
-        readonly proxy_options?: HttpProxyOptions
- */
 async function main() {
     const url = new URL('https://aws-crt-test-stuff.s3.amazonaws.com/random_32_byte.data');
     const connection_manager = new http.HttpClientConnectionManager(
