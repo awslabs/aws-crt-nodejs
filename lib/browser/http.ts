@@ -164,13 +164,13 @@ export class HttpRequest {
 export class HttpClientConnection extends BufferedEventEmitter {
     public _axios: any;
     private axios_options: axios.AxiosRequestConfig;
-    protected bootstrap: ClientBootstrap;
+    protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
     protected proxy_options?: HttpProxyOptions;
 
     constructor(
-        bootstrap: ClientBootstrap,
+        bootstrap: ClientBootstrap | undefined,
         host_name: string,
         port: number,
         socketOptions?: SocketOptions,
