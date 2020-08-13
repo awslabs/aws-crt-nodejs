@@ -19,7 +19,7 @@ type EventKey = string | symbol;
 class BufferedEvent {
     public next?: BufferedEvent;
     public args: any[];
-    constructor(public event: EventKey, ...args: any[]) {
+    constructor(public event: EventKey, args: any[]) {
         this.args = args;
     }
 }

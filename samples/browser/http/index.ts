@@ -56,7 +56,8 @@ async function main() {
                 });
                 connection.on('error', (error) => {
                     log(`Request(${idx}) CONNECTION ERROR: ${error}`);
-                });                    
+                });
+                stream.activate();
             });
         promises.push(conn);
     }
