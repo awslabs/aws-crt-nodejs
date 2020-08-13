@@ -8,7 +8,7 @@ export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../co
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import axios = require('axios');
-import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from '@awscrt/io';
+import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 import { TextEncoder } from './polyfills';
 
 /**
@@ -164,34 +164,27 @@ export class HttpRequest {
 export class HttpClientConnection extends BufferedEventEmitter {
     public _axios: any;
     private axios_options: axios.AxiosRequestConfig;
-    protected bootstrap: ClientBootstrap;
+    protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
     protected proxy_options?: HttpProxyOptions;
 
-    /**
-     * Browser-specific overload of constructor without bootstrap
-     */
-    constructor(host_name: string, port: number, socket_options?: SocketOptions, tls_options?: TlsConnectionOptions, proxy_options?: HttpProxyOptions);
-    constructor(bootstrap: ClientBootstrap, host_name: string, port: number, socket_options?: SocketOptions, tls_options?: TlsConnectionOptions, proxy_options?: HttpProxyOptions);
     constructor(
-        bootstrapOrHost: ClientBootstrap | string,
-        hostOrPort: string | number,
-        portOrSocketOptions?: number | SocketOptions,
-        socketOptionsOrTlsOptions?: SocketOptions | TlsConnectionOptions,
-        tlsOptionsOrProxyOptions?: TlsConnectionOptions | HttpProxyOptions,
-        maybeProxyOptions?: HttpProxyOptions,
+        bootstrap: ClientBootstrap | undefined,
+        host_name: string,
+        port: number,
+        socketOptions?: SocketOptions,
+        tlsOptions?: TlsConnectionOptions,
+        proxyOptions?: HttpProxyOptions,
     ) {
         super();
         this.cork();
 
-        this.bootstrap = (bootstrapOrHost instanceof ClientBootstrap) ? bootstrapOrHost : new ClientBootstrap();
-        const host_name = (bootstrapOrHost instanceof String) ? bootstrapOrHost : hostOrPort as string;
-        const port = (portOrSocketOptions instanceof SocketOptions) ? hostOrPort as number : portOrSocketOptions as number;
-        this.socket_options = (portOrSocketOptions instanceof SocketOptions) ? portOrSocketOptions : socketOptionsOrTlsOptions as SocketOptions;
-        this.tls_options = (socketOptionsOrTlsOptions instanceof TlsConnectionOptions) ? socketOptionsOrTlsOptions : tlsOptionsOrProxyOptions as TlsConnectionOptions;
-        this.proxy_options = (tlsOptionsOrProxyOptions instanceof HttpProxyOptions) ? tlsOptionsOrProxyOptions : maybeProxyOptions;
-        const scheme = (this.tls_options) ? 'https' : 'http'
+        this.bootstrap = bootstrap;
+        this.socket_options = socketOptions;
+        this.tls_options = tlsOptions;
+        this.proxy_options = proxyOptions;
+        const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
         this.axios_options = {
             baseURL: `${scheme}://${host_name}:${port}/`
@@ -356,7 +349,6 @@ export class HttpClientStream extends BufferedEventEmitter {
         }
         this.emit('data', data);
         this.emit('end');
-        this.connection.close();
     }
 
     // Gather as much information as possible from the axios error
@@ -376,6 +368,7 @@ export class HttpClientStream extends BufferedEventEmitter {
             info = "No response from server";
         }
 
+        this.connection.close();
         this.emit('error', new Error(`msg=${error.message}, connection=${JSON.stringify(this.connection)}, info=${info}`));
     }
 }
@@ -392,13 +385,14 @@ export class HttpClientConnectionManager {
     private free_connections: HttpClientConnection[] = [];
     private pending_requests: PendingRequest[] = [];
 
+
     constructor(
-        readonly bootstrap: ClientBootstrap,
+        readonly bootstrap: ClientBootstrap | undefined,
         readonly host: string,
         readonly port: number,
         readonly max_connections: number,
         readonly initial_window_size: number,
-        readonly socket_options: SocketOptions,
+        readonly socket_options?: SocketOptions,
         readonly tls_opts?: TlsConnectionOptions,
         readonly proxy_options?: HttpProxyOptions
     ) {
@@ -449,7 +443,7 @@ export class HttpClientConnectionManager {
 
         // There's room, create a new connection
         let connection = new HttpClientConnection(
-            this.bootstrap,
+            new ClientBootstrap(),
             this.host,
             this.port,
             this.socket_options,
