@@ -18,6 +18,7 @@ test('MQTT Connect/Disconnect', async (done) => {
     try {
         aws_opts = await fetch_credentials();
     } catch (err) {
+        done(err);
         return;
     }
 
@@ -56,6 +57,7 @@ test('MQTT Pub/Sub', async (done) => {
     try {
         aws_opts = await fetch_credentials();
     } catch (err) {
+        done(err);
         return;
     }
 
@@ -102,6 +104,7 @@ test('MQTT Will', async (done) => {
     try {
         aws_opts = await fetch_credentials();
     } catch (err) {
+        done(err);
         return;
     }
 
@@ -143,6 +146,7 @@ test('MQTT On Any Publish', async (done) => {
     try {
         aws_opts = await fetch_credentials();
     } catch (err) {
+        done(err);
         return;
     }
 
