@@ -168,7 +168,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
     protected proxy_options?: HttpProxyOptions;
-    
+
     constructor(
         bootstrap: ClientBootstrap,
         host_name: string,
