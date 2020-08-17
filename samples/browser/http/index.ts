@@ -14,9 +14,14 @@ function log(msg: string) {
 async function main() {
     const url = new URL('https://aws-crt-test-stuff.s3.amazonaws.com/random_32_byte.data');
     const connection_manager = new http.HttpClientConnectionManager(
+        undefined,
         url.host,
         443,
-        4
+        4,
+        0,
+        undefined,
+        undefined,
+        undefined
     );
     let promises = [];
     for (let idx = 0; idx < 10; ++idx) {
@@ -51,7 +56,8 @@ async function main() {
                 });
                 connection.on('error', (error) => {
                     log(`Request(${idx}) CONNECTION ERROR: ${error}`);
-                });                    
+                });
+                stream.activate();
             });
         promises.push(conn);
     }
