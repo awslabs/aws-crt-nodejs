@@ -419,6 +419,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _reject(reject: (reason: any) => void) {
         return (reason: any) => {
             reject(reason);
+
+            /*
+             * We are almost always rejecting promises via NAPI calls from C.  If we emit to an event
+             * with no handler, that leads to an exception that will cause native code to crash if invoked
+             * with AWS_NAPI_ENSURE.  Since error does not have a default handler attached during connection
+             * creation, check it first in order to avoid that behavior.
+             */
             let listenerArray = this.rawListeners('error');
             if (Array.isArray(listenerArray) && listenerArray.length > 0) {
                 this.emit('error', new CrtError(reason));
