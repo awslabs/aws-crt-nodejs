@@ -521,26 +521,11 @@ static bool s_create_and_register_function(
     return true;
 }
 
-AWS_STATIC_STRING_FROM_LITERAL(s_debug_wait_env_variable_name, "AWS_CRT_DEBUG_WAIT");
-
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
 
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
-
-    struct aws_string *wait_value = NULL;
-    if (!aws_get_environment_value(allocator, s_debug_wait_env_variable_name, &wait_value)) {
-        if (wait_value != NULL && wait_value->len > 0) {
-            bool done = false;
-            while (!done) {
-                ;
-            }
-        }
-
-        aws_string_destroy(wait_value);
-    }
-
     /* context is bound to exports, will be cleaned up by finalizer */
     s_napi_context_new(allocator, env, exports);
 
