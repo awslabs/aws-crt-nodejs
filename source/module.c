@@ -522,7 +522,6 @@ static bool s_create_and_register_function(
 }
 
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
-
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
