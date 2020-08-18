@@ -196,7 +196,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
                 env,
                 node_on_interrupted,
                 "aws_mqtt_client_connection_on_connection_interrupted",
-                s_on_connection_resumed_call,
+                s_on_connection_interrupted_call,
                 binding,
                 &binding->on_connection_interrupted),
             { goto cleanup; });
@@ -210,7 +210,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
                 env,
                 node_on_resumed,
                 "aws_mqtt_client_connection_on_connection_resumed",
-                s_on_connection_interrupted_call,
+                s_on_connection_resumed_call,
                 binding,
                 &binding->on_connection_resumed),
             { goto cleanup; });
