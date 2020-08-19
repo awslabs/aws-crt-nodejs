@@ -38,7 +38,7 @@ test('AWS Signer SigV4 Headers', async () => {
         region: SIGV4TEST_REGION,
         service: SIGV4TEST_SERVICE,
         date: new Date(DATE_STR),
-        signed_body_value: native.AwsSignedBodyValueType.Empty,
+        signed_body_value: native.AwsSignedBodyValue.EmptySha256,
         signed_body_header: native.AwsSignedBodyHeaderType.None,
     };
 

@@ -4,7 +4,7 @@
  */
 
 import { InputStream } from "./io";
-import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValueType, AwsSignedBodyHeaderType } from "./auth";
+import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValue, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 
 /**
@@ -396,8 +396,15 @@ export interface AwsSigningConfig {
      * true when making a websocket handshake with IoT Core.
      */
     omit_session_token?: boolean;
-    /** Controls what body value should be used when building the canonical request */
-    signed_body_value?: AwsSignedBodyValueType;
+    /**
+     * Value to use as the canonical request's body value.
+     *
+     * Typically, this is the SHA-256 of the payload, written as lowercase hex.
+     * If this has been precalculated, it can be set here.
+     * Special values used by certain services can also be set (see {@link AwsSignedBodyValue}).
+     * If undefined (the default), the typical value will be calculated from the payload during signing.
+     */
+    signed_body_value?: string;
     /** Controls what header, if any, should be added to the request, containing the body value */
     signed_body_header?: AwsSignedBodyHeaderType;
     /** Query param signing only: how long the pre-signed URL is valid for */

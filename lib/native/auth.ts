@@ -14,7 +14,7 @@ import { ClientBootstrap } from './io';
  * @category Auth
  */
 export enum AwsSigningAlgorithm {
-    /** Use the Aws signature version 4 signing process to sign the request */  
+    /** Use the Aws signature version 4 signing process to sign the request */
     SigV4
 }
 
@@ -38,25 +38,25 @@ export enum AwsSignatureType {
 }
 
 /**
- * AWS signed body value enumeration.
+ * Values for use with {@link AwsSigningConfig.signed_body_value}.
+ *
+ * Some services use special values (e.g. 'UNSIGNED-PAYLOAD') when the body
+ * is not being signed in the usual way.
  *
  * @category Auth
  */
-export enum AwsSignedBodyValueType {
+export enum AwsSignedBodyValue {
     /** Use the SHA-256 of the empty string as the canonical request payload value */
-    Empty ,
-
-    /** Use the SHA-256 of the request payload as the canonical request payload value  */
-    Payload,
+    EmptySha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 
     /** Use the literal string 'UNSIGNED-PAYLOAD' as the canonical request payload value  */
-    UnsignedPayload ,
+    UnsignedPayload = "UNSIGNED-PAYLOAD",
 
     /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD' as the canonical request payload value  */
-    StreamingAws4HmacSha256Payload ,
+    StreamingAws4HmacSha256Payload = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD",
 
     /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-EVENTS' as the canonical request payload value  */
-    StreamingAws4HmacSha256Events
+    StreamingAws4HmacSha256Events = "STREAMING-AWS4-HMAC-SHA256-EVENTS",
 }
 
 /**

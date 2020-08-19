@@ -10,7 +10,7 @@ import {
     aws_sign_request,
     AwsCredentialsProvider,
     AwsSignatureType,
-    AwsSignedBodyValueType,
+    AwsSignedBodyValue,
     AwsSigningAlgorithm,
     AwsSigningConfig
 } from "./auth";
@@ -97,7 +97,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                         provider: options.credentials_provider,
                         region: options.region,
                         service: options.service ?? "iotdevicegateway",
-                        signed_body_value: AwsSignedBodyValueType.Empty,
+                        signed_body_value: AwsSignedBodyValue.EmptySha256,
                         omit_session_token: true,
                     };
 
