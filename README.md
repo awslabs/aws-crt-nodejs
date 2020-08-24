@@ -20,9 +20,9 @@ This library is licensed under the Apache 2.0 License.
 * OSX: XCode or brew-installed llvm
 
 To build the package locally
-````bash
+```bash
 npm install
-````
+```
 
 ## Using From Your NodeJS Application
 
@@ -33,9 +33,13 @@ Normally, you just declare `aws-crt` as a dependency in your package.json file.
 You can either add it to package.json (if using a tool like webpack), or just import the ```dist.browser/``` folder into your web project
 
 ### Installing from npm
-````bash
+```bash
 npm install aws-crt
-````
+```
+
+### Debug C part of code
+
+After building the package locally, use ```node ./scripts/build.js --debug``` to enable debug. Then, attach any C debugger to use node to run `jest`
 
 ## Mac-Only TLS Behavior
 
