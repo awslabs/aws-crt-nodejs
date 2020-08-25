@@ -45,7 +45,6 @@
     "axios": "^0.19.2",
     "cmake-js": "^6.1.0",
     "crypto-js": "^3.3.0",
-    "elasticurl": "file:samples/node/elasticurl",
     "fastestsmallesttextencoderdecoder": "^1.0.21",
     "mqtt": "^4.1.0",
     "websocket-stream": "^5.5.2"
