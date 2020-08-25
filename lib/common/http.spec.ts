@@ -4,7 +4,8 @@
  */
 
 import { HttpClientConnectionManager, HttpClientConnection, HttpHeader, HttpHeaders, HttpRequest } from "@awscrt/http";
-import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions } from "@awscrt/io";
+import { ClientBootstrap, SocketOptions, SocketType, SocketDomain, ClientTlsContext, TlsConnectionOptions, InputStream } from "@awscrt/io";
+import { PassThrough } from "stream";
 
 jest.setTimeout(10000);
 jest.retryTimes(3);
@@ -54,7 +55,7 @@ test('HTTP Headers', () => {
     }
 });
 
-test('HTTP Request', () => {
+test('HTTP Request without body', () => {
     let request = new HttpRequest("GET", "/index.html");
 
     expect(request.method).toBe("GET");
@@ -70,6 +71,22 @@ test('HTTP Request', () => {
     request.headers.add("Host", "www.amazon.com");
     expect(request.headers.length).toBe(1);
 });
+
+test('HTTP Request with body', () => {
+
+    let stream = new PassThrough();
+    stream.write("test");
+    stream.end();
+    let body_stream = new InputStream(stream);
+    let request = new HttpRequest("POST", "/index.html", undefined, body_stream.native_handle());
+
+    expect(request.method).toBe("POST");
+    expect(request.path).toBe('/index.html');
+    expect(request.headers.length).toBe(0);
+
+    // Body property for request is not readable
+});
+
 
 async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions) {
     const bootstrap = new ClientBootstrap();
