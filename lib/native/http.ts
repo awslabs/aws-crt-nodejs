@@ -6,7 +6,7 @@
 import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
-import { ClientBootstrap, SocketOptions, TlsConnectionOptions } from './io';
+import { ClientBootstrap, SocketOptions, TlsConnectionOptions, InputStream } from './io';
 import { CrtError } from './error';
 import { HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
@@ -18,9 +18,15 @@ export type HttpHeaders = crt_native.HttpHeaders;
 export const HttpHeaders = crt_native.HttpHeaders;
 
 /** @category HTTP */
-export type HttpRequest = crt_native.HttpRequest;
+type nativeHttpRequest = crt_native.HttpRequest;
 /** @category HTTP */
-export const HttpRequest = crt_native.HttpRequest;
+const nativeHttpRequest = crt_native.HttpRequest;
+
+export class HttpRequest extends nativeHttpRequest {
+    constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream) {
+        super(method, path, headers, body?.native_handle());
+    }
+}
 
 /**
  * Base class for HTTP connections
