@@ -230,7 +230,8 @@ async function main(argv: Args){
         }
 
         return new Promise((resolve, reject) => {
-            const request = new http.HttpRequest(argv.method, argv.url.toString(), headers, body_stream?.native_handle());
+            let body_stream_handler = body_stream ? body_stream.native_handle():undefined;
+            const request = new http.HttpRequest(argv.method, argv.url.toString(), headers, body_stream_handler);
             const stream = connection.request(request);
             stream.on('response', on_response);
             stream.on('data', on_body);
