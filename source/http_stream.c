@@ -192,8 +192,8 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
     (void)finalize_hint;
     struct http_stream_binding *binding = finalize_data;
 
-    aws_http_message_destroy(binding->request);
-    aws_http_message_destroy(binding->response);
+    aws_http_message_release(binding->request);
+    aws_http_message_release(binding->response);
     aws_mem_release(binding->allocator, binding);
 }
 
@@ -222,6 +222,8 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
 
     napi_value node_request = *arg++;
     struct aws_http_message *request = aws_napi_http_message_unwrap(env, node_request);
+    /* adding a refcount for the request, which will be released as the stream object from JS land get destroyed */
+    aws_http_message_acquire(request);
 
     napi_value node_on_complete = *arg++;
     napi_value node_on_response = *arg++;
