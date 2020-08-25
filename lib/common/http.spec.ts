@@ -78,7 +78,7 @@ test('HTTP Request with body', () => {
     stream.write("test");
     stream.end();
     let body_stream = new InputStream(stream);
-    let request = new HttpRequest("POST", "/index.html", undefined, body_stream.native_handle());
+    let request = new HttpRequest("POST", "/index.html", undefined, body_stream);
 
     expect(request.method).toBe("POST");
     expect(request.path).toBe('/index.html');
