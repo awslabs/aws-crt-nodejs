@@ -24,8 +24,7 @@ const nativeHttpRequest = crt_native.HttpRequest;
 
 export class HttpRequest extends nativeHttpRequest {
     constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream) {
-        let body_handler = body ? body.native_handle() : undefined;
-        super(method, path, headers, body_handler);
+        super(method, path, headers, body?.native_handle());
     }
 }
 
