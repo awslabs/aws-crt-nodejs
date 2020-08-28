@@ -7,6 +7,7 @@ import { v4 as uuid } from 'uuid';
 
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, QoS, MqttWill } from '@awscrt/mqtt';
+import { AwsCredentialsProvider } from '@awscrt/auth';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { TextDecoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
@@ -26,7 +27,6 @@ test('MQTT Connect/Disconnect', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
@@ -65,7 +65,6 @@ test('MQTT Pub/Sub', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
@@ -112,7 +111,6 @@ test('MQTT Will', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .with_will(new MqttWill(
             '/last/will/and/testament',
@@ -154,7 +152,6 @@ test('MQTT On Any Publish', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
@@ -191,6 +188,51 @@ test('MQTT On Any Publish', async (done) => {
 
         const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
         await expect(pub).resolves.toBeTruthy();
+    });
+    await expect(promise).resolves.toBeTruthy();
+    done();
+});
+
+test('MQTT Connect/Disconnect over Websocket', async (done) => {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        done(err);
+        return;
+    }
+    const credentials_provider = AwsCredentialsProvider.newStatic(
+        aws_opts.access_key,
+        aws_opts.secret_key,
+    );
+
+    const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets({
+        region: Config.region,
+        credentials_provider: credentials_provider
+    })
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+        .with_timeout_ms(5000)
+        .build()
+    const client = new MqttClient(new ClientBootstrap());
+    const connection = client.new_connection(config);
+    const promise = new Promise(async (resolve, reject) => {
+        connection.on('connect', async (session_present) => {
+            expect(session_present).toBeFalsy();
+
+            const disconnected = connection.disconnect();
+            await expect(disconnected).resolves.toBeUndefined();
+        });
+        connection.on('error', (error) => {
+            reject(error);
+        })
+        connection.on('disconnect', () => {
+            resolve(true);
+        })
+        const connected = connection.connect();
+        await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
     done();

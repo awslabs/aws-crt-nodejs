@@ -2,10 +2,10 @@
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
-import {MqttConnectionConfig, MqttWill} from "./mqtt";
+import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
 import * as platform from '../common/platform';
-import {HttpProxyOptions} from "./http";
+import { HttpProxyOptions } from "./http";
 import {
     aws_sign_request,
     AwsCredentialsProvider,
@@ -92,14 +92,14 @@ export class AwsIotMqttConnectionConfigBuilder {
             builder.params.websocket_handshake_transform = async (request, done) => {
                 const signing_config = options.create_signing_config?.()
                     ?? {
-                        algorithm: AwsSigningAlgorithm.SigV4,
-			            signature_type: AwsSignatureType.HttpRequestViaQueryParams,
-                        provider: options.credentials_provider,
-                        region: options.region,
-                        service: options.service ?? "iotdevicegateway",
-                        signed_body_value: AwsSignedBodyValue.EmptySha256,
-                        omit_session_token: true,
-                    };
+                    algorithm: AwsSigningAlgorithm.SigV4,
+                    signature_type: AwsSignatureType.HttpRequestViaQueryParams,
+                    provider: options.credentials_provider,
+                    region: options.region,
+                    service: options.service ?? "iotdevicegateway",
+                    signed_body_value: AwsSignedBodyValue.EmptySha256,
+                    omit_session_token: true,
+                };
 
                 try {
                     await aws_sign_request(request, signing_config);
