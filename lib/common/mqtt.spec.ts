@@ -6,8 +6,8 @@
 import { v4 as uuid } from 'uuid';
 
 import { ClientBootstrap } from '@awscrt/io';
+import { AwsCredentialsProvider } from '@awscrt/auth';
 import { MqttClient, QoS, MqttWill } from '@awscrt/mqtt';
-import { AwsCredentialsProvider } from '../native/auth';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { TextDecoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
@@ -27,6 +27,7 @@ test('MQTT Connect/Disconnect', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
@@ -65,6 +66,7 @@ test('MQTT Pub/Sub', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
@@ -111,6 +113,7 @@ test('MQTT Will', async (done) => {
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .with_will(new MqttWill(
             '/last/will/and/testament',
@@ -151,7 +154,7 @@ test('MQTT On Any Publish', async (done) => {
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint)
+        .with_endpoint(aws_opts.endpoint).with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
