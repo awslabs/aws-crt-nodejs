@@ -5,7 +5,7 @@
 
 import { v4 as uuid } from 'uuid';
 
-import { ClientBootstrap } from '@awscrt/io';=
+import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, QoS, MqttWill } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { TextDecoder } from '@awscrt/polyfills';
