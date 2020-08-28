@@ -154,7 +154,8 @@ test('MQTT On Any Publish', async (done) => {
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint).with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+        .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
         .with_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
