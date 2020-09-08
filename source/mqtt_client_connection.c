@@ -68,7 +68,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     /* destroy the native connection, which will destroy the subscriptions and
      * queue destruction of all bound callbacks
      */
-    aws_mqtt_client_connection_destroy(binding->connection);
+    aws_mqtt_client_connection_release(binding->connection);
 
     return NULL;
 }
@@ -218,7 +218,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     /* CREATE THE THING */
     binding->allocator = allocator;
-    binding->connection = aws_mqtt_client_connection_new(&binding->node_client->native_client);
+    binding->connection = aws_mqtt_client_connection_new(binding->node_client->native_client);
     if (!binding->connection) {
         napi_throw_error(env, NULL, "Failed create native connection object");
         goto cleanup;
@@ -246,7 +246,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 cleanup:
     if (!result) {
         if (binding->connection) {
-            aws_mqtt_client_connection_destroy(binding->connection);
+            aws_mqtt_client_connection_release(binding->connection);
         }
 
         if (binding->on_connection_interrupted) {

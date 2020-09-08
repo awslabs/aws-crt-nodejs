@@ -120,7 +120,7 @@ napi_value aws_napi_is_alpn_available(napi_env env, napi_callback_info info) {
 
 struct client_bootstrap_binding {
     struct aws_client_bootstrap *bootstrap;
-    struct aws_host_resolver resolver;
+    struct aws_host_resolver *resolver;
 };
 
 struct aws_client_bootstrap *aws_napi_get_client_bootstrap(struct client_bootstrap_binding *binding) {
@@ -138,7 +138,7 @@ static void s_client_bootstrap_finalize(napi_env env, void *finalize_data, void 
 
     struct aws_allocator *allocator = binding->bootstrap->allocator;
 
-    aws_host_resolver_clean_up(&binding->resolver);
+    aws_host_resolver_release(binding->resolver);
     aws_client_bootstrap_release(binding->bootstrap);
 
     aws_mem_release(allocator, binding);
@@ -157,13 +157,14 @@ napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info inf
     struct client_bootstrap_binding *binding = aws_mem_acquire(allocator, sizeof(struct client_bootstrap_binding));
     AWS_ZERO_STRUCT(*binding);
 
-    if (aws_host_resolver_init_default(&binding->resolver, allocator, 64, aws_napi_get_node_elg())) {
+    binding->resolver = aws_host_resolver_new_default(allocator, 64, aws_napi_get_node_elg(), NULL);
+    if (binding->resolver == NULL) {
         goto clean_up;
     }
 
     struct aws_client_bootstrap_options options = {
         .event_loop_group = aws_napi_get_node_elg(),
-        .host_resolver = &binding->resolver,
+        .host_resolver = binding->resolver,
     };
 
     binding->bootstrap = aws_client_bootstrap_new(allocator, &options);
@@ -184,8 +185,8 @@ clean_up:
     if (binding->bootstrap) {
         aws_client_bootstrap_release(binding->bootstrap);
     }
-    if (binding->resolver.vtable) {
-        aws_host_resolver_clean_up(&binding->resolver);
+    if (binding->resolver) {
+        aws_host_resolver_release(binding->resolver);
     }
     if (binding) {
         aws_mem_release(allocator, binding);
@@ -207,7 +208,7 @@ static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize
     struct aws_tls_ctx *tls_ctx = finalize_data;
     AWS_ASSERT(tls_ctx);
 
-    aws_tls_ctx_destroy(tls_ctx);
+    aws_tls_ctx_release(tls_ctx);
 }
 
 napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
