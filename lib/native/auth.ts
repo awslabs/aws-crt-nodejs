@@ -4,6 +4,7 @@
  */
 
 import crt_native from './binding';
+import { CrtError } from './error';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
@@ -132,7 +133,7 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
                 if (error_code == 0) {
                     resolve(request);
                 } else {
-                    reject(error_code);
+                    reject(new CrtError(error_code));
                 }
             });
         } catch (error) {

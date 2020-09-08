@@ -5,6 +5,8 @@
 
 import { auth as native, http as native_http } from '../index';
 import { aws_sign_request } from './auth';
+import { InputStream } from './io';
+import { PassThrough } from "stream";
 
 const DATE_STR = '2015-08-30T12:36:00Z';
 
@@ -46,6 +48,44 @@ test('AWS Signer SigV4 Headers', async () => {
         SIGV4TEST_METHOD,
         SIGV4TEST_PATH,
         new native_http.HttpHeaders(SIGV4TEST_UNSIGNED_HEADERS));
+
+    const signing_result = await aws_sign_request(http_request, signing_config);
+
+    expect(http_request).toBe(signing_result); // should be same object
+
+    // everything should be the same EXCEPT the addition of the Authorization header
+    expect(http_request.method).toBe(SIGV4TEST_METHOD);
+    expect(http_request.path).toBe(SIGV4TEST_PATH);
+
+    expect(http_request.headers._flatten()).toEqual(SIGV4TEST_SIGNED_HEADERS);
+});
+
+test('AWS Signer SigV4 Request with body', async () => {
+
+    const credentials_provider = native.AwsCredentialsProvider.newStatic(
+        SIGV4TEST_ACCESS_KEY_ID,
+        SIGV4TEST_SECRET_ACCESS_KEY,
+    );
+
+    const signing_config: native.AwsSigningConfig = {
+        algorithm: native.AwsSigningAlgorithm.SigV4,
+	    signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
+        provider: credentials_provider,
+        region: SIGV4TEST_REGION,
+        service: SIGV4TEST_SERVICE,
+        date: new Date(DATE_STR),
+        // signed_body_value: native.AwsSignedBodyValue.UnsignedPayload,
+        signed_body_header: native.AwsSignedBodyHeaderType.XAmzContentSha256,
+    };
+    let stream = new PassThrough();
+    stream.write("test");
+    stream.end();
+    let body_stream = new InputStream(stream);
+    let http_request = new native_http.HttpRequest(
+        SIGV4TEST_METHOD,
+        SIGV4TEST_PATH,
+        new native_http.HttpHeaders(SIGV4TEST_UNSIGNED_HEADERS),
+        body_stream);
 
     const signing_result = await aws_sign_request(http_request, signing_config);
 
