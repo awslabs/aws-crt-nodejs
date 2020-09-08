@@ -78,9 +78,9 @@ test('AWS Signer SigV4 Request with body', async () => {
         signed_body_header: native.AwsSignedBodyHeaderType.None,
     };
     let stream = new PassThrough();
+    let body_stream = new InputStream(stream);
     stream.write("test");
     stream.end();
-    let body_stream = new InputStream(stream);
     let http_request = new native_http.HttpRequest(
         SIGV4TEST_METHOD,
         SIGV4TEST_PATH,
