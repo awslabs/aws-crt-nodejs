@@ -104,7 +104,7 @@ export class InputStream extends NativeResource {
     }
 
     isCompleted(): boolean {
-        return this.completed == true;
+        return this.completed;
     }
 }
 
