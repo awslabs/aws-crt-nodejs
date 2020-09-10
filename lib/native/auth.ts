@@ -129,6 +129,13 @@ export type AwsSigningConfig = crt_native.AwsSigningConfig;
 export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
     return new Promise((resolve, reject) => {
         try {
+            if(!request.bodyStream?.isCompleted()) {
+                /* The body has not been fully loaded, we cannot sign the body. Attempt to send the request 
+                 * with an unsigned payload, which may or may not be accepted by the service. */
+                if(request.bodyStream && !config.signed_body_value) {
+                    config.signed_body_value = AwsSignedBodyValue.UnsignedPayload;
+                }
+            }
             crt_native.aws_sign_request(request, config, (error_code) => {
                 if (error_code == 0) {
                     resolve(request);
