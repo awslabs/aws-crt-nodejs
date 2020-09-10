@@ -35,7 +35,7 @@ test('AWS Signer SigV4 Headers', async () => {
 
     const signing_config: native.AwsSigningConfig = {
         algorithm: native.AwsSigningAlgorithm.SigV4,
-	    signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
+        signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
         provider: credentials_provider,
         region: SIGV4TEST_REGION,
         service: SIGV4TEST_SERVICE,
@@ -69,7 +69,7 @@ test('AWS Signer SigV4 Request with body', async () => {
 
     const signing_config: native.AwsSigningConfig = {
         algorithm: native.AwsSigningAlgorithm.SigV4,
-	    signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
+        signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
         provider: credentials_provider,
         region: SIGV4TEST_REGION,
         service: SIGV4TEST_SERVICE,
@@ -78,9 +78,11 @@ test('AWS Signer SigV4 Request with body', async () => {
         signed_body_header: native.AwsSignedBodyHeaderType.None,
     };
     let stream = new PassThrough();
-    let body_stream = new InputStream(stream);
+    let body_stream;
     stream.write("test");
-    stream.end();
+    stream.end(()=> {
+        body_stream = new InputStream(stream);
+    });
     let http_request = new native_http.HttpRequest(
         SIGV4TEST_METHOD,
         SIGV4TEST_PATH,
