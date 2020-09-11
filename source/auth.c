@@ -309,6 +309,7 @@ static int s_get_config_from_js_config(
     napi_value js_config,
     struct aws_byte_buf *region_buf,
     struct aws_byte_buf *service_buf,
+    struct aws_byte_buf *signed_body_value_buf,
     struct signer_sign_request_state *state,
     struct aws_allocator *allocator) {
 
@@ -342,13 +343,6 @@ static int s_get_config_from_js_config(
         config->signature_type = (enum aws_signature_type)signature_type_int;
     }
 
-    /* Temp buffers */
-    struct aws_byte_buf region_buf;
-    AWS_ZERO_STRUCT(region_buf);
-    struct aws_byte_buf service_buf;
-    AWS_ZERO_STRUCT(service_buf);
-    struct aws_byte_buf signed_body_value_buf;
-    AWS_ZERO_STRUCT(signed_body_value_buf);
     /* Get provider */
     if (!s_get_named_property(env, js_config, "provider", napi_object, &current_value) ||
         NULL == (config->credentials_provider = aws_napi_credentials_provider_unwrap(env, current_value))) {
@@ -503,12 +497,13 @@ static int s_get_config_from_js_config(
     }
 
     /* Get signed body value */
-    if (s_get_named_property(env, js_config, "signed_body_value", napi_number, &current_value)) {
-        int32_t signed_body_value = 0;
-        napi_get_value_int32(env, current_value, &signed_body_value);
-        config->signed_body_value = (enum aws_signed_body_value_type)signed_body_value;
-    } else {
-        config->signed_body_value = AWS_SBVT_PAYLOAD;
+    if (s_get_named_property(env, js_config, "signed_body_value", napi_string, &current_value)) {
+        if (aws_byte_buf_init_from_napi(signed_body_value_buf, env, current_value)) {
+            napi_throw_error(env, NULL, "Failed to build signed_body_value buffer");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+        config->signed_body_value = aws_byte_cursor_from_buf(signed_body_value_buf);
     }
 
     /* Get signed body header */
@@ -551,6 +546,8 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
     AWS_ZERO_STRUCT(region_buf);
     struct aws_byte_buf service_buf;
     AWS_ZERO_STRUCT(service_buf);
+    struct aws_byte_buf signed_body_value_buf;
+    AWS_ZERO_STRUCT(signed_body_value_buf);
 
     /* Get request */
     aws_napi_method_next_argument(napi_object, cb_info, &arg);
@@ -565,7 +562,8 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
     aws_napi_method_next_argument(napi_object, cb_info, &arg);
     napi_value js_config = arg->node;
 
-    if (s_get_config_from_js_config(env, &config, js_config, &region_buf, &service_buf, state, allocator)) {
+    if (s_get_config_from_js_config(
+            env, &config, js_config, &region_buf, &service_buf, &signed_body_value_buf, state, allocator)) {
         /* error already raised */
         goto error;
     }
@@ -606,6 +604,7 @@ done:
 
     aws_byte_buf_clean_up(&region_buf);
     aws_byte_buf_clean_up(&service_buf);
+    aws_byte_buf_clean_up(&signed_body_value_buf);
 
     return NULL;
 }
@@ -663,6 +662,8 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
     AWS_ZERO_STRUCT(region_buf);
     struct aws_byte_buf service_buf;
     AWS_ZERO_STRUCT(service_buf);
+    struct aws_byte_buf signed_body_value_buf;
+    AWS_ZERO_STRUCT(signed_body_value_buf);
     struct aws_byte_buf expected_canonical_request_buf;
     AWS_ZERO_STRUCT(expected_canonical_request_buf);
     struct aws_byte_buf signature_buf;
@@ -680,7 +681,8 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
     aws_napi_method_next_argument(napi_object, cb_info, &arg);
     napi_value js_config = arg->node;
 
-    if (s_get_config_from_js_config(env, &config, js_config, &region_buf, &service_buf, state, allocator)) {
+    if (s_get_config_from_js_config(
+            env, &config, js_config, &region_buf, &service_buf, &signed_body_value_buf, state, allocator)) {
         /* error already raised */
         goto done;
     }
@@ -724,7 +726,7 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
             aws_byte_cursor_from_buf(&expected_canonical_request_buf),
             aws_byte_cursor_from_buf(&signature_buf))) {
         /* Verification failed, the signature result is wrong. */
-        napi_throw_type_error(env, NULL, "Verification resulted in error.");
+        aws_napi_throw_last_error(env);
         goto done;
     }
 
@@ -737,6 +739,7 @@ done:
     aws_credentials_provider_release(config.credentials_provider);
     aws_byte_buf_clean_up(&region_buf);
     aws_byte_buf_clean_up(&service_buf);
+    aws_byte_buf_clean_up(&signed_body_value_buf);
 
     return result;
 }
