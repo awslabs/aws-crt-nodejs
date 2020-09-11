@@ -23,11 +23,8 @@ type nativeHttpRequest = crt_native.HttpRequest;
 const nativeHttpRequest = crt_native.HttpRequest;
 
 export class HttpRequest extends nativeHttpRequest {
-    public bodyStream?:InputStream;
-
     constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream) {
         super(method, path, headers, body?.native_handle());
-        this.bodyStream = body;
     }
 }
 

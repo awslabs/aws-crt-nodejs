@@ -88,23 +88,15 @@ export function is_alpn_available(): boolean {
  * @category I/O
  */
 export class InputStream extends NativeResource {
-    private completed:boolean;
-
     constructor(private source: Readable) {
         super(crt_native.io_input_stream_new(16 * 1024));
-        this.completed = false;
         this.source.on('data', (data) => {
             data = Buffer.isBuffer(data) ? data : new Buffer(data.toString(), 'utf8');
             crt_native.io_input_stream_append(this.native_handle(), data);
         });
         this.source.on('end', () => {
             crt_native.io_input_stream_append(this.native_handle(), undefined);
-            this.completed = true;
         })
-    }
-
-    isCompleted(): boolean {
-        return this.completed;
     }
 }
 
