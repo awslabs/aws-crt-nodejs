@@ -25,6 +25,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             port: 8883,
             clean_session: false,
             keep_alive: undefined,
+            reconnect_period: undefined,
             will: undefined,
             username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
             password: undefined,
@@ -106,6 +107,15 @@ export class AwsIotMqttConnectionConfigBuilder {
         this.params.timeout = timeout_ms;
         return this;
     }
+
+    /**
+     * Configures the reconnect period (in milliseconds)
+     * @param reconnect_period reconnect period 
+     */
+    with_reconnect_period_ms(reconnect_period) {
+        this.params.reconnect_period = reconnect_period;
+        return this;
+    };
 
     /**
      * Configures the will message to be sent when this client disconnects
