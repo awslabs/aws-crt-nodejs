@@ -4,6 +4,7 @@
  */
 
 import crt_native from './binding';
+import { CrtError } from './error';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
@@ -128,11 +129,13 @@ export type AwsSigningConfig = crt_native.AwsSigningConfig;
 export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
     return new Promise((resolve, reject) => {
         try {
+            /* Note: if the body of request has not fully loaded, it will lead to an endless loop. 
+             * User should set the signed_body_value of config to prevent this endless loop in this case */
             crt_native.aws_sign_request(request, config, (error_code) => {
                 if (error_code == 0) {
                     resolve(request);
                 } else {
-                    reject(error_code);
+                    reject(new CrtError(error_code));
                 }
             });
         } catch (error) {
