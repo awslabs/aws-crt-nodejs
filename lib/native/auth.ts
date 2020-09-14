@@ -129,8 +129,8 @@ export type AwsSigningConfig = crt_native.AwsSigningConfig;
 export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
     return new Promise((resolve, reject) => {
         try {
-            /* TODO: if the body of request has not fully loaded, it will lead to a endless loop. 
-             * User should set the config to prevent this endless loop for now */
+            /* Note: if the body of request has not fully loaded, it will lead to an endless loop. 
+             * User should set the signed_body_value of config to prevent this endless loop in this case */
             crt_native.aws_sign_request(request, config, (error_code) => {
                 if (error_code == 0) {
                     resolve(request);
