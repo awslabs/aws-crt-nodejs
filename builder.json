@@ -47,7 +47,9 @@
                     "install"
                 ]
             ],
-            "!test_steps": []
+            "!test_steps": [
+                "cmd /C set"
+            ]
         }
     },
     "upstream": [],
