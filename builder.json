@@ -44,12 +44,11 @@
             "!build_steps": [
                 [
                     "npm",
-                    "install"
+                    "install",
+                    "--no-cache"
                 ]
             ],
-            "!test_steps": [
-                "cmd /C set"
-            ]
+            "!test_steps": []
         }
     },
     "upstream": [],
