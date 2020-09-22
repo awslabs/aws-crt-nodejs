@@ -43,9 +43,11 @@
         "windows": {
             "!build_steps": [
                 [
+                    "cmd /C set"
+                ],
+                [
                     "npm",
-                    "install",
-                    "--cache=c:\\tmp\\npm"
+                    "install"
                 ]
             ],
             "!test_steps": []
