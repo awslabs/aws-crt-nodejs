@@ -43,11 +43,9 @@
         "windows": {
             "!build_steps": [
                 [
-                    "cmd /C set"
-                ],
-                [
                     "npm",
-                    "install"
+                    "install",
+                    "--no-cache"
                 ]
             ],
             "!test_steps": []
