@@ -68,7 +68,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     /* destroy the native connection, which will destroy the subscriptions and
      * queue destruction of all bound callbacks
      */
-    aws_mqtt_client_connection_destroy(binding->connection);
+    aws_mqtt_client_connection_release(binding->connection);
 
     return NULL;
 }
@@ -196,7 +196,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
                 env,
                 node_on_interrupted,
                 "aws_mqtt_client_connection_on_connection_interrupted",
-                s_on_connection_resumed_call,
+                s_on_connection_interrupted_call,
                 binding,
                 &binding->on_connection_interrupted),
             { goto cleanup; });
@@ -210,7 +210,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
                 env,
                 node_on_resumed,
                 "aws_mqtt_client_connection_on_connection_resumed",
-                s_on_connection_interrupted_call,
+                s_on_connection_resumed_call,
                 binding,
                 &binding->on_connection_resumed),
             { goto cleanup; });
@@ -218,7 +218,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     /* CREATE THE THING */
     binding->allocator = allocator;
-    binding->connection = aws_mqtt_client_connection_new(&binding->node_client->native_client);
+    binding->connection = aws_mqtt_client_connection_new(binding->node_client->native_client);
     if (!binding->connection) {
         napi_throw_error(env, NULL, "Failed create native connection object");
         goto cleanup;
@@ -246,7 +246,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 cleanup:
     if (!result) {
         if (binding->connection) {
-            aws_mqtt_client_connection_destroy(binding->connection);
+            aws_mqtt_client_connection_release(binding->connection);
         }
 
         if (binding->on_connection_interrupted) {

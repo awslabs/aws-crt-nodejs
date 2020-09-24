@@ -419,7 +419,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _reject(reject: (reason: any) => void) {
         return (reason: any) => {
             reject(reason);
-            this.emit('error', new CrtError(reason));
+
+            process.nextTick(() => {
+                this.emit('error', new CrtError(reason));
+            });
         };
     }
 

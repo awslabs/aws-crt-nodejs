@@ -13,9 +13,9 @@ static void s_mqtt_client_finalize(napi_env env, void *finalize_data, void *fina
     struct mqtt_nodejs_client *node_client = finalize_data;
     AWS_ASSERT(node_client);
 
-    struct aws_allocator *allocator = node_client->native_client.allocator;
+    struct aws_allocator *allocator = node_client->native_client->allocator;
 
-    aws_mqtt_client_clean_up(&node_client->native_client);
+    aws_mqtt_client_release(node_client->native_client);
     aws_mem_release(allocator, node_client);
 }
 
@@ -48,7 +48,8 @@ napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info) {
     AWS_FATAL_ASSERT(node_client);
     AWS_ZERO_STRUCT(*node_client);
 
-    if (aws_mqtt_client_init(&node_client->native_client, allocator, aws_napi_get_client_bootstrap(client_bootstrap))) {
+    node_client->native_client = aws_mqtt_client_new(allocator, aws_napi_get_client_bootstrap(client_bootstrap));
+    if (node_client->native_client == NULL) {
         napi_throw_error(env, NULL, "Failed to init client");
         goto error;
     }
@@ -63,7 +64,7 @@ napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info) {
 
 error:
     if (node_client) {
-        aws_mqtt_client_clean_up(&node_client->native_client);
+        aws_mqtt_client_release(node_client->native_client);
         aws_mem_release(allocator, node_client);
     }
 

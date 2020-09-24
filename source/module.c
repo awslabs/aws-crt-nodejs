@@ -43,7 +43,7 @@ static struct aws_log_subject_info_list s_log_subject_list = {
 
 static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
-static struct aws_event_loop_group s_node_uv_elg;
+static struct aws_event_loop_group *s_node_uv_elg;
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
@@ -190,7 +190,7 @@ struct aws_event_loop *aws_napi_get_node_event_loop(void) {
     return s_node_uv_event_loop;
 }
 struct aws_event_loop_group *aws_napi_get_node_elg(void) {
-    return &s_node_uv_elg;
+    return s_node_uv_elg;
 }
 
 /* The napi_status enum has grown, and is not bound by N-API versioning */
@@ -534,7 +534,7 @@ static bool s_create_and_register_function(
     aws_register_log_subject_info_list(&s_log_subject_list);
 
     /* Initialize the event loop group */
-    aws_event_loop_group_default_init(&s_node_uv_elg, allocator, 1);
+    s_node_uv_elg = aws_event_loop_group_new_default(allocator, 1, NULL);
 
     napi_value null;
     napi_get_null(env, &null);
