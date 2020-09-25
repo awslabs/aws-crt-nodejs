@@ -39,15 +39,6 @@
             "x86": {
                 "enabled": false
             }
-        },
-        "windows": {
-            "!build_steps": [
-                [
-                    "npm",
-                    "install"
-                ]
-            ],
-            "!test_steps": []
         }
     },
     "upstream": [],
