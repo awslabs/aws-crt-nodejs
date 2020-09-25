@@ -6,7 +6,7 @@ const os = require('os');
 const process = require("process");
 const cmake = require("cmake-js");
 
-options = {
+let options = {
     CMAKE_EXPORT_COMPILE_COMMANDS: true,
     CMAKE_JS_PLATFORM: os.platform,
     CMAKE_JS_ARCH: os.arch,
@@ -14,7 +14,7 @@ options = {
 }
 
 // Convert any -D arguments to this script to cmake -D arguments
-for (arg of process.argv) {
+for (const arg of process.argv) {
     if (arg.startsWith('-D')) {
         const option = arg.substring(2).split('=')
         options[option[0]] = option[1]
