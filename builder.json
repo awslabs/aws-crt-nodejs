@@ -43,16 +43,16 @@
         "windows": {
             "!build_steps": [
                 [
-                    "cmd",
-                    "/C",
-                    "set"
-                ],
-                [
                     "npm",
                     "install"
                 ]
             ],
-            "!test_steps": []
+            "!test_steps": [
+                [
+                    "npm",
+                    "test"
+                ]
+            ]
         }
     },
     "upstream": [],
