@@ -12,9 +12,11 @@ jest.retryTimes(3);
 
 test('HTTP Headers', () => {
 
+    const long_token = "AQoDYXdzEPT//////////wEXAMPLEtc764bNrC9SAPBSM22wDOk4x4HIZ8j4FZTwdQWLWsKWHGBuFqwAeMicRXmxfpSPfIeoIYRqTflfKD8YUuwthAx7mSEI/qkPpKPi/kMcGdQrmGdeehM4IC1NtBmUpp2wUE8phUZampKsburEDy0KPkyQDYwT7WZ0wq5VSXDvp75YU9HFvlRd8Tx6q6fE8YQcHNVXAkiY9q6d+xo0rKwT38xVqr7ZD0u0iPPkUL64lIZbqBAz+scqKmlzm8FDrypNC9Yjc8fPOLn9FX9KSYvKTr4rvx3iSIlTJabIQwj2ICCR/oLxBA==";
     const header_array: HttpHeader[] = [
         ['Host', 'www.amazon.com'],
         ['Content-Length', '42'],
+        ["x-amz-security-token", long_token],
     ];
     let headers = new HttpHeaders(header_array);
     let request = new HttpRequest("", "", new HttpHeaders(header_array));
@@ -27,19 +29,21 @@ test('HTTP Headers', () => {
 
     let found_headers = 0;
     for (const header of headers) {
-        expect(['Host', 'Content-Length']).toContain(header[0]);
-        expect(['www.amazon.com', '42']).toContain(header[1]);
+        expect(['Host', 'Content-Length', 'x-amz-security-token']).toContain(header[0]);
+        expect(['www.amazon.com', '42', long_token]).toContain(header[1]);
         found_headers++;
     }
-    expect(found_headers).toBe(2);
+    expect(found_headers).toBe(3);
     // Upgrade header does not exist
     expect(headers.get('Upgrade')).toBeFalsy();
 
     // Make sure case doesn't matter
     expect(headers.get('HOST')).toBe('www.amazon.com');
+    expect(headers.get('x-amz-security-token')).toBe(long_token);
 
     // Remove Content-Length, and make sure host is all that's left
     headers.remove('content-length');
+    headers.remove('x-amz-security-token');
     found_headers = 0;
     for (const header of headers) {
         expect(header[0]).toBe('Host');
