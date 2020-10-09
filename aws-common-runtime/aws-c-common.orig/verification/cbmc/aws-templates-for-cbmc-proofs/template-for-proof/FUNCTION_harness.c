@@ -16,10 +16,9 @@
  *   - include the types needed to declare function arguments
  */
 
-void harness()
-{
+void harness() {
 
-  /* Insert argument declarations */
+    /* Insert argument declarations */
 
-  <__FUNCTION_NAME__>( /* Insert arguments */ );
+    <__FUNCTION_NAME__>(/* Insert arguments */);
 }
