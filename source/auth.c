@@ -92,7 +92,6 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
 static void s_napi_creds_provider_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
-
     aws_credentials_provider_release(finalize_data);
 }
 

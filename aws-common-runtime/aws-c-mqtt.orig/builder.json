@@ -1,0 +1,10 @@
+{
+    "name": "aws-c-mqtt",
+    "upstream": [
+        { "name": "aws-c-http" }
+    ],
+    "downstream": [
+    ],
+    "cmake_args": [
+    ]
+}

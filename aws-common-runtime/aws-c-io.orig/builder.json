@@ -1,0 +1,18 @@
+{
+    "name": "aws-c-io",
+    "upstream": [
+        { "name": "aws-c-common" },
+        {
+            "name": "s2n",
+            "targets": ["linux", "android"],
+            "revision": "d5cb72ec782ce9b9c7d88fa5cc1528db741c5623"
+        }
+    ],
+    "downstream": [
+        { "name": "aws-c-mqtt" },
+        { "name": "aws-c-http" }
+    ],
+    "build_env": {
+        "LSAN_OPTIONS": "suppressions={source_dir}/tests/resources/suppressions.txt:allow_addr2line=1"
+    }
+}
