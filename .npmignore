@@ -168,16 +168,16 @@ deps_build/
 **/docs/
 
 # Skip large submodule files
-aws-common-runtime/aws-c-*/tests
-aws-common-runtime/**/AWSCRTAndroidTestRunner
-aws-common-runtime/s2n/tests/fuzz/corpus
-aws-common-runtime/s2n/tests/ctverif
-aws-common-runtime/s2n/tests/pems
-aws-common-runtime/s2n/tests/saw
-aws-common-runtime/s2n/tests/sidetrail
-aws-common-runtime/s2n/tests/integration/trust-store
-aws-common-runtime/s2n/tests/integration/data
-aws-common-runtime/s2n/tests/unit/kats
-aws-common-runtime/*/.cbmc-batch/
-aws-common-runtime/*/codebuild/
+crt/aws-c-*/tests
+crt/**/AWSCRTAndroidTestRunner
+crt/s2n/tests/fuzz/corpus
+crt/s2n/tests/ctverif
+crt/s2n/tests/pems
+crt/s2n/tests/saw
+crt/s2n/tests/sidetrail
+crt/s2n/tests/integration/trust-store
+crt/s2n/tests/integration/data
+crt/s2n/tests/unit/kats
+crt/*/.cbmc-batch/
+crt/*/codebuild/
 

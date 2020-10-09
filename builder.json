@@ -46,8 +46,7 @@
                     "npm",
                     "install"
                 ]
-            ],
-            "!test_steps": []
+            ]
         }
     },
     "upstream": [],
