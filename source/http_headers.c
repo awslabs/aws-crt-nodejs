@@ -237,12 +237,12 @@ static napi_value s_headers_constructor(napi_env env, const struct aws_napi_call
                 napi_throw_type_error(env, NULL, "HTTP header was not a string or length could not be extracted");
                 goto header_parse_error;
             });
-            aws_byte_buf_reserve(&name_buf, length);
+            aws_byte_buf_reserve(&name_buf, length + 1);
             AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, node, NULL, 0, &length), {
                 napi_throw_type_error(env, NULL, "HTTP header was not a string or length could not be extracted");
                 goto header_parse_error;
             });
-            aws_byte_buf_reserve(&value_buf, length);
+            aws_byte_buf_reserve(&value_buf, length + 1);
 
             AWS_NAPI_CALL(
                 env,
