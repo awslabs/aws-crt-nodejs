@@ -29,7 +29,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: 4fa8038b4e3bc80d6f6b48913e0fdde282ecf73b
+          token: ${{ secrets.GITHUB_TOKEN }}
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -46,8 +46,10 @@ jobs:
         version: [3, 6, 8, 9]
     steps:
       - name: Checkout Sources
-        uses:
-          actions/checkout@v2
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
         run: |
@@ -63,8 +65,10 @@ jobs:
         version: [6, 7, 8]
     steps:
       - name: Checkout Sources
-        uses:
-          actions/checkout@v2
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
         run: |
@@ -92,6 +96,9 @@ jobs:
     steps:
       - name: Checkout Sources
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: "recursive"
       - name: Build ${{ env.PACKAGE_NAME }} + consumers
         run: |
           python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
@@ -105,6 +112,9 @@ jobs:
     steps:
       - name: Checkout Sources
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: "recursive"
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           toolset: 14.0
@@ -121,6 +131,9 @@ jobs:
     steps:
       - name: Checkout Sources
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: "recursive"
       - name: Build ${{ env.PACKAGE_NAME }} + consumers
         run: |
           python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
