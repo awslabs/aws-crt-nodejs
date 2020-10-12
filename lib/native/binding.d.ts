@@ -424,4 +424,6 @@ export function aws_verify_sigv4a_signing(
     config: AwsSigningConfig,
     expected_canonical_request: StringLike,
     signature: StringLike,
+    ecc_key_pub_x: StringLike,
+    ecc_key_pub_y: StringLike
 ): boolean;

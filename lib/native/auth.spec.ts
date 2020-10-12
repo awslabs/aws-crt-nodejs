@@ -44,6 +44,10 @@ const SIGV4ATEST_EXPECTED_CANONICAL_REQUEST: string =
     "host;x-amz-date;x-amz-region-set\n" +
     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
+const ECC_KEY_PUB = {
+    X: "b6618f6a65740a99e650b33b6b4b5bd0d43b176d721a3edfea7e7d2d56d936b1",
+    Y: "865ed22a7eadc9c5cb9d2cbaca1b3699139fedc5043dc6661864218330c8e518"
+};
 
 test('AWS Signer SigV4 Headers', async () => {
 
@@ -158,12 +162,13 @@ test('AWS Signer SigV4A Headers', async () => {
     let separator = "Signature=";
     let splits = authorization.split(separator);
     let signature = splits[splits.length - 1];
-    
+
     // Add the signature to expected header
     SIGV4ATEST_SIGNED_HEADERS[1][1] += signature;
     expect(http_request.headers._flatten()).toEqual(SIGV4ATEST_SIGNED_HEADERS);
 
     // Verify the signature
-    let verification_result = aws_verify_sigv4a_signing(ori_http_request, signing_config, SIGV4ATEST_EXPECTED_CANONICAL_REQUEST, signature);
+    let verification_result = aws_verify_sigv4a_signing(
+        ori_http_request, signing_config, SIGV4ATEST_EXPECTED_CANONICAL_REQUEST, signature, ECC_KEY_PUB.X, ECC_KEY_PUB.Y);
     expect(verification_result).toBe(true);
 });

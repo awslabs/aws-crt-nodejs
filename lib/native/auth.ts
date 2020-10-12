@@ -160,9 +160,11 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
  * @param config Configuration for signing.
  * @param expected_canonical_request String type of expected canonical request. Refer to XXX(link to doc?)
  * @param signature The generated signature string from {@link aws_sign_request}, which is verified here.
+ * @param ecc_key_pub_x the x coordinate of the public part of the ecc key to verify the signature.
+ * @param ecc_key_pub_y the y coordinate of the public part of the ecc key to verify the signature
  * @returns True, if the verification succeed. Otherwise, false.
  */
 export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request: StringLike,
-    signature: StringLike): boolean {
-    return crt_native.aws_verify_sigv4a_signing(request, config, expected_canonical_request, signature);
+    signature: StringLike, ecc_key_pub_x: StringLike, ecc_key_pub_y: StringLike): boolean {
+    return crt_native.aws_verify_sigv4a_signing(request, config, expected_canonical_request, signature, ecc_key_pub_x, ecc_key_pub_y);
 }

@@ -76,8 +76,8 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
     static struct aws_napi_method_info s_verify_sigv4a_signing_method = {
         .name = "aws_verify_sigv4a_signing",
         .method = s_aws_verify_sigv4a_signing,
-        .num_arguments = 4,
-        .arg_types = {napi_object, napi_object, napi_string, napi_string},
+        .num_arguments = 6,
+        .arg_types = {napi_object, napi_object, napi_string, napi_string, napi_string, napi_string},
     };
 
     AWS_NAPI_CALL(env, aws_napi_define_function(env, exports, &s_verify_sigv4a_signing_method), { return status; });
@@ -667,6 +667,10 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
     AWS_ZERO_STRUCT(expected_canonical_request_buf);
     struct aws_byte_buf signature_buf;
     AWS_ZERO_STRUCT(signature_buf);
+    struct aws_byte_buf ecc_key_pub_x_buf;
+    AWS_ZERO_STRUCT(ecc_key_pub_x_buf);
+    struct aws_byte_buf ecc_key_pub_y_buf;
+    AWS_ZERO_STRUCT(ecc_key_pub_y_buf);
 
     /* Get request */
     aws_napi_method_next_argument(napi_object, cb_info, &arg);
@@ -700,6 +704,20 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
         goto done;
     }
 
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    napi_value node_ecc_key_pub_x = arg->node;
+    if (aws_byte_buf_init_from_napi(&ecc_key_pub_x_buf, env, node_ecc_key_pub_x)) {
+        napi_throw_type_error(env, NULL, "The public ecc key must be a string");
+        goto done;
+    }
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    napi_value node_ecc_key_pub_y = arg->node;
+    if (aws_byte_buf_init_from_napi(&ecc_key_pub_y_buf, env, node_ecc_key_pub_y)) {
+        napi_throw_type_error(env, NULL, "The public ecc key must be a string");
+        goto done;
+    }
+
     struct sigv4a_credentail_getter_state credential_state;
     AWS_ZERO_STRUCT(credential_state);
     credential_state.allocator = allocator;
@@ -723,7 +741,9 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
             state->signable,
             (struct aws_signing_config_base *)&config,
             aws_byte_cursor_from_buf(&expected_canonical_request_buf),
-            aws_byte_cursor_from_buf(&signature_buf))) {
+            aws_byte_cursor_from_buf(&signature_buf),
+            aws_byte_cursor_from_buf(&ecc_key_pub_x_buf),
+            aws_byte_cursor_from_buf(&ecc_key_pub_y_buf))) {
         /* Verification failed, the signature result is wrong. */
         aws_napi_throw_last_error(env);
         goto done;
@@ -739,6 +759,10 @@ done:
     aws_byte_buf_clean_up(&region_buf);
     aws_byte_buf_clean_up(&service_buf);
     aws_byte_buf_clean_up(&signed_body_value_buf);
+    aws_byte_buf_clean_up(&expected_canonical_request_buf);
+    aws_byte_buf_clean_up(&signature_buf);
+    aws_byte_buf_clean_up(&ecc_key_pub_x_buf);
+    aws_byte_buf_clean_up(&ecc_key_pub_y_buf);
 
     return result;
 }
