@@ -29,6 +29,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
+          token: 4fa8038b4e3bc80d6f6b48913e0fdde282ecf73b
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
