@@ -29,9 +29,8 @@ jobs:
     steps:
       - name: Checkout Sources
         uses: actions/checkout@v2
-        run: ./.github/scripts/decrypt_secret.sh
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: ${{ env.AWS_ACCESS_KEY_ID }}
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -68,7 +67,6 @@ jobs:
     steps:
       - name: Checkout Sources
         uses: actions/checkout@v2
-        run: ./.github/scripts/decrypt_secret.sh
         with:
           token: ${{ secrets.BOT_PAT }}
           submodules: "recursive"
