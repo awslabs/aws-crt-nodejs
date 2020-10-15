@@ -30,7 +30,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ env.AWS_ACCESS_KEY_ID }}
+          token: ${{ env.ACCESS_TOKEN }}
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -49,7 +49,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: f339895404630798e17d57d6f667a2b05e89a548
+          token: ${{ env.ACCESS_TOKEN }}
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -68,7 +68,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: ${{ env.ACCESS_TOKEN }}
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -98,7 +98,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: "$env:ACCESS_TOKEN"
+          token: ${{ env.ACCESS_TOKEN }}
           submodules: "recursive"
       - name: Build ${{ env.PACKAGE_NAME }} + consumers
         run: |
@@ -114,7 +114,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: "$env:ACCESS_TOKEN"
+          token: ${{ env.ACCESS_TOKEN }}
           submodules: "recursive"
       - uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -133,7 +133,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: "$env:ACCESS_TOKEN"
+          token: ${{ env.ACCESS_TOKEN }}
           submodules: "recursive"
       - name: Build ${{ env.PACKAGE_NAME }} + consumers
         run: |
