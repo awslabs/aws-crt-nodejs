@@ -15,7 +15,7 @@ env:
   RUN: ${{ github.run_id }}-${{ github.run_number }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  ACCESS_TOKEN: ${{ secrets.BOT_PAT }}
+  ACCESS_TOKEN: 12738210e52712955c0fa728011ba42c70652dc1
 
 jobs:
   linux-compat:
