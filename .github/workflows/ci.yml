@@ -15,6 +15,7 @@ env:
   RUN: ${{ github.run_id }}-${{ github.run_number }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  ACCESS_TOKEN: ${{ secrets.BOT_PAT }}
 
 jobs:
   linux-compat:
@@ -29,7 +30,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: "$env:ACCESS_TOKEN"
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -48,7 +49,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: "$env:ACCESS_TOKEN"
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -67,7 +68,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: "$env:ACCESS_TOKEN"
           submodules: "recursive"
           # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
       - name: Build ${{ env.PACKAGE_NAME }}
@@ -97,7 +98,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: "$env:ACCESS_TOKEN"
           submodules: "recursive"
       - name: Build ${{ env.PACKAGE_NAME }} + consumers
         run: |
@@ -113,7 +114,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: "$env:ACCESS_TOKEN"
           submodules: "recursive"
       - uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -132,7 +133,7 @@ jobs:
       - name: Checkout Sources
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.BOT_PAT }}
+          token: "$env:ACCESS_TOKEN"
           submodules: "recursive"
       - name: Build ${{ env.PACKAGE_NAME }} + consumers
         run: |
