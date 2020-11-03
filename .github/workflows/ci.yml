@@ -15,9 +15,19 @@ env:
   RUN: ${{ github.run_id }}-${{ github.run_number }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  ACCESS_TOKEN: ${{ secrets.BOT_PAT }}
+  ACCESS_TOKEN: ${{secrets.BOT_PAT}}
 
 jobs:
+  build:
+    env:
+      key1: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+      key2: ${{secrets.BOT_PAT}}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo $key1 | echo $key2
+
   linux-compat:
     runs-on: ubuntu-latest
     strategy:
