@@ -24,7 +24,7 @@ for (const arg of process.argv) {
 // Run the build
 var buildSystem = new cmake.BuildSystem({
     target: "install",
-    debug: true,
+    debug: process.argv.includes('--debug'),
     cMakeOptions: options,
 });
 buildSystem.build();
