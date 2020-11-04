@@ -15,6 +15,8 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
+#include <aws/cal/cal.h>
+
 #include <aws/common/clock.h>
 #include <aws/common/environment.h>
 #include <aws/common/logging.h>
@@ -528,6 +530,7 @@ static bool s_create_and_register_function(
     /* context is bound to exports, will be cleaned up by finalizer */
     s_napi_context_new(allocator, env, exports);
 
+    aws_cal_library_init(allocator);
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
     aws_auth_library_init(allocator);
