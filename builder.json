@@ -26,6 +26,15 @@
                     "test:browser:ci"
                 ]
             ]
+        },
+        "windows" : {
+            "+pre_build_steps" : [
+                [
+                    "nvm",
+                    "use",
+                    "10"
+                ]
+            ]
         }
     },
     "targets": {
@@ -58,11 +67,6 @@
             "update",
             "--init",
             "--recursive"
-        ],
-        [
-            "nvm",
-            "use",
-            "10"
         ]
     ],
     "build_steps": [
