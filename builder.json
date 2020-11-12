@@ -58,6 +58,11 @@
             "update",
             "--init",
             "--recursive"
+        ],
+        [
+            "nvm",
+            "use",
+            "10"
         ]
     ],
     "build_steps": [
