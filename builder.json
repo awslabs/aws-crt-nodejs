@@ -46,14 +46,7 @@
                     "npm",
                     "install"
                 ]
-            ],
-	    "+pre_build_steps" : [
-		[
-		    "nvm",
-		    "use",
-		    "10"
-		]
-	    ]
+            ]
         }
     },
     "upstream": [],
