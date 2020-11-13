@@ -20,6 +20,7 @@
 #include <aws/common/clock.h>
 #include <aws/common/environment.h>
 #include <aws/common/logging.h>
+#include <aws/common/ref_count.h>
 #include <aws/common/system_info.h>
 
 #include <aws/io/event_loop.h>
@@ -476,6 +477,9 @@ static void s_install_crash_handler(void) {
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
+
+    aws_global_thread_creator_shutdown_wait();
+
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
