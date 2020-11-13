@@ -88,7 +88,8 @@
     "test_steps": [
         [
             "npm",
-            "test"
+            "run",
+	    "test:native"
         ]
     ]
 }
