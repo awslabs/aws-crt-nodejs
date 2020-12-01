@@ -61,8 +61,10 @@
         ]
     ],
     "build_steps": [
+        ["npm", "install", "--ignore-scripts"],
         [
             "npm",
+            "run",
             "install",
             "--",
             "-DCMAKE_PREFIX_PATH={source_dir}/{libcrypto_path}"
