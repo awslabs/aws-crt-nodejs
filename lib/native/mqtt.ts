@@ -302,21 +302,24 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      * * For QoS 1, completes when PUBACK is received.
      * * For QoS 2, completes when PUBCOMP is received.
      */
-    async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
+    async publish(topic: string, payload?: Payload, qos?: QoS, retain: boolean = false) {
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            let payload_data = normalize_payload(payload);
             function on_publish(packet_id: number, error_code: number) {
+                payload = undefined;
                 if (error_code == 0) {
                     resolve({ packet_id });
                 } else {
                     reject("Failed to publish: " + io.error_code_to_string(error_code));
                 }
             }
-
+            if (payload === undefined || qos === undefined) {
+                reject("payload and qos must be specified")
+            }
+            let payload_data = normalize_payload(payload!);
             try {
-                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos, retain, on_publish);
+                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos!, retain, on_publish);
             } catch (e) {
                 reject(e);
             }
