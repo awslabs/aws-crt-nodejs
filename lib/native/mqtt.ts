@@ -316,7 +316,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                 }
             }
             if (topic === undefined || payload === undefined || qos === undefined) {
-                throw new Error("payload and qos must be specified")
+                reject("payload and qos must be specified")
 
             }
             let payload_data = normalize_payload(payload!);
