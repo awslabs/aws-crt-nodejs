@@ -307,6 +307,12 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             reject = this._reject(reject);
 
             function on_publish(packet_id: number, error_code: number) {
+                /* Fix for Issue #149 
+                *  Releasing the context variables (topic and payload) when the closure gets invoked.
+                *  This allow the GC to free the memory
+                *  The issue could also be due to the native code not releasing the
+                *  closure properly.
+                */
                 payload = undefined;
                 topic = undefined;
                 if (error_code == 0) {
