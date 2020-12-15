@@ -7,7 +7,7 @@ on:
       - '!master'
 
 env:
-  BUILDER_VERSION: main
+  BUILDER_VERSION: nodejswin
   BUILDER_SOURCE: channels
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
