@@ -306,15 +306,16 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            let payload_data = normalize_payload(payload);
             function on_publish(packet_id: number, error_code: number) {
+                payload = "";
+                topic = "";
                 if (error_code == 0) {
                     resolve({ packet_id });
                 } else {
                     reject("Failed to publish: " + io.error_code_to_string(error_code));
                 }
             }
-
+            let payload_data = normalize_payload(payload);
             try {
                 crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos, retain, on_publish);
             } catch (e) {
