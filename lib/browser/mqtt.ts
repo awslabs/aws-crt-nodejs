@@ -386,7 +386,11 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     reject(new CrtError(error));
                     return this.on_error(error);
                 }
-                resolve({ packet_id: (packet as mqtt.IUnsubackPacket).messageId });
+                resolve({
+                    packet_id: packet
+                    ? (packet as mqtt.IUnsubackPacket).messageId
+                    : undefined,
+                });
             });
 
         });
