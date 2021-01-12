@@ -118,6 +118,13 @@ export function mqtt_client_connection_new(
     client: NativeHandle,
     on_interrupted?: (error_code: number) => void,
     on_resumed?: (return_code: number, session_present: boolean) => void,
+    tls_ctx?: NativeHandle,
+    will?: { topic: StringLike, payload: String | Object | DataView, qos: number, retain: boolean },
+    username?: StringLike,
+    password?: StringLike,
+    use_websocket?: boolean,
+    proxy_options?: NativeHandle,
+    websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void,
 ): NativeHandle;
 
 /** @internal */
@@ -126,18 +133,11 @@ export function mqtt_client_connection_connect(
     client_id: StringLike,
     server_name: StringLike,
     port: number,
-    tls_ctx?: NativeHandle,
     socket_options?: NativeHandle,
     keep_alive_time?: number,
     timeout?: number,
-    will?: { topic: StringLike, payload: String | Object | DataView, qos: number, retain: boolean },
-    username?: StringLike,
-    password?: StringLike,
-    use_websocket?: boolean,
-    proxy_options?: NativeHandle,
     clean_session?: boolean,
     on_connect?: mqtt_on_connect,
-    websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void,
 ): void;
 
 /** @internal */
