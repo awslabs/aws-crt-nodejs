@@ -151,12 +151,29 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
         super();
+        // If there is a will, ensure that its payload is normalized to a DataView
+        const will = config.will ?
+            new MqttWill(
+                config.will.topic,
+                config.will.qos,
+                normalize_payload(config.will.payload),
+                config.will.retain)
+            : undefined;
+
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
-            (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); })
-        );
+            (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); },
+            config.tls_ctx ? config.tls_ctx.native_handle() : null,
+            will,
+            config.username,
+            config.password,
+            config.use_websocket,
+            config.proxy_options ? config.proxy_options.create_native_handle() : undefined,
+            config.websocket_handshake_transform,
+        ));
         this.tls_ctx = config.tls_ctx;
+        crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
     }
 
     private close() {
@@ -225,33 +242,17 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                 }
             }
 
-            // If there is a will, ensure that its payload is normalized to a DataView
-            const will = this.config.will ?
-                new MqttWill(
-                    this.config.will.topic,
-                    this.config.will.qos,
-                    normalize_payload(this.config.will.payload),
-                    this.config.will.retain)
-                : undefined;
             try {
-                crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
                     this.config.client_id,
                     this.config.host_name,
                     this.config.port,
-                    this.config.tls_ctx ? this.config.tls_ctx.native_handle() : null,
                     this.config.socket_options.native_handle(),
                     this.config.keep_alive,
                     this.config.timeout,
-                    will,
-                    this.config.username,
-                    this.config.password,
-                    this.config.use_websocket,
-                    this.config.proxy_options ? this.config.proxy_options.create_native_handle() : undefined,
                     this.config.clean_session,
                     on_connect,
-                    this.config.websocket_handshake_transform,
                 );
             } catch (e) {
                 reject(e);

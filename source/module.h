@@ -125,6 +125,7 @@ struct aws_napi_context {
  */
 #define AWS_NAPI_ENSURE(env, call)                                                                                     \
     do {                                                                                                               \
+        (void)env;                                                                                                     \
         napi_status status = (call);                                                                                   \
         if (status != napi_ok) {                                                                                       \
             AWS_NAPI_LOGF_FATAL(                                                                                       \
