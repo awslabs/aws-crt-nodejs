@@ -703,13 +703,11 @@ cleanup:
     aws_byte_buf_clean_up(&client_id);
     aws_byte_buf_clean_up(&server_name);
 
-    if (!success) {
-        if (on_connect_args) {
-            if (on_connect_args->on_connect) {
-                AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(on_connect_args->on_connect, napi_tsfn_abort));
-            }
-            aws_mem_release(binding->allocator, on_connect_args);
+    if (!success && on_connect_args) {
+        if (on_connect_args->on_connect) {
+            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(on_connect_args->on_connect, napi_tsfn_abort));
         }
+        aws_mem_release(binding->allocator, on_connect_args);
     }
 
     return NULL;
@@ -957,7 +955,7 @@ static void s_on_suback(
     args->qos = qos;
     args->packet_id = packet_id;
 
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_suback, args));
+    AWS_NAPI_ENSURE(args->binding->env, aws_napi_queue_threadsafe_function(args->on_suback, args));
 }
 
 /* user data which describes a subscription, passed to aws_mqtt_connection_subscribe */

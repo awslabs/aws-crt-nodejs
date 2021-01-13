@@ -124,7 +124,7 @@ export function mqtt_client_connection_new(
     password?: StringLike,
     use_websocket?: boolean,
     proxy_options?: NativeHandle,
-    websocket_handshake_transform?: (request: any, done: (error_code?: number) => void) => void,
+    websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
 ): NativeHandle;
 
 /** @internal */
