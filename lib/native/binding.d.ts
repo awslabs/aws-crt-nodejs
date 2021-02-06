@@ -158,14 +158,14 @@ export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
     topic: StringLike,
     qos: number,
-    on_publish?: (topic: string, payload: ArrayBuffer) => void,
+    on_publish?: (topic: string, payload: ArrayBuffer, dup: boolean, qos: any, retain: boolean) => void,
     on_suback?: (packet_id: number, topic: string, qos: any, error_code: number) => void,
 ): void;
 
 /** @internal */
 export function mqtt_client_connection_on_message(
     connection: NativeHandle,
-    on_publish?: (topic: string, payload: Buffer) => void
+    on_publish?: (topic: string, payload: ArrayBuffer, dup: boolean, qos: any, retain: boolean) => void
 ): void;
 
 /** @internal */

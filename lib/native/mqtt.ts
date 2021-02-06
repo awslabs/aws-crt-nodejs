@@ -12,10 +12,10 @@ import { TextEncoder } from './polyfills';
 import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
 /** @category MQTT */
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
 /**
  * MQTT client
@@ -206,7 +206,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     /**
      * Emitted when any MQTT publish message arrives.
      */
-    on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
+    on(event: 'message', listener: OnMessageCallback): this;
 
     /** @internal */
     // Overridden to allow uncorking on ready
@@ -344,7 +344,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *          result of the SUBSCRIBE. The Promise resolves when a SUBACK is returned
      *          from the server or is rejected when an exception occurs.
      */
-    async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void) {
+    async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
@@ -436,7 +436,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         this.emit('resume', return_code, session_present);
     }
 
-    private _on_any_publish(topic: string, payload: Buffer) {
-        this.emit('message', topic, payload);
+    private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
+        this.emit('message', topic, payload, dup, qos, retain);
     }
 }

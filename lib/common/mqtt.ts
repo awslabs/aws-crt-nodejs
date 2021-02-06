@@ -46,6 +46,22 @@ export enum QoS {
 export type Payload = String | Object | DataView;
 
 /**
+ * Function called upon receipt of a Publish message on a subscribed topic.
+ *
+ * @param topic The topic to which the message was published.
+ * @param payload The payload data.
+ * @param dup DUP flag. If true, this might be re-delivery of an earlier
+ *            attempt to send the message.
+ * @param qos Quality of Service used to deliver the message.
+ * @param retain Retain flag. If true, the message was sent as a result of
+ *               a new subscription being made by the client. *
+ *
+ * @module aws-crt
+ * @category MQTT
+ */
+export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
+
+/**
  * Every request sent returns an MqttRequest
  *
  * @module aws-crt
