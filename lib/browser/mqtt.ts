@@ -268,7 +268,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         // We want to use built-in JS types
         // Though node's Buffer type extends Uint8Array, it has subtle API incompatibilities.
         // So create a vanilla Uint8Array view on this Buffer's memory (don't copy contents).
-        const uint8_payload = new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+        const uint8_payload = new Uint8Array(payload.buffer, payload.byteOffset, payload.length)
 
         const callback = this.subscriptions.find(topic);
         if (callback) {

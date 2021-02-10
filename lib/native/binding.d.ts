@@ -155,18 +155,21 @@ export function mqtt_client_connection_publish(
 ): void;
 
 /** @internal */
+export type OnMessageCallbackNative = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
+
+/** @internal */
 export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
     topic: StringLike,
     qos: number,
-    on_publish?: (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void,
+    on_publish?: OnMessageCallbackNative,
     on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number) => void,
 ): void;
 
 /** @internal */
 export function mqtt_client_connection_on_message(
     connection: NativeHandle,
-    on_publish?: (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void
+    on_publish?: OnMessageCallbackNative
 ): void;
 
 /** @internal */

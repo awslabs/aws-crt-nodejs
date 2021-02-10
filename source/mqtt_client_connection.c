@@ -973,8 +973,8 @@ static void s_on_publish_user_data_clean_up(void *user_data) {
 
 /* arguments for publish callbacks */
 struct on_publish_args {
-    struct aws_byte_cursor topic;        /* owned by subscription */
-    struct aws_byte_buf payload;         /* owned by this */
+    struct aws_byte_cursor topic; /* owned by subscription */
+    struct aws_byte_buf payload;  /* owned by this */
     bool dup;
     enum aws_mqtt_qos qos;
     bool retain;
