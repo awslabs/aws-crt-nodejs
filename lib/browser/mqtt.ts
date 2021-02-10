@@ -265,16 +265,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
-        // We want to use built-in JS types
+        // We want to use built-in JS types.
         // Though node's Buffer type extends Uint8Array, it has subtle API incompatibilities.
-        // So create a vanilla Uint8Array view on this Buffer's memory (don't copy contents).
-        let u8 = new Uint8Array(payload.buffer, payload.byteOffset, payload.length);
-
-        // TODO: figure out why byteOffset is ignored on some machines.
-        // Workaround is to copy contents of Buffer instead of sharing the underlying memory.
-        if (u8.byteOffset != payload.byteOffset || u8.length != payload.length) {
-            u8 = new Uint8Array(payload);
-        }
+        const u8 = new Uint8Array(payload);
+        // TODO: figure out why `new Uint8Array(payload.buffer, payload.byteOffset, payload.length)` leads to CI failures
 
         const callback = this.subscriptions.find(topic);
         if (callback) {
