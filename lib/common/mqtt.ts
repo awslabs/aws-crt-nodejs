@@ -38,7 +38,7 @@ export enum QoS {
 }
 
 /**
- * Possible types of data to send via publish or receive via subscription
+ * Possible types of data to send via publish
  *
  * @module aws-crt
  * @category MQTT
@@ -59,7 +59,7 @@ export type Payload = String | Object | DataView;
  * @module aws-crt
  * @category MQTT
  */
-export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
+export type OnMessageCallback = (topic: string, payload: Buffer, dup: boolean, qos: QoS, retain: boolean) => void;
 
 /**
  * Every request sent returns an MqttRequest
