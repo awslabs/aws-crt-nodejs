@@ -6,7 +6,7 @@
 import { InputStream } from "./io";
 import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValue, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
-import { OnMessageCallback, QoS } from "lib/common/mqtt";
+import { QoS } from "lib/common/mqtt";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -159,14 +159,14 @@ export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
     topic: StringLike,
     qos: number,
-    on_publish?: OnMessageCallback,
+    on_publish?: (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void,
     on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number) => void,
 ): void;
 
 /** @internal */
 export function mqtt_client_connection_on_message(
     connection: NativeHandle,
-    on_publish?: OnMessageCallback
+    on_publish?: (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void
 ): void;
 
 /** @internal */
