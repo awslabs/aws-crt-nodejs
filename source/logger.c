@@ -60,9 +60,6 @@ struct log_message {
 /* custom aws_log_writer that writes via process._rawDebug() within the node env via threadsafe function */
 static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct aws_string *output) {
     (void)writer;
-    struct aws_napi_logger_ctx *ctx = tl_logger_ctx ? tl_logger_ctx : s_napi_logger.default_ctx;
-    /* this can only happen if someone tries to log after the main thread has cleaned up */
-    AWS_FATAL_ASSERT(ctx && "No TLS log context, and no default fallback");
 
     /* node will append a newline, so strip the ones from the logger */
     size_t newlines = 0;
@@ -75,34 +72,7 @@ static int s_napi_log_writer_write(struct aws_log_writer *writer, const struct a
      * to lose logs at shutdown. Node should not close and re-open stderr at this point, so we'll
      * just write to it immediately. These messages will escape any application log overrides.
      */
-    if (!ctx->log_drain) {
-#ifdef AWS_NAPI_LOG_AFTER_SHUTDOWN
-        fprintf(stderr, "%*s", (int)(output->len - newlines), aws_string_c_str(output));
-#endif
-        return AWS_OP_SUCCESS;
-    }
-
-    /*
-     * Pin the log drain function until we try to call it. If napi_closing is returned, the function
-     * has been released, which means we are shutting down, so we just bail
-     */
-    AWS_NAPI_CALL(env, napi_acquire_threadsafe_function(ctx->log_drain), {
-        return (status == napi_closing) ? AWS_OP_SUCCESS : AWS_OP_ERR;
-    });
-
-    /* must allocate in the order things will be freed because we use a ring buffer */
-    struct aws_string *message =
-        aws_string_new_from_array(&ctx->buffer_allocator, aws_string_bytes(output), output->len - newlines);
-    struct log_message *msg = aws_mem_calloc(&ctx->buffer_allocator, 1, sizeof(struct log_message));
-    msg->message = message;
-
-    /* queue up the message to be logged next time the function runs */
-    aws_mutex_lock(&ctx->msg_queue.mutex);
-    aws_linked_list_push_back(&ctx->msg_queue.messages, &msg->node);
-    aws_mutex_unlock(&ctx->msg_queue.mutex);
-
-    /* queue the call */
-    AWS_NAPI_ENSURE(ctx->env, napi_call_threadsafe_function(ctx->log_drain, NULL, napi_tsfn_nonblocking));
+    fprintf(stderr, "%*s", (int)(output->len - newlines), aws_string_c_str(output));
     return AWS_OP_SUCCESS;
 }
 
