@@ -5,7 +5,7 @@
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
   "contributors": [
-    "AWS SDK Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
+    "AWS Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
   ],
   "license": "Apache-2.0",
   "main": "./dist/index.js",
