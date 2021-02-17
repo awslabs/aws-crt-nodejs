@@ -973,8 +973,11 @@ static void s_on_publish_user_data_clean_up(void *user_data) {
 
 /* arguments for publish callbacks */
 struct on_publish_args {
-    struct aws_byte_cursor topic;        /* owned by subscription */
-    struct aws_byte_buf payload;         /* owned by this */
+    struct aws_byte_cursor topic; /* owned by subscription */
+    struct aws_byte_buf payload;  /* owned by this */
+    bool dup;
+    enum aws_mqtt_qos qos;
+    bool retain;
     napi_threadsafe_function on_publish; /* owned by subscription */
 };
 
@@ -983,13 +986,16 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
     struct on_publish_args *args = user_data;
 
     if (env) {
-        napi_value params[2];
+        napi_value params[5];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
         AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)args->topic.ptr, args->topic.len, &params[0]));
         AWS_NAPI_ENSURE(
             env,
             napi_create_external_arraybuffer(env, args->payload.buffer, args->payload.len, NULL, NULL, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
 
         AWS_NAPI_ENSURE(
             env, aws_napi_dispatch_threadsafe_function(env, args->on_publish, NULL, on_publish, num_params, params));
@@ -1003,6 +1009,9 @@ static void s_on_publish(
     struct aws_mqtt_client_connection *connection,
     const struct aws_byte_cursor *topic,
     const struct aws_byte_cursor *payload,
+    bool dup,
+    enum aws_mqtt_qos qos,
+    bool retain,
     void *user_data) {
 
     (void)connection;
@@ -1021,6 +1030,9 @@ static void s_on_publish(
     AWS_FATAL_ASSERT(args);
 
     args->topic = aws_byte_cursor_from_buf(&sub->topic);
+    args->dup = dup;
+    args->qos = qos;
+    args->retain = retain;
     args->on_publish = sub->on_publish;
     /* this is freed after being delivered to node in s_on_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
@@ -1129,6 +1141,9 @@ cleanup:
 struct on_any_publish_args {
     struct aws_string *topic;
     struct aws_byte_buf payload;
+    bool dup;
+    enum aws_mqtt_qos qos;
+    bool retain;
 };
 
 static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
@@ -1136,13 +1151,16 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
     struct on_any_publish_args *args = user_data;
 
     if (env) {
-        napi_value params[2];
+        napi_value params[5];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
         AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
         AWS_NAPI_ENSURE(
             env,
             napi_create_external_arraybuffer(env, args->payload.buffer, args->payload.len, NULL, NULL, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
 
         AWS_NAPI_ENSURE(
             env,
@@ -1158,6 +1176,9 @@ static void s_on_any_publish(
     struct aws_mqtt_client_connection *connection,
     const struct aws_byte_cursor *topic,
     const struct aws_byte_cursor *payload,
+    bool dup,
+    enum aws_mqtt_qos qos,
+    bool retain,
     void *user_data) {
 
     (void)connection;
@@ -1167,6 +1188,9 @@ static void s_on_any_publish(
     AWS_FATAL_ASSERT(args);
 
     args->topic = aws_string_new_from_array(binding->allocator, topic->ptr, topic->len);
+    args->dup = dup;
+    args->qos = qos;
+    args->retain = retain;
     /* this is freed after being delivered to node in s_on_any_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
         aws_mem_release(binding->allocator, args);
