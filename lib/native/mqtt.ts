@@ -348,13 +348,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            let on_message_native = undefined;
-            if (on_message) {
-                on_message_native = function(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
-                    on_message(topic, new Uint8Array(payload), dup, qos, retain);
-                }
-            }
-
             function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {
                 if (error_code == 0) {
                     resolve({ packet_id, topic, qos, error_code });
@@ -364,7 +357,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             }
 
             try {
-                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message_native, on_suback);
+                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message, on_suback);
             } catch (e) {
                 reject(e);
             }
@@ -444,6 +437,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
-        this.emit('message', topic, new Uint8Array(payload), dup, qos, retain);
+        this.emit('message', topic, payload, dup, qos, retain);
     }
 }
