@@ -157,12 +157,12 @@ napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info inf
     struct client_bootstrap_binding *binding = aws_mem_acquire(allocator, sizeof(struct client_bootstrap_binding));
     AWS_ZERO_STRUCT(*binding);
 
-    struct aws_host_resolver_default_options hr_options = {
+    struct aws_host_resolver_default_options resolver_options = {
         .max_entries = 64,
         .el_group = aws_napi_get_node_elg(),
     };
 
-    binding->resolver = aws_host_resolver_new_default(allocator, &hr_options);
+    binding->resolver = aws_host_resolver_new_default(allocator, &resolver_options);
     if (binding->resolver == NULL) {
         goto clean_up;
     }
