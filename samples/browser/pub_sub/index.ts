@@ -69,10 +69,10 @@ async function main() {
     fetch_credentials()
         .then(connect_websocket)
         .then((connection) => {
-            connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload) => {
+            connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {
                 const decoder = new TextDecoder('utf8');
-                let message = decoder.decode(payload);
-                log(`Message recieved: topic=${topic} message=${message}`);
+                let message = decoder.decode(new Uint8Array(payload));
+                log(`Message received: topic=${topic} message=${message}`);
                 connection.disconnect();
             })
             .then((subscription) => {

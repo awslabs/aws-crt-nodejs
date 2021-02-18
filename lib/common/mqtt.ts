@@ -59,7 +59,7 @@ export type Payload = String | Object | DataView;
  * @module aws-crt
  * @category MQTT
  */
-export type OnMessageCallback = (topic: string, payload: Uint8Array, dup: boolean, qos: QoS, retain: boolean) => void;
+export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
 
 /**
  * Every request sent returns an MqttRequest
