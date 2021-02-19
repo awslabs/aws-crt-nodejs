@@ -47,7 +47,7 @@ export enum QoS {
  * @module aws-crt
  * @category MQTT
  */
-export type Payload = string | Object | ArrayBufferView;
+export type Payload = string | Record<string, unknown> | ArrayBufferView;
 
 /**
  * Function called upon receipt of a Publish message on a subscribed topic.
