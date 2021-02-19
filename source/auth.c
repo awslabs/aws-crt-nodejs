@@ -540,8 +540,8 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             (struct aws_signing_config_base *)&config,
             s_aws_sign_request_complete,
             state)) {
-        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(state->on_complete, napi_tsfn_abort));
         aws_napi_throw_last_error(env);
+        // AWS_NAPI_ENSURE\(env, aws_napi_release_threadsafe_function(state->on_complete, napi_tsfn_abort));
     }
 
     goto done;
