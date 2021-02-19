@@ -257,7 +257,7 @@ static void s_http_connection_manager_on_acquired_call(
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
 
-    // AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_acquired, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_acquired));
     aws_mem_release(binding->allocator, args);
 }
 

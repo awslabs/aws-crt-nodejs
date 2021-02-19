@@ -395,6 +395,13 @@ napi_status aws_napi_release_threadsafe_function(
     return napi_ok;
 }
 
+napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
+    if (function) {
+        return napi_unref_threadsafe_function(env, function);
+    }
+    return napi_ok;
+}
+
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
     /* increase the ref count, gets decreased when the call completes */
     AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));

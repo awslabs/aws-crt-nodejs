@@ -78,6 +78,13 @@ napi_status aws_napi_release_threadsafe_function(
     napi_threadsafe_function_release_mode mode);
 
 /**
+ * Wrapper around napi_unref_threadsafe_function,
+ * Incase release the threadsafe function from that function is needed, unref will let env go
+ * and the function will be cleaned up as env clean itself up
+ */
+napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function);
+
+/**
  * Wrapper around napi_call_threadsafe_function that always queues (napi_tsfn_nonblocking)
  * and pins the function reference until the call completes
  */

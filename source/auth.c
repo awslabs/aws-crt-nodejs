@@ -230,7 +230,7 @@ static void s_destroy_signing_binding(
 
     aws_signable_destroy(binding->signable);
 
-    AWS_NAPI_ENSURE(env, napi_unref_threadsafe_function(env, binding->on_complete));
+    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, binding->on_complete));
     aws_mem_release(allocator, binding);
 }
 
