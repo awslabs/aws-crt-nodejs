@@ -876,6 +876,7 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         binding->connection, &topic_cur, qos, retain, &payload_cur, s_on_publish_complete, args);
     if (!pub_id) {
         aws_napi_throw_last_error(env);
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_abort));
         goto cleanup;
     }
 
@@ -884,7 +885,6 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
 cleanup:
     aws_byte_buf_clean_up(&args->payload);
     aws_byte_buf_clean_up(&args->topic);
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_abort));
     aws_mem_release(allocator, args);
 
     return NULL;

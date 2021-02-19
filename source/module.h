@@ -59,7 +59,7 @@ napi_status aws_napi_dispatch_threadsafe_function(
 
 /**
  * Wrapper around napi_create_threadsafe_function,
- * the theadsafe function needed to be released to clean up correctly
+ * aws_napi_release_threadsafe_function needed to clean up the threadsafe function
  */
 napi_status aws_napi_create_threadsafe_function(
     napi_env env,
@@ -71,7 +71,7 @@ napi_status aws_napi_create_threadsafe_function(
 
 /**
  * Wrapper around napi_release_threadsafe_function,
- * check the function before release it.
+ * check the function before releasing it.
  */
 napi_status aws_napi_release_threadsafe_function(
     napi_threadsafe_function function,
