@@ -703,7 +703,7 @@ cleanup:
 }
 
 /*******************************************************************************
- * Reconnect
+ * Reconnect Deprecated
  ******************************************************************************/
 
 napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback_info cb_info) {
@@ -884,7 +884,7 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
 cleanup:
     aws_byte_buf_clean_up(&args->payload);
     aws_byte_buf_clean_up(&args->topic);
-
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_abort));
     aws_mem_release(allocator, args);
 
     return NULL;
@@ -1117,7 +1117,8 @@ cleanup:
     if (sub->topic.buffer) {
         aws_byte_buf_clean_up(&sub->topic);
     }
-
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(sub->on_publish, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(suback->on_suback, napi_tsfn_abort));
     aws_mem_release(binding->allocator, sub);
     aws_mem_release(binding->allocator, suback);
 
@@ -1334,6 +1335,7 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
     return NULL;
 cleanup:
     aws_byte_buf_clean_up(&args->topic);
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_unsuback, napi_tsfn_abort));
     aws_mem_release(binding->allocator, args);
 
     return NULL;
@@ -1411,6 +1413,8 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
 
     if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, args)) {
         aws_napi_throw_last_error(env);
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_disconnect, napi_tsfn_abort));
+        aws_mem_release(binding->allocator, args);
         return NULL;
     }
 

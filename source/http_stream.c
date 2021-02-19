@@ -308,15 +308,9 @@ failed_request:
 failed_external:
 failed_callbacks:
     if (binding) {
-        if (binding->on_complete) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
-        }
-        if (binding->on_response) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
-        }
-        if (binding->on_body) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
-        }
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
     }
     aws_mem_release(allocator, binding);
 failed_binding_alloc:
