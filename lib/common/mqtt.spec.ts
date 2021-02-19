@@ -231,6 +231,10 @@ test('MQTT payload types', async (done) => {
                 send: new DataView(encoder.encode('I was a DataView').buffer),
                 recv: encoder.encode('I was a DataView').buffer,
             },
+            [`/test/types/${id}/uint8array`]: {
+                send: new Uint8Array([0, 1, 255]),
+                recv: new Uint8Array([0, 1, 255]).buffer,
+            },
             [`/test/types/${id}/json`]: {
                 send: { I: "was JSON" },
                 recv: encoder.encode('{"I": "was JSON"}').buffer,

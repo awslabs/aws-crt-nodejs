@@ -38,12 +38,16 @@ export enum QoS {
 }
 
 /**
- * Possible types of data to send via publish
+ * Possible types of data to send via publish.
+ *
+ * An ArrayBufferView (DataView, Uint8Array, etc) will send its bytes without transformation.
+ * A String will be sent with utf-8 encoding.
+ * An Object will be sent as a JSON string with utf-8 encoding.
  *
  * @module aws-crt
  * @category MQTT
  */
-export type Payload = string | Object | DataView;
+export type Payload = string | Object | ArrayBufferView;
 
 /**
  * Function called upon receipt of a Publish message on a subscribed topic.

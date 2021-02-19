@@ -137,19 +137,26 @@ class TopicTrie extends Trie<OnMessageCallback | undefined> {
 }
 
 /**
- * Converts payload to string or buffer regardless of the supplied type
+ * Converts payload to Buffer or string regardless of the supplied type
  * @param payload The payload to convert
  * @internal
  */
 function normalize_payload(payload: Payload) : Buffer | string {
-    if (payload instanceof DataView) {
-        return Buffer.from(payload.buffer, payload.byteOffset, payload.byteLength);
-    }
-    if (typeof payload === 'string') {
+    if (payload instanceof Buffer) {
+        // pass Buffer through
         return payload;
     }
+    if (typeof payload === 'string') {
+        // pass string through
+        return payload;
+    }
+    if (ArrayBuffer.isView(payload)) {
+        // return Buffer with view upon the same bytes (no copy)
+        const view = payload as ArrayBufferView;
+        return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    }
     if (typeof payload === 'object') {
-        // Convert payload to JSON string
+        // Convert Object to JSON string
         return JSON.stringify(payload);
     }
     throw new TypeError("payload parameter must be a string, object, or DataView.");
