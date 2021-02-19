@@ -8,7 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, QoS, MqttWill } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-import { TextDecoder } from '@awscrt/polyfills';
+import { TextDecoder, TextEncoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
 
 jest.setTimeout(10000);
