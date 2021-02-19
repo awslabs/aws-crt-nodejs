@@ -77,11 +77,14 @@ test('MQTT Pub/Sub', async (done) => {
             const test_payload = 'NOTICE ME';
             const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
                 expect(topic).toEqual(test_topic);
-                const payload_str = (new TextDecoder()).decode(payload);
+                const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
                 expect(payload_str).toEqual(test_payload);
                 expect(qos).toEqual(QoS.AtLeastOnce);
                 expect(retain).toBeFalsy();
                 resolve(true);
+
+                const unsubscribed = connection.unsubscribe(test_topic);
+                await expect(unsubscribed).resolves.toHaveProperty('packet_id');
 
                 const disconnected = connection.disconnect();
                 await expect(disconnected).resolves.toBeUndefined();
@@ -168,7 +171,7 @@ test('MQTT On Any Publish', async (done) => {
         connection.on('message', async (topic, payload, dup, qos, retain) => {
             expect(topic).toEqual(test_topic);
             expect(payload).toBeDefined();
-            const payload_str = (new TextDecoder()).decode(payload);
+            const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
             expect(payload_str).toEqual(test_payload);
             expect(qos).toEqual(QoS.AtLeastOnce);
             expect(retain).toBeFalsy();

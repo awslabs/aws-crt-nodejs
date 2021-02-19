@@ -265,16 +265,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
-        // We want to use built-in JS types.
-        // Though node's Buffer type extends Uint8Array, it has subtle API incompatibilities.
-        const u8 = new Uint8Array(payload);
-        // TODO: figure out why `new Uint8Array(payload.buffer, payload.byteOffset, payload.length)` leads to CI failures
+        // pass payload as ArrayBuffer
+        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
 
         const callback = this.subscriptions.find(topic);
         if (callback) {
-            callback(topic, u8, packet.dup, packet.qos, packet.retain);
+            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
-        this.emit('message', topic, u8, packet.dup, packet.qos, packet.retain);
+        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }
 
     /**
@@ -380,12 +378,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
     async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
         return new Promise((resolve, reject) => {
-            this.connection.unsubscribe(topic, undefined, (error, packet) => {
+            this.connection.unsubscribe(topic, undefined, (error?: Error, packet?: mqtt.Packet) => {
                 if (error) {
                     reject(new CrtError(error));
                     return this.on_error(error);
                 }
-                resolve({ packet_id: (packet as mqtt.IUnsubackPacket).messageId });
+                resolve({
+                    packet_id: packet
+                    ? (packet as mqtt.IUnsubackPacket).messageId
+                    : undefined,
+                });
             });
 
         });
