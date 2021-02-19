@@ -28,7 +28,7 @@ static void s_http_connection_manager_finalize(napi_env env, void *finalize_data
     (void)finalize_hint;
     (void)env;
     struct http_connection_manager_binding *binding = finalize_data;
-    // AWS_NAPI_ENSURE\(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
     aws_mem_release(binding->allocator, binding);
 }
 
@@ -257,7 +257,7 @@ static void s_http_connection_manager_on_acquired_call(
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
 
-    // AWS_NAPI_ENSURE\(env, aws_napi_release_threadsafe_function(args->on_acquired, napi_tsfn_abort));
+    // AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_acquired, napi_tsfn_abort));
     aws_mem_release(binding->allocator, args);
 }
 
