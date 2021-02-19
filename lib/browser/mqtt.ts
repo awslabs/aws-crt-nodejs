@@ -10,7 +10,7 @@ import { Trie, TrieOp, Node as TrieNode } from "./trie";
 import { BufferedEventEmitter } from "../common/event";
 import { CrtError } from "../browser";
 import { ClientBootstrap, SocketOptions } from "./io";
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 /** @category MQTT */
@@ -98,14 +98,8 @@ export class MqttClient {
     }
 }
 
-/**
- * @module aws-crt
- * @category MQTT
- */
-type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
-
 /** @internal */
-class TopicTrie extends Trie<SubscriptionCallback | undefined> {
+class TopicTrie extends Trie<OnMessageCallback | undefined> {
     constructor() {
         super('/');
     }
@@ -239,7 +233,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     /**
      * Emitted when any MQTT publish message arrives.
      */
-    on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
+    on(event: 'message', listener: OnMessageCallback): this;
 
     /** @internal */
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -270,12 +264,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.emit('error', new CrtError(error))
     }
 
-    private on_message = (topic: string, payload: Buffer, packet: any) => {
+    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
+        // pass payload as ArrayBuffer
+        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
+
         const callback = this.subscriptions.find(topic);
         if (callback) {
-            callback(topic, payload);
+            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
-        this.emit('message', topic, payload);
+        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }
 
     /**
@@ -356,7 +353,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *          result of the SUBSCRIBE. The Promise resolves when a SUBACK is returned
      *          from the server or is rejected when an exception occurs.
      */
-    async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void): Promise<MqttSubscribeRequest> {
+    async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback): Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
         return new Promise((resolve, reject) => {
             this.connection.subscribe(topic, { qos: qos }, (error, packet) => {
