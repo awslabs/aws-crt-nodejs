@@ -6,7 +6,7 @@
 import { InputStream } from "./io";
 import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValue, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
-import { OnMessageCallback, QoS } from "lib/common/mqtt";
+import { OnMessageCallback, QoS } from "../common/mqtt";
 
 /**
  * Type used to store pointers to CRT native resources

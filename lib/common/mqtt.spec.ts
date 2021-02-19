@@ -83,6 +83,9 @@ test('MQTT Pub/Sub', async (done) => {
                 expect(retain).toBeFalsy();
                 resolve(true);
 
+                const unsubscribed = connection.unsubscribe(test_topic);
+                await expect(unsubscribed).resolves.toHaveProperty('packet_id');
+
                 const disconnected = connection.disconnect();
                 await expect(disconnected).resolves.toBeUndefined();
             });
