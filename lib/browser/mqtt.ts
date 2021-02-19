@@ -378,7 +378,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
         return new Promise((resolve, reject) => {
-            this.connection.unsubscribe(topic, undefined, (error, packet) => {
+            this.connection.unsubscribe(topic, undefined, (error?: Error, packet?: mqtt.Packet) => {
                 if (error) {
                     reject(new CrtError(error));
                     return this.on_error(error);
