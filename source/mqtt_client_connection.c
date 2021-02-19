@@ -849,7 +849,7 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
 
     napi_value node_payload = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&args->payload, env, node_payload), {
-        napi_throw_type_error(env, NULL, "payload must be a String");
+        napi_throw_type_error(env, NULL, "payload is invalid type");
         goto cleanup;
     });
 

@@ -15,7 +15,7 @@ import { OnMessageCallback, QoS } from "lib/common/mqtt";
 type NativeHandle = any;
 
 /** @category System */
-type StringLike = string | ArrayBuffer | DataView;
+type StringLike = string | ArrayBuffer | ArrayBufferView;
 
 /* common */
 /** @internal */
@@ -120,7 +120,7 @@ export function mqtt_client_connection_new(
     on_interrupted?: (error_code: number) => void,
     on_resumed?: (return_code: number, session_present: boolean) => void,
     tls_ctx?: NativeHandle,
-    will?: { topic: StringLike, payload: String | Object | DataView, qos: number, retain: boolean },
+    will?: { topic: StringLike, payload: StringLike, qos: number, retain: boolean },
     username?: StringLike,
     password?: StringLike,
     use_websocket?: boolean,

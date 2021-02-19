@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import crt_native from './binding';
+import crt_native, { StringLike } from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
-import { TextEncoder } from './polyfills';
 import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
@@ -114,26 +113,21 @@ export interface MqttConnectionConfig {
 }
 
 /** @internal */
-const normalize_encoder = new TextEncoder();
-function normalize_payload(payload: Payload) {
-    let payload_data: DataView;
+function normalize_payload(payload: Payload) : StringLike {
     if (payload instanceof DataView) {
-        // If payload is already dataview, just use it
-        payload_data = payload;
-    } else {
-        if (typeof payload === 'object') {
-            // Convert payload to JSON string, next if block will turn it into a DataView.
-            payload = JSON.stringify(payload);
-        }
-
-        if (typeof payload === 'string') {
-            // Encode the string as UTF-8
-            payload_data = new DataView(normalize_encoder.encode(payload).buffer);
-        } else {
-            throw new TypeError("payload parameter must be a string, object, or DataView.");
-        }
+        // native can use DataView bytes directly
+        return payload;
     }
-    return payload_data;
+    if (typeof payload === 'string') {
+        // native will convert string to utf-8
+        return payload;
+    }
+    if (typeof payload === 'object') {
+        // convert object to JSON string (which will be converted to utf-8 in native)
+        return JSON.stringify(payload);
+    }
+
+    throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
 /**
@@ -153,11 +147,12 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         super();
         // If there is a will, ensure that its payload is normalized to a DataView
         const will = config.will ?
-            new MqttWill(
-                config.will.topic,
-                config.will.qos,
-                normalize_payload(config.will.payload),
-                config.will.retain)
+            {
+                topic: config.will.topic,
+                qos: config.will.qos,
+                payload: normalize_payload(config.will.payload),
+                retain: config.will.retain
+            }
             : undefined;
 
         this._super(crt_native.mqtt_client_connection_new(
