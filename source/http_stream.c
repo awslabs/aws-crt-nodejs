@@ -192,6 +192,9 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
     (void)finalize_hint;
     struct http_stream_binding *binding = finalize_data;
 
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     aws_http_message_release(binding->request);
     aws_http_message_release(binding->response);
     aws_mem_release(binding->allocator, binding);

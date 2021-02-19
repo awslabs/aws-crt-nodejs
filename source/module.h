@@ -58,8 +58,8 @@ napi_status aws_napi_dispatch_threadsafe_function(
     napi_value *argv);
 
 /**
- * Wrapper around napi_create_threadsafe_function that ensures it is a weak reference and cleans
- * up when the last node reference is cleared.
+ * Wrapper around napi_create_threadsafe_function,
+ * the theadsafe function needed to be released to clean up correctly
  */
 napi_status aws_napi_create_threadsafe_function(
     napi_env env,
@@ -68,6 +68,14 @@ napi_status aws_napi_create_threadsafe_function(
     napi_threadsafe_function_call_js call_js,
     void *context,
     napi_threadsafe_function *result);
+
+/**
+ * Wrapper around napi_release_threadsafe_function,
+ * check the function before release it.
+ */
+napi_status aws_napi_release_threadsafe_function(
+    napi_threadsafe_function function,
+    napi_threadsafe_function_release_mode mode);
 
 /**
  * Wrapper around napi_call_threadsafe_function that always queues (napi_tsfn_nonblocking)

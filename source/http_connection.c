@@ -130,10 +130,11 @@ struct http_connection_binding {
 
 /* finalizer called when node cleans up this object */
 static void s_http_connection_from_manager_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
     (void)finalize_hint;
     struct http_connection_binding *binding = finalize_data;
 
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_setup, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
     /* no release call, the http_client_connection_manager has already released it */
     aws_mem_release(binding->allocator, binding);
 }
