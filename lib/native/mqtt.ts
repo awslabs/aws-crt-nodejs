@@ -113,10 +113,14 @@ export interface MqttConnectionConfig {
 }
 
 /** @internal */
-function normalize_payload(payload: Payload) : StringLike {
+function normalize_payload(payload: Payload): StringLike {
     if (ArrayBuffer.isView(payload)) {
         // native can use ArrayBufferView bytes directly
         return payload as ArrayBufferView;
+    }
+    if (payload instanceof ArrayBuffer) {
+        // native can use ArrayBuffer bytes directly
+        return payload;
     }
     if (typeof payload === 'string') {
         // native will convert string to utf-8

@@ -141,7 +141,7 @@ class TopicTrie extends Trie<OnMessageCallback | undefined> {
  * @param payload The payload to convert
  * @internal
  */
-function normalize_payload(payload: Payload) : Buffer | string {
+function normalize_payload(payload: Payload): Buffer | string {
     if (payload instanceof Buffer) {
         // pass Buffer through
         return payload;
@@ -154,6 +154,10 @@ function normalize_payload(payload: Payload) : Buffer | string {
         // return Buffer with view upon the same bytes (no copy)
         const view = payload as ArrayBufferView;
         return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    }
+    if (payload instanceof ArrayBuffer) {
+        // return Buffer with view upon the same bytes (no copy)
+        return Buffer.from(payload);
     }
     if (typeof payload === 'object') {
         // Convert Object to JSON string
@@ -395,8 +399,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 }
                 resolve({
                     packet_id: packet
-                    ? (packet as mqtt.IUnsubackPacket).messageId
-                    : undefined,
+                        ? (packet as mqtt.IUnsubackPacket).messageId
+                        : undefined,
                 });
             });
 
