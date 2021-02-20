@@ -25,19 +25,19 @@
   "devDependencies": {
     "@convergencelabs/typedoc-plugin-custom-modules": "^0.4.0",
     "@types/crypto-js": "^3.1.43",
-    "@types/jest": "^24.9.1",
-    "@types/node": "^10.17.29",
-    "@types/puppeteer": "^3.0.1",
+    "@types/jest": "^26.0.20",
+    "@types/node": "^10.17.54",
+    "@types/puppeteer": "^5.4.3",
     "@types/uuid": "^3.4.8",
     "@types/ws": "^6.0.4",
-    "aws-sdk": "^2.746.0",
-    "jest": "^25.1.0",
+    "aws-sdk": "^2.848.0",
+    "jest": "^26.6.3",
     "jest-puppeteer": "^4.4.0",
-    "jest-runtime": "^25.2.4",
+    "jest-runtime": "^26.6.3",
     "puppeteer": "^3.3.0",
-    "ts-jest": "^25.3.0",
+    "ts-jest": "^26.5.1",
     "typedoc": "^0.17.8",
-    "typescript": "^3.9.7",
+    "typescript": "^3.9.9",
     "uuid": "^3.4.0",
     "yargs": "^13.3.2"
   },
@@ -46,7 +46,7 @@
     "cmake-js": "^6.1.0",
     "crypto-js": "^3.3.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
-    "mqtt": "^4.2.1",
+    "mqtt": "^4.2.6",
     "websocket-stream": "^5.5.2"
   }
 }
