@@ -6,7 +6,7 @@
 import { v4 as uuid } from 'uuid';
 
 import { ClientBootstrap } from '@awscrt/io';
-import { MqttClient, QoS, MqttWill } from '@awscrt/mqtt';
+import { MqttClient, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { TextDecoder, TextEncoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
@@ -225,7 +225,7 @@ test('MQTT payload types', async (done) => {
         const encoder = new TextEncoder();
         const id = uuid();
 
-        const tests = {
+        const tests: { [key: string]: { send: Payload, recv: ArrayBuffer } } = {
             [`/test/types/${id}/string`]: {
                 send: 'utf-8 👁👄👁 time',
                 recv: encoder.encode('utf-8 👁👄👁 time').buffer,
@@ -235,8 +235,13 @@ test('MQTT payload types', async (done) => {
                 recv: encoder.encode('I was a DataView').buffer,
             },
             [`/test/types/${id}/uint8array`]: {
-                send: new Uint8Array([0, 1, 255]),
-                recv: new Uint8Array([0, 1, 255]).buffer,
+                // note: sending partial view of a larger buffer
+                send: new Uint8Array(new Uint8Array([0, 1, 2, 3, 4, 5, 6]).buffer, 2, 3),
+                recv: new Uint8Array([2, 3, 4]).buffer,
+            },
+            [`/test/types/${id}/arraybuffer`]: {
+                send: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
+                recv: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
             },
             [`/test/types/${id}/json`]: {
                 send: { I: "was JSON" },
