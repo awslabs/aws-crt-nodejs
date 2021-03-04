@@ -25,6 +25,7 @@ struct http_stream_binding {
     struct aws_http_message *request;
 
     uint64_t pending_length; /* used to check all the body callbacks for nodejs has been invoked */
+    uint32_t count;
 };
 
 static void s_on_response_call(napi_env env, napi_value on_response, void *context, void *user_data) {
@@ -115,6 +116,8 @@ static int s_on_response_header_block_done(
 struct on_body_args {
     struct http_stream_binding *binding;
     struct aws_byte_buf chunk;
+
+    int index;
 };
 
 static void s_on_body_call(napi_env env, napi_value on_body, void *context, void *user_data) {
@@ -125,6 +128,9 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
     binding->pending_length -= args->chunk.len;
     napi_value params[1];
     const size_t num_params = AWS_ARRAY_SIZE(params);
+    fprintf(stderr, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+
+    fprintf(stderr, "index: %d\n", args->index);
 
     AWS_NAPI_ENSURE(
         env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
@@ -148,6 +154,8 @@ static int s_on_response_body(struct aws_http_stream *stream, const struct aws_b
 
     /* recording the length of data that has been pending to be invoked for nodejs */
     binding->pending_length += data->len;
+    binding->count++;
+    args->index = binding->count;
     args->binding = binding;
     if (aws_byte_buf_init_copy_from_cursor(&args->chunk, binding->allocator, *data)) {
         AWS_FATAL_ASSERT(args->chunk.buffer);
@@ -176,6 +184,7 @@ static void s_on_complete_call(napi_env env, napi_value on_complete, void *conte
         return;
     }
 
+    fprintf(stderr, "on_complete\n");
     napi_value params[1];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
