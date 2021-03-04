@@ -120,6 +120,14 @@ struct on_body_args {
     int index;
 };
 
+static void s_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_data;
+    struct on_body_args *args = finalize_hint;
+    aws_byte_buf_clean_up(&args->chunk);
+    aws_mem_release(args->binding->allocator, args);
+}
+
 static void s_on_body_call(napi_env env, napi_value on_body, void *context, void *user_data) {
     struct http_stream_binding *binding = context;
     struct on_body_args *args = user_data;
@@ -128,18 +136,14 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
     binding->pending_length -= args->chunk.len;
     napi_value params[1];
     const size_t num_params = AWS_ARRAY_SIZE(params);
-    fprintf(stderr, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-
-    fprintf(stderr, "index: %d\n", args->index);
 
     AWS_NAPI_ENSURE(
-        env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
+        env,
+        napi_create_external_arraybuffer(
+            env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
-
-    aws_byte_buf_clean_up(&args->chunk);
-    aws_mem_release(binding->allocator, args);
 }
 
 static int s_on_response_body(struct aws_http_stream *stream, const struct aws_byte_cursor *data, void *user_data) {
@@ -184,7 +188,6 @@ static void s_on_complete_call(napi_env env, napi_value on_complete, void *conte
         return;
     }
 
-    fprintf(stderr, "on_complete\n");
     napi_value params[1];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
