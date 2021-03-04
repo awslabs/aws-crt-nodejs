@@ -5,7 +5,6 @@
 
 import { http, io } from "aws-crt";
 import { PassThrough } from "stream";
-import { TextDecoder } from "util";
 const fs = require('fs');
 
 type Args = { [index: string]: any };
@@ -193,8 +192,6 @@ async function main(argv: Args) {
         port = 443;
     }
 
-    const decoder = new TextDecoder();
-
     const make_request = async (connection: http.HttpClientConnection, body?: string) => {
         const on_response = (status_code: Number, headers: http.HttpHeaders) => {
             console.log("Response Code: " + status_code.toString());
@@ -206,8 +203,8 @@ async function main(argv: Args) {
         };
 
         const on_body = (body: ArrayBuffer) => {
-            const body_str = decoder.decode(body);
-            argv.output.write(body_str);
+            let uint8buffer = new Uint8Array(body);
+            argv.output.write(uint8buffer);
         };
 
         let headers = new http.HttpHeaders([
@@ -298,6 +295,5 @@ async function main(argv: Args) {
     // make it wait as long as possible once the promise completes we'll turn it off.
     const timer = setTimeout(() => { }, 2147483647);
     await conn_promise;
-    console.log("done!");
     clearTimeout(timer);
 }
