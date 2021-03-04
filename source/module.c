@@ -490,7 +490,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     (void)env;
     (void)finalize_hint;
 
-    aws_thread_join_all_managed();
+    // aws_thread_join_all_managed();
 
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);

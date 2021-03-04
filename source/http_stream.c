@@ -23,6 +23,8 @@ struct http_stream_binding {
     napi_threadsafe_function on_body;
     struct aws_http_message *response; /* used to buffer response headers/status code */
     struct aws_http_message *request;
+
+    uint64_t pending_length; /* used to check all the body callbacks for nodejs has been invoked */
 };
 
 static void s_on_response_call(napi_env env, napi_value on_response, void *context, void *user_data) {
@@ -119,16 +121,16 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
     struct http_stream_binding *binding = context;
     struct on_body_args *args = user_data;
 
-    if (env) {
-        napi_value params[1];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
+    /* The callback has been invoked for the nodejs, update the pending length */
+    binding->pending_length -= args->chunk.len;
+    napi_value params[1];
+    const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(
-            env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
+    AWS_NAPI_ENSURE(
+        env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
 
-        AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
-    }
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
 
     aws_byte_buf_clean_up(&args->chunk);
     aws_mem_release(binding->allocator, args);
@@ -144,6 +146,8 @@ static int s_on_response_body(struct aws_http_stream *stream, const struct aws_b
     struct on_body_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_body_args));
     AWS_FATAL_ASSERT(args);
 
+    /* recording the length of data that has been pending to be invoked for nodejs */
+    binding->pending_length += data->len;
     args->binding = binding;
     if (aws_byte_buf_init_copy_from_cursor(&args->chunk, binding->allocator, *data)) {
         AWS_FATAL_ASSERT(args->chunk.buffer);
@@ -163,16 +167,26 @@ static void s_on_complete_call(napi_env env, napi_value on_complete, void *conte
     struct http_stream_binding *binding = context;
     struct on_complete_args *args = user_data;
 
-    if (env) {
-        napi_value params[1];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
-
-        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
+    if (binding->pending_length) {
+        /* which means nodejs still has some body callbacks that are pending, cannot complete the stream for nodejs.
+         * Requeue the threadsafe function */
+        AWS_NAPI_ENSURE(env, aws_napi_queue_threadsafe_function(binding->on_complete, args));
+        /* Clear the reference which required by previous queue */
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_release));
+        return;
     }
 
+    napi_value params[1];
+    const size_t num_params = AWS_ARRAY_SIZE(params);
+
+    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
+
+    /* No callbacks should happen now, cleanup all the threadsafe function */
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     AWS_NAPI_ENSURE(env, napi_delete_reference(env, binding->node_external));
     aws_mem_release(binding->allocator, args);
 }
@@ -192,9 +206,6 @@ static void s_http_stream_binding_finalize(napi_env env, void *finalize_data, vo
     (void)finalize_hint;
     struct http_stream_binding *binding = finalize_data;
 
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     aws_http_message_release(binding->request);
     aws_http_message_release(binding->response);
     aws_mem_release(binding->allocator, binding);
