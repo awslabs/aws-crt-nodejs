@@ -116,6 +116,7 @@ static int s_on_response_header_block_done(
 struct on_body_args {
     struct http_stream_binding *binding;
     struct aws_byte_buf chunk;
+    struct aws_allocator *allocator;
 };
 
 static void s_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
@@ -123,7 +124,7 @@ static void s_external_arraybuffer_finalizer(napi_env env, void *finalize_data, 
     (void)finalize_data;
     struct on_body_args *args = finalize_hint;
     aws_byte_buf_clean_up(&args->chunk);
-    aws_mem_release(args->binding->allocator, args);
+    aws_mem_release(args->allocator, args);
 }
 
 static void s_on_body_call(napi_env env, napi_value on_body, void *context, void *user_data) {
@@ -153,6 +154,7 @@ static int s_on_response_body(struct aws_http_stream *stream, const struct aws_b
 
     struct on_body_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_body_args));
     AWS_FATAL_ASSERT(args);
+    args->allocator = binding->allocator;
 
     /* recording the length of data that has been pending to be invoked for nodejs */
     aws_atomic_fetch_add(&binding->pending_length, data->len);
