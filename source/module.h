@@ -60,6 +60,8 @@ napi_status aws_napi_dispatch_threadsafe_function(
 /**
  * Wrapper around napi_create_threadsafe_function,
  * aws_napi_release_threadsafe_function needed to clean up the threadsafe function
+ * Note: If you want to release a thread safe function from within that thread safe function's callback, call unref
+ * instead, and the function will be finalized later by the environment.
  */
 napi_status aws_napi_create_threadsafe_function(
     napi_env env,
