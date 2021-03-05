@@ -382,12 +382,24 @@ napi_status aws_napi_create_threadsafe_function(
     napi_value resource_name = NULL;
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
 
-    AWS_NAPI_CALL(
-        env,
-        napi_create_threadsafe_function(env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result),
-        { return status; });
-    /* convert to a weak reference */
-    return napi_unref_threadsafe_function(env, *result);
+    return napi_create_threadsafe_function(
+        env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result);
+}
+
+napi_status aws_napi_release_threadsafe_function(
+    napi_threadsafe_function function,
+    napi_threadsafe_function_release_mode mode) {
+    if (function) {
+        return napi_release_threadsafe_function(function, mode);
+    }
+    return napi_ok;
+}
+
+napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
+    if (function) {
+        return napi_unref_threadsafe_function(env, function);
+    }
+    return napi_ok;
 }
 
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
@@ -477,6 +489,7 @@ static void s_install_crash_handler(void) {
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
+    aws_event_loop_group_release(s_node_uv_elg);
 
     aws_thread_join_all_managed();
 

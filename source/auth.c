@@ -230,6 +230,7 @@ static void s_destroy_signing_binding(
 
     aws_signable_destroy(binding->signable);
 
+    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, binding->on_complete));
     aws_mem_release(allocator, binding);
 }
 
@@ -539,8 +540,8 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             (struct aws_signing_config_base *)&config,
             s_aws_sign_request_complete,
             state)) {
-
         aws_napi_throw_last_error(env);
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(state->on_complete, napi_tsfn_abort));
     }
 
     goto done;
