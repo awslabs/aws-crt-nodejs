@@ -28,7 +28,6 @@ static void s_http_connection_manager_finalize(napi_env env, void *finalize_data
     (void)finalize_hint;
     (void)env;
     struct http_connection_manager_binding *binding = finalize_data;
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
     aws_mem_release(binding->allocator, binding);
 }
 
@@ -50,6 +49,7 @@ static void s_http_connection_manager_shutdown_complete(void *user_data) {
     if (binding->on_shutdown) {
         AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_shutdown, NULL));
     }
+    AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
 }
 
 napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info info) {
