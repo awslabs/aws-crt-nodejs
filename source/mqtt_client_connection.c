@@ -89,6 +89,12 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         napi_delete_reference(env, binding->node_external);
         binding->node_external = NULL;
     }
+    if (binding->connection) {
+        aws_mqtt_client_connection_release(binding->connection);
+        binding->connection = NULL;
+    }
+    /* connection has been shutdown, no callbacks will happen after it */
+    s_mqtt_client_connection_release_threadsafe_function(binding);
 
     return NULL;
 }
@@ -962,7 +968,10 @@ struct subscription {
 };
 
 static void s_on_publish_user_data_clean_up(void *user_data) {
+
     struct subscription *sub = user_data;
+    AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(sub->on_publish, napi_tsfn_abort));
+
     aws_byte_buf_clean_up(&sub->topic);
     aws_mem_release(sub->binding->allocator, sub);
 }
@@ -1396,8 +1405,6 @@ static void s_on_disconnect_call(napi_env env, napi_value on_disconnect, void *c
     AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_disconnect));
 
     aws_mem_release(binding->allocator, args);
-    /* connection has been shutdown, no callbacks will happen after it */
-    s_mqtt_client_connection_release_threadsafe_function(binding);
 }
 
 static void s_on_disconnected(struct aws_mqtt_client_connection *connection, void *user_data) {
