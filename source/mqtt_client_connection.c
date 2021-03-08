@@ -84,6 +84,9 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         return NULL;
     });
 
+    /* connection has been shutdown, no callbacks will happen after it */
+    s_mqtt_client_connection_release_threadsafe_function(binding);
+
     /* no more node interop will be done, free node resources */
     if (binding->node_external) {
         napi_delete_reference(env, binding->node_external);
@@ -93,8 +96,6 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         aws_mqtt_client_connection_release(binding->connection);
         binding->connection = NULL;
     }
-    /* connection has been shutdown, no callbacks will happen after it */
-    s_mqtt_client_connection_release_threadsafe_function(binding);
 
     return NULL;
 }
