@@ -93,6 +93,9 @@ napi_status aws_napi_define_class(
     size_t num_methods,
     struct aws_napi_class_info *class_info);
 
+/* The constructor comes from class info will wrap the native object.
+ * Thus, the finalizer will be invoked with native as
+ * the finalize_data and class_info as the finalize_hint */
 napi_status aws_napi_wrap(
     napi_env env,
     struct aws_napi_class_info *class_info,
