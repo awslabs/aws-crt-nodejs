@@ -11,7 +11,8 @@ let options = {
     CMAKE_JS_PLATFORM: os.platform,
     CMAKE_JS_ARCH: os.arch,
     BUILD_TESTING: 'OFF',
-    CMAKE_INSTALL_PREFIX: 'build/crt/install',
+    CMAKE_INSTALL_PREFIX: 'crt/install',
+    CMAKE_PREFIX_PATH: 'crt/install',
 }
 
 // Convert any -D arguments to this script to cmake -D arguments
