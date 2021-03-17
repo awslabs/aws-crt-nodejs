@@ -14,6 +14,7 @@ import { Config, fetch_credentials } from '@test/credentials';
 jest.setTimeout(10000);
 
 test('MQTT Connect/Disconnect', async (done) => {
+    console.log(expect.getState().currentTestName);
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
@@ -52,7 +53,7 @@ test('MQTT Connect/Disconnect', async (done) => {
 });
 
 test('MQTT Pub/Sub', async (done) => {
-
+    console.log(expect.getState().currentTestName);
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
@@ -105,6 +106,7 @@ test('MQTT Pub/Sub', async (done) => {
 });
 
 test('MQTT Will', async (done) => {
+    console.log(expect.getState().currentTestName);
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
@@ -147,6 +149,7 @@ test('MQTT Will', async (done) => {
 });
 
 test('MQTT On Any Publish', async (done) => {
+    console.log(expect.getState().currentTestName);
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
@@ -204,6 +207,7 @@ test('MQTT On Any Publish', async (done) => {
 });
 
 test('MQTT payload types', async (done) => {
+    console.log(expect.getState().currentTestName);
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
