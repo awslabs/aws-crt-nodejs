@@ -87,7 +87,14 @@ export interface MqttConnectionConfig {
      * may accomplish this in a more efficient (low-power) scenario,
      * but keep-alive options may not work the same way on every platform and OS version.
      */
-    timeout?: number;
+    ping_timeout?: number;
+    /**
+     * Milliseconds to wait for the response to the operation requires response by protocol.
+     * Set to zero to disable timeout. Otherwise, the operation will fail if no response is
+     * received within this amount of time after the packet is written to the socket.
+     * It applied to PUBLISH (QoS>0) and UNSUBSCRIBE now.
+     */
+    protocol_operation_timeout?: number;
     /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
@@ -249,7 +256,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.port,
                     this.config.socket_options.native_handle(),
                     this.config.keep_alive,
-                    this.config.timeout,
+                    this.config.ping_timeout,
+                    this.config.protocol_operation_timeout,
                     this.config.clean_session,
                     on_connect,
                 );

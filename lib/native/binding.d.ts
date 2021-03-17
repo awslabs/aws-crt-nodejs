@@ -136,7 +136,8 @@ export function mqtt_client_connection_connect(
     port: number,
     socket_options?: NativeHandle,
     keep_alive_time?: number,
-    timeout?: number,
+    ping_timeout?: number,
+    protocol_operation_timeout?: number,
     clean_session?: boolean,
     on_connect?: mqtt_on_connect,
 ): void;
