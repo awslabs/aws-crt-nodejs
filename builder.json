@@ -33,9 +33,6 @@
             "enabled": false
         },
         "linux": {
-            "imports": [
-                "s2n"
-            ],
             "x86": {
                 "enabled": false
             }
