@@ -36,7 +36,6 @@ if (BUILD_DEPS)
 
     add_subdirectory(crt/aws-c-common)
     if (UNIX AND NOT APPLE)
-        message(STATUS "Pre aws-lc CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}")
         include(crt/aws-c-cal/cmake/modules/aws-lc.cmake)
         add_subdirectory(crt/s2n)
     endif()
