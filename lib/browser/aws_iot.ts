@@ -99,11 +99,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configures the TCP socket timeout (in milliseconds)
-     * @param timeout_ms TCP socket timeout
+     * Configures the PINGREQ response timeout (in milliseconds)
+     * @param ping_timeout PINGREQ response timeout
      */
-    with_timeout_ms(timeout_ms: number) {
-        this.params.timeout = timeout_ms;
+    with_ping_timeout_ms(ping_timeout: number) {
+        this.params.ping_timeout = ping_timeout;
         return this;
     }
 
