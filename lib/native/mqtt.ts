@@ -348,10 +348,15 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             reject = this._reject(reject);
 
             function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {
-                if (error_code == 0) {
-                    resolve({ packet_id, topic, qos, error_code });
-                } else {
+                if (error_code) {
                     reject("Failed to subscribe: " + io.error_code_to_string(error_code));
+                } else {
+                    if (qos in QoS) {
+                        resolve({ packet_id, topic, qos, error_code });
+                    }
+                    else {
+                        reject("Failed to subscribe: SUNACK return code is " + qos);
+                    }
                 }
             }
 
