@@ -355,7 +355,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                         resolve({ packet_id, topic, qos, error_code });
                     }
                     else {
-                        reject("Failed to subscribe: SUNACK return code is " + qos);
+                        reject("Failed to subscribe: SUBACK return code is " + qos);
                     }
                 }
             }
