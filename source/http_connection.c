@@ -73,7 +73,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
     napi_value node_auth_method = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_auth_method)) {
         uint32_t auth_method = 0;
-        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_port, &auth_method), {
+        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_auth_method, &auth_method), {
             napi_throw_type_error(env, NULL, "auth_method must be a number");
             goto cleanup;
         });
