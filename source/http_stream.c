@@ -165,7 +165,8 @@ static int s_on_response_body(struct aws_http_stream *stream, const struct aws_b
 
     AWS_NAPI_CALL(NULL, aws_napi_queue_threadsafe_function(binding->on_body, args), { return AWS_OP_ERR; });
 
-    return AWS_OP_SUCCESS;
+    aws_raise_error(AWS_ERROR_UNKNOWN);
+    return AWS_OP_ERR;
 }
 
 struct on_complete_args {
