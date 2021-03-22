@@ -52,7 +52,6 @@ test('MQTT Connect/Disconnect', async (done) => {
 });
 
 test('MQTT Pub/Sub', async (done) => {
-
     let aws_opts: Config;
     try {
         aws_opts = await fetch_credentials();
