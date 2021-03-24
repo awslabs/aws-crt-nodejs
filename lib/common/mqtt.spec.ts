@@ -27,7 +27,7 @@ test('MQTT Connect/Disconnect', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_timeout_ms(5000)
+        .with_ping_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
@@ -65,7 +65,7 @@ test('MQTT Pub/Sub', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_timeout_ms(5000)
+        .with_ping_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
@@ -117,7 +117,7 @@ test('MQTT Will', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_timeout_ms(5000)
+        .with_ping_timeout_ms(5000)
         .with_will(new MqttWill(
             '/last/will/and/testament',
             QoS.AtLeastOnce,
@@ -159,7 +159,7 @@ test('MQTT On Any Publish', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_timeout_ms(5000)
+        .with_ping_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
@@ -216,7 +216,7 @@ test('MQTT payload types', async (done) => {
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_timeout_ms(5000)
+        .with_ping_timeout_ms(5000)
         .build()
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);

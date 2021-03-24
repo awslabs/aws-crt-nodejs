@@ -596,7 +596,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(server_name);
     struct connect_args *on_connect_args = NULL;
 
-    napi_value node_args[9];
+    napi_value node_args[10];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -604,7 +604,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 9 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 10 arguments");
         goto cleanup;
     }
 
@@ -650,11 +650,20 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         });
     }
 
-    napi_value node_timeout = *arg++;
-    uint32_t timeout = 0;
-    if (!aws_napi_is_null_or_undefined(env, node_timeout)) {
-        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_timeout, &timeout), {
-            napi_throw_type_error(env, NULL, "timeout must be a Number");
+    napi_value node_ping_timeout = *arg++;
+    uint32_t ping_timeout = 0;
+    if (!aws_napi_is_null_or_undefined(env, node_ping_timeout)) {
+        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_ping_timeout, &ping_timeout), {
+            napi_throw_type_error(env, NULL, "ping_timeout must be a Number");
+            goto cleanup;
+        });
+    }
+
+    napi_value node_protocol_operation_timeout = *arg++;
+    uint32_t protocol_operation_timeout = 0;
+    if (!aws_napi_is_null_or_undefined(env, node_protocol_operation_timeout)) {
+        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_protocol_operation_timeout, &protocol_operation_timeout), {
+            napi_throw_type_error(env, NULL, "protocol_operation_timeout must be a Number");
             goto cleanup;
         });
     }
@@ -698,7 +707,8 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.host_name = server_name_cur;
     options.keep_alive_time_secs = (uint16_t)keep_alive_time;
     options.on_connection_complete = s_on_connected;
-    options.ping_timeout_ms = timeout;
+    options.ping_timeout_ms = ping_timeout;
+    options.protocol_operation_timeout_ms = protocol_operation_timeout;
     options.port = (uint16_t)port_number;
 
     options.socket_options = socket_options;
