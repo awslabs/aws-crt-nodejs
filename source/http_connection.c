@@ -42,7 +42,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "io_tls_connection_options_new requires exactly 3 arguments");
+        napi_throw_error(env, NULL, "http_proxy_options_new requires exactly 6 arguments");
         return NULL;
     }
 
@@ -87,6 +87,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
             napi_throw_type_error(env, NULL, "Unable to convert auth_username to string");
             goto cleanup;
         }
+        binding->native.auth_username = aws_byte_cursor_from_string(binding->auth_username);
     }
 
     napi_value node_password = *arg++;
@@ -96,6 +97,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
             napi_throw_type_error(env, NULL, "Unable to convert auth_password to string");
             goto cleanup;
         }
+        binding->native.auth_password = aws_byte_cursor_from_string(binding->auth_password);
     }
 
     napi_value node_tls_opts = *arg++;
