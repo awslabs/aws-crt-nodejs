@@ -11,6 +11,8 @@
 
 #include <aws/mqtt/client.h>
 
+#include <aws/http/proxy.h>
+
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 
@@ -793,8 +795,6 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
 struct publish_args {
     uint16_t packet_id;
     int error_code;
-    struct aws_byte_buf topic;   /* stored here until the publish completes */
-    struct aws_byte_buf payload; /* stored here until the publish completes */
     napi_threadsafe_function on_publish;
 };
 
@@ -828,10 +828,6 @@ static void s_on_publish_complete(
     args->packet_id = packet_id;
     args->error_code = error_code;
 
-    /* Clean up publish params */
-    aws_byte_buf_clean_up(&args->topic);
-    aws_byte_buf_clean_up(&args->payload);
-
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_publish, args));
 }
 
@@ -841,6 +837,11 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
 
     struct publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct publish_args));
     AWS_FATAL_ASSERT(args);
+
+    struct aws_byte_buf topic_buf;
+    struct aws_byte_buf payload_buf;
+    AWS_ZERO_STRUCT(topic_buf);
+    AWS_ZERO_STRUCT(payload_buf);
 
     napi_value node_args[6];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -862,13 +863,13 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     });
 
     napi_value node_topic = *arg++;
-    AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&args->topic, env, node_topic), {
+    AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&topic_buf, env, node_topic), {
         napi_throw_type_error(env, NULL, "topic must be a String");
         goto cleanup;
     });
 
     napi_value node_payload = *arg++;
-    AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&args->payload, env, node_payload), {
+    AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&payload_buf, env, node_payload), {
         napi_throw_type_error(env, NULL, "payload is invalid type");
         goto cleanup;
     });
@@ -902,8 +903,8 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
             { goto cleanup; });
     }
 
-    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&args->topic);
-    const struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&args->payload);
+    const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&topic_buf);
+    const struct aws_byte_cursor payload_cur = aws_byte_cursor_from_buf(&payload_buf);
     uint16_t pub_id = aws_mqtt_client_connection_publish(
         binding->connection, &topic_cur, qos, retain, &payload_cur, s_on_publish_complete, args);
     if (!pub_id) {
@@ -912,11 +913,13 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         goto cleanup;
     }
 
+    aws_byte_buf_clean_up(&payload_buf);
+    aws_byte_buf_clean_up(&topic_buf);
     return NULL;
 
 cleanup:
-    aws_byte_buf_clean_up(&args->payload);
-    aws_byte_buf_clean_up(&args->topic);
+    aws_byte_buf_clean_up(&payload_buf);
+    aws_byte_buf_clean_up(&topic_buf);
     aws_mem_release(allocator, args);
 
     return NULL;
