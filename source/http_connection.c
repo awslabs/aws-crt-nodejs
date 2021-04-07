@@ -7,6 +7,7 @@
 #include "io.h"
 
 #include <aws/http/connection.h>
+#include <aws/http/proxy.h>
 #include <aws/io/tls_channel_handler.h>
 
 struct http_proxy_options_binding {
