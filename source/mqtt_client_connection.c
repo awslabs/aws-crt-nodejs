@@ -840,6 +840,8 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
 
     struct aws_byte_buf topic_buf;
     struct aws_byte_buf payload_buf;
+    AWS_ZERO_STRUCT(&topic_buf);
+    AWS_ZERO_STRUCT(&payload_buf);
 
     napi_value node_args[6];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
