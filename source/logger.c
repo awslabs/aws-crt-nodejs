@@ -117,7 +117,7 @@ static struct aws_log_writer_vtable s_napi_log_writer_vtable = {
 
 void aws_napi_logger_set_level(enum aws_log_level level) {
     AWS_FATAL_ASSERT(s_napi_logger.logger.p_impl);
-    ((struct aws_logger_pipeline *)s_napi_logger.logger.p_impl)->level = level;
+    aws_atomic_store_int(&((struct aws_logger_pipeline *)s_napi_logger.logger.p_impl)->level, level);
 }
 
 /* Allocator used to allocate buffered log messages from a ring buffer */

@@ -397,7 +397,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         });
         /* proxy_options are copied internally, no need to go nuts on copies */
         proxy_options = aws_napi_get_http_proxy_options(proxy_binding);
-        aws_mqtt_client_connection_set_websocket_proxy_options(binding->connection, proxy_options);
+        aws_mqtt_client_connection_set_http_proxy_options(binding->connection, proxy_options);
     }
 
     napi_value node_transform_websocket = *arg++;
