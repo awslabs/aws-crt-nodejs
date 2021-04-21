@@ -46,6 +46,7 @@
     "cmake-js": "^6.1.0",
     "crypto-js": "^3.3.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
+    "help-me": "^2.0.0",
     "mqtt": "^4.2.6",
     "websocket-stream": "^5.5.2"
   }
