@@ -18,16 +18,6 @@ env:
   ACCESS_TOKEN: ${{secrets.BOT_PAT}}
 
 jobs:
-  build:
-    env:
-      key1: ${{secrets.AWS_SECRET_ACCESS_KEY}}
-      key2: ${{secrets.BOT_PAT}}
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo $key1 | echo $key2
-
   linux-compat:
     runs-on: ubuntu-latest
     strategy:
