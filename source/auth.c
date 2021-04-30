@@ -131,6 +131,7 @@ static napi_value s_creds_provider_new_default(napi_env env, const struct aws_na
 
     aws_napi_method_next_argument(napi_external, cb_info, &arg);
     struct aws_credentials_provider_chain_default_options options;
+    AWS_ZERO_STRUCT(options);
     options.bootstrap = aws_napi_get_client_bootstrap(arg->native.external);
     struct aws_credentials_provider *provider = aws_credentials_provider_new_chain_default(allocator, &options);
 
@@ -242,6 +243,7 @@ static void s_destroy_signing_binding(
 
     aws_signable_destroy(binding->signable);
 
+    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, binding->on_complete));
     aws_mem_release(allocator, binding);
 }
 
@@ -587,8 +589,8 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
             (struct aws_signing_config_base *)&config,
             s_aws_sign_request_complete,
             state)) {
-
         aws_napi_throw_last_error(env);
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(state->on_complete, napi_tsfn_abort));
     }
 
     goto done;

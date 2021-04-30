@@ -8,7 +8,7 @@ module.exports = {
     preset: 'jest-puppeteer',
     globals: {
         'ts-jest': {
-            tsConfig: '<rootDir>/tsconfig.browser.json'
+            tsconfig: '<rootDir>/tsconfig.browser.json'
         }
     },
     transform: {

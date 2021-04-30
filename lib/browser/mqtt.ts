@@ -10,7 +10,7 @@ import { Trie, TrieOp, Node as TrieNode } from "./trie";
 import { BufferedEventEmitter } from "../common/event";
 import { CrtError } from "../browser";
 import { ClientBootstrap, SocketOptions } from "./io";
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 /** @category MQTT */
@@ -62,7 +62,14 @@ export interface MqttConnectionConfig {
      * may accomplish this in a more efficient (low-power) scenario,
      * but keep-alive options may not work the same way on every platform and OS version.
      */
-    timeout?: number;
+    ping_timeout?: number;
+    /**
+     * Milliseconds to wait for the response to the operation requires response by protocol.
+     * Set to zero to disable timeout. Otherwise, the operation will fail if no response is
+     * received within this amount of time after the packet is written to the socket.
+     * It applied to PUBLISH (QoS>0) and UNSUBSCRIBE now.
+     */
+    protocol_operation_timeout?: number;
     /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
@@ -98,14 +105,8 @@ export class MqttClient {
     }
 }
 
-/**
- * @module aws-crt
- * @category MQTT
- */
-type SubscriptionCallback = (topic: string, payload: ArrayBuffer) => void;
-
 /** @internal */
-class TopicTrie extends Trie<SubscriptionCallback | undefined> {
+class TopicTrie extends Trie<OnMessageCallback | undefined> {
     constructor() {
         super('/');
     }
@@ -143,19 +144,33 @@ class TopicTrie extends Trie<SubscriptionCallback | undefined> {
 }
 
 /**
- * Converts payload to a string regardless of the supplied type
+ * Converts payload to Buffer or string regardless of the supplied type
  * @param payload The payload to convert
  * @internal
  */
-function normalize_payload(payload: Payload): string {
-    let payload_data: string = payload.toString();
-    if (payload instanceof DataView) {
-        payload_data = new TextDecoder('utf8').decode(payload as DataView);
-    } else if (payload instanceof Object) {
-        // Convert payload to JSON string
-        payload_data = JSON.stringify(payload);
+function normalize_payload(payload: Payload): Buffer | string {
+    if (payload instanceof Buffer) {
+        // pass Buffer through
+        return payload;
     }
-    return payload_data;
+    if (typeof payload === 'string') {
+        // pass string through
+        return payload;
+    }
+    if (ArrayBuffer.isView(payload)) {
+        // return Buffer with view upon the same bytes (no copy)
+        const view = payload as ArrayBufferView;
+        return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    }
+    if (payload instanceof ArrayBuffer) {
+        // return Buffer with view upon the same bytes (no copy)
+        return Buffer.from(payload);
+    }
+    if (typeof payload === 'object') {
+        // Convert Object to JSON string
+        return JSON.stringify(payload);
+    }
+    throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
 /**
@@ -196,7 +211,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 // service default is 1200 seconds
                 keepalive: this.config.keep_alive ? this.config.keep_alive : 1200,
                 clientId: this.config.client_id,
-                connectTimeout: this.config.timeout ? this.config.timeout : 30 * 1000,
+                connectTimeout: this.config.ping_timeout ? this.config.ping_timeout : 30 * 1000,
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
@@ -239,7 +254,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     /**
      * Emitted when any MQTT publish message arrives.
      */
-    on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
+    on(event: 'message', listener: OnMessageCallback): this;
 
     /** @internal */
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -270,12 +285,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.emit('error', new CrtError(error))
     }
 
-    private on_message = (topic: string, payload: Buffer, packet: any) => {
+    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
+        // pass payload as ArrayBuffer
+        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
+
         const callback = this.subscriptions.find(topic);
         if (callback) {
-            callback(topic, payload);
+            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
-        this.emit('message', topic, payload);
+        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }
 
     /**
@@ -356,7 +374,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *          result of the SUBSCRIBE. The Promise resolves when a SUBACK is returned
      *          from the server or is rejected when an exception occurs.
      */
-    async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void): Promise<MqttSubscribeRequest> {
+    async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback): Promise<MqttSubscribeRequest> {
         this.subscriptions.insert(topic, on_message);
         return new Promise((resolve, reject) => {
             this.connection.subscribe(topic, { qos: qos }, (error, packet) => {
@@ -381,12 +399,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
     async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
         return new Promise((resolve, reject) => {
-            this.connection.unsubscribe(topic, undefined, (error, packet) => {
+            this.connection.unsubscribe(topic, undefined, (error?: Error, packet?: mqtt.Packet) => {
                 if (error) {
                     reject(new CrtError(error));
                     return this.on_error(error);
                 }
-                resolve({ packet_id: (packet as mqtt.IUnsubackPacket).messageId });
+                resolve({
+                    packet_id: packet
+                        ? (packet as mqtt.IUnsubackPacket).messageId
+                        : undefined,
+                });
             });
 
         });

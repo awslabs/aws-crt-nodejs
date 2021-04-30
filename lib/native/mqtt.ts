@@ -3,19 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import crt_native from './binding';
+import crt_native, { StringLike } from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
-import { TextEncoder } from './polyfills';
 import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
 /** @category MQTT */
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
 /**
  * MQTT client
@@ -88,7 +87,14 @@ export interface MqttConnectionConfig {
      * may accomplish this in a more efficient (low-power) scenario,
      * but keep-alive options may not work the same way on every platform and OS version.
      */
-    timeout?: number;
+    ping_timeout?: number;
+    /**
+     * Milliseconds to wait for the response to the operation requires response by protocol.
+     * Set to zero to disable timeout. Otherwise, the operation will fail if no response is
+     * received within this amount of time after the packet is written to the socket.
+     * It applied to PUBLISH (QoS>0) and UNSUBSCRIBE now.
+     */
+    protocol_operation_timeout?: number;
     /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
@@ -114,26 +120,25 @@ export interface MqttConnectionConfig {
 }
 
 /** @internal */
-const normalize_encoder = new TextEncoder();
-function normalize_payload(payload: Payload) {
-    let payload_data: DataView;
-    if (payload instanceof DataView) {
-        // If payload is already dataview, just use it
-        payload_data = payload;
-    } else {
-        if (typeof payload === 'object') {
-            // Convert payload to JSON string, next if block will turn it into a DataView.
-            payload = JSON.stringify(payload);
-        }
-
-        if (typeof payload === 'string') {
-            // Encode the string as UTF-8
-            payload_data = new DataView(normalize_encoder.encode(payload).buffer);
-        } else {
-            throw new TypeError("payload parameter must be a string, object, or DataView.");
-        }
+function normalize_payload(payload: Payload): StringLike {
+    if (ArrayBuffer.isView(payload)) {
+        // native can use ArrayBufferView bytes directly
+        return payload as ArrayBufferView;
     }
-    return payload_data;
+    if (payload instanceof ArrayBuffer) {
+        // native can use ArrayBuffer bytes directly
+        return payload;
+    }
+    if (typeof payload === 'string') {
+        // native will convert string to utf-8
+        return payload;
+    }
+    if (typeof payload === 'object') {
+        // convert object to JSON string (which will be converted to utf-8 in native)
+        return JSON.stringify(payload);
+    }
+
+    throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
 /**
@@ -151,12 +156,30 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
         super();
+        // If there is a will, ensure that its payload is normalized to a DataView
+        const will = config.will ?
+            {
+                topic: config.will.topic,
+                qos: config.will.qos,
+                payload: normalize_payload(config.will.payload),
+                retain: config.will.retain
+            }
+            : undefined;
+
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
-            (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); })
-        );
+            (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); },
+            config.tls_ctx ? config.tls_ctx.native_handle() : null,
+            will,
+            config.username,
+            config.password,
+            config.use_websocket,
+            config.proxy_options ? config.proxy_options.create_native_handle() : undefined,
+            config.websocket_handshake_transform,
+        ));
         this.tls_ctx = config.tls_ctx;
+        crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
     }
 
     private close() {
@@ -189,7 +212,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     /**
      * Emitted when any MQTT publish message arrives.
      */
-    on(event: 'message', listener: (topic: string, payload: Buffer) => void): this;
+    on(event: 'message', listener: OnMessageCallback): this;
 
     /** @internal */
     // Overridden to allow uncorking on ready
@@ -225,33 +248,18 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                 }
             }
 
-            // If there is a will, ensure that its payload is normalized to a DataView
-            const will = this.config.will ?
-                new MqttWill(
-                    this.config.will.topic,
-                    this.config.will.qos,
-                    normalize_payload(this.config.will.payload),
-                    this.config.will.retain)
-                : undefined;
             try {
-                crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
                     this.config.client_id,
                     this.config.host_name,
                     this.config.port,
-                    this.config.tls_ctx ? this.config.tls_ctx.native_handle() : null,
                     this.config.socket_options.native_handle(),
                     this.config.keep_alive,
-                    this.config.timeout,
-                    will,
-                    this.config.username,
-                    this.config.password,
-                    this.config.use_websocket,
-                    this.config.proxy_options ? this.config.proxy_options.create_native_handle() : undefined,
+                    this.config.ping_timeout,
+                    this.config.protocol_operation_timeout,
                     this.config.clean_session,
                     on_connect,
-                    this.config.websocket_handshake_transform,
                 );
             } catch (e) {
                 reject(e);
@@ -306,15 +314,16 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            let payload_data = normalize_payload(payload);
             function on_publish(packet_id: number, error_code: number) {
+                payload = "";
+                topic = "";
                 if (error_code == 0) {
                     resolve({ packet_id });
                 } else {
                     reject("Failed to publish: " + io.error_code_to_string(error_code));
                 }
             }
-
+            let payload_data = normalize_payload(payload);
             try {
                 crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos, retain, on_publish);
             } catch (e) {
@@ -342,7 +351,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *          result of the SUBSCRIBE. The Promise resolves when a SUBACK is returned
      *          from the server or is rejected when an exception occurs.
      */
-    async subscribe(topic: string, qos: QoS, on_message?: (topic: string, payload: ArrayBuffer) => void) {
+    async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback) {
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
@@ -434,7 +443,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         this.emit('resume', return_code, session_present);
     }
 
-    private _on_any_publish(topic: string, payload: Buffer) {
-        this.emit('message', topic, payload);
+    private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
+        this.emit('message', topic, payload, dup, qos, retain);
     }
 }

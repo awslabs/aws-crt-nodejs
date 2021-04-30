@@ -79,6 +79,7 @@ napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
 
 struct http_request_binding {
     struct aws_http_message *native;
+    struct aws_allocator *allocator;
 
     napi_ref node_headers;
 };
@@ -86,9 +87,10 @@ struct http_request_binding {
 /* Need a special finalizer to avoid releasing a request object we don't own */
 static void s_napi_wrapped_http_request_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
+    (void)finalize_hint;
 
     struct http_request_binding *binding = finalize_data;
-    struct aws_allocator *allocator = finalize_hint;
+    struct aws_allocator *allocator = binding->allocator;
 
     aws_mem_release(allocator, binding);
 }
@@ -98,6 +100,7 @@ napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *me
     struct http_request_binding *binding =
         aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct http_request_binding));
     binding->native = message;
+    binding->allocator = aws_napi_get_allocator();
     return aws_napi_wrap(env, &s_request_class_info, binding, s_napi_wrapped_http_request_finalize, result);
 }
 

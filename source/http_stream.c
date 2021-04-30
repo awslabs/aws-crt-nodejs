@@ -7,6 +7,7 @@
 #include "http_connection.h"
 #include "http_message.h"
 
+#include <aws/common/atomics.h>
 #include <aws/http/request_response.h>
 #include <aws/io/stream.h>
 
@@ -23,6 +24,8 @@ struct http_stream_binding {
     napi_threadsafe_function on_body;
     struct aws_http_message *response; /* used to buffer response headers/status code */
     struct aws_http_message *request;
+
+    struct aws_atomic_var pending_length; /* used to ensure that all of the body callbacks to node have been invoked */
 };
 
 static void s_on_response_call(napi_env env, napi_value on_response, void *context, void *user_data) {
@@ -113,25 +116,33 @@ static int s_on_response_header_block_done(
 struct on_body_args {
     struct http_stream_binding *binding;
     struct aws_byte_buf chunk;
+    struct aws_allocator *allocator;
 };
+
+static void s_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_data;
+    struct on_body_args *args = finalize_hint;
+    aws_byte_buf_clean_up(&args->chunk);
+    aws_mem_release(args->allocator, args);
+}
 
 static void s_on_body_call(napi_env env, napi_value on_body, void *context, void *user_data) {
     struct http_stream_binding *binding = context;
     struct on_body_args *args = user_data;
 
-    if (env) {
-        napi_value params[1];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
+    /* Callback is invoked for nodejs, update pending length */
+    aws_atomic_fetch_sub(&binding->pending_length, args->chunk.len);
+    napi_value params[1];
+    const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(
-            env, napi_create_external_arraybuffer(env, args->chunk.buffer, args->chunk.len, NULL, NULL, &params[0]));
+    AWS_NAPI_ENSURE(
+        env,
+        napi_create_external_arraybuffer(
+            env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]));
 
-        AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
-    }
-
-    aws_byte_buf_clean_up(&args->chunk);
-    aws_mem_release(binding->allocator, args);
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
 }
 
 static int s_on_response_body(struct aws_http_stream *stream, const struct aws_byte_cursor *data, void *user_data) {
@@ -143,7 +154,10 @@ static int s_on_response_body(struct aws_http_stream *stream, const struct aws_b
 
     struct on_body_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_body_args));
     AWS_FATAL_ASSERT(args);
+    args->allocator = binding->allocator;
 
+    /* recording the length of data that has been pending to be invoked for nodejs */
+    aws_atomic_fetch_add(&binding->pending_length, data->len);
     args->binding = binding;
     if (aws_byte_buf_init_copy_from_cursor(&args->chunk, binding->allocator, *data)) {
         AWS_FATAL_ASSERT(args->chunk.buffer);
@@ -162,17 +176,26 @@ struct on_complete_args {
 static void s_on_complete_call(napi_env env, napi_value on_complete, void *context, void *user_data) {
     struct http_stream_binding *binding = context;
     struct on_complete_args *args = user_data;
-
-    if (env) {
-        napi_value params[1];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
-
-        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
+    if (aws_atomic_load_int(&binding->pending_length)) {
+        /* which means nodejs still has some body callbacks that are pending, cannot complete the stream for nodejs.
+         * Requeue the threadsafe function */
+        AWS_NAPI_ENSURE(env, aws_napi_queue_threadsafe_function(binding->on_complete, args));
+        /* Clear the reference which required by previous queue */
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_release));
+        return;
     }
 
+    napi_value params[1];
+    const size_t num_params = AWS_ARRAY_SIZE(params);
+
+    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, binding->on_complete, NULL, on_complete, num_params, params));
+
+    /* No callbacks should happen now, cleanup all the threadsafe functions */
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     AWS_NAPI_ENSURE(env, napi_delete_reference(env, binding->node_external));
     aws_mem_release(binding->allocator, args);
 }
@@ -237,6 +260,7 @@ napi_value aws_napi_http_stream_new(napi_env env, napi_callback_info info) {
 
     binding->allocator = allocator;
     binding->request = request;
+    aws_atomic_init_int(&binding->pending_length, 0);
 
     AWS_NAPI_CALL(
         env,
@@ -305,15 +329,9 @@ failed_request:
 failed_external:
 failed_callbacks:
     if (binding) {
-        if (binding->on_complete) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
-        }
-        if (binding->on_response) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
-        }
-        if (binding->on_body) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
-        }
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_response, napi_tsfn_abort));
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
     }
     aws_mem_release(allocator, binding);
 failed_binding_alloc:

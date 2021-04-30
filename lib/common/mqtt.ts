@@ -38,12 +38,33 @@ export enum QoS {
 }
 
 /**
- * Possible types of data to send via publish or receive via subscription
+ * Possible types of data to send via publish.
+ *
+ * An ArrayBuffer will send its bytes without transformation.
+ * An ArrayBufferView (DataView, Uint8Array, etc) will send its bytes without transformation.
+ * A String will be sent with utf-8 encoding.
+ * An Object will be sent as a JSON string with utf-8 encoding.
  *
  * @module aws-crt
  * @category MQTT
  */
-export type Payload = String | Object | DataView;
+export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
+
+/**
+ * Function called upon receipt of a Publish message on a subscribed topic.
+ *
+ * @param topic The topic to which the message was published.
+ * @param payload The payload data.
+ * @param dup DUP flag. If true, this might be re-delivery of an earlier
+ *            attempt to send the message.
+ * @param qos Quality of Service used to deliver the message.
+ * @param retain Retain flag. If true, the message was sent as a result of
+ *               a new subscription being made by the client. *
+ *
+ * @module aws-crt
+ * @category MQTT
+ */
+export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
 
 /**
  * Every request sent returns an MqttRequest

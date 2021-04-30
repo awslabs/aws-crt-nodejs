@@ -7,6 +7,7 @@
 #include "io.h"
 
 #include <aws/http/connection.h>
+#include <aws/http/proxy.h>
 #include <aws/io/tls_channel_handler.h>
 
 struct http_proxy_options_binding {
@@ -42,7 +43,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "io_tls_connection_options_new requires exactly 3 arguments");
+        napi_throw_error(env, NULL, "http_proxy_options_new requires exactly 6 arguments");
         return NULL;
     }
 
@@ -73,7 +74,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
     napi_value node_auth_method = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_auth_method)) {
         uint32_t auth_method = 0;
-        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_port, &auth_method), {
+        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_auth_method, &auth_method), {
             napi_throw_type_error(env, NULL, "auth_method must be a number");
             goto cleanup;
         });
@@ -87,6 +88,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
             napi_throw_type_error(env, NULL, "Unable to convert auth_username to string");
             goto cleanup;
         }
+        binding->native.auth_username = aws_byte_cursor_from_string(binding->auth_username);
     }
 
     napi_value node_password = *arg++;
@@ -96,6 +98,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
             napi_throw_type_error(env, NULL, "Unable to convert auth_password to string");
             goto cleanup;
         }
+        binding->native.auth_password = aws_byte_cursor_from_string(binding->auth_password);
     }
 
     napi_value node_tls_opts = *arg++;
@@ -130,8 +133,8 @@ struct http_connection_binding {
 
 /* finalizer called when node cleans up this object */
 static void s_http_connection_from_manager_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
     (void)finalize_hint;
+    (void)env;
     struct http_connection_binding *binding = finalize_data;
 
     /* no release call, the http_client_connection_manager has already released it */
@@ -174,15 +177,18 @@ static void s_http_on_connection_setup_call(napi_env env, napi_value on_setup, v
     struct http_connection_binding *binding = context;
     struct on_connection_args *args = user_data;
 
-    if (env) {
-        napi_value params[2];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
+    napi_value params[2];
+    const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
-        AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
+    AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
 
-        AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_setup, NULL, on_setup, num_params, params));
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, binding->on_setup, NULL, on_setup, num_params, params));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_setup, napi_tsfn_abort));
+    if (args->error_code) {
+        /* setup failed, shutdown will never get invoked. Clean up the functions here */
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
     }
 
     aws_mem_release(binding->allocator, args);
@@ -215,6 +221,7 @@ static void s_http_on_connection_shutdown_call(napi_env env, napi_value on_shutd
             aws_napi_dispatch_threadsafe_function(env, binding->on_shutdown, NULL, on_shutdown, num_params, params));
     }
 
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
     aws_mem_release(binding->allocator, args);
 }
 
@@ -389,12 +396,8 @@ connect_failed:
 create_external_failed:
 failed_callbacks:
     if (binding) {
-        if (binding->on_setup) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_setup, napi_tsfn_abort));
-        }
-        if (binding->on_shutdown) {
-            AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
-        }
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_setup, napi_tsfn_abort));
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_shutdown, napi_tsfn_abort));
     }
     aws_mem_release(allocator, binding);
 alloc_failed:

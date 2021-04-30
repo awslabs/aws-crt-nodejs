@@ -5,7 +5,7 @@
   "homepage": "https://github.com/awslabs/aws-crt-nodejs",
   "repository": "github:awslabs/aws-crt-nodejs",
   "contributors": [
-    "AWS SDK Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
+    "AWS Common Runtime Team <aws-sdk-common-runtime@amazon.com>"
   ],
   "license": "Apache-2.0",
   "main": "./dist/index.js",
@@ -15,38 +15,39 @@
     "tsc": "node ./scripts/tsc.js",
     "test": "npm run test:native",
     "test:node": "npm run test:native",
-    "test:native": "npx jest -i --verbose --config test/native/jest.config.js --forceExit",
-    "test:browser": "npx jest -i --verbose --config test/browser/jest.config.js --forceExit",
+    "test:native": "npx jest --runInBand --verbose --config test/native/jest.config.js --forceExit",
+    "test:browser": "npx jest --runInBand --verbose --config test/browser/jest.config.js --forceExit",
     "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
     "install:puppeteer": "npm install --save-dev jest-puppeteer puppeteer @types/puppeteer",
-    "prepare": "npm run tsc && node ./scripts/build.js",
+    "prepare": "node ./scripts/tsc.js && node ./scripts/build.js",
     "install": "node ./scripts/install.js"
   },
   "devDependencies": {
     "@convergencelabs/typedoc-plugin-custom-modules": "^0.4.0",
     "@types/crypto-js": "^3.1.43",
-    "@types/jest": "^24.9.1",
-    "@types/node": "^10.17.29",
-    "@types/puppeteer": "^3.0.1",
+    "@types/jest": "^26.0.20",
+    "@types/node": "^10.17.54",
+    "@types/puppeteer": "^5.4.3",
     "@types/uuid": "^3.4.8",
     "@types/ws": "^6.0.4",
-    "aws-sdk": "^2.746.0",
-    "jest": "^25.1.0",
+    "aws-sdk": "^2.848.0",
+    "jest": "^26.6.3",
     "jest-puppeteer": "^4.4.0",
-    "jest-runtime": "^25.2.4",
-    "puppeteer": "^2.1.1",
-    "ts-jest": "^25.3.0",
+    "jest-runtime": "^26.6.3",
+    "puppeteer": "^3.3.0",
+    "ts-jest": "^26.5.1",
     "typedoc": "^0.17.8",
-    "typescript": "^3.9.7",
+    "typescript": "^3.9.9",
     "uuid": "^3.4.0",
     "yargs": "^13.3.2"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "cmake-js": "^6.1.0",
     "crypto-js": "^3.3.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
-    "mqtt": "^4.2.1",
+    "glob-parent": "^5.1.2",
+    "mqtt": "^4.2.6",
     "websocket-stream": "^5.5.2"
   }
 }

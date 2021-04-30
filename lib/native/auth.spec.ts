@@ -80,7 +80,9 @@ test('AWS Signer SigV4 Headers', async () => {
     expect(http_request.method).toBe(SIGV4TEST_METHOD);
     expect(http_request.path).toBe(SIGV4TEST_PATH);
 
-    expect(http_request.headers._flatten()).toEqual(SIGV4TEST_SIGNED_HEADERS);
+    const expected_headers = [...SIGV4TEST_SIGNED_HEADERS].sort()
+    const signed_headers = [...http_request.headers._flatten()].sort()
+    expect(signed_headers).toEqual(expected_headers)
 });
 
 test('AWS Signer SigV4 Request with body', async () => {

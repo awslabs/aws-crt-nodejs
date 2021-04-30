@@ -22,3 +22,6 @@
 [submodule "aws-common-runtime/aws-c-mqtt"]
 	path = crt/aws-c-mqtt
 	url = https://github.com/awslabs/aws-c-mqtt.git
+[submodule "crt/aws-lc"]
+	path = crt/aws-lc
+	url = https://github.com/awslabs/aws-lc

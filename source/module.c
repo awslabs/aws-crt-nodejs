@@ -15,9 +15,12 @@
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
+#include <aws/cal/cal.h>
+
 #include <aws/common/clock.h>
 #include <aws/common/environment.h>
 #include <aws/common/logging.h>
+#include <aws/common/ref_count.h>
 #include <aws/common/system_info.h>
 
 #include <aws/io/event_loop.h>
@@ -381,10 +384,23 @@ napi_status aws_napi_create_threadsafe_function(
     napi_value resource_name = NULL;
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
 
-    AWS_NAPI_CALL(
-        env,
-        napi_create_threadsafe_function(env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result),
-        { return status; });
+    return napi_create_threadsafe_function(
+        env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result);
+}
+
+napi_status aws_napi_release_threadsafe_function(
+    napi_threadsafe_function function,
+    napi_threadsafe_function_release_mode mode) {
+    if (function) {
+        return napi_release_threadsafe_function(function, mode);
+    }
+    return napi_ok;
+}
+
+napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
+    if (function) {
+        return napi_unref_threadsafe_function(env, function);
+    }
     return napi_ok;
 }
 
@@ -475,6 +491,10 @@ static void s_install_crash_handler(void) {
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
+    aws_event_loop_group_release(s_node_uv_elg);
+
+    aws_thread_join_all_managed();
+
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
@@ -529,6 +549,7 @@ static bool s_create_and_register_function(
     /* context is bound to exports, will be cleaned up by finalizer */
     s_napi_context_new(allocator, env, exports);
 
+    aws_cal_library_init(allocator);
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
     aws_auth_library_init(allocator);
