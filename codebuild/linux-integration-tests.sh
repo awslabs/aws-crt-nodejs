@@ -17,5 +17,6 @@ cd $CODEBUILD_SRC_DIR
 export AWS_CRT_MEMORY_TRACING=2
 pwd
 npm install
+ls -las
 npm test
 
