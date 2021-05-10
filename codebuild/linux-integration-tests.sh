@@ -11,9 +11,11 @@ env
 git submodule update --init
 
 # build package
+pwd
 cd $CODEBUILD_SRC_DIR
 
 export AWS_CRT_MEMORY_TRACING=2
+pwd
 npm install
 npm test
 
