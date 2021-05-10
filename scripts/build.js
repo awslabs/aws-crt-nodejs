@@ -23,8 +23,6 @@ for (const arg of process.argv) {
     }
 }
 
-console.log("Test Logging - calling cmake")
-
 // Run the build
 var buildSystem = new cmake.BuildSystem({
     target: "install",
