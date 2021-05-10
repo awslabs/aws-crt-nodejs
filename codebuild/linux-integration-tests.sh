@@ -20,5 +20,7 @@ npm --version
 node --version
 npm install
 ls -las
+npm run install
+ls -las
 npm test
 
