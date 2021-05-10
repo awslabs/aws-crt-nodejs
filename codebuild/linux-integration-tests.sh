@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 if test -f "/tmp/setup_proxy_test_env.sh"; then
     source /tmp/setup_proxy_test_env.sh
