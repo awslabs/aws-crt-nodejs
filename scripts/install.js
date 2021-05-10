@@ -7,6 +7,8 @@ const process = require("process");
 const path = require("path");
 const fs = require("fs");
 
+console.log("Test Logging - checking build existence")
+
 const binaryDir = path.join('dist', 'bin', `${os.platform}-${os.arch}`, 'aws-crt-nodejs.node');
 if (fs.existsSync(binaryDir)) {
     // Don't continue if the binding already exists (unless --rebuild is specified)
