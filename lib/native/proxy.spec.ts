@@ -275,7 +275,7 @@ async function test_proxied_mqtt_connection(test_type : ProxyTestType, auth_type
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(ProxyConfig.HTTP_PROXY_MQTT_ENDPOINT)
         .with_ping_timeout_ms(5000)
-        .with_proxy_options(ProxyConfig.create_http_proxy_options_from_environment(test_type, auth_type))
+        .with_http_proxy_options(ProxyConfig.create_http_proxy_options_from_environment(test_type, auth_type))
         .build()
     const client = new MqttClient(new ClientBootstrap());
     const connection = client.new_connection(config);
