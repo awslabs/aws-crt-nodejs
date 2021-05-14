@@ -20,6 +20,10 @@ import {
     HttpRequest
 } from "./http";
 
+import {AwsIotMqttConnectionConfigBuilder} from "./aws_iot";
+import {v4 as uuid} from "uuid";
+import {MqttClient} from "./mqtt";
+
 enum ProxyTestType {
     FORWARDING = 0,
     TUNNELING_HTTP = 1,
@@ -260,5 +264,51 @@ conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Tunnel
 
 conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Tunneling BasicAuth', async (done) => {
     await test_proxied_connection(ProxyTestType.TUNNELING_HTTPS, HttpProxyAuthenticationType.Basic);
+    done();
+});
+
+async function test_proxied_mqtt_connection(test_type : ProxyTestType, auth_type : HttpProxyAuthenticationType) {
+
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(ProxyConfig.HTTP_PROXY_TLS_CERT_PATH, ProxyConfig.HTTP_PROXY_TLS_KEY_PATH)
+        .with_certificate_authority_from_path(undefined, ProxyConfig.HTTP_PROXY_TLS_ROOT_CA_PATH)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(ProxyConfig.HTTP_PROXY_MQTT_ENDPOINT)
+        .with_ping_timeout_ms(5000)
+        .with_proxy_options(ProxyConfig.create_http_proxy_options_from_environment(test_type, auth_type))
+        .build()
+    const client = new MqttClient(new ClientBootstrap());
+    const connection = client.new_connection(config);
+    const promise = new Promise(async (resolve, reject) => {
+        connection.on('connect', async (session_present) => {
+            expect(session_present).toBeFalsy();
+
+            const disconnected = connection.disconnect();
+            await expect(disconnected).resolves.toBeUndefined();
+        });
+        connection.on('error', (error) => {
+            reject(error);
+        })
+        connection.on('disconnect', () => {
+            resolve(true);
+        })
+        const connected = connection.connect();
+        await expect(connected).resolves.toBeDefined();
+    });
+    await expect(promise).resolves.toBeTruthy();
+}
+
+conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunneling NoAuth', async (done) => {
+    await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.None);
+    done();
+});
+
+conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunneling BasicAuth', async (done) => {
+    await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.Basic);
+    done();
+});
+
+conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection DoubleTls NoAuth', async (done) => {
+    await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_DOUBLE_TLS, HttpProxyAuthenticationType.None);
     done();
 });

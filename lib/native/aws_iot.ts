@@ -258,6 +258,11 @@ export class AwsIotMqttConnectionConfigBuilder {
         });
     }
 
+    with_proxy_options(proxy_options : HttpProxyOptions) {
+        this.params.proxy_options = proxy_options;
+        return this;
+    }
+
     /**
      * Returns the configured MqttConnectionConfig
      * @returns The configured MqttConnectionConfig
