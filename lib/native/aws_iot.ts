@@ -259,6 +259,15 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Configure the http proxy options to use to establish the connection
+     * @param proxy_options proxy options to use to establish the mqtt connection
+     */
+    with_http_proxy_options(proxy_options : HttpProxyOptions) {
+        this.params.proxy_options = proxy_options;
+        return this;
+    }
+
+    /**
      * Returns the configured MqttConnectionConfig
      * @returns The configured MqttConnectionConfig
      */
