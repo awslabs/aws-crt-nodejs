@@ -194,6 +194,7 @@ export function http_proxy_options_new(
     username?: StringLike,
     password?: StringLike,
     tls_options?: NativeHandle,
+    connection_type? : number,
 ): NativeHandle;
 
 /* wraps aws_http_connection #TODO: Wrap with ClassBinder */
