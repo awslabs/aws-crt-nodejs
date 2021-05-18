@@ -28,9 +28,9 @@ const SIGV4TEST_SIGNED_HEADERS: [string, string][] = [
 
 const SIGV4ATEST_SIGNED_HEADERS: [string, string][] = [
     ['Host', 'example.amazonaws.com'],
-    ['Authorization', 'AWS4-ECDSA-P256-SHA256 Credential=AKIDEXAMPLE/20150830/service/aws4_request, SignedHeaders=host;x-amz-date;x-amz-region-set, Signature='],
     ['X-Amz-Date', DATE_STR.replace(/[-:]/g, '')],
     ['X-Amz-Region-Set', SIGV4TEST_REGION],
+    ['Authorization', 'AWS4-ECDSA-P256-SHA256 Credential=AKIDEXAMPLE/20150830/service/aws4_request, SignedHeaders=host;x-amz-date;x-amz-region-set, Signature='],
 ];
 
 const SIGV4ATEST_EXPECTED_CANONICAL_REQUEST: string =
@@ -164,9 +164,8 @@ test('AWS Signer SigV4A Headers', async () => {
     let separator = "Signature=";
     let splits = authorization.split(separator);
     let signature = splits[splits.length - 1];
-
     // Add the signature to expected header
-    SIGV4ATEST_SIGNED_HEADERS[1][1] += signature;
+    SIGV4ATEST_SIGNED_HEADERS[3][1] += signature;
     expect(http_request.headers._flatten()).toEqual(SIGV4ATEST_SIGNED_HEADERS);
 
     // Verify the signature
