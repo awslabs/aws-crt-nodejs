@@ -178,10 +178,10 @@ export class TlsContextOptions {
      * It is much better to just override the default trust store and pass the self-signed
      * certificate as the ca_file argument.
      *
-     * In server mode, this defaults to false. If you want to enforce mutual TLS on the server,
+     * In server mode (ServerTlsContext), this defaults to false. If you want to enforce mutual TLS on the server,
      * set this to true.
      */
-    public verify_peer: boolean = false;
+    public verify_peer: boolean = true;
 
     /**
      * Overrides the default system trust store.
