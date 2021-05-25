@@ -23,6 +23,7 @@ export interface WebsocketConfig {
     proxy_options?: HttpProxyOptions;
     region: string;
     service?: string;
+    tls_ctx_options?: io.TlsContextOptions;
 }
 
 /**
@@ -117,13 +118,21 @@ export class AwsIotMqttConnectionConfigBuilder {
      * Configures the connection to use MQTT over websockets. Forces the port to 443.
      */
     static new_with_websockets(options?: WebsocketConfig) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(new io.TlsContextOptions());
+        let tls_ctx_options = options?.tls_ctx_options;
+        let using_default_tls_ctx_options = false;
+
+        if (!tls_ctx_options) {
+            tls_ctx_options = new io.TlsContextOptions();
+            tls_ctx_options.alpn_list = [];
+            using_default_tls_ctx_options = true;
+        }
+
+        let builder = new AwsIotMqttConnectionConfigBuilder(tls_ctx_options);
 
         builder.params.use_websocket = true;
         builder.params.proxy_options = options?.proxy_options;
 
-        if (builder.tls_ctx_options) {
-            builder.tls_ctx_options.alpn_list = [];
+        if (using_default_tls_ctx_options) {
             builder.params.port = 443;
         }
 
@@ -262,7 +271,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * Configure the http proxy options to use to establish the connection
      * @param proxy_options proxy options to use to establish the mqtt connection
      */
-    with_http_proxy_options(proxy_options : HttpProxyOptions) {
+    with_http_proxy_options(proxy_options: HttpProxyOptions) {
         this.params.proxy_options = proxy_options;
         return this;
     }
