@@ -15,13 +15,13 @@
 
 import { ClientBootstrap, TlsContextOptions } from '@awscrt/io';
 import { MqttClient } from '@awscrt/mqtt';
-import { AwsIotMqttConnectionConfigBuilder, WebSocketConfig } from '@awscrt/aws_iot';
+import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
 
 jest.setTimeout(10000);
 
-async function test_websockets(aws_opts: Config, websocket_config: WebSocketConfig) {
+async function test_websockets(aws_opts: Config, websocket_config: WebsocketConfig) {
     const bootstrap = new ClientBootstrap();
     const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
         .with_clean_session(true)
