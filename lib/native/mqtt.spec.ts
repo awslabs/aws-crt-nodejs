@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-import { ClientBootstrap } from '@awscrt/io';
+import { ClientBootstrap, TlsContextOptions } from '@awscrt/io';
 import { MqttClient } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
@@ -21,23 +21,9 @@ import { Config, fetch_credentials } from '@test/credentials';
 
 jest.setTimeout(10000);
 
-test('MQTT Native Websocket Connect/Disconnect', async () => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        return;
-    }
-
+async function test_websockets(aws_opts: Config, websocket_config: WebSocketConfig) {
     const bootstrap = new ClientBootstrap();
-    const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets({
-        region: "us-east-1",
-        credentials_provider: AwsCredentialsProvider.newStatic(
-            aws_opts.access_key,
-            aws_opts.secret_key,
-            aws_opts.session_token
-        ),
-    })
+    const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${new Date()}`)
         .with_endpoint(aws_opts.endpoint)
@@ -63,4 +49,45 @@ test('MQTT Native Websocket Connect/Disconnect', async () => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
+}
+
+test('MQTT Native Websocket Connect/Disconnect', async () => {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+
+    await test_websockets(aws_opts, {
+        region: "us-east-1",
+        credentials_provider: AwsCredentialsProvider.newStatic(
+            aws_opts.access_key,
+            aws_opts.secret_key,
+            aws_opts.session_token
+        ),
+    });
+});
+
+test('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async () => {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return;
+    }
+
+    let tls_ctx_options = new TlsContextOptions();
+    tls_ctx_options.alpn_list = [];
+    tls_ctx_options.verify_peer = true;
+
+    await test_websockets(aws_opts, {
+        region: "us-east-1",
+        tls_ctx_options: tls_ctx_options,
+        credentials_provider: AwsCredentialsProvider.newStatic(
+            aws_opts.access_key,
+            aws_opts.secret_key,
+            aws_opts.session_token
+        ),
+    });
 });

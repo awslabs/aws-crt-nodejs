@@ -119,12 +119,10 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     static new_with_websockets(options?: WebsocketConfig) {
         let tls_ctx_options = options?.tls_ctx_options;
-        let using_default_tls_ctx_options = false;
 
         if (!tls_ctx_options) {
             tls_ctx_options = new io.TlsContextOptions();
             tls_ctx_options.alpn_list = [];
-            using_default_tls_ctx_options = true;
         }
 
         let builder = new AwsIotMqttConnectionConfigBuilder(tls_ctx_options);
@@ -132,7 +130,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         builder.params.use_websocket = true;
         builder.params.proxy_options = options?.proxy_options;
 
-        if (using_default_tls_ctx_options) {
+        if (builder.tls_ctx_options) {
             builder.params.port = 443;
         }
 
