@@ -15,7 +15,7 @@
 
 import { ClientBootstrap, TlsContextOptions } from '@awscrt/io';
 import { MqttClient } from '@awscrt/mqtt';
-import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
+import { AwsIotMqttConnectionConfigBuilder, WebSocketConfig } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
 
