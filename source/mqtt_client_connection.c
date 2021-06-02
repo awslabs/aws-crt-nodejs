@@ -998,20 +998,29 @@ static void s_on_publish_user_data_clean_up(void *user_data) {
 /* arguments for publish callbacks */
 struct on_publish_args {
     struct aws_allocator *allocator;
-    struct aws_byte_cursor topic; /* owned by subscription */
-    struct aws_byte_buf payload;  /* owned by this */
+    struct aws_byte_buf topic;   /* owned by this */
+    struct aws_byte_buf payload; /* owned by this */
     bool dup;
     enum aws_mqtt_qos qos;
     bool retain;
     napi_threadsafe_function on_publish; /* owned by subscription */
 };
 
+static void s_destroy_on_publish_args(struct on_publish_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    aws_byte_buf_clean_up(&args->payload);
+    aws_byte_buf_clean_up(&args->topic);
+    aws_mem_release(args->allocator, args);
+}
+
 static void s_publish_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
     struct on_publish_args *args = finalize_hint;
-    aws_byte_buf_clean_up(&args->payload);
-    aws_mem_release(args->allocator, args);
+    s_destroy_on_publish_args(args);
 }
 
 static void s_on_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
@@ -1022,7 +1031,8 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
         napi_value params[5];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)args->topic.ptr, args->topic.len, &params[0]));
+        AWS_NAPI_ENSURE(
+            env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[0]));
         AWS_NAPI_ENSURE(
             env,
             napi_create_external_arraybuffer(
@@ -1052,7 +1062,6 @@ static void s_on_publish(
     void *user_data) {
 
     (void)connection;
-    (void)topic;
 
     struct subscription *sub = user_data;
     /* users can use a null handler to sub to a topic, and then handle it with the any handler */
@@ -1066,16 +1075,22 @@ static void s_on_publish(
     struct on_publish_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_publish_args));
     AWS_FATAL_ASSERT(args);
 
-    args->topic = aws_byte_cursor_from_buf(&sub->topic);
+    args->allocator = binding->allocator;
     args->dup = dup;
     args->qos = qos;
     args->retain = retain;
     args->on_publish = sub->on_publish;
-    args->allocator = binding->allocator;
+
+    if (aws_byte_buf_init_copy_from_cursor(&args->topic, binding->allocator, *topic)) {
+        s_destroy_on_publish_args(args);
+        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT topic, message will not be delivered");
+        return;
+    }
+
     /* this is freed after being delivered to node in s_on_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
-        aws_mem_release(binding->allocator, args);
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
+        s_destroy_on_publish_args(args);
+        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, message will not be delivered");
         return;
     }
 
