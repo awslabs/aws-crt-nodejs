@@ -1,5 +1,5 @@
 {
-    "name": "aws-crt-nodejs-staging",
+    "name": "aws-crt-nodejs",
     "imports": [
         "nodejs"
     ],
