@@ -368,8 +368,6 @@ napi_status aws_napi_dispatch_threadsafe_function(
     });
     /* Must always decrement the ref count, or the function will be pinned */
     napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
-    /* main thread can exit now */
-    AWS_NAPI_ENSURE(env, napi_unref_threadsafe_function(env, tsfn));
     return (call_status != napi_ok) ? call_status : release_status;
 }
 
