@@ -421,3 +421,13 @@ export function aws_sign_request(
     config: AwsSigningConfig,
     on_complete: (error_code: number) => void
 ): void;
+
+/** @internal */
+export function aws_verify_sigv4a_signing(
+    request: HttpRequest,
+    config: AwsSigningConfig,
+    expected_canonical_request: StringLike,
+    signature: StringLike,
+    ecc_key_pub_x: StringLike,
+    ecc_key_pub_y: StringLike
+): boolean;
