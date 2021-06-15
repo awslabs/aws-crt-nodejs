@@ -73,6 +73,34 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
 }
 
 /**
+ * Proxy connection types.
+ *
+ * The original behavior was to make a tunneling connection if tls was used, and a forwarding connection if it was not.
+ * There are legitimate use cases for plaintext tunneling connections, and so the implicit behavior has now
+ * been replaced by this setting, with a default that maps to the old behavior.
+ *
+ * @module aws-crt
+ * @category HTTP
+ */
+export enum HttpProxyConnectionType {
+    /**
+     * (Default for backwards compatibility).  If Tls options are supplied then the connection will be a tunneling
+     * one, otherwise it will be a forwarding one.
+     */
+    Legacy = 0,
+
+    /**
+     * Establish a forwarding-based connection with the proxy.  Tls is not allowed in this case.
+     */
+    Forwarding = 1,
+
+    /**
+     * Establish a tunneling-based connection with the proxy.
+     */
+    Tunneling = 2,
+};
+
+/**
  * Proxy options for HTTP clients.
  *
  * @module aws-crt
@@ -89,6 +117,8 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
      * @param tls_opts Optional TLS connection options for the connection to the proxy host.
      *                 Must be distinct from the {@link TlsConnectionOptions} provided to
      *                 the HTTP connection
+     * @param connection_type Optional Type of connection to make.  If not specified,
+     *                 {@link HttpProxyConnectionType.Legacy} will be used.
      */
     constructor(
         host_name: string,
@@ -96,7 +126,8 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
         auth_method = HttpProxyAuthenticationType.None,
         auth_username?: string,
         auth_password?: string,
-        public tls_opts?: TlsConnectionOptions
+        public tls_opts?: TlsConnectionOptions,
+        public connection_type? : HttpProxyConnectionType
     ) {
         super(host_name, port, auth_method, auth_username, auth_password);
     }
@@ -110,6 +141,7 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
             this.auth_username,
             this.auth_password,
             this.tls_opts ? this.tls_opts.native_handle() : undefined,
+            this.connection_type ? this.connection_type : HttpProxyConnectionType.Legacy
         );
     }
 }

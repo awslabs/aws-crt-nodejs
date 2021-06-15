@@ -7,6 +7,7 @@
 #include "io.h"
 
 #include <aws/http/connection.h>
+#include <aws/http/proxy.h>
 #include <aws/io/tls_channel_handler.h>
 
 struct http_proxy_options_binding {
@@ -33,7 +34,7 @@ void s_proxy_options_finalize(napi_env env, void *finalize_data, void *finalize_
 }
 napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info) {
 
-    napi_value node_args[6];
+    napi_value node_args[7];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
 
     napi_value *arg = &node_args[0];
@@ -42,7 +43,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "http_proxy_options_new requires exactly 6 arguments");
+        napi_throw_error(env, NULL, "http_proxy_options_new requires exactly 7 arguments");
         return NULL;
     }
 
@@ -106,6 +107,21 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
             napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
             goto cleanup;
         });
+    }
+
+    napi_value node_connection_type = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_connection_type)) {
+        uint32_t connection_type = 0;
+        AWS_NAPI_CALL(env, napi_get_value_uint32(env, node_connection_type, &connection_type), {
+            napi_throw_type_error(env, NULL, "connection_type must be a number");
+            goto cleanup;
+        });
+        binding->native.connection_type = connection_type;
+    }
+
+    if (binding->native.connection_type == AWS_HPCT_HTTP_FORWARD && binding->native.tls_options != NULL) {
+        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "Forwarding proxy connections cannot use tls"));
+        goto cleanup;
     }
 
     AWS_NAPI_CALL(

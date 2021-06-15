@@ -15,12 +15,16 @@
 #include <aws/auth/signing_config.h>
 #include <aws/auth/signing_result.h>
 
+#include <aws/common/condition_variable.h>
+#include <aws/common/mutex.h>
+
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
 static aws_napi_method_fn s_creds_provider_new_default;
 static aws_napi_method_fn s_creds_provider_new_static;
 
 static aws_napi_method_fn s_aws_sign_request;
+static aws_napi_method_fn s_aws_verify_sigv4a_signing;
 
 napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
     static const struct aws_napi_method_info s_creds_provider_constructor_info = {
@@ -69,6 +73,15 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
 
     AWS_NAPI_CALL(env, aws_napi_define_function(env, exports, &s_signer_request_method), { return status; });
 
+    static struct aws_napi_method_info s_verify_sigv4a_signing_method = {
+        .name = "aws_verify_sigv4a_signing",
+        .method = s_aws_verify_sigv4a_signing,
+        .num_arguments = 6,
+        .arg_types = {napi_object, napi_object, napi_string, napi_string, napi_string, napi_string},
+    };
+
+    AWS_NAPI_CALL(env, aws_napi_define_function(env, exports, &s_verify_sigv4a_signing_method), { return status; });
+
     return napi_ok;
 }
 
@@ -79,7 +92,6 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
 static void s_napi_creds_provider_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
-
     aws_credentials_provider_release(finalize_data);
 }
 
@@ -180,7 +192,8 @@ struct signer_sign_request_state {
 
     /**
      * aws_string *
-     * this exists so that when should_sign_param is called from off thread, we don't have to hit Node every single time
+     * this exists so that when should_sign_param is called from off thread, we don't have to hit Node every single
+     * time
      */
     struct aws_array_list header_blacklist;
 
@@ -240,7 +253,7 @@ static void s_aws_sign_request_complete_call(napi_env env, napi_value on_complet
     struct aws_allocator *allocator = user_data;
 
     napi_value args[1];
-    napi_create_int32(env, state->error_code, &args[0]);
+    AWS_NAPI_ENSURE(env, napi_create_int32(env, state->error_code, &args[0]));
 
     AWS_NAPI_ENSURE(
         env,
@@ -291,9 +304,235 @@ static bool s_get_named_property(
     return true;
 }
 
-static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callback_info *cb_info) {
+static int s_get_config_from_js_config(
+    napi_env env,
+    struct aws_signing_config_aws *config,
+    napi_value js_config,
+    struct aws_byte_buf *region_buf,
+    struct aws_byte_buf *service_buf,
+    struct aws_byte_buf *signed_body_value_buf,
+    struct signer_sign_request_state *state,
+    struct aws_allocator *allocator) {
 
-    AWS_FATAL_ASSERT(cb_info->num_args == 3);
+    config->config_type = AWS_SIGNING_CONFIG_AWS;
+    int result = AWS_OP_SUCCESS;
+
+    napi_value current_value = NULL;
+    /* Get algorithm */
+    if (s_get_named_property(env, js_config, "algorithm", napi_number, &current_value)) {
+        int32_t algorithm_int = 0;
+        napi_get_value_int32(env, current_value, &algorithm_int);
+        if (algorithm_int < 0) {
+            napi_throw_error(env, NULL, "Signing algorithm value out of acceptable range");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+
+        config->algorithm = (enum aws_signing_algorithm)algorithm_int;
+    }
+
+    /* Get signature type */
+    if (s_get_named_property(env, js_config, "signature_type", napi_number, &current_value)) {
+        int32_t signature_type_int = 0;
+        napi_get_value_int32(env, current_value, &signature_type_int);
+        if (signature_type_int < 0) {
+            napi_throw_error(env, NULL, "Signing signature type value out of acceptable range");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+
+        config->signature_type = (enum aws_signature_type)signature_type_int;
+    }
+
+    /* Get provider */
+    if (!s_get_named_property(env, js_config, "provider", napi_object, &current_value) ||
+        NULL == (config->credentials_provider = aws_napi_credentials_provider_unwrap(env, current_value))) {
+
+        napi_throw_type_error(env, NULL, "Credentials Provider is required");
+        result = AWS_OP_ERR;
+        goto done;
+    }
+
+    /* Get region */
+    if (!s_get_named_property(env, js_config, "region", napi_string, &current_value)) {
+        napi_throw_type_error(env, NULL, "Region string is required");
+        result = AWS_OP_ERR;
+        goto done;
+    }
+    if (aws_byte_buf_init_from_napi(region_buf, env, current_value)) {
+        napi_throw_error(env, NULL, "Failed to build region buffer");
+        result = AWS_OP_ERR;
+        goto done;
+    }
+    config->region = aws_byte_cursor_from_buf(region_buf);
+
+    /* Get service */
+    if (s_get_named_property(env, js_config, "service", napi_string, &current_value)) {
+        if (aws_byte_buf_init_from_napi(service_buf, env, current_value)) {
+            napi_throw_error(env, NULL, "Failed to build service buffer");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+
+        config->service = aws_byte_cursor_from_buf(service_buf);
+    }
+
+    /* Get date */
+    /* #TODO eventually check for napi_date type (node v11) */
+    if (s_get_named_property(env, js_config, "date", napi_object, &current_value)) {
+        napi_value prototype = NULL;
+        AWS_NAPI_CALL(env, napi_get_prototype(env, current_value, &prototype), {
+            napi_throw_type_error(env, NULL, "Date param must be a Date object");
+            result = AWS_OP_ERR;
+            goto done;
+        });
+
+        napi_value valueOfFn = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, prototype, "getTime", &valueOfFn), {
+            napi_throw_type_error(env, NULL, "Date param must be a Date object");
+            result = AWS_OP_ERR;
+            goto done;
+        });
+
+        napi_value node_result = NULL;
+        AWS_NAPI_CALL(env, napi_call_function(env, current_value, valueOfFn, 0, NULL, &node_result), {
+            napi_throw_type_error(env, NULL, "Date param must be a Date object");
+            result = AWS_OP_ERR;
+            goto done;
+        });
+
+        int64_t ms_since_epoch = 0;
+        AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &ms_since_epoch), {
+            napi_throw_type_error(env, NULL, "Date param must be a Date object");
+            result = AWS_OP_ERR;
+            goto done;
+        });
+
+        aws_date_time_init_epoch_millis(&config->date, (uint64_t)ms_since_epoch);
+    } else {
+        aws_date_time_init_now(&config->date);
+    }
+
+    /* Get param blacklist */
+    if (s_get_named_property(env, js_config, "header_blacklist", napi_object, &current_value)) {
+        bool is_array = false;
+        AWS_NAPI_CALL(env, napi_is_array(env, current_value, &is_array), {
+            napi_throw_error(env, NULL, "Failed to check if header blacklist is an array");
+            result = AWS_OP_ERR;
+            goto done;
+        });
+
+        if (!is_array) {
+            napi_throw_type_error(env, NULL, "header blacklist must be an array of strings");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+
+        uint32_t blacklist_length = 0;
+        AWS_NAPI_CALL(env, napi_get_array_length(env, current_value, &blacklist_length), {
+            napi_throw_error(env, NULL, "Failed to get the length of node_header_blacklist");
+            result = AWS_OP_ERR;
+            goto done;
+        });
+
+        /* Initialize the string array */
+        int err = aws_array_list_init_dynamic(
+            &state->header_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
+        if (err == AWS_OP_ERR) {
+            aws_napi_throw_last_error(env);
+            result = AWS_OP_ERR;
+            goto done;
+        }
+
+        /* Start copying the strings */
+        for (uint32_t i = 0; i < blacklist_length; ++i) {
+            napi_value header = NULL;
+            AWS_NAPI_CALL(env, napi_get_element(env, current_value, i, &header), {
+                napi_throw_error(env, NULL, "Failed to get element from param blacklist");
+                result = AWS_OP_ERR;
+                goto done;
+            });
+
+            struct aws_string *header_name = aws_string_new_from_napi(env, header);
+            if (!header_name) {
+                napi_throw_error(env, NULL, "header blacklist must be array of strings");
+                result = AWS_OP_ERR;
+                goto done;
+            }
+
+            if (aws_array_list_push_back(&state->header_blacklist, &header_name)) {
+                aws_string_destroy(header_name);
+                aws_napi_throw_last_error(env);
+                result = AWS_OP_ERR;
+                goto done;
+            }
+        }
+
+        config->should_sign_header = s_should_sign_header;
+        config->should_sign_header_ud = state;
+    }
+
+    /* Get bools */
+    if (s_get_named_property(env, js_config, "use_double_uri_encode", napi_boolean, &current_value)) {
+        bool property_value = true;
+        napi_get_value_bool(env, current_value, &property_value);
+        config->flags.use_double_uri_encode = property_value;
+    } else {
+        config->flags.use_double_uri_encode = true;
+    }
+
+    if (s_get_named_property(env, js_config, "should_normalize_uri_path", napi_boolean, &current_value)) {
+        bool property_value = true;
+        napi_get_value_bool(env, current_value, &property_value);
+        config->flags.should_normalize_uri_path = property_value;
+    } else {
+        config->flags.should_normalize_uri_path = true;
+    }
+
+    if (s_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value)) {
+        bool property_value = true;
+        napi_get_value_bool(env, current_value, &property_value);
+        config->flags.omit_session_token = property_value;
+    } else {
+        config->flags.omit_session_token = false;
+    }
+
+    /* Get signed body value */
+    if (s_get_named_property(env, js_config, "signed_body_value", napi_string, &current_value)) {
+        if (aws_byte_buf_init_from_napi(signed_body_value_buf, env, current_value)) {
+            napi_throw_error(env, NULL, "Failed to build signed_body_value buffer");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+        config->signed_body_value = aws_byte_cursor_from_buf(signed_body_value_buf);
+    }
+
+    /* Get signed body header */
+    if (s_get_named_property(env, js_config, "signed_body_header", napi_number, &current_value)) {
+        int32_t signed_body_header = 0;
+        napi_get_value_int32(env, current_value, &signed_body_header);
+        config->signed_body_header = (enum aws_signed_body_header_type)signed_body_header;
+    } else {
+        config->signed_body_header = AWS_SBHT_NONE;
+    }
+
+    /* Get expiration time */
+    if (s_get_named_property(env, js_config, "expiration_in_seconds", napi_number, &current_value)) {
+        int64_t expiration_in_seconds = 0;
+        napi_get_value_int64(env, current_value, &expiration_in_seconds);
+        if (expiration_in_seconds < 0) {
+            napi_throw_error(env, NULL, "Signing expiration time in seconds must be non-negative");
+            result = AWS_OP_ERR;
+            goto done;
+        }
+        config->expiration_in_seconds = (uint64_t)expiration_in_seconds;
+    }
+
+done:
+    return result;
+}
+
+static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
     const struct aws_napi_argument *arg = NULL;
@@ -319,206 +558,16 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
     /* Populate config */
     struct aws_signing_config_aws config;
-    {
-        AWS_ZERO_STRUCT(config);
-        config.config_type = AWS_SIGNING_CONFIG_AWS;
+    AWS_ZERO_STRUCT(config);
 
-        aws_napi_method_next_argument(napi_object, cb_info, &arg);
-        napi_value js_config = arg->node;
-        napi_value current_value = NULL;
+    aws_napi_method_next_argument(napi_object, cb_info, &arg);
+    napi_value js_config = arg->node;
 
-        /* Get algorithm */
-        if (s_get_named_property(env, js_config, "algorithm", napi_number, &current_value)) {
-            int32_t algorithm_int = 0;
-            napi_get_value_int32(env, current_value, &algorithm_int);
-            if (algorithm_int < 0) {
-                napi_throw_error(env, NULL, "Signing algorithm value out of acceptable range");
-                goto error;
-            }
-
-            config.algorithm = (enum aws_signing_algorithm)algorithm_int;
-        }
-
-        /* Get signature type */
-        if (s_get_named_property(env, js_config, "signature_type", napi_number, &current_value)) {
-            int32_t signature_type_int = 0;
-            napi_get_value_int32(env, current_value, &signature_type_int);
-            if (signature_type_int < 0) {
-                napi_throw_error(env, NULL, "Signing signature type value out of acceptable range");
-                goto error;
-            }
-
-            config.signature_type = (enum aws_signature_type)signature_type_int;
-        }
-
-        /* Get provider */
-        if (!s_get_named_property(env, js_config, "provider", napi_object, &current_value) ||
-            NULL == (config.credentials_provider = aws_napi_credentials_provider_unwrap(env, current_value))) {
-
-            napi_throw_type_error(env, NULL, "Credentials Provider is required");
-            goto error;
-        }
-
-        /* Get region */
-        if (!s_get_named_property(env, js_config, "region", napi_string, &current_value)) {
-            napi_throw_type_error(env, NULL, "Region string is required");
-            goto error;
-        }
-        if (aws_byte_buf_init_from_napi(&region_buf, env, current_value)) {
-            napi_throw_error(env, NULL, "Failed to build region buffer");
-            goto error;
-        }
-        config.region = aws_byte_cursor_from_buf(&region_buf);
-
-        /* Get service */
-        if (s_get_named_property(env, js_config, "service", napi_string, &current_value)) {
-            if (aws_byte_buf_init_from_napi(&service_buf, env, current_value)) {
-                napi_throw_error(env, NULL, "Failed to build service buffer");
-                goto error;
-            }
-
-            config.service = aws_byte_cursor_from_buf(&service_buf);
-        }
-
-        /* Get date */
-        /* #TODO eventually check for napi_date type (node v11) */
-        if (s_get_named_property(env, js_config, "date", napi_object, &current_value)) {
-            napi_value prototype = NULL;
-            AWS_NAPI_CALL(env, napi_get_prototype(env, current_value, &prototype), {
-                napi_throw_type_error(env, NULL, "Date param must be a Date object");
-                goto error;
-            });
-
-            napi_value valueOfFn = NULL;
-            AWS_NAPI_CALL(env, napi_get_named_property(env, prototype, "getTime", &valueOfFn), {
-                napi_throw_type_error(env, NULL, "Date param must be a Date object");
-                goto error;
-            });
-
-            napi_value node_result = NULL;
-            AWS_NAPI_CALL(env, napi_call_function(env, current_value, valueOfFn, 0, NULL, &node_result), {
-                napi_throw_type_error(env, NULL, "Date param must be a Date object");
-                goto error;
-            });
-
-            int64_t ms_since_epoch = 0;
-            AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &ms_since_epoch), {
-                napi_throw_type_error(env, NULL, "Date param must be a Date object");
-                goto error;
-            });
-
-            aws_date_time_init_epoch_millis(&config.date, (uint64_t)ms_since_epoch);
-        } else {
-            aws_date_time_init_now(&config.date);
-        }
-
-        /* Get param blacklist */
-        if (s_get_named_property(env, js_config, "header_blacklist", napi_object, &current_value)) {
-            bool is_array = false;
-            AWS_NAPI_CALL(env, napi_is_array(env, current_value, &is_array), {
-                napi_throw_error(env, NULL, "Failed to check if header blacklist is an array");
-                goto error;
-            });
-
-            if (!is_array) {
-                napi_throw_type_error(env, NULL, "header blacklist must be an array of strings");
-                goto error;
-            }
-
-            uint32_t blacklist_length = 0;
-            AWS_NAPI_CALL(env, napi_get_array_length(env, current_value, &blacklist_length), {
-                napi_throw_error(env, NULL, "Failed to get the length of node_header_blacklist");
-                goto error;
-            });
-
-            /* Initialize the string array */
-            int err = aws_array_list_init_dynamic(
-                &state->header_blacklist, allocator, blacklist_length, sizeof(struct aws_string *));
-            if (err == AWS_OP_ERR) {
-                aws_napi_throw_last_error(env);
-                goto error;
-            }
-
-            /* Start copying the strings */
-            for (uint32_t i = 0; i < blacklist_length; ++i) {
-                napi_value header = NULL;
-                AWS_NAPI_CALL(env, napi_get_element(env, current_value, i, &header), {
-                    napi_throw_error(env, NULL, "Failed to get element from param blacklist");
-                    goto error;
-                });
-
-                struct aws_string *header_name = aws_string_new_from_napi(env, header);
-                if (!header_name) {
-                    napi_throw_error(env, NULL, "header blacklist must be array of strings");
-                    goto error;
-                }
-
-                if (aws_array_list_push_back(&state->header_blacklist, &header_name)) {
-                    aws_string_destroy(header_name);
-                    aws_napi_throw_last_error(env);
-                    goto error;
-                }
-            }
-
-            config.should_sign_header = s_should_sign_header;
-            config.should_sign_header_ud = state;
-        }
-
-        /* Get bools */
-        if (s_get_named_property(env, js_config, "use_double_uri_encode", napi_boolean, &current_value)) {
-            bool property_value = true;
-            napi_get_value_bool(env, current_value, &property_value);
-            config.flags.use_double_uri_encode = property_value;
-        } else {
-            config.flags.use_double_uri_encode = true;
-        }
-
-        if (s_get_named_property(env, js_config, "should_normalize_uri_path", napi_boolean, &current_value)) {
-            bool property_value = true;
-            napi_get_value_bool(env, current_value, &property_value);
-            config.flags.should_normalize_uri_path = property_value;
-        } else {
-            config.flags.should_normalize_uri_path = true;
-        }
-
-        if (s_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value)) {
-            bool property_value = true;
-            napi_get_value_bool(env, current_value, &property_value);
-            config.flags.omit_session_token = property_value;
-        } else {
-            config.flags.omit_session_token = false;
-        }
-
-        /* Get signed body value */
-        if (s_get_named_property(env, js_config, "signed_body_value", napi_string, &current_value)) {
-            if (aws_byte_buf_init_from_napi(&signed_body_value_buf, env, current_value)) {
-                napi_throw_error(env, NULL, "Failed to build signed_body_value buffer");
-                goto error;
-            }
-            config.signed_body_value = aws_byte_cursor_from_buf(&signed_body_value_buf);
-        }
-
-        /* Get signed body header */
-        if (s_get_named_property(env, js_config, "signed_body_header", napi_number, &current_value)) {
-            int32_t signed_body_header = 0;
-            napi_get_value_int32(env, current_value, &signed_body_header);
-            config.signed_body_header = (enum aws_signed_body_header_type)signed_body_header;
-        } else {
-            config.signed_body_header = AWS_SBHT_NONE;
-        }
-
-        /* Get expiration time */
-        if (s_get_named_property(env, js_config, "expiration_in_seconds", napi_number, &current_value)) {
-            int64_t expiration_in_seconds = 0;
-            napi_get_value_int64(env, current_value, &expiration_in_seconds);
-            if (expiration_in_seconds < 0) {
-                napi_throw_error(env, NULL, "Signing expiration time in seconds must be non-negative");
-                goto error;
-            }
-            config.expiration_in_seconds = (uint64_t)expiration_in_seconds;
-        }
+    if (s_get_config_from_js_config(
+            env, &config, js_config, &region_buf, &service_buf, &signed_body_value_buf, state, allocator)) {
+        /* error already raised */
+        goto error;
     }
-
     aws_napi_method_next_argument(napi_function, cb_info, &arg);
     AWS_NAPI_CALL(
         env,
@@ -553,9 +602,169 @@ error:
 done:
     // Shared cleanup
     aws_credentials_provider_release(config.credentials_provider);
+
     aws_byte_buf_clean_up(&region_buf);
     aws_byte_buf_clean_up(&service_buf);
     aws_byte_buf_clean_up(&signed_body_value_buf);
 
     return NULL;
+}
+
+struct sigv4a_credentail_getter_state {
+    struct aws_allocator *allocator;
+    struct aws_condition_variable cvar;
+    struct aws_mutex lock;
+    bool completed;
+
+    struct aws_signing_config_aws *config;
+};
+
+static void s_aws_signv4a_on_get_credentials(struct aws_credentials *credentials, int error_code, void *user_data) {
+    (void)error_code;
+    struct sigv4a_credentail_getter_state *state = user_data;
+
+    aws_mutex_lock(&state->lock);
+    state->completed = true;
+    if (credentials) {
+        state->config->credentials = credentials;
+    }
+    aws_mutex_unlock(&state->lock);
+    aws_condition_variable_notify_one(&state->cvar);
+}
+
+static bool s_get_credential_completed(void *arg) {
+    struct sigv4a_credentail_getter_state *state = arg;
+    return state->completed;
+}
+
+static void s_wait_for_get_credential_to_complete(struct sigv4a_credentail_getter_state *state) {
+    aws_mutex_lock(&state->lock);
+    aws_condition_variable_wait_pred(&state->cvar, &state->lock, s_get_credential_completed, state);
+    aws_mutex_unlock(&state->lock);
+}
+
+/* wrap of the signing verification tests */
+static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_napi_callback_info *cb_info) {
+
+    napi_value result = NULL;
+
+    AWS_NAPI_ENSURE(env, napi_get_boolean(env, false, &result));
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    const struct aws_napi_argument *arg = NULL;
+
+    struct signer_sign_request_state *state = aws_mem_calloc(allocator, 1, sizeof(struct signer_sign_request_state));
+    if (!state) {
+        return result;
+    }
+
+    /* Temp buffers */
+    struct aws_byte_buf region_buf;
+    AWS_ZERO_STRUCT(region_buf);
+    struct aws_byte_buf service_buf;
+    AWS_ZERO_STRUCT(service_buf);
+    struct aws_byte_buf signed_body_value_buf;
+    AWS_ZERO_STRUCT(signed_body_value_buf);
+    struct aws_byte_buf expected_canonical_request_buf;
+    AWS_ZERO_STRUCT(expected_canonical_request_buf);
+    struct aws_byte_buf signature_buf;
+    AWS_ZERO_STRUCT(signature_buf);
+    struct aws_byte_buf ecc_key_pub_x_buf;
+    AWS_ZERO_STRUCT(ecc_key_pub_x_buf);
+    struct aws_byte_buf ecc_key_pub_y_buf;
+    AWS_ZERO_STRUCT(ecc_key_pub_y_buf);
+
+    /* Get request */
+    aws_napi_method_next_argument(napi_object, cb_info, &arg);
+    state->request = aws_napi_http_message_unwrap(env, arg->node);
+    state->signable = aws_signable_new_http_request(allocator, state->request);
+
+    /* Populate config */
+    struct aws_signing_config_aws config;
+    AWS_ZERO_STRUCT(config);
+
+    aws_napi_method_next_argument(napi_object, cb_info, &arg);
+    napi_value js_config = arg->node;
+
+    if (s_get_config_from_js_config(
+            env, &config, js_config, &region_buf, &service_buf, &signed_body_value_buf, state, allocator)) {
+        /* error already raised */
+        goto done;
+    }
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    napi_value node_expected_canonical_request = arg->node;
+    if (aws_byte_buf_init_from_napi(&expected_canonical_request_buf, env, node_expected_canonical_request)) {
+        napi_throw_type_error(env, NULL, "The expected canonical request must be a string");
+        goto done;
+    }
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    napi_value node_signature = arg->node;
+    if (aws_byte_buf_init_from_napi(&signature_buf, env, node_signature)) {
+        napi_throw_type_error(env, NULL, "The signature must be a string");
+        goto done;
+    }
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    napi_value node_ecc_key_pub_x = arg->node;
+    if (aws_byte_buf_init_from_napi(&ecc_key_pub_x_buf, env, node_ecc_key_pub_x)) {
+        napi_throw_type_error(env, NULL, "The public ecc key must be a string");
+        goto done;
+    }
+
+    aws_napi_method_next_argument(napi_string, cb_info, &arg);
+    napi_value node_ecc_key_pub_y = arg->node;
+    if (aws_byte_buf_init_from_napi(&ecc_key_pub_y_buf, env, node_ecc_key_pub_y)) {
+        napi_throw_type_error(env, NULL, "The public ecc key must be a string");
+        goto done;
+    }
+
+    struct sigv4a_credentail_getter_state credential_state;
+    AWS_ZERO_STRUCT(credential_state);
+    credential_state.allocator = allocator;
+    credential_state.config = &config;
+    aws_condition_variable_init(&credential_state.cvar);
+    aws_mutex_init(&credential_state.lock);
+    /* get credential from provider for the verification */
+    if (aws_credentials_provider_get_credentials(
+            config.credentials_provider, s_aws_signv4a_on_get_credentials, &credential_state)) {
+        goto done;
+    }
+    /* wait for credential provider getting the credential */
+    s_wait_for_get_credential_to_complete(&credential_state);
+    if (!config.credentials) {
+        napi_throw_type_error(env, NULL, "Failed to get credentials from credential provider");
+        goto done;
+    }
+
+    if (aws_verify_sigv4a_signing(
+            allocator,
+            state->signable,
+            (struct aws_signing_config_base *)&config,
+            aws_byte_cursor_from_buf(&expected_canonical_request_buf),
+            aws_byte_cursor_from_buf(&signature_buf),
+            aws_byte_cursor_from_buf(&ecc_key_pub_x_buf),
+            aws_byte_cursor_from_buf(&ecc_key_pub_y_buf))) {
+        /* Verification failed, the signature result is wrong. */
+        aws_napi_throw_last_error(env);
+        goto done;
+    }
+
+    /* verification succeed */
+    AWS_NAPI_ENSURE(env, napi_get_boolean(env, true, &result));
+
+done:
+    s_destroy_signing_binding(env, allocator, state);
+
+    aws_credentials_provider_release(config.credentials_provider);
+    aws_byte_buf_clean_up(&region_buf);
+    aws_byte_buf_clean_up(&service_buf);
+    aws_byte_buf_clean_up(&signed_body_value_buf);
+    aws_byte_buf_clean_up(&expected_canonical_request_buf);
+    aws_byte_buf_clean_up(&signature_buf);
+    aws_byte_buf_clean_up(&ecc_key_pub_x_buf);
+    aws_byte_buf_clean_up(&ecc_key_pub_y_buf);
+
+    return result;
 }

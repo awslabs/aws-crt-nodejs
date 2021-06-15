@@ -8,6 +8,7 @@
 #include "io.h"
 
 #include <aws/http/connection_manager.h>
+#include <aws/http/proxy.h>
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 

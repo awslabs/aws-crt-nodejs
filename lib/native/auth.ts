@@ -8,6 +8,9 @@ import { CrtError } from './error';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
+/** @category System */
+type StringLike = string | ArrayBuffer | DataView;
+
 /**
  * AWS signing algorithm enumeration.
  *
@@ -16,7 +19,9 @@ import { ClientBootstrap } from './io';
  */
 export enum AwsSigningAlgorithm {
     /** Use the Aws signature version 4 signing process to sign the request */
-    SigV4
+    SigV4,
+    /** Use the Aws signature version 4 Asymmetric signing process to sign the request */
+    SigV4Asymmetric
 }
 
 /**
@@ -142,4 +147,24 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
             reject(error);
         }
     });
+}
+
+/**
+ * Test only.
+ * Verifies:
+ *  (1) The canonical request generated during sigv4a signing of the request matches what is passed in
+ *  (2) The signature passed in is a valid ECDSA signature of the hashed string-to-sign derived from the
+ *  canonical request
+ * 
+ * @param request The HTTP request to sign.
+ * @param config Configuration for signing.
+ * @param expected_canonical_request String type of expected canonical request. Refer to XXX(link to doc?)
+ * @param signature The generated signature string from {@link aws_sign_request}, which is verified here.
+ * @param ecc_key_pub_x the x coordinate of the public part of the ecc key to verify the signature.
+ * @param ecc_key_pub_y the y coordinate of the public part of the ecc key to verify the signature
+ * @returns True, if the verification succeed. Otherwise, false.
+ */
+export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request: StringLike,
+    signature: StringLike, ecc_key_pub_x: StringLike, ecc_key_pub_y: StringLike): boolean {
+    return crt_native.aws_verify_sigv4a_signing(request, config, expected_canonical_request, signature, ecc_key_pub_x, ecc_key_pub_y);
 }
