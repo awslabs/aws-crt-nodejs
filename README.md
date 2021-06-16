@@ -33,6 +33,10 @@ npm run prepare
 node-gyp configure
 node-gyp build
 ````
+
+## electron rebuild on windows
+`.\node_modules\.bin\electron-rebuild.cmd`
+
 ## Using From Your NodeJS Application
 
 Normally, you just declare `aws-crt` as a dependency in your package.json file.
