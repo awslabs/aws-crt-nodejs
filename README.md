@@ -21,6 +21,9 @@ This library is licensed under the Apache 2.0 License.
 
 To build the package locally
 ```bash
+git clone https://github.com/awslabs/aws-crt-nodejs.git
+cd aws-crt-nodejs
+git submodule update --init
 npm install
 ```
 
