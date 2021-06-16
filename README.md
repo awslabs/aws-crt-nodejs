@@ -23,10 +23,16 @@ To build the package locally
 ```bash
 git clone https://github.com/awslabs/aws-crt-nodejs.git
 cd aws-crt-nodejs
-git submodule update --init
+git submodule update --init --recursive
 npm install
 ```
-
+### node-gype build
+````
+npm install -g node-gyp
+npm run prepare
+node-gyp configure
+node-gyp build
+````
 ## Using From Your NodeJS Application
 
 Normally, you just declare `aws-crt` as a dependency in your package.json file.
