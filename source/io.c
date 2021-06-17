@@ -624,7 +624,6 @@ static int s_input_stream_seek(struct aws_input_stream *stream, int64_t offset, 
 
     int result = AWS_OP_SUCCESS;
     uint64_t final_offset = 0;
-    int64_t checked_offset = offset;
 
     aws_mutex_lock(&impl->mutex);
     uint64_t total_bytes = impl->bytes_read + impl->buffer.len;
@@ -635,23 +634,25 @@ static int s_input_stream_seek(struct aws_input_stream *stream, int64_t offset, 
              * bytes are gone from the buffer), and must not be greater than the sum of the bytes
              * read so far and the size of the buffer
              */
-            if (checked_offset < 0 || (uint64_t)checked_offset > total_bytes ||
-                (uint64_t)checked_offset < impl->bytes_read) {
-                result = AWS_IO_STREAM_INVALID_SEEK_POSITION;
+            if (offset < 0 || (uint64_t)offset > total_bytes || (uint64_t)offset < impl->bytes_read) {
+                result = aws_raise_error(AWS_IO_STREAM_INVALID_SEEK_POSITION);
                 goto failed;
             }
-            final_offset = (uint64_t)checked_offset - impl->bytes_read;
+            final_offset = (uint64_t)offset - impl->bytes_read;
             break;
         case AWS_SSB_END:
             /* Offset must be negative, and must not be trying to go further back than the
              * current length of the buffer, because those bytes have been purged
              */
-            if (checked_offset > 0 || checked_offset == INT64_MIN || (uint64_t)(-checked_offset) > impl->buffer.len) {
-                result = AWS_IO_STREAM_INVALID_SEEK_POSITION;
+            if (offset > 0 || offset == INT64_MIN || (uint64_t)(-offset) > impl->buffer.len) {
+                result = aws_raise_error(AWS_IO_STREAM_INVALID_SEEK_POSITION);
                 goto failed;
             }
-            final_offset = (uint64_t)impl->buffer.len - (uint64_t)(-checked_offset);
+            final_offset = (uint64_t)impl->buffer.len - (uint64_t)(-offset);
             break;
+        default:
+            result = aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+            goto failed;
     }
 
     AWS_ASSERT(final_offset <= SIZE_MAX);
