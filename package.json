@@ -12,6 +12,7 @@
   "browser": "./dist.browser/browser.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "cmake": "cmake-js compile cmake",
     "tsc": "node ./scripts/tsc.js",
     "test": "npm run test:native",
     "test:node": "npm run test:native",
@@ -57,5 +58,10 @@
     "mqtt": "^4.2.6",
     "realpath-native": "^3.0.0",
     "websocket-stream": "^5.5.2"
+  },
+  "cmake-js": {
+    "runtime": "electron",
+    "runtimeVersion": "13.1.0",
+    "arch": "x64"
   }
 }
