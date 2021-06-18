@@ -20,6 +20,7 @@ jobs:
   linux-compat:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         image:
           - al2012-x64
@@ -36,6 +37,7 @@ jobs:
   clang-compat:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         version: [3, 6, 8, 9, 10, 11]
     steps:
@@ -50,6 +52,7 @@ jobs:
   gcc-compat:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         version: [6, 7, 8]
     steps:
@@ -86,6 +89,7 @@ jobs:
   windows-vc14:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         arch: [x86, x64]
     steps:
