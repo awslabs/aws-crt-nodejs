@@ -105,6 +105,55 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 }
 
 /**
+ * Object that allows for continuous SHA1 hashing of data.
+ *
+ * @module aws-crt
+ * @category Crypto
+ */
+ export class Sha1Hash {
+    private hash?: Crypto.WordArray;
+
+    /**
+     * Digests additional data
+     * @param data Additional data to digest
+     */
+    update(data: Hashable) {
+        this.hash = Crypto.SHA1(data.toString(), this.hash ? this.hash.toString() : undefined);
+    }
+
+    /**
+    * Completes the hash computation and returns the final digest.
+    *
+    * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+    */
+    finalize(truncate_to?: number): DataView {
+        const digest = this.hash ? this.hash.toString() : '';
+        const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(truncated);
+        return new DataView(bytes.buffer);
+    }
+}
+
+/**
+ * Computes an SHA1 hash. Use this if you don't need to stream the data you're hashing and can load the entire input
+ * into memory.
+ *
+ * @param data The data to hash
+ * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ *
+ * @module aws-crt
+ * @category Crypto
+ */
+export function hash_sha1(data: Hashable, truncate_to?: number): DataView {
+    const digest = Crypto.SHA1(data.toString()).toString();
+    const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(truncated);
+    return new DataView(bytes.buffer);
+}
+
+/**
  * Object that allows for continuous hashing of data with an hmac secret.
  *
  * @module aws-crt

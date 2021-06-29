@@ -596,15 +596,21 @@ static bool s_create_and_register_function(
 
     /* Crypto */
     CREATE_AND_REGISTER_FN(hash_md5_new)
+    CREATE_AND_REGISTER_FN(hash_sha1_new)
     CREATE_AND_REGISTER_FN(hash_sha256_new)
     CREATE_AND_REGISTER_FN(hash_update)
     CREATE_AND_REGISTER_FN(hash_digest)
     CREATE_AND_REGISTER_FN(hash_md5_compute)
+    CREATE_AND_REGISTER_FN(hash_sha1_compute)
     CREATE_AND_REGISTER_FN(hash_sha256_compute)
     CREATE_AND_REGISTER_FN(hmac_sha256_new)
     CREATE_AND_REGISTER_FN(hmac_update)
     CREATE_AND_REGISTER_FN(hmac_digest)
     CREATE_AND_REGISTER_FN(hmac_sha256_compute)
+
+    /* Checksums */
+    CREATE_AND_REGISTER_FN(checksums_crc32)
+    CREATE_AND_REGISTER_FN(checksums_crc32c)
 
     /* HTTP */
     CREATE_AND_REGISTER_FN(http_proxy_options_new)

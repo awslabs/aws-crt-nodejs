@@ -52,6 +52,7 @@ if (BUILD_DEPS)
     add_subdirectory(crt/aws-c-http)
     add_subdirectory(crt/aws-c-auth)
     add_subdirectory(crt/aws-c-mqtt)
+    add_subdirectory(crt/aws-checksums)
     
     set(BUILD_TESTING ${BUILD_TESTING_PREV})
 else()

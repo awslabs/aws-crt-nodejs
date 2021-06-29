@@ -83,6 +83,8 @@ export function hash_md5_new(): void;
 /** @internal */
 export function hash_sha256_new(): void;
 /** @internal */
+export function hash_sha1_new(): void;
+/** @internal */
 export function hash_update(handle: NativeHandle, data: StringLike): void;
 /** @internal */
 export function hash_digest(handle: NativeHandle, truncate_to?: number): DataView;
@@ -91,6 +93,8 @@ export function hash_digest(handle: NativeHandle, truncate_to?: number): DataVie
 export function hash_md5_compute(data: StringLike, truncate_to?: number): DataView;
 /** @internal */
 export function hash_sha256_compute(data: StringLike, truncate_to?: number): DataView;
+/** @internal */
+export function hash_sha1_compute(data: StringLike, truncate_to?: number): DataView;
 
 /** @internal */
 export function hmac_md5_new(secret: StringLike): void;

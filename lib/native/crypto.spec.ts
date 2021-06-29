@@ -39,6 +39,8 @@ test('SHA256 multi-part matches', () => {
     const native_hash = native_sha.finalize();
     const browser_hash = browser_sha.finalize();
 
+    // console.log(native_hash);
+    console.log(browser_hash);
     expect(native_hash).toEqual(browser_hash);
 });
 
@@ -46,6 +48,30 @@ test('SHA256 one-shot matches', () => {
     const data = 'ABC123XYZ';
     const native_hash = native.hash_sha256(data);
     const browser_hash = browser.hash_sha256(data);
+
+    // console.log(native_hash);
+    console.log(browser_hash);
+    expect(native_hash).toEqual(browser_hash);
+});
+
+test('SHA1 multi-part matches', () => {
+    const parts = ['ABC', '123', 'XYZ'];
+    const native_sha = new native.Sha1Hash();
+    const browser_sha = new browser.Sha1Hash();
+    parts.forEach(part => {
+        native_sha.update(part);
+        browser_sha.update(part);
+    });
+    const native_hash = native_sha.finalize();
+    const browser_hash = browser_sha.finalize();
+
+    expect(native_hash).toEqual(browser_hash);
+});
+
+test('SHA1 one-shot matches', () => {
+    const data = 'ABC123XYZ';
+    const native_hash = native.hash_sha1(data);
+    const browser_hash = browser.hash_sha1(data);
 
     expect(native_hash).toEqual(browser_hash);
 });
