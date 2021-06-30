@@ -83,6 +83,8 @@ export function hash_md5_new(): void;
 /** @internal */
 export function hash_sha256_new(): void;
 /** @internal */
+export function hash_sha1_new(): void;
+/** @internal */
 export function hash_update(handle: NativeHandle, data: StringLike): void;
 /** @internal */
 export function hash_digest(handle: NativeHandle, truncate_to?: number): DataView;
@@ -91,6 +93,8 @@ export function hash_digest(handle: NativeHandle, truncate_to?: number): DataVie
 export function hash_md5_compute(data: StringLike, truncate_to?: number): DataView;
 /** @internal */
 export function hash_sha256_compute(data: StringLike, truncate_to?: number): DataView;
+/** @internal */
+export function hash_sha1_compute(data: StringLike, truncate_to?: number): DataView;
 
 /** @internal */
 export function hmac_md5_new(secret: StringLike): void;
@@ -105,6 +109,14 @@ export function hmac_digest(handle: NativeHandle, truncate_to?: number): DataVie
 export function hmac_md5_compute(secret: StringLike, data: StringLike, truncate_to?: number): DataView;
 /** @internal */
 export function hmac_sha256_compute(secret: StringLike, data: StringLike, truncate_to?: number): DataView;
+
+/* Checksums */
+/* wraps aws_checksums functions */
+
+/** @internal */
+export function checksums_crc32(data: StringLike, previous?: number): number;
+/** @internal */
+export function checksums_crc32c(data: StringLike, previous?: number): number;
 
 /* MQTT Client */
 /** @internal */

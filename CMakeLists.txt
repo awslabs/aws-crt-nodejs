@@ -52,6 +52,7 @@ if (BUILD_DEPS)
     add_subdirectory(crt/aws-c-http)
     add_subdirectory(crt/aws-c-auth)
     add_subdirectory(crt/aws-c-mqtt)
+    add_subdirectory(crt/aws-checksums)
     
     set(BUILD_TESTING ${BUILD_TESTING_PREV})
 else()
@@ -89,6 +90,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 aws_use_package(aws-c-http REQUIRED)
 aws_use_package(aws-c-mqtt REQUIRED)
 aws_use_package(aws-c-auth REQUIRED)
+aws_use_package(aws-checksums REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
 if (CMAKE_JS_PLATFORM AND CMAKE_JS_ARCH)

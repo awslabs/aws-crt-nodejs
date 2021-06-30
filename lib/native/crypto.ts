@@ -89,6 +89,33 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 }
 
 /**
+ * Object that allows for continuous SHA1 hashing of data.
+ *
+ * @module aws-crt
+ * @category Crypto
+ */
+ export class Sha1Hash extends Hash {
+    constructor() {
+        super(crt_native.hash_sha1_new());
+    }
+}
+
+
+/**
+ * Computes an SHA1 hash. Use this if you don't need to stream the data you're hashing and can load the entire input
+ * into memory.
+ *
+ * @param data The data to hash
+ * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ *
+ * @module aws-crt
+ * @category Crypto
+ */
+export function hash_sha1(data: Hashable, truncate_to?: number): DataView {
+    return crt_native.hash_sha1_compute(data, truncate_to);
+}
+
+/**
  * Object that allows for continuous hashing of data with an hmac secret.
  *
  * @module aws-crt
