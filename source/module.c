@@ -5,6 +5,7 @@
 
 #include "auth.h"
 #include "crypto.h"
+#include "checksums.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
 #include "http_headers.h"

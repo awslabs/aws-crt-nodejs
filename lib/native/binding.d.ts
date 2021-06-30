@@ -110,6 +110,14 @@ export function hmac_md5_compute(secret: StringLike, data: StringLike, truncate_
 /** @internal */
 export function hmac_sha256_compute(secret: StringLike, data: StringLike, truncate_to?: number): DataView;
 
+/* Checksums */
+/* wraps aws_checksums functions */
+
+/** @internal */
+export function checksums_crc32(data: StringLike, previous?: number): number;
+/** @internal */
+export function checksums_crc32c(data: StringLike, previous?: number): number;
+
 /* MQTT Client */
 /** @internal */
 export function mqtt_client_new(client_bootstrap: NativeHandle): NativeHandle;
