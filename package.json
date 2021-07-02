@@ -12,6 +12,7 @@
   "browser": "./dist.browser/browser.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "cmake": "cmake-js compile cmake",
     "tsc": "node ./scripts/tsc.js",
     "test": "npm run test:native",
     "test:node": "npm run test:native",
@@ -31,9 +32,13 @@
     "@types/uuid": "^3.4.8",
     "@types/ws": "^6.0.4",
     "aws-sdk": "^2.848.0",
+    "bindings": "^1.5.0",
+    "electron": "^13.1.2",
+    "electron-rebuild": "^2.3.5",
     "jest": "^26.6.3",
     "jest-puppeteer": "^4.4.0",
     "jest-runtime": "^26.6.3",
+    "node-addon-api": "^4.0.0",
     "puppeteer": "^3.3.0",
     "ts-jest": "^26.5.1",
     "typedoc": "^0.17.8",
@@ -53,5 +58,10 @@
     "mqtt": "^4.2.6",
     "realpath-native": "^3.0.0",
     "websocket-stream": "^5.5.2"
+  },
+  "cmake-js": {
+    "runtime": "electron",
+    "runtimeVersion": "13.1.0",
+    "arch": "x64"
   }
 }
