@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "axios": "^0.21.1",
-    "cmake-js": "^6.2.0",
+    "cmake-js": "^6.1.0",
     "crypto-js": "^4.0.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
     "mqtt": "^4.2.8",
