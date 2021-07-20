@@ -71,6 +71,11 @@ export interface MqttConnectionConfig {
      */
     protocol_operation_timeout?: number;
     /**
+     * Milliseconds between reconnection attempts.
+     * A value of 0 will disable reconnection and then terminate the final connection when it drops.
+     */
+    reconnect_period?: number,
+    /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
      */
@@ -215,7 +220,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                reconnectPeriod: 0,
+                reconnectPeriod: this.config.reconnect_period ? this.config.reconnect_period : 0,
                 will: will,
                 transformWsUrl: websocketXform,
             }
