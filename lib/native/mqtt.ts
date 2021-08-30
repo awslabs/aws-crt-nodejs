@@ -313,23 +313,20 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
-
-            function on_publish(packet_id: number, error_code: number) {
-                payload = "";
-                topic = "";
-                if (error_code == 0) {
-                    resolve({ packet_id });
-                } else {
-                    reject("Failed to publish: " + io.error_code_to_string(error_code));
-                }
-            }
-            let payload_data = normalize_payload(payload);
             try {
-                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos, retain, on_publish);
+                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, normalize_payload(payload), qos, retain, resolve, reject, MqttClientConnection._on_publish_callback);
             } catch (e) {
                 reject(e);
             }
         });
+    }
+
+    private static _on_publish_callback(packet_id: number, error_code: number, resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void) {
+        if (error_code == 0) {
+            resolve({ packet_id });
+        } else {
+            reject("Failed to publish: " + io.error_code_to_string(error_code));
+        }
     }
 
     /**

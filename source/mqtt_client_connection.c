@@ -796,22 +796,30 @@ struct publish_args {
     uint16_t packet_id;
     int error_code;
     napi_threadsafe_function on_publish;
+    napi_ref resolve_ref;
+    napi_ref reject_ref;
 };
 
 static void s_on_publish_complete_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
     struct mqtt_connection_binding *binding = context;
     struct publish_args *args = user_data;
 
-    napi_value params[2];
+    napi_value params[4];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
     AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->packet_id, &params[0]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[2]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[3]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_publish, NULL, on_publish, num_params, params));
 
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_publish));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_abort));
+
+    napi_delete_reference(env, args->resolve_ref);
+    napi_delete_reference(env, args->reject_ref);
+
     aws_mem_release(binding->allocator, args);
 }
 
@@ -843,7 +851,7 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(topic_buf);
     AWS_ZERO_STRUCT(payload_buf);
 
-    napi_value node_args[6];
+    napi_value node_args[8];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -886,6 +894,18 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     bool retain = false;
     AWS_NAPI_CALL(env, napi_get_value_bool(env, node_retain, &retain), {
         napi_throw_type_error(env, NULL, "retain must be a bool");
+        goto cleanup;
+    });
+
+    napi_value node_resolve = *arg++;
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
+        napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+        goto cleanup;
+    });
+
+    napi_value node_reject = *arg++;
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &args->reject_ref), {
+        napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
         goto cleanup;
     });
 
@@ -1368,7 +1388,7 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_publish needs exactly 3 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_unsubscribe needs exactly 3 arguments");
         return NULL;
     }
 
