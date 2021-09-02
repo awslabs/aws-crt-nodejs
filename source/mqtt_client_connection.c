@@ -42,22 +42,37 @@ struct mqtt_connection_binding {
 };
 
 static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_connection_binding *binding) {
-    AWS_NAPI_ENSURE(
-        binding->env, aws_napi_release_threadsafe_function(binding->on_connection_interrupted, napi_tsfn_abort));
-    AWS_NAPI_ENSURE(
-        binding->env, aws_napi_release_threadsafe_function(binding->on_connection_resumed, napi_tsfn_abort));
-    AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_any_publish, napi_tsfn_abort));
-    AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->transform_websocket, napi_tsfn_abort));
-    binding->on_connection_interrupted = NULL;
-    binding->on_connection_resumed = NULL;
-    binding->on_any_publish = NULL;
-    binding->transform_websocket = NULL;
+
+    if (binding->on_connection_interrupted != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_interrupted, napi_tsfn_abort));
+        binding->on_connection_interrupted = NULL;
+    }
+
+    if (binding->on_connection_resumed != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_resumed, napi_tsfn_abort));
+        binding->on_connection_resumed = NULL;
+    }
+
+    if (binding->on_any_publish != NULL) {
+        AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_any_publish, napi_tsfn_abort));
+        binding->on_any_publish = NULL;
+    }
+
+    if (binding->transform_websocket != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->transform_websocket, napi_tsfn_abort));
+        binding->transform_websocket = NULL;
+    }
 }
 
 static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
     (void)env;
     struct mqtt_connection_binding *binding = finalize_data;
+
+    s_mqtt_client_connection_release_threadsafe_function(binding);
 
     if (binding->use_tls_options) {
         aws_tls_connection_options_clean_up(&binding->tls_options);
@@ -98,6 +113,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         napi_delete_reference(env, binding->node_external);
         binding->node_external = NULL;
     }
+
     if (binding->connection) {
         aws_mqtt_client_connection_release(binding->connection);
         binding->connection = NULL;

@@ -283,7 +283,10 @@ export class AwsIotMqttConnectionConfigBuilder {
             throw 'client_id and endpoint are required';
         }
 
-        this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        if (this.params.tls_ctx === undefined) {
+            this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        }
+
         return this.params;
     }
 }
