@@ -396,6 +396,13 @@ napi_status aws_napi_release_threadsafe_function(
     return napi_ok;
 }
 
+napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function function) {
+    if (function) {
+        return napi_acquire_threadsafe_function(function);
+    }
+    return napi_ok;
+}
+
 napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
     if (function) {
         return napi_unref_threadsafe_function(env, function);

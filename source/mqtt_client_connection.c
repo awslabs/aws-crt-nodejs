@@ -443,34 +443,69 @@ cleanup:
  * Connect
  ******************************************************************************/
 struct connect_args {
+    struct aws_allocator *allocator;
     struct mqtt_connection_binding *binding;
     enum aws_mqtt_connect_return_code return_code;
     int error_code;
     bool session_present;
     napi_threadsafe_function on_connect;
+    napi_ref resolve_ref;
+    napi_ref reject_ref;
 };
+
+static void s_destroy_connect_args(struct connect_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    AWS_FATAL_ASSERT(args->allocator != NULL);
+
+    if (args->on_connect != 0) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_connect, napi_tsfn_abort));
+    }
+
+    if (args->resolve_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        napi_delete_reference(args->binding->env, args->resolve_ref);
+    }
+
+    if (args->reject_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        napi_delete_reference(args->binding->env, args->reject_ref);
+    }
+
+    aws_mem_release(args->allocator, args);
+}
 
 static void s_on_connect_call(napi_env env, napi_value on_connect, void *context, void *user_data) {
     struct mqtt_connection_binding *binding = context;
     struct connect_args *args = user_data;
 
-    napi_value params[3];
+    napi_value params[5];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[1]));
     AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[2]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[3]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[4]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_connect, NULL, on_connect, num_params, params));
 
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_connect));
-
+    /*
+     * This is terrible and we need to make backwards incompatible changes to the API to correct it, but for now
+     * clean up the connection function bindings if the initial connect failed because that's the contract
+     * that we fulfilled in the past.  If we don't clean these up here then current programs written against
+     * the current contract will leak their resumed/interrupted/websocket callbacks.
+     */
     if (args->return_code || args->error_code) {
         /* Failed to create a connection, none of the callbacks will be invoked again */
         s_mqtt_client_connection_release_threadsafe_function(binding);
     }
-    aws_mem_release(binding->allocator, args);
+
+    s_destroy_connect_args(args);
 }
 
 static void s_on_connected(
@@ -484,7 +519,7 @@ static void s_on_connected(
     struct connect_args *args = user_data;
 
     if (!args->on_connect) {
-        aws_mem_release(args->binding->allocator, args);
+        s_destroy_connect_args(args);
         return;
     }
 
@@ -598,7 +633,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(server_name);
     struct connect_args *on_connect_args = NULL;
 
-    napi_value node_args[10];
+    napi_value node_args[12];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -606,7 +641,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 10 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 12 arguments");
         goto cleanup;
     }
 
@@ -615,6 +650,8 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         napi_throw_error(env, NULL, "Failed to extract connection from first argument");
         goto cleanup;
     });
+
+    struct aws_allocator *allocator = binding->allocator;
 
     napi_value node_client_id = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&client_id, env, node_client_id), {
@@ -634,6 +671,9 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         napi_throw_type_error(env, NULL, "port must be a Number");
         goto cleanup;
     });
+
+    napi_value node_resolve = *arg++;
+    napi_value node_reject = *arg++;
 
     napi_value node_socket_options = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
@@ -682,9 +722,11 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     napi_value node_on_connect = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_connect)) {
 
-        on_connect_args = aws_mem_calloc(binding->allocator, 1, sizeof(struct connect_args));
+        on_connect_args = aws_mem_calloc(allocator, 1, sizeof(struct connect_args));
         AWS_FATAL_ASSERT(on_connect_args);
+        on_connect_args->allocator = allocator;
         on_connect_args->binding = binding;
+
         AWS_NAPI_CALL(
             env,
             aws_napi_create_threadsafe_function(
@@ -698,6 +740,16 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
                 napi_throw_error(env, NULL, "Failed to bind on_connect callback");
                 goto cleanup;
             });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &on_connect_args->resolve_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+            goto cleanup;
+        });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &on_connect_args->reject_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
+            goto cleanup;
+        });
     }
 
     struct aws_byte_cursor client_id_cur = aws_byte_cursor_from_buf(&client_id);
@@ -725,12 +777,12 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     success = true;
 
 cleanup:
+
     aws_byte_buf_clean_up(&client_id);
     aws_byte_buf_clean_up(&server_name);
 
     if (!success && on_connect_args) {
-        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(on_connect_args->on_connect, napi_tsfn_abort));
-        aws_mem_release(binding->allocator, on_connect_args);
+        s_destroy_connect_args(on_connect_args);
     }
 
     return NULL;
@@ -792,17 +844,44 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
 /*******************************************************************************
  * Publish
  ******************************************************************************/
-struct publish_args {
+struct puback_args {
+    struct aws_allocator *allocator;
+    struct mqtt_connection_binding *binding;
     uint16_t packet_id;
     int error_code;
-    napi_threadsafe_function on_publish;
+    napi_threadsafe_function on_puback;
     napi_ref resolve_ref;
     napi_ref reject_ref;
 };
 
-static void s_on_publish_complete_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
-    struct mqtt_connection_binding *binding = context;
-    struct publish_args *args = user_data;
+static void s_destroy_puback_args(struct puback_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    AWS_FATAL_ASSERT(args->allocator != NULL);
+
+    if (args->on_puback != 0) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_puback, napi_tsfn_abort));
+    }
+
+    if (args->resolve_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        napi_delete_reference(args->binding->env, args->resolve_ref);
+    }
+
+    if (args->reject_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        napi_delete_reference(args->binding->env, args->reject_ref);
+    }
+
+    aws_mem_release(args->allocator, args);
+}
+
+static void s_on_publish_complete_call(napi_env env, napi_value on_puback, void *context, void *user_data) {
+    (void)context;
+    struct puback_args *args = user_data;
 
     napi_value params[4];
     const size_t num_params = AWS_ARRAY_SIZE(params);
@@ -813,14 +892,9 @@ static void s_on_publish_complete_call(napi_env env, napi_value on_publish, void
     AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[3]));
 
     AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_publish, NULL, on_publish, num_params, params));
+        env, aws_napi_dispatch_threadsafe_function(env, args->on_puback, NULL, on_puback, num_params, params));
 
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_abort));
-
-    napi_delete_reference(env, args->resolve_ref);
-    napi_delete_reference(env, args->reject_ref);
-
-    aws_mem_release(binding->allocator, args);
+    s_destroy_puback_args(args);
 }
 
 static void s_on_publish_complete(
@@ -831,20 +905,21 @@ static void s_on_publish_complete(
 
     (void)connection;
 
-    struct publish_args *args = user_data;
+    struct puback_args *args = user_data;
 
     args->packet_id = packet_id;
     args->error_code = error_code;
 
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_publish, args));
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_puback, args));
 }
 
 napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_info info) {
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    struct publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct publish_args));
+    struct puback_args *args = aws_mem_calloc(allocator, 1, sizeof(struct puback_args));
     AWS_FATAL_ASSERT(args);
+    args->allocator = allocator;
 
     struct aws_byte_buf topic_buf;
     struct aws_byte_buf payload_buf;
@@ -869,6 +944,8 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         napi_throw_error(env, NULL, "Failed to extract binding from external");
         goto cleanup;
     });
+
+    args->binding = binding;
 
     napi_value node_topic = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&topic_buf, env, node_topic), {
@@ -909,17 +986,17 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         goto cleanup;
     });
 
-    napi_value node_on_publish = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
+    napi_value node_on_puback = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_on_puback)) {
         AWS_NAPI_CALL(
             env,
             aws_napi_create_threadsafe_function(
                 env,
-                node_on_publish,
-                "aws_mqtt_client_connection_on_publish",
+                node_on_puback,
+                "aws_mqtt_client_connection_on_puback",
                 s_on_publish_complete_call,
                 binding,
-                &args->on_publish),
+                &args->on_puback),
             { goto cleanup; });
     }
 
@@ -929,7 +1006,6 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         binding->connection, &topic_cur, qos, retain, &payload_cur, s_on_publish_complete, args);
     if (!pub_id) {
         aws_napi_throw_last_error(env);
-        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_abort));
         goto cleanup;
     }
 
@@ -938,9 +1014,11 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     return NULL;
 
 cleanup:
+
     aws_byte_buf_clean_up(&payload_buf);
     aws_byte_buf_clean_up(&topic_buf);
-    aws_mem_release(allocator, args);
+
+    s_destroy_puback_args(args);
 
     return NULL;
 }
@@ -949,30 +1027,62 @@ cleanup:
  * Subscribe
  ******************************************************************************/
 struct suback_args {
+    struct aws_allocator *allocator;
     struct mqtt_connection_binding *binding;
     uint16_t packet_id;
     enum aws_mqtt_qos qos;
     int error_code;
-    struct aws_byte_cursor topic; /* owned by subscription */
+    struct aws_byte_buf topic; /* not confident that we can guarantee a cursor ref will always be valid */
     napi_threadsafe_function on_suback;
+    napi_ref resolve_ref;
+    napi_ref reject_ref;
 };
 
+static void s_destroy_suback_args(struct suback_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    AWS_FATAL_ASSERT(args->allocator != NULL);
+
+    aws_byte_buf_clean_up(&args->topic);
+
+    if (args->on_suback != 0) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_suback, napi_tsfn_abort));
+    }
+
+    if (args->resolve_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->resolve_ref));
+    }
+
+    if (args->reject_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        napi_delete_reference(args->binding->env, args->reject_ref);
+    }
+
+    aws_mem_release(args->allocator, args);
+}
+
 static void s_on_suback_call(napi_env env, napi_value on_suback, void *context, void *user_data) {
-    struct mqtt_connection_binding *binding = context;
+    (void)context;
     struct suback_args *args = user_data;
 
-    napi_value params[4];
+    napi_value params[6];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->packet_id, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)args->topic.ptr, args->topic.len, &params[1]));
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[1]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[2]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[3]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[4]));
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[5]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_suback, NULL, on_suback, num_params, params));
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_suback));
-    aws_mem_release(binding->allocator, args);
+
+    s_destroy_suback_args(args);
 }
 
 static void s_on_suback(
@@ -986,9 +1096,12 @@ static void s_on_suback(
     (void)topic;
 
     struct suback_args *args = user_data;
+    if (args == NULL) {
+        return;
+    }
 
     if (!args->on_suback) {
-        aws_mem_release(args->binding->allocator, args);
+        s_destroy_suback_args(args);
         return;
     }
 
@@ -1001,29 +1114,40 @@ static void s_on_suback(
 
 /* user data which describes a subscription, passed to aws_mqtt_connection_subscribe */
 struct subscription {
-    struct mqtt_connection_binding *binding;
+    struct aws_allocator *allocator;
     struct aws_byte_buf topic; /* stored here as long as the sub is active, referenced by callbacks */
     napi_threadsafe_function on_publish;
 };
 
-static void s_on_publish_user_data_clean_up(void *user_data) {
+static void s_destroy_subscription(struct subscription *sub) {
+    if (sub == NULL) {
+        return;
+    }
 
-    struct subscription *sub = user_data;
-    AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(sub->on_publish, napi_tsfn_abort));
+    AWS_FATAL_ASSERT(sub->allocator != NULL);
+
+    if (sub->on_publish != 0) {
+        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(sub->on_publish, napi_tsfn_release));
+    }
 
     aws_byte_buf_clean_up(&sub->topic);
-    aws_mem_release(sub->binding->allocator, sub);
+    aws_mem_release(sub->allocator, sub);
+}
+
+static void s_on_publish_user_data_clean_up(void *user_data) {
+    s_destroy_subscription(user_data);
 }
 
 /* arguments for publish callbacks */
 struct on_publish_args {
     struct aws_allocator *allocator;
-    struct aws_byte_buf topic;   /* owned by this */
-    struct aws_byte_buf payload; /* owned by this */
+    struct aws_byte_buf topic;    /* owned by this */
+    struct aws_byte_buf *payload; /* owned by this until the external array buffer in the direct callback is created */
     bool dup;
     enum aws_mqtt_qos qos;
     bool retain;
-    napi_threadsafe_function on_publish; /* owned by subscription */
+    napi_threadsafe_function
+        on_publish; /* created by subscription, but we add/dec ref on our copy of the pointer too */
 };
 
 static void s_destroy_on_publish_args(struct on_publish_args *args) {
@@ -1031,16 +1155,32 @@ static void s_destroy_on_publish_args(struct on_publish_args *args) {
         return;
     }
 
-    aws_byte_buf_clean_up(&args->payload);
+    AWS_FATAL_ASSERT(args->allocator != NULL);
+
+    if (args->on_publish != NULL) {
+        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_release));
+    }
+
+    if (args->payload != NULL) {
+        aws_byte_buf_clean_up(args->payload);
+        aws_mem_release(args->allocator, args->payload);
+    }
+
     aws_byte_buf_clean_up(&args->topic);
+
     aws_mem_release(args->allocator, args);
 }
 
 static void s_publish_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
-    struct on_publish_args *args = finalize_hint;
-    s_destroy_on_publish_args(args);
+    struct aws_byte_buf *buf = finalize_hint;
+
+    struct aws_allocator *allocator = buf->allocator;
+    AWS_FATAL_ASSERT(allocator != NULL);
+
+    aws_byte_buf_clean_up(buf);
+    aws_mem_release(allocator, buf);
 }
 
 static void s_on_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
@@ -1057,18 +1197,26 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
             env,
             napi_create_external_arraybuffer(
                 env,
-                args->payload.buffer,
-                args->payload.len,
+                args->payload->buffer,
+                args->payload->len,
                 s_publish_external_arraybuffer_finalizer,
-                args,
+                args->payload,
                 &params[1]));
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
         AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
 
+        /*
+         * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
+         * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it up.
+         */
+        args->payload = NULL;
+
         AWS_NAPI_ENSURE(
             env, aws_napi_dispatch_threadsafe_function(env, args->on_publish, NULL, on_publish, num_params, params));
     }
+
+    s_destroy_on_publish_args(args);
 }
 
 /* called in response to a message being published to an active subscription */
@@ -1092,34 +1240,57 @@ static void s_on_publish(
     struct mqtt_connection_binding *binding = NULL;
     AWS_NAPI_ENSURE(NULL, napi_get_threadsafe_function_context(sub->on_publish, (void **)&binding));
 
-    struct on_publish_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_publish_args));
+    struct aws_allocator *allocator = binding->allocator;
+    struct on_publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct on_publish_args));
     AWS_FATAL_ASSERT(args);
 
-    args->allocator = binding->allocator;
+    args->allocator = allocator;
     args->dup = dup;
     args->qos = qos;
     args->retain = retain;
     args->on_publish = sub->on_publish;
 
-    if (aws_byte_buf_init_copy_from_cursor(&args->topic, binding->allocator, *topic)) {
-        s_destroy_on_publish_args(args);
+    /*
+     * We share this threadsafe function with the subscription structure.  Each applies a inc/dec ref because
+     * it isn't clear that we can guarantee the order of destruction because we don't really have any
+     * guarantees about V8's internal scheduling/ordering invariants for queued functions.
+     */
+    if (args->on_publish != 0) {
+        AWS_NAPI_ENSURE(NULL, aws_napi_acquire_threadsafe_function(args->on_publish));
+    }
+
+    if (aws_byte_buf_init_copy_from_cursor(&args->topic, allocator, *topic)) {
         AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT topic, message will not be delivered");
-        return;
+        goto on_error;
+    }
+
+    /*
+     * Create the payload as a pointer-to-buf so cleanup responsibilities can be transferred to the payload's
+     * finalizer.
+     */
+    args->payload = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
+    if (args->payload == NULL) {
+        goto on_error;
     }
 
     /* this is freed after being delivered to node in s_on_publish_call */
-    if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
-        s_destroy_on_publish_args(args);
+    if (aws_byte_buf_init_copy_from_cursor(args->payload, allocator, *payload)) {
         AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, message will not be delivered");
-        return;
+        goto on_error;
     }
 
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_publish, args));
+
+    return;
+
+on_error:
+
+    s_destroy_on_publish_args(args);
 }
 
 napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info cb_info) {
 
-    napi_value node_args[5];
+    napi_value node_args[7];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1127,7 +1298,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 5 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 7 arguments");
         return NULL;
     }
 
@@ -1138,10 +1309,11 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         return NULL;
     });
 
-    struct subscription *sub = aws_mem_calloc(binding->allocator, 1, sizeof(struct subscription));
+    struct aws_allocator *allocator = binding->allocator;
     struct suback_args *suback = NULL;
+    struct subscription *sub = aws_mem_calloc(allocator, 1, sizeof(struct subscription));
     AWS_FATAL_ASSERT(sub);
-    sub->binding = binding;
+    sub->allocator = allocator;
 
     napi_value node_topic = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&sub->topic, env, node_topic), {
@@ -1156,6 +1328,10 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         goto cleanup;
     });
     enum aws_mqtt_qos qos = (enum aws_mqtt_qos)qos_uint;
+
+    /* Used conditionally if a suback callback was provided */
+    napi_value node_resolve = *arg++;
+    napi_value node_reject = *arg++;
 
     napi_value node_on_publish = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
@@ -1173,10 +1349,11 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
 
     napi_value node_on_suback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_suback)) {
-        suback = aws_mem_calloc(binding->allocator, 1, sizeof(struct suback_args));
+        suback = aws_mem_calloc(allocator, 1, sizeof(struct suback_args));
         AWS_FATAL_ASSERT(suback);
+        suback->allocator = allocator;
         suback->binding = binding;
-        suback->topic = aws_byte_cursor_from_buf(&sub->topic);
+        aws_byte_buf_init_copy_from_cursor(&suback->topic, allocator, aws_byte_cursor_from_buf(&sub->topic));
         AWS_NAPI_CALL(
             env,
             aws_napi_create_threadsafe_function(
@@ -1187,6 +1364,16 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
                 binding,
                 &suback->on_suback),
             { goto cleanup; });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &suback->reject_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
+            goto cleanup;
+        });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &suback->resolve_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+            goto cleanup;
+        });
     }
 
     struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&sub->topic);
@@ -1201,32 +1388,55 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     return NULL;
 
 cleanup:
-    if (sub->topic.buffer) {
-        aws_byte_buf_clean_up(&sub->topic);
-    }
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(sub->on_publish, napi_tsfn_abort));
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(suback->on_suback, napi_tsfn_abort));
-    aws_mem_release(binding->allocator, sub);
-    aws_mem_release(binding->allocator, suback);
+
+    s_destroy_subscription(sub);
+    s_destroy_suback_args(suback);
 
     return NULL;
 }
 
+/*
+ * on-any publish
+ */
 struct on_any_publish_args {
     struct aws_allocator *allocator;
     struct aws_string *topic;
-    struct aws_byte_buf payload;
+    struct aws_byte_buf *payload;
     bool dup;
     enum aws_mqtt_qos qos;
     bool retain;
 };
 
+static void s_destroy_on_any_publish_args(struct on_any_publish_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    aws_string_destroy(args->topic);
+
+    /*
+     * Between payload construction and transfer to the external array the only failure options are fatal, but
+     * as a pattern I believe it to be better (future-proofing, consistency) to properly handle the possibility
+     * of the payload getting created but not transferred to the external array's finalizer
+     */
+    if (args->payload) {
+        aws_byte_buf_clean_up(args->payload);
+        aws_mem_release(args->allocator, args->payload);
+    }
+
+    aws_mem_release(args->allocator, args);
+}
+
 static void s_any_publish_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
-    struct on_any_publish_args *args = finalize_hint;
-    aws_byte_buf_clean_up(&args->payload);
-    aws_mem_release(args->allocator, args);
+
+    struct aws_byte_buf *payload = finalize_hint;
+    struct aws_allocator *allocator = payload->allocator;
+    AWS_FATAL_ASSERT(allocator != NULL);
+
+    aws_byte_buf_clean_up(payload);
+    aws_mem_release(allocator, payload);
 }
 
 static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
@@ -1241,19 +1451,25 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
         env,
         napi_create_external_arraybuffer(
             env,
-            args->payload.buffer,
-            args->payload.len,
+            args->payload->buffer,
+            args->payload->len,
             s_any_publish_external_arraybuffer_finalizer,
-            args,
+            args->payload,
             &params[1]));
     AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
     AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
 
+    /*
+     * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
+     * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it up.
+     */
+    args->payload = NULL;
+
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
 
-    aws_string_destroy(args->topic);
+    s_destroy_on_any_publish_args(args);
 }
 
 static void s_on_any_publish(
@@ -1268,22 +1484,34 @@ static void s_on_any_publish(
     (void)connection;
 
     struct mqtt_connection_binding *binding = user_data;
-    struct on_any_publish_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct on_publish_args));
-    AWS_FATAL_ASSERT(args);
-
-    args->topic = aws_string_new_from_array(binding->allocator, topic->ptr, topic->len);
-    args->dup = dup;
-    args->qos = qos;
-    args->retain = retain;
-    args->allocator = binding->allocator;
-    /* this is freed after being delivered to node in s_on_any_publish_call */
-    if (aws_byte_buf_init_copy_from_cursor(&args->payload, binding->allocator, *payload)) {
-        aws_mem_release(binding->allocator, args);
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
+    if (binding->on_any_publish == NULL) {
         return;
     }
 
+    struct aws_allocator *allocator = binding->allocator;
+    struct on_any_publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct on_publish_args));
+    AWS_FATAL_ASSERT(args);
+
+    args->allocator = allocator;
+    args->topic = aws_string_new_from_array(allocator, topic->ptr, topic->len);
+    args->dup = dup;
+    args->qos = qos;
+    args->retain = retain;
+    args->payload = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
+
+    /* this is freed after being delivered to node in s_on_any_publish_call */
+    if (aws_byte_buf_init_copy_from_cursor(args->payload, allocator, *payload)) {
+        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
+        goto on_error;
+    }
+
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_any_publish, args));
+
+    return;
+
+on_error:
+
+    s_destroy_on_any_publish_args(args);
 }
 
 napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info cb_info) {
@@ -1312,6 +1540,15 @@ napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callbac
         return NULL;
     }
 
+    /*
+     * There's no reasonable way of making this safe for multiple calls.  We have to assume this is pre-connect
+     * otherwise the callback could be getting used in another thread as we try and change it here.
+     */
+    if (binding->on_any_publish != NULL) {
+        napi_throw_error(env, NULL, "on_any_publish handler cannot be set more than once");
+        return NULL;
+    }
+
     AWS_NAPI_CALL(
         env,
         aws_napi_create_threadsafe_function(
@@ -1331,30 +1568,62 @@ napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callbac
  ******************************************************************************/
 
 struct unsuback_args {
+    struct aws_allocator *allocator;
     struct mqtt_connection_binding *binding;
     struct aws_byte_buf topic; /* stored here until unsub completes */
     uint16_t packet_id;
     int error_code;
+    napi_ref resolve_ref;
+    napi_ref reject_ref;
     napi_threadsafe_function on_unsuback;
 };
 
+static void s_destroy_unsuback_args(struct unsuback_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    AWS_FATAL_ASSERT(args->allocator != NULL);
+
+    aws_byte_buf_clean_up(&args->topic);
+
+    if (args->on_unsuback != 0) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_unsuback, napi_tsfn_abort));
+    }
+
+    if (args->resolve_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->resolve_ref));
+    }
+
+    if (args->reject_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->reject_ref));
+    }
+
+    aws_mem_release(args->allocator, args);
+}
+
 static void s_on_unsub_ack_call(napi_env env, napi_value on_unsuback, void *context, void *user_data) {
-    struct mqtt_connection_binding *binding = context;
+    (void)context;
+
     struct unsuback_args *args = user_data;
 
     if (env) {
-        napi_value params[2];
+        napi_value params[4];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
         AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->packet_id, &params[0]));
         AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[2]));
+        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[3]));
 
         AWS_NAPI_ENSURE(
             env, aws_napi_dispatch_threadsafe_function(env, args->on_unsuback, NULL, on_unsuback, num_params, params));
     }
 
-    aws_byte_buf_clean_up(&args->topic);
-    aws_mem_release(binding->allocator, args);
+    s_destroy_unsuback_args(args);
 }
 
 static void s_on_unsubscribe_complete(
@@ -1367,8 +1636,7 @@ static void s_on_unsubscribe_complete(
     struct unsuback_args *args = user_data;
 
     if (!args->on_unsuback) {
-        aws_byte_buf_clean_up(&args->topic);
-        aws_mem_release(args->binding->allocator, args);
+        s_destroy_unsuback_args(args);
         return;
     }
 
@@ -1380,7 +1648,7 @@ static void s_on_unsubscribe_complete(
 
 napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info cb_info) {
 
-    napi_value node_args[3];
+    napi_value node_args[5];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1388,7 +1656,7 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_unsubscribe needs exactly 3 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_unsubscribe needs exactly 5 arguments");
         return NULL;
     }
 
@@ -1399,8 +1667,10 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         return NULL;
     });
 
-    struct unsuback_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct unsuback_args));
+    struct aws_allocator *allocator = binding->allocator;
+    struct unsuback_args *args = aws_mem_calloc(allocator, 1, sizeof(struct unsuback_args));
     AWS_FATAL_ASSERT(args);
+    args->allocator = allocator;
     args->binding = binding;
 
     napi_value node_topic = *arg++;
@@ -1408,6 +1678,9 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         napi_throw_type_error(env, NULL, "topic must be a String");
         goto cleanup;
     }
+
+    napi_value node_resolve = *arg++;
+    napi_value node_reject = *arg++;
 
     napi_value node_on_unsuback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_unsuback)) {
@@ -1421,6 +1694,16 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
                 binding,
                 &args->on_unsuback),
             { goto cleanup; });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+            goto cleanup;
+        });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &args->reject_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
+            goto cleanup;
+        });
     }
 
     const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&args->topic);
@@ -1435,10 +1718,10 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
     args->packet_id = unsub_id;
 
     return NULL;
+
 cleanup:
-    aws_byte_buf_clean_up(&args->topic);
-    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_unsuback, napi_tsfn_abort));
-    aws_mem_release(binding->allocator, args);
+
+    s_destroy_unsuback_args(args);
 
     return NULL;
 }
@@ -1447,18 +1730,45 @@ cleanup:
  * Disconnect
  ******************************************************************************/
 struct disconnect_args {
+    struct aws_allocator *allocator;
     struct mqtt_connection_binding *binding;
+    napi_ref resolve_ref;
     napi_threadsafe_function on_disconnect;
 };
 
+static void s_destroy_disconnect_args(struct disconnect_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    AWS_FATAL_ASSERT(args->allocator != NULL);
+
+    if (args->on_disconnect != 0) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_disconnect, napi_tsfn_abort));
+    }
+
+    if (args->resolve_ref != NULL) {
+        AWS_FATAL_ASSERT(args->binding != NULL);
+        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->resolve_ref));
+    }
+
+    aws_mem_release(args->allocator, args);
+}
+
 static void s_on_disconnect_call(napi_env env, napi_value on_disconnect, void *context, void *user_data) {
+    (void)context;
     struct disconnect_args *args = user_data;
-    struct mqtt_connection_binding *binding = context;
 
-    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, 0, NULL));
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_disconnect));
+    napi_value params[1];
+    const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    aws_mem_release(binding->allocator, args);
+    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[0]));
+
+    AWS_NAPI_ENSURE(
+        env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, num_params, params));
+
+    s_destroy_disconnect_args(args);
 }
 
 static void s_on_disconnected(struct aws_mqtt_client_connection *connection, void *user_data) {
@@ -1466,7 +1776,7 @@ static void s_on_disconnected(struct aws_mqtt_client_connection *connection, voi
 
     struct disconnect_args *args = user_data;
     if (!args->on_disconnect) {
-        aws_mem_release(args->binding->allocator, args);
+        s_destroy_disconnect_args(args);
         return;
     }
 
@@ -1477,7 +1787,7 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
 
     struct mqtt_connection_binding *binding = NULL;
 
-    napi_value node_args[2];
+    napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1485,7 +1795,7 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_disconnect needs exactly 2 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_disconnect needs exactly 3 arguments");
         return NULL;
     }
 
@@ -1495,10 +1805,14 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         return NULL;
     });
 
-    struct disconnect_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct disconnect_args));
-    AWS_FATAL_ASSERT(args);
+    napi_value node_resolve = *arg++;
 
+    struct aws_allocator *allocator = binding->allocator;
+    struct disconnect_args *args = aws_mem_calloc(allocator, 1, sizeof(struct disconnect_args));
+    AWS_FATAL_ASSERT(args);
+    args->allocator = allocator;
     args->binding = binding;
+
     napi_value node_on_disconnect = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_disconnect)) {
         AWS_NAPI_CALL(
@@ -1510,15 +1824,24 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
                 s_on_disconnect_call,
                 binding,
                 &args->on_disconnect),
-            { return NULL; });
+            { goto on_error; });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+            goto on_error;
+        });
     }
 
     if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, args)) {
         aws_napi_throw_last_error(env);
-        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(args->on_disconnect, napi_tsfn_abort));
-        aws_mem_release(binding->allocator, args);
-        return NULL;
+        goto on_error;
     }
+
+    return NULL;
+
+on_error:
+
+    s_destroy_disconnect_args(args);
 
     return NULL;
 }

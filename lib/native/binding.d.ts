@@ -6,7 +6,7 @@
 import { InputStream } from "./io";
 import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValue, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
-import {MqttRequest, OnMessageCallback, QoS} from "../common/mqtt";
+import { MqttSubscribeRequest, MqttRequest, OnMessageCallback, QoS } from "../common/mqtt";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -146,12 +146,14 @@ export function mqtt_client_connection_connect(
     client_id: StringLike,
     server_name: StringLike,
     port: number,
+    resolve : (value?: (boolean | PromiseLike<boolean> | undefined)) => void,
+    reject : (reason?: any) => void,
     socket_options?: NativeHandle,
     keep_alive_time?: number,
     ping_timeout?: number,
     protocol_operation_timeout?: number,
     clean_session?: boolean,
-    on_connect?: mqtt_on_connect,
+    on_connect?: (error_code: number, return_code: number, session_present: boolean, resolve : (value?: (boolean | PromiseLike<boolean> | undefined)) => void, reject : (reason?: any) => void) => void,
 ): void;
 
 /** @internal */
@@ -174,8 +176,10 @@ export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
     topic: StringLike,
     qos: number,
+    resolve : (value?: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest> | undefined)) => void,
+    reject : (reason?: any) => void,
     on_publish?: OnMessageCallback,
-    on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number) => void,
+    on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number, resolve : (value?: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest> | undefined)) => void, reject : (reason?: any) => void) => void,
 ): void;
 
 /** @internal */
@@ -188,11 +192,16 @@ export function mqtt_client_connection_on_message(
 export function mqtt_client_connection_unsubscribe(
     connection: NativeHandle,
     topic: StringLike,
-    on_unsuback?: (packet_id: number, error_code: number) => void,
+    resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void,
+    reject : (reason?: any) => void,
+    on_unsuback?: (packet_id: number, error_code: number, resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void) => void,
 ): void;
 
 /** @internal */
-export function mqtt_client_connection_disconnect(connection: NativeHandle, on_disconnect?: () => void): void;
+export function mqtt_client_connection_disconnect(
+    connection: NativeHandle,
+    resolve: (value?: (void | PromiseLike<void> | undefined )) => void,
+    on_disconnect?: (resolve: (value?: (void | PromiseLike<void> | undefined )) => void) => void): void;
 
 /** @internal */
 export function mqtt_client_connection_close(connection: NativeHandle): void;
