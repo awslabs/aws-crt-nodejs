@@ -72,6 +72,7 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
     (void)env;
     struct mqtt_connection_binding *binding = finalize_data;
 
+    /* Should have already been done, but just to be safe -- now that it's reentrant -- release the functions anyways */
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
     if (binding->use_tls_options) {
@@ -465,6 +466,8 @@ struct connect_args {
     int error_code;
     bool session_present;
     napi_threadsafe_function on_connect;
+
+    /* references to the resolve and reject closures of the connect() promise */
     napi_ref resolve_ref;
     napi_ref reject_ref;
 };
@@ -688,6 +691,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
 
+    /* pull out the connect() promise resolve/reject closures */
     napi_value node_resolve = *arg++;
     napi_value node_reject = *arg++;
 
@@ -757,6 +761,10 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
                 goto cleanup;
             });
 
+        /*
+         * Keep references to the resolve and reject closures for the connect() promise so that we can pass them
+         * back when the async operation completes
+         */
         AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &on_connect_args->resolve_ref), {
             napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
             goto cleanup;
@@ -866,6 +874,8 @@ struct puback_args {
     uint16_t packet_id;
     int error_code;
     napi_threadsafe_function on_puback;
+
+    /* references to the resolve and reject closures of the publish() promise */
     napi_ref resolve_ref;
     napi_ref reject_ref;
 };
@@ -990,17 +1000,9 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         goto cleanup;
     });
 
+    /* pull out the publish() promise resolve/reject closures */
     napi_value node_resolve = *arg++;
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
-        napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
-        goto cleanup;
-    });
-
     napi_value node_reject = *arg++;
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &args->reject_ref), {
-        napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
-        goto cleanup;
-    });
 
     napi_value node_on_puback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_puback)) {
@@ -1014,6 +1016,20 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
                 binding,
                 &args->on_puback),
             { goto cleanup; });
+
+        /*
+         * Keep references to the resolve and reject closures for the publish() promise so that we can pass them
+         * back when the async operation completes
+         */
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+            goto cleanup;
+        });
+
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &args->reject_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
+            goto cleanup;
+        });
     }
 
     const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&topic_buf);
@@ -1050,6 +1066,8 @@ struct suback_args {
     int error_code;
     struct aws_byte_buf topic; /* not confident that we can guarantee a cursor ref will always be valid */
     napi_threadsafe_function on_suback;
+
+    /* references to the resolve and reject closures of the subscribe() promise */
     napi_ref resolve_ref;
     napi_ref reject_ref;
 };
@@ -1345,7 +1363,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
     enum aws_mqtt_qos qos = (enum aws_mqtt_qos)qos_uint;
 
-    /* Used conditionally if a suback callback was provided */
+    /* pull out the subscribe() promise resolve/reject closures */
     napi_value node_resolve = *arg++;
     napi_value node_reject = *arg++;
 
@@ -1381,13 +1399,17 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
                 &suback->on_suback),
             { goto cleanup; });
 
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &suback->reject_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
+        /*
+         * Keep references to the resolve and reject closures for the subscribe() promise so that we can pass them
+         * back when the async operation completes
+         */
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &suback->resolve_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
             goto cleanup;
         });
 
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &suback->resolve_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
+        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &suback->reject_ref), {
+            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
             goto cleanup;
         });
     }
@@ -1589,9 +1611,11 @@ struct unsuback_args {
     struct aws_byte_buf topic; /* stored here until unsub completes */
     uint16_t packet_id;
     int error_code;
+    napi_threadsafe_function on_unsuback;
+
+    /* references to the resolve and reject closures of the unsubscribe() promise */
     napi_ref resolve_ref;
     napi_ref reject_ref;
-    napi_threadsafe_function on_unsuback;
 };
 
 static void s_destroy_unsuback_args(struct unsuback_args *args) {
@@ -1695,6 +1719,7 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         goto cleanup;
     }
 
+    /* pull out the unsubscribe() promise resolve/reject closures */
     napi_value node_resolve = *arg++;
     napi_value node_reject = *arg++;
 
@@ -1711,6 +1736,10 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
                 &args->on_unsuback),
             { goto cleanup; });
 
+        /*
+         * Keep references to the resolve and reject closures for the unsubscribe() promise so that we can pass them
+         * back when the async operation completes
+         */
         AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
             napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
             goto cleanup;
@@ -1748,8 +1777,10 @@ cleanup:
 struct disconnect_args {
     struct aws_allocator *allocator;
     struct mqtt_connection_binding *binding;
-    napi_ref resolve_ref;
     napi_threadsafe_function on_disconnect;
+
+    /* reference to the resolve closure of the disconnect() promise.  We don't need the reject. */
+    napi_ref resolve_ref;
 };
 
 static void s_destroy_disconnect_args(struct disconnect_args *args) {
@@ -1821,6 +1852,7 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         return NULL;
     });
 
+    /* pull out the disconnect() promise resolve closure */
     napi_value node_resolve = *arg++;
 
     struct aws_allocator *allocator = binding->allocator;
@@ -1842,6 +1874,10 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
                 &args->on_disconnect),
             { goto on_error; });
 
+        /*
+         * Keep references to the resolve closure for the disonnect() promise so that we can pass it
+         * back when the async operation completes
+         */
         AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
             napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
             goto on_error;

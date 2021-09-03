@@ -283,6 +283,12 @@ export class AwsIotMqttConnectionConfigBuilder {
             throw 'client_id and endpoint are required';
         }
 
+        /*
+         * By caching and reusing the tls context we get an enormous memory savings on a per-connection basis.
+         * The tradeoff is that you can't modify tls options in between calls to build.
+         * Previously we were making a new one with every single connection which had a huge negative impact on large
+         * scale tests.
+         */
         if (this.params.tls_ctx === undefined) {
             this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
         }
