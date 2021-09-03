@@ -6,7 +6,7 @@
 import { InputStream } from "./io";
 import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValue, AwsSignedBodyHeaderType } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
-import { MqttSubscribeRequest, MqttRequest, OnMessageCallback, QoS } from "../common/mqtt";
+import { OnMessageCallback, QoS } from "../common/mqtt";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -151,7 +151,7 @@ export function mqtt_client_connection_connect(
     ping_timeout?: number,
     protocol_operation_timeout?: number,
     clean_session?: boolean,
-    on_connect?: (error_code: number, return_code: number, session_present: boolean) => void,
+    on_connect?: mqtt_on_connect,
 ): void;
 
 /** @internal */
@@ -190,9 +190,7 @@ export function mqtt_client_connection_unsubscribe(
 ): void;
 
 /** @internal */
-export function mqtt_client_connection_disconnect(
-    connection: NativeHandle,
-    on_disconnect?: () => void): void;
+export function mqtt_client_connection_disconnect(connection: NativeHandle, on_disconnect?: () => void): void;
 
 /** @internal */
 export function mqtt_client_connection_close(connection: NativeHandle): void;
