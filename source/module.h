@@ -72,6 +72,12 @@ napi_status aws_napi_create_threadsafe_function(
     napi_threadsafe_function *result);
 
 /**
+ * Wrapper around napi_acquire_threadsafe_function,
+ * check the function before acquiring it.
+ */
+napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function function);
+
+/**
  * Wrapper around napi_release_threadsafe_function,
  * check the function before releasing it.
  */

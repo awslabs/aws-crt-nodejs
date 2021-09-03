@@ -436,9 +436,7 @@ cleanup:
     aws_byte_buf_clean_up_secure(&private_key);
     aws_byte_buf_clean_up_secure(&ca_buf);
     aws_string_destroy(alpn_list);
-    if (!result) {
-        aws_tls_ctx_options_clean_up(&ctx_options);
-    }
+    aws_tls_ctx_options_clean_up(&ctx_options);
 
     return result;
 }

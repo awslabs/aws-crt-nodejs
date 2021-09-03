@@ -180,6 +180,14 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
+
+        /*
+         * Failed mqtt operations (which is normal) emit error events as well as rejecting the original promise.
+         * By installing a default error handler here we help prevent common issues where operation failures bring
+         * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
+         * will be unaffected.
+         */
+        this.on('error', (error) => {});
     }
 
     private close() {
@@ -237,17 +245,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<boolean>((resolve, reject) => {
             reject = this._reject(reject);
 
-            const on_connect = (error_code: number, return_code: number, session_present: boolean) => {
-                if (error_code == 0 && return_code == 0) {
-                    resolve(session_present);
-                    this.emit('connect', session_present);
-                } else if (error_code != 0) {
-                    reject("Failed to connect: " + io.error_code_to_string(error_code));
-                } else {
-                    reject("Server rejected connection.");
-                }
-            }
-
             try {
                 crt_native.mqtt_client_connection_connect(
                     this.native_handle(),
@@ -259,7 +256,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.ping_timeout,
                     this.config.protocol_operation_timeout,
                     this.config.clean_session,
-                    on_connect,
+                    this._on_connect_callback.bind(this, resolve, reject),
                 );
             } catch (e) {
                 reject(e);
@@ -276,18 +273,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<boolean>((resolve, reject) => {
             reject = this._reject(reject);
 
-            function on_connect(error_code: number, return_code: number, session_present: boolean) {
-                if (error_code == 0 && return_code == 0) {
-                    resolve(session_present);
-                } else if (error_code != 0) {
-                    reject("Failed to connect: " + io.error_code_to_string(error_code));
-                } else {
-                    reject("Server rejected connection.");
-                }
-            }
-
             try {
-                crt_native.mqtt_client_connection_reconnect(this.native_handle(), on_connect);
+                crt_native.mqtt_client_connection_reconnect(this.native_handle(), this._on_connect_callback.bind(this, resolve, reject));
             } catch (e) {
                 reject(e);
             }
@@ -313,19 +300,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
-
-            function on_publish(packet_id: number, error_code: number) {
-                payload = "";
-                topic = "";
-                if (error_code == 0) {
-                    resolve({ packet_id });
-                } else {
-                    reject("Failed to publish: " + io.error_code_to_string(error_code));
-                }
-            }
-            let payload_data = normalize_payload(payload);
             try {
-                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, payload_data, qos, retain, on_publish);
+                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, normalize_payload(payload), qos, retain, this._on_puback_callback.bind(this, resolve, reject));
             } catch (e) {
                 reject(e);
             }
@@ -355,16 +331,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            function on_suback(packet_id: number, topic: string, qos: QoS, error_code: number) {
-                if (error_code == 0) {
-                    resolve({ packet_id, topic, qos, error_code });
-                } else {
-                    reject("Failed to subscribe: " + io.error_code_to_string(error_code));
-                }
-            }
-
             try {
-                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message, on_suback);
+                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message, this._on_suback_callback.bind(this, resolve, reject));
             } catch (e) {
                 reject(e);
             }
@@ -383,16 +351,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
-            function on_unsuback(packet_id: number, error_code: number) {
-                if (error_code == 0) {
-                    resolve({ packet_id });
-                } else {
-                    reject("Failed to unsubscribe: " + io.error_code_to_string(error_code));
-                }
-            }
-
             try {
-                crt_native.mqtt_client_connection_unsubscribe(this.native_handle(), topic, on_unsuback);
+                crt_native.mqtt_client_connection_unsubscribe(this.native_handle(), topic, this._on_unsuback_callback.bind(this, resolve, reject));
             } catch (e) {
                 reject(e);
             }
@@ -407,18 +367,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<void>((resolve, reject) => {
             reject = this._reject(reject);
 
-            const on_disconnect = () => {
-                resolve();
-                this.emit('disconnect');
-                this.close();
-            }
-
             try {
                 crt_native.mqtt_client_connection_disconnect(
                     this.native_handle(),
-                    on_disconnect,
+                    this._on_disconnect_callback.bind(this, resolve)
                 );
             } catch (e) {
+                this.close();
                 reject(e);
             }
         });
@@ -445,5 +400,46 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
         this.emit('message', topic, payload, dup, qos, retain);
+    }
+
+    private _on_connect_callback(resolve : (value?: (boolean | PromiseLike<boolean> | undefined)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
+        if (error_code == 0 && return_code == 0) {
+            resolve(session_present);
+            this.emit('connect', session_present);
+        } else if (error_code != 0) {
+            reject("Failed to connect: " + io.error_code_to_string(error_code));
+        } else {
+            reject("Server rejected connection.");
+        }
+    }
+
+    private _on_puback_callback(resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+        if (error_code == 0) {
+            resolve({ packet_id });
+        } else {
+            reject("Failed to publish: " + io.error_code_to_string(error_code));
+        }
+    }
+
+    private _on_suback_callback(resolve : (value?: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest> | undefined)) => void, reject : (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
+        if (error_code == 0) {
+            resolve({ packet_id, topic, qos, error_code });
+        } else {
+            reject("Failed to subscribe: " + io.error_code_to_string(error_code));
+        }
+    }
+
+    private _on_unsuback_callback(resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+        if (error_code == 0) {
+            resolve({ packet_id });
+        } else {
+            reject("Failed to unsubscribe: " + io.error_code_to_string(error_code));
+        }
+    }
+
+    private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void> | undefined )) => void) {
+        resolve();
+        this.emit('disconnect');
+        this.close();
     }
 }

@@ -167,7 +167,6 @@ export function mqtt_client_connection_publish(
     on_publish?: (packet_id: number, error_code: number) => void,
 ): void;
 
-
 /** @internal */
 export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
