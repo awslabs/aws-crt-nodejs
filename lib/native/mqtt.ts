@@ -180,6 +180,14 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
+
+        /*
+         * Failed mqtt operations (which is normal) emit error events as well as rejecting the original promise.
+         * By installing a default error handler here we help prevent common issues where operation failures bring
+         * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
+         * will be unaffected.
+         */
+        this.on('error', (error) => {});
     }
 
     private close() {
