@@ -146,14 +146,12 @@ export function mqtt_client_connection_connect(
     client_id: StringLike,
     server_name: StringLike,
     port: number,
-    resolve : (value?: (boolean | PromiseLike<boolean> | undefined)) => void,
-    reject : (reason?: any) => void,
     socket_options?: NativeHandle,
     keep_alive_time?: number,
     ping_timeout?: number,
     protocol_operation_timeout?: number,
     clean_session?: boolean,
-    on_connect?: (error_code: number, return_code: number, session_present: boolean, resolve : (value?: (boolean | PromiseLike<boolean> | undefined)) => void, reject : (reason?: any) => void) => void,
+    on_connect?: (error_code: number, return_code: number, session_present: boolean) => void,
 ): void;
 
 /** @internal */
@@ -166,9 +164,7 @@ export function mqtt_client_connection_publish(
     payload: StringLike,
     qos: number,
     retain: boolean,
-    resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void,
-    reject : (reason?: any) => void,
-    on_publish?: (packet_id: number, error_code: number, resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void) => void,
+    on_publish?: (packet_id: number, error_code: number) => void,
 ): void;
 
 /** @internal */
@@ -176,10 +172,8 @@ export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
     topic: StringLike,
     qos: number,
-    resolve : (value?: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest> | undefined)) => void,
-    reject : (reason?: any) => void,
     on_publish?: OnMessageCallback,
-    on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number, resolve : (value?: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest> | undefined)) => void, reject : (reason?: any) => void) => void,
+    on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number) => void,
 ): void;
 
 /** @internal */
@@ -192,16 +186,13 @@ export function mqtt_client_connection_on_message(
 export function mqtt_client_connection_unsubscribe(
     connection: NativeHandle,
     topic: StringLike,
-    resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void,
-    reject : (reason?: any) => void,
-    on_unsuback?: (packet_id: number, error_code: number, resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void) => void,
+    on_unsuback?: (packet_id: number, error_code: number) => void,
 ): void;
 
 /** @internal */
 export function mqtt_client_connection_disconnect(
     connection: NativeHandle,
-    resolve: (value?: (void | PromiseLike<void> | undefined )) => void,
-    on_disconnect?: (resolve: (value?: (void | PromiseLike<void> | undefined )) => void) => void): void;
+    on_disconnect?: () => void): void;
 
 /** @internal */
 export function mqtt_client_connection_close(connection: NativeHandle): void;

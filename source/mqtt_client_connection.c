@@ -466,10 +466,6 @@ struct connect_args {
     int error_code;
     bool session_present;
     napi_threadsafe_function on_connect;
-
-    /* references to the resolve and reject closures of the connect() promise */
-    napi_ref resolve_ref;
-    napi_ref reject_ref;
 };
 
 static void s_destroy_connect_args(struct connect_args *args) {
@@ -484,16 +480,6 @@ static void s_destroy_connect_args(struct connect_args *args) {
         AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_connect, napi_tsfn_abort));
     }
 
-    if (args->resolve_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        napi_delete_reference(args->binding->env, args->resolve_ref);
-    }
-
-    if (args->reject_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        napi_delete_reference(args->binding->env, args->reject_ref);
-    }
-
     aws_mem_release(args->allocator, args);
 }
 
@@ -501,14 +487,12 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
     struct mqtt_connection_binding *binding = context;
     struct connect_args *args = user_data;
 
-    napi_value params[5];
+    napi_value params[3];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[1]));
     AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[2]));
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[3]));
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[4]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_connect, NULL, on_connect, num_params, params));
@@ -652,7 +636,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(server_name);
     struct connect_args *on_connect_args = NULL;
 
-    napi_value node_args[12];
+    napi_value node_args[10];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -660,7 +644,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 12 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 10 arguments");
         goto cleanup;
     }
 
@@ -690,10 +674,6 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         napi_throw_type_error(env, NULL, "port must be a Number");
         goto cleanup;
     });
-
-    /* pull out the connect() promise resolve/reject closures */
-    napi_value node_resolve = *arg++;
-    napi_value node_reject = *arg++;
 
     napi_value node_socket_options = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
@@ -760,20 +740,6 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
                 napi_throw_error(env, NULL, "Failed to bind on_connect callback");
                 goto cleanup;
             });
-
-        /*
-         * Keep references to the resolve and reject closures for the connect() promise so that we can pass them
-         * back when the async operation completes
-         */
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &on_connect_args->resolve_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
-            goto cleanup;
-        });
-
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &on_connect_args->reject_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
-            goto cleanup;
-        });
     }
 
     struct aws_byte_cursor client_id_cur = aws_byte_cursor_from_buf(&client_id);
@@ -840,7 +806,7 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
 
     struct connect_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct connect_args));
     AWS_FATAL_ASSERT(args);
-
+    args->allocator = binding->allocator;
     args->binding = binding;
 
     napi_value node_on_connect = *arg++;
@@ -854,13 +820,19 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
                 s_on_connect_call,
                 binding,
                 &args->on_connect),
-            { return NULL; });
+            { goto on_error; });
     }
 
     if (aws_mqtt_client_connection_reconnect(binding->connection, s_on_connected, binding)) {
         aws_napi_throw_last_error(env);
-        return NULL;
+        goto on_error;
     }
+
+    return NULL;
+
+on_error:
+
+    s_destroy_connect_args(args);
 
     return NULL;
 }
@@ -874,10 +846,6 @@ struct puback_args {
     uint16_t packet_id;
     int error_code;
     napi_threadsafe_function on_puback;
-
-    /* references to the resolve and reject closures of the publish() promise */
-    napi_ref resolve_ref;
-    napi_ref reject_ref;
 };
 
 static void s_destroy_puback_args(struct puback_args *args) {
@@ -892,16 +860,6 @@ static void s_destroy_puback_args(struct puback_args *args) {
         AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_puback, napi_tsfn_abort));
     }
 
-    if (args->resolve_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        napi_delete_reference(args->binding->env, args->resolve_ref);
-    }
-
-    if (args->reject_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        napi_delete_reference(args->binding->env, args->reject_ref);
-    }
-
     aws_mem_release(args->allocator, args);
 }
 
@@ -909,13 +867,11 @@ static void s_on_publish_complete_call(napi_env env, napi_value on_puback, void 
     (void)context;
     struct puback_args *args = user_data;
 
-    napi_value params[4];
+    napi_value params[2];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
     AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->packet_id, &params[0]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[2]));
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[3]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_puback, NULL, on_puback, num_params, params));
@@ -952,7 +908,7 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(topic_buf);
     AWS_ZERO_STRUCT(payload_buf);
 
-    napi_value node_args[8];
+    napi_value node_args[6];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -1000,10 +956,6 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
         goto cleanup;
     });
 
-    /* pull out the publish() promise resolve/reject closures */
-    napi_value node_resolve = *arg++;
-    napi_value node_reject = *arg++;
-
     napi_value node_on_puback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_puback)) {
         AWS_NAPI_CALL(
@@ -1016,20 +968,6 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
                 binding,
                 &args->on_puback),
             { goto cleanup; });
-
-        /*
-         * Keep references to the resolve and reject closures for the publish() promise so that we can pass them
-         * back when the async operation completes
-         */
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
-            goto cleanup;
-        });
-
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &args->reject_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
-            goto cleanup;
-        });
     }
 
     const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&topic_buf);
@@ -1066,10 +1004,6 @@ struct suback_args {
     int error_code;
     struct aws_byte_buf topic; /* not confident that we can guarantee a cursor ref will always be valid */
     napi_threadsafe_function on_suback;
-
-    /* references to the resolve and reject closures of the subscribe() promise */
-    napi_ref resolve_ref;
-    napi_ref reject_ref;
 };
 
 static void s_destroy_suback_args(struct suback_args *args) {
@@ -1086,16 +1020,6 @@ static void s_destroy_suback_args(struct suback_args *args) {
         AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_suback, napi_tsfn_abort));
     }
 
-    if (args->resolve_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->resolve_ref));
-    }
-
-    if (args->reject_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        napi_delete_reference(args->binding->env, args->reject_ref);
-    }
-
     aws_mem_release(args->allocator, args);
 }
 
@@ -1103,15 +1027,13 @@ static void s_on_suback_call(napi_env env, napi_value on_suback, void *context, 
     (void)context;
     struct suback_args *args = user_data;
 
-    napi_value params[6];
+    napi_value params[4];
     const size_t num_params = AWS_ARRAY_SIZE(params);
 
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->packet_id, &params[0]));
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[1]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[2]));
     AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[3]));
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[4]));
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[5]));
 
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_suback, NULL, on_suback, num_params, params));
@@ -1180,8 +1102,8 @@ struct on_publish_args {
     bool dup;
     enum aws_mqtt_qos qos;
     bool retain;
-    napi_threadsafe_function
-        on_publish; /* created by subscription, but we add/dec ref on our copy of the pointer too */
+    /* created by subscription, but we add/dec ref on our copy of the pointer too */
+    napi_threadsafe_function on_publish;
 };
 
 static void s_destroy_on_publish_args(struct on_publish_args *args) {
@@ -1324,7 +1246,7 @@ on_error:
 
 napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info cb_info) {
 
-    napi_value node_args[7];
+    napi_value node_args[5];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1332,7 +1254,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 7 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 5 arguments");
         return NULL;
     }
 
@@ -1362,10 +1284,6 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         goto cleanup;
     });
     enum aws_mqtt_qos qos = (enum aws_mqtt_qos)qos_uint;
-
-    /* pull out the subscribe() promise resolve/reject closures */
-    napi_value node_resolve = *arg++;
-    napi_value node_reject = *arg++;
 
     napi_value node_on_publish = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
@@ -1398,20 +1316,6 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
                 binding,
                 &suback->on_suback),
             { goto cleanup; });
-
-        /*
-         * Keep references to the resolve and reject closures for the subscribe() promise so that we can pass them
-         * back when the async operation completes
-         */
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &suback->resolve_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
-            goto cleanup;
-        });
-
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &suback->reject_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
-            goto cleanup;
-        });
     }
 
     struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&sub->topic);
@@ -1612,10 +1516,6 @@ struct unsuback_args {
     uint16_t packet_id;
     int error_code;
     napi_threadsafe_function on_unsuback;
-
-    /* references to the resolve and reject closures of the unsubscribe() promise */
-    napi_ref resolve_ref;
-    napi_ref reject_ref;
 };
 
 static void s_destroy_unsuback_args(struct unsuback_args *args) {
@@ -1632,16 +1532,6 @@ static void s_destroy_unsuback_args(struct unsuback_args *args) {
         AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_unsuback, napi_tsfn_abort));
     }
 
-    if (args->resolve_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->resolve_ref));
-    }
-
-    if (args->reject_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->reject_ref));
-    }
-
     aws_mem_release(args->allocator, args);
 }
 
@@ -1651,13 +1541,11 @@ static void s_on_unsub_ack_call(napi_env env, napi_value on_unsuback, void *cont
     struct unsuback_args *args = user_data;
 
     if (env) {
-        napi_value params[4];
+        napi_value params[2];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
         AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->packet_id, &params[0]));
         AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
-        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[2]));
-        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->reject_ref, &params[3]));
 
         AWS_NAPI_ENSURE(
             env, aws_napi_dispatch_threadsafe_function(env, args->on_unsuback, NULL, on_unsuback, num_params, params));
@@ -1688,7 +1576,7 @@ static void s_on_unsubscribe_complete(
 
 napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info cb_info) {
 
-    napi_value node_args[5];
+    napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1696,7 +1584,7 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_unsubscribe needs exactly 5 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_unsubscribe needs exactly 3 arguments");
         return NULL;
     }
 
@@ -1719,10 +1607,6 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
         goto cleanup;
     }
 
-    /* pull out the unsubscribe() promise resolve/reject closures */
-    napi_value node_resolve = *arg++;
-    napi_value node_reject = *arg++;
-
     napi_value node_on_unsuback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_unsuback)) {
         AWS_NAPI_CALL(
@@ -1735,20 +1619,6 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
                 binding,
                 &args->on_unsuback),
             { goto cleanup; });
-
-        /*
-         * Keep references to the resolve and reject closures for the unsubscribe() promise so that we can pass them
-         * back when the async operation completes
-         */
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
-            goto cleanup;
-        });
-
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_reject, 1, &args->reject_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to reject callback");
-            goto cleanup;
-        });
     }
 
     const struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&args->topic);
@@ -1778,9 +1648,6 @@ struct disconnect_args {
     struct aws_allocator *allocator;
     struct mqtt_connection_binding *binding;
     napi_threadsafe_function on_disconnect;
-
-    /* reference to the resolve closure of the disconnect() promise.  We don't need the reject. */
-    napi_ref resolve_ref;
 };
 
 static void s_destroy_disconnect_args(struct disconnect_args *args) {
@@ -1795,11 +1662,6 @@ static void s_destroy_disconnect_args(struct disconnect_args *args) {
         AWS_NAPI_ENSURE(args->binding->env, aws_napi_release_threadsafe_function(args->on_disconnect, napi_tsfn_abort));
     }
 
-    if (args->resolve_ref != NULL) {
-        AWS_FATAL_ASSERT(args->binding != NULL);
-        AWS_NAPI_ENSURE(args->binding->env, napi_delete_reference(args->binding->env, args->resolve_ref));
-    }
-
     aws_mem_release(args->allocator, args);
 }
 
@@ -1807,13 +1669,7 @@ static void s_on_disconnect_call(napi_env env, napi_value on_disconnect, void *c
     (void)context;
     struct disconnect_args *args = user_data;
 
-    napi_value params[1];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
-
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->resolve_ref, &params[0]));
-
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, num_params, params));
+    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, 0, NULL));
 
     s_destroy_disconnect_args(args);
 }
@@ -1834,15 +1690,15 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
 
     struct mqtt_connection_binding *binding = NULL;
 
-    napi_value node_args[3];
+    napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_disconnect needs exactly 3 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_disconnect needs exactly 2 arguments");
         return NULL;
     }
 
@@ -1851,9 +1707,6 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         napi_throw_error(env, NULL, "Failed to extract binding from external");
         return NULL;
     });
-
-    /* pull out the disconnect() promise resolve closure */
-    napi_value node_resolve = *arg++;
 
     struct aws_allocator *allocator = binding->allocator;
     struct disconnect_args *args = aws_mem_calloc(allocator, 1, sizeof(struct disconnect_args));
@@ -1873,15 +1726,6 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
                 binding,
                 &args->on_disconnect),
             { goto on_error; });
-
-        /*
-         * Keep references to the resolve closure for the disonnect() promise so that we can pass it
-         * back when the async operation completes
-         */
-        AWS_NAPI_CALL(env, napi_create_reference(env, node_resolve, 1, &args->resolve_ref), {
-            napi_throw_type_error(env, NULL, "Failed to create a reference to resolve callback");
-            goto on_error;
-        });
     }
 
     if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, args)) {
