@@ -275,7 +275,8 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Returns the configured MqttConnectionConfig
+     * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the tls context is cached
+     * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
      */
     build() {
