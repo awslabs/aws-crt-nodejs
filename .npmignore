@@ -156,6 +156,7 @@ deps_build/
 /samples/
 /tsconfig*.json
 /jest.config.js
+/make-docs.sh
 
 # Skip common files here and in dependencies
 **/.clang-format
@@ -181,3 +182,5 @@ crt/s2n/tests/unit/kats
 crt/*/.cbmc-batch/
 crt/*/codebuild/
 
+# Skip unwanted binaries
+dist/bin/**/sha256_profile
