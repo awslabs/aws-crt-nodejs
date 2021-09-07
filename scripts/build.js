@@ -13,6 +13,7 @@ let options = {
     BUILD_TESTING: 'OFF',
     CMAKE_INSTALL_PREFIX: 'crt/install',
     CMAKE_PREFIX_PATH: 'crt/install',
+    CMAKE_VERBOSE_MAKEFILE: true,
 }
 
 // Convert any -D arguments to this script to cmake -D arguments
