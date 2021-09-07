@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 project(aws-crt-nodejs C)
 option(BUILD_DEPS "Builds aws common runtime dependencies as part of build, only do this if you don't want to control your dependency chain." ON)
 option(USE_OPENSSL "Uses system OpenSSL on linux targets" ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 include(CTest)
 
