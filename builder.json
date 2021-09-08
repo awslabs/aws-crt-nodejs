@@ -33,7 +33,7 @@
                 ]
             ]
         },
-        "debian": {
+        "ubuntu": {
             "packages": [
                 "openssl-dev"
             ]
