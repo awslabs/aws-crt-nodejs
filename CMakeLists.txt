@@ -78,6 +78,7 @@ add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
 aws_set_common_properties(${PROJECT_NAME})
 aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
 aws_add_sanitizers(${PROJECT_NAME})
+aws_split_debug_info(${PROJECT_NAME})
 
 # Gives our library file a .node extension without any "lib" prefix
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
