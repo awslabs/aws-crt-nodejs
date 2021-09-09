@@ -19,7 +19,10 @@ phases:
       - npm install --unsafe-perm
       - npm pack --unsafe-perm
       - cp aws-crt-*.tgz ..
+  post_build:
+    commands:
+      - bash ./continuous-delivery/pack.sh
 
 artifacts:
   files:
-    - 'aws-crt-*.tgz'
+    - "aws-crt-*.tgz"

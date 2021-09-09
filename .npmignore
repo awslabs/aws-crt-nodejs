@@ -167,6 +167,10 @@ deps_build/
 **/.github/
 **/continuous-delivery/
 **/docs/
+**/codebuild/
+
+# Skip Native Code
+**/crt/
 
 # Skip large submodule files
 crt/aws-c-*/tests
@@ -183,4 +187,5 @@ crt/*/.cbmc-batch/
 crt/*/codebuild/
 
 # Skip unwanted binaries
-dist/bin/**/sha256_profile
+dist/bin/**
+!dist/bin/linux*
