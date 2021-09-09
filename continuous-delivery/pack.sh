@@ -17,4 +17,6 @@ tar -cvzf aws-crt-$CURRENT_TAG_VERSION-all.tgz aws-crt-nodejs/
 # binaries
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-binary.tgz aws-crt-nodejs/dist/bin
 
+# TODO Check the size of ../aws-crt-$CURRENT_TAG_VERSION.tgz
+
 exit 0
