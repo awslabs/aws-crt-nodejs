@@ -42,7 +42,7 @@
     "yargs": "^13.3.2"
   },
   "dependencies": {
-    "axios": "^0.21.4",
+    "axios": "^0.21.2",
     "cmake-js": "6.1.0",
     "crypto-js": "^4.0.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
