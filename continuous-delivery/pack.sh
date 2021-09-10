@@ -16,7 +16,15 @@ tar -cvzf aws-crt-$CURRENT_TAG_VERSION-source.tgz aws-crt-nodejs/crt
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-all.tgz aws-crt-nodejs/
 # binaries
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-binary.tgz aws-crt-nodejs/dist/bin
-
-# TODO Check the size of ../aws-crt-$CURRENT_TAG_VERSION.tgz
-
+# Check unzip npm package size
+# UNZIP="unzip_pack"
+# mkdir $UNZIP
+# tar -xf aws-crt-$CURRENT_TAG_VERSION.tgz -C $UNZIP
+# PACK_FILE_SIZE=$(du -sk $UNZIP | awk '{print $1}')
+# if expr $PACK_FILE_SIZE \< 3000000 ; then
+#     # True, the package size is smaller than 3 MB, return 0
+#     exit 0
+# fi
+# # False
+# echo "Package size is too large"
 exit 0

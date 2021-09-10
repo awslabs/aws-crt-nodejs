@@ -5,10 +5,13 @@
 const os = require('os');
 const process = require("process");
 const cmake = require("cmake-js");
-const fs = require("fs");
 const axios = require("axios");
+const path = require("path");
+const tar = require('tar');
+const fs = require("fs-extra");
+const { v4: uuidv4 } = require('uuid');
 
-async function downloadFile(fileUrl, outputLocationPath) {
+async function download_file(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
     return axios({
         method: 'get',
@@ -32,35 +35,27 @@ async function downloadFile(fileUrl, outputLocationPath) {
     });
 }
 
-
-async function download_binary(url) {
-    const binaryURL = url + "/bin/" + os.platform + "-" + os.arch + "/aws-crt-nodejs.node"
-    return new Promise((resolve, reject) => {
-        downloadFile(url, "./aws-crt-1.9.2-binary.tgz").then(() => {
-            // TODO: Check the checksum, move to right directory and clean up the tmp file
-            console.log("downloaded")
-            resolve("success")
-        }).catch((err) => {
-            console.log("no binary found 111!")
-            reject("failed")
-        })
-    });
-}
-
-async function fetch_native_code(url, version) {
+async function fetch_native_code(url, version, path) {
     const sourceURL = url + "aws-crt-" + version + "-source.tgz"
+    const tarballPath = path + "source.tgz"
     return new Promise((resolve, reject) => {
-        downloadFile(sourceURL, "./aws-crt-" + version + "-source.tgz").then(() => {
+        download_file(sourceURL, tarballPath).then(() => {
             // TODO: Check the checksum unzip the file. move it to ../crt and clean up the tmp file
-            console.log("downloaded")
-            resolve("success")
+            fs.createReadStream(tarballPath)
+                .on("error", () => { reject("failed") })
+                .pipe(tar.x({
+                    C: path
+                }))
+                .on("end", () => {
+                    fs.copy(path + '/aws-crt-nodejs/crt', './crt_test')
+                        .then(() => resolve("success"))
+                        .catch(err => reject(err))
+                });
         }).catch((err) => {
-            console.log(err)
-            reject("failed")
+            reject(err)
         })
     });
 }
-
 
 function build_locally() {
     let options = {
@@ -89,23 +84,23 @@ function build_locally() {
     buildSystem.build();
 }
 
-if (fs.existsSync("crt/")) {
+if (!fs.existsSync("crt/")) {
+    const tmp_path = path.join(__dirname, uuidv4() + "temp/");
+    fs.mkdirSync(tmp_path);
+
     // There is no native code, we are not building from source.
     (async () => {
+        // AWS common runtime aws-crt-nodejs cloudfront distribution.
         const url = "http://d332vdhbectycy.cloudfront.net/";
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
-        const version = "1.9.2";
-        // Step 1: Try to fetch the binary directly
-        download_binary(url).catch((err) => {
-            // Step 2: Try to fetch the binary directly, if it fails, build fails.
-            fetch_native_code(url, version).then(() => {
-                // kick off local build
-                build_locally();
-            })
-
+        const version = package["version"];
+        fetch_native_code(url, version, tmp_path).then(() => {
+            // clean up temp directory
+            fs.rmSync(tmp_path, { recursive: true });
+            // kick off local build
+            build_locally();
         })
-        console.log('Test!');
     })();
 } else {
     // kick off local build

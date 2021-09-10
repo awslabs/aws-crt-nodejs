@@ -172,20 +172,5 @@ deps_build/
 # Skip Native Code
 **/crt/
 
-# Skip large submodule files
-crt/aws-c-*/tests
-crt/**/AWSCRTAndroidTestRunner
-crt/s2n/tests/fuzz/corpus
-crt/s2n/tests/ctverif
-crt/s2n/tests/pems
-crt/s2n/tests/saw
-crt/s2n/tests/sidetrail
-crt/s2n/tests/integration/trust-store
-crt/s2n/tests/integration/data
-crt/s2n/tests/unit/kats
-crt/*/.cbmc-batch/
-crt/*/codebuild/
-
 # Skip unwanted binaries
-dist/bin/**
-!dist/bin/linux*
+dist/bin/**/sha256_profile
