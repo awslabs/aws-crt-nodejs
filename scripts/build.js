@@ -111,6 +111,11 @@ function build_locally() {
     buildSystem.build();
 }
 
+if (!fs.existsSync("scripts/build.js")) {
+    // Have to use the right relative path for checking and moving the native source code.
+    throw new Error("Invoked from invalid directory.");
+}
+
 if (!fs.existsSync("crt/")) {
     const tmp_path = path.join(__dirname, uuidv4() + "temp/");
     fs.mkdirSync(tmp_path);
