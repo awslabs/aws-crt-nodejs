@@ -26,3 +26,4 @@ phases:
 artifacts:
   files:
     - "aws-crt-*.tgz"
+    - "aws-crt-*.sha1"

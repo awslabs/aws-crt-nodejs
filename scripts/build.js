@@ -10,6 +10,7 @@ const path = require("path");
 const tar = require('tar');
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require('uuid');
+const checksum = require('checksum');
 
 async function download_file(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
@@ -35,13 +36,39 @@ async function download_file(fileUrl, outputLocationPath) {
     });
 }
 
+async function check_checksum(url, loacl_file) {
+    return axios({
+        method: 'get',
+        url: url,
+        responseType: 'text',
+    }).then(response => {
+        return new Promise((resolve, reject) => {
+            checksum.file(loacl_file, function (err, sum) {
+                if (err) {
+                    reject(err);
+                }
+                if (sum === response.data.slice(0, -1)) {
+                    resolve()
+                }
+                else {
+                    reject(new Error("source code checksum mismatch"))
+                }
+            })
+        });
+    })
+}
+
 async function fetch_native_code(url, version, path) {
-    const sourceURL = url + "aws-crt-" + version + "-source.tgz"
-    const tarballPath = path + "source.tgz"
+    const source_URL = url + "aws-crt-" + version + "-source.tgz"
+    const tarball_path = path + "source.tgz"
     return new Promise((resolve, reject) => {
-        download_file(sourceURL, tarballPath).then(() => {
-            // TODO: Check the checksum unzip the file. move it to ../crt and clean up the tmp file
-            fs.createReadStream(tarballPath)
+        download_file(source_URL, tarball_path).then(() => {
+            // download checksum
+            const source_checksum_URL = url + "aws-crt-" + version + "-source.sha1"
+            check_checksum(source_checksum_URL, tarball_path)
+            // check_checksum(source_checksum_URL, "/Users/dengket/Downloads/aws-crt-1.9.2-source.tgz")
+
+            fs.createReadStream(tarball_path)
                 .on("error", () => { reject("failed") })
                 .pipe(tar.x({
                     C: path
@@ -94,6 +121,7 @@ if (!fs.existsSync("crt/")) {
         const url = "http://d332vdhbectycy.cloudfront.net/";
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
+        // const version = "1.9.2";
         const version = package["version"];
         fetch_native_code(url, version, tmp_path).then(() => {
             // clean up temp directory
