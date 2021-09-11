@@ -121,7 +121,6 @@ if (!fs.existsSync("crt/")) {
         const url = "http://d332vdhbectycy.cloudfront.net/";
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
-        // const version = "1.9.2";
         const version = package["version"];
         fetch_native_code(url, version, tmp_path).then(() => {
             // clean up temp directory
