@@ -155,6 +155,7 @@ deps_build/
 /test/
 /samples/
 /tsconfig*.json
+/typedoc*.json
 /jest.config.js
 /make-docs.sh
 
