@@ -66,7 +66,6 @@ async function fetch_native_code(url, version, path) {
             // download checksum
             const source_checksum_URL = url + "aws-crt-" + version + "-source.sha1"
             check_checksum(source_checksum_URL, tarball_path)
-            // check_checksum(source_checksum_URL, "/Users/dengket/Downloads/aws-crt-1.9.2-source.tgz")
 
             fs.createReadStream(tarball_path)
                 .on("error", () => { reject("failed") })
@@ -74,7 +73,7 @@ async function fetch_native_code(url, version, path) {
                     C: path
                 }))
                 .on("end", () => {
-                    fs.copy(path + '/aws-crt-nodejs/crt', './crt_test')
+                    fs.copy(path + '/aws-crt-nodejs/crt', './crt')
                         .then(() => resolve("success"))
                         .catch(err => reject(err))
                 });
