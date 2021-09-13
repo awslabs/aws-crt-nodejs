@@ -20,11 +20,9 @@ async function download_file(fileUrl, outputLocationPath) {
         responseType: 'stream',
     }).then(response => {
         return new Promise((resolve, reject) => {
-            console.log(response.headers);
             response.data.pipe(writer);
             let error = null;
             writer.on('error', err => {
-                console.log(err);
                 error = err;
                 writer.close();
                 reject(err);
@@ -46,13 +44,15 @@ async function check_checksum(url, loacl_file) {
     }).then(response => {
         return new Promise((resolve, reject) => {
             checksum.file(loacl_file, function (err, sum) {
+                if (err) {
+                    reject(err);
+                }
                 if (sum === response.data.slice(0, -1)) {
-                    console.log("yes");
+                    resolve()
                 }
                 else {
                     reject(new Error("source code checksum mismatch"))
                 }
-                resolve(sum);
             })
         });
     })
@@ -111,7 +111,12 @@ function build_locally() {
     buildSystem.build();
 }
 
-if (fs.existsSync("crt/")) {
+if (!fs.existsSync("scripts/build.js")) {
+    // Have to use the right relative path for checking and moving the native source code.
+    throw new Error("Invoked from invalid directory.");
+}
+
+if (!fs.existsSync("crt/")) {
     const tmp_path = path.join(__dirname, uuidv4() + "temp/");
     fs.mkdirSync(tmp_path);
 
@@ -121,14 +126,12 @@ if (fs.existsSync("crt/")) {
         const url = "http://d332vdhbectycy.cloudfront.net/";
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
-        const version = "1.9.2";
-        // const version = package["version"];
+        const version = package["version"];
         fetch_native_code(url, version, tmp_path).then(() => {
             // clean up temp directory
             fs.rmSync(tmp_path, { recursive: true });
             // kick off local build
-            // build_locally();
-            console.log("done")
+            build_locally();
         })
     })();
 } else {
