@@ -438,7 +438,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void> | undefined )) => void) {
-        this.close();
         this.emit('disconnect');
         resolve();
     }

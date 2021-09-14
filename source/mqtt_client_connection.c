@@ -119,7 +119,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
     /* no more node interop will be done unless the connection is reestablished, free node resources */
-    if (binding->node_external_ref) {
+    if (binding->external_ref_count > 0) {
         AWS_NAPI_ENSURE(env, napi_reference_unref(env, binding->node_external_ref, &binding->external_ref_count));
     }
 
@@ -1664,10 +1664,15 @@ static void s_destroy_disconnect_args(struct disconnect_args *args) {
 static void s_on_disconnect_call(napi_env env, napi_value on_disconnect, void *context, void *user_data) {
     (void)context;
     struct disconnect_args *args = user_data;
+    struct mqtt_connection_binding *binding = args->binding;
+
+    s_mqtt_client_connection_release_threadsafe_function(binding);
+    if (binding->external_ref_count > 0) {
+        AWS_NAPI_ENSURE(env, napi_reference_unref(env, binding->node_external_ref, &binding->external_ref_count));
+    }
 
     AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, 0, NULL));
 
-    s_mqtt_client_connection_release_threadsafe_function(args->binding);
     s_destroy_disconnect_args(args);
 }
 
