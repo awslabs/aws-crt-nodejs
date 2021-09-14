@@ -34,7 +34,8 @@ struct mqtt_connection_binding {
 
     napi_env env;
 
-    napi_ref node_external;
+    uint32_t external_ref_count;
+    napi_ref node_external_ref;
     napi_threadsafe_function on_connection_interrupted;
     napi_threadsafe_function on_connection_resumed;
     napi_threadsafe_function on_any_publish;
@@ -42,6 +43,9 @@ struct mqtt_connection_binding {
 };
 
 static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_connection_binding *binding) {
+    if (binding == NULL) {
+        return;
+    }
 
     if (binding->on_connection_interrupted != NULL) {
         AWS_NAPI_ENSURE(
@@ -75,9 +79,14 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
     /* Should have already been done, but just to be safe -- now that it's reentrant -- release the functions anyways */
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
+    if (binding->node_external_ref) {
+        napi_delete_reference(env, binding->node_external_ref);
+    }
+
     if (binding->use_tls_options) {
         aws_tls_connection_options_clean_up(&binding->tls_options);
     }
+
     if (binding->connection) {
         aws_mqtt_client_connection_release(binding->connection);
     }
@@ -109,15 +118,9 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
     /* connection has been shutdown, no callbacks will happen after it */
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
-    /* no more node interop will be done, free node resources */
-    if (binding->node_external) {
-        napi_delete_reference(env, binding->node_external);
-        binding->node_external = NULL;
-    }
-
-    if (binding->connection) {
-        aws_mqtt_client_connection_release(binding->connection);
-        binding->connection = NULL;
+    /* no more node interop will be done unless the connection is reestablished, free node resources */
+    if (binding->node_external_ref) {
+        AWS_NAPI_ENSURE(env, napi_reference_unref(env, binding->node_external_ref, &binding->external_ref_count));
     }
 
     return NULL;
@@ -222,7 +225,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    napi_value node_args[10];
+    napi_value node_args[6];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -230,7 +233,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_new needs exactly 10 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_new needs exactly 6 arguments");
         return NULL;
     }
 
@@ -269,44 +272,11 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         goto cleanup;
     });
 
-    napi_value node_on_interrupted = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_on_interrupted)) {
-        AWS_NAPI_CALL(
-            env,
-            aws_napi_create_threadsafe_function(
-                env,
-                node_on_interrupted,
-                "aws_mqtt_client_connection_on_connection_interrupted",
-                s_on_connection_interrupted_call,
-                binding,
-                &binding->on_connection_interrupted),
-            { goto cleanup; });
-    }
-
-    napi_value node_on_resumed = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_on_resumed)) {
-        AWS_NAPI_CALL(
-            env,
-            aws_napi_create_threadsafe_function(
-                env,
-                node_on_resumed,
-                "aws_mqtt_client_connection_on_connection_resumed",
-                s_on_connection_resumed_call,
-                binding,
-                &binding->on_connection_resumed),
-            { goto cleanup; });
-    }
-
     /* CREATE THE THING */
     binding->connection = aws_mqtt_client_connection_new(node_client->native_client);
     if (!binding->connection) {
         napi_throw_error(env, NULL, "Failed create native connection object");
         goto cleanup;
-    }
-
-    if (binding->on_connection_interrupted || binding->on_connection_resumed) {
-        aws_mqtt_client_connection_set_connection_interruption_handlers(
-            binding->connection, s_on_connection_interrupted, binding, s_on_connection_resumed, binding);
     }
 
     napi_value node_tls = *arg++;
@@ -395,15 +365,6 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         }
     }
 
-    napi_value node_use_websocket = *arg++;
-    bool use_websocket = false;
-    if (!aws_napi_is_null_or_undefined(env, node_use_websocket)) {
-        AWS_NAPI_CALL(env, napi_get_value_bool(env, node_use_websocket, &use_websocket), {
-            napi_throw_type_error(env, NULL, "use_websocket must be a boolean");
-            goto cleanup;
-        });
-    }
-
     napi_value node_proxy_options = *arg++;
     struct aws_http_proxy_options *proxy_options = NULL;
     if (!aws_napi_is_null_or_undefined(env, node_proxy_options)) {
@@ -417,35 +378,14 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         aws_mqtt_client_connection_set_http_proxy_options(binding->connection, proxy_options);
     }
 
-    napi_value node_transform_websocket = *arg++;
-    if (use_websocket) {
-        if (!aws_napi_is_null_or_undefined(env, node_transform_websocket)) {
-            AWS_NAPI_CALL(
-                env,
-                aws_napi_create_threadsafe_function(
-                    env,
-                    node_transform_websocket,
-                    "aws_mqtt_client_connection_transform_websocket",
-                    s_transform_websocket_call,
-                    binding,
-                    &binding->transform_websocket),
-                {
-                    napi_throw_error(env, NULL, "Failed to bind transform_websocket callback");
-                    goto cleanup;
-                });
-            aws_mqtt_client_connection_use_websockets(binding->connection, s_transform_websocket, binding, NULL, NULL);
-        } else {
-            aws_mqtt_client_connection_use_websockets(binding->connection, NULL, NULL, NULL, NULL);
-        }
-    }
-
     /* napi_create_reference() must be the last thing called by this function.
      * Once this succeeds, the external will not be cleaned up automatically */
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_external), {
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_external_ref), {
         napi_throw_error(env, NULL, "Failed to reference node external");
         goto cleanup;
     });
 
+    binding->external_ref_count = 1;
     result = node_external;
 
 cleanup:
@@ -520,6 +460,10 @@ static void s_on_connected(
     (void)connection;
 
     struct connect_args *args = user_data;
+
+    if (error_code != AWS_ERROR_SUCCESS) {
+        s_mqtt_client_connection_release_threadsafe_function(args->binding);
+    }
 
     if (!args->on_connect) {
         s_destroy_connect_args(args);
@@ -623,6 +567,17 @@ void s_transform_websocket(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->transform_websocket, args));
 }
 
+static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data);
+
+static void s_on_any_publish(
+    struct aws_mqtt_client_connection *connection,
+    const struct aws_byte_cursor *topic,
+    const struct aws_byte_cursor *payload,
+    bool dup,
+    enum aws_mqtt_qos qos,
+    bool retain,
+    void *user_data);
+
 napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_info cb_info) {
 
     bool success = false;
@@ -636,7 +591,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(server_name);
     struct connect_args *on_connect_args = NULL;
 
-    napi_value node_args[10];
+    napi_value node_args[15];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -644,7 +599,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 10 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 15 arguments");
         goto cleanup;
     }
 
@@ -719,6 +674,86 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         });
     }
 
+    napi_value node_use_websocket = *arg++;
+    bool use_websocket = false;
+    if (!aws_napi_is_null_or_undefined(env, node_use_websocket)) {
+        AWS_NAPI_CALL(env, napi_get_value_bool(env, node_use_websocket, &use_websocket), {
+            napi_throw_type_error(env, NULL, "use_websocket must be a boolean");
+            goto cleanup;
+        });
+    }
+
+    s_mqtt_client_connection_release_threadsafe_function(binding);
+
+    napi_value node_on_interrupted = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_on_interrupted)) {
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_interrupted,
+                "aws_mqtt_client_connection_on_connection_interrupted",
+                s_on_connection_interrupted_call,
+                binding,
+                &binding->on_connection_interrupted),
+            { goto cleanup; });
+    }
+
+    napi_value node_on_resumed = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_on_resumed)) {
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_resumed,
+                "aws_mqtt_client_connection_on_connection_resumed",
+                s_on_connection_resumed_call,
+                binding,
+                &binding->on_connection_resumed),
+            { goto cleanup; });
+    }
+
+    if (binding->on_connection_interrupted || binding->on_connection_resumed) {
+        aws_mqtt_client_connection_set_connection_interruption_handlers(
+            binding->connection, s_on_connection_interrupted, binding, s_on_connection_resumed, binding);
+    }
+
+    napi_value node_transform_websocket = *arg++;
+    if (use_websocket) {
+        if (!aws_napi_is_null_or_undefined(env, node_transform_websocket)) {
+            AWS_NAPI_CALL(
+                env,
+                aws_napi_create_threadsafe_function(
+                    env,
+                    node_transform_websocket,
+                    "aws_mqtt_client_connection_transform_websocket",
+                    s_transform_websocket_call,
+                    binding,
+                    &binding->transform_websocket),
+                {
+                    napi_throw_error(env, NULL, "Failed to bind transform_websocket callback");
+                    goto cleanup;
+                });
+            aws_mqtt_client_connection_use_websockets(binding->connection, s_transform_websocket, binding, NULL, NULL);
+        } else {
+            aws_mqtt_client_connection_use_websockets(binding->connection, NULL, NULL, NULL, NULL);
+        }
+    }
+
+    napi_value node_handler = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_handler)) {
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
+                env, node_handler, "on_any_publish", s_on_any_publish_call, binding, &binding->on_any_publish),
+            { goto cleanup; });
+
+        if (aws_mqtt_client_connection_set_on_any_publish_handler(binding->connection, s_on_any_publish, binding)) {
+            napi_throw_error(env, NULL, "Unable to set on_any_publish handler");
+            goto cleanup;
+        }
+    }
+
     napi_value node_on_connect = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_connect)) {
 
@@ -740,6 +775,22 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
                 napi_throw_error(env, NULL, "Failed to bind on_connect callback");
                 goto cleanup;
             });
+    }
+
+    /*
+     * In order to support reentrant connect->disconnect->connect in a backwards compatible way we have to account
+     * for the fact that a call to disconnect will chain into close which in turn will release this reference
+     *
+     * The reference must be released so that the garbage collector can collect the disconnected connection once
+     * no JS references remain.
+     *
+     * So reestablish the external reference if we are connecting after a disconnect.
+     */
+    if (binding->external_ref_count == 0) {
+        AWS_NAPI_CALL(env, napi_reference_ref(env, binding->node_external_ref, &binding->external_ref_count), {
+            napi_throw_error(env, NULL, "Failed to reference node external");
+            goto cleanup;
+        });
     }
 
     struct aws_byte_cursor client_id_cur = aws_byte_cursor_from_buf(&client_id);
@@ -771,8 +822,9 @@ cleanup:
     aws_byte_buf_clean_up(&client_id);
     aws_byte_buf_clean_up(&server_name);
 
-    if (!success && on_connect_args) {
+    if (!success) {
         s_destroy_connect_args(on_connect_args);
+        s_mqtt_client_connection_release_threadsafe_function(binding);
     }
 
     return NULL;
@@ -1456,55 +1508,6 @@ on_error:
     s_destroy_on_any_publish_args(args);
 }
 
-napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info cb_info) {
-    napi_value node_args[2];
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
-        return NULL;
-    });
-    if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_on_message needs exactly 2 arguments");
-        return NULL;
-    }
-
-    napi_value node_binding = *arg++;
-    struct mqtt_connection_binding *binding = NULL;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
-        napi_throw_error(env, NULL, "Unable to extract external");
-        return NULL;
-    });
-
-    napi_value node_handler = *arg++;
-    if (aws_napi_is_null_or_undefined(env, node_handler)) {
-        napi_throw_error(env, NULL, "handler must not be null or undefined");
-        return NULL;
-    }
-
-    /*
-     * There's no reasonable way of making this safe for multiple calls.  We have to assume this is pre-connect
-     * otherwise the callback could be getting used in another thread as we try and change it here.
-     */
-    if (binding->on_any_publish != NULL) {
-        napi_throw_error(env, NULL, "on_any_publish handler cannot be set more than once");
-        return NULL;
-    }
-
-    AWS_NAPI_CALL(
-        env,
-        aws_napi_create_threadsafe_function(
-            env, node_handler, "on_any_publish", s_on_any_publish_call, binding, &binding->on_any_publish),
-        { return NULL; });
-
-    if (aws_mqtt_client_connection_set_on_any_publish_handler(binding->connection, s_on_any_publish, binding)) {
-        napi_throw_error(env, NULL, "Unable to set on_any_publish handler");
-        return NULL;
-    }
-
-    return NULL;
-}
-
 /*******************************************************************************
  * Unsubscribe
  ******************************************************************************/
@@ -1671,6 +1674,7 @@ static void s_on_disconnect_call(napi_env env, napi_value on_disconnect, void *c
 
     AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, 0, NULL));
 
+    s_mqtt_client_connection_release_threadsafe_function(args->binding);
     s_destroy_disconnect_args(args);
 }
 
@@ -1729,8 +1733,13 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
     }
 
     if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, args)) {
-        aws_napi_throw_last_error(env);
-        goto on_error;
+        int disconnect_error = aws_last_error();
+        if (disconnect_error == AWS_ERROR_MQTT_NOT_CONNECTED) {
+            s_on_disconnected(binding->connection, args);
+        } else {
+            aws_napi_throw_last_error(env);
+            goto on_error;
+        }
     }
 
     return NULL;

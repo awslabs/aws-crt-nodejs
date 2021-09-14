@@ -129,15 +129,11 @@ export type mqtt_on_connect = (error_code: number, return_code: number, session_
 /** @internal */
 export function mqtt_client_connection_new(
     client: NativeHandle,
-    on_interrupted?: (error_code: number) => void,
-    on_resumed?: (return_code: number, session_present: boolean) => void,
     tls_ctx?: NativeHandle,
     will?: { topic: StringLike, payload: StringLike, qos: number, retain: boolean },
     username?: StringLike,
     password?: StringLike,
-    use_websocket?: boolean,
     proxy_options?: NativeHandle,
-    websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
 ): NativeHandle;
 
 /** @internal */
@@ -151,6 +147,11 @@ export function mqtt_client_connection_connect(
     ping_timeout?: number,
     protocol_operation_timeout?: number,
     clean_session?: boolean,
+    use_websocket?: boolean,
+    on_interrupted?: (error_code: number) => void,
+    on_resumed?: (return_code: number, session_present: boolean) => void,
+    websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
+    on_publish?: OnMessageCallback,
     on_connect?: mqtt_on_connect,
 ): void;
 
@@ -174,12 +175,6 @@ export function mqtt_client_connection_subscribe(
     qos: number,
     on_publish?: OnMessageCallback,
     on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number) => void,
-): void;
-
-/** @internal */
-export function mqtt_client_connection_on_message(
-    connection: NativeHandle,
-    on_publish?: OnMessageCallback
 ): void;
 
 /** @internal */

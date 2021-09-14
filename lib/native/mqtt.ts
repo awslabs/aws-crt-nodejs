@@ -168,18 +168,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
-            (error_code: number) => { this._on_connection_interrupted(error_code); },
-            (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); },
             config.tls_ctx ? config.tls_ctx.native_handle() : null,
             will,
             config.username,
             config.password,
-            config.use_websocket,
             config.proxy_options ? config.proxy_options.create_native_handle() : undefined,
-            config.websocket_handshake_transform,
         ));
         this.tls_ctx = config.tls_ctx;
-        crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
 
         /*
          * Failed mqtt operations (which is normal) emit error events as well as rejecting the original promise.
@@ -256,6 +251,11 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this.config.ping_timeout,
                     this.config.protocol_operation_timeout,
                     this.config.clean_session,
+                    this.config.use_websocket,
+                    (error_code: number) => { this._on_connection_interrupted(error_code); },
+                    (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); },
+                    this.config.websocket_handshake_transform,
+                    this._on_any_publish.bind(this),
                     this._on_connect_callback.bind(this, resolve, reject),
                 );
             } catch (e) {
