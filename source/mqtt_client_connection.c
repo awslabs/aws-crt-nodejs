@@ -437,15 +437,14 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
     AWS_NAPI_ENSURE(
         env, aws_napi_dispatch_threadsafe_function(env, args->on_connect, NULL, on_connect, num_params, params));
 
-    /*
-     * This is terrible and we need to make backwards incompatible changes to the API to correct it, but for now
-     * clean up the connection function bindings if the initial connect failed because that's the contract
-     * that we fulfilled in the past.  If we don't clean these up here then current programs written against
-     * the current contract will leak their resumed/interrupted/websocket callbacks.
-     */
     if (args->return_code || args->error_code) {
-        /* Failed to create a connection, none of the callbacks will be invoked again */
         s_mqtt_client_connection_release_threadsafe_function(binding);
+
+        if (binding->external_ref_count > 0) {
+            AWS_NAPI_ENSURE(
+                binding->env,
+                napi_reference_unref(binding->env, binding->node_external_ref, &binding->external_ref_count));
+        }
     }
 
     s_destroy_connect_args(args);
@@ -460,15 +459,6 @@ static void s_on_connected(
     (void)connection;
 
     struct connect_args *args = user_data;
-
-    if (error_code != AWS_ERROR_SUCCESS) {
-        s_mqtt_client_connection_release_threadsafe_function(args->binding);
-    }
-
-    if (!args->on_connect) {
-        s_destroy_connect_args(args);
-        return;
-    }
 
     args->error_code = error_code;
     args->return_code = return_code;
@@ -755,27 +745,26 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     }
 
     napi_value node_on_connect = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_on_connect)) {
+    AWS_FATAL_ASSERT(!aws_napi_is_null_or_undefined(env, node_on_connect));
 
-        on_connect_args = aws_mem_calloc(allocator, 1, sizeof(struct connect_args));
-        AWS_FATAL_ASSERT(on_connect_args);
-        on_connect_args->allocator = allocator;
-        on_connect_args->binding = binding;
+    on_connect_args = aws_mem_calloc(allocator, 1, sizeof(struct connect_args));
+    AWS_FATAL_ASSERT(on_connect_args);
+    on_connect_args->allocator = allocator;
+    on_connect_args->binding = binding;
 
-        AWS_NAPI_CALL(
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
             env,
-            aws_napi_create_threadsafe_function(
-                env,
-                node_on_connect,
-                "aws_mqtt_client_connection_on_connect",
-                s_on_connect_call,
-                binding,
-                &on_connect_args->on_connect),
-            {
-                napi_throw_error(env, NULL, "Failed to bind on_connect callback");
-                goto cleanup;
-            });
-    }
+            node_on_connect,
+            "aws_mqtt_client_connection_on_connect",
+            s_on_connect_call,
+            binding,
+            &on_connect_args->on_connect),
+        {
+            napi_throw_error(env, NULL, "Failed to bind on_connect callback");
+            goto cleanup;
+        });
 
     /*
      * In order to support reentrant connect->disconnect->connect in a backwards compatible way we have to account
@@ -825,6 +814,10 @@ cleanup:
     if (!success) {
         s_destroy_connect_args(on_connect_args);
         s_mqtt_client_connection_release_threadsafe_function(binding);
+
+        if (binding->external_ref_count > 0) {
+            AWS_NAPI_ENSURE(env, napi_reference_unref(env, binding->node_external_ref, &binding->external_ref_count));
+        }
     }
 
     return NULL;
