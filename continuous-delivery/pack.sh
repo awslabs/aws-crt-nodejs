@@ -8,8 +8,6 @@ CURRENT_TAG=$(git describe --tags | cut -f2 -dv)
 # convert v0.2.12-2-g50254a9 to 0.2.12
 CURRENT_TAG_VERSION=$(git describe --tags | cut -f1 -d'-' | cut -f2 -dv)
 
-mkdir checksums
-
 # go to previous directory
 cd ..
 
@@ -18,7 +16,6 @@ tar -cvzf aws-crt-$CURRENT_TAG_VERSION-source.tgz aws-crt-nodejs/crt
 # sha256 checksum
 SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-source.tgz | awk '{print $1}')
 echo $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-source.sha256
-echo $SOURCE_SHA256 > aws-crt-nodejs/checksums/aws-crt-$CURRENT_TAG_VERSION-source.sha256
 
 # omnibus package
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-all.tgz aws-crt-nodejs/
