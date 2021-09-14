@@ -63,7 +63,7 @@ async function fetch_native_code(url, version, path) {
     const tarball_path = path + "source.tgz"
     return new Promise((resolve, reject) => {
         download_file(source_URL, tarball_path).then(() => {
-            // download checksum
+            // Download checksum
             const source_checksum_URL = url + "aws-crt-" + version + "-source.sha256"
             check_checksum(source_checksum_URL, tarball_path)
 
@@ -110,6 +110,7 @@ function build_locally() {
     buildSystem.build();
 }
 
+
 if (!fs.existsSync("scripts/build.js")) {
     // Have to use the right relative path for checking and moving the native source code.
     throw new Error("Invoked from invalid directory.");
@@ -122,18 +123,22 @@ if (!fs.existsSync("crt/")) {
     // There is no native code, we are not building from source.
     (async () => {
         // AWS common runtime aws-crt-nodejs cloudfront distribution.
-        const url = "https://d332vdhbectycy.cloudfront.net/";
+        let url = "https://d332vdhbectycy.cloudfront.net/";
+        if (process.env.CRT_SOURCE_CODE_HOST) {
+            // Use the host specified by user
+            url = process.env.CRT_SOURCE_CODE_HOST;
+        }
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
         const version = package["version"];
         fetch_native_code(url, version, tmp_path).then(() => {
-            // clean up temp directory
+            // Clean up temp directory
             fs.rmSync(tmp_path, { recursive: true });
-            // kick off local build
+            // Kick off local build
             build_locally();
         })
     })();
 } else {
-    // kick off local build
+    // Kick off local build
     build_locally();
 }
