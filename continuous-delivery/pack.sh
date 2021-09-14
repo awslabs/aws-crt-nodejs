@@ -15,19 +15,19 @@ cd ..
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-source.tgz aws-crt-nodejs/crt
 # sha256 checksum
 SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-source.tgz | awk '{print $1}')
-echo $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-source.sha256
+echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-source.sha256
 
 # omnibus package
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-all.tgz aws-crt-nodejs/
 # sha256 checksum
 SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-all.tgz | awk '{print $1}')
-echo $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-all.sha256
+echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-all.sha256
 
 # binaries
 tar -cvzf aws-crt-$CURRENT_TAG_VERSION-binary.tgz aws-crt-nodejs/dist/bin
 # sha256 checksum
 SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-binary.tgz | awk '{print $1}')
-echo $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-binary.sha256
+echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-binary.sha256
 
 
 # npm pack

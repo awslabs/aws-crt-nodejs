@@ -47,7 +47,7 @@ async function check_checksum(url, loacl_file) {
                 if (err) {
                     reject(err);
                 }
-                if (sum === response.data.slice(0, -1)) {
+                if (sum === response.data) {
                     resolve()
                 }
                 else {
