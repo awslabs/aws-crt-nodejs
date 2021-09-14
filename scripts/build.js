@@ -43,7 +43,7 @@ async function check_checksum(url, loacl_file) {
         responseType: 'text',
     }).then(response => {
         return new Promise((resolve, reject) => {
-            checksum.file(loacl_file, function (err, sum) {
+            checksum.file(loacl_file, { algorithm: 'sha256' }, function (err, sum) {
                 if (err) {
                     reject(err);
                 }
@@ -64,7 +64,7 @@ async function fetch_native_code(url, version, path) {
     return new Promise((resolve, reject) => {
         download_file(source_URL, tarball_path).then(() => {
             // download checksum
-            const source_checksum_URL = url + "aws-crt-" + version + "-source.sha1"
+            const source_checksum_URL = url + "aws-crt-" + version + "-source.sha256"
             check_checksum(source_checksum_URL, tarball_path)
 
             fs.createReadStream(tarball_path)
@@ -122,7 +122,7 @@ if (!fs.existsSync("crt/")) {
     // There is no native code, we are not building from source.
     (async () => {
         // AWS common runtime aws-crt-nodejs cloudfront distribution.
-        const url = "http://d332vdhbectycy.cloudfront.net/";
+        const url = "https://d332vdhbectycy.cloudfront.net/";
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
         const version = package["version"];

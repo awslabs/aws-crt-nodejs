@@ -16,9 +16,6 @@ phases:
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_win_x64/* $DIST_BIN
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_aarch64/* $DIST_BIN
       - ls $DIST_BIN
-      - npm install --unsafe-perm
-      - npm pack --unsafe-perm
-      - cp aws-crt-*.tgz ..
   post_build:
     commands:
       - bash ./continuous-delivery/pack.sh
@@ -26,4 +23,4 @@ phases:
 artifacts:
   files:
     - "aws-crt-*.tgz"
-    - "aws-crt-*.sha1"
+    - "aws-crt-*.sha256"
