@@ -80,8 +80,7 @@ async function checkChecksum(url, local_file) {
                 if (data)
                     hash.update(data);
                 else {
-                    const checksum = hash.digest("hex")
-                    if (checksum === response.data) {
+                    if (hash.digest("hex") === response.data) {
                         resolve()
                     }
                     else {
