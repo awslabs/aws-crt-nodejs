@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 const os = require('os');
-const process = require("process");
-const cmake = require("cmake-js");
-const axios = require("axios");
-const path = require("path");
-const tar = require('tar');
 const fs = require("fs");
 const crypto = require('crypto');
+const process = require("process");
+const path = require("path");
+
+const cmake = require("cmake-js");
+const axios = require("axios");
+const tar = require('tar');
 
 
 function copyFileSync(source, target) {
