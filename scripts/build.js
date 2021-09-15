@@ -10,7 +10,7 @@ const path = require("path");
 const tar = require('tar');
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require('uuid');
-const checksum = require('checksum');
+const { createHash } = require('crypto');
 
 async function download_file(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
@@ -36,35 +36,41 @@ async function download_file(fileUrl, outputLocationPath) {
     });
 }
 
-async function check_checksum(url, loacl_file) {
+async function check_checksum(url, local_file) {
     return axios({
         method: 'get',
         url: url,
         responseType: 'text',
     }).then(response => {
         return new Promise((resolve, reject) => {
-            checksum.file(loacl_file, { algorithm: 'sha256' }, function (err, sum) {
-                if (err) {
-                    reject(err);
-                }
-                if (sum === response.data) {
-                    resolve()
-                }
+            const filestream = fs.createReadStream(local_file);
+            const hash = createHash('sha256');
+            filestream.on('readable', () => {
+                // Only one element is going to be produced by the
+                // hash stream.
+                const data = filestream.read();
+                if (data)
+                    hash.update(data);
                 else {
-                    reject(new Error("source code checksum mismatch"))
+                    if (hash.digest("hex") === response.data) {
+                        resolve()
+                    }
+                    else {
+                        reject(new Error("source code checksum mismatch"))
+                    }
                 }
-            })
+            });
         });
     })
 }
 
 async function fetch_native_code(url, version, path) {
-    const source_URL = url + "aws-crt-" + version + "-source.tgz"
+    const source_URL = `${url}/aws-crt-${version}-source.tgz`
     const tarball_path = path + "source.tgz"
     return new Promise((resolve, reject) => {
         download_file(source_URL, tarball_path).then(() => {
             // Download checksum
-            const source_checksum_URL = url + "aws-crt-" + version + "-source.sha256"
+            const source_checksum_URL = `${url}/aws-crt-${version}-source.sha256`
             check_checksum(source_checksum_URL, tarball_path)
 
             fs.createReadStream(tarball_path)
@@ -117,21 +123,21 @@ if (!fs.existsSync("scripts/build.js")) {
 }
 
 if (!fs.existsSync("crt/")) {
-    const tmp_path = path.join(__dirname, uuidv4() + "temp/");
+    const tmp_path = path.join(__dirname, "temp" + uuidv4() + "/");
     fs.mkdirSync(tmp_path);
 
     // There is no native code, we are not building from source.
     (async () => {
         // AWS common runtime aws-crt-nodejs cloudfront distribution.
-        let url = "https://d332vdhbectycy.cloudfront.net/";
-        if (process.env.CRT_SOURCE_CODE_HOST) {
+        let host = "https://d332vdhbectycy.cloudfront.net";
+        if (process.env.CRT_BINARY_HOST) {
             // Use the host specified by user
-            url = process.env.CRT_SOURCE_CODE_HOST;
+            host = process.env.CRT_BINARY_HOST;
         }
         let rawdata = fs.readFileSync('package.json');
         let package = JSON.parse(rawdata);
         const version = package["version"];
-        fetch_native_code(url, version, tmp_path).then(() => {
+        fetch_native_code(host, version, tmp_path).then(() => {
             // Clean up temp directory
             fs.rmSync(tmp_path, { recursive: true });
             // Kick off local build
