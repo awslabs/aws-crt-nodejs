@@ -57,7 +57,7 @@ async function downloadFile(fileUrl, outputLocationPath) {
             });
             writer.on('close', () => {
                 if (!error) {
-                    resolve(true);
+                    resolve();
                 }
             });
         });
@@ -93,15 +93,15 @@ async function checkChecksum(url, local_file) {
     })
 }
 
-async function fetch_native_code(url, version, path) {
-    const source_URL = `${url}/aws-crt-${version}-source.tgz`
-    const tarball_path = path + "source.tgz"
+async function fetchNativeCode(url, version, path) {
+    const sourceURL = `${url}/aws-crt-${version}-source.tgz`
+    const tarballPath = path + "source.tgz"
     return new Promise((resolve, reject) => {
-        downloadFile(source_URL, tarball_path).then(() => {
+        downloadFile(sourceURL, tarballPath).then(() => {
             // Download checksum
-            const source_checksum_URL = `${url}/aws-crt-${version}-source.sha256`
-            checkChecksum(source_checksum_URL, tarball_path)
-            fs.createReadStream(tarball_path)
+            const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`
+            checkChecksum(sourceChecksumURL, tarballPath)
+            fs.createReadStream(tarballPath)
                 .on("error", () => { reject() })
                 .pipe(tar.x({
                     C: path
@@ -165,7 +165,7 @@ if (!fs.existsSync("crt/")) {
         let rawData = fs.readFileSync('package.json');
         let package = JSON.parse(rawData);
         const version = package["version"];
-        fetch_native_code(host, version, tmpPath).then(() => {
+        fetchNativeCode(host, version, tmpPath).then(() => {
             // Clean up temp directory
             fs.rmSync(tmpPath, { recursive: true });
             // Kick off local build
