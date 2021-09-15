@@ -73,7 +73,6 @@ async function fetchNativeCode(url, version, path) {
             // Download checksum
             const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`
             checkChecksum(sourceChecksumURL, tarballPath)
-            const fileList = ["./aws-crt-nodejs/"]
             tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir })
                 .then(() => { resolve(); })
                 .catch((err) => { reject(err); })
