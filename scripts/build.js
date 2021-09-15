@@ -9,8 +9,7 @@ const axios = require("axios");
 const path = require("path");
 const tar = require('tar');
 const fs = require("fs");
-const { v4: uuidv4 } = require('uuid');
-const { createHash } = require('crypto');
+const crypto = require('crypto');
 
 
 function copyFileSync(source, target) {
@@ -72,7 +71,7 @@ async function checkChecksum(url, local_file) {
     }).then(response => {
         return new Promise((resolve, reject) => {
             const filestream = fs.createReadStream(local_file);
-            const hash = createHash('sha256');
+            const hash = crypto.createHash('sha256');
             filestream.on('readable', () => {
                 // Only one element is going to be produced by the
                 // hash stream.
@@ -151,7 +150,7 @@ const workDir = path.join(__dirname, "../")
 process.chdir(workDir);
 
 if (!fs.existsSync("crt/")) {
-    const tmpPath = path.join(__dirname, `temp${uuidv4()}/`);
+    const tmpPath = path.join(__dirname, `temp${crypto.randomBytes(16).toString("hex")}/`);
     fs.mkdirSync(tmpPath);
 
     // There is no native code, we are not building from source.
