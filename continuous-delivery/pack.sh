@@ -42,10 +42,9 @@ UNZIP="unzip_pack"
 mkdir $UNZIP
 tar -xf aws-crt-$CURRENT_TAG_VERSION.tgz -C $UNZIP
 PACK_FILE_SIZE_KB=$(du -sk $UNZIP | awk '{print $1}')
-if expr $PACK_FILE_SIZE_KB \< 12000 ; then
-    # True, the package size is smaller than 12 MB, return 0
-    exit 0
+if expr $PACK_FILE_SIZE_KB \> 12000 ; then
+    # the package size is larger than 12 MB, return -1
+    echo "Package size is too large"
+    exit -1
 fi
-# False
-echo "Package size is too large"
-exit -1
+exit 0
