@@ -12,34 +12,6 @@ const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require('tar');
 
-
-function copyFileSync(source, target) {
-    if (fs.existsSync(target)) {
-        throw new Error(`${target} already exists, not overwriting it`)
-    }
-    fs.writeFileSync(target, fs.readFileSync(source));
-}
-
-function copyFolderRecursiveSync(source, target) {
-    let files = [];
-
-    if (!fs.existsSync(target)) {
-        fs.mkdirSync(target);
-    }
-    if (fs.lstatSync(source).isDirectory()) {
-        files = fs.readdirSync(source);
-        files.forEach(function (file) {
-            var curSource = path.join(source, file);
-            var targetPath = path.join(target, file);
-            if (fs.lstatSync(curSource).isDirectory()) {
-                copyFolderRecursiveSync(curSource, targetPath);
-            } else {
-                copyFileSync(curSource, targetPath);
-            }
-        });
-    }
-}
-
 async function downloadFile(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
     return axios({
@@ -80,7 +52,8 @@ async function checkChecksum(url, local_file) {
                 if (data)
                     hash.update(data);
                 else {
-                    if (hash.digest("hex") === response.data) {
+                    const checksum = hash.digest("hex")
+                    if (checksum === response.data) {
                         resolve()
                     }
                     else {
@@ -100,18 +73,10 @@ async function fetchNativeCode(url, version, path) {
             // Download checksum
             const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`
             checkChecksum(sourceChecksumURL, tarballPath)
-            fs.createReadStream(tarballPath)
-                .on("error", () => { reject() })
-                .pipe(tar.x({
-                    C: path
-                }))
-                .on("end", () => {
-                    try {
-                        copyFolderRecursiveSync(`${path}/aws-crt-nodejs/crt`, nativeSourceDir);
-                        resolve();
-                    }
-                    catch (err) { reject(err); }
-                });
+            const fileList = ["./aws-crt-nodejs/"]
+            tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir })
+                .then(() => { resolve(); })
+                .catch((err) => { reject(err); })
         }).catch((err) => {
             reject(err)
         })
@@ -153,6 +118,7 @@ const nativeSourceDir = "crt/"
 if (!fs.existsSync(nativeSourceDir)) {
     const tmpPath = path.join(__dirname, `temp${crypto.randomBytes(16).toString("hex")}/`);
     fs.mkdirSync(tmpPath);
+    fs.mkdirSync(nativeSourceDir);
 
     // There is no native code, we are not building from source.
     (async () => {
