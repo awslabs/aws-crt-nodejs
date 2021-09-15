@@ -94,12 +94,12 @@ async function checkChecksum(url, local_file) {
 }
 
 async function fetch_native_code(url, version, path) {
-    const source_URL = `${url}/aws-crt-${version}-source-test.tgz`
+    const source_URL = `${url}/aws-crt-${version}-source.tgz`
     const tarball_path = path + "source.tgz"
     return new Promise((resolve, reject) => {
         downloadFile(source_URL, tarball_path).then(() => {
             // Download checksum
-            const source_checksum_URL = `${url}/aws-crt-${version}-source-test.sha256`
+            const source_checksum_URL = `${url}/aws-crt-${version}-source.sha256`
             checkChecksum(source_checksum_URL, tarball_path)
             fs.createReadStream(tarball_path)
                 .on("error", () => { reject() })
@@ -108,7 +108,7 @@ async function fetch_native_code(url, version, path) {
                 }))
                 .on("end", () => {
                     try {
-                        copyFolderRecursiveSync(path + '/aws-crt-nodejs/crt', "./crt");
+                        copyFolderRecursiveSync(`${path}/aws-crt-nodejs/crt`, "./crt");
                         resolve();
                     }
                     catch (err) { reject(err); }
@@ -151,7 +151,7 @@ const workDir = path.join(__dirname, "../")
 process.chdir(workDir);
 
 if (!fs.existsSync("crt/")) {
-    const tmpPath = path.join(__dirname, "temp" + uuidv4() + "/");
+    const tmpPath = path.join(__dirname, `temp${uuidv4()}/`);
     fs.mkdirSync(tmpPath);
 
     // There is no native code, we are not building from source.
