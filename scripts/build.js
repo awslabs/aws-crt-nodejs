@@ -8,11 +8,39 @@ const cmake = require("cmake-js");
 const axios = require("axios");
 const path = require("path");
 const tar = require('tar');
-const fs = require("fs-extra");
+const fs = require("fs");
 const { v4: uuidv4 } = require('uuid');
 const { createHash } = require('crypto');
 
-async function download_file(fileUrl, outputLocationPath) {
+
+function copyFileSync(source, target) {
+    if (fs.existsSync(target)) {
+        throw new Error(`${target} already exists, not overwriting it`)
+    }
+    fs.writeFileSync(target, fs.readFileSync(source));
+}
+
+function copyFolderRecursiveSync(source, target) {
+    let files = [];
+
+    if (!fs.existsSync(target)) {
+        fs.mkdirSync(target);
+    }
+    if (fs.lstatSync(source).isDirectory()) {
+        files = fs.readdirSync(source);
+        files.forEach(function (file) {
+            var curSource = path.join(source, file);
+            var targetPath = path.join(target, file);
+            if (fs.lstatSync(curSource).isDirectory()) {
+                copyFolderRecursiveSync(curSource, targetPath);
+            } else {
+                copyFileSync(curSource, targetPath);
+            }
+        });
+    }
+}
+
+async function downloadFile(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
     return axios({
         method: 'get',
@@ -36,7 +64,7 @@ async function download_file(fileUrl, outputLocationPath) {
     });
 }
 
-async function check_checksum(url, local_file) {
+async function checkChecksum(url, local_file) {
     return axios({
         method: 'get',
         url: url,
@@ -52,7 +80,8 @@ async function check_checksum(url, local_file) {
                 if (data)
                     hash.update(data);
                 else {
-                    if (hash.digest("hex") === response.data) {
+                    const checksum = hash.digest("hex")
+                    if (checksum === response.data) {
                         resolve()
                     }
                     else {
@@ -65,23 +94,24 @@ async function check_checksum(url, local_file) {
 }
 
 async function fetch_native_code(url, version, path) {
-    const source_URL = `${url}/aws-crt-${version}-source.tgz`
+    const source_URL = `${url}/aws-crt-${version}-source-test.tgz`
     const tarball_path = path + "source.tgz"
     return new Promise((resolve, reject) => {
-        download_file(source_URL, tarball_path).then(() => {
+        downloadFile(source_URL, tarball_path).then(() => {
             // Download checksum
-            const source_checksum_URL = `${url}/aws-crt-${version}-source.sha256`
-            check_checksum(source_checksum_URL, tarball_path)
-
+            const source_checksum_URL = `${url}/aws-crt-${version}-source-test.sha256`
+            checkChecksum(source_checksum_URL, tarball_path)
             fs.createReadStream(tarball_path)
-                .on("error", () => { reject("failed") })
+                .on("error", () => { reject() })
                 .pipe(tar.x({
                     C: path
                 }))
                 .on("end", () => {
-                    fs.copy(path + '/aws-crt-nodejs/crt', './crt')
-                        .then(() => resolve("success"))
-                        .catch(err => reject(err))
+                    try {
+                        copyFolderRecursiveSync(path + '/aws-crt-nodejs/crt', "./crt");
+                        resolve();
+                    }
+                    catch (err) { reject(err); }
                 });
         }).catch((err) => {
             reject(err)
@@ -89,7 +119,7 @@ async function fetch_native_code(url, version, path) {
     });
 }
 
-function build_locally() {
+function buildLocally() {
     let options = {
         CMAKE_EXPORT_COMPILE_COMMANDS: true,
         CMAKE_JS_PLATFORM: os.platform,
@@ -116,15 +146,13 @@ function build_locally() {
     buildSystem.build();
 }
 
-
-if (!fs.existsSync("scripts/build.js")) {
-    // Have to use the right relative path for checking and moving the native source code.
-    throw new Error("Invoked from invalid directory.");
-}
+// Makes sure the work directory is what we need
+const workDir = path.join(__dirname, "../")
+process.chdir(workDir);
 
 if (!fs.existsSync("crt/")) {
-    const tmp_path = path.join(__dirname, "temp" + uuidv4() + "/");
-    fs.mkdirSync(tmp_path);
+    const tmpPath = path.join(__dirname, "temp" + uuidv4() + "/");
+    fs.mkdirSync(tmpPath);
 
     // There is no native code, we are not building from source.
     (async () => {
@@ -134,17 +162,17 @@ if (!fs.existsSync("crt/")) {
             // Use the host specified by user
             host = process.env.CRT_BINARY_HOST;
         }
-        let rawdata = fs.readFileSync('package.json');
-        let package = JSON.parse(rawdata);
+        let rawData = fs.readFileSync('package.json');
+        let package = JSON.parse(rawData);
         const version = package["version"];
-        fetch_native_code(host, version, tmp_path).then(() => {
+        fetch_native_code(host, version, tmpPath).then(() => {
             // Clean up temp directory
-            fs.rmSync(tmp_path, { recursive: true });
+            fs.rmSync(tmpPath, { recursive: true });
             // Kick off local build
-            build_locally();
+            buildLocally();
         })
     })();
 } else {
     // Kick off local build
-    build_locally();
+    buildLocally();
 }
