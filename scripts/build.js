@@ -94,12 +94,12 @@ async function checkChecksum(url, local_file) {
 }
 
 async function fetchNativeCode(url, version, path) {
-    const sourceURL = `${url}/aws-crt-${version}-source-test.tgz`
+    const sourceURL = `${url}/aws-crt-${version}-source.tgz`
     const tarballPath = path + "source.tgz"
     return new Promise((resolve, reject) => {
         downloadFile(sourceURL, tarballPath).then(() => {
             // Download checksum
-            const sourceChecksumURL = `${url}/aws-crt-${version}-source-test.sha256`
+            const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`
             checkChecksum(sourceChecksumURL, tarballPath)
             fs.createReadStream(tarballPath)
                 .on("error", () => { reject() })
