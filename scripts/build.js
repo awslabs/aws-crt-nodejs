@@ -94,12 +94,12 @@ async function checkChecksum(url, local_file) {
 }
 
 async function fetchNativeCode(url, version, path) {
-    const sourceURL = `${url}/aws-crt-${version}-source.tgz`
+    const sourceURL = `${url}/aws-crt-${version}-source-test.tgz`
     const tarballPath = path + "source.tgz"
     return new Promise((resolve, reject) => {
         downloadFile(sourceURL, tarballPath).then(() => {
             // Download checksum
-            const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`
+            const sourceChecksumURL = `${url}/aws-crt-${version}-source-test.sha256`
             checkChecksum(sourceChecksumURL, tarballPath)
             fs.createReadStream(tarballPath)
                 .on("error", () => { reject() })
@@ -108,7 +108,7 @@ async function fetchNativeCode(url, version, path) {
                 }))
                 .on("end", () => {
                     try {
-                        copyFolderRecursiveSync(`${path}/aws-crt-nodejs/crt`, "./crt");
+                        copyFolderRecursiveSync(`${path}/aws-crt-nodejs/crt`, nativeSourceDir);
                         resolve();
                     }
                     catch (err) { reject(err); }
@@ -143,14 +143,15 @@ function buildLocally() {
         debug: process.argv.includes('--debug'),
         cMakeOptions: options,
     });
-    buildSystem.build();
+    return buildSystem.build();
 }
 
 // Makes sure the work directory is what we need
 const workDir = path.join(__dirname, "../")
 process.chdir(workDir);
+const nativeSourceDir = "crt/"
 
-if (!fs.existsSync("crt/")) {
+if (!fs.existsSync(nativeSourceDir)) {
     const tmpPath = path.join(__dirname, `temp${crypto.randomBytes(16).toString("hex")}/`);
     fs.mkdirSync(tmpPath);
 
@@ -169,7 +170,10 @@ if (!fs.existsSync("crt/")) {
             // Clean up temp directory
             fs.rmSync(tmpPath, { recursive: true });
             // Kick off local build
-            buildLocally();
+            buildLocally().then(() => {
+                // Local build finished successfully, we don't need source anymore.
+                fs.rmSync(nativeSourceDir, { recursive: true });
+            })
         })
     })();
 } else {
