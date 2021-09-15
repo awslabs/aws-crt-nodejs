@@ -9,10 +9,10 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as io from "./io";
 import { HttpProxyOptions, HttpRequest } from './http';
-export { HttpProxyOptions } from './http';
-
 import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
+import { TopicTrie } from "../common/trie";
 
+export { HttpProxyOptions } from './http';
 /** @category MQTT */
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
@@ -149,6 +149,7 @@ function normalize_payload(payload: Payload): StringLike {
  */
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     readonly tls_ctx?: io.ClientTlsContext; // this reference keeps the tls_ctx alive beyond the life of the connection
+    private subscriptions = new TopicTrie();
 
     /**
      * @param client The client that owns this connection
@@ -328,11 +329,12 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *          from the server or is rejected when an exception occurs.
      */
     async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback) {
+        this.subscriptions.insert(topic, on_message);
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
             try {
-                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, on_message, this._on_suback_callback.bind(this, resolve, reject));
+                crt_native.mqtt_client_connection_subscribe(this.native_handle(), topic, qos, this._on_suback_callback.bind(this, resolve, reject));
             } catch (e) {
                 reject(e);
             }
@@ -348,6 +350,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *          UNSUBACK is received from the server or is rejected when an exception occurs.
      */
     async unsubscribe(topic: string) {
+        this.subscriptions.remove(topic);
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
@@ -399,6 +402,11 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
+        const callback = this.subscriptions.find(topic);
+        if (callback) {
+            callback(topic, payload, dup, qos, retain);
+        }
+
         this.emit('message', topic, payload, dup, qos, retain);
     }
 

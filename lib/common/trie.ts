@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+import {OnMessageCallback} from "./mqtt";
+
 /** @internal */
 export class Node<T> {
     constructor(
@@ -71,5 +73,43 @@ export class Trie<T> {
     find(key: string) {
         const node = this.find_node(key, TrieOp.Find);
         return node ? node.value : undefined;
+    }
+}
+
+/** @internal */
+export class TopicTrie extends Trie<OnMessageCallback | undefined> {
+    constructor() {
+        super('/');
+    }
+
+    protected find_node(key: string, op: TrieOp) {
+        const parts = this.split_key(key);
+        let current = this.root;
+        let parent = undefined;
+        for (const part of parts) {
+            let child = current.children.get(part);
+            if (!child) {
+                child = current.children.get('#');
+                if (child) {
+                    return child;
+                }
+
+                child = current.children.get('+');
+            }
+            if (!child) {
+                if (op == TrieOp.Insert) {
+                    current.children.set(part, child = new Node(part));
+                }
+                else {
+                    return undefined;
+                }
+            }
+            parent = current;
+            current = child;
+        }
+        if (parent && op == TrieOp.Delete) {
+            parent.children.delete(current.key!);
+        }
+        return current;
     }
 }

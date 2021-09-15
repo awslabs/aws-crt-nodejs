@@ -1113,185 +1113,9 @@ static void s_on_suback(
     AWS_NAPI_ENSURE(args->binding->env, aws_napi_queue_threadsafe_function(args->on_suback, args));
 }
 
-/* user data which describes a subscription, passed to aws_mqtt_connection_subscribe */
-struct subscription {
-    struct aws_allocator *allocator;
-    struct aws_byte_buf topic; /* stored here as long as the sub is active, referenced by callbacks */
-    napi_threadsafe_function on_publish;
-};
-
-static void s_destroy_subscription(struct subscription *sub) {
-    if (sub == NULL) {
-        return;
-    }
-
-    AWS_FATAL_ASSERT(sub->allocator != NULL);
-
-    if (sub->on_publish != 0) {
-        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(sub->on_publish, napi_tsfn_release));
-    }
-
-    aws_byte_buf_clean_up(&sub->topic);
-    aws_mem_release(sub->allocator, sub);
-}
-
-static void s_on_publish_user_data_clean_up(void *user_data) {
-    s_destroy_subscription(user_data);
-}
-
-/* arguments for publish callbacks */
-struct on_publish_args {
-    struct aws_allocator *allocator;
-    struct aws_byte_buf topic;    /* owned by this */
-    struct aws_byte_buf *payload; /* owned by this until the external array buffer in the direct callback is created */
-    bool dup;
-    enum aws_mqtt_qos qos;
-    bool retain;
-    /* created by subscription, but we add/dec ref on our copy of the pointer too */
-    napi_threadsafe_function on_publish;
-};
-
-static void s_destroy_on_publish_args(struct on_publish_args *args) {
-    if (args == NULL) {
-        return;
-    }
-
-    AWS_FATAL_ASSERT(args->allocator != NULL);
-
-    if (args->on_publish != NULL) {
-        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(args->on_publish, napi_tsfn_release));
-    }
-
-    if (args->payload != NULL) {
-        aws_byte_buf_clean_up(args->payload);
-        aws_mem_release(args->allocator, args->payload);
-    }
-
-    aws_byte_buf_clean_up(&args->topic);
-
-    aws_mem_release(args->allocator, args);
-}
-
-static void s_publish_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
-    (void)finalize_data;
-    struct aws_byte_buf *buf = finalize_hint;
-
-    struct aws_allocator *allocator = buf->allocator;
-    AWS_FATAL_ASSERT(allocator != NULL);
-
-    aws_byte_buf_clean_up(buf);
-    aws_mem_release(allocator, buf);
-}
-
-static void s_on_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
-    (void)context;
-    struct on_publish_args *args = user_data;
-
-    if (env) {
-        napi_value params[5];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
-
-        AWS_NAPI_ENSURE(
-            env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[0]));
-        AWS_NAPI_ENSURE(
-            env,
-            napi_create_external_arraybuffer(
-                env,
-                args->payload->buffer,
-                args->payload->len,
-                s_publish_external_arraybuffer_finalizer,
-                args->payload,
-                &params[1]));
-        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
-        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
-        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
-
-        /*
-         * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
-         * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it up.
-         */
-        args->payload = NULL;
-
-        AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, args->on_publish, NULL, on_publish, num_params, params));
-    }
-
-    s_destroy_on_publish_args(args);
-}
-
-/* called in response to a message being published to an active subscription */
-static void s_on_publish(
-    struct aws_mqtt_client_connection *connection,
-    const struct aws_byte_cursor *topic,
-    const struct aws_byte_cursor *payload,
-    bool dup,
-    enum aws_mqtt_qos qos,
-    bool retain,
-    void *user_data) {
-
-    (void)connection;
-
-    struct subscription *sub = user_data;
-    /* users can use a null handler to sub to a topic, and then handle it with the any handler */
-    if (!sub->on_publish) {
-        return;
-    }
-
-    struct mqtt_connection_binding *binding = NULL;
-    AWS_NAPI_ENSURE(NULL, napi_get_threadsafe_function_context(sub->on_publish, (void **)&binding));
-
-    struct aws_allocator *allocator = binding->allocator;
-    struct on_publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct on_publish_args));
-    AWS_FATAL_ASSERT(args);
-
-    args->allocator = allocator;
-    args->dup = dup;
-    args->qos = qos;
-    args->retain = retain;
-    args->on_publish = sub->on_publish;
-
-    /*
-     * We share this threadsafe function with the subscription structure.  Each applies a inc/dec ref because
-     * it isn't clear that we can guarantee the order of destruction because we don't really have any
-     * guarantees about V8's internal scheduling/ordering invariants for queued functions.
-     */
-    if (args->on_publish != 0) {
-        AWS_NAPI_ENSURE(NULL, aws_napi_acquire_threadsafe_function(args->on_publish));
-    }
-
-    if (aws_byte_buf_init_copy_from_cursor(&args->topic, allocator, *topic)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT topic, message will not be delivered");
-        goto on_error;
-    }
-
-    /*
-     * Create the payload as a pointer-to-buf so cleanup responsibilities can be transferred to the payload's
-     * finalizer.
-     */
-    args->payload = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
-    if (args->payload == NULL) {
-        goto on_error;
-    }
-
-    /* this is freed after being delivered to node in s_on_publish_call */
-    if (aws_byte_buf_init_copy_from_cursor(args->payload, allocator, *payload)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, message will not be delivered");
-        goto on_error;
-    }
-
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_publish, args));
-
-    return;
-
-on_error:
-
-    s_destroy_on_publish_args(args);
-}
-
 napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback_info cb_info) {
 
-    napi_value node_args[5];
+    napi_value node_args[4];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1299,7 +1123,7 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 5 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_subscribe needs exactly 4 arguments");
         return NULL;
     }
 
@@ -1312,12 +1136,11 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
 
     struct aws_allocator *allocator = binding->allocator;
     struct suback_args *suback = NULL;
-    struct subscription *sub = aws_mem_calloc(allocator, 1, sizeof(struct subscription));
-    AWS_FATAL_ASSERT(sub);
-    sub->allocator = allocator;
+    struct aws_byte_buf topic_buf;
+    AWS_ZERO_STRUCT(topic_buf);
 
     napi_value node_topic = *arg++;
-    AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&sub->topic, env, node_topic), {
+    AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&topic_buf, env, node_topic), {
         napi_throw_type_error(env, NULL, "topic must be a String");
         goto cleanup;
     });
@@ -1330,27 +1153,13 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     });
     enum aws_mqtt_qos qos = (enum aws_mqtt_qos)qos_uint;
 
-    napi_value node_on_publish = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_on_publish)) {
-        AWS_NAPI_CALL(
-            env,
-            aws_napi_create_threadsafe_function(
-                env,
-                node_on_publish,
-                "aws_mqtt_client_connection_on_publish",
-                s_on_publish_call,
-                binding,
-                &sub->on_publish),
-            { goto cleanup; });
-    }
-
     napi_value node_on_suback = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_on_suback)) {
         suback = aws_mem_calloc(allocator, 1, sizeof(struct suback_args));
         AWS_FATAL_ASSERT(suback);
         suback->allocator = allocator;
         suback->binding = binding;
-        aws_byte_buf_init_copy_from_cursor(&suback->topic, allocator, aws_byte_cursor_from_buf(&sub->topic));
+        aws_byte_buf_init_copy_from_cursor(&suback->topic, allocator, aws_byte_cursor_from_buf(&topic_buf));
         AWS_NAPI_CALL(
             env,
             aws_napi_create_threadsafe_function(
@@ -1363,20 +1172,22 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
             { goto cleanup; });
     }
 
-    struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&sub->topic);
+    struct aws_byte_cursor topic_cur = aws_byte_cursor_from_buf(&topic_buf);
     uint16_t sub_id = aws_mqtt_client_connection_subscribe(
-        binding->connection, &topic_cur, qos, s_on_publish, sub, s_on_publish_user_data_clean_up, s_on_suback, suback);
+        binding->connection, &topic_cur, qos, NULL, NULL, NULL, s_on_suback, suback);
 
     if (!sub_id) {
         aws_napi_throw_last_error(env);
         goto cleanup;
     }
 
+    aws_byte_buf_clean_up(&topic_buf);
+
     return NULL;
 
 cleanup:
 
-    s_destroy_subscription(sub);
+    aws_byte_buf_clean_up(&topic_buf);
     s_destroy_suback_args(suback);
 
     return NULL;
@@ -1476,7 +1287,7 @@ static void s_on_any_publish(
     }
 
     struct aws_allocator *allocator = binding->allocator;
-    struct on_any_publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct on_publish_args));
+    struct on_any_publish_args *args = aws_mem_calloc(allocator, 1, sizeof(struct on_any_publish_args));
     AWS_FATAL_ASSERT(args);
 
     args->allocator = allocator;

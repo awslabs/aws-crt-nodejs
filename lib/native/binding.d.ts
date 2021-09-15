@@ -173,7 +173,6 @@ export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
     topic: StringLike,
     qos: number,
-    on_publish?: OnMessageCallback,
     on_suback?: (packet_id: number, topic: string, qos: QoS, error_code: number) => void,
 ): void;
 

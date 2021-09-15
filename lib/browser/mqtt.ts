@@ -5,7 +5,7 @@
 
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
-import { Trie, TrieOp, Node as TrieNode } from "./trie";
+import { TopicTrie } from "../common/trie";
 
 import { BufferedEventEmitter } from "../common/event";
 import { CrtError } from "../browser";
@@ -105,43 +105,7 @@ export class MqttClient {
     }
 }
 
-/** @internal */
-class TopicTrie extends Trie<OnMessageCallback | undefined> {
-    constructor() {
-        super('/');
-    }
 
-    protected find_node(key: string, op: TrieOp) {
-        const parts = this.split_key(key);
-        let current = this.root;
-        let parent = undefined;
-        for (const part of parts) {
-            let child = current.children.get(part);
-            if (!child) {
-                child = current.children.get('#');
-                if (child) {
-                    return child;
-                }
-
-                child = current.children.get('+');
-            }
-            if (!child) {
-                if (op == TrieOp.Insert) {
-                    current.children.set(part, child = new TrieNode(part));
-                }
-                else {
-                    return undefined;
-                }
-            }
-            parent = current;
-            current = child;
-        }
-        if (parent && op == TrieOp.Delete) {
-            parent.children.delete(current.key!);
-        }
-        return current;
-    }
-}
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
