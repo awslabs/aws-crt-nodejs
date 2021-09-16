@@ -47,6 +47,7 @@
     "crypto-js": "^4.0.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
     "mqtt": "^4.2.8",
+    "tar": "^6.1.11",
     "websocket-stream": "^5.5.2"
   }
 }

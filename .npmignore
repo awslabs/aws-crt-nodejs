@@ -155,6 +155,7 @@ deps_build/
 /test/
 /samples/
 /tsconfig*.json
+/typedoc*.json
 /jest.config.js
 /make-docs.sh
 
@@ -167,20 +168,10 @@ deps_build/
 **/.github/
 **/continuous-delivery/
 **/docs/
+**/codebuild/
 
-# Skip large submodule files
-crt/aws-c-*/tests
-crt/**/AWSCRTAndroidTestRunner
-crt/s2n/tests/fuzz/corpus
-crt/s2n/tests/ctverif
-crt/s2n/tests/pems
-crt/s2n/tests/saw
-crt/s2n/tests/sidetrail
-crt/s2n/tests/integration/trust-store
-crt/s2n/tests/integration/data
-crt/s2n/tests/unit/kats
-crt/*/.cbmc-batch/
-crt/*/codebuild/
+# Skip Native Code
+**/crt/
 
 # Skip unwanted binaries
 dist/bin/**/sha256_profile
