@@ -110,9 +110,9 @@ async function buildFromRemoteSource(tmpPath) {
     fs.mkdirSync(nativeSourceDir);
     // AWS common runtime aws-crt-nodejs cloudfront distribution.
     let host = "https://d332vdhbectycy.cloudfront.net";
-    if (process.env.CRT_BINARY_HOST) {
+    if (process.env.AWS_CRT_BINARY_HOST) {
         // Use the host specified by user
-        host = process.env.CRT_BINARY_HOST;
+        host = process.env.AWS_CRT_BINARY_HOST;
     }
     let rawData = fs.readFileSync('package.json');
     let package = JSON.parse(rawData);
