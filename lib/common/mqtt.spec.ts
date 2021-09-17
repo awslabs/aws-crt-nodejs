@@ -40,14 +40,69 @@ test('MQTT Connect/Disconnect', async (done) => {
         });
         connection.on('error', (error) => {
             reject(error);
-        })
+        });
         connection.on('disconnect', () => {
             resolve(true);
-        })
+        });
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
+    done();
+});
+
+test('MQTT Repeated Connect/Disconnect', async (done) => {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        done(err);
+        return;
+    }
+
+    const iterations : number = 10;
+
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+        .with_ping_timeout_ms(5000)
+        .build()
+    const client = new MqttClient(new ClientBootstrap());
+    const connection = client.new_connection(config);
+
+    let on_connect_count : number = 0;
+    let on_disconnect_count : number = 0;
+    let on_error_count : number = 0;
+
+    const promise = new Promise(async (resolve, reject) => {
+        connection.on('error', (error) => {
+            ++on_error_count;
+            reject(error);
+        });
+        connection.on('disconnect', () => {
+            ++on_disconnect_count;
+        });
+        connection.on('connect', async (session_present) => {
+            ++on_connect_count;
+        });
+
+        for (var i = 0; i < iterations;i++) {
+            const connected = connection.connect();
+            await expect(connected).resolves.toBeDefined();
+            await connection.disconnect();
+        };
+
+        resolve(true);
+    });
+
+    await expect(promise).resolves.toBeTruthy();
+
+    expect(on_connect_count).toEqual(iterations);
+    expect(on_disconnect_count).toEqual(iterations);
+    expect(on_error_count).toEqual(0);
+
     done();
 });
 

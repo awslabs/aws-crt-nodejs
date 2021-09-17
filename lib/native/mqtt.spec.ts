@@ -18,6 +18,7 @@ import { MqttClient } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
+import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
 
@@ -25,7 +26,7 @@ async function test_websockets(aws_opts: Config, websocket_config: WebsocketConf
     const bootstrap = new ClientBootstrap();
     const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
         .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .build()
     const client = new MqttClient(bootstrap);

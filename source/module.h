@@ -13,7 +13,13 @@
 #define NAPI_VERSION 4
 #include <node_api.h>
 
-enum aws_napi_log_subject { AWS_LS_NODE = 0x900 };
+#define AWS_CRT_NODEJS_PACKAGE_ID 11
+
+enum aws_napi_log_subject {
+    AWS_LS_NODEJS_CRT_GENERAL = AWS_LOG_SUBJECT_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+
+    WS_LS_NODEJS_CRT_LAST = AWS_LOG_SUBJECT_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+};
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);

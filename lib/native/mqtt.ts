@@ -186,10 +186,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         this.on('error', (error) => {});
     }
 
-    private close() {
-        crt_native.mqtt_client_connection_close(this.native_handle());
-    }
-
     /** Emitted when the connection is ready and is about to start sending response data */
     on(event: 'connect', listener: (session_present: boolean) => void): this;
 
@@ -376,7 +372,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this._on_disconnect_callback.bind(this, resolve)
                 );
             } catch (e) {
-                this.close();
                 reject(e);
             }
         });

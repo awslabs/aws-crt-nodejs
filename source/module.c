@@ -37,7 +37,7 @@
 AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 static struct aws_log_subject_info s_log_subject_infos[] = {
-    DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODE, "node", "Node/N-API failures"),
+    DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODEJS_CRT_GENERAL, "node", "General Node/N-API events"),
 };
 
 static struct aws_log_subject_info_list s_log_subject_list = {
@@ -501,6 +501,10 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
 
     aws_thread_join_all_managed();
 
+    aws_unregister_log_subject_info_list(&s_log_subject_list);
+    aws_auth_library_clean_up();
+    aws_mqtt_library_clean_up();
+
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
     aws_mem_release(ctx->allocator, ctx);
@@ -562,6 +566,14 @@ static bool s_create_and_register_function(
     aws_register_log_subject_info_list(&s_log_subject_list);
 
     /* Initialize the event loop group */
+    /*
+     * We don't currently support multi-init of the module, but we should.
+     * Things that would need to be solved:
+     *    (1) global objects (event loop group, logger, allocator, more)
+     *    (2) multi-init/multi-cleanup of aws-c-*
+     *    (3) allocator cross-talk/lifetimes
+     */
+    AWS_FATAL_ASSERT(s_node_uv_elg == NULL);
     s_node_uv_elg = aws_event_loop_group_new_default(allocator, 1, NULL);
 
     napi_value null;
@@ -599,7 +611,6 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
-    CREATE_AND_REGISTER_FN(mqtt_client_connection_close)
 
     /* Crypto */
     CREATE_AND_REGISTER_FN(hash_md5_new)

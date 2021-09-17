@@ -79,6 +79,8 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
     /* Should have already been done, but just to be safe -- now that it's reentrant -- release the functions anyways */
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "Destroying binding for connection %p", (void *)binding->connection);
+
     if (binding->node_external_ref) {
         napi_delete_reference(env, binding->node_external_ref);
     }
@@ -92,38 +94,6 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
     }
 
     aws_mem_release(binding->allocator, binding);
-}
-
-napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_info info) {
-    struct mqtt_connection_binding *binding = NULL;
-
-    napi_value node_args[1];
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
-        return NULL;
-    });
-    if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_close needs exactly 1 argument");
-        return NULL;
-    }
-
-    napi_value node_binding = *arg++;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
-        napi_throw_error(env, NULL, "Failed to extract connection from first argument");
-        return NULL;
-    });
-
-    /* connection has been shutdown, no callbacks will happen after it */
-    s_mqtt_client_connection_release_threadsafe_function(binding);
-
-    /* no more node interop will be done unless the connection is reestablished, free node resources */
-    if (binding->external_ref_count > 0) {
-        AWS_NAPI_ENSURE(env, napi_reference_unref(env, binding->node_external_ref, &binding->external_ref_count));
-    }
-
-    return NULL;
 }
 
 /*******************************************************************************
@@ -799,6 +769,13 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.tls_options = binding->use_tls_options ? &binding->tls_options : NULL;
     options.user_data = on_connect_args; /* on_connect user_data */
 
+    AWS_LOGF_DEBUG(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "Calling connect for client id (" PRInSTR "), connection %p, binding %p",
+        AWS_BYTE_CURSOR_PRI(client_id_cur),
+        (void *)binding->connection,
+        (void *)binding);
+
     if (aws_mqtt_client_connection_connect(binding->connection, &options)) {
         aws_napi_throw_last_error(env);
         goto cleanup;
@@ -1299,7 +1276,7 @@ static void s_on_any_publish(
 
     /* this is freed after being delivered to node in s_on_any_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(args->payload, allocator, *payload)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "Failed to copy MQTT payload buffer, payload will not be delivered");
         goto on_error;
     }
 
@@ -1542,13 +1519,8 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
     }
 
     if (aws_mqtt_client_connection_disconnect(binding->connection, s_on_disconnected, args)) {
-        int disconnect_error = aws_last_error();
-        if (disconnect_error == AWS_ERROR_MQTT_NOT_CONNECTED) {
-            s_on_disconnected(binding->connection, args);
-        } else {
-            aws_napi_throw_last_error(env);
-            goto on_error;
-        }
+        aws_napi_throw_last_error(env);
+        goto on_error;
     }
 
     return NULL;

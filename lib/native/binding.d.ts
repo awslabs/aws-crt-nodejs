@@ -186,9 +186,6 @@ export function mqtt_client_connection_unsubscribe(
 /** @internal */
 export function mqtt_client_connection_disconnect(connection: NativeHandle, on_disconnect?: () => void): void;
 
-/** @internal */
-export function mqtt_client_connection_close(connection: NativeHandle): void;
-
 /* HTTP */
 /* wraps aws_http_proxy_options #TODO: Wrap with ClassBinder */
 /** @internal */
