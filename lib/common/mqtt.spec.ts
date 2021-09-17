@@ -13,14 +13,8 @@ import { Config, fetch_credentials } from '@test/credentials';
 
 jest.setTimeout(30000);
 
-test('MQTT Connect/Disconnect', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
+test('MQTT Connect/Disconnect', async () => {
+    let aws_opts: Config = await fetch_credentials();
 
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
@@ -48,17 +42,10 @@ test('MQTT Connect/Disconnect', async (done) => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT Repeated Connect/Disconnect', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
+test('MQTT Repeated Connect/Disconnect', async () => {
+    let aws_opts: Config = await fetch_credentials();
 
     const iterations : number = 3;
 
@@ -106,18 +93,10 @@ test('MQTT Repeated Connect/Disconnect', async (done) => {
     expect(on_connect_count).toEqual(iterations);
     expect(on_disconnect_count).toEqual(iterations);
     expect(on_error_count).toEqual(0);
-
-    done();
 });
 
-test('MQTT Pub/Sub', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
+test('MQTT Pub/Sub', async () => {
+    let aws_opts: Config = await fetch_credentials();
 
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
@@ -159,17 +138,10 @@ test('MQTT Pub/Sub', async (done) => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT Will', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
+test('MQTT Will', async () => {
+    let aws_opts: Config = await fetch_credentials();
 
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
@@ -201,17 +173,10 @@ test('MQTT Will', async (done) => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT On Any Publish', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
+test('MQTT On Any Publish', async () => {
+    let aws_opts: Config = await fetch_credentials();
 
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
@@ -258,17 +223,10 @@ test('MQTT On Any Publish', async (done) => {
         await expect(pub).resolves.toBeTruthy();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT payload types', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
+test('MQTT payload types', async () => {
+    let aws_opts: Config = await fetch_credentials();
 
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
@@ -348,5 +306,4 @@ test('MQTT payload types', async (done) => {
         }
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
