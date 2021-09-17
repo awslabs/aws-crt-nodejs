@@ -153,3 +153,4 @@ if (checkDoDownload()) {
     // Kick off local build
     buildLocally();
 }
+

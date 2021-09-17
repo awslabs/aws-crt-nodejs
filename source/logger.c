@@ -330,6 +330,15 @@ struct aws_logger *aws_napi_logger_get(void) {
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
+#ifndef NEVER
+    struct aws_logger_standard_options options;
+    AWS_ZERO_STRUCT(options);
+    options.level = AWS_LL_DEBUG;
+    options.filename = "/tmp/log.txt";
+
+    aws_logger_init_noalloc(&s_napi_logger.logger, aws_napi_get_allocator(), &options);
+
+#else
     s_napi_logger.writer.allocator = allocator;
     s_napi_logger.writer.vtable = &s_napi_log_writer_vtable;
     s_napi_logger.writer.impl = NULL;
@@ -349,5 +358,7 @@ struct aws_logger *aws_napi_logger_get(void) {
         &s_napi_logger.writer,
         AWS_LL_NONE);
     AWS_FATAL_ASSERT(op_status == AWS_OP_SUCCESS && "Failed to initialize logger");
+#endif
+
     return &s_napi_logger.logger;
 }
