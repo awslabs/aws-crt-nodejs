@@ -104,7 +104,7 @@ function buildLocally() {
 async function buildFromRemoteSource(tmpPath) {
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
-        fs.rmSync(nativeSourceDir, { recursive: true });
+        fs.rmdirSync(nativeSourceDir);
     }
     fs.mkdirSync(tmpPath);
     fs.mkdirSync(nativeSourceDir);
@@ -119,11 +119,11 @@ async function buildFromRemoteSource(tmpPath) {
     const version = package["version"];
     await fetchNativeCode(host, version, tmpPath);
     // Clean up temp directory
-    fs.rmSync(tmpPath, { recursive: true });
+    fs.rmdirSync(tmpPath);
     // Kick off local build
     await buildLocally();
     // Local build finished successfully, we don't need source anymore.
-    fs.rmSync(nativeSourceDir, { recursive: true });
+    fs.rmdirSync(nativeSourceDir);
 }
 
 function checkDoDownload() {
@@ -145,8 +145,8 @@ if (checkDoDownload()) {
     }
     catch (err) {
         // teardown tmpPath and source directory on failure
-        fs.rmSync(tmpPath, { recursive: true });
-        fs.rmSync(nativeSourceDir, { recursive: true });
+        fs.rmdirSync(tmpPath);
+        fs.rmdirSync(nativeSourceDir);
         throw err;
     }
 } else {
