@@ -11,7 +11,7 @@ import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { TextDecoder, TextEncoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 test('MQTT Connect/Disconnect', async (done) => {
     let aws_opts: Config;
@@ -60,7 +60,7 @@ test('MQTT Repeated Connect/Disconnect', async (done) => {
         return;
     }
 
-    const iterations : number = 10;
+    const iterations : number = 3;
 
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_clean_session(true)
@@ -89,6 +89,10 @@ test('MQTT Repeated Connect/Disconnect', async (done) => {
         });
 
         for (var i = 0; i < iterations;i++) {
+            // wait a little over a second to avoid connection limit on same client id
+            if (i != 0) {
+                await new Promise( resolve => setTimeout(resolve, 1500) );
+            }
             const connected = connection.connect();
             await expect(connected).resolves.toBeDefined();
             await connection.disconnect();
