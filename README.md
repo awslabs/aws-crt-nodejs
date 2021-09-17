@@ -40,6 +40,8 @@ You can either add it to package.json (if using a tool like webpack), or just im
 npm install aws-crt
 ```
 
+To reduce the size of package, we put the C source code in the S3 bucket. If the platform you are using doesn't have the prebuilt binary, the install script will pull the source from S3 bucket. In case of no public internet access, you can specify the "CRT_BINARY_HOST" environment variable for the host of the source code. The build script will fetch source code from that host instead. To fetch the source from S3, you can reach to the cloudfront distribution (Only works for version after v1.9.2) `https://d332vdhbectycy.cloudfront.net/aws-crt-<version>-source.tgz`, the sha256 checksum `https://d332vdhbectycy.cloudfront.net/aws-crt-<version>-source.sha256`
+
 ### Debug C part of code
 
 After building the package locally, use ```node ./scripts/build.js --debug``` to enable debug. Then, attach any C debugger to use node to run `jest`
