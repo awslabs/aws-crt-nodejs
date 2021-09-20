@@ -72,6 +72,8 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
     (void)env;
     struct mqtt_connection_binding *binding = finalize_data;
 
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "Destroying binding for connection %p", (void *)binding->connection);
+
     /* Should have already been done, but just to be safe -- now that it's reentrant -- release the functions anyways */
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
@@ -1216,7 +1218,7 @@ static void s_on_publish(
     }
 
     if (aws_byte_buf_init_copy_from_cursor(&args->topic, allocator, *topic)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT topic, message will not be delivered");
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "Failed to copy MQTT topic, message will not be delivered");
         goto on_error;
     }
 
@@ -1231,7 +1233,7 @@ static void s_on_publish(
 
     /* this is freed after being delivered to node in s_on_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(args->payload, allocator, *payload)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, message will not be delivered");
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "Failed to copy MQTT payload buffer, message will not be delivered");
         goto on_error;
     }
 
@@ -1443,7 +1445,7 @@ static void s_on_any_publish(
 
     /* this is freed after being delivered to node in s_on_any_publish_call */
     if (aws_byte_buf_init_copy_from_cursor(args->payload, allocator, *payload)) {
-        AWS_LOGF_ERROR(AWS_LS_NODE, "Failed to copy MQTT payload buffer, payload will not be delivered");
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "Failed to copy MQTT payload buffer, payload will not be delivered");
         goto on_error;
     }
 

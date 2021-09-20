@@ -13,25 +13,26 @@ import { Config, fetch_credentials } from '@test/credentials';
 
 jest.setTimeout(10000);
 
-test('MQTT Connect/Disconnect', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
-
-    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-        .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_ping_timeout_ms(5000)
-        .build()
-    const client = new MqttClient(new ClientBootstrap());
-    const connection = client.new_connection(config);
+test('MQTT Connect/Disconnect', async () => {
     const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
+
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
 
@@ -48,28 +49,28 @@ test('MQTT Connect/Disconnect', async (done) => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT Pub/Sub', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
-
-    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-        .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_ping_timeout_ms(5000)
-        .build()
-    const client = new MqttClient(new ClientBootstrap());
-    const connection = client.new_connection(config);
+test('MQTT Pub/Sub', async () => {
     const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
+
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
             const test_topic = `/test/me/senpai/${uuid()}`;
@@ -100,33 +101,33 @@ test('MQTT Pub/Sub', async (done) => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT Will', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
-
-    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-        .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_ping_timeout_ms(5000)
-        .with_will(new MqttWill(
-            '/last/will/and/testament',
-            QoS.AtLeastOnce,
-            'AVENGE ME'
-        ))
-        .build()
-    const client = new MqttClient(new ClientBootstrap());
-    const connection = client.new_connection(config);
+test('MQTT Will', async () => {
     const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .with_will(new MqttWill(
+                '/last/will/and/testament',
+                QoS.AtLeastOnce,
+                'AVENGE ME'
+            ))
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
+
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
             const disconnected = connection.disconnect();
@@ -142,28 +143,28 @@ test('MQTT Will', async (done) => {
         await expect(connected).resolves.toBeDefined();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT On Any Publish', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
-
-    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-        .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_ping_timeout_ms(5000)
-        .build()
-    const client = new MqttClient(new ClientBootstrap());
-    const connection = client.new_connection(config);
+test('MQTT On Any Publish', async () => {
     const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
+
         const test_topic = `/test/me/senpai/${uuid()}`;
         const test_payload = 'NOTICE ME';
 
@@ -199,28 +200,27 @@ test('MQTT On Any Publish', async (done) => {
         await expect(pub).resolves.toBeTruthy();
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });
 
-test('MQTT payload types', async (done) => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        done(err);
-        return;
-    }
-
-    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-        .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(aws_opts.endpoint)
-        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-        .with_ping_timeout_ms(5000)
-        .build()
-    const client = new MqttClient(new ClientBootstrap());
-    const connection = client.new_connection(config);
+test('MQTT payload types', async () => {
     const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
         const encoder = new TextEncoder();
         const id = uuid();
 
@@ -289,5 +289,4 @@ test('MQTT payload types', async (done) => {
         }
     });
     await expect(promise).resolves.toBeTruthy();
-    done();
 });

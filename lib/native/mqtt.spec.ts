@@ -18,6 +18,7 @@ import { MqttClient } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
+import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
 
@@ -25,7 +26,7 @@ async function test_websockets(aws_opts: Config, websocket_config: WebsocketConf
     const bootstrap = new ClientBootstrap();
     const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
         .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${new Date()}`)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .build()
     const client = new MqttClient(bootstrap);
@@ -52,12 +53,7 @@ async function test_websockets(aws_opts: Config, websocket_config: WebsocketConf
 }
 
 test('MQTT Native Websocket Connect/Disconnect', async () => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        return;
-    }
+    let aws_opts: Config = await fetch_credentials();
 
     await test_websockets(aws_opts, {
         region: "us-east-1",
@@ -70,12 +66,7 @@ test('MQTT Native Websocket Connect/Disconnect', async () => {
 });
 
 test('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async () => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        return;
-    }
+    let aws_opts: Config = await fetch_credentials();
 
     let tls_ctx_options = new TlsContextOptions();
     tls_ctx_options.alpn_list = [];
