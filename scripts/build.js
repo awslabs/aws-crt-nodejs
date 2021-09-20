@@ -11,6 +11,30 @@ const path = require("path");
 const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require('tar');
+function rmRecursive(rmPath) {
+    let rmBasePath = path.basename(rmPath);
+    if (rmBasePath == "." || rmBasePath == "..") {
+        throw new Error("\".\" and \"..\" may not be removed");
+    }
+    var files = [];
+    if (fs.existsSync(rmPath)) {
+        if (fs.lstatSync(rmPath).isDirectory()) {
+            files = fs.readdirSync(rmPath);
+            files.forEach(function (file,) {
+                var curPath = rmPath + "/" + file;
+                if (fs.lstatSync(curPath).isDirectory()) {
+                    rmRecursive(curPath);
+                } else {
+                    fs.unlinkSync(curPath);
+                }
+            });
+            fs.rmdirSync(rmPath);
+        }
+        else {
+            fs.unlinkSync(rmPath);
+        }
+    }
+};
 
 function downloadFile(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
@@ -104,7 +128,7 @@ function buildLocally() {
 async function buildFromRemoteSource(tmpPath) {
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
-        fs.rmdirSync(nativeSourceDir, { recursive: true });
+        rmRecursive(nativeSourceDir);
     }
     fs.mkdirSync(tmpPath);
     fs.mkdirSync(nativeSourceDir);
@@ -119,11 +143,11 @@ async function buildFromRemoteSource(tmpPath) {
     const version = package["version"];
     await fetchNativeCode(host, version, tmpPath);
     // Clean up temp directory
-    fs.rmdirSync(tmpPath, { recursive: true });
+    rmRecursive(tmpPath);
     // Kick off local build
     await buildLocally();
     // Local build finished successfully, we don't need source anymore.
-    fs.rmdirSync(nativeSourceDir, { recursive: true });
+    rmRecursive(nativeSourceDir);
 }
 
 function checkDoDownload() {
@@ -145,8 +169,8 @@ if (checkDoDownload()) {
     }
     catch (err) {
         // teardown tmpPath and source directory on failure
-        fs.rmdirSync(tmpPath, { recursive: true });
-        fs.rmdirSync(nativeSourceDir, { recursive: true });
+        rmRecursive(tmpPath);
+        rmRecursive(nativeSourceDir);
         throw err;
     }
 } else {
