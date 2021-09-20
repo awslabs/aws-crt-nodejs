@@ -132,7 +132,7 @@ async function buildFromRemoteSource(tmpPath) {
     }
     let rawData = fs.readFileSync('package.json');
     let package = JSON.parse(rawData);
-    const version = "1.9.7";
+    const version = package["version"];
     await fetchNativeCode(host, version, tmpPath);
     // Clean up temp directory
     rmFolderRecursive(tmpPath);
