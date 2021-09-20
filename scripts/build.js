@@ -28,7 +28,7 @@ function rmRecursive(path) {
             fs.rmdirSync(path);
         }
         else {
-            fs.unlinkSync(curPath);
+            fs.unlinkSync(path);
         }
     }
 };
