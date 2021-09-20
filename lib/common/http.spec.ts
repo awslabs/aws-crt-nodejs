@@ -127,15 +127,13 @@ async function test_connection(host: string, port: number, tls_opts?: TlsConnect
     expect(connection_error).toBeUndefined();
 }
 
-test('HTTP Connection Create/Destroy', async (done) => {
+test('HTTP Connection Create/Destroy', async () => {
     await test_connection("s3.amazonaws.com", 80);
-    done();
 });
 
-test('HTTPS Connection Create/Destroy', async (done) => {
+test('HTTPS Connection Create/Destroy', async () => {
     const host = "s3.amazonaws.com";
     await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
-    done();
 });
 
 async function test_stream(method: string, host: string, port: number, activate: boolean, tls_opts?: TlsConnectionOptions) {

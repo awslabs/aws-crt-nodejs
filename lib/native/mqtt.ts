@@ -373,7 +373,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                     this._on_disconnect_callback.bind(this, resolve)
                 );
             } catch (e) {
-                this.close();
                 reject(e);
             }
         });
