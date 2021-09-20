@@ -12,6 +12,22 @@ const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require('tar');
 
+function rmFolderRecursive(path) {
+    var files = [];
+    if (fs.existsSync(path)) {
+        files = fs.readdirSync(path);
+        files.forEach(function (file,) {
+            var curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) {
+                rmFolderRecursive(curPath);
+            } else {
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
+
 function downloadFile(fileUrl, outputLocationPath) {
     const writer = fs.createWriteStream(outputLocationPath);
     return axios({
@@ -104,7 +120,7 @@ function buildLocally() {
 async function buildFromRemoteSource(tmpPath) {
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
-        fs.rmdirSync(nativeSourceDir, { recursive: true });
+        rmFolderRecursive(nativeSourceDir);
     }
     fs.mkdirSync(tmpPath);
     fs.mkdirSync(nativeSourceDir);
@@ -116,14 +132,14 @@ async function buildFromRemoteSource(tmpPath) {
     }
     let rawData = fs.readFileSync('package.json');
     let package = JSON.parse(rawData);
-    const version = package["version"];
+    const version = "1.9.7";
     await fetchNativeCode(host, version, tmpPath);
     // Clean up temp directory
-    fs.rmdirSync(tmpPath, { recursive: true });
+    rmFolderRecursive(tmpPath);
     // Kick off local build
     await buildLocally();
     // Local build finished successfully, we don't need source anymore.
-    fs.rmdirSync(nativeSourceDir, { recursive: true });
+    rmFolderRecursive(nativeSourceDir);
 }
 
 function checkDoDownload() {
@@ -145,8 +161,8 @@ if (checkDoDownload()) {
     }
     catch (err) {
         // teardown tmpPath and source directory on failure
-        fs.rmdirSync(tmpPath, { recursive: true });
-        fs.rmdirSync(nativeSourceDir, { recursive: true });
+        rmFolderRecursive(tmpPath);
+        rmFolderRecursive(nativeSourceDir);
         throw err;
     }
 } else {
