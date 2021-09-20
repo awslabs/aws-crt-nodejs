@@ -52,12 +52,7 @@ async function test_websockets(aws_opts: Config, websocket_config: WebsocketConf
 }
 
 test('MQTT Native Websocket Connect/Disconnect', async () => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        return;
-    }
+    let aws_opts: Config = await fetch_credentials();
 
     await test_websockets(aws_opts, {
         region: "us-east-1",
@@ -70,12 +65,7 @@ test('MQTT Native Websocket Connect/Disconnect', async () => {
 });
 
 test('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async () => {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        return;
-    }
+    let aws_opts: Config = await fetch_credentials();
 
     let tls_ctx_options = new TlsContextOptions();
     tls_ctx_options.alpn_list = [];
