@@ -12,19 +12,24 @@ const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require('tar');
 
-function rmFolderRecursive(path) {
+function rmRecursive(path) {
     var files = [];
     if (fs.existsSync(path)) {
-        files = fs.readdirSync(path);
-        files.forEach(function (file,) {
-            var curPath = path + "/" + file;
-            if (fs.lstatSync(curPath).isDirectory()) {
-                rmFolderRecursive(curPath);
-            } else {
-                fs.unlinkSync(curPath);
-            }
-        });
-        fs.rmdirSync(path);
+        if (fs.lstatSync(path).isDirectory()) {
+            files = fs.readdirSync(path);
+            files.forEach(function (file,) {
+                var curPath = path + "/" + file;
+                if (fs.lstatSync(curPath).isDirectory()) {
+                    rmRecursive(curPath);
+                } else {
+                    fs.unlinkSync(curPath);
+                }
+            });
+            fs.rmdirSync(path);
+        }
+        else {
+            fs.unlinkSync(curPath);
+        }
     }
 };
 
@@ -120,7 +125,7 @@ function buildLocally() {
 async function buildFromRemoteSource(tmpPath) {
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
-        rmFolderRecursive(nativeSourceDir);
+        rmRecursive(nativeSourceDir);
     }
     fs.mkdirSync(tmpPath);
     fs.mkdirSync(nativeSourceDir);
@@ -135,11 +140,11 @@ async function buildFromRemoteSource(tmpPath) {
     const version = package["version"];
     await fetchNativeCode(host, version, tmpPath);
     // Clean up temp directory
-    rmFolderRecursive(tmpPath);
+    rmRecursive(tmpPath);
     // Kick off local build
     await buildLocally();
     // Local build finished successfully, we don't need source anymore.
-    rmFolderRecursive(nativeSourceDir);
+    rmRecursive(nativeSourceDir);
 }
 
 function checkDoDownload() {
@@ -161,8 +166,8 @@ if (checkDoDownload()) {
     }
     catch (err) {
         // teardown tmpPath and source directory on failure
-        rmFolderRecursive(tmpPath);
-        rmFolderRecursive(nativeSourceDir);
+        rmRecursive(tmpPath);
+        rmRecursive(nativeSourceDir);
         throw err;
     }
 } else {
