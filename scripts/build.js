@@ -11,24 +11,27 @@ const path = require("path");
 const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require('tar');
-
-function rmRecursive(path) {
+function rmRecursive(rmPath) {
+    let rmBasePath = path.basename(rmPath);
+    if (rmBasePath == "." || rmBasePath == "..") {
+        throw new Error("\".\" and \"..\" may not be removed");
+    }
     var files = [];
-    if (fs.existsSync(path)) {
-        if (fs.lstatSync(path).isDirectory()) {
-            files = fs.readdirSync(path);
+    if (fs.existsSync(rmPath)) {
+        if (fs.lstatSync(rmPath).isDirectory()) {
+            files = fs.readdirSync(rmPath);
             files.forEach(function (file,) {
-                var curPath = path + "/" + file;
+                var curPath = rmPath + "/" + file;
                 if (fs.lstatSync(curPath).isDirectory()) {
                     rmRecursive(curPath);
                 } else {
                     fs.unlinkSync(curPath);
                 }
             });
-            fs.rmdirSync(path);
+            fs.rmdirSync(rmPath);
         }
         else {
-            fs.unlinkSync(path);
+            fs.unlinkSync(rmPath);
         }
     }
 };
