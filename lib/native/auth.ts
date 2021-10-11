@@ -86,7 +86,7 @@ export enum AwsSignedBodyHeaderType {
  */
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
 export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
-    static newDefault(bootstrap?: ClientBootstrap): AwsCredentialsProvider {
+    static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
         return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
     }
 }
