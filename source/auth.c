@@ -39,7 +39,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .name = "newDefault",
             .method = s_creds_provider_new_default,
             .num_arguments = 1,
-            .arg_types = {napi_external},
+            .arg_types = {napi_undefined},
             .attributes = napi_static,
         },
         {

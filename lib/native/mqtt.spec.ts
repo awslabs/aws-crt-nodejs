@@ -63,7 +63,7 @@ test('MQTT Native Websocket Connect/Disconnect', async () => {
     }, new MqttClient(new ClientBootstrap()));
 });
 
-test('MQTT Native Websocket Connect/Disconnect Undef Bootstrap', async () => {
+test('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {
     let aws_opts: Config = await fetch_credentials();
 
     await test_websockets(aws_opts, {
