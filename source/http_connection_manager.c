@@ -79,11 +79,12 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
     napi_value node_bootstrap = *arg++;
     struct client_bootstrap_binding *client_bootstrap_binding = NULL;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_bootstrap, (void **)&client_bootstrap_binding), {
-        napi_throw_type_error(env, NULL, "bootstrap must be a ClientBootstrap");
-        return NULL;
-    });
-    options.bootstrap = aws_napi_get_client_bootstrap(client_bootstrap_binding);
+    napi_get_value_external(env, node_bootstrap, (void **)&client_bootstrap_binding);
+    if (client_bootstrap_binding != NULL) {
+        options.bootstrap = aws_napi_get_client_bootstrap(client_bootstrap_binding);
+    } else {
+        options.bootstrap = aws_napi_get_default_client_bootstrap();
+    }
 
     napi_value node_host = *arg++;
     if (aws_byte_buf_init_from_napi(&host_buf, env, node_host)) {

@@ -92,8 +92,7 @@ test('HTTP Request with body', () => {
 });
 
 
-async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions) {
-    const bootstrap = new ClientBootstrap();
+async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions, bootstrap?: ClientBootstrap) {
     let setup_error_code: Number = -1;
     let shutdown_error_code: Number = -1;
     let connection_error: Error | undefined;
@@ -128,12 +127,21 @@ async function test_connection(host: string, port: number, tls_opts?: TlsConnect
 }
 
 test('HTTP Connection Create/Destroy', async () => {
-    await test_connection("s3.amazonaws.com", 80);
+    await test_connection("s3.amazonaws.com", 80, undefined, new ClientBootstrap());
+});
+
+test('HTTP Connection Create/Destroy Undef Bootstrap', async () => {
+    await test_connection("s3.amazonaws.com", 80, undefined, undefined);
 });
 
 test('HTTPS Connection Create/Destroy', async () => {
     const host = "s3.amazonaws.com";
-    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
+    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host), new ClientBootstrap());
+});
+
+test('HTTPS Connection Create/Destroy Undef Bootstrap', async () => {
+    const host = "s3.amazonaws.com";
+    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host), undefined);
 });
 
 async function test_stream(method: string, host: string, port: number, activate: boolean, tls_opts?: TlsConnectionOptions) {

@@ -120,7 +120,7 @@ export function checksums_crc32c(data: StringLike, previous?: number): number;
 
 /* MQTT Client */
 /** @internal */
-export function mqtt_client_new(client_bootstrap: NativeHandle): NativeHandle;
+export function mqtt_client_new(client_bootstrap?: NativeHandle): NativeHandle;
 
 /* MQTT Client Connection #TODO: Wrap with ClassBinder */
 /** @internal */
@@ -211,7 +211,7 @@ export function http_proxy_options_new(
 /* wraps aws_http_connection #TODO: Wrap with ClassBinder */
 /** @internal */
 export function http_connection_new(
-    bootstrap: NativeHandle,
+    bootstrap: NativeHandle | undefined,
     on_setup: (handle: any, error_code: number) => void,
     on_shutdown: (handle: any, error_code: number) => void,
     host_name: StringLike,
@@ -243,7 +243,7 @@ export function http_stream_close(stream: NativeHandle): void;
 /* wraps aws_http_connection_manager #TODO: Wrap with ClassBinder */
 /** @internal */
 export function http_connection_manager_new(
-    bootstrap: NativeHandle,
+    bootstrap: NativeHandle | undefined,
     host: StringLike,
     port: number,
     max_connections: number,
@@ -359,7 +359,7 @@ export class HttpRequest {
 export class AwsCredentialsProvider {
     protected constructor();
 
-    static newDefault(bootstrap: NativeHandle): AwsCredentialsProvider;
+    static newDefault(bootstrap?: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
 }
 

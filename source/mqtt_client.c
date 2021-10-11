@@ -36,19 +36,21 @@ napi_value aws_napi_mqtt_client_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    struct client_bootstrap_binding *client_bootstrap = NULL;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_client_bootstrap, (void **)&client_bootstrap), {
-        if (status == napi_invalid_arg) {
-            napi_throw_type_error(env, NULL, "Expected event loop group");
-        }
-        goto error;
-    });
+    struct aws_client_bootstrap *client_bootstrap = NULL;
+    struct client_bootstrap_binding *client_bootstrap_binding = NULL;
+    napi_get_value_external(env, node_client_bootstrap, (void **)&client_bootstrap_binding);
+
+    if (client_bootstrap_binding != NULL) {
+        client_bootstrap = aws_napi_get_client_bootstrap(client_bootstrap_binding);
+    } else {
+        client_bootstrap = aws_napi_get_default_client_bootstrap();
+    }
 
     node_client = aws_mem_acquire(allocator, sizeof(struct mqtt_nodejs_client));
     AWS_FATAL_ASSERT(node_client);
     AWS_ZERO_STRUCT(*node_client);
 
-    node_client->native_client = aws_mqtt_client_new(allocator, aws_napi_get_client_bootstrap(client_bootstrap));
+    node_client->native_client = aws_mqtt_client_new(allocator, client_bootstrap);
     if (node_client->native_client == NULL) {
         napi_throw_error(env, NULL, "Failed to init client");
         goto error;

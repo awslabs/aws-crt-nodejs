@@ -132,7 +132,13 @@ static napi_value s_creds_provider_new_default(napi_env env, const struct aws_na
     aws_napi_method_next_argument(napi_external, cb_info, &arg);
     struct aws_credentials_provider_chain_default_options options;
     AWS_ZERO_STRUCT(options);
-    options.bootstrap = aws_napi_get_client_bootstrap(arg->native.external);
+
+    if (arg->native.external != NULL) {
+        options.bootstrap = aws_napi_get_client_bootstrap(arg->native.external);
+    } else {
+        options.bootstrap = aws_napi_get_default_client_bootstrap();
+    }
+
     struct aws_credentials_provider *provider = aws_credentials_provider_new_chain_default(allocator, &options);
 
     napi_value node_this = NULL;

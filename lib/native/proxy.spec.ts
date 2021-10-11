@@ -4,7 +4,6 @@
  */
 
 import {
-    ClientBootstrap,
     ClientTlsContext,
     SocketDomain,
     SocketOptions,
@@ -161,7 +160,7 @@ async function test_proxied_connection(test_type : ProxyTestType, auth_type : Ht
     const promise = new Promise((resolve, reject) => {
         let host = ProxyConfig.get_uri_from_test_type(test_type)
         let connection = new HttpClientConnection(
-            new ClientBootstrap(),
+            undefined,
             host,
             ProxyConfig.get_port_from_test_type(test_type),
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
@@ -266,7 +265,7 @@ async function test_proxied_mqtt_connection(test_type : ProxyTestType, auth_type
         .with_ping_timeout_ms(5000)
         .with_http_proxy_options(ProxyConfig.create_http_proxy_options_from_environment(test_type, auth_type))
         .build()
-    const client = new MqttClient(new ClientBootstrap());
+    const client = new MqttClient(undefined);
     const connection = client.new_connection(config);
     const promise = new Promise(async (resolve, reject) => {
         connection.on('connect', async (session_present) => {
