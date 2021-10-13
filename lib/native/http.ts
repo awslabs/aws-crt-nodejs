@@ -171,7 +171,8 @@ export class HttpClientConnection extends HttpConnection {
     }
 
     /** Asynchronously establish a new HttpClientConnection.
-     * @param bootstrap Client bootstrap to use when initiating socket connection.
+     * @param bootstrap Client bootstrap to use when initiating socket connection.  Leave undefined to use the
+     *          default system-wide bootstrap (recommended).
      * @param host_name Host to connect to
      * @param port Port to connect to on host
      * @param socket_options Socket options
@@ -179,7 +180,7 @@ export class HttpClientConnection extends HttpConnection {
      * @param proxy_options Optional proxy options
     */
     constructor(
-        protected bootstrap: ClientBootstrap,
+        protected bootstrap: ClientBootstrap | undefined,
         host_name: string,
         port: number,
         protected socket_options: SocketOptions,
@@ -190,7 +191,7 @@ export class HttpClientConnection extends HttpConnection {
         super(handle
             ? handle
             : crt_native.http_connection_new(
-                bootstrap.native_handle(),
+                bootstrap != null ? bootstrap.native_handle() : null,
                 (handle: any, error_code: number) => {
                     this._on_setup(handle, error_code);
                 },
@@ -384,17 +385,10 @@ export class HttpClientStream extends HttpStream {
  */
 export class HttpClientConnectionManager extends NativeResource {
     private connections = new Map<any, HttpClientConnection>();
-    /** Asynchronously establish a new HttpClientConnection.
-         * @param bootstrap Client bootstrap to use when initiating socket connection.
-         * @param host_name Host to connect to
-         * @param port Port to connect to on host
-         * @param socket_options Socket options
-         * @param tls_opts Optional TLS connection options
-         * @param proxy_options Optional proxy options
-        */
 
     /**
-     * @param bootstrap Client bootstrap to use when initiating socket connections
+     * @param bootstrap Client bootstrap to use when initiating socket connections.  Leave undefined to use the
+     *          default system-wide bootstrap (recommended).
      * @param host Host to connect to
      * @param port Port to connect to on host
      * @param max_connections Maximum number of connections to pool
@@ -404,7 +398,7 @@ export class HttpClientConnectionManager extends NativeResource {
      * @param proxy_options Optional proxy options
      */
     constructor(
-        readonly bootstrap: ClientBootstrap,
+        readonly bootstrap: ClientBootstrap | undefined,
         readonly host: string,
         readonly port: number,
         readonly max_connections: number,
@@ -414,7 +408,7 @@ export class HttpClientConnectionManager extends NativeResource {
         readonly proxy_options?: HttpProxyOptions,
     ) {
         super(crt_native.http_connection_manager_new(
-            bootstrap.native_handle(),
+            bootstrap != null ? bootstrap.native_handle() : null,
             host,
             port,
             max_connections,

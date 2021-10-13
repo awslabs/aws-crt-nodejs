@@ -24,10 +24,11 @@ export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCal
  */
 export class MqttClient extends NativeResource {
     /**
-     * @param bootstrap The {@link ClientBootstrap} to use for socket connections
+     * @param bootstrap The {@link ClientBootstrap} to use for socket connections.  Leave undefined to use the
+     *          default system-wide bootstrap (recommended).
      */
-    constructor(readonly bootstrap: io.ClientBootstrap) {
-        super(crt_native.mqtt_client_new(bootstrap.native_handle()));
+    constructor(readonly bootstrap: io.ClientBootstrap | undefined = undefined) {
+        super(crt_native.mqtt_client_new(bootstrap != null ? bootstrap.native_handle() : null));
     }
 
     /**

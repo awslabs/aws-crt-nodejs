@@ -22,14 +22,12 @@ import { v4 as uuid } from 'uuid';
 
 jest.setTimeout(10000);
 
-async function test_websockets(aws_opts: Config, websocket_config: WebsocketConfig) {
-    const bootstrap = new ClientBootstrap();
+async function test_websockets(aws_opts: Config, websocket_config: WebsocketConfig, client : MqttClient) {
     const config = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
         .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .build()
-    const client = new MqttClient(bootstrap);
     const connection = client.new_connection(config);
     const promise = new Promise(async (resolve, reject) => {
         connection.on('connect', async (session_present) => {
@@ -62,7 +60,20 @@ test('MQTT Native Websocket Connect/Disconnect', async () => {
             aws_opts.secret_key,
             aws_opts.session_token
         ),
-    });
+    }, new MqttClient(new ClientBootstrap()));
+});
+
+test('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {
+    let aws_opts: Config = await fetch_credentials();
+
+    await test_websockets(aws_opts, {
+        region: "us-east-1",
+        credentials_provider: AwsCredentialsProvider.newStatic(
+            aws_opts.access_key,
+            aws_opts.secret_key,
+            aws_opts.session_token
+        ),
+    }, new MqttClient());
 });
 
 test('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async () => {
@@ -80,5 +91,5 @@ test('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async 
             aws_opts.secret_key,
             aws_opts.session_token
         ),
-    });
+    }, new MqttClient(new ClientBootstrap()));
 });

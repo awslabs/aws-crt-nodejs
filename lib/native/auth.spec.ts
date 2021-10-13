@@ -4,6 +4,8 @@
  */
 
 import { auth as native, http as native_http } from '../index';
+import { io as native_io } from '../index';
+
 import { InputStream } from './io';
 import { PassThrough } from "stream";
 import { aws_sign_request, aws_verify_sigv4a_signing } from './auth';
@@ -172,4 +174,17 @@ test('AWS Signer SigV4A Headers', async () => {
     let verification_result = aws_verify_sigv4a_signing(
         ori_http_request, signing_config, SIGV4ATEST_EXPECTED_CANONICAL_REQUEST, signature, ECC_KEY_PUB.X, ECC_KEY_PUB.Y);
     expect(verification_result).toBe(true);
+});
+
+// Without a binding for fetching credentials yet, so just check creation successful
+test('Default credentials provider create', async () => {
+    const credentials_provider = native.AwsCredentialsProvider.newDefault(new native_io.ClientBootstrap());
+
+    expect(credentials_provider);
+});
+
+test('Default credentials provider create no bootstrap', async () => {
+    const credentials_provider = native.AwsCredentialsProvider.newDefault();
+
+    expect(credentials_provider);
 });

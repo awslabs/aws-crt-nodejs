@@ -15,6 +15,10 @@
 
 #define AWS_CRT_NODEJS_PACKAGE_ID 11
 
+struct aws_client_bootstrap;
+struct aws_event_loop;
+struct aws_event_loop_group;
+
 enum aws_napi_log_subject {
     AWS_LS_NODEJS_CRT_GENERAL = AWS_LOG_SUBJECT_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
 
@@ -36,6 +40,7 @@ void aws_napi_throw_last_error(napi_env env);
 struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);
 struct aws_event_loop_group *aws_napi_get_node_elg(void);
+struct aws_client_bootstrap *aws_napi_get_default_client_bootstrap(void);
 
 const char *aws_napi_status_to_str(napi_status status);
 
