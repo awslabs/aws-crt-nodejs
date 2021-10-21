@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/jquery": "^3.3.31",
+    "node-polyfill-webpack-plugin": "^1.1.4",
     "source-map-loader": "^0.2.4",
     "ts-loader": "^6.2.1",
     "typescript": "^3.7.3",
