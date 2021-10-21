@@ -8,7 +8,6 @@
     "excludeNotExported": true,
     "excludePrivate": true,
     "stripInternal": true,
-    "includeVersion": true,
     "disableSources": true,
     "listInvalidSymbolLinks": true
 }
