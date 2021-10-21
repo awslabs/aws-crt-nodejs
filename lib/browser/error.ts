@@ -7,10 +7,12 @@
  * Represents an error thrown by the CRT browser shim
  *
  * @module aws-crt
-* @category System
+ * @category System
  */
 export class CrtError extends Error {
-    /** @var error - The original error, provided for context. Could be any type, often from underlying libraries */
+    /**
+     * @param error - The original error, provided for context. Could be any type, often from underlying libraries
+     */
     constructor(readonly error: any) {
         super(error.toString());
     }

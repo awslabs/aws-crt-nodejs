@@ -13,9 +13,13 @@ export { TlsVersion, SocketType, SocketDomain } from '../common/io';
  * Convert a native error code into a human-readable string
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @returns Long-form description of the error
  * @see CrtError
  *
  * nodejs only.
+ *
+ * @module aws-crt
+ * @category System
  */
 export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
@@ -25,9 +29,13 @@ export function error_code_to_string(error_code: number): string {
  * Convert a native error code into a human-readable identifier
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @return error name as a string
  * @see CrtError
  *
  * nodejs only.
+ *
+ * @module aws-crt
+ * @category System
  */
 export function error_code_to_name(error_code: number): string {
     return crt_native.error_code_to_name(error_code);
@@ -206,6 +214,8 @@ export class TlsContextOptions {
      * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate - Client certificate, in PEM format
      * @param private_key - Client private key, in PEM format
+     *
+     * @returns newly configured tls context options object
      */
     static create_client_with_mtls(certificate: string, private_key: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -219,6 +229,8 @@ export class TlsContextOptions {
      * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate_filepath - Path to client certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
+     *
+     * @returns newly configured tls context options object
      */
     static create_client_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -232,6 +244,8 @@ export class TlsContextOptions {
      * Creates a TLS context with secure-by-default options, along with a client cert and password
      * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
      * @param pkcs12_password - PKCS#12 password
+     *
+     * @returns newly configured tls context options object
     */
     static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -246,6 +260,7 @@ export class TlsContextOptions {
      * @param certificate_filepath - Path to certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
      *
+     * @returns newly configured tls context options object
      */
     static create_server_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -261,6 +276,7 @@ export class TlsContextOptions {
      * @param pkcs12_filepath - Path to certificate, in PKCS#12 format
      * @param pkcs12_password - PKCS#12 Password
      *
+     * @returns newly configured tls context options object
      */
     static create_server_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();

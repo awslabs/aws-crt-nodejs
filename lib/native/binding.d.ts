@@ -14,7 +14,7 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
  */
 type NativeHandle = any;
 
-/** @category System */
+/** @internal */
 type StringLike = string | ArrayBuffer | ArrayBufferView;
 
 /* common */
@@ -341,6 +341,8 @@ export class HttpHeaders implements CommonHttpHeaders {
  * Definition for an outgoing HTTP request.
  *
  * The request may be transformed (ex: signing the request) before its data is eventually sent.
+ *
+ * @internal
  */
 export class HttpRequest {
     constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream);
@@ -367,24 +369,33 @@ export class AwsCredentialsProvider {
  * Configuration for use in AWS-related signing.
  * AwsSigningConfig is immutable.
  * It is good practice to use a new config for each signature, or the date might get too old.
+ *
+ * @module aws-crt
+ * @category HTTP
  */
 export interface AwsSigningConfig {
     /** Which signing process to invoke */
     algorithm: AwsSigningAlgorithm;
+
     /** What kind of signature to compute */
     signature_type: AwsSignatureType;
+
     /** Credentials provider to fetch signing credentials with */
     provider: AwsCredentialsProvider;
+
     /** The region to sign against */
     region: string;
+
     /** Name of service to sign a request for */
     service?: string;
+
     /**
      * Date and time to use during the signing process. If not provided then
      * the current time in UTC is used. Naive dates (lacking timezone info)
      * are assumed to be in local time
      */
     date?: Date;
+
     /**
      * Headers to skip when signing.
      *
@@ -397,20 +408,24 @@ export interface AwsSigningConfig {
      * and is found in this list (if defined)
      */
     header_blacklist?: string[];
+
     /**
      * Set true to double-encode the resource path when constructing the
      * canonical request. By default, all services except S3 use double encoding.
      */
     use_double_uri_encode?: boolean;
+
     /**
      * Whether the resource paths are normalized when building the canonical request.
      */
     should_normalize_uri_path?: boolean;
+
     /**
      * Should the session token be omitted from the signing process?  This should only be
      * true when making a websocket handshake with IoT Core.
      */
     omit_session_token?: boolean;
+
     /**
      * Value to use as the canonical request's body value.
      *
@@ -420,8 +435,10 @@ export interface AwsSigningConfig {
      * If undefined (the default), the typical value will be calculated from the payload during signing.
      */
     signed_body_value?: string;
+
     /** Controls what header, if any, should be added to the request, containing the body value */
     signed_body_header?: AwsSignedBodyHeaderType;
+
     /** Query param signing only: how long the pre-signed URL is valid for */
     expiration_in_seconds?: number;
 }

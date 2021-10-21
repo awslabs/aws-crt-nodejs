@@ -8,7 +8,9 @@ import { CrtError } from './error';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
-/** @category System */
+/**
+ * @internal
+ */
 type StringLike = string | ArrayBuffer | DataView;
 
 /**
@@ -20,6 +22,7 @@ type StringLike = string | ArrayBuffer | DataView;
 export enum AwsSigningAlgorithm {
     /** Use the Aws signature version 4 signing process to sign the request */
     SigV4,
+
     /** Use the Aws signature version 4 Asymmetric signing process to sign the request */
     SigV4Asymmetric
 }
@@ -27,6 +30,7 @@ export enum AwsSigningAlgorithm {
 /**
  * AWS signature type enumeration.
  *
+ * @module aws-crt
  * @category Auth
  */
 export enum AwsSignatureType {
@@ -49,6 +53,7 @@ export enum AwsSignatureType {
  * Some services use special values (e.g. 'UNSIGNED-PAYLOAD') when the body
  * is not being signed in the usual way.
  *
+ * @module aws-crt
  * @category Auth
  */
 export enum AwsSignedBodyValue {
@@ -68,6 +73,7 @@ export enum AwsSignedBodyValue {
 /**
  * AWS signed body header enumeration.
  *
+ * @module aws-crt
  * @category Auth
  */
 export enum AwsSignedBodyHeaderType {
@@ -81,11 +87,28 @@ export enum AwsSignedBodyHeaderType {
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
  *
+ * We don't currently expose an interface for fetching credentials from Javascript.
+ *
  * @module aws-crt
  * @category Auth
  */
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
 export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
+
+    /**
+     * Creates a new default credentials provider to be used internally for AWS credentials resolution:
+     *
+     *   The CRT's default provider chain currently sources in this order:
+     *
+     *     1. Environment
+     *     2. Profile
+     *     3. (conditional, off by default) ECS
+     *     4. (conditional, on by default) EC2 Instance Metadata
+     *
+     * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
+     *
+     * @returns a new credentials provider using default credentials resolution rules
+     */
     static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
         return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
     }
@@ -124,7 +147,7 @@ export type AwsSigningConfig = crt_native.AwsSigningConfig;
  *      X-Amz-SignedHeaders
  * @param request The HTTP request to sign.
  * @param config Configuration for signing.
- * @returns A Future whose result will be the signed
+ * @returns A promise whose result will be the signed
  *       {@link HttpRequest}. The future will contain an exception
  *       if the signing process fails.
  *
@@ -150,6 +173,9 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
 }
 
 /**
+ *
+ * @internal
+ *
  * Test only.
  * Verifies:
  *  (1) The canonical request generated during sigv4a signing of the request matches what is passed in

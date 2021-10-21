@@ -8,8 +8,10 @@
  * [MQTT-4.3]
  *
  * @module aws-crt
-* @category MQTT
+ * @category MQTT
  */
+import {CrtError} from "../browser/error";
+
 export enum QoS {
     /**
      * QoS 0 - At most once delivery
@@ -24,6 +26,7 @@ export enum QoS {
      * This quality of service ensures that the message arrives at the receiver at least once.
      */
     AtLeastOnce = 1,
+
     /**
      * QoS 2 - Exactly once delivery
 
@@ -116,5 +119,63 @@ export class MqttWill {
         readonly retain = false) {
     }
 }
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection reaches an initial
+ * connected state
+ *
+ * @param session_present true if the reconnection went to an existing session, false if this is a clean session
+ *
+ * @asMemberOf MqttClientConnection
+ * @module aws-crt
+ * @category MQTT
+ */
+export type MqttConnectionConnected = (session_present: boolean) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has fully disconnected
+ * by user request
+ *
+ * @asMemberOf MqttClientConnection
+ * @module aws-crt
+ * @category MQTT
+ */
+export type MqttConnectionDisconnected = () => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
+ *
+ * @param error the error that occurred
+ *
+ * @asMemberOf MqttClientConnection
+ * @module aws-crt
+ * @category MQTT
+ */
+export type MqttConnectionError = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * interrupted unexpectedly.
+ *
+ * @param error description of the error that occurred
+ *
+ * @asMemberOf MqttClientConnection
+ * @module aws-crt
+ * @category MQTT
+ */
+export type MqttConnectionInterrupted = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection successfully
+ * reestablishes itself after an interruption
+ *
+ * @param return_code MQTT connect return code (should be 0 for a successful reconnection)
+ * @param session_present true if the reconnection went to an existing session, false if this is a clean session
+ *
+ * @asMemberOf MqttClientConnection
+ * @module aws-crt
+ * @category MQTT
+ */
+export type MqttConnectionResumed = (return_code: number, session_present: boolean) => void;
 
 

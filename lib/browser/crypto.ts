@@ -17,17 +17,19 @@ export class Md5Hash {
     private hash?: Crypto.WordArray;
 
     /**
-     * Digests additional data
-     * @param data Additional data to digest
+     * Hashes additional data
+     * @param data Additional data to hash
      */
     update(data: Hashable) {
         this.hash = Crypto.MD5(data.toString(), this.hash ? this.hash.toString() : undefined);
     }
 
     /**
-     * Completes the hash computation and returns the final digest.
+     * Completes the hash computation and returns the final hash digest.
      *
      * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+     *
+     * @returns the final hash digest
      */
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
@@ -45,6 +47,8 @@ export class Md5Hash {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ *
+ * @returns the data's hash digest
  *
  * @module aws-crt
  * @category Crypto
@@ -65,18 +69,20 @@ export class Sha256Hash {
     private hash?: Crypto.WordArray;
 
     /**
-     * Digests additional data
-     * @param data Additional data to digest
+     * Hashes additional data
+     * @param data Additional data to hash
      */
     update(data: Hashable) {
         this.hash = Crypto.SHA256(data.toString(), this.hash ? this.hash.toString() : undefined);
     }
 
     /**
-    * Completes the hash computation and returns the final digest.
-    *
-    * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
-    */
+     * Completes the hash computation and returns the final hash digest.
+     *
+     * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+     *
+     * @returns the final hash digest
+     */
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
@@ -92,6 +98,8 @@ export class Sha256Hash {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ *
+ * @returns the data's hash digest
  *
  * @module aws-crt
  * @category Crypto
@@ -114,18 +122,20 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
     private hash?: Crypto.WordArray;
 
     /**
-     * Digests additional data
-     * @param data Additional data to digest
+     * Hashes additional data
+     * @param data Additional data to hash
      */
     update(data: Hashable) {
         this.hash = Crypto.SHA1(data.toString(), this.hash ? this.hash.toString() : undefined);
     }
 
     /**
-    * Completes the hash computation and returns the final digest.
-    *
-    * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
-    */
+     * Completes the hash computation and returns the final hash digest.
+     *
+     * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+     *
+     * @returns the final hash digest
+     */
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
@@ -141,6 +151,8 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
  *
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ *
+ * @returns the data's hash digest
  *
  * @module aws-crt
  * @category Crypto
@@ -162,24 +174,30 @@ export function hash_sha1(data: Hashable, truncate_to?: number): DataView {
 export class Sha256Hmac {
     private hmac: any;
 
+    /**
+     * Constructor for the Sha256Hmac class type
+     * @param secret secret key to seed the hmac process with
+     */
     constructor(secret: Hashable) {
         // @ts-ignore types file doesn't have this signature of create()
         this.hmac = Crypto.algo.HMAC.create(Crypto.algo.SHA256, secret);
     }
 
     /**
-     * Digests additional data
-     * @param data Additional data to digest
+     * Hashes additional data
+     * @param data Additional data to hash
      */
     update(data: Hashable) {
         this.hmac.update(data.toString());
     }
 
     /**
-    * Completes the hash computation and returns the final digest.
-    *
-    * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
-    */
+     * Completes the hash computation and returns the final hmac digest.
+     *
+     * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+     *
+     * @returns the final hmac digest
+     */
     finalize(truncate_to?: number): DataView {
         const digest = this.hmac.finalize();
         const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.length);
@@ -196,6 +214,8 @@ export class Sha256Hmac {
  * @param secret The key to use for the HMAC process
  * @param data The data to hash
  * @param truncate_to The maximum number of bytes to receive. Leave as undefined or 0 to receive the entire digest.
+ *
+ * @returns the data's hmac digest
  *
  * @module aws-crt
  * @category Crypto

@@ -15,14 +15,38 @@ import {
     AwsSigningConfig
 } from "./auth";
 
-/** @category IoT */
+/**
+ * Websocket-specific mqtt connection configuration options
+ *
+ * @module aws-crt
+ * @category IoT
+ */
 export interface WebsocketConfig {
+
+    /** Sources the AWS Credentials used to sign the websocket connection handshake */
     credentials_provider: AwsCredentialsProvider;
+
+    /**
+     * (Optional) factory function to create the configuration used to sign the websocket handshake.  Leave null
+     * to use the default settings.
+     */
     create_signing_config?: () => AwsSigningConfig;
 
+    /** (Optional) http proxy configuration */
     proxy_options?: HttpProxyOptions;
+
+    /** AWS region the websocket connection is being established in.  Must match the region embedded in the
+     * endpoint.
+     */
     region: string;
+
+    /**
+     * (Optional) override for the service name used in signing the websocket handshake.  Leave null to use the
+     * default (iotdevicegateway)
+     */
     service?: string;
+
+    /** (Optional)  tls configuration to use when establishing the connection */
     tls_ctx_options?: io.TlsContextOptions;
 }
 

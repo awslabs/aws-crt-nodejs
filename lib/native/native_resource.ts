@@ -10,6 +10,7 @@
 export class NativeResource {
     constructor(private handle: any) { }
 
+    /** @internal */
     native_handle() {
         return this.handle;
     }

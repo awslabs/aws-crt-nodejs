@@ -7,7 +7,7 @@
  * HTTP protocol version
  *
  * @module aws-crt
-* @category HTTP
+ * @category HTTP
  */
 export enum HttpVersion {
     Unknown = 0,
@@ -23,7 +23,7 @@ export enum HttpVersion {
  * Headers are exposed as 2 element arrays: [name, value]
  *
  * @module aws-crt
-* @category HTTP
+ * @category HTTP
  */
 export type HttpHeader = [string, string];
 
@@ -95,7 +95,15 @@ export interface HttpHeaders {
  * @category HTTP
  */
 export enum HttpProxyAuthenticationType {
+
+    /**
+     * No to-proxy authentication logic
+     */
     None = 0,
+
+    /**
+     * Use basic authentication (user/pass).  Supply these values in {@link HttpProxyOptions}
+     */
     Basic = 1,
 };
 
@@ -106,6 +114,15 @@ export enum HttpProxyAuthenticationType {
  * @category HTTP
  */
 export class HttpProxyOptions {
+
+    /**
+     *
+     * @param host_name endpoint of the proxy to use
+     * @param port port of proxy to use
+     * @param auth_method type of authentication to use with the proxy
+     * @param auth_username (basic authentication only) proxy username
+     * @param auth_password (basic authentication only) password associated with the username
+     */
     constructor(
         public host_name: string,
         public port: number,
@@ -115,3 +132,78 @@ export class HttpProxyOptions {
     ) {
     }
 }
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientConnection} when the connection reaches the
+ * connected state
+ *
+ * @asMemberOf HttpClientConnection
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpClientConnectionConnected = () => void;
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientConnection} when an error occurs
+ *
+ * @param error - A CrtError containing the error that occurred
+ *
+ * @asMemberOf HttpClientConnection
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpClientConnectionError = (error: Error) => void;
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientConnection} when the connection has been closed
+ *
+ * @asMemberOf HttpClientConnection
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpClientConnectionClosed = () => void;
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when the http response headers have arrived.
+ *
+ * @param status_code http response status code
+ * @param headers the response's set of headers
+ *
+ * @asMemberOf HttpClientStream
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when http response data is available
+ *
+ * @param body_data - The chunk of body data
+ *
+ * @asMemberOf HttpClientStream
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpStreamData = (body_data: ArrayBuffer) => void;
+
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when an http stream error occurs
+ *
+ * @param error - A CrtError containing the error that occurred
+ *
+ * @asMemberOf HttpClientStream
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpStreamError = (error: Error) => void;
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when the http stream has completed.
+ *
+ * @asMemberOf HttpClientStream
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpStreamComplete = () => void;
+

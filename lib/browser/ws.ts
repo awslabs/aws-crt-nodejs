@@ -20,7 +20,12 @@ export interface WebsocketOptions {
     protocol?: string;
 }
 
-/** Standard AWS Credentials */
+/**
+ * Standard AWS Credentials
+ *
+ * @module aws-crt
+ * @category Auth
+ */
 export interface AWSCredentials {
     /** Optional region */
     aws_region?: string,
@@ -28,7 +33,7 @@ export interface AWSCredentials {
     aws_access_id: string,
     /** AWS secret access key */
     aws_secret_key: string,
-    /** STS token if one has been vended (by a {@link CredentialsProvider}) */
+    /** Session token for session credentials */
     aws_sts_token?: string
 }
 
