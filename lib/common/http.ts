@@ -164,18 +164,6 @@ export type HttpClientConnectionError = (error: Error) => void;
 export type HttpClientConnectionClosed = () => void;
 
 /**
- * Listener signature for event emitted from an {@link HttpClientStream} when the http response headers have arrived.
- *
- * @param status_code http response status code
- * @param headers the response's set of headers
- *
- * @asMemberOf HttpClientStream
- * @module aws-crt
- * @category HTTP
- */
-export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
-
-/**
  * Listener signature for event emitted from an {@link HttpClientStream} when http response data is available
  *
  * @param body_data - The chunk of body data

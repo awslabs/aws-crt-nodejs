@@ -13,8 +13,7 @@ import {
     HttpClientConnectionClosed,
     HttpStreamComplete,
     HttpStreamData,
-    HttpStreamError,
-    HttpStreamResponse
+    HttpStreamError
 } from '../common/http';
 export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
@@ -343,7 +342,17 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
 }
 
 
-
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when the http response headers have arrived.
+ *
+ * @param status_code http response status code
+ * @param headers the response's set of headers
+ *
+ * @asMemberOf HttpClientStream
+ * @module aws-crt
+ * @category HTTP
+ */
+export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
 
 /**
  * Represents a single http message exchange (request/response) in HTTP.
