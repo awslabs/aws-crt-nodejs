@@ -6,7 +6,10 @@ module.exports = {
         filename: "index.js"
     },
     resolve: {
-        extensions: [".tsx", ".ts", ".js", ".json"]
+        extensions: [".tsx", ".ts", ".js", ".json"],
+        fallback: {
+            util$: './util.js',
+        }
     },
     module: {
         rules: [
