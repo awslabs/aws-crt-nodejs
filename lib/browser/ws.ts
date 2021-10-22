@@ -1,40 +1,28 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+/**
+ * @packageDocumentation
+ * @module mqtt
+ */
+
 import { MqttConnectionConfig } from "./mqtt";
+import { AWSCredentials } from "./auth";
 import WebsocketStream = require("websocket-stream");
 import * as Crypto from "crypto-js";
 
 /**
  * Options for websocket based connections in browser
  *
- * @module aws-crt
- * @category HTTP
+ * @category MQTT
  */
 export interface WebsocketOptions {
     /** Additional headers to add */
     headers?: { [index: string]: string };
     /** Websocket protocol, used during Upgrade */
     protocol?: string;
-}
-
-/**
- * Standard AWS Credentials
- *
- * @module aws-crt
- * @category Auth
- */
-export interface AWSCredentials {
-    /** Optional region */
-    aws_region?: string,
-    /** AWS access id */
-    aws_access_id: string,
-    /** AWS secret access key */
-    aws_secret_key: string,
-    /** Session token for session credentials */
-    aws_sts_token?: string
 }
 
 function zero_pad(n: number) {

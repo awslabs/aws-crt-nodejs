@@ -1,12 +1,16 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
 /**
+ * @packageDocumentation
+ * @module crt
+ */
+
+/**
  * Represents an error thrown by the CRT browser shim
  *
- * @module aws-crt
  * @category System
  */
 export class CrtError extends Error {

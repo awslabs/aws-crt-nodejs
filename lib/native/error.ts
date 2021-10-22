@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module crt
  */
 
 import crt_native from './binding';
@@ -10,7 +15,6 @@ import { isNumber } from 'util';
  * Represents an error encountered in native code. Can also be used to convert a numeric error code into
  * a human-readable string.
  *
- * @module aws-crt
  * @category System
  */
 export class CrtError extends Error {

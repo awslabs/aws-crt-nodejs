@@ -1,10 +1,16 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+/**
+ * @packageDocumentation
+ * @module mqtt
+ */
+
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
+import * as auth from "./auth";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
@@ -26,21 +32,18 @@ import {
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 /**
- * @module aws-crt
  * @category MQTT
  */
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
 
 /**
- * @module aws-crt
  * @category MQTT
  */
-export type AWSCredentials = WebsocketUtils.AWSCredentials;
+export type AWSCredentials = auth.AWSCredentials;
 
 /**
  * Configuration options for an MQTT connection
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttConnectionConfig {
@@ -119,7 +122,6 @@ export interface MqttConnectionConfig {
 /**
  * MQTT client
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttClient {
@@ -208,7 +210,6 @@ function normalize_payload(payload: Payload): Buffer | string {
 /**
  * MQTT client connection
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttClientConnection extends BufferedEventEmitter {

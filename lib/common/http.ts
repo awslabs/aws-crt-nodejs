@@ -1,12 +1,21 @@
-/**
+/*
+ *
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
 /**
+ *
+ * A module containing support for creating http connections and making requests on them.
+ *
+ * @packageDocumentation
+ * @module http
+ * @preferred
+ */
+
+/**
  * HTTP protocol version
  *
- * @module aws-crt
  * @category HTTP
  */
 export enum HttpVersion {
@@ -22,7 +31,6 @@ export enum HttpVersion {
 /**
  * Headers are exposed as 2 element arrays: [name, value]
  *
- * @module aws-crt
  * @category HTTP
  */
 export type HttpHeader = [string, string];
@@ -91,7 +99,6 @@ export interface HttpHeaders {
 /**
  * Proxy authentication types
  *
- * @module aws-crt
  * @category HTTP
  */
 export enum HttpProxyAuthenticationType {
@@ -110,10 +117,9 @@ export enum HttpProxyAuthenticationType {
 /**
  * Options used when connecting to an HTTP endpoint via a proxy
  *
- * @module aws-crt
  * @category HTTP
  */
-export class HttpProxyOptions {
+export class CommonHttpProxyOptions {
 
     /**
      *
@@ -138,7 +144,6 @@ export class HttpProxyOptions {
  * connected state
  *
  * @asMemberOf HttpClientConnection
- * @module aws-crt
  * @category HTTP
  */
 export type HttpClientConnectionConnected = () => void;
@@ -149,7 +154,6 @@ export type HttpClientConnectionConnected = () => void;
  * @param error - A CrtError containing the error that occurred
  *
  * @asMemberOf HttpClientConnection
- * @module aws-crt
  * @category HTTP
  */
 export type HttpClientConnectionError = (error: Error) => void;
@@ -158,7 +162,6 @@ export type HttpClientConnectionError = (error: Error) => void;
  * Listener signature for event emitted from an {@link HttpClientConnection} when the connection has been closed
  *
  * @asMemberOf HttpClientConnection
- * @module aws-crt
  * @category HTTP
  */
 export type HttpClientConnectionClosed = () => void;
@@ -169,7 +172,6 @@ export type HttpClientConnectionClosed = () => void;
  * @param body_data - The chunk of body data
  *
  * @asMemberOf HttpClientStream
- * @module aws-crt
  * @category HTTP
  */
 export type HttpStreamData = (body_data: ArrayBuffer) => void;
@@ -181,7 +183,6 @@ export type HttpStreamData = (body_data: ArrayBuffer) => void;
  * @param error - A CrtError containing the error that occurred
  *
  * @asMemberOf HttpClientStream
- * @module aws-crt
  * @category HTTP
  */
 export type HttpStreamError = (error: Error) => void;
@@ -190,7 +191,6 @@ export type HttpStreamError = (error: Error) => void;
  * Listener signature for event emitted from an {@link HttpClientStream} when the http stream has completed.
  *
  * @asMemberOf HttpClientStream
- * @module aws-crt
  * @category HTTP
  */
 export type HttpStreamComplete = () => void;

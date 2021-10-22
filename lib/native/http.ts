@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module http
  */
 
 import crt_native from './binding';
@@ -9,8 +14,8 @@ import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, SocketOptions, TlsConnectionOptions, InputStream } from './io';
 import { CrtError } from './error';
 import {
+    CommonHttpProxyOptions,
     HttpProxyAuthenticationType,
-    HttpProxyOptions as CommonHttpProxyOptions,
     HttpClientConnectionConnected,
     HttpClientConnectionError,
     HttpClientConnectionClosed,
@@ -18,17 +23,21 @@ import {
     HttpStreamData,
     HttpStreamError
 } from '../common/http';
-export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
+
+/** @internal */
+export {HttpHeader} from '../common/http';
+
+/** @internal */
+export { HttpProxyAuthenticationType } from '../common/http';
+
 import { BufferedEventEmitter } from '../common/event';
 
 /**
- * @module aws-crt
  * @category HTTP
  */
 export type HttpHeaders = crt_native.HttpHeaders;
 
 /**
- * @module aws-crt
  * @category HTTP
  */
 export const HttpHeaders = crt_native.HttpHeaders;
@@ -39,7 +48,6 @@ type nativeHttpRequest = crt_native.HttpRequest;
 const nativeHttpRequest = crt_native.HttpRequest;
 
 /**
- * @module aws-crt
  * @category HTTP
  */
 export class HttpRequest extends nativeHttpRequest {
@@ -51,7 +59,6 @@ export class HttpRequest extends nativeHttpRequest {
 /**
  * Base class for HTTP connections
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -119,7 +126,6 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
  * There are legitimate use cases for plaintext tunneling connections, and so the implicit behavior has now
  * been replaced by this setting, with a default that maps to the old behavior.
  *
- * @module aws-crt
  * @category HTTP
  */
 export enum HttpProxyConnectionType {
@@ -143,7 +149,6 @@ export enum HttpProxyConnectionType {
 /**
  * Proxy options for HTTP clients.
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpProxyOptions extends CommonHttpProxyOptions {
@@ -189,7 +194,6 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
 /**
  * Represents an HTTP connection from a client to a server
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnection extends HttpConnection {
@@ -289,7 +293,6 @@ export class HttpClientConnection extends HttpConnection {
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -346,7 +349,6 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
  * @param headers the set of headers
  *
  * @asMemberOf HttpClientStream
- * @module aws-crt
  * @category HTTP
  */
 export type HttpStreamHeaders = (headers: HttpHeaders) => void;
@@ -358,7 +360,6 @@ export type HttpStreamHeaders = (headers: HttpHeaders) => void;
  * @param headers the response's set of headers
  *
  * @asMemberOf HttpClientStream
- * @module aws-crt
  * @category HTTP
  */
 export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
@@ -371,7 +372,6 @@ export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => 
  * NOTE: The stream sends no data until {@link HttpStream.activate} is called.
  * Call {@link HttpStream.activate} when you're ready for callbacks and events to fire.
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientStream extends HttpStream {
@@ -464,7 +464,6 @@ export class HttpClientStream extends HttpStream {
 /**
  * Creates, manages, and vends connections to a given host/port endpoint
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnectionManager extends NativeResource {

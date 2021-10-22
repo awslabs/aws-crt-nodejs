@@ -1,6 +1,12 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ *
+ * @packageDocumentation
+ * @module IO
  */
 
 import crt_native from './binding';
@@ -18,7 +24,6 @@ export { TlsVersion, SocketType, SocketDomain } from '../common/io';
  *
  * nodejs only.
  *
- * @module aws-crt
  * @category System
  */
 export function error_code_to_string(error_code: number): string {
@@ -34,7 +39,6 @@ export function error_code_to_string(error_code: number): string {
  *
  * nodejs only.
  *
- * @module aws-crt
  * @category System
  */
 export function error_code_to_name(error_code: number): string {
@@ -43,7 +47,6 @@ export function error_code_to_name(error_code: number): string {
 
 /**
  * The amount of detail that will be logged
- * @module aws-crt
  * @category Logging
  */
 export enum LogLevel {
@@ -68,7 +71,6 @@ export enum LogLevel {
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
  * nodejs only.
- * @module aws-crt
  * @category Logging
  */
 export function enable_logging(level: LogLevel) {
@@ -80,7 +82,6 @@ export function enable_logging(level: LogLevel) {
  * @return true if ALPN is supported natively, false otherwise
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
 */
 export function is_alpn_available(): boolean {
@@ -92,8 +93,7 @@ export function is_alpn_available(): boolean {
  *  data into the AWS CRT libraries.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category IO
  */
 export class InputStream extends NativeResource {
     constructor(private source: Readable) {
@@ -114,8 +114,7 @@ export class InputStream extends NativeResource {
  * to be 1 of these per application, in most cases.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category IO
  */
 export class ClientBootstrap extends NativeResource {
     constructor() {
@@ -127,8 +126,7 @@ export class ClientBootstrap extends NativeResource {
  * Standard Berkeley socket style options.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category Network
 */
 export class SocketOptions extends NativeResource {
     constructor(
@@ -155,7 +153,6 @@ export class SocketOptions extends NativeResource {
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class TlsContextOptions {
@@ -288,13 +285,12 @@ export class TlsContextOptions {
 }
 
 /**
- * TLS context used for client/server TLS communications over sockets.
+ * Abstract base TLS context used for client/server TLS communications over sockets.
  *
  * @see ClientTlsContext
  * @see ServerTlsContext
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
@@ -321,7 +317,6 @@ export abstract class TlsContext extends NativeResource {
  * only.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class ClientTlsContext extends TlsContext {
@@ -340,7 +335,6 @@ export class ClientTlsContext extends TlsContext {
  * only.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class ServerTlsContext extends TlsContext {
@@ -357,7 +351,6 @@ export class ServerTlsContext extends TlsContext {
  * TLS options that are unique to a given connection using a shared TlsContext.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class TlsConnectionOptions extends NativeResource {

@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module mqtt
  */
 
 import crt_native, { StringLike } from './binding';
@@ -28,7 +33,6 @@ export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCal
 /**
  * MQTT client
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttClient extends NativeResource {
@@ -54,7 +58,6 @@ export class MqttClient extends NativeResource {
 /**
  * Configuration options for an MQTT connection
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttConnectionConfig {
@@ -168,7 +171,6 @@ function normalize_payload(payload: Payload): StringLike {
 /**
  * MQTT client connection
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {

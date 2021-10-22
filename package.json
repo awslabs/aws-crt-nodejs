@@ -23,7 +23,8 @@
     "install": "node ./scripts/install.js"
   },
   "devDependencies": {
-    "@convergencelabs/typedoc-plugin-custom-modules": "^0.4.0",
+    "typedoc-plugin-external-module-name": "^4.0.6",
+    "typedoc-plugin-remove-references": "^0.0.5",
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^27.0.1",
     "@types/node": "^10.17.54",
