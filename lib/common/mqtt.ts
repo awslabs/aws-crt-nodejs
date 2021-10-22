@@ -1,17 +1,30 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ *
+ * A module containing support for mqtt connection establishment and operations.
+ *
+ * @packageDocumentation
+ * @module mqtt
+ * @preferred
  */
 
 /**
  * MQTT Quality of Service
  * [MQTT-4.3]
  *
- * @module aws-crt
  * @category MQTT
  */
 import {CrtError} from "../browser/error";
 
+/**
+ * Quality of service control for mqtt publish operations
+ *
+ * @category MQTT
+ */
 export enum QoS {
     /**
      * QoS 0 - At most once delivery
@@ -48,7 +61,6 @@ export enum QoS {
  * A String will be sent with utf-8 encoding.
  * An Object will be sent as a JSON string with utf-8 encoding.
  *
- * @module aws-crt
  * @category MQTT
  */
 export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
@@ -64,7 +76,6 @@ export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBuff
  * @param retain Retain flag. If true, the message was sent as a result of
  *               a new subscription being made by the client. *
  *
- * @module aws-crt
  * @category MQTT
  */
 export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
@@ -72,7 +83,6 @@ export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boole
 /**
  * Every request sent returns an MqttRequest
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttRequest {
@@ -83,7 +93,6 @@ export interface MqttRequest {
 /**
  * Subscription SUBACK result
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttSubscribeRequest extends MqttRequest {
@@ -104,7 +113,6 @@ export interface MqttSubscribeRequest extends MqttRequest {
  *
  * [MQTT - 3.1.2 - 8]
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttWill {
@@ -127,7 +135,6 @@ export class MqttWill {
  * @param session_present true if the reconnection went to an existing session, false if this is a clean session
  *
  * @asMemberOf MqttClientConnection
- * @module aws-crt
  * @category MQTT
  */
 export type MqttConnectionConnected = (session_present: boolean) => void;
@@ -137,7 +144,6 @@ export type MqttConnectionConnected = (session_present: boolean) => void;
  * by user request
  *
  * @asMemberOf MqttClientConnection
- * @module aws-crt
  * @category MQTT
  */
 export type MqttConnectionDisconnected = () => void;
@@ -148,7 +154,6 @@ export type MqttConnectionDisconnected = () => void;
  * @param error the error that occurred
  *
  * @asMemberOf MqttClientConnection
- * @module aws-crt
  * @category MQTT
  */
 export type MqttConnectionError = (error: CrtError) => void;
@@ -160,7 +165,6 @@ export type MqttConnectionError = (error: CrtError) => void;
  * @param error description of the error that occurred
  *
  * @asMemberOf MqttClientConnection
- * @module aws-crt
  * @category MQTT
  */
 export type MqttConnectionInterrupted = (error: CrtError) => void;
@@ -173,7 +177,6 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  * @param session_present true if the reconnection went to an existing session, false if this is a clean session
  *
  * @asMemberOf MqttClientConnection
- * @module aws-crt
  * @category MQTT
  */
 export type MqttConnectionResumed = (return_code: number, session_present: boolean) => void;

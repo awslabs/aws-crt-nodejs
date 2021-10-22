@@ -1,6 +1,12 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ *
+ * @packageDocumentation
+ * @module crypto
  */
 
 import * as Crypto from "crypto-js";
@@ -10,7 +16,6 @@ import { TextEncoder } from "./polyfills";
 /**
  * Object that allows for continuous MD5 hashing of data.
  *
- * @module aws-crt
  * @category Crypto
  */
 export class Md5Hash {
@@ -50,7 +55,6 @@ export class Md5Hash {
  *
  * @returns the data's hash digest
  *
- * @module aws-crt
  * @category Crypto
  */
 export function hash_md5(data: Hashable, truncate_to?: number): DataView {
@@ -62,7 +66,6 @@ export function hash_md5(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous SHA256 hashing of data.
  *
- * @module aws-crt
  * @category Crypto
  */
 export class Sha256Hash {
@@ -101,7 +104,6 @@ export class Sha256Hash {
  *
  * @returns the data's hash digest
  *
- * @module aws-crt
  * @category Crypto
  */
 export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
@@ -115,7 +117,6 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous SHA1 hashing of data.
  *
- * @module aws-crt
  * @category Crypto
  */
  export class Sha1Hash {
@@ -154,7 +155,6 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
  *
  * @returns the data's hash digest
  *
- * @module aws-crt
  * @category Crypto
  */
 export function hash_sha1(data: Hashable, truncate_to?: number): DataView {
@@ -168,7 +168,6 @@ export function hash_sha1(data: Hashable, truncate_to?: number): DataView {
 /**
  * Object that allows for continuous hashing of data with an hmac secret.
  *
- * @module aws-crt
  * @category Crypto
  */
 export class Sha256Hmac {
@@ -217,7 +216,6 @@ export class Sha256Hmac {
  *
  * @returns the data's hmac digest
  *
- * @module aws-crt
  * @category Crypto
  */
 export function hmac_sha256(secret: Hashable, data: Hashable, truncate_to?: number): DataView {

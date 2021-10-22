@@ -1,6 +1,14 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * Module for AWS IoT configuration and connection establishment
+ *
+ * @packageDocumentation
+ * @module aws-iot
+ * @preferred
  */
 
 import { SocketOptions } from "./io";
@@ -11,7 +19,6 @@ import * as platform from "../common/platform";
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
  *
- * @module aws-crt
  * @category IoT
  */
 export class AwsIotMqttConnectionConfigBuilder {

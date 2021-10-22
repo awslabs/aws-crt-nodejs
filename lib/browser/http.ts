@@ -1,12 +1,17 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+/**
+ * @packageDocumentation
+ * @module http
+ */
+
 import {
+    CommonHttpProxyOptions,
     HttpHeader,
     HttpHeaders as CommonHttpHeaders,
-    HttpProxyOptions,
     HttpProxyAuthenticationType,
     HttpClientConnectionConnected,
     HttpClientConnectionError,
@@ -15,7 +20,7 @@ import {
     HttpStreamData,
     HttpStreamError
 } from '../common/http';
-export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
+export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import axios = require('axios');
@@ -25,7 +30,6 @@ import { TextEncoder } from './polyfills';
 /**
  * A collection of HTTP headers
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpHeaders implements CommonHttpHeaders {
@@ -167,9 +171,16 @@ export class HttpHeaders implements CommonHttpHeaders {
 }
 
 /**
+ * Options used when connecting to an HTTP endpoint via a proxy
+ *
+ * @category HTTP
+ */
+export class HttpProxyOptions extends CommonHttpProxyOptions {
+}
+
+/**
  * Represents a request to a web server from a client
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpRequest {
@@ -193,7 +204,6 @@ export class HttpRequest {
 /**
  * Represents an HTTP connection from a client to a server
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnection extends BufferedEventEmitter {
@@ -349,7 +359,6 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
  * @param headers the response's set of headers
  *
  * @asMemberOf HttpClientStream
- * @module aws-crt
  * @category HTTP
  */
 export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
@@ -360,7 +369,6 @@ export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => 
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientStream extends BufferedEventEmitter {
@@ -490,7 +498,6 @@ interface PendingRequest {
 /**
  * Creates, manages, and vends connections to a given host/port endpoint
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnectionManager {
