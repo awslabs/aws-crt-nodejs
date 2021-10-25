@@ -42,7 +42,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * For API compatibility with the native version. Does not set up mTLS.
      *
-     * @returns a new websocket connection builder object with default tls configuration
+     * @returns a new websocket connection builder object with default TLS configuration
      */
     static new_mtls_builder(...args: any[]) {
         return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -51,7 +51,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * For API compatibility with the native version. Alias for {@link new_builder_for_websocket}.
      *
-     * @returns a new websocket connection builder object with default tls configuration
+     * @returns a new websocket connection builder object with default TLS configuration
      */
     static new_with_websockets(...args: any[]) {
         return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -60,7 +60,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * Creates a new builder using MQTT over websockets (the only option in browser)
      *
-     * @returns a new websocket connection builder object with default tls configuration
+     * @returns a new websocket connection builder object with default TLS configuration
      */
     static new_builder_for_websocket() {
         let builder = new AwsIotMqttConnectionConfigBuilder();

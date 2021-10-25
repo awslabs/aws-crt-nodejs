@@ -212,7 +212,7 @@ export class TlsContextOptions {
      * @param certificate - Client certificate, in PEM format
      * @param private_key - Client private key, in PEM format
      *
-     * @returns newly configured tls context options object
+     * @returns newly configured TlsContextOptions object
      */
     static create_client_with_mtls(certificate: string, private_key: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -227,7 +227,7 @@ export class TlsContextOptions {
      * @param certificate_filepath - Path to client certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
      *
-     * @returns newly configured tls context options object
+     * @returns newly configured TlsContextOptions object
      */
     static create_client_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -242,7 +242,7 @@ export class TlsContextOptions {
      * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
      * @param pkcs12_password - PKCS#12 password
      *
-     * @returns newly configured tls context options object
+     * @returns newly configured TlsContextOptions object
     */
     static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -257,7 +257,7 @@ export class TlsContextOptions {
      * @param certificate_filepath - Path to certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
      *
-     * @returns newly configured tls context options object
+     * @returns newly configured TlsContextOptions object
      */
     static create_server_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -273,7 +273,7 @@ export class TlsContextOptions {
      * @param pkcs12_filepath - Path to certificate, in PKCS#12 format
      * @param pkcs12_password - PKCS#12 Password
      *
-     * @returns newly configured tls context options object
+     * @returns newly configured TlsContextOptions object
      */
     static create_server_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
