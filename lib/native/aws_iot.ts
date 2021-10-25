@@ -54,7 +54,7 @@ export interface WebsocketConfig {
      */
     service?: string;
 
-    /** (Optional)  tls configuration to use when establishing the connection */
+    /** (Optional)  TLS configuration to use when establishing the connection */
     tls_ctx_options?: io.TlsContextOptions;
 }
 
@@ -306,7 +306,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the tls context is cached
+     * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the TLS context is cached
      * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
      */
@@ -316,8 +316,8 @@ export class AwsIotMqttConnectionConfigBuilder {
         }
 
         /*
-         * By caching and reusing the tls context we get an enormous memory savings on a per-connection basis.
-         * The tradeoff is that you can't modify tls options in between calls to build.
+         * By caching and reusing the TLS context we get an enormous memory savings on a per-connection basis.
+         * The tradeoff is that you can't modify TLS options in between calls to build.
          * Previously we were making a new one with every single connection which had a huge negative impact on large
          * scale tests.
          */

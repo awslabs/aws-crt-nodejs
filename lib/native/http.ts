@@ -122,7 +122,7 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
 /**
  * Proxy connection types.
  *
- * The original behavior was to make a tunneling connection if tls was used, and a forwarding connection if it was not.
+ * The original behavior was to make a tunneling connection if TLS was used, and a forwarding connection if it was not.
  * There are legitimate use cases for plaintext tunneling connections, and so the implicit behavior has now
  * been replaced by this setting, with a default that maps to the old behavior.
  *

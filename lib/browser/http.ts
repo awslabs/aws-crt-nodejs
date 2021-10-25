@@ -221,7 +221,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
      * @param host_name - endpoint to connection with
      * @param port - port to connect to
      * @param socketOptions - (native only) leave undefined
-     * @param tlsOptions - instantiate for tls, but actual value is unused in browse implementation
+     * @param tlsOptions - instantiate for TLS, but actual value is unused in browse implementation
      * @param proxyOptions - options to control proxy usage when establishing the connection
      */
     constructor(
@@ -517,7 +517,7 @@ export class HttpClientConnectionManager {
      * @param max_connections - maximum allowed connection count
      * @param initial_window_size - (native only) leave as zero
      * @param socket_options - (native only) leave null
-     * @param tls_opts - if not null tls will be used, otherwise plain http will be used
+     * @param tls_opts - if not null TLS will be used, otherwise plain http will be used
      * @param proxy_options - configuration for establishing connections through a proxy
      */
     constructor(
