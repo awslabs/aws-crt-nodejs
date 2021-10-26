@@ -1,3 +1,5 @@
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
+
 module.exports = {
     entry: "./index.ts",
     devtool: "source-map",
@@ -13,5 +15,8 @@ module.exports = {
             // all files with a '.ts' or '.tsx' extension will be handled by 'ts-loader'
             { test: /\.tsx?$/, use: ["ts-loader"], exclude: /node_modules/ }
         ]
-    }
+    },
+    plugins: [
+        new NodePolyfillPlugin()
+    ]
 }

@@ -1,14 +1,29 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ *
+ * A module containing support for mqtt connection establishment and operations.
+ *
+ * @packageDocumentation
+ * @module mqtt
+ * @preferred
  */
 
 /**
  * MQTT Quality of Service
  * [MQTT-4.3]
  *
- * @module aws-crt
-* @category MQTT
+ * @category MQTT
+ */
+import {CrtError} from "../browser/error";
+
+/**
+ * Quality of service control for mqtt publish operations
+ *
+ * @category MQTT
  */
 export enum QoS {
     /**
@@ -24,6 +39,7 @@ export enum QoS {
      * This quality of service ensures that the message arrives at the receiver at least once.
      */
     AtLeastOnce = 1,
+
     /**
      * QoS 2 - Exactly once delivery
 
@@ -45,7 +61,6 @@ export enum QoS {
  * A String will be sent with utf-8 encoding.
  * An Object will be sent as a JSON string with utf-8 encoding.
  *
- * @module aws-crt
  * @category MQTT
  */
 export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
@@ -61,7 +76,6 @@ export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBuff
  * @param retain Retain flag. If true, the message was sent as a result of
  *               a new subscription being made by the client. *
  *
- * @module aws-crt
  * @category MQTT
  */
 export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => void;
@@ -69,7 +83,6 @@ export type OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boole
 /**
  * Every request sent returns an MqttRequest
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttRequest {
@@ -80,7 +93,6 @@ export interface MqttRequest {
 /**
  * Subscription SUBACK result
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttSubscribeRequest extends MqttRequest {
@@ -101,7 +113,6 @@ export interface MqttSubscribeRequest extends MqttRequest {
  *
  * [MQTT - 3.1.2 - 8]
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttWill {
@@ -116,5 +127,58 @@ export class MqttWill {
         readonly retain = false) {
     }
 }
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection reaches an initial
+ * connected state
+ *
+ * @param session_present true if the reconnection went to an existing session, false if this is a clean session
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionConnected = (session_present: boolean) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has fully disconnected
+ * by user request
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionDisconnected = () => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
+ *
+ * @param error the error that occurred
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionError = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * interrupted unexpectedly.
+ *
+ * @param error description of the error that occurred
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionInterrupted = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection successfully
+ * reestablishes itself after an interruption
+ *
+ * @param return_code MQTT connect return code (should be 0 for a successful reconnection)
+ * @param session_present true if the reconnection went to an existing session, false if this is a clean session
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionResumed = (return_code: number, session_present: boolean) => void;
 
 

@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module http
  */
 
 import crt_native from './binding';
@@ -8,20 +13,43 @@ import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { ResourceSafe } from '../common/resource_safety';
 import { ClientBootstrap, SocketOptions, TlsConnectionOptions, InputStream } from './io';
 import { CrtError } from './error';
-import { HttpProxyAuthenticationType, HttpProxyOptions as CommonHttpProxyOptions } from '../common/http';
-export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
+import {
+    CommonHttpProxyOptions,
+    HttpProxyAuthenticationType,
+    HttpClientConnectionConnected,
+    HttpClientConnectionError,
+    HttpClientConnectionClosed,
+    HttpStreamComplete,
+    HttpStreamData,
+    HttpStreamError
+} from '../common/http';
+
+/** @internal */
+export {HttpHeader} from '../common/http';
+
+/** @internal */
+export { HttpProxyAuthenticationType } from '../common/http';
+
 import { BufferedEventEmitter } from '../common/event';
 
-/** @category HTTP */
+/**
+ * @category HTTP
+ */
 export type HttpHeaders = crt_native.HttpHeaders;
-/** @category HTTP */
+
+/**
+ * @category HTTP
+ */
 export const HttpHeaders = crt_native.HttpHeaders;
 
-/** @category HTTP */
+/** @internal */
 type nativeHttpRequest = crt_native.HttpRequest;
-/** @category HTTP */
+/** @internal */
 const nativeHttpRequest = crt_native.HttpRequest;
 
+/**
+ * @category HTTP
+ */
 export class HttpRequest extends nativeHttpRequest {
     constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream) {
         super(method, path, headers, body?.native_handle());
@@ -31,7 +59,6 @@ export class HttpRequest extends nativeHttpRequest {
 /**
  * Base class for HTTP connections
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -50,16 +77,36 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
         crt_native.http_connection_close(this.native_handle());
     }
 
-    /** Emitted when the connection is connected and ready to start streams */
-    on(event: 'connect', listener: () => void): this;
+    /**
+     * Emitted when the connection is connected and ready to start streams
+     *
+     * @param event type of event (connect)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'connect', listener: HttpClientConnectionConnected): this;
 
-    /** Emitted when an error occurs on the connection */
-    on(event: 'error', listener: (error: Error) => void): this;
+    /**
+     * Emitted when an error occurs on the connection
+     *
+     * @param event type of event (error)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'error', listener: HttpClientConnectionError): this;
 
-    /** Emitted when the connection has completed */
-    on(event: 'close', listener: () => void): this;
+    /**
+     * Emitted when the connection has completed
+     *
+     * @param event type of event (close)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'close', listener: HttpClientConnectionClosed): this;
 
-    /** @internal */
     // Overridden to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -75,11 +122,10 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
 /**
  * Proxy connection types.
  *
- * The original behavior was to make a tunneling connection if tls was used, and a forwarding connection if it was not.
+ * The original behavior was to make a tunneling connection if TLS was used, and a forwarding connection if it was not.
  * There are legitimate use cases for plaintext tunneling connections, and so the implicit behavior has now
  * been replaced by this setting, with a default that maps to the old behavior.
  *
- * @module aws-crt
  * @category HTTP
  */
 export enum HttpProxyConnectionType {
@@ -103,7 +149,6 @@ export enum HttpProxyConnectionType {
 /**
  * Proxy options for HTTP clients.
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpProxyOptions extends CommonHttpProxyOptions {
@@ -149,7 +194,6 @@ export class HttpProxyOptions extends CommonHttpProxyOptions {
 /**
  * Represents an HTTP connection from a client to a server
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnection extends HttpConnection {
@@ -249,7 +293,6 @@ export class HttpClientConnection extends HttpConnection {
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implements ResourceSafe {
@@ -301,6 +344,27 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
 }
 
 /**
+ * Listener signature for event emitted from an {@link HttpClientStream} when inline headers are delivered while communicating over H2
+ *
+ * @param headers the set of headers
+ *
+ * @asMemberOf HttpClientStream
+ * @category HTTP
+ */
+export type HttpStreamHeaders = (headers: HttpHeaders) => void;
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when the http response headers have arrived.
+ *
+ * @param status_code http response status code
+ * @param headers the response's set of headers
+ *
+ * @asMemberOf HttpClientStream
+ * @category HTTP
+ */
+export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
+
+/**
  * Stream that sends a request and receives a response.
  *
  * Create an HttpClientStream with {@link HttpClientConnection.request}.
@@ -308,7 +372,6 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
  * NOTE: The stream sends no data until {@link HttpStream.activate} is called.
  * Call {@link HttpStream.activate} when you're ready for callbacks and events to fire.
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientStream extends HttpStream {
@@ -329,35 +392,56 @@ export class HttpClientStream extends HttpStream {
     }
 
     /**
-     * Emitted when the header block arrives from the server.
-     * HTTP/1.1 - After all leading headers have been delivered
-     * H2 - After the initial header block has been delivered
+     * Emitted when the http response headers have arrived.
+     *
+     * @param event type of event (response)
+     * @param listener event listener to use
+     *
+     * @event
      */
-    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
+    on(event: 'response', listener: HttpStreamResponse): this;
+
+
+    /**
+     * Emitted when http response data is available.
+     *
+     * @param event type of event (data)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'data', listener: HttpStreamData): this;
+
+    /**
+     * Emitted when an error occurs in stream processing
+     *
+     * @param event type of event (error)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'error', listener: HttpStreamError): this;
+
+    /**
+     * Emitted when the stream has completed
+     *
+     * @param event type of event (end)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'end', listener: HttpStreamComplete): this;
 
     /**
      * Emitted when inline headers are delivered while communicating over H2
-     * @param status_code - The HTTP status code returned from the server
-     * @param headers - The full set of headers returned from the server in the header block
+     *
+     * @param event type of event (headers)
+     * @param listener event listener to use
+     *
+     * @event
     */
-    on(event: 'headers', listener: (headers: HttpHeaders) => void): this;
+    on(event: 'headers', listener: HttpStreamHeaders): this;
 
-    /**
-     * Emitted when a body chunk arrives from the server
-     * @param body_data - The chunk of body data
-     */
-    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
-
-    /**
-     * Emitted when an error occurs
-     * @param error - A CrtError containing the error that occurred
-     */
-    on(event: 'error', listener: (error: Error) => void): this;
-
-    /** Emitted when stream has completed successfully. */
-    on(event: 'end', listener: () => void): this;
-
-    /** @internal */
     // Overridden to allow uncorking on ready and response
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -380,7 +464,6 @@ export class HttpClientStream extends HttpStream {
 /**
  * Creates, manages, and vends connections to a given host/port endpoint
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpClientConnectionManager extends NativeResource {

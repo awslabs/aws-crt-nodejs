@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module crypto
  */
 
  import crt_native from './binding';
@@ -13,7 +18,6 @@
  * @param data The data to checksum
  * @param previous previous crc32 checksum result. Used if you are buffering large input.
  *
- * @module aws-crt
  * @category Crypto
  */
 export function crc32(data: Hashable, previous?: number): number {
@@ -21,12 +25,11 @@ export function crc32(data: Hashable, previous?: number): number {
 }
 
 /**
- * Computes an crc32 checksum.
+ * Computes a crc32c checksum.
  *
  * @param data The data to checksum
- * @param previous previous crc32 checksum result. Used if you are buffering large input.
+ * @param previous previous crc32c checksum result. Used if you are buffering large input.
  *
- * @module aws-crt
  * @category Crypto
  */
  export function crc32c(data: Hashable, previous?: number): number {

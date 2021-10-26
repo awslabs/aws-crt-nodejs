@@ -1,10 +1,26 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { HttpHeader, HttpHeaders as CommonHttpHeaders, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
-export { HttpHeader, HttpProxyOptions, HttpProxyAuthenticationType } from '../common/http';
+/**
+ * @packageDocumentation
+ * @module http
+ */
+
+import {
+    CommonHttpProxyOptions,
+    HttpHeader,
+    HttpHeaders as CommonHttpHeaders,
+    HttpProxyAuthenticationType,
+    HttpClientConnectionConnected,
+    HttpClientConnectionError,
+    HttpClientConnectionClosed,
+    HttpStreamComplete,
+    HttpStreamData,
+    HttpStreamError
+} from '../common/http';
+export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import axios = require('axios');
@@ -14,20 +30,27 @@ import { TextEncoder } from './polyfills';
 /**
  * A collection of HTTP headers
  *
- * @module aws-crt
  * @category HTTP
  */
 export class HttpHeaders implements CommonHttpHeaders {
     // Map from "header": [["HeAdEr", "value1"], ["HEADER", "value2"], ["header", "value3"]]
     private headers: { [index: string]: [HttpHeader] } = {};
 
-    /** Construct from a collection of [name, value] pairs */
+    /** Construct from a collection of [name, value] pairs
+     *
+     * @param headers list of HttpHeader values to seat in this object
+     */
     constructor(headers: HttpHeader[] = []) {
         for (const header of headers) {
             this.add(header[0], header[1]);
         }
     }
 
+    /**
+     * Fetches the total length of all headers
+     *
+     * @returns the total length of all headers
+     */
     get length(): number {
         let length = 0;
         for (let key in this.headers) {
@@ -38,8 +61,8 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Add a name/value pair
-     * @param name - The header name
-     * @param value - The header value
+     * @param name The header name
+     * @param value The header value
     */
     add(name: string, value: string) {
         let values = this.headers[name.toLowerCase()];
@@ -147,20 +170,42 @@ export class HttpHeaders implements CommonHttpHeaders {
     }
 }
 
-/** Represents a request to a web server from a client */
+/**
+ * Options used when connecting to an HTTP endpoint via a proxy
+ *
+ * @category HTTP
+ */
+export class HttpProxyOptions extends CommonHttpProxyOptions {
+}
+
+/**
+ * Represents a request to a web server from a client
+ *
+ * @category HTTP
+ */
 export class HttpRequest {
+
+    /**
+     * Constructor for the HttpRequest class
+     *
+     * @param method The verb to use for the request (i.e. GET, POST, PUT, DELETE, HEAD)
+     * @param path The URI of the request
+     * @param headers Additional custom headers to send to the server
+     * @param body The request body, in the case of a POST or PUT request
+     */
     constructor(
-        /** The verb to use for the request (i.e. GET, POST, PUT, DELETE, HEAD) */
         public method: string,
-        /** The URI of the request */
         public path: string,
-        /** Additional custom headers to send to the server */
         public headers = new HttpHeaders(),
-        /** The request body, in the case of a POST or PUT request */
         public body?: InputStream) {
     }
 }
 
+/**
+ * Represents an HTTP connection from a client to a server
+ *
+ * @category HTTP
+ */
 export class HttpClientConnection extends BufferedEventEmitter {
     public _axios: any;
     private axios_options: axios.AxiosRequestConfig;
@@ -169,6 +214,16 @@ export class HttpClientConnection extends BufferedEventEmitter {
     protected tls_options?: TlsConnectionOptions;
     protected proxy_options?: HttpProxyOptions;
 
+    /**
+     * Http connection constructor, signature synced to native version for compatibility
+     *
+     * @param bootstrap - (native only) leave undefined
+     * @param host_name - endpoint to connection with
+     * @param port - port to connect to
+     * @param socketOptions - (native only) leave undefined
+     * @param tlsOptions - instantiate for TLS, but actual value is unused in browse implementation
+     * @param proxyOptions - options to control proxy usage when establishing the connection
+     */
     constructor(
         bootstrap: ClientBootstrap | undefined,
         host_name: string,
@@ -209,14 +264,35 @@ export class HttpClientConnection extends BufferedEventEmitter {
         }, 0);
     }
 
-    /** Emitted when the connection is connected and ready to start streams */
-    on(event: 'connect', listener: () => void): this;
+    /**
+     * Emitted when the connection is connected and ready to start streams
+     *
+     * @param event type of event (connect)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'connect', listener: HttpClientConnectionConnected): this;
 
-    /** Emitted when an error occurs on the connection */
-    on(event: 'error', listener: (error: Error) => void): this;
+    /**
+     * Emitted when an error occurs on the connection
+     *
+     * @param event type of event (error)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'error', listener: HttpClientConnectionError): this;
 
-    /** Emitted when the connection has completed */
-    on(event: 'close', listener: () => void): this;
+    /**
+     * Emitted when the connection has completed
+     *
+     * @param event type of event (close)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'close', listener: HttpClientConnectionClosed): this;
 
     // Override to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -238,6 +314,9 @@ export class HttpClientConnection extends BufferedEventEmitter {
         return stream_request(this, request);
     }
 
+    /**
+     * Ends the connection
+     */
     close() {
         this.emit('close');
         this._axios = undefined;
@@ -272,11 +351,25 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
     return stream;
 }
 
+
+/**
+ * Listener signature for event emitted from an {@link HttpClientStream} when the http response headers have arrived.
+ *
+ * @param status_code http response status code
+ * @param headers the response's set of headers
+ *
+ * @asMemberOf HttpClientStream
+ * @category HTTP
+ */
+export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
+
 /**
  * Represents a single http message exchange (request/response) in HTTP.
  *
  * NOTE: Binding either the ready or response event will uncork any buffered events and start
  * event delivery
+ *
+ * @category HTTP
  */
 export class HttpClientStream extends BufferedEventEmitter {
     private response_status_code?: number;
@@ -307,35 +400,58 @@ export class HttpClientStream extends BufferedEventEmitter {
     }
 
     /**
-     * Emitted when the header block arrives from the server.
+     * Emitted when the http response headers have arrived.
+     *
+     * @param event type of event (response)
+     * @param listener event listener to use
+     *
+     * @event
      */
-    on(event: 'response', listener: (status_code: number, headers: HttpHeaders) => void): this;
+    on(event: 'response', listener: HttpStreamResponse): this;
+
 
     /**
-     * Emitted when a body chunk arrives from the server
-     * @param body_data - The chunk of body data
+     * Emitted when http response data is available.
+     *
+     * @param event type of event (data)
+     * @param listener event listener to use
+     *
+     * @event
      */
-    on(event: 'data', listener: (body_data: ArrayBuffer) => void): this;
+    on(event: 'data', listener: HttpStreamData): this;
 
     /**
-     * Emitted when an error occurs
-     * @param error - A CrtError containing the error that occurred
+     * Emitted when an error occurs in stream processing
+     *
+     * @param event type of event (error)
+     * @param listener event listener to use
+     *
+     * @event
      */
-    on(event: 'error', listener: (error: Error) => void): this;
+    on(event: 'error', listener: HttpStreamError): this;
 
-    /** Emitted when stream has completed sucessfully. */
-    on(event: 'end', listener: () => void): this;
+    /**
+     * Emitted when the stream has completed
+     *
+     * @param event type of event (end)
+     * @param listener event listener to use
+     *
+     * @event
+     */
+    on(event: 'end', listener: HttpStreamComplete): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
     }
 
     // Private helpers for stream_request()
+    /** @internal */
     static _create(connection: HttpClientConnection) {
         return new HttpClientStream(connection);
     }
 
     // Convert axios' single response into a series of events
+    /** @internal */
     _on_response(response: any) {
         this.response_status_code = response.status;
         let headers = new HttpHeaders();
@@ -353,6 +469,7 @@ export class HttpClientStream extends BufferedEventEmitter {
 
     // Gather as much information as possible from the axios error
     // and pass it on to the user
+    /** @internal */
     _on_error(error: any) {
         let info = "";
         if (error.response) {
@@ -378,7 +495,11 @@ interface PendingRequest {
     reject: (error: CrtError) => void;
 }
 
-/** Creates, manages, and vends connections to a given host/port endpoint */
+/**
+ * Creates, manages, and vends connections to a given host/port endpoint
+ *
+ * @category HTTP
+ */
 export class HttpClientConnectionManager {
     private pending_connections = new Set<HttpClientConnection>();
     private live_connections = new Set<HttpClientConnection>();
@@ -386,6 +507,19 @@ export class HttpClientConnectionManager {
     private pending_requests: PendingRequest[] = [];
 
 
+    /**
+     * Constructor for the HttpClientConnectionManager class.  Signature stays in sync with native implementation
+     * for compatibility purposes (leads to some useless params)
+     *
+     * @param bootstrap - (native only) leave undefined
+     * @param host - endpoint to pool connections for
+     * @param port - port to connect to
+     * @param max_connections - maximum allowed connection count
+     * @param initial_window_size - (native only) leave as zero
+     * @param socket_options - (native only) leave null
+     * @param tls_opts - if not null TLS will be used, otherwise plain http will be used
+     * @param proxy_options - configuration for establishing connections through a proxy
+     */
     constructor(
         readonly bootstrap: ClientBootstrap | undefined,
         readonly host: string,

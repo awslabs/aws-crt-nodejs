@@ -1,6 +1,14 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * Module for AWS Authentication logic - signing http requests, events, chunks, etc...
+ *
+ * @packageDocumentation
+ * @module auth
+ * @preferred
  */
 
 import crt_native from './binding';
@@ -8,18 +16,20 @@ import { CrtError } from './error';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
-/** @category System */
+/**
+ * @internal
+ */
 type StringLike = string | ArrayBuffer | DataView;
 
 /**
  * AWS signing algorithm enumeration.
  *
- * @module aws-crt
  * @category Auth
  */
 export enum AwsSigningAlgorithm {
     /** Use the Aws signature version 4 signing process to sign the request */
     SigV4,
+
     /** Use the Aws signature version 4 Asymmetric signing process to sign the request */
     SigV4Asymmetric
 }
@@ -81,11 +91,27 @@ export enum AwsSignedBodyHeaderType {
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
  *
- * @module aws-crt
+ * We don't currently expose an interface for fetching credentials from Javascript.
+ *
  * @category Auth
  */
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
 export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
+
+    /**
+     * Creates a new default credentials provider to be used internally for AWS credentials resolution:
+     *
+     *   The CRT's default provider chain currently sources in this order:
+     *
+     *     1. Environment
+     *     2. Profile
+     *     3. (conditional, off by default) ECS
+     *     4. (conditional, on by default) EC2 Instance Metadata
+     *
+     * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
+     *
+     * @returns a new credentials provider using default credentials resolution rules
+     */
     static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
         return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
     }
@@ -96,10 +122,77 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
  * AwsSigningConfig is immutable.
  * It is good practice to use a new config for each signature, or the date might get too old.
  *
- * @module aws-crt
  * @category Auth
  */
-export type AwsSigningConfig = crt_native.AwsSigningConfig;
+export interface AwsSigningConfig {
+    /** Which signing process to invoke */
+    algorithm: AwsSigningAlgorithm;
+
+    /** What kind of signature to compute */
+    signature_type: AwsSignatureType;
+
+    /** Credentials provider to fetch signing credentials with */
+    provider: AwsCredentialsProvider;
+
+    /** The region to sign against */
+    region: string;
+
+    /** Name of service to sign a request for */
+    service?: string;
+
+    /**
+     * Date and time to use during the signing process. If not provided then
+     * the current time in UTC is used. Naive dates (lacking timezone info)
+     * are assumed to be in local time
+     */
+    date?: Date;
+
+    /**
+     * Headers to skip when signing.
+     *
+     * Skipping auth-required headers will result in an unusable signature.
+     * Headers injected by the signing process are not skippable.
+     * This function does not override the internal check function
+     * (x-amzn-trace-id, user-agent), but rather supplements it.
+     * In particular, a header will get signed if and only if it returns
+     * true to both the internal check (skips x-amzn-trace-id, user-agent)
+     * and is found in this list (if defined)
+     */
+    header_blacklist?: string[];
+
+    /**
+     * Set true to double-encode the resource path when constructing the
+     * canonical request. By default, all services except S3 use double encoding.
+     */
+    use_double_uri_encode?: boolean;
+
+    /**
+     * Whether the resource paths are normalized when building the canonical request.
+     */
+    should_normalize_uri_path?: boolean;
+
+    /**
+     * Should the session token be omitted from the signing process?  This should only be
+     * true when making a websocket handshake with IoT Core.
+     */
+    omit_session_token?: boolean;
+
+    /**
+     * Value to use as the canonical request's body value.
+     *
+     * Typically, this is the SHA-256 of the payload, written as lowercase hex.
+     * If this has been precalculated, it can be set here.
+     * Special values used by certain services can also be set (see {@link AwsSignedBodyValue}).
+     * If undefined (the default), the typical value will be calculated from the payload during signing.
+     */
+    signed_body_value?: string;
+
+    /** Controls what header, if any, should be added to the request, containing the body value */
+    signed_body_header?: AwsSignedBodyHeaderType;
+
+    /** Query param signing only: how long the pre-signed URL is valid for */
+    expiration_in_seconds?: number;
+}
 
 /**
  * Perform AWS HTTP request signing.
@@ -124,11 +217,10 @@ export type AwsSigningConfig = crt_native.AwsSigningConfig;
  *      X-Amz-SignedHeaders
  * @param request The HTTP request to sign.
  * @param config Configuration for signing.
- * @returns A Future whose result will be the signed
+ * @returns A promise whose result will be the signed
  *       {@link HttpRequest}. The future will contain an exception
  *       if the signing process fails.
  *
- * @module aws-crt
  * @category Auth
  */
 export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
@@ -150,6 +242,9 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
 }
 
 /**
+ *
+ * @internal
+ *
  * Test only.
  * Verifies:
  *  (1) The canonical request generated during sigv4a signing of the request matches what is passed in

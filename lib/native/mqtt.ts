@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module mqtt
  */
 
 import crt_native, { StringLike } from './binding';
@@ -10,16 +15,24 @@ import { CrtError } from './error';
 import * as io from "./io";
 import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
-
-import { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
-
-/** @category MQTT */
+import {
+    QoS,
+    Payload,
+    MqttRequest,
+    MqttSubscribeRequest,
+    MqttWill,
+    OnMessageCallback,
+    MqttConnectionConnected,
+    MqttConnectionDisconnected,
+    MqttConnectionError,
+    MqttConnectionInterrupted,
+    MqttConnectionResumed
+} from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
 /**
  * MQTT client
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttClient extends NativeResource {
@@ -33,7 +46,7 @@ export class MqttClient extends NativeResource {
 
     /**
      * Creates a new {@link MqttClientConnection}
-     * @param config Configuration for the connection
+     * @param config Configuration for the mqtt connection
      * @returns A new connection
      */
     new_connection(
@@ -45,7 +58,6 @@ export class MqttClient extends NativeResource {
 /**
  * Configuration options for an MQTT connection
  *
- * @module aws-crt
  * @category MQTT
  */
 export interface MqttConnectionConfig {
@@ -54,14 +66,19 @@ export interface MqttConnectionConfig {
      * If an ID is already in use, the other client will be disconnected.
      */
     client_id: string;
+
     /** Server name to connect to */
     host_name: string;
+
     /** Server port to connect to */
     port: number;
+
     /** Optional socket options */
     socket_options: io.SocketOptions;
+
     /** If true, connect to MQTT over websockets */
     use_websocket?: boolean;
+
     /**
      * Whether or not to start a clean session with each reconnect.
      * If True, the server will forget all subscriptions with each reconnect.
@@ -73,13 +90,15 @@ export interface MqttConnectionConfig {
      * and sends mesages (with QoS1 or higher) that were published while the client was offline.
      */
     clean_session?: boolean;
+
     /**
      * The keep alive value, in seconds, to send in CONNECT packet.
      * A PING will automatically be sent at this interval.
      * The server will assume the connection is lost if no PING is received after 1.5X this value.
-     * This duration must be longer than {@link timeout}.
+     * This duration must be longer than {@link ping_timeout}.
      */
     keep_alive?: number;
+
     /**
      * Milliseconds to wait for ping response before client assumes
      * the connection is invalid and attempts to reconnect.
@@ -89,6 +108,7 @@ export interface MqttConnectionConfig {
      * but keep-alive options may not work the same way on every platform and OS version.
      */
     ping_timeout?: number;
+
     /**
      * Milliseconds to wait for the response to the operation requires response by protocol.
      * Set to zero to disable timeout. Otherwise, the operation will fail if no response is
@@ -96,22 +116,28 @@ export interface MqttConnectionConfig {
      * It applied to PUBLISH (QoS>0) and UNSUBSCRIBE now.
      */
     protocol_operation_timeout?: number;
+
     /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
      */
     will?: MqttWill;
+
     /** Username to connect with */
     username?: string;
+
     /** Password to connect with */
     password?: string;
+
     /**
      * TLS context for secure socket connections.
      * If None is provided, then an unencrypted connection is used.
      */
     tls_ctx?: io.ClientTlsContext;
+
     /** Optional proxy options */
     proxy_options?: HttpProxyOptions;
+
     /**
      * Optional function to transform websocket handshake request.
      * If provided, function is called each time a websocket connection is attempted.
@@ -145,7 +171,6 @@ function normalize_payload(payload: Payload): StringLike {
 /**
  * MQTT client connection
  *
- * @module aws-crt
  * @category MQTT
  */
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
@@ -195,35 +220,68 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         crt_native.mqtt_client_connection_close(this.native_handle());
     }
 
-    /** Emitted when the connection is ready and is about to start sending response data */
-    on(event: 'connect', listener: (session_present: boolean) => void): this;
-
-    /** Emitted when connection has disconnected sucessfully. */
-    on(event: 'disconnect', listener: () => void): this;
+    /**
+     * Emitted when the connection successfully establishes itself for the first time
+     *
+     * @param event the type of event (connect)
+     * @param listener the event listener to use
+     *
+     * @event
+     */
+    on(event: 'connect', listener: MqttConnectionConnected): this;
 
     /**
-     * Emitted when an error occurs
-     * @param error - A CrtError containing the error that occurred
+     * Emitted when connection has disconnected sucessfully.
+     *
+     * @param event the type of event (disconnect)
+     * @param listener the event listener to use
+     *
+     * @event
      */
-    on(event: 'error', listener: (error: CrtError) => void): this;
+    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+
+    /**
+     * Emitted when an error occurs.  The error will contain the error
+     * code and message.
+     *
+     * @param event the type of event (error)
+     * @param listener the event listener to use
+     *
+     * @event
+     */
+    on(event: 'error', listener: MqttConnectionError): this;
 
     /**
      * Emitted when the connection is dropped unexpectedly. The error will contain the error
-     * code and message.
+     * code and message.  The underlying mqtt implementation will attempt to reconnect.
+     *
+     * @param event the type of event (interrupt)
+     * @param listener the event listener to use
+     *
+     * @event
      */
-    on(event: 'interrupt', listener: (error: CrtError) => void): this;
+    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
 
     /**
-     * Emitted when the connection reconnects. Only triggers on connections after the initial one.
+     * Emitted when the connection reconnects (after an interrupt). Only triggers on connections after the initial one.
+     *
+     * @param event the type of event (resume)
+     * @param listener the event listener to use
+     *
+     * @event
      */
-    on(event: 'resume', listener: (return_code: number, session_present: boolean) => void): this;
+    on(event: 'resume', listener: MqttConnectionResumed): this;
 
     /**
      * Emitted when any MQTT publish message arrives.
+     *
+     * @param event the type of event (message)
+     * @param listener the event listener to use
+     *
+     * @event
      */
     on(event: 'message', listener: OnMessageCallback): this;
 
-    /** @internal */
     // Overridden to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);

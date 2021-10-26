@@ -27,21 +27,21 @@ async function main() {
     for (let idx = 0; idx < 10; ++idx) {
         log(`Request(${idx}) start`)
         const conn = connection_manager.acquire()
-            .then((connection) => {
+            .then((connection : http.HttpClientConnection) => {
                 log(`Request(${idx}) Ready`);
                 let request = new http.HttpRequest(
                     'GET',
                     url.pathname);
                 log(`Request(${idx}) Requesting ${url}`);
                 let stream = connection.request(request);
-                stream.on('response', (status_code, headers) => {
+                stream.on('response', (status_code : Number, headers : http.HttpHeaders) => {
                     log(`Request(${idx}) Status Code: ${status_code}`);
                     log(`Request(${idx}) Headers:`);
                     for (let header of headers) {
                         log(`    ${header[0]}: ${header[1]}`);
                     }
                 });
-                stream.on('data', (body_data) => {
+                stream.on('data', (body_data : ArrayBuffer) => {
                     log(`Request(${idx}) BODY BEGIN`);
                     let body = new TextDecoder('utf8').decode(body_data);
                     log(`    ${body}`);
@@ -51,10 +51,10 @@ async function main() {
                     log(`Request(${idx}) Stream Done`);
                     connection_manager.release(connection);
                 });
-                stream.on('error', (error) => {
+                stream.on('error', (error : Error) => {
                     log(`Request(${idx}) STREAM ERROR: ${error}`);
                 });
-                connection.on('error', (error) => {
+                connection.on('error', (error : Error) => {
                     log(`Request(${idx}) CONNECTION ERROR: ${error}`);
                 });
                 stream.activate();

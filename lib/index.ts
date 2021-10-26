@@ -1,13 +1,14 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-// This is the entry point for the AWS CRT nodejs native libraries
-
 /**
- * @moduledefinition aws-crt
+ * @packageDocumentation
+ * @module crt
  */
+
+// This is the entry point for the AWS CRT nodejs native libraries
 
 /* common libs */
 import * as platform from './common/platform';

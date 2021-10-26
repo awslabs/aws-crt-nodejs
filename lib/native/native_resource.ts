@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
@@ -10,6 +10,7 @@
 export class NativeResource {
     constructor(private handle: any) { }
 
+    /** @internal */
     native_handle() {
         return this.handle;
     }

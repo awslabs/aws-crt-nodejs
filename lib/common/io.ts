@@ -1,12 +1,27 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
 /**
+ *
+ * A module containing a grab bag of support for core network I/O functionality, including sockets, TLS, DNS, logging,
+ * error handling, streams, and connection -> thread mapping.
+ *
+ * Categories include:
+ * - Network: socket configuration
+ * - TLS: tls configuration
+ * - Logging: logging controls and configuration
+ * - IO: everything else
+ *
+ * @packageDocumentation
+ * @module IO
+ * @preferred
+ */
+
+/**
  * TLS Version
  *
- * @module aws-crt
  * @category TLS
  */
 export enum TlsVersion {
@@ -19,8 +34,7 @@ export enum TlsVersion {
 }
 
 /**
- * @module aws-crt
- * @category I/O
+ * @category Network
  */
 export enum SocketType {
     /**
@@ -38,11 +52,15 @@ export enum SocketType {
 }
 
 /**
- * @module aws-crt
- * @category I/O
+ * @category Network
  */
 export enum SocketDomain {
+    /** IPv4 sockets */
     IPV4 = 0,
+
+    /** IPv6 sockets */
     IPV6 = 1,
-    LOCAL = 2, /** UNIX domain socket/Windows named pipes */
+
+    /** UNIX domain socket/Windows named pipes */
+    LOCAL = 2,
 }
