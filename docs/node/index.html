@@ -1,0 +1,182 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>aws-crt</title>
+	<meta name="description" content="Documentation for aws-crt">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.json" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">aws-crt</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="globals.html">Globals</a>
+				</li>
+			</ul>
+			<h1>aws-crt</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<a href="#aws-crt-js" id="aws-crt-js" style="color: inherit; text-decoration: none;">
+					<h2>AWS CRT JS</h2>
+				</a>
+				<p>NodeJS/Browser bindings for the AWS Common Runtime</p>
+				<p><a href="https://awslabs.github.io/aws-crt-nodejs/">API Docs</a></p>
+				<a href="#license" id="license" style="color: inherit; text-decoration: none;">
+					<h2>License</h2>
+				</a>
+				<p>This library is licensed under the Apache 2.0 License.</p>
+				<a href="#building-the-package" id="building-the-package" style="color: inherit; text-decoration: none;">
+					<h2>Building the package</h2>
+				</a>
+				<a href="#prereqs" id="prereqs" style="color: inherit; text-decoration: none;">
+					<h3>Prereqs:</h3>
+				</a>
+				<ul>
+					<li>Node 10.16+</li>
+					<li>npm</li>
+					<li>CMake 3.1+</li>
+					<li>Linux: gcc 5+ or clang 3.6+<ul>
+							<li>If your compiler can compile node, it can compile this library</li>
+						</ul>
+					</li>
+					<li>Windows: Visual Studio 2015+</li>
+					<li>OSX: XCode or brew-installed llvm</li>
+				</ul>
+				<p>To build the package locally</p>
+				<pre><code class="language-bash">git <span class="hljs-built_in">clone</span> https://github.com/awslabs/aws-crt-nodejs.git
+<span class="hljs-built_in">cd</span> aws-crt-nodejs
+git submodule update --init
+npm install</code></pre>
+				<a href="#using-from-your-nodejs-application" id="using-from-your-nodejs-application" style="color: inherit; text-decoration: none;">
+					<h2>Using From Your NodeJS Application</h2>
+				</a>
+				<p>Normally, you just declare <code>aws-crt</code> as a dependency in your package.json file.</p>
+				<a href="#using-from-your-browser-application" id="using-from-your-browser-application" style="color: inherit; text-decoration: none;">
+					<h2>Using From Your Browser Application</h2>
+				</a>
+				<p>You can either add it to package.json (if using a tool like webpack), or just import the <code>dist.browser/</code> folder into your web project</p>
+				<a href="#installing-from-npm" id="installing-from-npm" style="color: inherit; text-decoration: none;">
+					<h3>Installing from npm</h3>
+				</a>
+				<pre><code class="language-bash">npm install aws-crt</code></pre>
+				<p>To reduce the size of package, we put the C source code in the S3 bucket. If the platform you are using doesn&#39;t have the prebuilt binary, the install script will pull the source from S3 bucket. In case of no public internet access, you can specify the &quot;CRT_BINARY_HOST&quot; environment variable for the host of the source code. The build script will fetch source code from that host instead. To fetch the source from S3, you can reach to the cloudfront distribution (Only works for version after v1.9.2) <code>https://d332vdhbectycy.cloudfront.net/aws-crt-&lt;version&gt;-source.tgz</code>, the sha256 checksum <code>https://d332vdhbectycy.cloudfront.net/aws-crt-&lt;version&gt;-source.sha256</code></p>
+				<a href="#debug-c-part-of-code" id="debug-c-part-of-code" style="color: inherit; text-decoration: none;">
+					<h3>Debug C part of code</h3>
+				</a>
+				<p>After building the package locally, use <code>node ./scripts/build.js --debug</code> to enable debug. Then, attach any C debugger to use node to run <code>jest</code></p>
+				<a href="#mac-only-tls-behavior" id="mac-only-tls-behavior" style="color: inherit; text-decoration: none;">
+					<h2>Mac-Only TLS Behavior</h2>
+				</a>
+				<p>Please note that on Mac, once a private key is used with a certificate, that certificate-key pair is imported into the Mac Keychain.  All subsequent uses of that certificate will use the stored private key and ignore anything passed in programmatically.  Beginning in v1.1.11, when a stored private key from the Keychain is used, the following will be logged at the &quot;info&quot; log level:</p>
+				<pre><code><span class="hljs-symbol">static:</span> certificate has an existing certificate-<span class="hljs-keyword">key</span> pair that was previously imported <span class="hljs-keyword">into</span> the Keychain.  <span class="hljs-keyword">Using</span> <span class="hljs-keyword">key</span> <span class="hljs-keyword">from</span> Keychain instead <span class="hljs-keyword">of</span> the one provided.</code></pre>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class="globals  ">
+						<a href="globals.html"><em>Globals</em></a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/io.html">IO</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/auth.html">auth</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/aws_iot.html">aws-<wbr>iot</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/crt.html">crt</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/crypto.html">crypto</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/http.html">http</a>
+					</li>
+					<li class=" tsd-kind-module">
+						<a href="modules/mqtt.html">mqtt</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
+				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
+				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
