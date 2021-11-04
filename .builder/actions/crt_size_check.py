@@ -8,6 +8,8 @@ class CrtSizeCheck(Builder.Action):
 
         print('Searching for aws-crt-nodejs.node')
 
+        max_size = 1000000
+
         for root, dirs, files in os.walk(os.getcwd() + '/dist'):
             if 'aws-crt-nodejs.node' in files:
                 file_path = os.path.join(
@@ -16,10 +18,10 @@ class CrtSizeCheck(Builder.Action):
 
         if os.path.isfile(file_path):
             print(file_path + ' file size: ' + str(os.stat(file_path).st_size))
-            if os.stat(file_path).st_size <= 10000000:
-                print(file_path + " is <= 10000000 bytes")
+            if os.stat(file_path).st_size <= max_size:
+                print(file_path + " is <= " + str(max_size) + " bytes")
             else:
-                print(file_path + " is > than 10000000 bytes")
+                print(file_path + " is > than " + str(max_size) + " bytes")
                 raise Exception('Exceeds file size limit')
         else:
             raise Exception('aws-crt-nodejs.node not found')
