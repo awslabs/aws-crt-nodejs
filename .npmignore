@@ -169,6 +169,7 @@ deps_build/
 **/continuous-delivery/
 **/docs/
 **/codebuild/
+**/.builder/
 
 # Skip Native Code
 **/crt/

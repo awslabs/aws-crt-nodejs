@@ -100,9 +100,6 @@
             "node",
             "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
         ],
-        [
-            "python3",
-            "{project_dir}/scripts/crtSizeCheck.py"
-        ]
+        "crt-size-check"
     ]
 }
