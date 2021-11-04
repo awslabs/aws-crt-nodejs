@@ -6,7 +6,11 @@ class CrtSizeCheck(Builder.Action):
 
     def run(self, env):
         print("CrtSizeCheck running")
-        file_path = r"/Volumes/workplace/ticket/aws-crt-nodejs/scripts/tsc.js"
+        # Code to search dist folder for aws-crt-nodejs.node file location
+        dist_folder_path = '../../dist'
+        file_folder_path = dist_folder_path + '/bin/darwin-x64/'
+
+        file_path = file_folder_path + 'aws-crt-nodejs.node'
 
         if os.path.isfile(file_path):
             print(file_path + " found")
