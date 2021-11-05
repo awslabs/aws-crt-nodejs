@@ -11,17 +11,24 @@ class CrtSizeCheck(Builder.Action):
         # Maximum package size in bytes
         max_node_size = 5_000_000
         # Maximum dist folder size in bytes
-        max_dist_size = 10_000_000
+        max_dist_size = 50_000_000
+        # Size of current folder
+        current_folder_size = 0
         # Total size of files in dist folder
         total_size = 0
         # full path of aws-crt-nodejs.node
         file_path = None
 
         for root, dirs, files in os.walk(os.path.join(env.project.path, 'dist/')):
+            current_folder_size = 0
+
             for f in files:
                 fp = os.path.join(root, f)
-                print(f"{fp} : {os.path.getsize(fp)} ")
-                total_size += os.path.getsize(fp)
+                current_folder_size += os.path.getsize(fp)
+
+            if current_folder_size > 0:
+                print(f"{root} = {str(current_folder_size)} bytes")
+                total_size += current_folder_size
 
             if 'aws-crt-nodejs.node' in files:
                 file_path = os.path.join(
