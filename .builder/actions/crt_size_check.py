@@ -10,18 +10,30 @@ class CrtSizeCheck(Builder.Action):
     def run(self, env):
         print('Searching for aws-crt-nodejs.node')
         # Maximum package size in bytes
-        max_size = 10000000
+        max_node_size = 5000000
+        # Maximum dist folder size in bytes
+        max_dist_size = 10000000
+        # Total size of files in dist folder
+        total_size = 0
 
         for root, dirs, files in os.walk(os.getcwd() + '/dist'):
+            for f in files:
+                fp = os.path.join(root, f)
+                total_size += os.path.getsize(fp)
+
             if 'aws-crt-nodejs.node' in files:
                 file_path = os.path.join(
                     root, 'aws-crt-nodejs.node')
                 print(file_path + ' found')
 
+        print('Total dist folder file size: ' + str(total_size) + ' bytes')
+        if total_size > max_dist_size:
+            raise Exception('dist folder exceeds size limit')
+
         if os.path.isfile(file_path):
             print(file_path + ' file size: ' + str(os.stat(file_path).st_size))
-            if os.stat(file_path).st_size <= max_size:
-                print(file_path + " is <= " + str(max_size) + " bytes")
+            if os.stat(file_path).st_size <= max_node_size:
+                print(file_path + ' is <= ' + str(max_node_size) + ' bytes')
             else:
                 raise Exception('Exceeds file size limit')
         else:
