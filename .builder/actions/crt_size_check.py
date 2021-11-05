@@ -20,6 +20,7 @@ class CrtSizeCheck(Builder.Action):
         for root, dirs, files in os.walk(os.path.join(env.project.path, 'dist/')):
             for f in files:
                 fp = os.path.join(root, f)
+                print(f"{fp} : {os.path.getsize(fp)} ")
                 total_size += os.path.getsize(fp)
 
             if 'aws-crt-nodejs.node' in files:
