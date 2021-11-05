@@ -18,7 +18,7 @@ class CrtSizeCheck(Builder.Action):
         # full path of aws-crt-nodejs.node
         file_path = None
 
-        for root, dirs, files in os.walk(os.path.join(env.project.path, '/dist')):
+        for root, dirs, files in os.walk(os.path.join(os.getcwd(), '/dist')):
             for f in files:
                 fp = os.path.join(root, f)
                 total_size += os.path.getsize(fp)
