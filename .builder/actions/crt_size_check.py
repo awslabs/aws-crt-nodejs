@@ -33,16 +33,12 @@ class CrtSizeCheck(Builder.Action):
             if 'aws-crt-nodejs.node' in files:
                 file_path = os.path.join(
                     root, 'aws-crt-nodejs.node')
+                print(f"{file_path} file size: {str(os.stat(file_path).st_size)}")
+                if os.stat(file_path).st_size <= max_node_size:
+                    print(f"{file_path} is <= {str(max_node_size)} bytes")
+                else:
+                    raise Exception(f"{file_path} exceeds file size limit")
 
         print(f"Total /dist folder file size: {str(total_size)} bytes")
         if total_size > max_dist_size:
             raise Exception('/dist folder exceeds size limit')
-
-        if file_path is not None:
-            print(f"{file_path} file size: {str(os.stat(file_path).st_size)}")
-            if os.stat(file_path).st_size <= max_node_size:
-                print(f"{file_path} is <= {str(max_node_size)} bytes")
-            else:
-                raise Exception('Exceeds file size limit')
-        else:
-            raise Exception('aws-crt-nodejs.node not found')
