@@ -23,6 +23,7 @@ import {
     AwsSigningAlgorithm,
     AwsSigningConfig
 } from "./auth";
+import { CrtError } from "@awscrt";
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -137,7 +138,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                     await aws_sign_request(request, signing_config);
                     done();
                 } catch (error) {
-                    done(error);
+                    done((error as CrtError).error_code);
                 }
             };
         }

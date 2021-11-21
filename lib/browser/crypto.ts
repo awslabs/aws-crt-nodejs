@@ -9,7 +9,7 @@
  * @module crypto
  */
 
-import * as Crypto from "crypto-js";
+import Crypto from "crypto-js";
 import { Hashable } from "../common/crypto";
 import { TextEncoder } from "./polyfills";
 
@@ -19,14 +19,14 @@ import { TextEncoder } from "./polyfills";
  * @category Crypto
  */
 export class Md5Hash {
-    private hash?: Crypto.WordArray;
+    private hasher = Crypto.algo.MD5.create();
 
     /**
      * Hashes additional data
      * @param data Additional data to hash
      */
     update(data: Hashable) {
-        this.hash = Crypto.MD5(data.toString(), this.hash ? this.hash.toString() : undefined);
+        this.hasher.update(data.toString());
     }
 
     /**
@@ -37,8 +37,8 @@ export class Md5Hash {
      * @returns the final hash digest
      */
     finalize(truncate_to?: number): DataView {
-        const digest = this.hash ? this.hash.toString() : '';
-        const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
+        const digest = this.hasher.finalize();
+        const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.sigBytes);
         const encoder = new TextEncoder();
         const bytes = encoder.encode(truncated);
         return new DataView(bytes.buffer);
@@ -69,14 +69,14 @@ export function hash_md5(data: Hashable, truncate_to?: number): DataView {
  * @category Crypto
  */
 export class Sha256Hash {
-    private hash?: Crypto.WordArray;
+    private hasher = Crypto.algo.SHA256.create();
 
     /**
      * Hashes additional data
      * @param data Additional data to hash
      */
     update(data: Hashable) {
-        this.hash = Crypto.SHA256(data.toString(), this.hash ? this.hash.toString() : undefined);
+        this.hasher.update(data.toString());
     }
 
     /**
@@ -87,8 +87,8 @@ export class Sha256Hash {
      * @returns the final hash digest
      */
     finalize(truncate_to?: number): DataView {
-        const digest = this.hash ? this.hash.toString() : '';
-        const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
+        const digest = this.hasher.finalize();
+        const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.sigBytes);
         const encoder = new TextEncoder();
         const bytes = encoder.encode(truncated);
         return new DataView(bytes.buffer);
@@ -120,14 +120,14 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
  * @category Crypto
  */
  export class Sha1Hash {
-    private hash?: Crypto.WordArray;
+    private hasher = Crypto.algo.SHA1.create();
 
     /**
      * Hashes additional data
      * @param data Additional data to hash
      */
     update(data: Hashable) {
-        this.hash = Crypto.SHA1(data.toString(), this.hash ? this.hash.toString() : undefined);
+        this.hasher.update(data.toString());
     }
 
     /**
@@ -138,8 +138,8 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
      * @returns the final hash digest
      */
     finalize(truncate_to?: number): DataView {
-        const digest = this.hash ? this.hash.toString() : '';
-        const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
+        const digest = this.hasher.finalize();
+        const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.sigBytes);
         const encoder = new TextEncoder();
         const bytes = encoder.encode(truncated);
         return new DataView(bytes.buffer);

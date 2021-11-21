@@ -11,7 +11,7 @@
 import { MqttConnectionConfig } from "./mqtt";
 import { AWSCredentials } from "./auth";
 import WebSocket from "ws";
-import * as Crypto from "crypto-js";
+import Crypto from "crypto-js";
 
 /**
  * Options for websocket based connections in browser
@@ -40,11 +40,10 @@ function canonical_day(time: string = canonical_time()) {
 }
 
 function make_signing_key(credentials: AWSCredentials, day: string, service_name: string) {
-    const hash_opts = { asBytes: true };
-    let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key, hash_opts);
-    hash = Crypto.HmacSHA256(credentials.aws_region || '', hash, hash_opts);
-    hash = Crypto.HmacSHA256(service_name, hash, hash_opts);
-    hash = Crypto.HmacSHA256('aws4_request', hash, hash_opts);
+    let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key);
+    hash = Crypto.HmacSHA256(credentials.aws_region || '', hash);
+    hash = Crypto.HmacSHA256(service_name, hash);
+    hash = Crypto.HmacSHA256('aws4_request', hash);
     return hash;
 }
 
@@ -58,13 +57,13 @@ function sign_url(method: string,
 
     const signed_headers = 'host';
     const canonical_headers = `host:${url.hostname.toLowerCase()}\n`;
-    const payload_hash = Crypto.SHA256(payload, { asBytes: true });
+    const payload_hash = Crypto.SHA256(payload);
     const canonical_params = url.search.replace(new RegExp('^\\?'), '');
     const canonical_request = `${method}\n${url.pathname}\n${canonical_params}\n${canonical_headers}\n${signed_headers}\n${payload_hash}`;
-    const canonical_request_hash = Crypto.SHA256(canonical_request, { asBytes: true });
+    const canonical_request_hash = Crypto.SHA256(canonical_request);
     const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${credentials.aws_region}/${service_name}/aws4_request\n${canonical_request_hash}`;
     const signing_key = make_signing_key(credentials, day, service_name);
-    const signature = Crypto.HmacSHA256(signature_raw, signing_key, { asBytes: true });
+    const signature = Crypto.HmacSHA256(signature_raw, signing_key);
     let query_params = `${url.search}&X-Amz-Signature=${signature}`;
     if (credentials.aws_sts_token) {
         query_params += `&X-Amz-Security-Token=${encodeURIComponent(credentials.aws_sts_token)}`;

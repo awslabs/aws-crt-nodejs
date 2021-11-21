@@ -485,7 +485,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {
-        return new Promise((resolve) => {
+        return new Promise<void>((resolve) => {
             this.connection.end(undefined, undefined, () => {
                 resolve();
             })
