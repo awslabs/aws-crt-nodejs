@@ -4,7 +4,8 @@
  */
 
 import { mqtt, iot, CrtError } from "aws-crt";
-import * as AWS from "aws-sdk";
+import { fromCognitoIdentityPool } from "@aws-sdk/credential-providers";
+import { CognitoIdentityCredentials } from "@aws-sdk/credential-provider-cognito-identity/dist-types/fromCognitoIdentity"
 import Config = require('./config');
 import jquery = require("jquery");
 const $: JQueryStatic = jquery;
@@ -13,25 +14,17 @@ function log(msg: string) {
     $('#console').append(`<pre>${msg}</pre>`);
 }
 
-async function fetch_credentials() {
-    return new Promise<AWS.CognitoIdentityCredentials>((resolve, reject) => {
-        AWS.config.region = Config.AWS_REGION;
-        const credentials = AWS.config.credentials = new AWS.CognitoIdentityCredentials({
-            IdentityPoolId: Config.AWS_COGNITO_POOL_ID
-        });
-        log('Fetching Cognito credentials');
-        credentials.refresh((err: any) => {
-            if (err) {
-                log(`Error fetching cognito credentials: ${err}`);
-                reject(`Error fetching cognito credentials: ${err}`);
-            }
-            log('Cognito credentials refreshed');
-            resolve(credentials);
-        });
-    });
+function fetch_credentials() {
+    log('Fetching Cognito credentials');
+    return fromCognitoIdentityPool({
+        // Required. The unique identifier for the identity pool from which an identity should be
+        // retrieved or generated.
+        identityPoolId: Config.AWS_COGNITO_POOL_ID,
+        clientConfig: { region: Config.AWS_REGION },
+    })();
 }
 
-async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
+async function connect_websocket(credentials: CognitoIdentityCredentials) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
@@ -75,9 +68,9 @@ async function main() {
                 log(`Message received: topic=${topic} message=${message}`);
                 connection.disconnect();
             })
-            .then((subscription) => {
-                return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
-            });
+                .then((subscription) => {
+                    return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                });
         })
         .catch((reason) => {
             log(`Error while connecting: ${reason}`);

@@ -13,7 +13,8 @@
  * permissions and limitations under the License.
  */
 
-import { SecretsManager, CognitoIdentityCredentials } from 'aws-sdk';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers';
 
 export class Config {
     static readonly region = 'us-east-1';
@@ -26,15 +27,6 @@ export class Config {
     public secret_key = "";
     public session_token = "";
 
-    configured() {
-        return this.certificate
-            && this.private_key
-            && this.endpoint
-            && this.access_key
-            && this.secret_key
-            && this.session_token;
-    }
-
     static _cached: Config;
 };
 
@@ -43,89 +35,30 @@ export async function fetch_credentials(): Promise<Config> {
         return Config._cached;
     }
 
-    return new Promise((resolve, reject) => {
-        try {
-            const timeout = setTimeout(reject, 5000);
-            const client = new SecretsManager({
-                region: Config.region,
-                httpOptions: {
-                    connectTimeout: 3000,
-                    timeout: 5000
-                }
-            });
+    const client = new SecretsManagerClient({ region: Config.region });
 
-            const config = new Config();
-            const resolve_if_done = () => {
-                if (config.configured()) {
-                    clearTimeout(timeout);
-                    Config._cached = config;
-                    resolve(config);
-                }
-            }
+    const config = new Config();
+    const getSecret = (field: keyof Config, key: string = field) => {
+        return client.send(new GetSecretValueCommand({ SecretId: `unit-test/${key}` }))
+        .then(data => { config[field] = data.SecretString! })
+    }
 
-            client.getSecretValue({ SecretId: 'unit-test/endpoint' }, (error, data) => {
-                if (error) {
-                    reject(error);
-                }
-
-                try {
-                    config.endpoint = data.SecretString as string;
-                } catch (err) {
-                    reject(err);
-                }
-
-                resolve_if_done();
-            });
-            client.getSecretValue({ SecretId: 'unit-test/certificate' }, (error, data) => {
-                if (error) {
-                    reject(error);
-                }
-
-                try {
-                    config.certificate = data.SecretString as string;
-                } catch (err) {
-                    reject(err);
-                }
-
-                resolve_if_done();
-            });
-            client.getSecretValue({ SecretId: 'unit-test/privatekey' }, (error, data) => {
-                if (error) {
-                    reject(error);
-                }
-
-                try {
-                    config.private_key = data.SecretString as string;
-                } catch (err) {
-                    reject(err);
-                }
-
-                resolve_if_done();
-            });
-
-            client.getSecretValue({ SecretId: 'unit-test/cognitopool' }, (error, data) => {
-                if (error) {
-                    return reject(error);
-                }
-
-                const credentials = new CognitoIdentityCredentials({
-                    IdentityPoolId: data.SecretString as string,
-                }, {
-                    region: "us-east-1",
-                });
-                credentials.refresh((err) => {
-                    if (err) {
-                        return reject(`Error fetching cognito credentials: ${err.message}`);
-                    }
-                    config.access_key = credentials.accessKeyId;
-                    config.secret_key = credentials.secretAccessKey;
-                    config.session_token = credentials.sessionToken;
-
-                    resolve_if_done();
-                });
-            });
-        } catch (err) {
-            reject(err);
-        }
-    });
+    const promises = [
+        getSecret('endpoint'),
+        getSecret('certificate'),
+        getSecret('private_key', 'privatekey'),
+        client.send(new GetSecretValueCommand({ SecretId: 'unit-test/cognitopool' }))
+        .then((data) => fromCognitoIdentityPool({
+                identityPoolId: data.SecretString!,
+                clientConfig: { region: "us-east-1" }
+            })()
+        )
+        .then((credentials) => {
+            config.access_key = credentials.accessKeyId;
+            config.secret_key = credentials.secretAccessKey;
+            config.session_token = credentials.sessionToken;
+        })
+    ];
+    await Promise.all(promises);
+    Config._cached = config;
 }
