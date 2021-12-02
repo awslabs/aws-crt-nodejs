@@ -36,6 +36,21 @@
 /* aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API */
 AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
+#define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
+
+/* clang-format off */
+static struct aws_error_info s_errors[] = {
+    AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
+        AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV,
+        "There was an attempt to execute a thread-safe napi function binding with a null napi environment.  This is usually due to the function binding being released by a shutdown/cleanup process while the execution is waiting in the queue."),
+};
+/* clang-format on */
+
+static struct aws_error_info_list s_error_list = {
+    .error_list = s_errors,
+    .count = sizeof(s_errors) / sizeof(struct aws_error_info),
+};
+
 static struct aws_log_subject_info s_log_subject_infos[] = {
     DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODEJS_CRT_GENERAL, "node", "General Node/N-API events"),
 };
@@ -512,6 +527,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     aws_thread_join_all_managed();
 
     aws_unregister_log_subject_info_list(&s_log_subject_list);
+    aws_unregister_error_info(&s_error_list);
     aws_auth_library_clean_up();
     aws_mqtt_library_clean_up();
 
@@ -573,6 +589,7 @@ static bool s_create_and_register_function(
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
     aws_auth_library_init(allocator);
+    aws_register_error_info(&s_error_list);
     aws_register_log_subject_info_list(&s_log_subject_list);
 
     /* Initialize the event loop group */

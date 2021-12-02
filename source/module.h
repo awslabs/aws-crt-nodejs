@@ -19,6 +19,12 @@ struct aws_client_bootstrap;
 struct aws_event_loop;
 struct aws_event_loop_group;
 
+enum aws_crt_nodejs_errors {
+    AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV = AWS_ERROR_ENUM_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+
+    AWS_CRT_NODEJS_ERROR_END_RANGE = AWS_ERROR_ENUM_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID)
+};
+
 enum aws_napi_log_subject {
     AWS_LS_NODEJS_CRT_GENERAL = AWS_LOG_SUBJECT_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
 
