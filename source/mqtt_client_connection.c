@@ -489,15 +489,17 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
     struct mqtt_connection_binding *binding = context;
     struct connect_args *args = user_data;
 
-    napi_value params[3];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[3];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[1]));
-    AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[2]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[2]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_connect, NULL, on_connect, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_connect, NULL, on_connect, num_params, params));
+    }
 
     /*
      * This is terrible and we need to make backwards incompatible changes to the API to correct it, but for now
@@ -572,9 +574,12 @@ static napi_value s_napi_transform_websocket_complete(napi_env env, napi_callbac
 
     args->complete_fn(args->request, error_code, args->complete_ctx);
 
-    aws_mem_release(args->binding->allocator, args);
-
 cleanup:
+
+    if (args != NULL) {
+        aws_mem_release(args->binding->allocator, args);
+    }
+
     return NULL;
 }
 
@@ -602,6 +607,10 @@ static void s_transform_websocket_call(napi_env env, napi_value transform_websoc
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, args->binding->transform_websocket, NULL, transform_websocket, num_params, params));
+    } else {
+        args->complete_fn(args->request, AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV, args->complete_ctx);
+
+        aws_mem_release(args->binding->allocator, args);
     }
 }
 
@@ -869,14 +878,16 @@ static void s_on_publish_complete_call(napi_env env, napi_value on_puback, void 
     (void)context;
     struct puback_args *args = user_data;
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->packet_id, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->packet_id, &params[0]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_puback, NULL, on_puback, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_puback, NULL, on_puback, num_params, params));
+    }
 
     s_destroy_puback_args(args);
 }
@@ -1029,16 +1040,19 @@ static void s_on_suback_call(napi_env env, napi_value on_suback, void *context, 
     (void)context;
     struct suback_args *args = user_data;
 
-    napi_value params[4];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[4];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->packet_id, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[1]));
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[2]));
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[3]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->packet_id, &params[0]));
+        AWS_NAPI_ENSURE(
+            env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[2]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[3]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_suback, NULL, on_suback, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_suback, NULL, on_suback, num_params, params));
+    }
 
     s_destroy_suback_args(args);
 }
@@ -1387,31 +1401,34 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
     struct mqtt_connection_binding *binding = context;
     struct on_any_publish_args *args = user_data;
 
-    napi_value params[5];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[5];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
-    AWS_NAPI_ENSURE(
-        env,
-        napi_create_external_arraybuffer(
+        AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
+        AWS_NAPI_ENSURE(
             env,
-            args->payload->buffer,
-            args->payload->len,
-            s_any_publish_external_arraybuffer_finalizer,
-            args->payload,
-            &params[1]));
-    AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
-    AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
+            napi_create_external_arraybuffer(
+                env,
+                args->payload->buffer,
+                args->payload->len,
+                s_any_publish_external_arraybuffer_finalizer,
+                args->payload,
+                &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
+        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
 
-    /*
-     * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
-     * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it up.
-     */
-    args->payload = NULL;
+        /*
+         * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
+         * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it up.
+         */
+        args->payload = NULL;
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
+    }
 
     s_destroy_on_any_publish_args(args);
 }
@@ -1671,7 +1688,10 @@ static void s_on_disconnect_call(napi_env env, napi_value on_disconnect, void *c
     (void)context;
     struct disconnect_args *args = user_data;
 
-    AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, 0, NULL));
+    if (env) {
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_disconnect, NULL, on_disconnect, 0, NULL));
+    }
 
     s_destroy_disconnect_args(args);
 }
