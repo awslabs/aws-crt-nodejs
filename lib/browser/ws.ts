@@ -10,7 +10,7 @@
 
 import { MqttConnectionConfig } from "./mqtt";
 import { AWSCredentials } from "./auth";
-import WebSocket from "ws";
+var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
 
 /**
@@ -96,6 +96,5 @@ export function create_websocket_url(config: MqttConnectionConfig) {
 /** @internal */
 export function create_websocket_stream(config: MqttConnectionConfig) {
     const url = create_websocket_url(config);
-    const ws = new WebSocket(url, ['mqttv3.1'], config.websocket);
-    return WebSocket.createWebSocketStream(ws);
+    return websocket(url, ['mqttv3.1'], config.websocket);
 }
