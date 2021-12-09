@@ -1,6 +1,6 @@
 {
     "name": "aws-crt-nodejs",
-    "imports": [
+    "+imports": [
         "node-12"
     ],
     "deps_dir": "deps",
