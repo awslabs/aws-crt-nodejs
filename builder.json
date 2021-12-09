@@ -71,7 +71,6 @@
             "--out={build_dir}",
             "--DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "--DAWS_WARNINGS_ARE_ERRORS=ON",
-            "--DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF",
             "-T",
             "install"
         ],

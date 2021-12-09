@@ -43,6 +43,7 @@ if (BUILD_DEPS)
         set(DISABLE_PERL ON)
         set(BUILD_LIBSSL OFF)
         add_subdirectory(crt/aws-lc)
+        set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
         add_subdirectory(crt/s2n)
     endif()
 
