@@ -1,6 +1,12 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ *
+ * @packageDocumentation
+ * @module IO
  */
 
 import crt_native from './binding';
@@ -13,9 +19,12 @@ export { TlsVersion, SocketType, SocketDomain } from '../common/io';
  * Convert a native error code into a human-readable string
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @returns Long-form description of the error
  * @see CrtError
  *
  * nodejs only.
+ *
+ * @category System
  */
 export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
@@ -25,9 +34,12 @@ export function error_code_to_string(error_code: number): string {
  * Convert a native error code into a human-readable identifier
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @return error name as a string
  * @see CrtError
  *
  * nodejs only.
+ *
+ * @category System
  */
 export function error_code_to_name(error_code: number): string {
     return crt_native.error_code_to_name(error_code);
@@ -35,7 +47,6 @@ export function error_code_to_name(error_code: number): string {
 
 /**
  * The amount of detail that will be logged
- * @module aws-crt
  * @category Logging
  */
 export enum LogLevel {
@@ -60,7 +71,6 @@ export enum LogLevel {
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
  * nodejs only.
- * @module aws-crt
  * @category Logging
  */
 export function enable_logging(level: LogLevel) {
@@ -72,7 +82,6 @@ export function enable_logging(level: LogLevel) {
  * @return true if ALPN is supported natively, false otherwise
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
 */
 export function is_alpn_available(): boolean {
@@ -84,8 +93,7 @@ export function is_alpn_available(): boolean {
  *  data into the AWS CRT libraries.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category IO
  */
 export class InputStream extends NativeResource {
     constructor(private source: Readable) {
@@ -106,8 +114,7 @@ export class InputStream extends NativeResource {
  * to be 1 of these per application, in most cases.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category IO
  */
 export class ClientBootstrap extends NativeResource {
     constructor() {
@@ -119,8 +126,7 @@ export class ClientBootstrap extends NativeResource {
  * Standard Berkeley socket style options.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category Network
 */
 export class SocketOptions extends NativeResource {
     constructor(
@@ -147,7 +153,6 @@ export class SocketOptions extends NativeResource {
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class TlsContextOptions {
@@ -206,6 +211,8 @@ export class TlsContextOptions {
      * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate - Client certificate, in PEM format
      * @param private_key - Client private key, in PEM format
+     *
+     * @returns newly configured TlsContextOptions object
      */
     static create_client_with_mtls(certificate: string, private_key: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -219,6 +226,8 @@ export class TlsContextOptions {
      * Creates a client with secure-by-default options, along with a client cert and private key
      * @param certificate_filepath - Path to client certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
+     *
+     * @returns newly configured TlsContextOptions object
      */
     static create_client_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -232,6 +241,8 @@ export class TlsContextOptions {
      * Creates a TLS context with secure-by-default options, along with a client cert and password
      * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
      * @param pkcs12_password - PKCS#12 password
+     *
+     * @returns newly configured TlsContextOptions object
     */
     static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -246,6 +257,7 @@ export class TlsContextOptions {
      * @param certificate_filepath - Path to certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
      *
+     * @returns newly configured TlsContextOptions object
      */
     static create_server_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -261,6 +273,7 @@ export class TlsContextOptions {
      * @param pkcs12_filepath - Path to certificate, in PKCS#12 format
      * @param pkcs12_password - PKCS#12 Password
      *
+     * @returns newly configured TlsContextOptions object
      */
     static create_server_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -272,13 +285,12 @@ export class TlsContextOptions {
 }
 
 /**
- * TLS context used for client/server TLS communications over sockets.
+ * Abstract base TLS context used for client/server TLS communications over sockets.
  *
  * @see ClientTlsContext
  * @see ServerTlsContext
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
@@ -305,7 +317,6 @@ export abstract class TlsContext extends NativeResource {
  * only.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class ClientTlsContext extends TlsContext {
@@ -324,7 +335,6 @@ export class ClientTlsContext extends TlsContext {
  * only.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class ServerTlsContext extends TlsContext {
@@ -341,7 +351,6 @@ export class ServerTlsContext extends TlsContext {
  * TLS options that are unique to a given connection using a shared TlsContext.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class TlsConnectionOptions extends NativeResource {

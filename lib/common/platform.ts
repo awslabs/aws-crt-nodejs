@@ -1,12 +1,20 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
 /**
+ *
+ * A module containing miscellaneous functionality for error reporting, platform functionality, and package-wide logic.
+ *
+ * @packageDocumentation
+ * @module crt
+ * @preferred
+ */
+
+/**
  * Returns true if this script is running under nodejs
  *
- * @module aws-crt
  * @category System
  */
 export function is_nodejs() {
@@ -18,7 +26,6 @@ export function is_nodejs() {
 /**
  * Returns true if this script is running in a browser
  *
- * @module aws-crt
  * @category System
  */
 export function is_browser() {
@@ -28,7 +35,6 @@ export function is_browser() {
 /**
  * Returns the package information for aws-crt-nodejs
  *
- * @module aws-crt
  * @category System
  */
 export function package_info() {
@@ -47,7 +53,6 @@ export function package_info() {
 /**
  * Returns the AWS CRT version
  *
- * @module aws-crt
  * @category System
  */
 export function crt_version() {

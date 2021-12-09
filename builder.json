@@ -90,7 +90,7 @@
         [
             "npm",
             "run",
-	    "test:native"
+            "test:native"
         ],
         [
             "npm",
@@ -102,6 +102,7 @@
             "{project_dir}/crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
             "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
-        ]
+        ],
+        "crt-size-check"
     ]
 }
