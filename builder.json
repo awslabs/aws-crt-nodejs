@@ -3,9 +3,6 @@
     "+imports": [
         "node-12"
     ],
-    "+cmake_args": [
-        "-DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF"
-    ],
     "deps_dir": "deps",
     "hosts": {
         "manylinux": {
