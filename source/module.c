@@ -21,6 +21,7 @@
 #include <aws/common/clock.h>
 #include <aws/common/environment.h>
 #include <aws/common/logging.h>
+#include <aws/common/mutex.h>
 #include <aws/common/ref_count.h>
 #include <aws/common/system_info.h>
 
@@ -34,7 +35,7 @@
 #include <uv.h>
 
 /* aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API */
-AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
+// AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 #define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
 
@@ -578,7 +579,28 @@ static bool s_create_and_register_function(
     return true;
 }
 
+/*
+ * Temporary hack to detect multi-init so we can throw an exception because we haven't figured out the right way
+ * to support it yet.  Better than a hard crash in native code.
+ */
+static struct aws_mutex s_module_lock = AWS_MUTEX_INIT;
+static bool s_module_initialized = false;
+
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
+
+    bool already_initialized = false;
+    aws_mutex_lock(&s_module_lock);
+    if (s_module_initialized) {
+        already_initialized = true;
+    }
+    s_module_initialized = true;
+    aws_mutex_unlock(&s_module_lock);
+
+    if (already_initialized) {
+        napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.  Apologies.");
+        return NULL;
+    }
+
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
