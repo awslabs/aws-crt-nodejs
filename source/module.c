@@ -34,8 +34,10 @@
 
 #include <uv.h>
 
-
 /*
+ * This is a multi-line comment to ensure that the static assert does not collide with the static asserts in
+ * aws/common/macro.h.
+ *
  * aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API
  */
 AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
@@ -600,7 +602,7 @@ static bool s_module_initialized = false;
     aws_mutex_unlock(&s_module_lock);
 
     if (already_initialized) {
-        napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.  Apologies.");
+        napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.");
         return NULL;
     }
 
