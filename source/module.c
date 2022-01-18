@@ -34,8 +34,11 @@
 
 #include <uv.h>
 
-/* aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API */
-// AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
+
+/*
+ * aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API
+ */
+AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 #define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
 
