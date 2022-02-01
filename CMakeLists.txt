@@ -47,6 +47,7 @@ if (BUILD_DEPS)
         add_subdirectory(crt/s2n)
     endif()
 
+    add_subdirectory(crt/aws-c-sdkutils)
     add_subdirectory(crt/aws-c-io)
     add_subdirectory(crt/aws-c-cal)
     add_subdirectory(crt/aws-c-compression)
@@ -54,7 +55,7 @@ if (BUILD_DEPS)
     add_subdirectory(crt/aws-c-auth)
     add_subdirectory(crt/aws-c-mqtt)
     add_subdirectory(crt/aws-checksums)
-    
+
     set(BUILD_TESTING ${BUILD_TESTING_PREV})
 else()
     include(AwsFindPackage)
