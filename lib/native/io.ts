@@ -362,3 +362,15 @@ export class TlsConnectionOptions extends NativeResource {
         ));
     }
 }
+
+export enum Pkcs11LibBehavior {
+    DEFAULT = 0,
+    OMIT_INITIALIZE = 1,
+    STRICT_INITIALIZE_FINALIZE = 2,
+}
+
+export class Pkcs11Lib extends NativeResource {
+    constructor(path: string, behavior: Pkcs11LibBehavior = Pkcs11LibBehavior.DEFAULT) {
+        super(crt_native.io_pkcs11_lib_new(path, behavior));
+    }
+}
