@@ -66,7 +66,7 @@ jobs:
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${LINUX_BASE_IMAGE} build -p ${{ env.PACKAGE_NAME }} --compiler=${{ matrix.compiler }}
 
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
     - name: Build ${{ env.PACKAGE_NAME }} + consumers
       run: |
@@ -74,7 +74,7 @@ jobs:
         python builder.pyz build -p ${{ env.PACKAGE_NAME }} --spec=downstream
 
   windows-vc14:
-    runs-on: windows-latest
+    runs-on: windows-2015
     strategy:
       fail-fast: false
       matrix:
