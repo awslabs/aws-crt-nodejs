@@ -179,7 +179,7 @@ export class TlsContextOptions {
     /** Password for PKCS#12. Currently, only supported on OSX. */
     public pkcs12_password?: string;
     /** PKCS#11 options. Currently, only supported on Unix */
-    public pkcs11_options?: TlsContextPkcs11Options;
+    public pkcs11_options?: TlsContextOptions.Pkcs11Options;
 
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
@@ -275,7 +275,7 @@ export class TlsContextOptions {
      *
      * @returns newly configured TlsContextOptions object
      */
-     static create_client_with_mtls_pkcs11(options: TlsContextPkcs11Options): TlsContextOptions {
+    static create_client_with_mtls_pkcs11(options: TlsContextOptions.Pkcs11Options): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs11_options = options;
         opt.verify_peer = true;
@@ -311,6 +311,64 @@ export class TlsContextOptions {
         opt.pkcs12_password = pkcs12_password;
         opt.verify_peer = false;
         return opt;
+    }
+}
+
+export namespace TlsContextOptions {
+
+    /**
+     * Options for TLS using a PKCS#11 library for private key operations.
+     *
+     * Unix only. nodejs only.
+     *
+     * @see [[TlsContextOptions.create_client_with_mtls_pkcs11]]
+     */
+    export type Pkcs11Options = {
+        /**
+         * Use this PKCS#11 library.
+         */
+        pkcs11_lib: Pkcs11Lib,
+
+        /**
+         * Use this PIN to log the user into the PKCS#11 token. Pass `null`
+         * to log into a token with a "protected authentication path".
+         */
+        user_pin: null | string,
+
+        /**
+         * Specify the slot ID containing a PKCS#11 token. If not specified, the token
+         * will be chosen based on other criteria (such as [[token_label]]).
+         */
+        slot_id?: number,
+
+        /**
+         * Specify the label of the PKCS#11 token to use. If not specified, the token
+         * will be chosen based on other criteria (such as [[slot_id]]).
+         */
+        token_label?: string,
+
+        /**
+         * Specify the label of the private key object on the PKCS#11 token. If not
+         * specified, the key will be chosen based on other criteria (such as being the
+         * only available private key on the token).
+         */
+        private_key_object_label?: string,
+
+        /**
+         * Use this X.509 certificate (file on disk).
+         * The certificate must be PEM-formatted.
+         * The certificate may be specified by other means instead
+         * (ex: [[cert_file_contents]])
+         */
+        cert_file_path?: string,
+
+        /**
+         * Use this X.509 certificate (contents in memory).
+         * The certificate must be PEM-formatted.
+         * The certificate may be specified by other means instead
+         * (ex: [[cert_file_path]])
+         */
+        cert_file_contents?: string,
     }
 }
 
@@ -407,101 +465,44 @@ export class Pkcs11Lib extends NativeResource {
 
     /**
      * @param path - Path to PKCS#11 library.
-     * @param initialize_finalize_behavior - Specifies how `C_Initialize()` and `C_Finalize()`
-    *                                        will be called on the PKCS#11 library.
+     * @param behavior - Specifies how `C_Initialize()` and `C_Finalize()`
+    *                    will be called on the PKCS#11 library.
      */
-    constructor(path: string, initialize_finalize_behavior: Pkcs11LibBehavior = Pkcs11LibBehavior.DEFAULT) {
-        super(crt_native.io_pkcs11_lib_new(path, initialize_finalize_behavior));
+    constructor(path: string, behavior: Pkcs11Lib.InitializeFinalizeBehavior = Pkcs11Lib.InitializeFinalizeBehavior.DEFAULT) {
+        super(crt_native.io_pkcs11_lib_new(path, behavior));
     }
 }
 
-/**
- * Controls how [[`Pkcs11Lib`]] calls `C_Initialize()` and `C_Finalize()`
- * on the PKCS#11 library.
- *
- * nodejs only.
- * @category TLS
- */
-export enum Pkcs11LibBehavior {
-    /**
-     * Default behavior that accommodates most use cases.
-     *
-     * `C_Initialize()` is called on creation, and "already-initialized"
-     * errors are ignored. `C_Finalize()` is never called, just in case
-     * another part of your application is still using the PKCS#11 library.
-     */
-    DEFAULT = 0,
+export namespace Pkcs11Lib {
 
     /**
-     * Skip calling `C_Initialize()` and `C_Finalize()`.
-     *
-     * Use this if your application has already initialized the PKCS#11 library,
-     * and you do not want `C_Initialize()` called again.
+     * Controls `C_Initialize()` and `C_Finalize()` are called on the PKCS#11 library.
      */
-    OMIT_INITIALIZE = 1,
+    export enum InitializeFinalizeBehavior {
+        /**
+         * Default behavior that accommodates most use cases.
+         *
+         * `C_Initialize()` is called on creation, and "already-initialized"
+         * errors are ignored. `C_Finalize()` is never called, just in case
+         * another part of your application is still using the PKCS#11 library.
+         */
+        DEFAULT = 0,
 
-    /**
-     * `C_Initialize()` is called on creation and `C_Finalize()` is called on cleanup.
-     *
-     * If `C_Initialize()` reports that's it's already initialized, this is
-     * treated as an error. Use this if you need perfect cleanup (ex: running
-     * valgrind with --leak-check).
-     */
-    STRICT_INITIALIZE_FINALIZE = 2,
-}
+        /**
+         * Skip calling `C_Initialize()` and `C_Finalize()`.
+         *
+         * Use this if your application has already initialized the PKCS#11 library,
+         * and you do not want `C_Initialize()` called again.
+         */
+        OMIT = 1,
 
-/**
- * Options for TLS using a PKCS#11 library for private key operations.
- *
- * Unix only. nodejs only.
- *
- * @see [[TlsContextOptions.create_client_with_mtls_pkcs11]]
- * @category TLS
- */
-export type TlsContextPkcs11Options = {
-    /**
-     * Use this PKCS#11 library.
-     */
-    pkcs11_lib: Pkcs11Lib,
-
-    /**
-     * Use this PIN to log the user into the PKCS#11 token. Pass `null`
-     * to log into a token with a "protected authentication path".
-     */
-    user_pin: null | string,
-
-    /**
-     * Specify the slot ID containing a PKCS#11 token. If not specified, the token
-     * will be chosen based on other criteria (such as [[token_label]]).
-     */
-    slot_id?: number,
-
-    /**
-     * Specify the label of the PKCS#11 token to use. If not specified, the token
-     * will be chosen based on other criteria (such as [[slot_id]]).
-     */
-    token_label?: string,
-
-    /**
-     * Specify the label of the private key object on the PKCS#11 token. If not
-     * specified, the key will be chosen based on other criteria (such as being the
-     * only available private key on the token).
-     */
-    private_key_object_label?: string,
-
-    /**
-     * Use this X.509 certificate (file on disk).
-     * The certificate must be PEM-formatted.
-     * The certificate may be specified by other means instead
-     * (ex: [[cert_file_contents]])
-     */
-    cert_file_path?: string,
-
-    /**
-     * Use this X.509 certificate (contents in memory).
-     * The certificate must be PEM-formatted.
-     * The certificate may be specified by other means instead
-     * (ex: [[cert_file_path]])
-     */
-    cert_file_contents?: string,
+        /**
+         * `C_Initialize()` is called on creation and `C_Finalize()` is called on cleanup.
+         *
+         * If `C_Initialize()` reports that's it's already initialized, this is
+         * treated as an error. Use this if you need perfect cleanup (ex: running
+         * valgrind with --leak-check).
+         */
+        STRICT = 2,
+    }
 }

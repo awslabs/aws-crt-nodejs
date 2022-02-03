@@ -11,7 +11,7 @@
  * @module http
  */
 
-import { InputStream, TlsContextPkcs11Options } from "./io";
+import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
@@ -57,7 +57,7 @@ export function io_tls_ctx_new(
     private_key?: StringLike,
     pkcs12_filepath?: StringLike,
     pkcs12_password?: StringLike,
-    pkcs11_options?: TlsContextPkcs11Options,
+    pkcs11_options?: TlsContextOptions.Pkcs11Options,
     verify_peer?: boolean,
 ): NativeHandle;
 /* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */
