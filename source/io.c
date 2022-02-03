@@ -223,7 +223,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     napi_status status = napi_ok;
     (void)status;
 
-    napi_value node_args[12];
+    napi_value node_args[13];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -231,18 +231,15 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new needs exactly 12 arguments");
+        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new called with wrong number of arguments");
         return NULL;
     }
 
     napi_value result = NULL;
 
-#ifdef __APPLE__
-    struct aws_byte_buf pkcs12_path;
-    AWS_ZERO_STRUCT(pkcs12_path);
+    struct aws_string *pkcs12_path = NULL;
     struct aws_byte_buf pkcs12_pwd;
     AWS_ZERO_STRUCT(pkcs12_pwd);
-#endif
 
     struct aws_tls_ctx_options ctx_options;
     AWS_ZERO_STRUCT(ctx_options);
@@ -260,6 +257,20 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     struct aws_string *cert_path = NULL;
     struct aws_string *pkey_path = NULL;
     struct aws_string *alpn_list = NULL;
+
+    struct aws_tls_ctx_pkcs11_options pkcs11_options;
+    AWS_ZERO_STRUCT(pkcs11_options);
+    struct aws_byte_buf pkcs11_pin;
+    AWS_ZERO_STRUCT(pkcs11_pin);
+    uint64_t pkcs11_slot_id = 0;
+    struct aws_byte_buf pkcs11_token_label;
+    AWS_ZERO_STRUCT(pkcs11_token_label);
+    struct aws_byte_buf pkcs11_key_label;
+    AWS_ZERO_STRUCT(pkcs11_key_label);
+    struct aws_byte_buf pkcs11_cert_path;
+    AWS_ZERO_STRUCT(pkcs11_cert_path);
+    struct aws_byte_buf pkcs11_cert_contents;
+    AWS_ZERO_STRUCT(pkcs11_cert_contents);
 
     uint32_t min_tls_version = AWS_IO_TLS_VER_SYS_DEFAULTS;
     napi_value node_tls_version = *arg++;
@@ -343,24 +354,81 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_pkcs12_path = *arg++;
-    napi_value node_pkcs12_password = *arg++;
-    (void)node_pkcs12_path;
-    (void)node_pkcs12_password;
-#ifdef __APPLE__
     if (!aws_napi_is_null_or_undefined(env, node_pkcs12_path)) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_path, env, node_pkcs12_path)) {
+        pkcs12_path = aws_string_new_from_napi(env, node_pkcs12_path);
+        if (!pkcs12_path) {
             napi_throw_type_error(env, NULL, "pkcs12_path must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
+    napi_value node_pkcs12_password = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_pkcs12_password)) {
         if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_pwd, env, node_pkcs12_password)) {
             napi_throw_type_error(env, NULL, "pkcs12_password must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
-#endif /* __APPLE__ */
+
+    napi_value node_pkcs11_options = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_pkcs11_options)) {
+
+        napi_value node_pkcs11_lib = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_options, "pkcs11_lib", &node_pkcs11_lib), {
+            napi_throw_type_error(env, NULL, "'pkcs11_lib' is required for PKCS#11");
+            goto cleanup;
+        });
+
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_pkcs11_lib, (void **)&pkcs11_options.pkcs11_lib), {
+            napi_throw_type_error(env, NULL, "'pkcs11_lib' must be a Pkcs11Lib");
+            goto cleanup;
+        });
+
+        /* user_pin property is required. null is allowed, but this is unusual, so we require the user to set it */
+        napi_value node_user_pin = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_options, "user_pin", &node_user_pin), {
+            napi_throw_type_error(env, NULL, "'user_pin' is required for PKCS#11");
+            goto cleanup;
+        });
+
+        if (!aws_napi_is_null_or_undefined(env, node_user_pin)) {
+            if (napi_ok != aws_byte_buf_init_from_napi(&pkcs11_pin, env, node_user_pin)) {
+                napi_throw_type_error(env, NULL, "PKCS#11 'user_pin' must be a string (or convertible to string)");
+                goto cleanup;
+            }
+            pkcs11_options.user_pin = aws_byte_cursor_from_buf(&pkcs11_pin);
+        }
+
+        napi_value node_slot_id = NULL;
+        if (napi_ok == napi_get_named_property(env, node_pkcs11_options, "slot_id", &node_slot_id)) {
+            if (napi_ok != napi_get_value_int64(env, node_slot_id, (int64_t *)&pkcs11_slot_id)) {
+                napi_throw_type_error(env, NULL, "PKCS#11 'slot_id' must be an int");
+                goto cleanup;
+            }
+            pkcs11_options.slot_id = &pkcs11_slot_id;
+        }
+
+        /* clang-format off */
+
+        #define PARSE_PKCS11_OPTION_STR(property_name, option_cursor, storage_buffer)                                  \
+        do {                                                                                                           \
+            napi_value node_property = NULL;                                                                           \
+            if (napi_ok == napi_get_named_property(env, node_pkcs11_options, property_name, &node_property)) {         \
+                if (napi_ok != aws_byte_buf_init_from_napi(&storage_buffer, env, node_property)) {                     \
+                    napi_throw_type_error(                                                                             \
+                        env, NULL, "PKCS#11 '" property_name "' must be a string (or convertible to string)");         \
+                    goto cleanup;                                                                                      \
+                }                                                                                                      \
+                option_cursor = aws_byte_cursor_from_buf(&storage_buffer);                                             \
+            }                                                                                                          \
+        } while (0)
+        /* clang-format on */
+
+        PARSE_PKCS11_OPTION_STR("token_label", pkcs11_options.token_label, pkcs11_token_label);
+        PARSE_PKCS11_OPTION_STR("private_key_object_label", pkcs11_options.private_key_object_label, pkcs11_key_label);
+        PARSE_PKCS11_OPTION_STR("cert_file_path", pkcs11_options.cert_file_path, pkcs11_cert_path);
+        PARSE_PKCS11_OPTION_STR("cert_file_contents", pkcs11_options.cert_file_contents, pkcs11_cert_contents);
+    }
 
     bool verify_peer = true;
     napi_value node_verify_peer = *arg++;
@@ -385,6 +453,18 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     } else if (cert_path && pkey_path) {
         if (aws_tls_ctx_options_init_client_mtls_from_path(
                 &ctx_options, alloc, aws_string_c_str(cert_path), aws_string_c_str(pkey_path))) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    } else if (pkcs12_path && pkcs12_pwd.buffer) {
+        struct aws_byte_cursor pwd_cursor = aws_byte_cursor_from_buf(&pkcs12_pwd);
+        if (aws_tls_ctx_options_init_client_mtls_pkcs12_from_path(
+                &ctx_options, alloc, aws_string_c_str(pkcs12_path), &pwd_cursor)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    } else if (!aws_napi_is_null_or_undefined(env, node_pkcs11_options)) {
+        if (aws_tls_ctx_options_init_client_mtls_with_pkcs11(&ctx_options, alloc, &pkcs11_options)) {
             aws_napi_throw_last_error(env);
             goto cleanup;
         }
@@ -427,16 +507,19 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     result = node_external;
 
 cleanup:
-#ifdef __APPLE__
-    aws_byte_buf_clean_up_secure(&pkcs12_path);
+    aws_string_destroy_secure(pkcs12_path);
     aws_byte_buf_clean_up_secure(&pkcs12_pwd);
-#endif
     aws_string_destroy_secure(cert_path);
     aws_byte_buf_clean_up_secure(&certificate);
     aws_string_destroy_secure(pkey_path);
     aws_byte_buf_clean_up_secure(&private_key);
     aws_byte_buf_clean_up_secure(&ca_buf);
     aws_string_destroy(alpn_list);
+    aws_byte_buf_clean_up_secure(&pkcs11_pin);
+    aws_byte_buf_clean_up(&pkcs11_token_label);
+    aws_byte_buf_clean_up(&pkcs11_key_label);
+    aws_byte_buf_clean_up(&pkcs11_cert_path);
+    aws_byte_buf_clean_up(&pkcs11_cert_contents);
     aws_tls_ctx_options_clean_up(&ctx_options);
 
     return result;

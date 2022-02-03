@@ -178,6 +178,9 @@ export class TlsContextOptions {
     public pkcs12_filepath?: string;
     /** Password for PKCS#12. Currently, only supported on OSX. */
     public pkcs12_password?: string;
+    /** PKCS#11 options. Currently, only supported on Unix */
+    public pkcs11_options?: TlsContextPkcs11Options;
+
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
      * It is much better to just override the default trust store and pass the self-signed
@@ -240,22 +243,6 @@ export class TlsContextOptions {
     }
 
     /**
-     * Create options configured for mutual TLS in client mode,
-     * using a PKCS#11 library for private key operations.
-     *
-     * NOTE: This configuration only works on Unix devices.
-     *
-     * @param options - PKCS#11 options
-     *
-     * @returns newly configured TlsContextOptions object
-     */
-    static create_client_with_mtls_pkcs11(options: TlsContextPkcs11Options): TlsContextOptions {
-        let opt = new TlsContextOptions();
-        // TODO
-        return opt;
-    }
-
-    /**
      * Create options for mutual TLS in client mode,
      * with client certificate and private key bundled in a single PKCS#12 file.
      * @param pkcs12_filepath - Path to PKCS#12 file containing client certificate and private key.
@@ -276,6 +263,23 @@ export class TlsContextOptions {
      */
     static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         return this.create_client_with_mtls_pkcs12_from_path(pkcs12_filepath, pkcs12_password);
+    }
+
+    /**
+     * Create options configured for mutual TLS in client mode,
+     * using a PKCS#11 library for private key operations.
+     *
+     * NOTE: This configuration only works on Unix devices.
+     *
+     * @param options - PKCS#11 options
+     *
+     * @returns newly configured TlsContextOptions object
+     */
+     static create_client_with_mtls_pkcs11(options: TlsContextPkcs11Options): TlsContextOptions {
+        let opt = new TlsContextOptions();
+        opt.pkcs11_options = options;
+        opt.verify_peer = true;
+        return opt;
     }
 
     /**
@@ -333,6 +337,7 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.private_key,
             ctx_opt.pkcs12_filepath,
             ctx_opt.pkcs12_password,
+            ctx_opt.pkcs11_options,
             ctx_opt.verify_peer));
     }
 }
@@ -482,7 +487,7 @@ export type TlsContextPkcs11Options = {
      * specified, the key will be chosen based on other criteria (such as being the
      * only available private key on the token).
      */
-    private_key_label?: string,
+    private_key_object_label?: string,
 
     /**
      * Use this X.509 certificate (file on disk).
