@@ -56,7 +56,8 @@
             "update",
             "--init",
             "--recursive"
-        ]
+        ],
+        "pkcs11-test-setup"
     ],
     "build_steps": [
         [
