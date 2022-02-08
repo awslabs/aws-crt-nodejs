@@ -903,12 +903,19 @@ napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info
     return NULL;
 }
 
+struct pkcs11_lib_binding {
+    struct aws_pkcs11_lib *native;
+};
+
 static void s_pkcs11_lib_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
 
-    struct aws_pkcs11_lib *pkcs11_lib = finalize_data;
-    aws_pkcs11_lib_release(pkcs11_lib);
+    struct pkcs11_lib_binding *binding = finalize_data;
+    if (binding->native) {
+        aws_pkcs11_lib_release(binding->native);
+    }
+    aws_mem_release(aws_napi_get_allocator(), binding);
 }
 
 napi_value aws_napi_io_pkcs11_lib_new(napi_env env, napi_callback_info info) {
@@ -926,8 +933,8 @@ napi_value aws_napi_io_pkcs11_lib_new(napi_env env, napi_callback_info info) {
 
     /* From hereon, need to clean up if errors occur */
     struct aws_string *path = NULL;
-    struct aws_pkcs11_lib *pkcs11_lib = NULL;
     napi_value node_external = NULL;
+    bool success = false;
 
     /* parse path */
     napi_value node_path = *arg++;
@@ -956,26 +963,54 @@ napi_value aws_napi_io_pkcs11_lib_new(napi_env env, napi_callback_info info) {
     }
     options.initialize_finalize_behavior = (enum aws_pcks11_lib_behavior)behavior_int;
 
-    /* create pkcs11_lib */
-    pkcs11_lib = aws_pkcs11_lib_new(aws_napi_get_allocator(), &options);
-    if (pkcs11_lib == NULL) {
-        aws_napi_throw_last_error(env);
-        goto cleanup;
-    }
-
-    /* bind to external */
-    if (napi_create_external(env, pkcs11_lib, s_pkcs11_lib_finalize, NULL, &node_external)) {
+    /* create external */
+    struct pkcs11_lib_binding *binding = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct pkcs11_lib_binding));
+    if (napi_create_external(env, binding, s_pkcs11_lib_finalize, NULL, &node_external)) {
         napi_throw_error(env, NULL, "Failed to create n-api external");
         goto cleanup;
     }
 
+    /* create pkcs11_lib */
+    binding->native = aws_pkcs11_lib_new(aws_napi_get_allocator(), &options);
+    if (binding->native == NULL) {
+        aws_napi_throw_last_error(env);
+        goto cleanup;
+    }
+
+    success = true;
 cleanup:
     aws_string_destroy(path);
 
-    if (node_external) {
-        return node_external;
-    } else {
-        aws_pkcs11_lib_release(pkcs11_lib);
+    /* NOTE: don't need to clean up node_external, the finalizer will handle that the GC collects it */
+
+    return success ? node_external : NULL;
+}
+
+napi_value aws_napi_io_pkcs11_lib_close(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_io_pkcs11_lib_close called with wrong number of args");
+        return NULL;
+    }
+
+    napi_value node_external = *arg++;
+
+    struct pkcs11_lib_binding *binding = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
+        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "expected valid Pkcs11Lib.handle"));
+        return NULL;
+    });
+
+    if (binding->native) {
+        aws_pkcs11_lib_release(binding->native);
+        binding->native = NULL;
+    }
+
+    return NULL;
 }

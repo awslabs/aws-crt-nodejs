@@ -86,7 +86,10 @@ export function io_input_stream_new(capacity: number): NativeHandle;
 export function io_input_stream_append(stream: NativeHandle, data?: Buffer): void;
 
 /* wraps aws_pkcs11_lib */
+/** @internal */
 export function io_pkcs11_lib_new(path: string, behavior: number): NativeHandle;
+/** @internal */
+export function io_pkcs11_lib_close(pkcs11_lib: NativeHandle): void;
 
 /* Crypto */
 /* wraps aws_hash structures #TODO: Wrap with ClassBinder */

@@ -72,6 +72,11 @@ napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info
  */
 napi_value aws_napi_io_pkcs11_lib_new(napi_env, napi_callback_info info);
 
+/**
+ * Release the aws_pkcs11_lib immediately, without waiting for the GC.
+ */
+napi_value aws_napi_io_pkcs11_lib_close(napi_env, napi_callback_info info);
+
 AWS_EXTERN_C_END
 
 #endif /* AWS_CRT_NODEJS_IO_H */
