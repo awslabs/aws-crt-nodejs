@@ -148,4 +148,9 @@ dist*/
 build/
 build-*/
 deps_build/
+
+# Misc
 .vscode/
+.devcontainer/
+*.orig
+.DS_Store
