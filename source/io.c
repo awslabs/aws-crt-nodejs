@@ -205,6 +205,118 @@ clean_up:
 #    pragma warning(pop)
 #endif
 
+struct pkcs11_lib_binding {
+    struct aws_pkcs11_lib *native;
+};
+
+static void s_pkcs11_lib_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+
+    struct pkcs11_lib_binding *binding = finalize_data;
+    if (binding->native) {
+        aws_pkcs11_lib_release(binding->native);
+    }
+    aws_mem_release(aws_napi_get_allocator(), binding);
+}
+
+napi_value aws_napi_io_pkcs11_lib_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_pkcs11_lib_new called with wrong number of args");
+        return NULL;
+    }
+
+    /* From hereon, need to clean up if errors occur */
+    struct aws_string *path = NULL;
+    napi_value node_external = NULL;
+    bool success = false;
+
+    /* parse path */
+    napi_value node_path = *arg++;
+    path = aws_string_new_from_napi(env, node_path);
+    if (path == NULL) {
+        napi_throw_type_error(env, NULL, "Cannot convert path to string");
+        goto cleanup;
+    }
+
+    struct aws_pkcs11_lib_options options = {
+        .filename = aws_byte_cursor_from_string(path),
+    };
+
+    /* parse behavior */
+    napi_value node_behavior_arg = *arg++;
+    napi_value node_behavior_val = NULL;
+    if (napi_coerce_to_number(env, node_behavior_arg, &node_behavior_val)) {
+        napi_throw_type_error(env, NULL, "Invalid behavior arg (cannot coerce to number)");
+        goto cleanup;
+    }
+
+    int32_t behavior_int = 0;
+    if (napi_get_value_int32(env, node_behavior_val, &behavior_int)) {
+        napi_throw_type_error(env, NULL, "Invalid behavior arg (cannot get int value)");
+        goto cleanup;
+    }
+    options.initialize_finalize_behavior = (enum aws_pcks11_lib_behavior)behavior_int;
+
+    /* create external */
+    struct pkcs11_lib_binding *binding = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct pkcs11_lib_binding));
+    if (napi_create_external(env, binding, s_pkcs11_lib_finalize, NULL, &node_external)) {
+        napi_throw_error(env, NULL, "Failed to create n-api external");
+        goto cleanup;
+    }
+
+    /* create pkcs11_lib */
+    binding->native = aws_pkcs11_lib_new(aws_napi_get_allocator(), &options);
+    if (binding->native == NULL) {
+        aws_napi_throw_last_error(env);
+        goto cleanup;
+    }
+
+    success = true;
+cleanup:
+    aws_string_destroy(path);
+
+    /* NOTE: don't need to clean up node_external, the finalizer will handle that the GC collects it */
+
+    return success ? node_external : NULL;
+}
+
+napi_value aws_napi_io_pkcs11_lib_close(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_io_pkcs11_lib_close called with wrong number of args");
+        return NULL;
+    }
+
+    napi_value node_external = *arg++;
+
+    struct pkcs11_lib_binding *binding = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
+        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "expected valid Pkcs11Lib.handle"));
+        return NULL;
+    });
+
+    if (binding->native) {
+        aws_pkcs11_lib_release(binding->native);
+        binding->native = NULL;
+    }
+
+    return NULL;
+}
+
 /** Finalizer for a tls_ctx external */
 static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 
@@ -379,10 +491,18 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
             goto cleanup;
         });
 
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_pkcs11_lib, (void **)&pkcs11_options.pkcs11_lib), {
+        napi_value node_pkcs11_lib_handle = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_lib, "handle", &node_pkcs11_lib_handle), {
             napi_throw_type_error(env, NULL, "'pkcs11_lib' must be a Pkcs11Lib");
             goto cleanup;
         });
+
+        struct pkcs11_lib_binding *pkcs11_lib_binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_pkcs11_lib_handle, (void **)&pkcs11_lib_binding), {
+            napi_throw_type_error(env, NULL, "'pkcs11_lib' must be a Pkcs11Lib");
+            goto cleanup;
+        });
+        pkcs11_options.pkcs11_lib = pkcs11_lib_binding->native;
 
         /* user_pin property is required. null is allowed, but this is unusual, so we require the user to set it */
         napi_value node_user_pin = NULL;
@@ -393,7 +513,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
         if (!aws_napi_is_null_or_undefined(env, node_user_pin)) {
             if (napi_ok != aws_byte_buf_init_from_napi(&pkcs11_pin, env, node_user_pin)) {
-                napi_throw_type_error(env, NULL, "PKCS#11 'user_pin' must be a string (or convertible to string)");
+                napi_throw_type_error(env, NULL, "PKCS#11 'user_pin' must be a string or null");
                 goto cleanup;
             }
             pkcs11_options.user_pin = aws_byte_cursor_from_buf(&pkcs11_pin);
@@ -401,11 +521,13 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
         napi_value node_slot_id = NULL;
         if (napi_ok == napi_get_named_property(env, node_pkcs11_options, "slot_id", &node_slot_id)) {
-            if (napi_ok != napi_get_value_int64(env, node_slot_id, (int64_t *)&pkcs11_slot_id)) {
-                napi_throw_type_error(env, NULL, "PKCS#11 'slot_id' must be an int");
-                goto cleanup;
+            if (!aws_napi_is_null_or_undefined(env, node_slot_id)) {
+                if (napi_ok != napi_get_value_int64(env, node_slot_id, (int64_t *)&pkcs11_slot_id)) {
+                    napi_throw_type_error(env, NULL, "PKCS#11 'slot_id' must be an int");
+                    goto cleanup;
+                }
+                pkcs11_options.slot_id = &pkcs11_slot_id;
             }
-            pkcs11_options.slot_id = &pkcs11_slot_id;
         }
 
         /* clang-format off */
@@ -414,12 +536,14 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         do {                                                                                                           \
             napi_value node_property = NULL;                                                                           \
             if (napi_ok == napi_get_named_property(env, node_pkcs11_options, property_name, &node_property)) {         \
-                if (napi_ok != aws_byte_buf_init_from_napi(&storage_buffer, env, node_property)) {                     \
-                    napi_throw_type_error(                                                                             \
-                        env, NULL, "PKCS#11 '" property_name "' must be a string (or convertible to string)");         \
-                    goto cleanup;                                                                                      \
+                if (!aws_napi_is_null_or_undefined(env, node_property)) {                                              \
+                    if (napi_ok != aws_byte_buf_init_from_napi(&storage_buffer, env, node_property)) {                 \
+                        napi_throw_type_error(                                                                         \
+                            env, NULL, "PKCS#11 '" property_name "' must be a string (or convertible to string)");     \
+                        goto cleanup;                                                                                  \
+                    }                                                                                                  \
+                    option_cursor = aws_byte_cursor_from_buf(&storage_buffer);                                         \
                 }                                                                                                      \
-                option_cursor = aws_byte_cursor_from_buf(&storage_buffer);                                             \
             }                                                                                                          \
         } while (0)
         /* clang-format on */
@@ -899,118 +1023,6 @@ napi_value aws_napi_io_input_stream_append(napi_env env, napi_callback_info info
     aws_mutex_lock(&impl->mutex);
     aws_byte_buf_append(&impl->buffer, &data);
     aws_mutex_unlock(&impl->mutex);
-
-    return NULL;
-}
-
-struct pkcs11_lib_binding {
-    struct aws_pkcs11_lib *native;
-};
-
-static void s_pkcs11_lib_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
-    (void)finalize_hint;
-
-    struct pkcs11_lib_binding *binding = finalize_data;
-    if (binding->native) {
-        aws_pkcs11_lib_release(binding->native);
-    }
-    aws_mem_release(aws_napi_get_allocator(), binding);
-}
-
-napi_value aws_napi_io_pkcs11_lib_new(napi_env env, napi_callback_info info) {
-    napi_value node_args[2];
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retrieve callback information");
-        return NULL;
-    }
-    if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "io_pkcs11_lib_new called with wrong number of args");
-        return NULL;
-    }
-
-    /* From hereon, need to clean up if errors occur */
-    struct aws_string *path = NULL;
-    napi_value node_external = NULL;
-    bool success = false;
-
-    /* parse path */
-    napi_value node_path = *arg++;
-    path = aws_string_new_from_napi(env, node_path);
-    if (path == NULL) {
-        napi_throw_type_error(env, NULL, "Cannot convert path to string");
-        goto cleanup;
-    }
-
-    struct aws_pkcs11_lib_options options = {
-        .filename = aws_byte_cursor_from_string(path),
-    };
-
-    /* parse behavior */
-    napi_value node_behavior_arg = *arg++;
-    napi_value node_behavior_val = NULL;
-    if (napi_coerce_to_number(env, node_behavior_arg, &node_behavior_val)) {
-        napi_throw_type_error(env, NULL, "Invalid behavior arg (cannot coerce to number)");
-        goto cleanup;
-    }
-
-    int32_t behavior_int = 0;
-    if (napi_get_value_int32(env, node_behavior_val, &behavior_int)) {
-        napi_throw_type_error(env, NULL, "Invalid behavior arg (cannot get int value)");
-        goto cleanup;
-    }
-    options.initialize_finalize_behavior = (enum aws_pcks11_lib_behavior)behavior_int;
-
-    /* create external */
-    struct pkcs11_lib_binding *binding = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct pkcs11_lib_binding));
-    if (napi_create_external(env, binding, s_pkcs11_lib_finalize, NULL, &node_external)) {
-        napi_throw_error(env, NULL, "Failed to create n-api external");
-        goto cleanup;
-    }
-
-    /* create pkcs11_lib */
-    binding->native = aws_pkcs11_lib_new(aws_napi_get_allocator(), &options);
-    if (binding->native == NULL) {
-        aws_napi_throw_last_error(env);
-        goto cleanup;
-    }
-
-    success = true;
-cleanup:
-    aws_string_destroy(path);
-
-    /* NOTE: don't need to clean up node_external, the finalizer will handle that the GC collects it */
-
-    return success ? node_external : NULL;
-}
-
-napi_value aws_napi_io_pkcs11_lib_close(napi_env env, napi_callback_info info) {
-    napi_value node_args[1];
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value *arg = &node_args[0];
-    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retrieve callback information");
-        return NULL;
-    }
-    if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_napi_io_pkcs11_lib_close called with wrong number of args");
-        return NULL;
-    }
-
-    napi_value node_external = *arg++;
-
-    struct pkcs11_lib_binding *binding = NULL;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
-        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "expected valid Pkcs11Lib.handle"));
-        return NULL;
-    });
-
-    if (binding->native) {
-        aws_pkcs11_lib_release(binding->native);
-        binding->native = NULL;
-    }
 
     return NULL;
 }
