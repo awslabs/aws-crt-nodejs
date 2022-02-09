@@ -116,6 +116,9 @@ function buildLocally() {
         }
     }
 
+    // Enable parallel build (ignored by cmake older than 3.12)
+    process.env.CMAKE_BUILD_PARALLEL_LEVEL = `${Math.max(os.cpus().length, 1)}`;
+
     // Run the build
     var buildSystem = new cmake.BuildSystem({
         target: "install",
