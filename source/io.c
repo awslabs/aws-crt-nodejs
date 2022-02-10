@@ -507,11 +507,18 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         /* user_pin property is required. null is allowed, but this is unusual, so we require the user to set it */
         napi_value node_user_pin = NULL;
         AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_options, "user_pin", &node_user_pin), {
-            napi_throw_type_error(env, NULL, "'user_pin' is required for PKCS#11");
+            napi_throw_type_error(env, NULL, "'user_pin' is required for PKCS#11 (must be string or null)");
             goto cleanup;
         });
 
-        if (!aws_napi_is_null_or_undefined(env, node_user_pin)) {
+        napi_valuetype node_user_pin_type = napi_undefined;
+        napi_typeof(env, node_user_pin, &node_user_pin_type);
+        if (node_user_pin_type == napi_undefined) {
+            napi_throw_type_error(env, NULL, "user_pin' is required for PKCS#11 (must be string or null)");
+            goto cleanup;
+        }
+
+        if (node_user_pin_type != napi_null) {
             if (napi_ok != aws_byte_buf_init_from_napi(&pkcs11_pin, env, node_user_pin)) {
                 napi_throw_type_error(env, NULL, "PKCS#11 'user_pin' must be a string or null");
                 goto cleanup;
@@ -618,7 +625,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_tls_ctx *tls_ctx = aws_tls_client_ctx_new(alloc, &ctx_options);
     if (!tls_ctx) {
-        napi_throw_error(env, NULL, "Unable to create TLS context");
+        aws_napi_throw_last_error(env);
         goto cleanup;
     }
 
