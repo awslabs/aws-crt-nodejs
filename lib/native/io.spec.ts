@@ -25,10 +25,7 @@ const pkcs11_test = conditional_test(PKCS11_LIB_PATH)
 
 pkcs11_test('Pkcs11Lib sanity check', () => {
     // sanity check that we can load and unload a PKCS#11 library
-    let pkcs11_lib = new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-
-    pkcs11_lib.close(); /* close so it doesn't interfere with other tests */
-    pkcs11_lib.close(); /* just asserting that it's safe to call close() multiple times */
+    new Pkcs11Lib(PKCS11_LIB_PATH);
 });
 
 pkcs11_test('Pkcs11Lib exception', () => {
@@ -38,30 +35,3 @@ pkcs11_test('Pkcs11Lib exception', () => {
     }).toThrow(/AWS_IO_SHARED_LIBRARY_LOAD_FAILURE/);
 });
 
-pkcs11_test('Pkcs11Lib.InitializeFinalizeBehavior.STRICT', () => {
-    let pkcs11_lib = new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-
-    // InitializeFinalizeBehavior.STRICT behavior should fail if the PKCS#11 lib is already loaded
-    expect(() => {
-        new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-    }).toThrow(/CKR_CRYPTOKI_ALREADY_INITIALIZED/);
-
-    pkcs11_lib.close(); /* close so it doesn't interfere with other tests */
-});
-
-pkcs11_test('Pkcs11Lib.InitializeFinalizeBehavior.OMIT', () => {
-    // InitializeFinalizeBehavior.OMIT should fail unless another instance of the PKCS#11 lib is already loaded
-    expect(() => {
-        new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.OMIT);
-    }).toThrow(/CKR_CRYPTOKI_NOT_INITIALIZED/);
-
-    // InitializeFinalizeBehavior.OMIT behavior should be fine when another
-    // instance of the PKCS#11 lib is already loaded
-    let strict_lib = new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-    new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.OMIT);
-
-    strict_lib.close(); /* close so it doesn't interfere with other tests */
-});
-
-// NOTE: we're not testing Pkcs11Lib.InitializeFinalizeBehavior.DEFAULT because it does not finalize
-// the underlying PKCS#11 library, which may interfere with other tests

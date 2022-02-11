@@ -108,7 +108,7 @@ test('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async 
 conditional_test(Pkcs11Config.is_valid())('MQTT Native PKCS#11 Connect/Disconnect', async () => {
     const aws_opts: Config = await fetch_credentials();
 
-    const pkcs11_lib = new Pkcs11Lib(Pkcs11Config.LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+    const pkcs11_lib = new Pkcs11Lib(Pkcs11Config.LIB_PATH);
 
     const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
         pkcs11_lib: pkcs11_lib,
@@ -119,6 +119,4 @@ conditional_test(Pkcs11Config.is_valid())('MQTT Native PKCS#11 Connect/Disconnec
     });
 
     await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
-
-    pkcs11_lib.close(); /* close library it doesn't interfere with other PKCS#11 tests */
 });
