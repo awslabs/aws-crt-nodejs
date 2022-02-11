@@ -144,7 +144,7 @@ test('HTTPS Connection Create/Destroy Undef Bootstrap', async () => {
     await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host), undefined);
 });
 
-async function test_stream(method: string, host: string, port: number, activate: boolean, statusCode: number, tls_opts?: TlsConnectionOptions) {
+async function test_stream(method: string, host: string, port: number, activate: boolean, tls_opts?: TlsConnectionOptions) {
     const promise = new Promise((resolve, reject) => {
         let connection = new HttpClientConnection(
             new ClientBootstrap(),
@@ -163,7 +163,7 @@ async function test_stream(method: string, host: string, port: number, activate:
             );
             let stream = connection.request(request);
             stream.on('response', (status_code, headers) => {
-                expect(status_code).toBe(statusCode);
+                expect(status_code == 301 || status_code == 200).toBe(true);
                 expect(headers).toBeDefined();
             });
             stream.on('data', (body_data) => {
@@ -195,17 +195,17 @@ async function test_stream(method: string, host: string, port: number, activate:
 }
 
 test('HTTP Stream GET', async () => {
-    await test_stream('GET', 'amazon.com', 80, true, 301, undefined);
+    await test_stream('GET', 'amazon.com', 80, true, undefined);
 });
 
 
 test('HTTPS Stream GET', async () => {
     const host = 'amazon.com';
-    await test_stream('GET', host, 443, true, 301, new TlsConnectionOptions(new ClientTlsContext(), host));
+    await test_stream('GET', host, 443, true, new TlsConnectionOptions(new ClientTlsContext(), host));
 });
 
 test('HTTP Stream UnActivated', async () => {
-    await test_stream('GET', 'amazon.com', 80, false, 301,undefined);
+    await test_stream('GET', 'amazon.com', 80, false, undefined);
 });
 
 test('HTTP Connection Manager create/destroy', () => {
@@ -276,7 +276,7 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
     const promise = new Promise((resolve, reject) => {
         let stream = connection.request(request);
         stream.on('response', (status_code, headers) => {
-            expect(status_code).toBe(301);
+            expect(status_code == 301 || status_code == 200).toBe(true);
             expect(headers).toBeDefined();
         });
         stream.on('data', (body_data) => {
