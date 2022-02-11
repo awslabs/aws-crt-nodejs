@@ -115,6 +115,17 @@ export class AwsIotMqttConnectionConfigBuilder {
         return builder;
     }
 
+    static new_mtls_pkcs11_builder(pkcs11_options: io.TlsContextOptions.Pkcs11Options) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_pkcs11(pkcs11_options));
+        builder.params.port = 8883;
+
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
     static new_websocket_builder(...args: any[]) {
         return this.new_with_websockets(...args);
     }

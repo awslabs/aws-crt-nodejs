@@ -178,6 +178,9 @@ export class TlsContextOptions {
     public pkcs12_filepath?: string;
     /** Password for PKCS#12. Currently, only supported on OSX. */
     public pkcs12_password?: string;
+    /** PKCS#11 options. Currently, only supported on Unix */
+    public pkcs11_options?: TlsContextOptions.Pkcs11Options;
+
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
      * It is much better to just override the default trust store and pass the self-signed
@@ -208,9 +211,10 @@ export class TlsContextOptions {
     }
 
     /**
-     * Creates a client with secure-by-default options, along with a client cert and private key
-     * @param certificate - Client certificate, in PEM format
-     * @param private_key - Client private key, in PEM format
+     * Create options configured for mutual TLS in client mode,
+     * with client certificate and private key provided as in-memory strings.
+     * @param certificate - Client certificate file contents, in PEM format
+     * @param private_key - Client private key file contents, in PEM format
      *
      * @returns newly configured TlsContextOptions object
      */
@@ -223,7 +227,8 @@ export class TlsContextOptions {
     }
 
     /**
-     * Creates a client with secure-by-default options, along with a client cert and private key
+     * Create options configured for mutual TLS in client mode,
+     * with client certificate and private key provided via filepath.
      * @param certificate_filepath - Path to client certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
      *
@@ -238,16 +243,41 @@ export class TlsContextOptions {
     }
 
     /**
-     * Creates a TLS context with secure-by-default options, along with a client cert and password
-     * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
+     * Create options for mutual TLS in client mode,
+     * with client certificate and private key bundled in a single PKCS#12 file.
+     * @param pkcs12_filepath - Path to PKCS#12 file containing client certificate and private key.
      * @param pkcs12_password - PKCS#12 password
      *
      * @returns newly configured TlsContextOptions object
     */
-    static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
+    static create_client_with_mtls_pkcs12_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs12_filepath = pkcs12_filepath;
         opt.pkcs12_password = pkcs12_password;
+        opt.verify_peer = true;
+        return opt;
+    }
+
+    /**
+     * @deprecated Renamed [[create_client_with_mtls_pkcs12_from_path]]
+     */
+    static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
+        return this.create_client_with_mtls_pkcs12_from_path(pkcs12_filepath, pkcs12_password);
+    }
+
+    /**
+     * Create options configured for mutual TLS in client mode,
+     * using a PKCS#11 library for private key operations.
+     *
+     * NOTE: This configuration only works on Unix devices.
+     *
+     * @param options - PKCS#11 options
+     *
+     * @returns newly configured TlsContextOptions object
+     */
+    static create_client_with_mtls_pkcs11(options: TlsContextOptions.Pkcs11Options): TlsContextOptions {
+        let opt = new TlsContextOptions();
+        opt.pkcs11_options = options;
         opt.verify_peer = true;
         return opt;
     }
@@ -284,6 +314,64 @@ export class TlsContextOptions {
     }
 }
 
+export namespace TlsContextOptions {
+
+    /**
+     * Options for TLS using a PKCS#11 library for private key operations.
+     *
+     * Unix only. nodejs only.
+     *
+     * @see [[TlsContextOptions.create_client_with_mtls_pkcs11]]
+     */
+    export type Pkcs11Options = {
+        /**
+         * Use this PKCS#11 library.
+         */
+        pkcs11_lib: Pkcs11Lib,
+
+        /**
+         * Use this PIN to log the user into the PKCS#11 token. Pass `null`
+         * to log into a token with a "protected authentication path".
+         */
+        user_pin: null | string,
+
+        /**
+         * Specify the slot ID containing a PKCS#11 token. If not specified, the token
+         * will be chosen based on other criteria (such as [[token_label]]).
+         */
+        slot_id?: number,
+
+        /**
+         * Specify the label of the PKCS#11 token to use. If not specified, the token
+         * will be chosen based on other criteria (such as [[slot_id]]).
+         */
+        token_label?: string,
+
+        /**
+         * Specify the label of the private key object on the PKCS#11 token. If not
+         * specified, the key will be chosen based on other criteria (such as being the
+         * only available private key on the token).
+         */
+        private_key_object_label?: string,
+
+        /**
+         * Use this X.509 certificate (file on disk).
+         * The certificate must be PEM-formatted.
+         * The certificate may be specified by other means instead
+         * (ex: [[cert_file_contents]])
+         */
+        cert_file_path?: string,
+
+        /**
+         * Use this X.509 certificate (contents in memory).
+         * The certificate must be PEM-formatted.
+         * The certificate may be specified by other means instead
+         * (ex: [[cert_file_path]])
+         */
+        cert_file_contents?: string,
+    }
+}
+
 /**
  * Abstract base TLS context used for client/server TLS communications over sockets.
  *
@@ -307,6 +395,7 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.private_key,
             ctx_opt.pkcs12_filepath,
             ctx_opt.pkcs12_password,
+            ctx_opt.pkcs11_options,
             ctx_opt.verify_peer));
     }
 }
@@ -360,5 +449,67 @@ export class TlsConnectionOptions extends NativeResource {
             server_name,
             (alpn_list && alpn_list.length > 0) ? alpn_list.join(';') : undefined
         ));
+    }
+}
+
+/**
+ * Handle to a loaded PKCS#11 library.
+ *
+ * For most use cases, a single instance of Pkcs11Lib should be used
+ * for the lifetime of your application.
+ *
+ * nodejs only.
+ * @category TLS
+ */
+export class Pkcs11Lib extends NativeResource {
+
+    /**
+     * @param path - Path to PKCS#11 library.
+     * @param behavior - Specifies how `C_Initialize()` and `C_Finalize()`
+     *                   will be called on the PKCS#11 library.
+     */
+    constructor(path: string, behavior: Pkcs11Lib.InitializeFinalizeBehavior = Pkcs11Lib.InitializeFinalizeBehavior.DEFAULT) {
+        super(crt_native.io_pkcs11_lib_new(path, behavior));
+    }
+
+    /**
+     * Release the PKCS#11 library immediately, without waiting for the GC.
+     */
+    close() {
+        crt_native.io_pkcs11_lib_close(this.native_handle());
+    }
+}
+
+export namespace Pkcs11Lib {
+
+    /**
+     * Controls `C_Initialize()` and `C_Finalize()` are called on the PKCS#11 library.
+     */
+    export enum InitializeFinalizeBehavior {
+        /**
+         * Default behavior that accommodates most use cases.
+         *
+         * `C_Initialize()` is called on creation, and "already-initialized"
+         * errors are ignored. `C_Finalize()` is never called, just in case
+         * another part of your application is still using the PKCS#11 library.
+         */
+        DEFAULT = 0,
+
+        /**
+         * Skip calling `C_Initialize()` and `C_Finalize()`.
+         *
+         * Use this if your application has already initialized the PKCS#11 library,
+         * and you do not want `C_Initialize()` called again.
+         */
+        OMIT = 1,
+
+        /**
+         * `C_Initialize()` is called on creation and `C_Finalize()` is called on cleanup.
+         *
+         * If `C_Initialize()` reports that's it's already initialized, this is
+         * treated as an error. Use this if you need perfect cleanup (ex: running
+         * valgrind with --leak-check).
+         */
+        STRICT = 2,
     }
 }

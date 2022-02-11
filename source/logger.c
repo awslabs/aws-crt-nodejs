@@ -197,13 +197,7 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
      * freed for shutdown
      */
     if (!env) {
-        while (!aws_linked_list_empty(&msgs)) {
-            struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&msgs);
-            struct log_message *msg = AWS_CONTAINER_OF(list_node, struct log_message, node);
-            aws_string_destroy(msg->message);
-            aws_mem_release(&ctx->buffer_allocator, msg);
-        }
-        return;
+        goto done;
     }
 
     /* nothing to do, maybe next time... */
@@ -213,29 +207,46 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
 
     /*
      * Look up `process` to use as this for the _rawDebug call, if these fail it's because the function
-     * call was queued during shutdown, so we will just skip out of here
+     * call was queued during shutdown, so we will just skip out of here.
+     * Avoid printing scary looking error messages (ex: avoid use of AWS_NAPI_CALL macro).
      */
     napi_value node_global = NULL;
-    AWS_NAPI_CALL(env, napi_get_global(env, &node_global), { goto done; });
-    napi_value node_process = NULL;
-    AWS_NAPI_CALL(env, napi_get_named_property(env, node_global, "process", &node_process), { goto done; });
+    if (napi_ok != napi_get_global(env, &node_global)) {
+        goto done;
+    }
 
-    while (!aws_linked_list_empty(&msgs)) {
-        struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&msgs);
+    napi_value node_process = NULL;
+    if (napi_ok != napi_get_named_property(env, node_global, "process", &node_process)) {
+        goto done;
+    }
+
+    for (struct aws_linked_list_node *list_node = aws_linked_list_begin(&msgs); list_node != aws_linked_list_end(&msgs);
+         list_node = aws_linked_list_next(list_node)) {
+
         struct log_message *msg = AWS_CONTAINER_OF(list_node, struct log_message, node);
 
         napi_value node_message = NULL;
-        AWS_NAPI_ENSURE(
-            env, napi_create_string_utf8(env, aws_string_c_str(msg->message), msg->message->len, &node_message));
-        AWS_NAPI_ENSURE(env, napi_call_function(env, node_process, node_log_fn, 1, &node_message, NULL));
+        if (napi_ok != napi_create_string_utf8(env, aws_string_c_str(msg->message), msg->message->len, &node_message)) {
+            goto done;
+        }
 
+        if (napi_ok != napi_call_function(env, node_process, node_log_fn, 1, &node_message, NULL)) {
+            goto done;
+        }
+    }
+
+    /* clean up memory and un-pin the log drain function */
+done:
+    while (!aws_linked_list_empty(&msgs)) {
+        struct aws_linked_list_node *list_node = aws_linked_list_pop_front(&msgs);
+        struct log_message *msg = AWS_CONTAINER_OF(list_node, struct log_message, node);
         aws_string_destroy(msg->message);
         aws_mem_release(&ctx->buffer_allocator, msg);
     }
 
-    /* un-pin the log drain function */
-done:
-    AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->log_drain, napi_tsfn_release));
+    if (env) {
+        AWS_NAPI_ENSURE(env, napi_release_threadsafe_function(ctx->log_drain, napi_tsfn_release));
+    }
 }
 
 void s_threadsafe_log_create(struct aws_napi_logger_ctx *ctx, napi_env env) {

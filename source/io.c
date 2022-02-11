@@ -9,6 +9,7 @@
 #include <aws/common/mutex.h>
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/event_loop.h>
+#include <aws/io/pkcs11.h>
 #include <aws/io/socket.h>
 #include <aws/io/stream.h>
 #include <aws/io/tls_channel_handler.h>
@@ -204,6 +205,118 @@ clean_up:
 #    pragma warning(pop)
 #endif
 
+struct pkcs11_lib_binding {
+    struct aws_pkcs11_lib *native;
+};
+
+static void s_pkcs11_lib_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_hint;
+
+    struct pkcs11_lib_binding *binding = finalize_data;
+    if (binding->native) {
+        aws_pkcs11_lib_release(binding->native);
+    }
+    aws_mem_release(aws_napi_get_allocator(), binding);
+}
+
+napi_value aws_napi_io_pkcs11_lib_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "io_pkcs11_lib_new called with wrong number of args");
+        return NULL;
+    }
+
+    /* From hereon, need to clean up if errors occur */
+    struct aws_string *path = NULL;
+    napi_value node_external = NULL;
+    bool success = false;
+
+    /* parse path */
+    napi_value node_path = *arg++;
+    path = aws_string_new_from_napi(env, node_path);
+    if (path == NULL) {
+        napi_throw_type_error(env, NULL, "Cannot convert path to string");
+        goto cleanup;
+    }
+
+    struct aws_pkcs11_lib_options options = {
+        .filename = aws_byte_cursor_from_string(path),
+    };
+
+    /* parse behavior */
+    napi_value node_behavior_arg = *arg++;
+    napi_value node_behavior_val = NULL;
+    if (napi_coerce_to_number(env, node_behavior_arg, &node_behavior_val)) {
+        napi_throw_type_error(env, NULL, "Invalid behavior arg (cannot coerce to number)");
+        goto cleanup;
+    }
+
+    int32_t behavior_int = 0;
+    if (napi_get_value_int32(env, node_behavior_val, &behavior_int)) {
+        napi_throw_type_error(env, NULL, "Invalid behavior arg (cannot get int value)");
+        goto cleanup;
+    }
+    options.initialize_finalize_behavior = (enum aws_pcks11_lib_behavior)behavior_int;
+
+    /* create external */
+    struct pkcs11_lib_binding *binding = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct pkcs11_lib_binding));
+    if (napi_create_external(env, binding, s_pkcs11_lib_finalize, NULL, &node_external)) {
+        napi_throw_error(env, NULL, "Failed to create n-api external");
+        goto cleanup;
+    }
+
+    /* create pkcs11_lib */
+    binding->native = aws_pkcs11_lib_new(aws_napi_get_allocator(), &options);
+    if (binding->native == NULL) {
+        aws_napi_throw_last_error(env);
+        goto cleanup;
+    }
+
+    success = true;
+cleanup:
+    aws_string_destroy(path);
+
+    /* NOTE: don't need to clean up node_external, the finalizer will handle that the GC collects it */
+
+    return success ? node_external : NULL;
+}
+
+napi_value aws_napi_io_pkcs11_lib_close(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_io_pkcs11_lib_close called with wrong number of args");
+        return NULL;
+    }
+
+    napi_value node_external = *arg++;
+
+    struct pkcs11_lib_binding *binding = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_external, (void **)&binding), {
+        AWS_NAPI_ENSURE(env, napi_throw_type_error(env, NULL, "expected valid Pkcs11Lib.handle"));
+        return NULL;
+    });
+
+    if (binding->native) {
+        aws_pkcs11_lib_release(binding->native);
+        binding->native = NULL;
+    }
+
+    return NULL;
+}
+
 /** Finalizer for a tls_ctx external */
 static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 
@@ -222,7 +335,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     napi_status status = napi_ok;
     (void)status;
 
-    napi_value node_args[12];
+    napi_value node_args[13];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -230,18 +343,15 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new needs exactly 12 arguments");
+        napi_throw_error(env, NULL, "aws_nodejs_io_client_tls_ctx_new called with wrong number of arguments");
         return NULL;
     }
 
     napi_value result = NULL;
 
-#ifdef __APPLE__
-    struct aws_byte_buf pkcs12_path;
-    AWS_ZERO_STRUCT(pkcs12_path);
+    struct aws_string *pkcs12_path = NULL;
     struct aws_byte_buf pkcs12_pwd;
     AWS_ZERO_STRUCT(pkcs12_pwd);
-#endif
 
     struct aws_tls_ctx_options ctx_options;
     AWS_ZERO_STRUCT(ctx_options);
@@ -259,6 +369,20 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     struct aws_string *cert_path = NULL;
     struct aws_string *pkey_path = NULL;
     struct aws_string *alpn_list = NULL;
+
+    struct aws_tls_ctx_pkcs11_options pkcs11_options;
+    AWS_ZERO_STRUCT(pkcs11_options);
+    struct aws_byte_buf pkcs11_pin;
+    AWS_ZERO_STRUCT(pkcs11_pin);
+    uint64_t pkcs11_slot_id = 0;
+    struct aws_byte_buf pkcs11_token_label;
+    AWS_ZERO_STRUCT(pkcs11_token_label);
+    struct aws_byte_buf pkcs11_key_label;
+    AWS_ZERO_STRUCT(pkcs11_key_label);
+    struct aws_byte_buf pkcs11_cert_path;
+    AWS_ZERO_STRUCT(pkcs11_cert_path);
+    struct aws_byte_buf pkcs11_cert_contents;
+    AWS_ZERO_STRUCT(pkcs11_cert_contents);
 
     uint32_t min_tls_version = AWS_IO_TLS_VER_SYS_DEFAULTS;
     napi_value node_tls_version = *arg++;
@@ -342,24 +466,99 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_pkcs12_path = *arg++;
-    napi_value node_pkcs12_password = *arg++;
-    (void)node_pkcs12_path;
-    (void)node_pkcs12_password;
-#ifdef __APPLE__
     if (!aws_napi_is_null_or_undefined(env, node_pkcs12_path)) {
-        if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_path, env, node_pkcs12_path)) {
+        pkcs12_path = aws_string_new_from_napi(env, node_pkcs12_path);
+        if (!pkcs12_path) {
             napi_throw_type_error(env, NULL, "pkcs12_path must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
 
+    napi_value node_pkcs12_password = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_pkcs12_password)) {
         if (napi_ok != aws_byte_buf_init_from_napi(&pkcs12_pwd, env, node_pkcs12_password)) {
             napi_throw_type_error(env, NULL, "pkcs12_password must be a String (or convertible to a String)");
             goto cleanup;
         }
     }
-#endif /* __APPLE__ */
+
+    napi_value node_pkcs11_options = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_pkcs11_options)) {
+
+        napi_value node_pkcs11_lib = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_options, "pkcs11_lib", &node_pkcs11_lib), {
+            napi_throw_type_error(env, NULL, "'pkcs11_lib' is required for PKCS#11");
+            goto cleanup;
+        });
+
+        napi_value node_pkcs11_lib_handle = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_lib, "handle", &node_pkcs11_lib_handle), {
+            napi_throw_type_error(env, NULL, "'pkcs11_lib' must be a Pkcs11Lib");
+            goto cleanup;
+        });
+
+        struct pkcs11_lib_binding *pkcs11_lib_binding = NULL;
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_pkcs11_lib_handle, (void **)&pkcs11_lib_binding), {
+            napi_throw_type_error(env, NULL, "'pkcs11_lib' must be a Pkcs11Lib");
+            goto cleanup;
+        });
+        pkcs11_options.pkcs11_lib = pkcs11_lib_binding->native;
+
+        /* user_pin property is required. null is allowed, but this is unusual, so we require the user to set it */
+        napi_value node_user_pin = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_pkcs11_options, "user_pin", &node_user_pin), {
+            napi_throw_type_error(env, NULL, "'user_pin' is required for PKCS#11 (must be string or null)");
+            goto cleanup;
+        });
+
+        napi_valuetype node_user_pin_type = napi_undefined;
+        napi_typeof(env, node_user_pin, &node_user_pin_type);
+        if (node_user_pin_type == napi_undefined) {
+            napi_throw_type_error(env, NULL, "user_pin' is required for PKCS#11 (must be string or null)");
+            goto cleanup;
+        }
+
+        if (node_user_pin_type != napi_null) {
+            if (napi_ok != aws_byte_buf_init_from_napi(&pkcs11_pin, env, node_user_pin)) {
+                napi_throw_type_error(env, NULL, "PKCS#11 'user_pin' must be a string or null");
+                goto cleanup;
+            }
+            pkcs11_options.user_pin = aws_byte_cursor_from_buf(&pkcs11_pin);
+        }
+
+        napi_value node_slot_id = NULL;
+        if (napi_ok == napi_get_named_property(env, node_pkcs11_options, "slot_id", &node_slot_id)) {
+            if (!aws_napi_is_null_or_undefined(env, node_slot_id)) {
+                if (napi_ok != napi_get_value_int64(env, node_slot_id, (int64_t *)&pkcs11_slot_id)) {
+                    napi_throw_type_error(env, NULL, "PKCS#11 'slot_id' must be an int");
+                    goto cleanup;
+                }
+                pkcs11_options.slot_id = &pkcs11_slot_id;
+            }
+        }
+
+        /* clang-format off */
+
+        #define PARSE_PKCS11_OPTION_STR(property_name, option_cursor, storage_buffer) {                                \
+            napi_value node_property = NULL;                                                                           \
+            if (napi_ok == napi_get_named_property(env, node_pkcs11_options, property_name, &node_property)) {         \
+                if (!aws_napi_is_null_or_undefined(env, node_property)) {                                              \
+                    if (napi_ok != aws_byte_buf_init_from_napi(&storage_buffer, env, node_property)) {                 \
+                        napi_throw_type_error(                                                                         \
+                            env, NULL, "PKCS#11 '" property_name "' must be a string (or convertible to string)");     \
+                        goto cleanup;                                                                                  \
+                    }                                                                                                  \
+                    option_cursor = aws_byte_cursor_from_buf(&storage_buffer);                                         \
+                }                                                                                                      \
+            }                                                                                                          \
+        }
+        /* clang-format on */
+
+        PARSE_PKCS11_OPTION_STR("token_label", pkcs11_options.token_label, pkcs11_token_label);
+        PARSE_PKCS11_OPTION_STR("private_key_object_label", pkcs11_options.private_key_object_label, pkcs11_key_label);
+        PARSE_PKCS11_OPTION_STR("cert_file_path", pkcs11_options.cert_file_path, pkcs11_cert_path);
+        PARSE_PKCS11_OPTION_STR("cert_file_contents", pkcs11_options.cert_file_contents, pkcs11_cert_contents);
+    }
 
     bool verify_peer = true;
     napi_value node_verify_peer = *arg++;
@@ -384,6 +583,18 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     } else if (cert_path && pkey_path) {
         if (aws_tls_ctx_options_init_client_mtls_from_path(
                 &ctx_options, alloc, aws_string_c_str(cert_path), aws_string_c_str(pkey_path))) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    } else if (pkcs12_path && pkcs12_pwd.buffer) {
+        struct aws_byte_cursor pwd_cursor = aws_byte_cursor_from_buf(&pkcs12_pwd);
+        if (aws_tls_ctx_options_init_client_mtls_pkcs12_from_path(
+                &ctx_options, alloc, aws_string_c_str(pkcs12_path), &pwd_cursor)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    } else if (!aws_napi_is_null_or_undefined(env, node_pkcs11_options)) {
+        if (aws_tls_ctx_options_init_client_mtls_with_pkcs11(&ctx_options, alloc, &pkcs11_options)) {
             aws_napi_throw_last_error(env);
             goto cleanup;
         }
@@ -413,7 +624,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     struct aws_tls_ctx *tls_ctx = aws_tls_client_ctx_new(alloc, &ctx_options);
     if (!tls_ctx) {
-        napi_throw_error(env, NULL, "Unable to create TLS context");
+        aws_napi_throw_last_error(env);
         goto cleanup;
     }
 
@@ -426,16 +637,19 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     result = node_external;
 
 cleanup:
-#ifdef __APPLE__
-    aws_byte_buf_clean_up_secure(&pkcs12_path);
+    aws_string_destroy_secure(pkcs12_path);
     aws_byte_buf_clean_up_secure(&pkcs12_pwd);
-#endif
     aws_string_destroy_secure(cert_path);
     aws_byte_buf_clean_up_secure(&certificate);
     aws_string_destroy_secure(pkey_path);
     aws_byte_buf_clean_up_secure(&private_key);
     aws_byte_buf_clean_up_secure(&ca_buf);
     aws_string_destroy(alpn_list);
+    aws_byte_buf_clean_up_secure(&pkcs11_pin);
+    aws_byte_buf_clean_up(&pkcs11_token_label);
+    aws_byte_buf_clean_up(&pkcs11_key_label);
+    aws_byte_buf_clean_up(&pkcs11_cert_path);
+    aws_byte_buf_clean_up(&pkcs11_cert_contents);
     aws_tls_ctx_options_clean_up(&ctx_options);
 
     return result;
