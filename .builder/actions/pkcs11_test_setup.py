@@ -52,6 +52,7 @@ class Pkcs11TestSetup(Builder.Action):
         # 2.1.0 is a known offender that crashes on exit if C_Finalize() isn't called
         if self._get_softhsm2_version() < (2, 2, 0):
             print("WARNING: SoftHSM2 installation is too old. PKCS#11 tests are disabled")
+            return
 
         # create token
         token_label = 'my-token'
