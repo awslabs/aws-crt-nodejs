@@ -194,11 +194,9 @@ async function test_stream(method: string, host: string, port: number, activate:
     await expect(promise).resolves.toBeTruthy();
 }
 
-/*
 test('HTTP Stream GET', async () => {
     await test_stream('GET', 'amazon.com', 80, true, 301, undefined);
 });
-*/
 
 
 test('HTTPS Stream GET', async () => {
@@ -206,12 +204,9 @@ test('HTTPS Stream GET', async () => {
     await test_stream('GET', host, 443, true, 301, new TlsConnectionOptions(new ClientTlsContext(), host));
 });
 
-
-/*
 test('HTTP Stream UnActivated', async () => {
     await test_stream('GET', 'amazon.com', 80, false, 301,undefined);
 });
-*/
 
 test('HTTP Connection Manager create/destroy', () => {
     const bootstrap = new ClientBootstrap();
@@ -248,7 +243,7 @@ test('HTTP Connection Manager acquire/release', async () => {
     connection_manager.close();
 });
 
-/*
+
 
 
 test('HTTP Connection Manager acquire/stream/release', async () => {
@@ -304,4 +299,4 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
     await expect(promise).resolves.toBeTruthy();
     expect(connection_error).toBeUndefined();
 });
-*/
+
