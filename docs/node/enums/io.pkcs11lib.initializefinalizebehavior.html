@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>LogLevel | aws-crt</title>
+	<title>InitializeFinalizeBehavior | aws-crt</title>
 	<meta name="description" content="Documentation for aws-crt">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -55,10 +55,13 @@
 					<a href="../modules/io.html">IO</a>
 				</li>
 				<li>
-					<a href="io.loglevel.html">LogLevel</a>
+					<a href="../classes/io.pkcs11lib.html">Pkcs11Lib</a>
+				</li>
+				<li>
+					<a href="io.pkcs11lib.initializefinalizebehavior.html">InitializeFinalizeBehavior</a>
 				</li>
 			</ul>
-			<h1>Enumeration LogLevel</h1>
+			<h1>Enumeration InitializeFinalizeBehavior</h1>
 		</div>
 	</div>
 </header>
@@ -68,7 +71,7 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>The amount of detail that will be logged</p>
+						<p>Controls <code>C_Initialize()</code> and <code>C_Finalize()</code> are called on the PKCS#11 library.</p>
 					</div>
 				</div>
 			</section>
@@ -79,13 +82,9 @@
 						<section class="tsd-index-section ">
 							<h3>Enumeration members</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#debug" class="tsd-kind-icon">DEBUG</a></li>
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#error" class="tsd-kind-icon">ERROR</a></li>
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#fatal" class="tsd-kind-icon">FATAL</a></li>
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#info" class="tsd-kind-icon">INFO</a></li>
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#none" class="tsd-kind-icon">NONE</a></li>
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#trace" class="tsd-kind-icon">TRACE</a></li>
-								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.loglevel.html#warn" class="tsd-kind-icon">WARN</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.pkcs11lib.initializefinalizebehavior.html#default" class="tsd-kind-icon">DEFAULT</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.pkcs11lib.initializefinalizebehavior.html#omit" class="tsd-kind-icon">OMIT</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="io.pkcs11lib.initializefinalizebehavior.html#strict" class="tsd-kind-icon">STRICT</a></li>
 							</ul>
 						</section>
 					</div>
@@ -94,87 +93,47 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Enumeration members</h2>
 				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="debug" class="tsd-anchor"></a>
-					<h3>DEBUG</h3>
-					<div class="tsd-signature tsd-kind-icon">DEBUG<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 5</span></div>
+					<a name="default" class="tsd-anchor"></a>
+					<h3>DEFAULT</h3>
+					<div class="tsd-signature tsd-kind-icon">DEFAULT<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 0</span></div>
 					<aside class="tsd-sources">
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Enough information to debug the chain of events a given network connection encounters</p>
+							<p>Default behavior that accommodates most use cases.</p>
 						</div>
+						<p><code>C_Initialize()</code> is called on creation, and &quot;already-initialized&quot;
+							errors are ignored. <code>C_Finalize()</code> is never called, just in case
+						another part of your application is still using the PKCS#11 library.</p>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="error" class="tsd-anchor"></a>
-					<h3>ERROR</h3>
-					<div class="tsd-signature tsd-kind-icon">ERROR<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 2</span></div>
+					<a name="omit" class="tsd-anchor"></a>
+					<h3>OMIT</h3>
+					<div class="tsd-signature tsd-kind-icon">OMIT<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 1</span></div>
 					<aside class="tsd-sources">
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Only errors</p>
+							<p>Skip calling <code>C_Initialize()</code> and <code>C_Finalize()</code>.</p>
 						</div>
+						<p>Use this if your application has already initialized the PKCS#11 library,
+						and you do not want <code>C_Initialize()</code> called again.</p>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="fatal" class="tsd-anchor"></a>
-					<h3>FATAL</h3>
-					<div class="tsd-signature tsd-kind-icon">FATAL<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 1</span></div>
+					<a name="strict" class="tsd-anchor"></a>
+					<h3>STRICT</h3>
+					<div class="tsd-signature tsd-kind-icon">STRICT<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 2</span></div>
 					<aside class="tsd-sources">
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Only fatals. In practice, this will not do much, as the process will log and then crash (intentionally) if a fatal condition occurs</p>
+							<p><code>C_Initialize()</code> is called on creation and <code>C_Finalize()</code> is called on cleanup.</p>
 						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="info" class="tsd-anchor"></a>
-					<h3>INFO</h3>
-					<div class="tsd-signature tsd-kind-icon">INFO<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 4</span></div>
-					<aside class="tsd-sources">
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Information about connection/stream creation/destruction events</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="none" class="tsd-anchor"></a>
-					<h3>NONE</h3>
-					<div class="tsd-signature tsd-kind-icon">NONE<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 0</span></div>
-					<aside class="tsd-sources">
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>No logging whatsoever. Equivalent to never calling <a href="../modules/io.html#enable_logging">enable_logging</a>.</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="trace" class="tsd-anchor"></a>
-					<h3>TRACE</h3>
-					<div class="tsd-signature tsd-kind-icon">TRACE<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 6</span></div>
-					<aside class="tsd-sources">
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Everything. Only use this if you really need to know EVERY single call</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
-					<a name="warn" class="tsd-anchor"></a>
-					<h3>WARN</h3>
-					<div class="tsd-signature tsd-kind-icon">WARN<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 3</span></div>
-					<aside class="tsd-sources">
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Only warnings and errors</p>
-						</div>
+						<p>If <code>C_Initialize()</code> reports that&#39;s it&#39;s already initialized, this is
+							treated as an error. Use this if you need perfect cleanup (ex: running
+						valgrind with --leak-check).</p>
 					</div>
 				</section>
 			</section>
@@ -210,36 +169,9 @@
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-				</ul>
-				<ul class="current">
-					<li class="current tsd-kind-enum tsd-parent-kind-module">
+					<li class=" tsd-kind-enum tsd-parent-kind-module">
 						<a href="io.loglevel.html" class="tsd-kind-icon">Log<wbr>Level</a>
-						<ul>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#debug" class="tsd-kind-icon">DEBUG</a>
-							</li>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#error" class="tsd-kind-icon">ERROR</a>
-							</li>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#fatal" class="tsd-kind-icon">FATAL</a>
-							</li>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#info" class="tsd-kind-icon">INFO</a>
-							</li>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#none" class="tsd-kind-icon">NONE</a>
-							</li>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#trace" class="tsd-kind-icon">TRACE</a>
-							</li>
-							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
-								<a href="io.loglevel.html#warn" class="tsd-kind-icon">WARN</a>
-							</li>
-						</ul>
 					</li>
-				</ul>
-				<ul class="after-current">
 					<li class=" tsd-kind-enum tsd-parent-kind-module">
 						<a href="io.socketdomain.html" class="tsd-kind-icon">Socket<wbr>Domain</a>
 					</li>
@@ -258,9 +190,35 @@
 					<li class=" tsd-kind-class tsd-parent-kind-module">
 						<a href="../classes/io.inputstream.html" class="tsd-kind-icon">Input<wbr>Stream</a>
 					</li>
-					<li class=" tsd-kind-class tsd-parent-kind-module">
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-class tsd-parent-kind-module">
 						<a href="../classes/io.pkcs11lib.html" class="tsd-kind-icon">Pkcs11<wbr>Lib</a>
+						<ul>
+							<li class="current tsd-kind-enum tsd-parent-kind-class tsd-is-static">
+								<a href="io.pkcs11lib.initializefinalizebehavior.html" class="tsd-kind-icon">Initialize<wbr>Finalize<wbr>Behavior</a>
+								<ul>
+									<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+										<a href="io.pkcs11lib.initializefinalizebehavior.html#default" class="tsd-kind-icon">DEFAULT</a>
+									</li>
+									<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+										<a href="io.pkcs11lib.initializefinalizebehavior.html#omit" class="tsd-kind-icon">OMIT</a>
+									</li>
+									<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+										<a href="io.pkcs11lib.initializefinalizebehavior.html#strict" class="tsd-kind-icon">STRICT</a>
+									</li>
+								</ul>
+							</li>
+							<li class=" tsd-kind-constructor tsd-parent-kind-class tsd-is-overwrite">
+								<a href="../classes/io.pkcs11lib.html#constructor" class="tsd-kind-icon">constructor</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="../classes/io.pkcs11lib.html#close" class="tsd-kind-icon">close</a>
+							</li>
+						</ul>
 					</li>
+				</ul>
+				<ul class="after-current">
 					<li class=" tsd-kind-class tsd-parent-kind-module">
 						<a href="../classes/io.servertlscontext.html" class="tsd-kind-icon">Server<wbr>Tls<wbr>Context</a>
 					</li>

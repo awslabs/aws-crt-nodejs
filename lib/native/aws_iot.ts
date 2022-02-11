@@ -13,6 +13,7 @@
 
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
+import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import {
@@ -55,7 +56,7 @@ export interface WebsocketConfig {
     service?: string;
 
     /** (Optional)  TLS configuration to use when establishing the connection */
-    tls_ctx_options?: io.TlsContextOptions;
+    tls_ctx_options?: TlsContextOptions;
 }
 
 /**
@@ -67,7 +68,7 @@ export interface WebsocketConfig {
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig
 
-    private constructor(private tls_ctx_options: io.TlsContextOptions) {
+    private constructor(private tls_ctx_options: TlsContextOptions) {
         this.params = {
             client_id: '',
             host_name: '',
@@ -89,7 +90,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param key_path - Path to private key, in PEM format
      */
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
@@ -105,7 +106,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param private_key - Private key, in PEM format
      */
     static new_mtls_builder(cert: string, private_key: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls(cert, private_key));
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls(cert, private_key));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
@@ -115,8 +116,14 @@ export class AwsIotMqttConnectionConfigBuilder {
         return builder;
     }
 
-    static new_mtls_pkcs11_builder(pkcs11_options: io.TlsContextOptions.Pkcs11Options) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_pkcs11(pkcs11_options));
+    /**
+     * Create a new builder with mTLS using a PKCS#11 library for private key operations.
+     *
+     * NOTE: This configuration only works on Unix devices.
+     * @param pkcs11_options - PKCS#11 options.
+     */
+    static new_mtls_pkcs11_builder(pkcs11_options: TlsContextOptions.Pkcs11Options) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_pkcs11(pkcs11_options));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
@@ -163,7 +170,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         let tls_ctx_options = options?.tls_ctx_options;
 
         if (!tls_ctx_options) {
-            tls_ctx_options = new io.TlsContextOptions();
+            tls_ctx_options = new TlsContextOptions();
             tls_ctx_options.alpn_list = [];
         }
 
