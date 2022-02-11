@@ -48,8 +48,10 @@ class Pkcs11TestSetup(Builder.Action):
         pathlib.Path(conf_path).write_text(
             f"directories.tokendir = {token_dir}\n")
 
-        # print SoftHSM2 version
-        self._exec_softhsm2_util('--version')
+        # bail out if softhsm is too old
+        # 2.1.0 is a known offender that crashes on exit if C_Finalize() isn't called
+        if self._get_softhsm2_version() < (2, 2, 0):
+            print("WARNING: SoftHSM2 installation is too old. PKCS#11 tests are disabled")
 
         # create token
         token_label = 'my-token'
@@ -115,6 +117,11 @@ class Pkcs11TestSetup(Builder.Action):
             raise Exception('softhsm2-util failed')
 
         return result
+
+    def _get_softhsm2_version(self):
+        output = self._exec_softhsm2_util('--version').output
+        match = re.match('([0-9+])\.([0-9]+).([0-9]+)', output)
+        return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
 
     def _find_sofhsm2_token_slot(self):
         """Return slot ID of first initialized token"""
