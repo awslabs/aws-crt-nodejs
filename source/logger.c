@@ -220,9 +220,8 @@ static void s_threadsafe_log_call(napi_env env, napi_value node_log_fn, void *co
         goto done;
     }
 
-    for (struct aws_linked_list_node *list_node = aws_linked_list_rbegin(&msgs);
-         list_node != aws_linked_list_rend(&msgs);
-         list_node = aws_linked_list_prev(list_node)) {
+    for (struct aws_linked_list_node *list_node = aws_linked_list_begin(&msgs); list_node != aws_linked_list_end(&msgs);
+         list_node = aws_linked_list_next(list_node)) {
 
         struct log_message *msg = AWS_CONTAINER_OF(list_node, struct log_message, node);
 

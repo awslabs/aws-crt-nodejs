@@ -539,8 +539,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
         /* clang-format off */
 
-        #define PARSE_PKCS11_OPTION_STR(property_name, option_cursor, storage_buffer)                                  \
-        do {                                                                                                           \
+        #define PARSE_PKCS11_OPTION_STR(property_name, option_cursor, storage_buffer) {                                \
             napi_value node_property = NULL;                                                                           \
             if (napi_ok == napi_get_named_property(env, node_pkcs11_options, property_name, &node_property)) {         \
                 if (!aws_napi_is_null_or_undefined(env, node_property)) {                                              \
@@ -552,7 +551,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
                     option_cursor = aws_byte_cursor_from_buf(&storage_buffer);                                         \
                 }                                                                                                      \
             }                                                                                                          \
-        } while (0)
+        }
         /* clang-format on */
 
         PARSE_PKCS11_OPTION_STR("token_label", pkcs11_options.token_label, pkcs11_token_label);
