@@ -248,7 +248,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                reconnectPeriod: 0,
+                // reconnectPeriod default is 1000ms
+                reconnectPeriod: 1000,
                 will: will,
                 transformWsUrl: websocketXform,
             }

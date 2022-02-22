@@ -17,7 +17,7 @@ async function fetch_credentials() {
     return new Promise<AWS.CognitoIdentityCredentials>((resolve, reject) => {
         AWS.config.region = Config.AWS_REGION;
         const credentials = AWS.config.credentials = new AWS.CognitoIdentityCredentials({
-            IdentityPoolId: Config.AWS_COGNITO_POOL_ID
+            IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID
         });
         log('Fetching Cognito credentials');
         credentials.refresh((err: any) => {
@@ -39,6 +39,7 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
             .with_credentials(Config.AWS_REGION, credentials.accessKeyId, credentials.secretAccessKey, credentials.sessionToken)
             .with_use_websockets()
+            .with_keep_alive_seconds(30)
             .build();
 
         log('Connecting websocket...');
@@ -75,9 +76,9 @@ async function main() {
                 log(`Message received: topic=${topic} message=${message}`);
                 connection.disconnect();
             })
-            .then((subscription) => {
-                return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
-            });
+                .then((subscription) => {
+                    return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                });
         })
         .catch((reason) => {
             log(`Error while connecting: ${reason}`);
