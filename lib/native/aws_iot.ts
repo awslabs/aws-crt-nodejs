@@ -58,6 +58,14 @@ export interface WebsocketConfig {
     tls_ctx_options?: io.TlsContextOptions;
 }
 
+export interface CustomAuthDirectConfig {
+    username?: string;
+
+    authorizer_name?: string;
+
+    password?: string;
+}
+
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
@@ -166,6 +174,53 @@ export class AwsIotMqttConnectionConfigBuilder {
         }
 
         this.configure_websocket_handshake(builder, options);
+
+        return builder;
+    }
+
+    private static apply_direct_custom_auth(builder: AwsIotMqttConnectionConfigBuilder, custom_auth_config?: CustomAuthDirectConfig) {
+        if (!custom_auth_config) {
+            return;
+        }
+
+        let full_username : string = "";
+
+        if (custom_auth_config.username) {
+            full_username += custom_auth_config.username;
+        }
+
+        if (custom_auth_config.authorizer_name) {
+            full_username = full_username + "?x-amz-customauthorizer-name=" + custom_auth_config.authorizer_name;
+        }
+
+        builder.params.username = full_username;
+
+        if (custom_auth_config.password) {
+            builder.params.password = custom_auth_config.password;
+        }
+    }
+
+    /**
+     * Configures the connection to use MQTT with custom authentication via a Lambda function. Forces the port to 443.
+     */
+    static new_with_direct_custom_auth(custom_auth_config: CustomAuthDirectConfig, tls_ctx_options?: io.TlsContextOptions) {
+
+        if (!tls_ctx_options) {
+            tls_ctx_options = new io.TlsContextOptions();
+        }
+        tls_ctx_options.alpn_list = [ "mqtt" ];
+
+        let builder = new AwsIotMqttConnectionConfigBuilder(tls_ctx_options);
+        builder.params.port = 443;
+
+        this.apply_direct_custom_auth(builder, custom_auth_config);
+
+        return builder;
+    }
+
+    static new_with_websocket_custom_auth(websocket_config? : WebsocketConfig, custom_auth_config?: CustomAuthDirectConfig) {
+        let builder = this.new_with_websockets(websocket_config);
+        this.apply_direct_custom_auth(builder, custom_auth_config);
 
         return builder;
     }
@@ -302,6 +357,24 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_http_proxy_options(proxy_options: HttpProxyOptions) {
         this.params.proxy_options = proxy_options;
+        return this;
+    }
+
+    /**
+     * Configures the username to use to connect to the IoT Core service
+     * @param username The username for the mqtt CONNECT packet used by this connection.
+     */
+    with_username(username: string) {
+        this.params.username = username;
+        return this;
+    }
+
+    /**
+     * Configures the password to use to connect to the IoT Core service
+     * @param username The password for the mqtt CONNECT packet used by this connection.
+     */
+    with_password(password: string) {
+        this.params.password = password;
         return this;
     }
 
