@@ -101,6 +101,20 @@ export interface MqttConnectionConfig {
     protocol_operation_timeout?: number;
 
     /**
+     * Minimum seconds to wait between reconnect attempts.
+     * Must be <= {@link reconnect_max_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_min_sec?: number;
+
+    /**
+     * Maximum seconds to wait between reconnect attempts.
+     * Must be >= {@link reconnect_min_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_max_sec?: number;
+
+    /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
      */
@@ -217,6 +231,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private subscriptions = new TopicTrie();
     private connection_count = 0;
 
+    // track number of times in a row that reconnect has been attempted
+    // use exponential backoff between subsequent failed attempts
+    private reconnect_count = 0;
+    private reconnect_min_sec = 1;
+    private reconnect_max_sec = 128;
+
     /**
      * @param client The client that owns this connection
      * @param config The configuration for this connection
@@ -238,6 +258,20 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const websocketXform = (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
 
+        if (config.reconnect_min_sec !== undefined) {
+            this.reconnect_min_sec = config.reconnect_min_sec;
+            // clamp max, in case they only passed in min
+            this.reconnect_max_sec = Math.max(this.reconnect_min_sec, this.reconnect_max_sec);
+        }
+
+        if (config.reconnect_max_sec !== undefined) {
+            this.reconnect_max_sec = config.reconnect_max_sec;
+            // clamp min, in case they only passed in max (or passed in min > max)
+            this.reconnect_min_sec = Math.min(this.reconnect_min_sec, this.reconnect_max_sec);
+        }
+
+        this.reset_reconnect_times();
+
         this.connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
@@ -248,8 +282,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                // reconnectPeriod default is 1000ms
-                reconnectPeriod: 1000,
+                reconnectPeriod: 0, // disable mqtt.js reconnect, we'll handle it our custom way
                 will: will,
                 transformWsUrl: websocketXform,
             }
@@ -382,6 +415,25 @@ export class MqttClientConnection extends BufferedEventEmitter {
             });
             this.connection.once('error', on_connect_error);
         });
+    }
+
+    /**
+     * Returns seconds until next reconnect attempt.
+     */
+    private get_reconnect_time_sec(): number {
+        if (this.reconnect_min_sec == 0 && this.reconnect_max_sec == 0) {
+            return 0;
+        }
+
+        // Uses "FullJitter" backoff algorithm, described here:
+        // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+        // We slightly vary the algorithm described on the page,
+        // which takes (base,cap) and may result in 0.
+        // But we take (min,max) as parameters, and don't don't allow results less than min.
+        const cap = this.reconnect_max_sec - this.reconnect_min_sec;
+        const base = Math.max(this.reconnect_min_sec, 1);
+        const sleep = Math.random() * Math.min(cap, base * (2 ** this.reconnect_count));
+        return this.reconnect_min_sec + sleep;
     }
 
     /**

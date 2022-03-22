@@ -118,6 +118,20 @@ export interface MqttConnectionConfig {
     protocol_operation_timeout?: number;
 
     /**
+     * Minimum seconds to wait between reconnect attempts.
+     * Must be <= {@link reconnect_max_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_min_sec?: number;
+
+    /**
+     * Maximum seconds to wait between reconnect attempts.
+     * Must be >= {@link reconnect_min_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_max_sec?: number;
+
+    /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
      */
@@ -203,6 +217,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             config.use_websocket,
             config.proxy_options ? config.proxy_options.create_native_handle() : undefined,
             config.websocket_handshake_transform,
+            config.reconnect_min_sec,
+            config.reconnect_max_sec,
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));

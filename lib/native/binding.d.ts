@@ -153,6 +153,8 @@ export function mqtt_client_connection_new(
     use_websocket?: boolean,
     proxy_options?: NativeHandle,
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
+    reconnect_min_sec?: number,
+    reconnect_max_sec?: number,
 ): NativeHandle;
 
 /** @internal */
