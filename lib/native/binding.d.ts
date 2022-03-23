@@ -58,6 +58,7 @@ export function io_tls_ctx_new(
     pkcs12_filepath?: StringLike,
     pkcs12_password?: StringLike,
     pkcs11_options?: TlsContextOptions.Pkcs11Options,
+    windows_cert_store_path?: StringLike,
     verify_peer?: boolean,
 ): NativeHandle;
 /* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */
