@@ -563,7 +563,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_windows_cert_store_path = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_alpn)) {
+    if (!aws_napi_is_null_or_undefined(env, node_windows_cert_store_path)) {
         windows_cert_store_path = aws_string_new_from_napi(env, node_windows_cert_store_path);
         if (!windows_cert_store_path) {
             napi_throw_type_error(env, NULL, "windows_cert_store_path must be a String (or convertible to a String)");
