@@ -335,7 +335,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     napi_status status = napi_ok;
     (void)status;
 
-    napi_value node_args[13];
+    napi_value node_args[14];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -383,6 +383,8 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(pkcs11_cert_path);
     struct aws_byte_buf pkcs11_cert_contents;
     AWS_ZERO_STRUCT(pkcs11_cert_contents);
+
+    struct aws_string *windows_cert_store_path = NULL;
 
     uint32_t min_tls_version = AWS_IO_TLS_VER_SYS_DEFAULTS;
     napi_value node_tls_version = *arg++;
@@ -560,6 +562,15 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         PARSE_PKCS11_OPTION_STR("cert_file_contents", pkcs11_options.cert_file_contents, pkcs11_cert_contents);
     }
 
+    napi_value node_windows_cert_store_path = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_windows_cert_store_path)) {
+        windows_cert_store_path = aws_string_new_from_napi(env, node_windows_cert_store_path);
+        if (!windows_cert_store_path) {
+            napi_throw_type_error(env, NULL, "windows_cert_store_path must be a String (or convertible to a String)");
+            goto cleanup;
+        }
+    }
+
     bool verify_peer = true;
     napi_value node_verify_peer = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_verify_peer)) {
@@ -595,6 +606,12 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
     } else if (!aws_napi_is_null_or_undefined(env, node_pkcs11_options)) {
         if (aws_tls_ctx_options_init_client_mtls_with_pkcs11(&ctx_options, alloc, &pkcs11_options)) {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        }
+    } else if (windows_cert_store_path) {
+        if (aws_tls_ctx_options_init_client_mtls_from_system_path(
+                &ctx_options, alloc, aws_string_c_str(windows_cert_store_path))) {
             aws_napi_throw_last_error(env);
             goto cleanup;
         }
@@ -650,6 +667,7 @@ cleanup:
     aws_byte_buf_clean_up(&pkcs11_key_label);
     aws_byte_buf_clean_up(&pkcs11_cert_path);
     aws_byte_buf_clean_up(&pkcs11_cert_contents);
+    aws_string_destroy(windows_cert_store_path);
     aws_tls_ctx_options_clean_up(&ctx_options);
 
     return result;

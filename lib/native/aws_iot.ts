@@ -133,6 +133,25 @@ export class AwsIotMqttConnectionConfigBuilder {
         return builder;
     }
 
+    /**
+     * Create a new builder with mTLS using a certificate in a Windows certificate store.
+     *
+     * NOTE: This configuration only works on Windows devices.
+     * @param certificate_path - Path to certificate in a Windows certificate store.
+     *      The path must use backslashes and end with the certificate's thumbprint.
+     *      Example: `CurrentUser\MY\A11F8A9B5DF5B98BA3508FBCA575D09570E0D2C6`
+     */
+     static new_mtls_windows_cert_store_path_builder(certificate_path: string) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_windows_cert_store_path(certificate_path));
+        builder.params.port = 8883;
+
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
     static new_websocket_builder(...args: any[]) {
         return this.new_with_websockets(...args);
     }
