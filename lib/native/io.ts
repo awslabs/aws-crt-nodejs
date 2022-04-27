@@ -180,6 +180,8 @@ export class TlsContextOptions {
     public pkcs12_password?: string;
     /** PKCS#11 options. Currently, only supported on Unix */
     public pkcs11_options?: TlsContextOptions.Pkcs11Options;
+    /** Path to certificate in a Windows cert store. Windows only. */
+    public windows_cert_store_path?: string;
 
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
@@ -278,6 +280,23 @@ export class TlsContextOptions {
     static create_client_with_mtls_pkcs11(options: TlsContextOptions.Pkcs11Options): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs11_options = options;
+        opt.verify_peer = true;
+        return opt;
+    }
+
+    /**
+     * Create options configured for mutual TLS in client mode,
+     * using a certificate in a Windows certificate store.
+     *
+     * NOTE: Windows only.
+     *
+     * @param certificate_path - Path to certificate in a Windows certificate store.
+     *      The path must use backslashes and end with the certificate's thumbprint.
+     *      Example: `CurrentUser\MY\A11F8A9B5DF5B98BA3508FBCA575D09570E0D2C6`
+     */
+    static create_client_with_mtls_windows_cert_store_path(certificate_path: string): TlsContextOptions {
+        let opt = new TlsContextOptions();
+        opt.windows_cert_store_path = certificate_path;
         opt.verify_peer = true;
         return opt;
     }
@@ -396,6 +415,7 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.pkcs12_filepath,
             ctx_opt.pkcs12_password,
             ctx_opt.pkcs11_options,
+            ctx_opt.windows_cert_store_path,
             ctx_opt.verify_peer));
     }
 }
