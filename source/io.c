@@ -850,7 +850,7 @@ struct aws_napi_input_stream_impl {
 };
 
 static int s_input_stream_seek(struct aws_input_stream *stream, int64_t offset, enum aws_stream_seek_basis basis) {
-    struct aws_napi_input_stream_impl *impl = stream->impl;
+    struct aws_napi_input_stream_impl *impl = AWS_CONTAINER_OF(stream, struct aws_napi_input_stream_impl, base);
 
     int result = AWS_OP_SUCCESS;
     uint64_t final_offset = 0;
@@ -904,16 +904,19 @@ failed:
 }
 
 static int s_input_stream_read(struct aws_input_stream *stream, struct aws_byte_buf *dest) {
-    struct aws_napi_input_stream_impl *impl = stream->impl;
+    struct aws_napi_input_stream_impl *impl = AWS_CONTAINER_OF(stream, struct aws_napi_input_stream_impl, base);
 
     size_t bytes_to_read = dest->capacity - dest->len;
     if (bytes_to_read > impl->buffer.len) {
         bytes_to_read = impl->buffer.len;
     }
 
+    aws_mutex_lock(&impl->mutex);
     if (!aws_byte_buf_write(dest, impl->buffer.buffer, bytes_to_read)) {
         return AWS_OP_ERR;
+        aws_mutex_unlock(&impl->mutex);
     }
+    aws_mutex_unlock(&impl->mutex);
 
     /* seek the stream past what's been read to advance the buffer/bytes_read */
     aws_input_stream_seek(&impl->base, impl->bytes_read + bytes_to_read, AWS_SSB_BEGIN);
@@ -921,7 +924,7 @@ static int s_input_stream_read(struct aws_input_stream *stream, struct aws_byte_
 }
 
 static int s_input_stream_get_status(struct aws_input_stream *stream, struct aws_stream_status *status) {
-    struct aws_napi_input_stream_impl *impl = stream->impl;
+    struct aws_napi_input_stream_impl *impl = AWS_CONTAINER_OF(stream, struct aws_napi_input_stream_impl, base);
     aws_mutex_lock(&impl->mutex);
     status->is_end_of_stream = impl->eos;
     aws_mutex_unlock(&impl->mutex);
@@ -935,8 +938,7 @@ static int s_input_stream_get_length(struct aws_input_stream *stream, int64_t *o
     return aws_raise_error(AWS_ERROR_UNIMPLEMENTED);
 }
 
-static void s_input_stream_destroy(struct aws_input_stream *stream) {
-    struct aws_napi_input_stream_impl *impl = stream->impl;
+static void s_input_stream_destroy(struct aws_napi_input_stream_impl *impl) {
     struct aws_allocator *allocator = impl->buffer.allocator;
     aws_mutex_clean_up(&impl->mutex);
     aws_byte_buf_clean_up(&impl->buffer);
@@ -948,7 +950,6 @@ static struct aws_input_stream_vtable s_input_stream_vtable = {
     .read = s_input_stream_read,
     .get_status = s_input_stream_get_status,
     .get_length = s_input_stream_get_length,
-    .destroy = s_input_stream_destroy,
 };
 
 napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
@@ -976,9 +977,8 @@ napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    impl->base.allocator = allocator;
-    impl->base.impl = impl;
     impl->base.vtable = &s_input_stream_vtable;
+    aws_ref_count_init(&impl->base.ref_count, impl, (aws_simple_completion_callback *)s_input_stream_destroy);
     if (aws_mutex_init(&impl->mutex)) {
         aws_napi_throw_last_error(env);
         goto failed;
@@ -999,7 +999,7 @@ napi_value aws_napi_io_input_stream_new(napi_env env, napi_callback_info info) {
 
 failed:
     if (impl) {
-        s_input_stream_destroy(&impl->base);
+        aws_input_stream_release(&impl->base);
     }
 
     return NULL;
