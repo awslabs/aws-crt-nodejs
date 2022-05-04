@@ -96,9 +96,9 @@ aws_use_package(aws-c-auth REQUIRED)
 aws_use_package(aws-checksums REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
-if (CMAKE_JS_PLATFORM AND CMAKE_JS_ARCH)
+if (CMAKE_JS_PLATFORM AND NODE_ARCH)
     # When run from build.ts, these are set
-    set(destination bin/${CMAKE_JS_PLATFORM}-${CMAKE_JS_ARCH})
+    set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
 else()
     # If not, default to "native"
     set(destination bin/native)
