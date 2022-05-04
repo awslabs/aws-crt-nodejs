@@ -1,38 +1,29 @@
 #!/usr/bin/env bash
 set -ex
 
-# force a failure if there's no tag
-git describe --tags
-# now get the tag
+# note: test-version-exists.sh checked that we were ready for release in an earlier pipeline stage
 CURRENT_TAG=$(git describe --tags | cut -f2 -dv)
-# convert v0.2.12-2-g50254a9 to 0.2.12
-CURRENT_TAG_VERSION=$(git describe --tags | cut -f1 -d'-' | cut -f2 -dv)
-# if there's a hash on the tag, then this is not a release tagged commit
-if [ "$CURRENT_TAG" != "$CURRENT_TAG_VERSION" ]; then
-    echo "Current tag version is not a release tag, cut a new release if you want to publish."
-    exit 1
-fi
 
 # go to previous directory
 cd ..
 
 # native source code
-tar -cvzf aws-crt-$CURRENT_TAG_VERSION-source.tgz aws-crt-nodejs/crt
+tar -cvzf aws-crt-$CURRENT_TAG-source.tgz aws-crt-nodejs/crt
 # sha256 checksum
-SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-source.tgz | awk '{print $1}')
-echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-source.sha256
+SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG-source.tgz | awk '{print $1}')
+echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG-source.sha256
 
 # omnibus package
-tar -cvzf aws-crt-$CURRENT_TAG_VERSION-all.tgz aws-crt-nodejs/
+tar -cvzf aws-crt-$CURRENT_TAG-all.tgz aws-crt-nodejs/
 # sha256 checksum
-SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-all.tgz | awk '{print $1}')
-echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-all.sha256
+SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG-all.tgz | awk '{print $1}')
+echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG-all.sha256
 
 # binaries
-tar -cvzf aws-crt-$CURRENT_TAG_VERSION-binary.tgz aws-crt-nodejs/dist/bin
+tar -cvzf aws-crt-$CURRENT_TAG-binary.tgz aws-crt-nodejs/dist/bin
 # sha256 checksum
-SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG_VERSION-binary.tgz | awk '{print $1}')
-echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG_VERSION-binary.sha256
+SOURCE_SHA256=$(sha256sum aws-crt-$CURRENT_TAG-binary.tgz | awk '{print $1}')
+echo -n $SOURCE_SHA256 > aws-crt-$CURRENT_TAG-binary.sha256
 
 
 # npm pack
@@ -45,7 +36,7 @@ cp aws-crt-*.tgz ..
 cd ..
 UNZIP="unzip_pack"
 mkdir $UNZIP
-tar -xf aws-crt-$CURRENT_TAG_VERSION.tgz -C $UNZIP
+tar -xf aws-crt-$CURRENT_TAG.tgz -C $UNZIP
 PACK_FILE_SIZE_KB=$(du -sk $UNZIP | awk '{print $1}')
 if expr $PACK_FILE_SIZE_KB \> "$((14 * 1024))" ; then
     # the package size is larger than 14 MB, return -1
