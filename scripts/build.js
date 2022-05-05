@@ -142,8 +142,7 @@ async function buildFromRemoteSource(tmpPath) {
         host = process.env.AWS_CRT_BINARY_HOST;
     }
     let rawData = fs.readFileSync('package.json');
-    let package = JSON.parse(rawData);
-    const version = package["version"];
+    const version = JSON.parse(rawData)["version"];
     await fetchNativeCode(host, version, tmpPath);
     // Clean up temp directory
     rmRecursive(tmpPath);

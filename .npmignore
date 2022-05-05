@@ -155,7 +155,6 @@ deps_build/
 /test/
 /samples/
 /tsconfig*.json
-/typedoc*.json
 /jest.config.js
 /make-docs.sh
 
@@ -168,6 +167,7 @@ deps_build/
 **/.github/
 **/continuous-delivery/
 **/docs/
+**/docsrc/
 **/codebuild/
 **/.builder/
 
