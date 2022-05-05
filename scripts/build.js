@@ -99,7 +99,8 @@ async function fetchNativeCode(url, version, path) {
 }
 
 function buildLocally() {
-    let arch = os.arch;
+    const platform = os.platform();
+    let arch = os.arch();
 
     // Allow cross-compile (so OSX can do arm64 or x64 builds) via:
     // --target-arch ARCH
@@ -112,19 +113,19 @@ function buildLocally() {
         target: "install",
         debug: process.argv.includes('--debug'),
         arch: arch,
-        out: path.join('build', `${os.platform}-${arch}`),
+        out: path.join('build', `${platform}-${arch}`),
         cMakeOptions: {
             CMAKE_EXPORT_COMPILE_COMMANDS: true,
-            CMAKE_JS_PLATFORM: os.platform,
+            CMAKE_JS_PLATFORM: platform,
             BUILD_TESTING: 'OFF',
             CMAKE_INSTALL_PREFIX: 'crt/install',
             CMAKE_PREFIX_PATH: 'crt/install',
         }
     }
 
-    if (os.platform == 'darwin') {
+    if (platform === 'darwin') {
         // Node calls it "x64" but Apple calls it "x86_64", they both agree on "arm64" though
-        options.cMakeOptions.CMAKE_OSX_ARCHITECTURES = (arch == 'x64') ? 'x86_64' : arch;
+        options.cMakeOptions.CMAKE_OSX_ARCHITECTURES = (arch === 'x64') ? 'x86_64' : arch;
     }
 
     // Convert any -D arguments to this script to cmake -D arguments
