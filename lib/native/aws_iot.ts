@@ -17,13 +17,16 @@ import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import {
-    aws_sign_request,
-    AwsCredentialsProvider,
     AwsSignatureType,
     AwsSignedBodyValue,
     AwsSigningAlgorithm,
     AwsSigningConfig
-} from "./auth";
+} from "../common/auth";
+
+import {
+    aws_sign_request,
+    AwsCredentialsProvider
+} from "./auth"
 
 /**
  * Websocket-specific mqtt connection configuration options

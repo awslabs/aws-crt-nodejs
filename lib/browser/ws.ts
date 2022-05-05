@@ -9,7 +9,7 @@
  */
 
 import { MqttConnectionConfig } from "./mqtt";
-import { AWSCredentials } from "./auth";
+import { AWSBrowserCredentials} from "./auth";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
 
@@ -39,10 +39,10 @@ function canonical_day(time: string = canonical_time()) {
     return time.substring(0, time.indexOf('T'));
 }
 
-function make_signing_key(credentials: AWSCredentials, day: string, service_name: string) {
+function make_signing_key(credentials: AWSBrowserCredentials, region:string, day: string, service_name: string) {
     const hash_opts = { asBytes: true };
-    let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key, hash_opts);
-    hash = Crypto.HmacSHA256(credentials.aws_region || '', hash, hash_opts);
+    let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.secret_key, hash_opts);
+    hash = Crypto.HmacSHA256(region || '', hash, hash_opts);
     hash = Crypto.HmacSHA256(service_name, hash, hash_opts);
     hash = Crypto.HmacSHA256('aws4_request', hash, hash_opts);
     return hash;
@@ -50,7 +50,8 @@ function make_signing_key(credentials: AWSCredentials, day: string, service_name
 
 function sign_url(method: string,
     url: URL,
-    credentials: AWSCredentials,
+    region: string,
+    credentials: AWSBrowserCredentials,
     service_name: string,
     time: string = canonical_time(),
     day: string = canonical_day(time),
@@ -62,12 +63,12 @@ function sign_url(method: string,
     const canonical_params = url.search.replace(new RegExp('^\\?'), '');
     const canonical_request = `${method}\n${url.pathname}\n${canonical_params}\n${canonical_headers}\n${signed_headers}\n${payload_hash}`;
     const canonical_request_hash = Crypto.SHA256(canonical_request, { asBytes: true });
-    const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${credentials.aws_region}/${service_name}/aws4_request\n${canonical_request_hash}`;
-    const signing_key = make_signing_key(credentials, day, service_name);
+    const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${region}/${service_name}/aws4_request\n${canonical_request_hash}`;
+    const signing_key = make_signing_key(credentials, region, day, service_name);
     const signature = Crypto.HmacSHA256(signature_raw, signing_key, { asBytes: true });
     let query_params = `${url.search}&X-Amz-Signature=${signature}`;
-    if (credentials.aws_sts_token) {
-        query_params += `&X-Amz-Security-Token=${encodeURIComponent(credentials.aws_sts_token)}`;
+    if (credentials.sts_token) {
+        query_params += `&X-Amz-Security-Token=${encodeURIComponent(credentials.sts_token)}`;
     }
     const signed_url = `${url.protocol}//${url.hostname}${url.pathname}${query_params}`;
     return signed_url;
@@ -80,12 +81,14 @@ export function create_websocket_url(config: MqttConnectionConfig) {
     const path = '/mqtt';
     const protocol = (config.websocket || {}).protocol || 'wss';
     if (protocol === 'wss') {
-        const service_name = 'iotdevicegateway';
-        const credentials = config.credentials!;
-        const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${credentials.aws_access_id}` +
-            `%2F${day}%2F${credentials.aws_region}%2F${service_name}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
+        const credentialConfig = config.credentialConfig!;
+        const service_name = credentialConfig.service!;
+        const credentials = credentialConfig.getIdentityCallback(credentialConfig.provider)
+        const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${credentials.access_id}` +
+            `%2F${day}%2F${config.credentialConfig.region}%2F${service_name}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
         const url = new URL(`wss://${config.host_name}${path}?${query_params}`);
-        return sign_url('GET', url, credentials, service_name, time, day);
+        return sign_url('GET', url, config.credentialConfig.region, credentials, service_name, time, day);
+
     }
     else if (protocol === 'wss-custom-auth') {
         return `wss://${config.host_name}/${path}`;

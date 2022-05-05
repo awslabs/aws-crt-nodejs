@@ -15,6 +15,7 @@ import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
 
+
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
@@ -36,6 +37,14 @@ export class AwsIotMqttConnectionConfigBuilder {
             username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
             password: undefined,
             websocket: {},
+            credentialConfig: {
+                getIdentityCallback: ()=>{},
+                algorithm: 0,
+                signature_type: 0,
+                provider: null,
+                region: "",
+                service: "iotdevicegateway",
+            },
         };
     }
 
@@ -200,12 +209,30 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns this builder object
      */
     with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
-        this.params.credentials = {
-            aws_region: aws_region,
-            aws_access_id: aws_access_id,
-            aws_secret_key: aws_secret_key,
-            aws_sts_token: aws_sts_token,
-        };
+        this.params.credentialConfig.getIdentityCallback = function(){
+                const returnCredential = {
+                aws_region : aws_region,
+                aws_access_id : aws_access_id,
+                aws_secret_key : aws_secret_key,
+                aws_sts_token : aws_sts_token,
+                credential_error : 0
+                }; 
+                return returnCredential;
+            }
+        return this;
+    }
+
+    /**
+     * Configures AWS credentials (usually from Cognito) for this connection
+     * @param credential_provider The credential_provider used to fetch the credential
+     * @param get_identity getIdentityCallback used to refresh the identity. The callback will take credential_provider as a parameter
+     * 
+     * @returns this builder object
+     */
+     with_credentialConfig(aws_region: string, credential_provider : any, get_identity: Function) {
+        this.params.credentialConfig.region = aws_region;
+        this.params.credentialConfig.provider = credential_provider;
+        this.params.credentialConfig.getIdentityCallback = get_identity;
         return this;
     }
 

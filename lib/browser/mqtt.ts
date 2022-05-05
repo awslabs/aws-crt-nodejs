@@ -10,7 +10,7 @@
 
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
-import * as auth from "./auth";
+import { AWSBrowserSigningConfig } from "./auth";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
@@ -35,11 +35,6 @@ export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../co
  * @category MQTT
  */
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
-
-/**
- * @category MQTT
- */
-export type AWSCredentials = auth.AWSCredentials;
 
 /**
  * Configuration options for an MQTT connection
@@ -116,7 +111,7 @@ export interface MqttConnectionConfig {
     websocket?: WebsocketOptions;
 
     /** AWS credentials, which will be used to sign the websocket request */
-    credentials?: AWSCredentials;
+    credentialConfig: AWSBrowserSigningConfig;
 }
 
 /**

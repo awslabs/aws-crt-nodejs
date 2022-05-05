@@ -13,31 +13,68 @@ function log(msg: string) {
     $('#console').append(`<pre>${msg}</pre>`);
 }
 
-async function fetch_credentials() {
-    return new Promise<AWS.CognitoIdentityCredentials>((resolve, reject) => {
+
+
+async function connect_websocket() {
+    return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         AWS.config.region = Config.AWS_REGION;
-        const credentials = AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+        const credential_provider = AWS.config.credentials = new AWS.CognitoIdentityCredentials({
             IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID
         });
-        log('Fetching Cognito credentials');
-        credentials.refresh((err: any) => {
-            if (err) {
-                log(`Error fetching cognito credentials: ${err}`);
-                reject(`Error fetching cognito credentials: ${err}`);
+        var cognitoIdentity = new AWS.CognitoIdentity();
+        credential_provider.get(function(err) {
+            if (!err) {
+               console.log('retrieved identity: ' + credential_provider.identityId);
+               var params = {
+                  IdentityId: credential_provider.identityId
+               };
+               cognitoIdentity.getCredentialsForIdentity(params, function(err, respdata) {
+                  if (!err) {
+                     //
+                     // Update our latest AWS credentials; the MQTT client will use these
+                     // during its next reconnect attempt.
+                     //
+                     const credentials = {
+                        access_id : respdata.Credentials.accessKeyId,
+                        secret_key : respdata.Credentials.secretAccessKey,
+                        sts_token : respdata.Credentials.sessionToken,
+                    };
+                  } else {
+                     console.log('error retrieving credentials: ' + err);
+                     alert('error retrieving credentials: ' + err);
+                  }
+               });
+            } else {
+               console.log('error retrieving identity:' + err);
+               alert('error retrieving identity: ' + err);
             }
-            log('Cognito credentials refreshed');
-            resolve(credentials);
-        });
-    });
-}
-
-async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
-    return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
+         });
+         
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
-            .with_credentials(Config.AWS_REGION, credentials.accessKeyId, credentials.secretAccessKey, credentials.sessionToken)
+            .with_credentialConfig(Config.AWS_REGION, credential_provider, (provider : AWS.CognitoIdentityCredentials) => {
+                if(provider.needsRefresh())
+                {
+                    log('do I always need refresh?? ');
+                    provider.refresh((err: any) => {
+                        if (err) {
+                            log(`Error fetching cognito credentials: ${err}`);
+                        }
+                        else
+                        {
+                            log('Cognito credentials refreshed');
+                        }
+                    });
+                }
+                const credentials = {
+                    access_id : provider.accessKeyId,
+                    secret_key : provider.secretAccessKey,
+                    sts_token : provider.sessionToken,
+                }
+                return credentials;
+            })
             .with_use_websockets()
             .with_keep_alive_seconds(30)
             .build();
@@ -67,17 +104,20 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
 }
 
 async function main() {
-    fetch_credentials()
-        .then(connect_websocket)
+    connect_websocket()
         .then((connection) => {
             connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {
                 const decoder = new TextDecoder('utf8');
                 let message = decoder.decode(new Uint8Array(payload));
                 log(`Message received: topic=${topic} message=${message}`);
-                connection.disconnect();
             })
                 .then((subscription) => {
-                    return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                    while(true)
+                    {
+                        connection.publish(subscription.topic, 'NOTICE ME', subscription.qos) 
+                        setTimeout(() => {  console.log("publish every minute!"); }, 60000);
+                        
+                    }
                 });
         })
         .catch((reason) => {
