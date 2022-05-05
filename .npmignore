@@ -165,6 +165,7 @@ deps_build/
 **/builder.json
 **/.travis*
 **/.github/
+**/.gitmodules
 **/continuous-delivery/
 **/docs/
 **/docsrc/
