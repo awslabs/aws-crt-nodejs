@@ -36,15 +36,6 @@
             "x86": {
                 "enabled": false
             }
-        },
-        "windows": {
-            "!build_steps": [
-                [
-                    "npm",
-                    "install",
-                    "--DAWS_WARNINGS_ARE_ERRORS=ON"
-                ]
-            ]
         }
     },
     "upstream": [],
