@@ -67,13 +67,8 @@
         ],
         [
             "node",
-            "node_modules/.bin/cmake-js",
-            "compile",
-            "--out={build_dir}",
-            "--DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-            "--DAWS_WARNINGS_ARE_ERRORS=ON",
-            "-T",
-            "install"
+            "scripts/build.js",
+            "-DAWS_WARNINGS_ARE_ERRORS=ON"
         ],
         [
             "npm",

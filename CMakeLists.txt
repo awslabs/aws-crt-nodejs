@@ -100,8 +100,7 @@ if (CMAKE_JS_PLATFORM AND NODE_ARCH)
     # When run from build.ts, these are set
     set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
 else()
-    # If not, default to "native"
-    set(destination bin/native)
+    message(FATAL_ERROR "CMAKE_JS_PLATFORM and NODE_ARCH must be set")
 endif()
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
