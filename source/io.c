@@ -913,8 +913,8 @@ static int s_input_stream_read(struct aws_input_stream *stream, struct aws_byte_
 
     aws_mutex_lock(&impl->mutex);
     if (!aws_byte_buf_write(dest, impl->buffer.buffer, bytes_to_read)) {
-        return AWS_OP_ERR;
         aws_mutex_unlock(&impl->mutex);
+        return AWS_OP_ERR;
     }
     aws_mutex_unlock(&impl->mutex);
 
