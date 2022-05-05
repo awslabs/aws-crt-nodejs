@@ -101,11 +101,13 @@ async function fetchNativeCode(url, version, path) {
 function buildLocally() {
     let arch = os.arch;
 
-    // Allow cross-compile (allow OSX to do arm64 or x64 builds)
-    if (process.argv.includes('--force-arch')) {
-        arch = process.argv[process.argv.indexOf('--force-arch') + 1];
+    // Allow cross-compile (so OSX can do arm64 or x64 builds) via:
+    // --target-arch ARCH
+    if (process.argv.includes('--target-arch')) {
+        arch = process.argv[process.argv.indexOf('--target-arch') + 1];
     }
 
+    // options for cmake.BuildSystem
     let options = {
         target: "install",
         debug: process.argv.includes('--debug'),
@@ -120,6 +122,11 @@ function buildLocally() {
         }
     }
 
+    if (os.platform == 'darwin') {
+        // Node calls it "x64" but Apple calls it "x86_64", they both agree on "arm64" though
+        options.cMakeOptions.CMAKE_OSX_ARCHITECTURES = (arch == 'x64') ? 'x86_64' : arch;
+    }
+
     // Convert any -D arguments to this script to cmake -D arguments
     for (const arg of process.argv) {
         if (arg.startsWith('-D')) {
@@ -130,12 +137,6 @@ function buildLocally() {
 
     // Enable parallel build (ignored by cmake older than 3.12)
     process.env.CMAKE_BUILD_PARALLEL_LEVEL = `${Math.max(os.cpus().length, 1)}`;
-
-    // Allow cross-compile on OSX
-    if (os.platform == 'darwin') {
-        let osx_arch = (arch == 'x64') ? 'x86_64' : arch;
-        options.cMakeOptions.CMAKE_OSX_ARCHITECTURES = osx_arch;
-    }
 
     // Run the build
     var buildSystem = new cmake.BuildSystem(options);
