@@ -123,8 +123,13 @@ function buildLocally() {
         }
     }
 
+    // We need to pass some extra flags to pull off cross-compiling
+    // because cmake-js doesn't set everything we need.
+    //
+    // See the docs on `arch`: https://github.com/cmake-js/cmake-js/blob/v6.1.0/README.md?#runtimes
+    // > Notice: on non-Windows systems the C++ toolset's architecture's gonna be used despite this setting.
     if (platform === 'darwin') {
-        // Node calls it "x64" but Apple calls it "x86_64", they both agree on "arm64" though
+        // What Node calls "x64", Apple calls "x86_64". They both agree on the term "arm64" though.
         options.cMakeOptions.CMAKE_OSX_ARCHITECTURES = (arch === 'x64') ? 'x86_64' : arch;
     }
 
