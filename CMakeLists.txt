@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.1)
 project(aws-crt-nodejs C)
 option(BUILD_DEPS "Builds aws common runtime dependencies as part of build, only do this if you don't want to control your dependency chain." ON)
 
+option(CMAKE_JS_PLATFORM "Target platform. Should match node's os.platform()")
+if (NOT CMAKE_JS_PLATFORM)
+    message(FATAL_ERROR "CMAKE_JS_PLATFORM must be set")
+endif()
+
 include(CTest)
 
 # ensure that the release build has symbols
@@ -96,13 +101,7 @@ aws_use_package(aws-c-auth REQUIRED)
 aws_use_package(aws-checksums REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
-if (CMAKE_JS_PLATFORM AND CMAKE_JS_ARCH)
-    # When run from build.ts, these are set
-    set(destination bin/${CMAKE_JS_PLATFORM}-${CMAKE_JS_ARCH})
-else()
-    # If not, default to "native"
-    set(destination bin/native)
-endif()
+set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
     DESTINATION ${destination})
