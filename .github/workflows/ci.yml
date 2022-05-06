@@ -104,7 +104,7 @@ jobs:
     - name: Cross-compile arm64
       run: |
         cd aws-crt-nodejs
-        node ./scripts/build --target-arch arm64
+        node ./scripts/build --target-arch arm64 -DAWS_WARNINGS_ARE_ERRORS=ON
         test `lipo dist/bin/darwin-arm64/aws-crt-nodejs.node -archs` = "arm64"
         test `lipo dist/bin/darwin-x64/aws-crt-nodejs.node -archs` = "x86_64"
 
