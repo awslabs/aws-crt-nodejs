@@ -79,7 +79,6 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            //username: `?SDK=NodeJSv2&Version=${platform.crt_version()}`,
             username: "",
             password: undefined,
             tls_ctx: undefined,
@@ -456,7 +455,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         // Is the user trying to connect using a custom authorizer?
         if (this.is_using_custom_authorizer == true) {
             if (this.params.port != 443) {
-                // TODO - ideally print a warning here
+                console.log("Warning: Attempting to connect to authorizer with unsupported port. Port is not 443...");
             }
             if (this.tls_ctx_options.alpn_list != ["mqtt"]) {
                 this.tls_ctx_options.alpn_list = ["mqtt"]
