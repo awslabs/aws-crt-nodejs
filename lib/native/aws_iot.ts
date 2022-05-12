@@ -390,7 +390,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         let username_string = "";
         let added_string_to_username = false;
 
-        if (username == "" || username == null || username == undefined) {
+        if (username == "" || username == null) {
             if (this.params.username != "" && this.params.username != null && this.params.username != undefined) {
                 username_string += this.params.username;
             }
@@ -399,11 +399,11 @@ export class AwsIotMqttConnectionConfigBuilder {
             username_string += username;
         }
 
-        if (authorizer_name != "" && authorizer_name != null && authorizer_name != undefined) {
+        if (authorizer_name != "" && authorizer_name != null) {
             username_string = this.add_username_parameter(username_string, authorizer_name, "x-amz-customauthorizer-name=", added_string_to_username);
             added_string_to_username = true;
         }
-        if (authorizer_signature != "" && authorizer_signature != null && authorizer_signature != undefined) {
+        if (authorizer_signature != "" && authorizer_signature != null) {
             username_string = this.add_username_parameter(username_string, authorizer_signature, "x-amz-customauthorizer-signature=", added_string_to_username);
         }
 
