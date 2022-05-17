@@ -226,7 +226,7 @@ function normalize_payload(payload: Payload): Buffer | string {
  *
  * @category MQTT
  */
-export class MqttClientConnection extends BufferedEventEmitter {
+export class  MqttClientConnection extends BufferedEventEmitter {
     private connection: mqtt.MqttClient;
     private subscriptions = new TopicTrie();
     private connection_count = 0;
@@ -237,6 +237,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private reconnect_min_sec = 1;
     private reconnect_max_sec = 128;
 
+    private connection_shutdown = false;
+
     /**
      * @param client The client that owns this connection
      * @param config The configuration for this connection
@@ -245,18 +247,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
         readonly client: MqttClient,
         private config: MqttConnectionConfig) {
         super();
-
-        const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
-        const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
-
-        const will = this.config.will ? {
-            topic: this.config.will.topic,
-            payload: normalize_payload(this.config.will.payload),
-            qos: this.config.will.qos,
-            retain: this.config.will.retain,
-        } : undefined;
-
-        const websocketXform = (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
 
         if (config.reconnect_min_sec !== undefined) {
             this.reconnect_min_sec = config.reconnect_min_sec;
@@ -272,7 +262,24 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         this.reset_reconnect_times();
 
-        this.connection = new mqtt.MqttClient(
+        this.connection = this.setup_new_connection();
+    }
+
+    private setup_new_connection() : mqtt.MqttClient
+    {
+        const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);        
+        const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
+        const will = this.config.will ? {
+            topic: this.config.will.topic,
+            payload: normalize_payload(this.config.will.payload),
+            qos: this.config.will.qos,
+            retain: this.config.will.retain,
+        } : undefined;
+
+        const websocketXform = (this.config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
+
+        console.log(`print value of clean session ${this.config.clean_session}`);
+        const new_connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
                 // service default is 1200 seconds
@@ -282,18 +289,24 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                reconnectPeriod: 0, // disable mqtt.js reconnect, we'll handle it our custom way
+                reconnectPeriod: (this.config.reconnect_min_sec ? this.config.reconnect_min_sec : this.reconnect_min_sec) * 1000, // disable mqtt.js reconnect, we'll handle it our custom way
+                //reconnectPeriod: 0,
                 will: will,
                 transformWsUrl: websocketXform,
             }
         );
 
-        this.connection.on('connect', this.on_connect);
-        this.connection.on('error', this.on_error);
-        this.connection.on('message', this.on_message);
-        this.connection.on('offline', this.on_offline);
-        this.connection.on('end', this.on_disconnected);
+        new_connection.on('connect', this.on_connect);
+        new_connection.on('error', this.on_error);
+        new_connection.on('message', this.on_message);
+        new_connection.on('offline', this.on_offline);
+        new_connection.on('end', this.on_disconnected);
+        new_connection.on('close', this.on_close);
+        new_connection.on('reconnect', this.on_reconnect);
+
+        return new_connection;
     }
+
 
     /**
      * Emitted when the connection successfully establishes itself for the first time
@@ -374,10 +387,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_offline = () => {
+        this.emit('reonnect');
+        console.log(`disconnected...offline`);
         this.emit('interrupt', -1);
     }
 
     private on_disconnected = () => {
+        this.connection_shutdown = true
+        console.log(`disconnected...disconnect`);
+        this.connection_shutdown = true;
         this.emit('disconnect');
     }
 
@@ -394,6 +412,25 @@ export class MqttClientConnection extends BufferedEventEmitter {
             callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
+        
+        console.log(`recieved...message`);
+    }
+
+    private on_close = () => {
+        console.log(`connection....close`);
+        if ( !this.connection_shutdown)
+        {
+            this.reconnect();
+        }
+    }
+
+    private on_reconnect = () => {
+        console.log(`try ... reconnecting...`);
+    }
+
+    private reset_reconnect_times()
+    {
+        this.reconnect_count = 0;
     }
 
     /**
@@ -407,11 +444,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
+                console.log("reconnect failed.")
                 reject(new CrtError(error));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
                 resolve(connack.sessionPresent);
+                console.log("connecting...")
+                this.reset_reconnect_times();
             });
             this.connection.once('error', on_connect_error);
         });
@@ -442,7 +482,28 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * @deprecated
      */
     async reconnect() {
-        return this.connect();
+        // console.timeEnd(`get reconnection ${this.reconnect_count-1}`);
+        // console.time(`get reconnection ${this.reconnect_count}`);
+        const waitTime = this.get_reconnect_time_sec();
+        console.log(`waiting Time...${waitTime}`);
+        //this.connection.options.reconnectPeriod = waitTime;
+        setTimeout(() => { this.uncork() }, waitTime * 1000);
+        console.log("reconnecting...")
+        this.reconnect_count = this.reconnect_count+1;
+        this.connection = this.setup_new_connection();
+        return new Promise<boolean>((resolve, reject) => {
+            const on_connect_error = (error: Error) => {
+                console.log("reconnect failed, retrying...")
+                this.reconnect();
+            };
+            this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
+                this.connection.removeListener('error', on_connect_error);
+                console.log("reconnecting...")
+                resolve(connack.sessionPresent);
+                this.reset_reconnect_times();
+            });
+            this.connection.once('error', on_connect_error);
+        });
     }
 
     /**

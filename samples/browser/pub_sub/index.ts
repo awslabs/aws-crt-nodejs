@@ -35,7 +35,7 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
-            .with_client_id(`pub_sub_sample(${new Date()})`)
+            .with_client_id("pub_sub_sample")
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
             .with_credentials(Config.AWS_REGION, credentials.accessKeyId, credentials.secretAccessKey, credentials.sessionToken)
             .with_use_websockets()
@@ -48,6 +48,7 @@ async function connect_websocket(credentials: AWS.CognitoIdentityCredentials) {
         const connection = client.new_connection(config);
         connection.on('connect', (session_present) => {
             resolve(connection);
+            log("connection started:")
         });
         connection.on('interrupt', (error: CrtError) => {
             log(`Connection interrupted: error=${error}`);
@@ -74,10 +75,12 @@ async function main() {
                 const decoder = new TextDecoder('utf8');
                 let message = decoder.decode(new Uint8Array(payload));
                 log(`Message received: topic=${topic} message=${message}`);
-                connection.disconnect();
+                // connection.disconnect();
             })
                 .then((subscription) => {
-                    return connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                    
+                        setInterval( ()=>{connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);}, 2000);
+                    
                 });
         })
         .catch((reason) => {
