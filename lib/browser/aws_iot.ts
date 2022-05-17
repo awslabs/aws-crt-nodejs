@@ -33,7 +33,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
+            username: '',
             password: undefined,
             websocket: {},
         };
@@ -54,6 +54,15 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns a new websocket connection builder object with default TLS configuration
      */
     static new_with_websockets(...args: any[]) {
+        return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
+    }
+
+    /**
+     * For API compatibility with the native version. Alias for {@link new_builder_for_websocket}.
+     *
+     * @returns a new websocket connection builder object with default TLS configuration
+     */
+     static new_default_builder() {
         return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     }
 
@@ -210,6 +219,88 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * A helper function to add parameters to the username in with_custom_authorizer function
+     */
+     private add_username_parameter(input_string : string, parameter_value : string, parameter_pre_text : string, added_string_to_username : boolean) {
+        let return_string = input_string;
+        if (added_string_to_username == false) {
+            return_string += "?";
+        } else {
+            return_string += "&"
+        }
+
+        if (parameter_value.indexOf(parameter_pre_text) != -1) {
+            return return_string + parameter_value;
+        } else {
+            return return_string + parameter_pre_text + parameter_value;
+        }
+    }
+
+    /**
+     * Sets the custom authorizer settings. This function will modify the username, port, and TLS options.
+     *
+     * @param username The username to use with the custom authorizer. If an empty string is passed, it will
+     *                 check to see if a username has already been set (via WithUsername function). If no
+     *                 username is set then no username will be passed with the MQTT connection.
+     * @param authorizerName The name of the custom authorizer. If an empty string is passed, then
+     *                       'x-amz-customauthorizer-name' will not be added with the MQTT connection.
+     * @param authorizerSignature The signature of the custom authorizer. If an empty string is passed, then
+     *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
+     * @param password The password to use with the custom authorizer. If null is passed, then no password will
+     *                 be set.
+     */
+    with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string) {
+        let username_string = "";
+        let added_string_to_username = false;
+
+        if (username == "" || username == null) {
+            if (this.params.username != "" && this.params.username != null && this.params.username != undefined) {
+                username_string += this.params.username;
+            }
+        }
+        else {
+            username_string += username;
+        }
+
+        if (authorizer_name != "" && authorizer_name != null) {
+            username_string = this.add_username_parameter(username_string, authorizer_name, "x-amz-customauthorizer-name=", added_string_to_username);
+            added_string_to_username = true;
+        }
+        if (authorizer_signature != "" && authorizer_signature != null) {
+            username_string = this.add_username_parameter(username_string, authorizer_signature, "x-amz-customauthorizer-signature=", added_string_to_username);
+        }
+
+        this.params.username = username_string;
+        this.params.password = password;
+        // Tells the websocket connection we are using a custom authorizer
+        if (this.params.websocket) {
+             this.params.websocket.protocol = "wss-custom-auth";
+        }
+
+        return this;
+    }
+
+    /**
+     * Sets username for the connection
+     *
+     * @param username the username that will be passed with the MQTT connection
+     */
+    with_username(username : string) {
+        this.params.username = username;
+        return this;
+    }
+
+    /**
+     * Sets password for the connection
+     *
+     * @param password the password that will be passed with the MQTT connection
+     */
+    with_password(password : string) {
+        this.params.password = password;
+        return this;
+    }
+
+    /**
      * Returns the configured MqttConnectionConfig
      * @returns The configured MqttConnectionConfig
      */
@@ -217,6 +308,18 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
         }
+
+        // Add the metrics string
+        if (this.params.username == undefined || this.params.username == null || this.params.username == "") {
+            this.params.username = "?SDK=NodeJSv2&Version="
+        } else {
+            if (this.params.username.indexOf("?") != -1) {
+                this.params.username += "&SDK=NodeJSv2&Version="
+            } else {
+                this.params.username += "?SDK=NodeJSv2&Version="
+            }
+        }
+        this.params.username += platform.crt_version()
 
         return this.params;
     }
