@@ -100,6 +100,14 @@ jobs:
         python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
         chmod a+x builder
         ./builder build -p ${{ env.PACKAGE_NAME }} --spec=downstream
+    # check that OSX can build arm64 binaries from an x64 machine (which happens during release)
+    - name: Cross-compile arm64
+      run: |
+        cd aws-crt-nodejs
+        node ./scripts/build --target-arch arm64 -DAWS_WARNINGS_ARE_ERRORS=ON
+        test `lipo dist/bin/darwin-arm64/aws-crt-nodejs.node -archs` = "arm64"
+        test `lipo dist/bin/darwin-x64/aws-crt-nodejs.node -archs` = "x86_64"
+
 
   # check that docs can still build
   check-docs:
