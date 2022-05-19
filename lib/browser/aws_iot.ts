@@ -15,7 +15,6 @@ import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
 
-
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
@@ -38,11 +37,10 @@ export class AwsIotMqttConnectionConfigBuilder {
             password: undefined,
             websocket: {},
             credentialConfig: {
-                getIdentityCallback: ()=>{},
+                refreshIdentityCallback: ()=>{},
                 algorithm: 0,
                 signature_type: 0,
                 provider: null,
-                region: "",
                 service: "iotdevicegateway",
             },
         };
@@ -208,20 +206,16 @@ export class AwsIotMqttConnectionConfigBuilder {
      *
      * @returns this builder object
      */
-    with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
-        this.params.credentialConfig.getIdentityCallback = function(){
-                const returnCredential = {
-                aws_region : aws_region,
-                aws_access_id : aws_access_id,
-                aws_secret_key : aws_secret_key,
-                aws_sts_token : aws_sts_token,
-                credential_error : 0
-                }; 
-                return returnCredential;
-            }
+     with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
+        this.params.credentialConfig.credentials = {
+            aws_region: aws_region,
+            aws_access_id: aws_access_id,
+            aws_secret_key: aws_secret_key,
+            aws_sts_token: aws_sts_token,
+        };
         return this;
     }
-
+    
     /**
      * Configures AWS credentials (usually from Cognito) for this connection
      * @param credential_provider The credential_provider used to fetch the credential
@@ -229,10 +223,9 @@ export class AwsIotMqttConnectionConfigBuilder {
      * 
      * @returns this builder object
      */
-     with_credentialConfig(aws_region: string, credential_provider : any, get_identity: Function) {
-        this.params.credentialConfig.region = aws_region;
+     with_credentialConfig( credential_provider : any, refreshIdentity: Function){
         this.params.credentialConfig.provider = credential_provider;
-        this.params.credentialConfig.getIdentityCallback = get_identity;
+        this.params.credentialConfig.refreshIdentityCallback = refreshIdentity;
         return this;
     }
 

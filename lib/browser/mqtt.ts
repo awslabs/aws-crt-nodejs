@@ -373,6 +373,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
+                console.log("success connect...")
                 resolve(connack.sessionPresent);
             });
             this.connection.once('error', on_connect_error);

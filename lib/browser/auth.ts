@@ -19,12 +19,14 @@
  *
  */
   export interface AWSBrowserCredentials{
+    /** AWS region */
+    aws_region: string,
     /** AWS access id */
-    access_id: string,
+    aws_access_id: string,
     /** AWS secret access key */
-    secret_key: string,
+    aws_secret_key: string,
     /** Session token for session credentials */
-    sts_token?: string
+    aws_sts_token?: string
 }
 
  /**
@@ -35,7 +37,8 @@
 export interface AWSBrowserSigningConfig extends AwsSigningConfig{
      /** callback for refresh credential when session expired, returns AWSBrowserCredentials
       * @param provider. The callback will pass the provider as a parameter
-      *  AWSBrowserCredentials.credential_error should set to 0 if the credential result is valid.
+      * @param credentials The callback should update the credentials on refresh
      */
-      getIdentityCallback: Function;
+      refreshIdentityCallback: Function;
+      credentials?: AWSBrowserCredentials;
 }

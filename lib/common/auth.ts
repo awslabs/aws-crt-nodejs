@@ -103,9 +103,6 @@
      /** Credentials provider to fetch signing credentials with */
      provider: any;
  
-     /** The region to sign against */
-     region: string;
- 
      /** Name of service to sign a request for */
      service?: string;
  
