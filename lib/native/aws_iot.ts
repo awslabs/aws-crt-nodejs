@@ -26,7 +26,7 @@ import {
     aws_sign_request,
     AwsCredentialsProvider,
     AwsSigningConfig
-} from "./auth"
+} from "./auth";
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -166,7 +166,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                     ?? {
                     algorithm: AwsSigningAlgorithm.SigV4,
                     signature_type: AwsSignatureType.HttpRequestViaQueryParams,
-                    credentials_provider: options.credentials_provider,
+                    provider: options.credentials_provider,
                     region: options.region,
                     service: options.service ?? "iotdevicegateway",
                     signed_body_value: AwsSignedBodyValue.EmptySha256,

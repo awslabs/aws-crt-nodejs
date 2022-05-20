@@ -10,7 +10,7 @@
 
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
-import { AwsSigningConfig } from "./auth";
+import * as auth from "./auth";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
@@ -35,6 +35,11 @@ export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../co
  * @category MQTT
  */
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
+
+/**
+ * @category MQTT
+ */
+ export type AWSCredentials = auth.AWSCredentials;
 
 /**
  * Configuration options for an MQTT connection
@@ -111,7 +116,7 @@ export interface MqttConnectionConfig {
     websocket?: WebsocketOptions;
 
     /** AWS credentials, which will be used to sign the websocket request */
-    credentialConfig: AwsSigningConfig;
+    credentialConfig: auth.AwsSigningConfig;
 }
 
 /**
@@ -373,7 +378,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
-                console.log("success connect...")
                 resolve(connack.sessionPresent);
             });
             this.connection.once('error', on_connect_error);
