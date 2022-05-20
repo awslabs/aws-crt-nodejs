@@ -11,14 +11,14 @@
  * @preferred
  */
 
- import { AwsSigningConfig } from '../common/auth';
+ import { AwsSigningConfigBase } from '../common/auth';
 
  
  /**
  * Standard AWS Credentials
  *
  */
-  export interface AWSBrowserCredentials{
+  export interface AWSCredentials{
     /** AWS region */
     aws_region: string,
     /** AWS access id */
@@ -26,7 +26,9 @@
     /** AWS secret access key */
     aws_secret_key: string,
     /** Session token for session credentials */
-    aws_sts_token?: string
+    aws_sts_token?: string,
+    /** external credential provider */
+    aws_provider ?: any,
 }
 
  /**
@@ -34,11 +36,10 @@
   *
   * @category Auth
   */
-export interface AWSBrowserSigningConfig extends AwsSigningConfig{
+export interface AwsSigningConfig extends AwsSigningConfigBase{
      /** callback for refresh credential when session expired, returns AWSBrowserCredentials
-      * @param provider. The callback will pass the provider as a parameter
-      * @param credentials The callback should update the credentials on refresh
-     */
-      refreshIdentityCallback: Function;
-      credentials?: AWSBrowserCredentials;
+      * @param credentials_provider. The callback will pass the provider as a parameter
+    */
+      updateCredentialCallback?: Function;
+      credentials_provider?: AWSCredentials;
 }

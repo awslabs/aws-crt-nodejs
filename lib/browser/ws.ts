@@ -9,7 +9,7 @@
  */
 
 import { MqttConnectionConfig } from "./mqtt";
-import { AWSBrowserCredentials } from "./auth";
+import { AWSCredentials } from "./auth";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
 
@@ -39,7 +39,7 @@ function canonical_day(time: string = canonical_time()) {
     return time.substring(0, time.indexOf('T'));
 }
 
-function make_signing_key(credentials: AWSBrowserCredentials, day: string, service_name: string) {
+function make_signing_key(credentials: AWSCredentials, day: string, service_name: string) {
     const hash_opts = { asBytes: true };
     let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key, hash_opts);
     hash = Crypto.HmacSHA256(credentials.aws_region || '', hash, hash_opts);
@@ -50,7 +50,7 @@ function make_signing_key(credentials: AWSBrowserCredentials, day: string, servi
 
 function sign_url(method: string,
     url: URL,
-    credentials: AWSBrowserCredentials,
+    credentials: AWSCredentials,
     service_name: string,
     time: string = canonical_time(),
     day: string = canonical_day(time),
@@ -82,9 +82,11 @@ export function create_websocket_url(config: MqttConnectionConfig) {
     console.log("creating url");
     if (protocol === 'wss') {
         // Trigger refresh the credential
-        config.credentialConfig.refreshIdentityCallback(config.credentialConfig.provider, config.credentialConfig.credentials);
+        if(config.credentialConfig.updateCredentialCallback &&
+            config.credentialConfig.credentials_provider)
+            config.credentialConfig.updateCredentialCallback(config.credentialConfig.credentials_provider);
         const service_name = 'iotdevicegateway';
-        const credentials = config.credentialConfig.credentials!;
+        const credentials = config.credentialConfig.credentials_provider!;
         const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${credentials.aws_access_id}` +
             `%2F${day}%2F${credentials.aws_region}%2F${service_name}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
         const url = new URL(`wss://${config.host_name}${path}?${query_params}`);

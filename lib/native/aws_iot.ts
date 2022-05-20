@@ -166,7 +166,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                     ?? {
                     algorithm: AwsSigningAlgorithm.SigV4,
                     signature_type: AwsSignatureType.HttpRequestViaQueryParams,
-                    provider: options.credentials_provider,
+                    credentials_provider: options.credentials_provider,
                     region: options.region,
                     service: options.service ?? "iotdevicegateway",
                     signed_body_value: AwsSignedBodyValue.EmptySha256,
