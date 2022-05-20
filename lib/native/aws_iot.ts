@@ -19,13 +19,13 @@ import { HttpProxyOptions } from "./http";
 import {
     AwsSignatureType,
     AwsSignedBodyValue,
-    AwsSigningAlgorithm,
-    AwsSigningConfig
+    AwsSigningAlgorithm
 } from "../common/auth";
 
 import {
     aws_sign_request,
-    AwsCredentialsProvider
+    AwsCredentialsProvider,
+    AwsSigningConfig
 } from "./auth"
 
 /**

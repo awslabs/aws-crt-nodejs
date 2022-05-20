@@ -12,7 +12,7 @@
  */
 
 import { InputStream, TlsContextOptions } from "./io";
-import { AwsSigningConfig } from "../common/auth";
+import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
 

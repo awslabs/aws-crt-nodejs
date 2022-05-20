@@ -15,7 +15,7 @@ import crt_native from './binding';
 import { CrtError } from './error';
 import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
-import { StringLike, AwsSigningConfig} from '../common/auth'
+import { StringLike, AwsSigningConfigBase} from '../common/auth'
 
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
@@ -45,6 +45,12 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
         return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
     }
 }
+
+export interface AwsSigningConfig extends AwsSigningConfigBase {
+    /** Sources the AWS Credentials used to sign the websocket connection handshake */
+    credentials_provider: AwsCredentialsProvider;
+}
+
 
 /**
  * Perform AWS HTTP request signing.
