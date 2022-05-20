@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
- import { mqtt, iot, CrtError, AWSCredentials } from "aws-crt";
+ import { mqtt, iot, CrtError } from "aws-crt";
  import * as AWS from "aws-sdk";
  import Config = require('./config');
  import jquery = require("jquery");
@@ -33,6 +33,9 @@
  }
  
  async function connect_websocket(original_credential: AWS.CognitoIdentityCredentials) {
+    const credentials_provider = new AWS.CognitoIdentityCredentials({
+        IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID
+    });
      return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
          AWS.config.region = Config.AWS_REGION;
          let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
@@ -40,23 +43,23 @@
              .with_client_id(`pub_sub_sample(${new Date()})`)
              .with_endpoint(Config.AWS_IOT_ENDPOINT)
              .with_credentials( Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken, 
-                original_credential, (provider : AWS.CognitoIdentityCredentials, credentials : AWSCredentials ) => {
-                 if(provider.needsRefresh())
+                credentials_provider, (provider : mqtt.AWSCredentials) => {
+                 if(credentials_provider.needsRefresh())
                  {
-                     provider.refresh((err: any) => {
+                    credentials_provider.refresh((err: any) => {
                          if (err) {
                              log(`Error fetching cognito credentials: ${err}`);
                          }
                          else
                          {
                              log('Cognito credentials refreshed');
-                             credentials = {
+                             provider = {
                                  aws_region:  Config.AWS_REGION,
-                                 aws_access_id : provider.accessKeyId,
-                                 aws_secret_key : provider.secretAccessKey,
-                                 aws_sts_token : provider.sessionToken
+                                 aws_access_id : credentials_provider.accessKeyId,
+                                 aws_secret_key : credentials_provider.secretAccessKey,
+                                 aws_sts_token : credentials_provider.sessionToken
                              };
-                             log(`Identity Expires: ${provider.expireTime}`);
+                             log(`Identity Expires: ${credentials_provider.expireTime}`);
                          }
                      });
                  }
