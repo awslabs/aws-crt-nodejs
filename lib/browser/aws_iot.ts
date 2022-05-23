@@ -35,13 +35,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             will: undefined,
             username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
             password: undefined,
-            websocket: {},
-            credentialConfig: {
-                algorithm: 0,
-                signature_type: 0,
-                service: "iotdevicegateway",
-                region: ""
-            },
+            websocket: {}
         };
     }
 
@@ -190,9 +184,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns this builder object
      */
     with_websocket_headers(headers: { [index: string]: string }) {
-        this.params.websocket = {
-            headers: headers
-        };
+        this.params.websocket.headers = headers;
         return this;
     }
 
@@ -202,20 +194,31 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param aws_access_id IAM Access ID
      * @param aws_secret_key IAM Secret Key
      * @param aws_sts_token session credentials token (optional)
-     *
+     * @param customer_provider credential provider used to update credential when session expired (optional)
+     * @param updateCredentialCallback callback used to update credential when session expired (optional)
+     * @param expiration_in_seconds the credential expiration time. The update callback will get called every <expiration_in_seconds> seconds (optional)
+     * 
      * @returns this builder object
      */
      with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string,
-            customer_provider? : any, updateCredentialCallback?: Function) {
-        this.params.credentialConfig.credentials_provider = {
+            customer_provider? : any, updateCredentialCallback?: Function, expiration_in_seconds? : number) {
+        this.params.websocket.credentials_provider = {
             aws_region: aws_region,
             aws_access_id: aws_access_id,
             aws_secret_key: aws_secret_key,
             aws_sts_token: aws_sts_token,
             aws_provider: customer_provider
+            };
+        this.params.websocket.updateCredentialCallback = updateCredentialCallback;
+        this.params.websocket.expiration_time = expiration_in_seconds;
 
-        };
-        this.params.credentialConfig.updateCredentialCallback = updateCredentialCallback;
+        // Setup the update internal when the credential expired.
+        if(this.params.websocket.credentials_provider )
+        {
+            setInterval( ()=>{
+            this.params.websocket.updateCredentialCallback?.(this.params.websocket.credentials_provider);},
+            (this.params.websocket.expiration_time?? 360) * 1000 );    
+        }
         return this;
     }
 

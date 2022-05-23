@@ -37,11 +37,11 @@ export interface AWSCredentials{
  * @category Auth
  */
 export interface AwsSigningConfig extends AwsSigningConfigBase{
-    /** callback for refresh credential when session expired, returns AWSBrowserCredentials
-     *  @param credentials_provider. The callback will pass the provider as a parameter
-     */
-    updateCredentialCallback?: Function;
 
     /** AWS Credentials used to sign the websocket connection */
-    credentials_provider?: AWSCredentials;
+    provider: AWSCredentials;
+
+    day: string;
+
+    time: string;
 }
