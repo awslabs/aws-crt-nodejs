@@ -77,18 +77,17 @@ function sign_url(method: string,
 export function create_websocket_url(config: MqttConnectionConfig) {
     const path = '/mqtt';
     const protocol = (config.websocket || {}).protocol || 'wss';
-    console.log("creating url");
-    const websocketoptions = config.websocket!;
-    const provider = websocketoptions.credentials_provider;
-    if(provider){
-        // trigger credential update
-        websocketoptions.updateCredentialCallback?.(provider);
-    }
     if (protocol === 'wss') {
+        const websocketoptions = config.websocket!;
+        const credential = websocketoptions.credentials_provider!;
+        if( credential.aws_access_id == undefined ||
+            credential.aws_secret_key == undefined ||
+            credential.aws_region == undefined){
+                throw new URIError('Invalid credential on creating websocket url');
+        }
         const signing_config_value = websocketoptions.create_signing_config?.()
                     ?? {
                     service: websocketoptions.service ?? "iotdevicegateway",
-                    time:  canonical_time(new Date()),
                     provider: websocketoptions.credentials_provider
                 };
         const signing_config = signing_config_value as AwsSigningConfig;

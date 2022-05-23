@@ -11,7 +11,7 @@
  * @preferred
  */
 
- import { AwsSigningConfigBase } from '../common/auth';
+import { AwsSigningConfigBase } from '../common/auth';
 
  
 /**

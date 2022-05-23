@@ -338,6 +338,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_offline = () => {
+        this.update_credential_token();
         this.emit('interrupt', -1);
     }
 
@@ -358,6 +359,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
             callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
+    }
+
+    private async update_credential_token()
+    {
+        if(this.config.websocket.credentials_provider)
+        {
+            await this.config.websocket.updateCredentialCallback?.(this.config.websocket.credentials_provider);
+        }
     }
 
     /**
