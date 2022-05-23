@@ -217,7 +217,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         {
             setInterval( ()=>{
             this.params.websocket.updateCredentialCallback?.(this.params.websocket.credentials_provider);},
-            (this.params.websocket.expiration_time?? 360) * 1000 );    
+            (this.params.websocket.expiration_time?? 3600) * 1000 );    
         }
         return this;
     }
