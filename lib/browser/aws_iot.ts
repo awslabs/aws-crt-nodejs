@@ -35,7 +35,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             will: undefined,
             username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
             password: undefined,
-            websocket: {}
+            websocket: {},
         };
     }
 

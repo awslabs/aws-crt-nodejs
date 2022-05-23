@@ -39,7 +39,7 @@ export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
 /**
  * @category MQTT
  */
- export type AWSCredentials = auth.AWSCredentials;
+export type AWSCredentials = auth.AWSCredentials;
 
 /**
  * Configuration options for an MQTT connection

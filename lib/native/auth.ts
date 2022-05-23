@@ -22,14 +22,14 @@ import { ClientBootstrap } from './io';
  *
  * @category Auth
  */
-export type AwsSigningAlgorithm = auth.AwsSigningAlgorithm;
+export import AwsSigningAlgorithm = auth.AwsSigningAlgorithm;
 
 /**
  * AWS signature type enumeration.
  *
  * @category Auth
  */
-export type AwsSignatureType = auth.AwsSignatureType;
+export import AwsSignatureType = auth.AwsSignatureType;
 
 /**
  * Values for use with {@link AwsSigningConfig.signed_body_value}.
@@ -39,14 +39,14 @@ export type AwsSignatureType = auth.AwsSignatureType;
  *
  * @category Auth
  */
-export type AwsSignedBodyValue = auth.AwsSignedBodyValue;
+export import AwsSignedBodyValue = auth.AwsSignedBodyValue;
 
 /**
  * AWS signed body header enumeration.
  *
  * @category Auth
  */
-export type AwsSignedBodyHeaderType = auth.AwsSignedBodyHeaderType;
+export import AwsSignedBodyHeaderType = auth.AwsSignedBodyHeaderType;
 
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
@@ -84,7 +84,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
  *
  * @category Auth
  */
-export interface AwsSigningConfig {
+export interface AwsSigningConfig extends auth.AwsSigningConfigBase {
     /** Which signing process to invoke */
     algorithm: AwsSigningAlgorithm;
 

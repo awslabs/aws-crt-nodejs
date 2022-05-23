@@ -92,6 +92,7 @@ export function create_websocket_url(config: MqttConnectionConfig) {
                     provider: websocketoptions.credentials_provider
                 };
         const signing_config = signing_config_value as AwsSigningConfig;
+        signing_config.time = canonical_time(new Date());
         signing_config.day = canonical_day(signing_config.time);
         const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.provider.aws_access_id}` +
             `%2F${signing_config.day}%2F${signing_config.provider.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${signing_config.time}&X-Amz-SignedHeaders=host`;
