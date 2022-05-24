@@ -77,9 +77,20 @@
             "test:native"
         ],
         [
-            "npm",
-            "install",
+            "cd",
             "{project_dir}/samples/node/elasticurl/"
+        ],
+        [
+            "npm",
+            "install"
+        ],
+        [
+            "cd",
+            "{project_dir}"
+        ],
+        [
+            "cd",
+            ".."
         ],
         [
             "{python}",
