@@ -46,7 +46,6 @@
     "yargs": "^17.2.1"
   },
   "dependencies": {
-    "@httptoolkit/websocket-stream": "^6.0.0",
     "axios": "^0.24.0",
     "cmake-js": "6.3.0",
     "crypto-js": "^4.0.0",
