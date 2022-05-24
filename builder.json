@@ -78,7 +78,7 @@
         ],
         [
             "cd",
-            "{project_dir}/samples/node/elasticurl/"
+            "samples/node/elasticurl/"
         ],
         [
             "npm",
@@ -86,11 +86,7 @@
         ],
         [
             "cd",
-            "{project_dir}"
-        ],
-        [
-            "cd",
-            ".."
+            "../../.."
         ],
         [
             "{python}",
