@@ -21,7 +21,7 @@
     "install:puppeteer": "npm install --save-dev jest-puppeteer puppeteer @types/puppeteer",
     "prepare": "node ./scripts/tsc.js && node ./scripts/build.js",
     "install": "node ./scripts/install.js",
-    "preinstall": "npm install npm-force-resolutions --save-dev; npm-force-resolutions"
+    "preinstall": "npx --yes npm-force-resolutions"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
