@@ -73,16 +73,17 @@
     "test_steps": [
         [
             "npm",
-            "install"
-        ],
-        [
-            "npm",
             "run",
             "test:native"
         ],
         [
             "cd",
-            "samples/node/elasticurl/"
+            "{project_dir}/samples/node/elasticurl"
+        ],
+        [
+            "npm",
+            "install",
+            "{project_dir}"
         ],
         [
             "npm",
@@ -90,7 +91,7 @@
         ],
         [
             "cd",
-            "../../.."
+            "{project_dir}"
         ],
         [
             "{python}",

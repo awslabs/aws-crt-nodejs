@@ -27,7 +27,7 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
-    "aws-crt": "file:../../../",
+    "aws-crt": "file:../../..",
     "yargs": "^17.2.1"
   }
 }
