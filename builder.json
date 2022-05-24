@@ -53,8 +53,7 @@
     "build_steps": [
         [
             "npm",
-            "install",
-            "--ignore-scripts"
+            "install"
         ],
         [
             "node",
