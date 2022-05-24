@@ -53,7 +53,8 @@
     "build_steps": [
         [
             "npm",
-            "install"
+            "install",
+            "--ignore-scripts"
         ],
         [
             "node",
@@ -70,6 +71,10 @@
         "AWS_CRT_MEMORY_TRACING": "2"
     },
     "test_steps": [
+        [
+            "npm",
+            "install"
+        ],
         [
             "npm",
             "run",
