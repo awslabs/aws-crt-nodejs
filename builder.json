@@ -90,15 +90,15 @@
         [
             "npm",
             "--prefix",
-            "{project_dir}/samples/node/elasticurl",
+            "samples/node/elasticurl",
             "install",
-            "{project_dir}/samples/node/elasticurl"
+            "samples/node/elasticurl"
         ],
         [
             "{python}",
-            "{project_dir}/crt/aws-c-http/integration-testing/http_client_test.py",
+            "crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
-            "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
+            "samples/node/elasticurl/dist/elasticurl.js"
         ],
         "crt-size-check"
     ]
