@@ -14,6 +14,7 @@
 import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
+import * as iot_shared from "../common/aws_iot_shared"
 
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
@@ -219,24 +220,6 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * A helper function to add parameters to the username in with_custom_authorizer function
-     */
-     private add_username_parameter(input_string : string, parameter_value : string, parameter_pre_text : string, added_string_to_username : boolean) {
-        let return_string = input_string;
-        if (added_string_to_username == false) {
-            return_string += "?";
-        } else {
-            return_string += "&"
-        }
-
-        if (parameter_value.indexOf(parameter_pre_text) != -1) {
-            return return_string + parameter_value;
-        } else {
-            return return_string + parameter_pre_text + parameter_value;
-        }
-    }
-
-    /**
      * Sets the custom authorizer settings. This function will modify the username, port, and TLS options.
      *
      * @param username The username to use with the custom authorizer. If an empty string is passed, it will
@@ -250,33 +233,14 @@ export class AwsIotMqttConnectionConfigBuilder {
      *                 be set.
      */
     with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string) {
-        let username_string = "";
-        let added_string_to_username = false;
-
-        if (username == "" || username == null) {
-            if (this.params.username != "" && this.params.username != null && this.params.username != undefined) {
-                username_string += this.params.username;
-            }
-        }
-        else {
-            username_string += username;
-        }
-
-        if (authorizer_name != "" && authorizer_name != null) {
-            username_string = this.add_username_parameter(username_string, authorizer_name, "x-amz-customauthorizer-name=", added_string_to_username);
-            added_string_to_username = true;
-        }
-        if (authorizer_signature != "" && authorizer_signature != null) {
-            username_string = this.add_username_parameter(username_string, authorizer_signature, "x-amz-customauthorizer-signature=", added_string_to_username);
-        }
-
+        let username_string = iot_shared.populate_username_string_with_custom_authorizer(
+            "", username, authorizer_name, authorizer_signature, this.params.username);
         this.params.username = username_string;
         this.params.password = password;
         // Tells the websocket connection we are using a custom authorizer
         if (this.params.websocket) {
              this.params.websocket.protocol = "wss-custom-auth";
         }
-
         return this;
     }
 
