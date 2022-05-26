@@ -237,7 +237,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
         } : undefined;
 
         const websocketXform = (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
-
         this.connection = new mqtt.MqttClient(
             create_websocket_stream,
             {

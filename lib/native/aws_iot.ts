@@ -24,6 +24,7 @@ import {
     AwsSigningAlgorithm,
     AwsSigningConfig
 } from "./auth";
+import * as iot_shared from "../common/aws_iot_shared"
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -67,6 +68,7 @@ export interface WebsocketConfig {
  */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig
+    private is_using_custom_authorizer: boolean
 
     private constructor(private tls_ctx_options: TlsContextOptions) {
         this.params = {
@@ -78,10 +80,11 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: `?SDK=NodeJSv2&Version=${platform.crt_version()}`,
+            username: "",
             password: undefined,
             tls_ctx: undefined,
         };
+        this.is_using_custom_authorizer = false
     }
 
     /**
@@ -149,6 +152,15 @@ export class AwsIotMqttConnectionConfigBuilder {
             builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
         }
 
+        return builder;
+    }
+
+    /**
+     * Creates a new builder with default Tls options. This requires setting the connection details manually.
+     */
+    static new_default_builder() {
+        let ctx_options = new io.TlsContextOptions();
+        let builder = new AwsIotMqttConnectionConfigBuilder(ctx_options);
         return builder;
     }
 
@@ -343,6 +355,50 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Sets the custom authorizer settings. This function will modify the username, port, and TLS options.
+     *
+     * @param username The username to use with the custom authorizer. If an empty string is passed, it will
+     *                 check to see if a username has already been set (via WithUsername function). If no
+     *                 username is set then no username will be passed with the MQTT connection.
+     * @param authorizerName The name of the custom authorizer. If an empty string is passed, then
+     *                       'x-amz-customauthorizer-name' will not be added with the MQTT connection.
+     * @param authorizerSignature The signature of the custom authorizer. If an empty string is passed, then
+     *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
+     * @param password The password to use with the custom authorizer. If null is passed, then no password will
+     *                 be set.
+     */
+    with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string) {
+        this.is_using_custom_authorizer = true;
+        let username_string = iot_shared.populate_username_string_with_custom_authorizer(
+            "", username, authorizer_name, authorizer_signature, this.params.username);
+        this.params.username = username_string;
+        this.params.password = password;
+        this.tls_ctx_options.alpn_list = ["mqtt"];
+        this.params.port = 443;
+        return this;
+    }
+
+    /**
+     * Sets username for the connection
+     *
+     * @param username the username that will be passed with the MQTT connection
+     */
+    with_username(username : string) {
+        this.params.username = username;
+        return this;
+    }
+
+    /**
+     * Sets password for the connection
+     *
+     * @param password the password that will be passed with the MQTT connection
+     */
+    with_password(password : string) {
+        this.params.password = password;
+        return this;
+    }
+
+    /**
      * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the TLS context is cached
      * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
@@ -350,6 +406,25 @@ export class AwsIotMqttConnectionConfigBuilder {
     build() {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
+        }
+
+        // Check to see if a custom authorizer is being used but not through the builder
+        if (this.is_using_custom_authorizer == false) {
+            if (iot_shared.is_string_and_not_empty(this.params.username)) {
+                if (this.params.username?.indexOf("x-amz-customauthorizer-name=") != -1 || this.params.username?.indexOf("x-amz-customauthorizer-signature=") != -1) {
+                    this.is_using_custom_authorizer = true;
+                }
+            }
+        }
+
+        // Is the user trying to connect using a custom authorizer?
+        if (this.is_using_custom_authorizer == true) {
+            if (this.params.port != 443) {
+                console.log("Warning: Attempting to connect to authorizer with unsupported port. Port is not 443...");
+            }
+            if (this.tls_ctx_options.alpn_list != ["mqtt"]) {
+                this.tls_ctx_options.alpn_list = ["mqtt"]
+            }
         }
 
         /*
@@ -361,6 +436,18 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.params.tls_ctx === undefined) {
             this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
         }
+
+        // Add the metrics string
+        if (iot_shared.is_string_and_not_empty(this.params.username) == false) {
+            this.params.username = "?SDK=NodeJSv2&Version="
+        } else {
+            if (this.params.username?.indexOf("?") != -1) {
+                this.params.username += "&SDK=NodeJSv2&Version="
+            } else {
+                this.params.username += "?SDK=NodeJSv2&Version="
+            }
+        }
+        this.params.username += platform.crt_version()
 
         return this.params;
     }
