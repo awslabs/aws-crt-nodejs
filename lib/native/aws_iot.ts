@@ -410,8 +410,8 @@ export class AwsIotMqttConnectionConfigBuilder {
 
         // Check to see if a custom authorizer is being used but not through the builder
         if (this.is_using_custom_authorizer == false) {
-            if (iot_shared.is_string_and_not_empty(this.params.username) && this.params.username) {
-                if (this.params.username.indexOf("x-amz-customauthorizer-name=") != -1 || this.params.username.indexOf("x-amz-customauthorizer-signature=") != -1) {
+            if (iot_shared.is_string_and_not_empty(this.params.username)) {
+                if (this.params.username?.indexOf("x-amz-customauthorizer-name=") != -1 || this.params.username?.indexOf("x-amz-customauthorizer-signature=") != -1) {
                     this.is_using_custom_authorizer = true;
                 }
             }
@@ -441,12 +441,10 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (iot_shared.is_string_and_not_empty(this.params.username) == false) {
             this.params.username = "?SDK=NodeJSv2&Version="
         } else {
-            if (this.params.username) { // needed to fix possibly undefined error
-                if (this.params.username.indexOf("?") != -1) {
-                    this.params.username += "&SDK=NodeJSv2&Version="
-                } else {
-                    this.params.username += "?SDK=NodeJSv2&Version="
-                }
+            if (this.params.username?.indexOf("?") != -1) {
+                this.params.username += "&SDK=NodeJSv2&Version="
+            } else {
+                this.params.username += "?SDK=NodeJSv2&Version="
             }
         }
         this.params.username += platform.crt_version()

@@ -36,7 +36,7 @@
  * A helper function to see if a string is not null, is defined, and is not an empty string
  */
  export function is_string_and_not_empty(item : any) {
-    return item != undefined && item != null && item != "";
+    return item != undefined && typeof(item) == 'string' && item != "";
 }
 
 /**
