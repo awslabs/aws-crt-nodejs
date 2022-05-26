@@ -88,13 +88,6 @@
             "../../../"
         ],
         [
-            "npm",
-            "--prefix",
-            "samples/node/elasticurl",
-            "install",
-            "samples/node/elasticurl"
-        ],
-        [
             "{python}",
             "{project_dir}/crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
