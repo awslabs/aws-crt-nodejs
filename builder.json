@@ -77,18 +77,12 @@
             "test:native"
         ],
         [
-            "cd",
-            "{project_dir}/samples/node/elasticurl/"
-        ],
-        [
             "npm",
+            "--prefix",
+            "{project_dir}/samples/node/elasticurl/",
             "install",
-            "{project_dir}",
+            "{project_dir}/samples/node/elasticurl/",
             "--unsafe-perm"
-        ],
-        [
-            "cd",
-            "../../../"
         ],
         [
             "{python}",
