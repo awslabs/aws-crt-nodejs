@@ -82,7 +82,8 @@
         [
             "npm",
             "install",
-            "{project_dir}"
+            "{project_dir}",
+            "--unsafe-perm"
         ],
         [
             "npx",
@@ -101,7 +102,8 @@
             "--prefix",
             "{project_dir}/samples/node/elasticurl/",
             "install",
-            "{project_dir}/samples/node/elasticurl/"
+            "{project_dir}/samples/node/elasticurl/",
+            "--unsafe-perm"
         ],
         [
             "ls",
