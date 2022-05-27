@@ -78,17 +78,17 @@
         ],
         [
             "npm",
-            "install",
-            "-g",
-            "typescript@3.8.3"
-        ],
-        [
-            "npm",
             "--prefix",
             "{project_dir}/samples/node/elasticurl/",
             "install",
             "{project_dir}/samples/node/elasticurl/",
             "--unsafe-perm"
+        ],
+        [
+            "tsc",
+            "{project_dir}/samples/node/elasticurl/elasticurl.ts",
+            "--outDir",
+            "{project_dir}/samples/node/elasticurl/dist/"
         ],
         [
             "{python}",
