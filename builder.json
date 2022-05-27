@@ -85,6 +85,7 @@
             "--unsafe-perm"
         ],
         [
+            "npx",
             "tsc",
             "{project_dir}/samples/node/elasticurl/elasticurl.ts",
             "--outDir",
