@@ -91,9 +91,17 @@
         [
             "npm",
             "--prefix",
-            "./samples/node/elasticurl/",
+            "{project_dir}/samples/node/elasticurl/",
             "install",
-            "./samples/node/elasticurl/"
+            "{project_dir}/samples/node/elasticurl/"
+        ],
+        [
+            "ls",
+            "{project_dir}/samples/node/elasticurl/"
+        ],
+        [
+            "ls",
+            "{project_dir}/samples/node/elasticurl/dist"
         ],
         [
             "{python}",
