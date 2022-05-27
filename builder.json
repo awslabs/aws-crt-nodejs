@@ -89,6 +89,10 @@
             "tsc"
         ],
         [
+            "ls",
+            "{project_dir}/samples/node/elasticurl/"
+        ],
+        [
             "cd",
             "../../../"
         ],
