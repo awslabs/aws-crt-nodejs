@@ -77,7 +77,7 @@
         ],
         [
             "cd",
-            "{project_dir}/samples/node/elasticurl"
+            "{project_dir}/samples/node/elasticurl/"
         ],
         [
             "npm",
@@ -90,15 +90,16 @@
         [
             "npm",
             "--prefix",
-            "samples/node/elasticurl",
+            "./samples/node/elasticurl/",
+            "--es-module-specifier-resolution=node",
             "install",
-            "samples/node/elasticurl"
+            "./samples/node/elasticurl/"
         ],
         [
             "{python}",
-            "crt/aws-c-http/integration-testing/http_client_test.py",
+            "./crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
-            "samples/node/elasticurl/dist/elasticurl.js"
+            "./samples/node/elasticurl/dist/elasticurl.js"
         ],
         "crt-size-check"
     ]
