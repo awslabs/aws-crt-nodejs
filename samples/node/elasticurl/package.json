@@ -5,7 +5,7 @@
   "main": "./dist/elasticurl.js",
   "scripts": {
     "test": "tsc && node ./dist/elasticurl.js -v TRACE -i https://example.com",
-    "install": "tsc && npx tsc"
+    "install": "tsc"
   },
   "repository": {
     "type": "git",
@@ -24,7 +24,7 @@
   "homepage": "https://github.com/awslabs/aws-crt-nodejs#readme",
   "devDependencies": {
     "@types/node": "^10.17.17",
-    "typescript": "^3.8.3"
+    "typescript": "^3.9.9"
   },
   "dependencies": {
     "aws-crt": "file:../../..",
