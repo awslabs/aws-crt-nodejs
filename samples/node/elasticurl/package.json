@@ -5,7 +5,7 @@
   "main": "./dist/elasticurl.js",
   "scripts": {
     "test": "tsc && node ./dist/elasticurl.js -v TRACE -i https://example.com",
-    "install": "tsc --force"
+    "install": "tsc"
   },
   "repository": {
     "type": "git",
