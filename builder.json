@@ -91,7 +91,6 @@
             "npm",
             "--prefix",
             "./samples/node/elasticurl/",
-            "--es-module-specifier-resolution=node",
             "install",
             "./samples/node/elasticurl/"
         ],
