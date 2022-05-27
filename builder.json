@@ -82,7 +82,7 @@
         [
             "npm",
             "install",
-            "../../../"
+            "{project_dir}"
         ],
         [
             "cd",
@@ -97,9 +97,9 @@
         ],
         [
             "{python}",
-            "./crt/aws-c-http/integration-testing/http_client_test.py",
+            "{project_dir}/crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
-            "./samples/node/elasticurl/dist/elasticurl.js"
+            "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
         ],
         "crt-size-check"
     ]
