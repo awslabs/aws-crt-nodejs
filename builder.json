@@ -97,8 +97,7 @@
         [
             "{python}",
             "./crt/aws-c-http/integration-testing/http_client_test.py",
-            "node",
-            "--experimental-specifier-resolution=node",
+            "node --experimental-specifier-resolution=node",
             "./samples/node/elasticurl/dist/elasticurl.js"
         ],
         "crt-size-check"
