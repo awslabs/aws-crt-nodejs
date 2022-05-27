@@ -78,8 +78,6 @@
         ],
         [
             "npm",
-            "--prefix",
-            "{project_dir}/samples/node/elasticurl/",
             "install",
             "{project_dir}/samples/node/elasticurl/",
             "--unsafe-perm"
