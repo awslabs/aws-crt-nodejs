@@ -87,7 +87,8 @@
         [
             "npx",
             "tsc",
-            "{project_dir}/samples/node/elasticurl/elasticurl.ts",
+            "--project",
+            "{project_dir}/samples/node/elasticurl",
             "--outDir",
             "{project_dir}/samples/node/elasticurl/dist/"
         ],
