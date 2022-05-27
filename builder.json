@@ -91,14 +91,6 @@
             "../../../"
         ],
         [
-            "npm",
-            "--prefix",
-            "{project_dir}/samples/node/elasticurl/",
-            "install",
-            "{project_dir}/samples/node/elasticurl/",
-            "--unsafe-perm"
-        ],
-        [
             "{python}",
             "{project_dir}/crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
