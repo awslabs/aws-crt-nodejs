@@ -78,6 +78,12 @@
         ],
         [
             "npm",
+            "install",
+            "-g",
+            "typescript@3.8.3"
+        ],
+        [
+            "npm",
             "--prefix",
             "{project_dir}/samples/node/elasticurl/",
             "install",
