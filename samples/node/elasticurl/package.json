@@ -24,10 +24,10 @@
   "homepage": "https://github.com/awslabs/aws-crt-nodejs#readme",
   "devDependencies": {
     "@types/node": "^10.17.17",
-    "typescript": "^3.9.9"
+    "typescript": "^3.8.3"
   },
   "dependencies": {
-    "aws-crt": "file:../../..",
+    "aws-crt": "file:../../../",
     "yargs": "^17.2.1"
   }
 }

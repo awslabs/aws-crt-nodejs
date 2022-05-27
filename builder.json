@@ -87,10 +87,6 @@
             "--unsafe-perm"
         ],
         [
-            "ls",
-            "{project_dir}/samples/node/elasticurl/"
-        ],
-        [
             "cd",
             "../../../"
         ],
@@ -101,14 +97,6 @@
             "install",
             "{project_dir}/samples/node/elasticurl/",
             "--unsafe-perm"
-        ],
-        [
-            "ls",
-            "{project_dir}/samples/node/elasticurl/"
-        ],
-        [
-            "ls",
-            "{project_dir}/samples/node/elasticurl/dist"
         ],
         [
             "{python}",
