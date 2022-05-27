@@ -53,7 +53,8 @@
     "build_steps": [
         [
             "npm",
-            "install"
+            "install",
+            "--unsafe-perm"
         ],
         [
             "node",
@@ -84,10 +85,6 @@
             "install",
             "{project_dir}",
             "--unsafe-perm"
-        ],
-        [
-            "npx",
-            "tsc"
         ],
         [
             "ls",
