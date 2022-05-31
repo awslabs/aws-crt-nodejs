@@ -15,6 +15,7 @@ import { AWSCredentialsProviderCached, CredentialsProvider, StaticCredentialOpti
 import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
+import * as iot_shared from "../common/aws_iot_shared"
 
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
@@ -34,7 +35,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: `?SDK=BrowserJSv2&Version=${platform.crt_version()}`,
+            username: '',
             password: undefined,
             websocket: {},
         };
@@ -55,6 +56,15 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns a new websocket connection builder object with default TLS configuration
      */
     static new_with_websockets(...args: any[]) {
+        return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
+    }
+
+    /**
+     * For API compatibility with the native version. Alias for {@link new_builder_for_websocket}.
+     *
+     * @returns a new websocket connection builder object with default TLS configuration
+     */
+     static new_default_builder() {
         return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     }
 
@@ -230,6 +240,51 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Sets the custom authorizer settings. This function will modify the username, port, and TLS options.
+     *
+     * @param username The username to use with the custom authorizer. If an empty string is passed, it will
+     *                 check to see if a username has already been set (via WithUsername function). If no
+     *                 username is set then no username will be passed with the MQTT connection.
+     * @param authorizerName The name of the custom authorizer. If an empty string is passed, then
+     *                       'x-amz-customauthorizer-name' will not be added with the MQTT connection.
+     * @param authorizerSignature The signature of the custom authorizer. If an empty string is passed, then
+     *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
+     * @param password The password to use with the custom authorizer. If null is passed, then no password will
+     *                 be set.
+     */
+    with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string) {
+        let username_string = iot_shared.populate_username_string_with_custom_authorizer(
+            "", username, authorizer_name, authorizer_signature, this.params.username);
+        this.params.username = username_string;
+        this.params.password = password;
+        // Tells the websocket connection we are using a custom authorizer
+        if (this.params.websocket) {
+             this.params.websocket.protocol = "wss-custom-auth";
+        }
+        return this;
+    }
+
+    /**
+     * Sets username for the connection
+     *
+     * @param username the username that will be passed with the MQTT connection
+     */
+    with_username(username : string) {
+        this.params.username = username;
+        return this;
+    }
+
+    /**
+     * Sets password for the connection
+     *
+     * @param password the password that will be passed with the MQTT connection
+     */
+    with_password(password : string) {
+        this.params.password = password;
+        return this;
+    }
+
+    /**
      * Returns the configured MqttConnectionConfig
      * @returns The configured MqttConnectionConfig
      */
@@ -237,6 +292,18 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
         }
+
+        // Add the metrics string
+        if (this.params.username == undefined || this.params.username == null || this.params.username == "") {
+            this.params.username = "?SDK=NodeJSv2&Version="
+        } else {
+            if (this.params.username.indexOf("?") != -1) {
+                this.params.username += "&SDK=NodeJSv2&Version="
+            } else {
+                this.params.username += "?SDK=NodeJSv2&Version="
+            }
+        }
+        this.params.username += platform.crt_version()
 
         return this.params;
     }
