@@ -126,17 +126,6 @@ export interface WebsocketOptionsBase {
      */
      service?: string;
 
-    /**
-     *  For browser: credentials_provider is Type AWSCredentials
-     *  For native:  Type _crt_native_._AwsCredentialsProvider_
-     */
-    credentials_provider?: any;
-
-    /** callback for refresh credential on creating the wws url
-     *  @param credentials_provider. The callback will pass the provider as a parameter
-     */
-    updateCredentialCallback?: Function;
-
     /** expiration time */
     expiration_time?: number;
 }

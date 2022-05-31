@@ -46,6 +46,12 @@ export interface WebsocketConfig extends WebsocketOptionsBase{
 
     /** (Optional)  TLS configuration to use when establishing the connection */
     tls_ctx_options?: TlsContextOptions;
+
+    /**
+     *  For browser: credentials_provider is Type AWSCredentials
+     *  For native:  Type _crt_native_._AwsCredentialsProvider_
+     */
+    credentials_provider?: AwsCredentialsProvider;
 }
 
 /**

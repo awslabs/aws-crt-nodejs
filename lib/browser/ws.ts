@@ -9,7 +9,7 @@
  */
 
 import { MqttConnectionConfig } from "./mqtt";
-import { AWSCredentials, AwsSigningConfig} from "./auth";
+import { AWSCredentials, AWSCredentialsProviderCached, AwsSigningConfig} from "./auth";
 import { WebsocketOptionsBase } from "../common/auth";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
@@ -24,6 +24,8 @@ export interface WebsocketOptions extends WebsocketOptionsBase{
     headers?: { [index: string]: string };
     /** Websocket protocol, used during Upgrade */
     protocol?: string;
+
+    credentials_provider?: AWSCredentialsProviderCached;
 }
 
 function zero_pad(n: number) {
@@ -52,9 +54,9 @@ function make_signing_key(credentials: AWSCredentials, day: string, service_name
 function sign_url(method: string,
     url: URL,
     signing_config: AwsSigningConfig,
+    time: string = canonical_time(),
+    day: string = canonical_day(time),
     payload: string = '') {
-    const time = signing_config.time;
-    const day = signing_config.day;
     const signed_headers = 'host';
     const service = signing_config.service!;
     const canonical_headers = `host:${url.hostname.toLowerCase()}\n`;
@@ -62,12 +64,12 @@ function sign_url(method: string,
     const canonical_params = url.search.replace(new RegExp('^\\?'), '');
     const canonical_request = `${method}\n${url.pathname}\n${canonical_params}\n${canonical_headers}\n${signed_headers}\n${payload_hash}`;
     const canonical_request_hash = Crypto.SHA256(canonical_request, { asBytes: true });
-    const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${signing_config.provider.aws_region}/${service}/aws4_request\n${canonical_request_hash}`;
-    const signing_key = make_signing_key(signing_config.provider, day, service);
+    const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${signing_config.credentials.aws_region}/${service}/aws4_request\n${canonical_request_hash}`;
+    const signing_key = make_signing_key(signing_config.credentials, day, service);
     const signature = Crypto.HmacSHA256(signature_raw, signing_key, { asBytes: true });
     let query_params = `${url.search}&X-Amz-Signature=${signature}`;
-    if (signing_config.provider.aws_sts_token) {
-        query_params += `&X-Amz-Security-Token=${encodeURIComponent(signing_config.provider.aws_sts_token)}`;
+    if (signing_config.credentials.aws_sts_token) {
+        query_params += `&X-Amz-Security-Token=${encodeURIComponent(signing_config.credentials.aws_sts_token)}`;
     }
     const signed_url = `${url.protocol}//${url.hostname}${url.pathname}${query_params}`;
     return signed_url;
@@ -79,24 +81,20 @@ export function create_websocket_url(config: MqttConnectionConfig) {
     const protocol = (config.websocket || {}).protocol || 'wss';
     if (protocol === 'wss') {
         const websocketoptions = config.websocket!;
-        const credential = websocketoptions.credentials_provider!;
-        if( credential.aws_access_id == undefined ||
-            credential.aws_secret_key == undefined ||
-            credential.aws_region == undefined){
-                throw new URIError('Invalid credential on creating websocket url');
-        }
+        const credentials = websocketoptions.credentials_provider?.getCredentials();
         const signing_config_value = websocketoptions.create_signing_config?.()
                     ?? {
                     service: websocketoptions.service ?? "iotdevicegateway",
-                    provider: websocketoptions.credentials_provider
+                    credentials: credentials,
+                    date: new Date()
                 };
         const signing_config = signing_config_value as AwsSigningConfig;
-        signing_config.time = canonical_time(new Date());
-        signing_config.day = canonical_day(signing_config.time);
-        const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.provider.aws_access_id}` +
-            `%2F${signing_config.day}%2F${signing_config.provider.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${signing_config.time}&X-Amz-SignedHeaders=host`;
+        const time = canonical_time(signing_config.date);
+        const day = canonical_day(time);
+        const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.credentials.aws_access_id}` +
+            `%2F${day}%2F${signing_config.credentials.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
         const url = new URL(`wss://${config.host_name}${path}?${query_params}`);
-        return sign_url('GET', url, signing_config);
+        return sign_url('GET', url, signing_config, time, day);
     }
     else if (protocol === 'wss-custom-auth') {
         return `wss://${config.host_name}/${path}`;

@@ -4,57 +4,32 @@
  */
 
 import { mqtt, iot, CrtError } from "aws-crt";
-import * as AWS from "aws-sdk";
 import Config = require('./config');
 import jquery = require("jquery");
+import { AWSCognitoCredentialOptions, AWSCognitoCredentialProvider } from "aws-crt/dist.browser/browser/auth";
 const $: JQueryStatic = jquery;
 
 function log(msg: string) {
     $('#console').append(`<pre>${msg}</pre>`);
 }
 
-async function fetch_credentials() {
-    return new Promise<AWS.CognitoIdentityCredentials>((resolve, reject) => {
-        AWS.config.region = Config.AWS_REGION;
-        const credentials = AWS.config.credentials = new AWS.CognitoIdentityCredentials({
-            IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID
-        });
-        log('Fetching Cognito credentials');
-        credentials.refresh((err: any) => {
-            if (err) {
-                log(`Error fetching cognito credentials: ${err}`);
-                reject(`Error fetching cognito credentials: ${err}`);
-            }
-            log('Cognito credentials refreshed');
-            log(`Identity Expires: ${credentials.expireTime}`);
-            resolve(credentials);
-        });
-    });
-}
+//  async function fetch_credentials() {
+//     const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
+//     const provider = new AWSCognitoCredentialProvider(options);
+//     provider.refreshCredentialAsync()
+//     .then()
+//     resolve(provider);
+// }
 
-async function connect_websocket(original_credential: AWS.CognitoIdentityCredentials) {
+async function connect_websocket(provider: AWSCognitoCredentialProvider) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
-        AWS.config.region = Config.AWS_REGION;
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
-            .with_credentials( Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken, 
-                original_credential, (provider : mqtt.AWSCredentials) => {
-                provider.aws_provider.refresh((err: any) => {
-                    if (err) {
-                        log(`Error fetching cognito credentials: ${err}`);
-                    }
-                    else
-                    {
-                        log('Cognito credentials refreshed.');
-                        provider.aws_region = Config.AWS_REGION;
-                        provider.aws_access_id =  provider.aws_provider.accessKeyId;
-                        provider.aws_secret_key =  provider.aws_provider.secretAccessKey;
-                        provider.aws_sts_token = provider.aws_provider.sessionToken;
-                    }
-                });
-            })
+            /** A sample of static credential. Please note the static credential will fail when web session expired.*/
+            //.with_credentials(Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken)
+            .with_credential_provider(provider)
             .with_use_websockets()
             .with_keep_alive_seconds(30)
             .build();
@@ -86,8 +61,11 @@ async function connect_websocket(original_credential: AWS.CognitoIdentityCredent
 }
 
 async function main() {
-    fetch_credentials()
-        .then(connect_websocket)
+        const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
+        const provider = new AWSCognitoCredentialProvider(options);
+        /** Make sure the credential provider fetched before setup the connection */
+        await provider.refreshCredentialAsync();
+        connect_websocket(provider)
         .then((connection) => {
             log(`start subscribe`)
             connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {

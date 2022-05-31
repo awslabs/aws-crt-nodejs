@@ -11,6 +11,7 @@
  * @preferred
  */
 
+import { AWSCredentialsProviderCached, CredentialsProvider, StaticCredentialOptions, StaticCredentialProvider, CredentialsOptions} from "./auth"
 import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
@@ -189,36 +190,42 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configures AWS credentials (usually from Cognito) for this connection
+     * Configures Static AWS credentials for this connection. 
+     * Please note that the static credential will fail when the web session expired.
      * @param aws_region The service region to connect to
      * @param aws_access_id IAM Access ID
      * @param aws_secret_key IAM Secret Key
      * @param aws_sts_token session credentials token (optional)
-     * @param customer_provider credential provider used to update credential when session expired (optional)
-     * @param updateCredentialCallback callback used to update credential when session expired (optional)
-     * @param expiration_in_seconds the credential expiration time. The update callback will get called every <expiration_in_seconds> seconds (optional)
      * 
      * @returns this builder object
      */
-     with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string,
-            customer_provider? : any, updateCredentialCallback?: Function, expiration_in_seconds? : number) {
-        this.params.websocket.credentials_provider = {
-            aws_region: aws_region,
-            aws_access_id: aws_access_id,
-            aws_secret_key: aws_secret_key,
-            aws_sts_token: aws_sts_token,
-            aws_provider: customer_provider
-            };
-        this.params.websocket.updateCredentialCallback = updateCredentialCallback;
-        this.params.websocket.expiration_time = expiration_in_seconds;
-
-        // Setup the update internal when the credential expired.
-        if(this.params.websocket.credentials_provider )
+     with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
+        const options = new StaticCredentialOptions(aws_region, aws_access_id, aws_secret_key,aws_sts_token);
+        if(this.params.websocket.credentials_provider == undefined)
         {
-            setInterval( ()=>{
-            this.params.websocket.updateCredentialCallback?.(this.params.websocket.credentials_provider);},
-            (this.params.websocket.expiration_time?? 3600) * 1000 );    
+            this.params.websocket.credentials_provider = new AWSCredentialsProviderCached(options);
         }
+        else
+        {
+            const provider = new StaticCredentialProvider(options);
+            this.params.websocket.credentials_provider.add_provider(provider)
+        }
+        return this;
+    }
+
+    /**
+     * Configures credentials provider (currently support for AWS Cognito Credential Provider) for this connection
+     * @param customer_provider credential provider used to update credential when session expired (optional)
+     * 
+     * @returns this builder object
+     */
+    with_credential_provider( customer_provider : CredentialsProvider) {
+        if( this.params.websocket.credentials_provider == undefined)
+        {
+            const option = new CredentialsOptions();
+            this.params.websocket.credentials_provider = new AWSCredentialsProviderCached(option);
+        }
+        this.params.websocket.credentials_provider.add_provider(customer_provider);
         return this;
     }
 
