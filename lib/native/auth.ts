@@ -20,74 +20,74 @@ import { ClientBootstrap } from './io';
 /**
  * @internal
  */
- export type StringLike = string | ArrayBuffer | DataView;
+type StringLike = string | ArrayBuffer | DataView;
 
- /**
-  * AWS signing algorithm enumeration.
-  *
-  * @category Auth
-  */
- export enum AwsSigningAlgorithm {
-     /** Use the Aws signature version 4 signing process to sign the request */
-     SigV4,
- 
-     /** Use the Aws signature version 4 Asymmetric signing process to sign the request */
-     SigV4Asymmetric
- }
- 
- /**
-  * AWS signature type enumeration.
-  *
-  * @category Auth
-  */
- export enum AwsSignatureType {
-     /** Sign an http request and apply the signing results as headers */
-     HttpRequestViaHeaders,
- 
-     /** Sign an http request and apply the signing results as query params */
-     HttpRequestViaQueryParams,
- 
-     /** Sign an http request payload chunk */
-     HttpRequestChunk,
- 
-     /** Sign an event stream event */
-     HttpRequestEvent
- }
- 
- /**
-  * Values for use with {@link AwsSigningConfig.signed_body_value}.
-  *
-  * Some services use special values (e.g. 'UNSIGNED-PAYLOAD') when the body
-  * is not being signed in the usual way.
-  *
-  * @category Auth
-  */
- export enum AwsSignedBodyValue {
-     /** Use the SHA-256 of the empty string as the canonical request payload value */
-     EmptySha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- 
-     /** Use the literal string 'UNSIGNED-PAYLOAD' as the canonical request payload value  */
-     UnsignedPayload = "UNSIGNED-PAYLOAD",
- 
-     /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD' as the canonical request payload value  */
-     StreamingAws4HmacSha256Payload = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD",
- 
-     /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-EVENTS' as the canonical request payload value  */
-     StreamingAws4HmacSha256Events = "STREAMING-AWS4-HMAC-SHA256-EVENTS",
- }
- 
- /**
-  * AWS signed body header enumeration.
-  *
-  * @category Auth
-  */
- export enum AwsSignedBodyHeaderType {
-     /** Do not add a header containing the canonical request payload value */
-     None,
- 
-     /** Add the X-Amz-Content-Sha256 header with the canonical request payload value */
-     XAmzContentSha256
- } 
+/**
+ * AWS signing algorithm enumeration.
+ *
+ * @category Auth
+ */
+export enum AwsSigningAlgorithm {
+    /** Use the Aws signature version 4 signing process to sign the request */
+    SigV4,
+
+    /** Use the Aws signature version 4 Asymmetric signing process to sign the request */
+    SigV4Asymmetric
+}
+
+/**
+ * AWS signature type enumeration.
+ *
+ * @category Auth
+ */
+export enum AwsSignatureType {
+    /** Sign an http request and apply the signing results as headers */
+    HttpRequestViaHeaders,
+
+    /** Sign an http request and apply the signing results as query params */
+    HttpRequestViaQueryParams,
+
+    /** Sign an http request payload chunk */
+    HttpRequestChunk,
+
+    /** Sign an event stream event */
+    HttpRequestEvent
+}
+
+/**
+ * Values for use with {@link AwsSigningConfig.signed_body_value}.
+ *
+ * Some services use special values (e.g. 'UNSIGNED-PAYLOAD') when the body
+ * is not being signed in the usual way.
+ *
+ * @category Auth
+ */
+export enum AwsSignedBodyValue {
+    /** Use the SHA-256 of the empty string as the canonical request payload value */
+    EmptySha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+
+    /** Use the literal string 'UNSIGNED-PAYLOAD' as the canonical request payload value  */
+    UnsignedPayload = "UNSIGNED-PAYLOAD",
+
+    /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD' as the canonical request payload value  */
+    StreamingAws4HmacSha256Payload = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD",
+
+    /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-EVENTS' as the canonical request payload value  */
+    StreamingAws4HmacSha256Events = "STREAMING-AWS4-HMAC-SHA256-EVENTS",
+}
+
+/**
+ * AWS signed body header enumeration.
+ *
+ * @category Auth
+ */
+export enum AwsSignedBodyHeaderType {
+    /** Do not add a header containing the canonical request payload value */
+    None,
+
+    /** Add the X-Amz-Content-Sha256 header with the canonical request payload value */
+    XAmzContentSha256
+} 
 
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
@@ -99,23 +99,23 @@ import { ClientBootstrap } from './io';
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
 export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
 
-    /**
-     * Creates a new default credentials provider to be used internally for AWS credentials resolution:
-     *
-     *   The CRT's default provider chain currently sources in this order:
-     *
-     *     1. Environment
-     *     2. Profile
-     *     3. (conditional, off by default) ECS
-     *     4. (conditional, on by default) EC2 Instance Metadata
-     *
-     * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
-     *
-     * @returns a new credentials provider using default credentials resolution rules
-     */
-    static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
-        return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
-    }
+/**
+ * Creates a new default credentials provider to be used internally for AWS credentials resolution:
+ *
+ *   The CRT's default provider chain currently sources in this order:
+ *
+ *     1. Environment
+ *     2. Profile
+ *     3. (conditional, off by default) ECS
+ *     4. (conditional, on by default) EC2 Instance Metadata
+ *
+ * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
+ *
+ * @returns a new credentials provider using default credentials resolution rules
+ */
+static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
+    return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
+}
 }
 
 /**
