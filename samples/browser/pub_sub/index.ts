@@ -3,23 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { mqtt, iot, CrtError } from "aws-crt";
+import { mqtt, iot, CrtError, auth } from "aws-crt";
 import Config = require('./config');
 import jquery = require("jquery");
-import { AWSCognitoCredentialOptions, AWSCognitoCredentialsProvider } from "aws-crt/dist.browser/browser/auth";
 const $: JQueryStatic = jquery;
 
 function log(msg: string) {
     $('#console').append(`<pre>${msg}</pre>`);
 }
 
-async function connect_websocket(provider: AWSCognitoCredentialsProvider) {
+async function connect_websocket(provider: auth.AWSCognitoCredentialsProvider) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
-            /** The following line is a sample of static credential. Please note the static credential will fail when web session expired.*/
+            /** The following line is a sample of static credential. Please note the static credential will fail when web session expires.*/
             //.with_credentials(Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken)
             .with_credential_provider(provider)
             .with_use_websockets()
@@ -54,8 +53,8 @@ async function connect_websocket(provider: AWSCognitoCredentialsProvider) {
 
 async function main() {
     /** Set up the credentialsProvider */
-    const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
-    const provider = new AWSCognitoCredentialsProvider(options);
+    const options = new auth.AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
+    const provider = new auth.AWSCognitoCredentialsProvider(options);
     /** Make sure the credential provider fetched before setup the connection */
     await provider.refreshCredentialAsync();
 
@@ -66,11 +65,14 @@ async function main() {
             const decoder = new TextDecoder('utf8');
             let message = decoder.decode(new Uint8Array(payload));
             log(`Message received: topic=${topic} message=${message}`);
-            /** Comment the following line to see how does the CredentialsProvider behaves when the session expired for a long-running web service.*/
-            connection.disconnect();
+            /** The sample is used to demo long-running web service. 
+             * Uncomment the following line to see how disconnect behaves.*/
+            // connection.disconnect();
         })
         .then((subscription) => {
             log(`start publish`)
+            connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+            /** The sample is used to demo long-running web service. The sample will keep publishing the message every minute.*/
             setInterval( ()=>{
                 connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
             }, 60000);

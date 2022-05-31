@@ -182,12 +182,10 @@ export class AWSCognitoCredentialsProvider extends CredentialsProvider{
     }
 
     refreshCredential(){
-        console.log("cognito provider refresh get called");
         this.source_provider.get((err)=>
         {
             if(err)
             {
-                console.log("refresh conginto credential.");
                 this.source_provider.refresh((err) => {
                     if(err)
                     {
@@ -200,16 +198,11 @@ export class AWSCognitoCredentialsProvider extends CredentialsProvider{
                         this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
                         this.aws_credentials.aws_region = (this.source_provider_options as AWSCognitoCredentialOptions).Region;
                         this.expire_time = this.source_provider.expireTime;
-                        console.log("get refreshed credential.");
-                        console.log(`normal get credential refreshed: asccessid : ${this.aws_credentials.aws_access_id}, secret : ${this.aws_credentials.aws_secret_key}, 
-                        sts: ${this.aws_credentials.aws_sts_token}`)
-    
                     }
                 });
             }
             else
             {
-                console.log("get credential.");
                 this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
                 this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
                 this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
@@ -249,7 +242,7 @@ export class AWSCognitoCredentialsProvider extends CredentialsProvider{
  * AWSCredentialsProviderCached. The AWSCredentialsProviderCached will be our main provider class.
  * The AWSCredentialsProviderCached will cached the current credential and expired_time, and stores a list of credentials providers. 
  *          If the credential is not expired, return the cached credentials.
- *          If the credential is expired, refresh the credential, and check the next credentialsProvider in the list. 
+ *          If the credential is expired, refresh the credential, and check the next credentialsProvider.
  * @category Auth
  */
 export class AWSCredentialsProviderCached extends CredentialsProvider{
@@ -282,9 +275,6 @@ export class AWSCredentialsProviderCached extends CredentialsProvider{
     }
 
     getCredentials(){
-        console.log(`current getcredentials: asccessid : ${this.cached_credentials?.aws_access_id?? "undefined"}, secret : ${this.cached_credentials?.aws_secret_key?? "undefined"}, 
-        sts: ${this.cached_credentials?.aws_sts_token?? "undefined"}`)
-
         if(!this.isExpired()) return this.cached_credentials;
 
         var provider = this.source_provider;
