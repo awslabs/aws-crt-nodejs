@@ -16,16 +16,14 @@ import * as io from "./io";
 import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
-import {
-    AwsSignatureType,
-    AwsSignedBodyValue,
-    AwsSigningAlgorithm,
-    WebsocketOptionsBase
-} from "../common/auth";
+import { WebsocketOptionsBase } from "../common/auth";
 
 import {
     aws_sign_request,
     AwsCredentialsProvider,
+    AwsSignatureType,
+    AwsSignedBodyValue,
+    AwsSigningAlgorithm,
     AwsSigningConfig
 } from "./auth";
 

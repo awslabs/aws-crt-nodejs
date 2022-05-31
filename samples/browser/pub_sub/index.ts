@@ -6,28 +6,20 @@
 import { mqtt, iot, CrtError } from "aws-crt";
 import Config = require('./config');
 import jquery = require("jquery");
-import { AWSCognitoCredentialOptions, AWSCognitoCredentialProvider } from "aws-crt/dist.browser/browser/auth";
+import { AWSCognitoCredentialOptions, AWSCognitoCredentialsProvider } from "aws-crt/dist.browser/browser/auth";
 const $: JQueryStatic = jquery;
 
 function log(msg: string) {
     $('#console').append(`<pre>${msg}</pre>`);
 }
 
-//  async function fetch_credentials() {
-//     const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
-//     const provider = new AWSCognitoCredentialProvider(options);
-//     provider.refreshCredentialAsync()
-//     .then()
-//     resolve(provider);
-// }
-
-async function connect_websocket(provider: AWSCognitoCredentialProvider) {
+async function connect_websocket(provider: AWSCognitoCredentialsProvider) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
-            /** A sample of static credential. Please note the static credential will fail when web session expired.*/
+            /** The following line is a sample of static credential. Please note the static credential will fail when web session expired.*/
             //.with_credentials(Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken)
             .with_credential_provider(provider)
             .with_use_websockets()
@@ -61,28 +53,32 @@ async function connect_websocket(provider: AWSCognitoCredentialProvider) {
 }
 
 async function main() {
-        const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
-        const provider = new AWSCognitoCredentialProvider(options);
-        /** Make sure the credential provider fetched before setup the connection */
-        await provider.refreshCredentialAsync();
-        connect_websocket(provider)
-        .then((connection) => {
-            log(`start subscribe`)
-            connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {
-                const decoder = new TextDecoder('utf8');
-                let message = decoder.decode(new Uint8Array(payload));
-                log(`Message received: topic=${topic} message=${message}`);
-            })
-                .then((subscription) => {
-                    log(`start publish`)
-                        setInterval( ()=>{
-                            connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
-                        }, 6000);
-                });
+    /** Set up the credentialsProvider */
+    const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
+    const provider = new AWSCognitoCredentialsProvider(options);
+    /** Make sure the credential provider fetched before setup the connection */
+    await provider.refreshCredentialAsync();
+
+    connect_websocket(provider)
+    .then((connection) => {
+        log(`start subscribe`)
+        connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {
+            const decoder = new TextDecoder('utf8');
+            let message = decoder.decode(new Uint8Array(payload));
+            log(`Message received: topic=${topic} message=${message}`);
+            /** Comment the following line to see how does the CredentialsProvider behaves when the session expired for a long-running web service.*/
+            connection.disconnect();
         })
-        .catch((reason) => {
-            log(`Error while connecting: ${reason}`);
+        .then((subscription) => {
+            log(`start publish`)
+            setInterval( ()=>{
+                connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+            }, 60000);
         });
+    })
+    .catch((reason) => {
+        log(`Error while connecting: ${reason}`);
+    });
 }
 
 $(document).ready(() => {

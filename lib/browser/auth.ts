@@ -18,6 +18,7 @@ import { AwsSigningConfigBase } from '../common/auth';
 /**
  * Standard AWS Credentials
  *
+ * @category Auth
  */
 export interface AWSCredentials{
     /** Optional region */
@@ -108,6 +109,12 @@ export class CredentialsProvider{
     refreshCredential(){}
 }
 
+
+/**
+ * StaticCredentialProvider. The provider will always return the static AWSCredential.
+ *
+ * @category Auth
+ */
 export class StaticCredentialProvider extends CredentialsProvider{
     constructor(options: CredentialsOptions, expire_interval_in_ms? : number)
     {
@@ -140,7 +147,12 @@ export class StaticCredentialProvider extends CredentialsProvider{
     
 }
 
-export class AWSCognitoCredentialProvider extends CredentialsProvider{
+/**
+ * AWSCognitoCredentialsProvider. The AWSCognitoCredentialsProvider implements AWS.CognitoIdentityCredentials.
+ *
+ * @category Auth
+ */
+export class AWSCognitoCredentialsProvider extends CredentialsProvider{
     source_provider : AWS.CognitoIdentityCredentials;
     aws_credentials : AWSCredentials;
     constructor(options: CredentialsOptions, expire_interval_in_ms? : number)
@@ -211,7 +223,7 @@ export class AWSCognitoCredentialProvider extends CredentialsProvider{
 
     async refreshCredentialAsync()
     {
-        return new Promise<AWSCognitoCredentialProvider>((resolve, reject) => {
+        return new Promise<AWSCognitoCredentialsProvider>((resolve, reject) => {
             this.source_provider.get((err)=>{
                 if(err)
                 {
@@ -232,6 +244,14 @@ export class AWSCognitoCredentialProvider extends CredentialsProvider{
 }
 
 
+
+/**
+ * AWSCredentialsProviderCached. The AWSCredentialsProviderCached will be our main provider class.
+ * The AWSCredentialsProviderCached will cached the current credential and expired_time, and stores a list of credentials providers. 
+ *          If the credential is not expired, return the cached credentials.
+ *          If the credential is expired, refresh the credential, and check the next credentialsProvider in the list. 
+ * @category Auth
+ */
 export class AWSCredentialsProviderCached extends CredentialsProvider{
     cached_credentials : AWSCredentials | undefined;
     source_provider : CredentialsProvider | null;
@@ -246,7 +266,7 @@ export class AWSCredentialsProviderCached extends CredentialsProvider{
         }
         else if (options instanceof AWSCognitoCredentialOptions)
         {
-            provider = new AWSCognitoCredentialProvider(options, expire_interval_in_ms);
+            provider = new AWSCognitoCredentialsProvider(options, expire_interval_in_ms);
         }
         this.source_provider = provider;
         this.cached_credentials = this.source_provider?.getCredentials();

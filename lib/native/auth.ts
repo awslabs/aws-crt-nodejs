@@ -18,35 +18,76 @@ import { HttpRequest } from './http';
 import { ClientBootstrap } from './io';
 
 /**
- * AWS signing algorithm enumeration.
- *
- * @category Auth
+ * @internal
  */
-export import AwsSigningAlgorithm = auth.AwsSigningAlgorithm;
+ export type StringLike = string | ArrayBuffer | DataView;
 
-/**
- * AWS signature type enumeration.
- *
- * @category Auth
- */
-export import AwsSignatureType = auth.AwsSignatureType;
-
-/**
- * Values for use with {@link AwsSigningConfig.signed_body_value}.
- *
- * Some services use special values (e.g. 'UNSIGNED-PAYLOAD') when the body
- * is not being signed in the usual way.
- *
- * @category Auth
- */
-export import AwsSignedBodyValue = auth.AwsSignedBodyValue;
-
-/**
- * AWS signed body header enumeration.
- *
- * @category Auth
- */
-export import AwsSignedBodyHeaderType = auth.AwsSignedBodyHeaderType;
+ /**
+  * AWS signing algorithm enumeration.
+  *
+  * @category Auth
+  */
+ export enum AwsSigningAlgorithm {
+     /** Use the Aws signature version 4 signing process to sign the request */
+     SigV4,
+ 
+     /** Use the Aws signature version 4 Asymmetric signing process to sign the request */
+     SigV4Asymmetric
+ }
+ 
+ /**
+  * AWS signature type enumeration.
+  *
+  * @category Auth
+  */
+ export enum AwsSignatureType {
+     /** Sign an http request and apply the signing results as headers */
+     HttpRequestViaHeaders,
+ 
+     /** Sign an http request and apply the signing results as query params */
+     HttpRequestViaQueryParams,
+ 
+     /** Sign an http request payload chunk */
+     HttpRequestChunk,
+ 
+     /** Sign an event stream event */
+     HttpRequestEvent
+ }
+ 
+ /**
+  * Values for use with {@link AwsSigningConfig.signed_body_value}.
+  *
+  * Some services use special values (e.g. 'UNSIGNED-PAYLOAD') when the body
+  * is not being signed in the usual way.
+  *
+  * @category Auth
+  */
+ export enum AwsSignedBodyValue {
+     /** Use the SHA-256 of the empty string as the canonical request payload value */
+     EmptySha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ 
+     /** Use the literal string 'UNSIGNED-PAYLOAD' as the canonical request payload value  */
+     UnsignedPayload = "UNSIGNED-PAYLOAD",
+ 
+     /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD' as the canonical request payload value  */
+     StreamingAws4HmacSha256Payload = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD",
+ 
+     /** Use the literal string 'STREAMING-AWS4-HMAC-SHA256-EVENTS' as the canonical request payload value  */
+     StreamingAws4HmacSha256Events = "STREAMING-AWS4-HMAC-SHA256-EVENTS",
+ }
+ 
+ /**
+  * AWS signed body header enumeration.
+  *
+  * @category Auth
+  */
+ export enum AwsSignedBodyHeaderType {
+     /** Do not add a header containing the canonical request payload value */
+     None,
+ 
+     /** Add the X-Amz-Content-Sha256 header with the canonical request payload value */
+     XAmzContentSha256
+ } 
 
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
@@ -203,7 +244,7 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
  * @param ecc_key_pub_y the y coordinate of the public part of the ecc key to verify the signature
  * @returns True, if the verification succeed. Otherwise, false.
  */
-export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request:  auth.StringLike,
-    signature:  auth.StringLike, ecc_key_pub_x: auth.StringLike, ecc_key_pub_y:  auth.StringLike): boolean {
+export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request:  StringLike,
+    signature:  StringLike, ecc_key_pub_x: StringLike, ecc_key_pub_y:  StringLike): boolean {
     return crt_native.aws_verify_sigv4a_signing(request, config, expected_canonical_request, signature, ecc_key_pub_x, ecc_key_pub_y);
 }
