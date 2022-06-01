@@ -11,6 +11,7 @@
  * @preferred
  */
 
+import * as auth from '../common/auth';
 import crt_native from './binding';
 import { CrtError } from './error';
 import { HttpRequest } from './http';
@@ -86,7 +87,7 @@ export enum AwsSignedBodyHeaderType {
 
     /** Add the X-Amz-Content-Sha256 header with the canonical request payload value */
     XAmzContentSha256
-}
+} 
 
 /**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
@@ -98,23 +99,23 @@ export enum AwsSignedBodyHeaderType {
 /* Subclass for the purpose of exposing a non-NativeHandle based API */
 export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
 
-    /**
-     * Creates a new default credentials provider to be used internally for AWS credentials resolution:
-     *
-     *   The CRT's default provider chain currently sources in this order:
-     *
-     *     1. Environment
-     *     2. Profile
-     *     3. (conditional, off by default) ECS
-     *     4. (conditional, on by default) EC2 Instance Metadata
-     *
-     * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
-     *
-     * @returns a new credentials provider using default credentials resolution rules
-     */
-    static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
-        return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
-    }
+/**
+ * Creates a new default credentials provider to be used internally for AWS credentials resolution:
+ *
+ *   The CRT's default provider chain currently sources in this order:
+ *
+ *     1. Environment
+ *     2. Profile
+ *     3. (conditional, off by default) ECS
+ *     4. (conditional, on by default) EC2 Instance Metadata
+ *
+ * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
+ *
+ * @returns a new credentials provider using default credentials resolution rules
+ */
+static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
+    return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
+}
 }
 
 /**
@@ -124,7 +125,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
  *
  * @category Auth
  */
-export interface AwsSigningConfig {
+export interface AwsSigningConfig extends auth.AwsSigningConfigBase {
     /** Which signing process to invoke */
     algorithm: AwsSigningAlgorithm;
 
@@ -133,19 +134,6 @@ export interface AwsSigningConfig {
 
     /** Credentials provider to fetch signing credentials with */
     provider: AwsCredentialsProvider;
-
-    /** The region to sign against */
-    region: string;
-
-    /** Name of service to sign a request for */
-    service?: string;
-
-    /**
-     * Date and time to use during the signing process. If not provided then
-     * the current time in UTC is used. Naive dates (lacking timezone info)
-     * are assumed to be in local time
-     */
-    date?: Date;
 
     /**
      * Headers to skip when signing.
@@ -189,9 +177,6 @@ export interface AwsSigningConfig {
 
     /** Controls what header, if any, should be added to the request, containing the body value */
     signed_body_header?: AwsSignedBodyHeaderType;
-
-    /** Query param signing only: how long the pre-signed URL is valid for */
-    expiration_in_seconds?: number;
 }
 
 /**
@@ -259,7 +244,7 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
  * @param ecc_key_pub_y the y coordinate of the public part of the ecc key to verify the signature
  * @returns True, if the verification succeed. Otherwise, false.
  */
-export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request: StringLike,
-    signature: StringLike, ecc_key_pub_x: StringLike, ecc_key_pub_y: StringLike): boolean {
+export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request:  StringLike,
+    signature:  StringLike, ecc_key_pub_x: StringLike, ecc_key_pub_y:  StringLike): boolean {
     return crt_native.aws_verify_sigv4a_signing(request, config, expected_canonical_request, signature, ecc_key_pub_x, ecc_key_pub_y);
 }

@@ -127,10 +127,7 @@ export interface MqttConnectionConfig {
     password?: string;
 
     /** Options for the underlying websocket connection */
-    websocket?: WebsocketOptions;
-
-    /** AWS credentials, which will be used to sign the websocket request */
-    credentials?: AWSCredentials;
+    websocket: WebsocketOptions;
 }
 
 /**

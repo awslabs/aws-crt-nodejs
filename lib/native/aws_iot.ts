@@ -16,6 +16,8 @@ import * as io from "./io";
 import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
+import { WebsocketOptionsBase } from "../common/auth";
+
 import {
     aws_sign_request,
     AwsCredentialsProvider,
@@ -31,16 +33,7 @@ import * as iot_shared from "../common/aws_iot_shared"
  *
  * @category IoT
  */
-export interface WebsocketConfig {
-
-    /** Sources the AWS Credentials used to sign the websocket connection handshake */
-    credentials_provider: AwsCredentialsProvider;
-
-    /**
-     * (Optional) factory function to create the configuration used to sign the websocket handshake.  Leave null
-     * to use the default settings.
-     */
-    create_signing_config?: () => AwsSigningConfig;
+export interface WebsocketConfig extends WebsocketOptionsBase{
 
     /** (Optional) http proxy configuration */
     proxy_options?: HttpProxyOptions;
@@ -50,14 +43,14 @@ export interface WebsocketConfig {
      */
     region: string;
 
-    /**
-     * (Optional) override for the service name used in signing the websocket handshake.  Leave null to use the
-     * default (iotdevicegateway)
-     */
-    service?: string;
-
     /** (Optional)  TLS configuration to use when establishing the connection */
     tls_ctx_options?: TlsContextOptions;
+
+    /**
+     *  For browser: credentials_provider is Type AWSCredentials
+     *  For native:  Type _crt_native_._AwsCredentialsProvider_
+     */
+    credentials_provider?: AwsCredentialsProvider;
 }
 
 /**
@@ -183,7 +176,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                 };
 
                 try {
-                    await aws_sign_request(request, signing_config);
+                    await aws_sign_request(request, signing_config as AwsSigningConfig);
                     done();
                 } catch (error) {
                     done(error);
