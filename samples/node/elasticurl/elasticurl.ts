@@ -236,7 +236,7 @@ async function main(argv: Args){
             })
             stream.on('end', () => {
                 connection.close();
-                resolve();
+                resolve(null);
             });
             stream.activate();
         });
@@ -259,7 +259,7 @@ async function main(argv: Args){
             port,
             socket_options,
             tls_opts);
-        
+
         connection.on('connect', async () => {
             if (argv.data) {
                 const data: string = await new Promise((resolve_stream, reject_stream) => {
@@ -284,14 +284,14 @@ async function main(argv: Args){
             finish();
         });
         connection.on('close', () => {
-            resolve_conn();
+            resolve_conn(null);
         });
-        connection.on('error', (error) => {
+        connection.on('error', (error:any) => {
             finish(error);
-            resolve_conn();
+            resolve_conn(null);
         });
     });
-    
+
     // make it wait as long as possible once the promise completes we'll turn it off.
     const timer = setTimeout(() => {}, 2147483647);
     await conn_promise;
