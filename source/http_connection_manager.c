@@ -79,11 +79,12 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
     napi_value node_bootstrap = *arg++;
     struct client_bootstrap_binding *client_bootstrap_binding = NULL;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_bootstrap, (void **)&client_bootstrap_binding), {
-        napi_throw_type_error(env, NULL, "bootstrap must be a ClientBootstrap");
-        return NULL;
-    });
-    options.bootstrap = aws_napi_get_client_bootstrap(client_bootstrap_binding);
+    napi_get_value_external(env, node_bootstrap, (void **)&client_bootstrap_binding);
+    if (client_bootstrap_binding != NULL) {
+        options.bootstrap = aws_napi_get_client_bootstrap(client_bootstrap_binding);
+    } else {
+        options.bootstrap = aws_napi_get_default_client_bootstrap();
+    }
 
     napi_value node_host = *arg++;
     if (aws_byte_buf_init_from_napi(&host_buf, env, node_host)) {
@@ -247,18 +248,21 @@ static void s_http_connection_manager_on_acquired_call(
     struct http_connection_manager_binding *binding = context;
     struct connection_acquired_args *args = user_data;
 
-    napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
-    AWS_FATAL_ASSERT(connection_external);
+    if (env) {
+        napi_value connection_external = aws_napi_http_connection_from_manager(env, args->connection);
+        AWS_FATAL_ASSERT(connection_external);
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
-    params[0] = connection_external;
-    AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+        params[0] = connection_external;
+        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, args->on_acquired, NULL, on_acquired, num_params, params));
 
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_acquired));
+        AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, args->on_acquired));
+    }
+
     aws_mem_release(binding->allocator, args);
 }
 

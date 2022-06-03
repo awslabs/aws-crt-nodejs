@@ -28,6 +28,6 @@
   },
   "dependencies": {
     "aws-crt": "file:../../../",
-    "yargs": "^13.3.2"
+    "yargs": "^17.2.1"
   }
 }

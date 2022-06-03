@@ -1,10 +1,9 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
 import {
-    ClientBootstrap,
     ClientTlsContext,
     SocketDomain,
     SocketOptions,
@@ -161,7 +160,7 @@ async function test_proxied_connection(test_type : ProxyTestType, auth_type : Ht
     const promise = new Promise((resolve, reject) => {
         let host = ProxyConfig.get_uri_from_test_type(test_type)
         let connection = new HttpClientConnection(
-            new ClientBootstrap(),
+            undefined,
             host,
             ProxyConfig.get_port_from_test_type(test_type),
             new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 3000),
@@ -212,59 +211,48 @@ function is_proxy_environment_enabled() {
     return ProxyConfig.is_valid()
 }
 
-conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Forwarding NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Forwarding NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.FORWARDING, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Legacy NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Legacy NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.LEGACY_HTTP, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Legacy NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Legacy NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.LEGACY_HTTPS, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Tunneling NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Tunneling NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Tunneling NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Tunneling NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.TUNNELING_HTTPS, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Https Connection DoubleTls NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Https Connection DoubleTls NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.TUNNELING_DOUBLE_TLS, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Forwarding BasicAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Forwarding BasicAuth', async () => {
     await test_proxied_connection(ProxyTestType.FORWARDING, HttpProxyAuthenticationType.Basic);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Legacy BasicAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Legacy BasicAuth', async () => {
     await test_proxied_connection(ProxyTestType.LEGACY_HTTP, HttpProxyAuthenticationType.Basic);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Legacy BasicAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Legacy BasicAuth', async () => {
     await test_proxied_connection(ProxyTestType.LEGACY_HTTPS, HttpProxyAuthenticationType.Basic);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Tunneling BasicAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Tunneling BasicAuth', async () => {
     await test_proxied_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.Basic);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Tunneling BasicAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Tunneling BasicAuth', async () => {
     await test_proxied_connection(ProxyTestType.TUNNELING_HTTPS, HttpProxyAuthenticationType.Basic);
-    done();
 });
 
 async function test_proxied_mqtt_connection(test_type : ProxyTestType, auth_type : HttpProxyAuthenticationType) {
@@ -277,7 +265,7 @@ async function test_proxied_mqtt_connection(test_type : ProxyTestType, auth_type
         .with_ping_timeout_ms(5000)
         .with_http_proxy_options(ProxyConfig.create_http_proxy_options_from_environment(test_type, auth_type))
         .build()
-    const client = new MqttClient(new ClientBootstrap());
+    const client = new MqttClient(undefined);
     const connection = client.new_connection(config);
     const promise = new Promise(async (resolve, reject) => {
         connection.on('connect', async (session_present) => {
@@ -298,17 +286,14 @@ async function test_proxied_mqtt_connection(test_type : ProxyTestType, auth_type
     await expect(promise).resolves.toBeTruthy();
 }
 
-conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunneling NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunneling NoAuth', async () => {
     await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.None);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunneling BasicAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunneling BasicAuth', async () => {
     await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.Basic);
-    done();
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection DoubleTls NoAuth', async (done) => {
+conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection DoubleTls NoAuth', async () => {
     await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_DOUBLE_TLS, HttpProxyAuthenticationType.None);
-    done();
 });

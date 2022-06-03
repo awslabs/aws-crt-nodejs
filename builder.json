@@ -1,7 +1,7 @@
 {
     "name": "aws-crt-nodejs-staging",
-    "imports": [
-        "nodejs"
+    "+imports": [
+        "node-12"
     ],
     "deps_dir": "deps",
     "hosts": {
@@ -36,15 +36,6 @@
             "x86": {
                 "enabled": false
             }
-        },
-        "windows": {
-            "!build_steps": [
-                [
-                    "npm",
-                    "install",
-                    "--DAWS_WARNINGS_ARE_ERRORS=ON"
-                ]
-            ]
         }
     },
     "upstream": [],
@@ -56,23 +47,19 @@
             "update",
             "--init",
             "--recursive"
-        ]
+        ],
+        "pkcs11-test-setup"
     ],
     "build_steps": [
         [
             "npm",
             "install",
-            "--ignore-scripts"
+            "--unsafe-perm"
         ],
         [
             "node",
-            "node_modules/.bin/cmake-js",
-            "compile",
-            "--out={build_dir}",
-            "--DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-            "--DAWS_WARNINGS_ARE_ERRORS=ON",
-            "-T",
-            "install"
+            "scripts/build.js",
+            "-DAWS_WARNINGS_ARE_ERRORS=ON"
         ],
         [
             "npm",
@@ -87,18 +74,30 @@
         [
             "npm",
             "run",
-	    "test:native"
+            "test:native"
         ],
         [
             "npm",
+            "--prefix",
+            "{project_dir}/samples/node/elasticurl/",
             "install",
-            "{project_dir}/samples/node/elasticurl/"
+            "{project_dir}/samples/node/elasticurl/",
+            "--unsafe-perm"
+        ],
+        [
+            "npx",
+            "tsc",
+            "--project",
+            "{project_dir}/samples/node/elasticurl",
+            "--outDir",
+            "{project_dir}/samples/node/elasticurl/dist/"
         ],
         [
             "{python}",
             "{project_dir}/crt/aws-c-http/integration-testing/http_client_test.py",
             "node",
             "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
-        ]
+        ],
+        "crt-size-check"
     ]
 }

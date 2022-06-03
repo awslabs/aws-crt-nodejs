@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module crt
  */
 
 /**
@@ -11,7 +16,6 @@
  * * 2 - Track active memory usage, and also track callstacks for every allocation.
  *   This incurs a performance penalty, depending on the cost of the platform's
  *   stack unwinding/backtrace API.
- * @module aws-crt
  * @category System
  */
 
@@ -22,7 +26,6 @@ import crt_native from './binding';
  * will return the native memory usage in bytes. Otherwise, returns 0.
  * @returns The total allocated native memory, in bytes.
  *
- * @module aws-crt
  * @category System
  */
 export function native_memory() {
@@ -34,7 +37,6 @@ export function native_memory() {
  * environment variable is set to 1 or 2, will dump all active native memory to
  * the console log.
  *
- * @module aws-crt
  * @category System
  */
 export function native_memory_dump() {

@@ -1,10 +1,18 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { InputStream } from "./io";
-import { AwsSigningAlgorithm, AwsSignatureType, AwsSignedBodyValue, AwsSignedBodyHeaderType } from "./auth";
+// The only exported types are http-related.  If this changes, we'll need to rework the pseudo-module configuration
+// for documentation
+
+/**
+ * @packageDocumentation
+ * @module http
+ */
+
+import { InputStream, TlsContextOptions } from "./io";
+import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
 
@@ -14,7 +22,7 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
  */
 type NativeHandle = any;
 
-/** @category System */
+/** @internal */
 type StringLike = string | ArrayBuffer | ArrayBufferView;
 
 /* common */
@@ -49,6 +57,8 @@ export function io_tls_ctx_new(
     private_key?: StringLike,
     pkcs12_filepath?: StringLike,
     pkcs12_password?: StringLike,
+    pkcs11_options?: TlsContextOptions.Pkcs11Options,
+    windows_cert_store_path?: StringLike,
     verify_peer?: boolean,
 ): NativeHandle;
 /* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */
@@ -76,12 +86,20 @@ export function io_input_stream_new(capacity: number): NativeHandle;
 /** @internal */
 export function io_input_stream_append(stream: NativeHandle, data?: Buffer): void;
 
+/* wraps aws_pkcs11_lib */
+/** @internal */
+export function io_pkcs11_lib_new(path: string, behavior: number): NativeHandle;
+/** @internal */
+export function io_pkcs11_lib_close(pkcs11_lib: NativeHandle): void;
+
 /* Crypto */
 /* wraps aws_hash structures #TODO: Wrap with ClassBinder */
 /** @internal */
 export function hash_md5_new(): void;
 /** @internal */
 export function hash_sha256_new(): void;
+/** @internal */
+export function hash_sha1_new(): void;
 /** @internal */
 export function hash_update(handle: NativeHandle, data: StringLike): void;
 /** @internal */
@@ -91,6 +109,8 @@ export function hash_digest(handle: NativeHandle, truncate_to?: number): DataVie
 export function hash_md5_compute(data: StringLike, truncate_to?: number): DataView;
 /** @internal */
 export function hash_sha256_compute(data: StringLike, truncate_to?: number): DataView;
+/** @internal */
+export function hash_sha1_compute(data: StringLike, truncate_to?: number): DataView;
 
 /** @internal */
 export function hmac_md5_new(secret: StringLike): void;
@@ -106,9 +126,17 @@ export function hmac_md5_compute(secret: StringLike, data: StringLike, truncate_
 /** @internal */
 export function hmac_sha256_compute(secret: StringLike, data: StringLike, truncate_to?: number): DataView;
 
+/* Checksums */
+/* wraps aws_checksums functions */
+
+/** @internal */
+export function checksums_crc32(data: StringLike, previous?: number): number;
+/** @internal */
+export function checksums_crc32c(data: StringLike, previous?: number): number;
+
 /* MQTT Client */
 /** @internal */
-export function mqtt_client_new(client_bootstrap: NativeHandle): NativeHandle;
+export function mqtt_client_new(client_bootstrap?: NativeHandle): NativeHandle;
 
 /* MQTT Client Connection #TODO: Wrap with ClassBinder */
 /** @internal */
@@ -155,7 +183,6 @@ export function mqtt_client_connection_publish(
     on_publish?: (packet_id: number, error_code: number) => void,
 ): void;
 
-
 /** @internal */
 export function mqtt_client_connection_subscribe(
     connection: NativeHandle,
@@ -200,7 +227,7 @@ export function http_proxy_options_new(
 /* wraps aws_http_connection #TODO: Wrap with ClassBinder */
 /** @internal */
 export function http_connection_new(
-    bootstrap: NativeHandle,
+    bootstrap: NativeHandle | undefined,
     on_setup: (handle: any, error_code: number) => void,
     on_shutdown: (handle: any, error_code: number) => void,
     host_name: StringLike,
@@ -232,7 +259,7 @@ export function http_stream_close(stream: NativeHandle): void;
 /* wraps aws_http_connection_manager #TODO: Wrap with ClassBinder */
 /** @internal */
 export function http_connection_manager_new(
-    bootstrap: NativeHandle,
+    bootstrap: NativeHandle | undefined,
     host: StringLike,
     port: number,
     max_connections: number,
@@ -258,7 +285,7 @@ export function http_connection_manager_release(manager: NativeHandle, connectio
 /**
  * A collection of HTTP headers
  *
- * @module aws-crt
+ * @module http
  * @category HTTP
  */
 export class HttpHeaders implements CommonHttpHeaders {
@@ -330,6 +357,8 @@ export class HttpHeaders implements CommonHttpHeaders {
  * Definition for an outgoing HTTP request.
  *
  * The request may be transformed (ex: signing the request) before its data is eventually sent.
+ *
+ * @internal
  */
 export class HttpRequest {
     constructor(method: string, path: string, headers?: HttpHeaders, body?: InputStream);
@@ -348,71 +377,8 @@ export class HttpRequest {
 export class AwsCredentialsProvider {
     protected constructor();
 
-    static newDefault(bootstrap: NativeHandle): AwsCredentialsProvider;
+    static newDefault(bootstrap?: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
-}
-
-/**
- * Configuration for use in AWS-related signing.
- * AwsSigningConfig is immutable.
- * It is good practice to use a new config for each signature, or the date might get too old.
- */
-export interface AwsSigningConfig {
-    /** Which signing process to invoke */
-    algorithm: AwsSigningAlgorithm;
-    /** What kind of signature to compute */
-    signature_type: AwsSignatureType;
-    /** Credentials provider to fetch signing credentials with */
-    provider: AwsCredentialsProvider;
-    /** The region to sign against */
-    region: string;
-    /** Name of service to sign a request for */
-    service?: string;
-    /**
-     * Date and time to use during the signing process. If not provided then
-     * the current time in UTC is used. Naive dates (lacking timezone info)
-     * are assumed to be in local time
-     */
-    date?: Date;
-    /**
-     * Headers to skip when signing.
-     *
-     * Skipping auth-required headers will result in an unusable signature.
-     * Headers injected by the signing process are not skippable.
-     * This function does not override the internal check function
-     * (x-amzn-trace-id, user-agent), but rather supplements it.
-     * In particular, a header will get signed if and only if it returns
-     * true to both the internal check (skips x-amzn-trace-id, user-agent)
-     * and is found in this list (if defined)
-     */
-    header_blacklist?: string[];
-    /**
-     * Set true to double-encode the resource path when constructing the
-     * canonical request. By default, all services except S3 use double encoding.
-     */
-    use_double_uri_encode?: boolean;
-    /**
-     * Whether the resource paths are normalized when building the canonical request.
-     */
-    should_normalize_uri_path?: boolean;
-    /**
-     * Should the session token be omitted from the signing process?  This should only be
-     * true when making a websocket handshake with IoT Core.
-     */
-    omit_session_token?: boolean;
-    /**
-     * Value to use as the canonical request's body value.
-     *
-     * Typically, this is the SHA-256 of the payload, written as lowercase hex.
-     * If this has been precalculated, it can be set here.
-     * Special values used by certain services can also be set (see {@link AwsSignedBodyValue}).
-     * If undefined (the default), the typical value will be calculated from the payload during signing.
-     */
-    signed_body_value?: string;
-    /** Controls what header, if any, should be added to the request, containing the body value */
-    signed_body_header?: AwsSignedBodyHeaderType;
-    /** Query param signing only: how long the pre-signed URL is valid for */
-    expiration_in_seconds?: number;
 }
 
 /** @internal */

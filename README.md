@@ -21,6 +21,9 @@ This library is licensed under the Apache 2.0 License.
 
 To build the package locally
 ```bash
+git clone https://github.com/awslabs/aws-crt-nodejs.git
+cd aws-crt-nodejs
+git submodule update --init
 npm install
 ```
 
@@ -36,6 +39,8 @@ You can either add it to package.json (if using a tool like webpack), or just im
 ```bash
 npm install aws-crt
 ```
+
+To reduce the size of package, we put the C source code in the S3 bucket. If the platform you are using doesn't have the prebuilt binary, the install script will pull the source from S3 bucket. In case of no public internet access, you can specify the "CRT_BINARY_HOST" environment variable for the host of the source code. The build script will fetch source code from that host instead. To fetch the source from S3, you can reach to the cloudfront distribution (Only works for version after v1.9.2) `https://d332vdhbectycy.cloudfront.net/aws-crt-<version>-source.tgz`, the sha256 checksum `https://d332vdhbectycy.cloudfront.net/aws-crt-<version>-source.sha256`
 
 ### Debug C part of code
 

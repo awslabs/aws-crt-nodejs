@@ -133,16 +133,19 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
 
     /* Callback is invoked for nodejs, update pending length */
     aws_atomic_fetch_sub(&binding->pending_length, args->chunk.len);
-    napi_value params[1];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(
-        env,
-        napi_create_external_arraybuffer(
-            env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]));
+    if (env) {
+        napi_value params[1];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
+        AWS_NAPI_ENSURE(
+            env,
+            napi_create_external_arraybuffer(
+                env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]));
+
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
+    }
 }
 
 static int s_on_response_body(struct aws_http_stream *stream, const struct aws_byte_cursor *data, void *user_data) {
@@ -197,6 +200,7 @@ static void s_on_complete_call(napi_env env, napi_value on_complete, void *conte
     AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_body, napi_tsfn_abort));
     AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     AWS_NAPI_ENSURE(env, napi_delete_reference(env, binding->node_external));
+
     aws_mem_release(binding->allocator, args);
 }
 

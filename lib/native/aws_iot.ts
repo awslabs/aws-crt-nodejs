@@ -1,9 +1,19 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
+
+/**
+ * Module for AWS IoT configuration and connection establishment
+ *
+ * @packageDocumentation
+ * @module aws-iot
+ * @preferred
+ */
+
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as io from "./io";
+import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import {
@@ -14,29 +24,53 @@ import {
     AwsSigningAlgorithm,
     AwsSigningConfig
 } from "./auth";
+import * as iot_shared from "../common/aws_iot_shared"
 
-/** @category IoT */
+/**
+ * Websocket-specific mqtt connection configuration options
+ *
+ * @category IoT
+ */
 export interface WebsocketConfig {
+
+    /** Sources the AWS Credentials used to sign the websocket connection handshake */
     credentials_provider: AwsCredentialsProvider;
+
+    /**
+     * (Optional) factory function to create the configuration used to sign the websocket handshake.  Leave null
+     * to use the default settings.
+     */
     create_signing_config?: () => AwsSigningConfig;
 
+    /** (Optional) http proxy configuration */
     proxy_options?: HttpProxyOptions;
+
+    /** AWS region the websocket connection is being established in.  Must match the region embedded in the
+     * endpoint.
+     */
     region: string;
+
+    /**
+     * (Optional) override for the service name used in signing the websocket handshake.  Leave null to use the
+     * default (iotdevicegateway)
+     */
     service?: string;
-    tls_ctx_options?: io.TlsContextOptions;
+
+    /** (Optional)  TLS configuration to use when establishing the connection */
+    tls_ctx_options?: TlsContextOptions;
 }
 
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
  *
- * @module aws-crt
  * @category IoT
  */
 export class AwsIotMqttConnectionConfigBuilder {
     private params: MqttConnectionConfig
+    private is_using_custom_authorizer: boolean
 
-    private constructor(private tls_ctx_options: io.TlsContextOptions) {
+    private constructor(private tls_ctx_options: TlsContextOptions) {
         this.params = {
             client_id: '',
             host_name: '',
@@ -46,10 +80,11 @@ export class AwsIotMqttConnectionConfigBuilder {
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
-            username: `?SDK=NodeJSv2&Version=${platform.crt_version()}`,
+            username: "",
             password: undefined,
             tls_ctx: undefined,
         };
+        this.is_using_custom_authorizer = false
     }
 
     /**
@@ -58,7 +93,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param key_path - Path to private key, in PEM format
      */
     static new_mtls_builder_from_path(cert_path: string, key_path: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_from_path(cert_path, key_path));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
@@ -74,13 +109,58 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param private_key - Private key, in PEM format
      */
     static new_mtls_builder(cert: string, private_key: string) {
-        let builder = new AwsIotMqttConnectionConfigBuilder(io.TlsContextOptions.create_client_with_mtls(cert, private_key));
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls(cert, private_key));
         builder.params.port = 8883;
 
         if (io.is_alpn_available()) {
             builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
         }
 
+        return builder;
+    }
+
+    /**
+     * Create a new builder with mTLS using a PKCS#11 library for private key operations.
+     *
+     * NOTE: This configuration only works on Unix devices.
+     * @param pkcs11_options - PKCS#11 options.
+     */
+    static new_mtls_pkcs11_builder(pkcs11_options: TlsContextOptions.Pkcs11Options) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_pkcs11(pkcs11_options));
+        builder.params.port = 8883;
+
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
+    /**
+     * Create a new builder with mTLS using a certificate in a Windows certificate store.
+     *
+     * NOTE: This configuration only works on Windows devices.
+     * @param certificate_path - Path to certificate in a Windows certificate store.
+     *      The path must use backslashes and end with the certificate's thumbprint.
+     *      Example: `CurrentUser\MY\A11F8A9B5DF5B98BA3508FBCA575D09570E0D2C6`
+     */
+     static new_mtls_windows_cert_store_path_builder(certificate_path: string) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_windows_cert_store_path(certificate_path));
+        builder.params.port = 8883;
+
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
+    /**
+     * Creates a new builder with default Tls options. This requires setting the connection details manually.
+     */
+    static new_default_builder() {
+        let ctx_options = new io.TlsContextOptions();
+        let builder = new AwsIotMqttConnectionConfigBuilder(ctx_options);
         return builder;
     }
 
@@ -121,7 +201,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         let tls_ctx_options = options?.tls_ctx_options;
 
         if (!tls_ctx_options) {
-            tls_ctx_options = new io.TlsContextOptions();
+            tls_ctx_options = new TlsContextOptions();
             tls_ctx_options.alpn_list = [];
         }
 
@@ -275,7 +355,52 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Returns the configured MqttConnectionConfig
+     * Sets the custom authorizer settings. This function will modify the username, port, and TLS options.
+     *
+     * @param username The username to use with the custom authorizer. If an empty string is passed, it will
+     *                 check to see if a username has already been set (via WithUsername function). If no
+     *                 username is set then no username will be passed with the MQTT connection.
+     * @param authorizerName The name of the custom authorizer. If an empty string is passed, then
+     *                       'x-amz-customauthorizer-name' will not be added with the MQTT connection.
+     * @param authorizerSignature The signature of the custom authorizer. If an empty string is passed, then
+     *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
+     * @param password The password to use with the custom authorizer. If null is passed, then no password will
+     *                 be set.
+     */
+    with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string) {
+        this.is_using_custom_authorizer = true;
+        let username_string = iot_shared.populate_username_string_with_custom_authorizer(
+            "", username, authorizer_name, authorizer_signature, this.params.username);
+        this.params.username = username_string;
+        this.params.password = password;
+        this.tls_ctx_options.alpn_list = ["mqtt"];
+        this.params.port = 443;
+        return this;
+    }
+
+    /**
+     * Sets username for the connection
+     *
+     * @param username the username that will be passed with the MQTT connection
+     */
+    with_username(username : string) {
+        this.params.username = username;
+        return this;
+    }
+
+    /**
+     * Sets password for the connection
+     *
+     * @param password the password that will be passed with the MQTT connection
+     */
+    with_password(password : string) {
+        this.params.password = password;
+        return this;
+    }
+
+    /**
+     * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the TLS context is cached
+     * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
      */
     build() {
@@ -283,7 +408,47 @@ export class AwsIotMqttConnectionConfigBuilder {
             throw 'client_id and endpoint are required';
         }
 
-        this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        // Check to see if a custom authorizer is being used but not through the builder
+        if (this.is_using_custom_authorizer == false) {
+            if (iot_shared.is_string_and_not_empty(this.params.username)) {
+                if (this.params.username?.indexOf("x-amz-customauthorizer-name=") != -1 || this.params.username?.indexOf("x-amz-customauthorizer-signature=") != -1) {
+                    this.is_using_custom_authorizer = true;
+                }
+            }
+        }
+
+        // Is the user trying to connect using a custom authorizer?
+        if (this.is_using_custom_authorizer == true) {
+            if (this.params.port != 443) {
+                console.log("Warning: Attempting to connect to authorizer with unsupported port. Port is not 443...");
+            }
+            if (this.tls_ctx_options.alpn_list != ["mqtt"]) {
+                this.tls_ctx_options.alpn_list = ["mqtt"]
+            }
+        }
+
+        /*
+         * By caching and reusing the TLS context we get an enormous memory savings on a per-connection basis.
+         * The tradeoff is that you can't modify TLS options in between calls to build.
+         * Previously we were making a new one with every single connection which had a huge negative impact on large
+         * scale tests.
+         */
+        if (this.params.tls_ctx === undefined) {
+            this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        }
+
+        // Add the metrics string
+        if (iot_shared.is_string_and_not_empty(this.params.username) == false) {
+            this.params.username = "?SDK=NodeJSv2&Version="
+        } else {
+            if (this.params.username?.indexOf("?") != -1) {
+                this.params.username += "&SDK=NodeJSv2&Version="
+            } else {
+                this.params.username += "?SDK=NodeJSv2&Version="
+            }
+        }
+        this.params.username += platform.crt_version()
+
         return this.params;
     }
 }

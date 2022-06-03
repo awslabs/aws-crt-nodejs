@@ -1,6 +1,11 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ * @packageDocumentation
+ * @module crt
  */
 
 import { EventEmitter } from 'events';
@@ -8,7 +13,6 @@ import { EventEmitter } from 'events';
 /**
  * Events are named via string or symbol
  *
- * @module aws-crt
  * @category Events
  */
 type EventKey = string | symbol;
@@ -32,7 +36,6 @@ class BufferedEvent {
  *
  * See also: [Node writable streams](https://nodejs.org/api/stream.html#stream_writable_cork)
  *
- * @module aws-crt
  * @category Events
  */
 export class BufferedEventEmitter extends EventEmitter {

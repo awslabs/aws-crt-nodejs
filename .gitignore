@@ -148,4 +148,12 @@ dist*/
 build/
 build-*/
 deps_build/
+
+# Misc
 .vscode/
+.devcontainer/
+*.orig
+.DS_Store
+
+# docs are updated automatically by .github/workflows/docs.yml
+docs/

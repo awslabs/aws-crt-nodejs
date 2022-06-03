@@ -192,14 +192,17 @@ static void s_http_on_connection_setup_call(napi_env env, napi_value on_setup, v
     struct http_connection_binding *binding = context;
     struct on_connection_args *args = user_data;
 
-    napi_value params[2];
-    const size_t num_params = AWS_ARRAY_SIZE(params);
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
 
-    AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
-    AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_get_reference_value(env, args->binding->node_external, &params[0]));
+        AWS_NAPI_ENSURE(env, napi_create_uint32(env, args->error_code, &params[1]));
 
-    AWS_NAPI_ENSURE(
-        env, aws_napi_dispatch_threadsafe_function(env, binding->on_setup, NULL, on_setup, num_params, params));
+        AWS_NAPI_ENSURE(
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_setup, NULL, on_setup, num_params, params));
+    }
+
     AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_setup, napi_tsfn_abort));
     if (args->error_code) {
         /* setup failed, shutdown will never get invoked. Clean up the functions here */
@@ -285,11 +288,15 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_bootstrap = *arg++;
+
+    struct aws_client_bootstrap *bootstrap = NULL;
     struct client_bootstrap_binding *bootstrap_binding = NULL;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_bootstrap, (void **)&bootstrap_binding), {
-        napi_throw_error(env, NULL, "Unable to extract bootstrap from external");
-        return NULL;
-    });
+    napi_get_value_external(env, node_bootstrap, (void **)&bootstrap_binding);
+    if (bootstrap_binding != NULL) {
+        bootstrap = aws_napi_get_client_bootstrap(bootstrap_binding);
+    } else {
+        bootstrap = aws_napi_get_default_client_bootstrap();
+    }
 
     /* create node external to hold the connection wrapper, cleanup is required from here on out */
     struct http_connection_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct http_connection_binding));
@@ -384,7 +391,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         goto create_external_failed;
     });
 
-    options.bootstrap = aws_napi_get_client_bootstrap(bootstrap_binding);
+    options.bootstrap = bootstrap;
     options.host_name = aws_byte_cursor_from_string(host_name);
     options.on_setup = s_http_on_connection_setup;
     options.on_shutdown = s_http_on_connection_shutdown;

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
@@ -92,8 +92,7 @@ test('HTTP Request with body', () => {
 });
 
 
-async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions) {
-    const bootstrap = new ClientBootstrap();
+async function test_connection(host: string, port: number, tls_opts?: TlsConnectionOptions, bootstrap?: ClientBootstrap) {
     let setup_error_code: Number = -1;
     let shutdown_error_code: Number = -1;
     let connection_error: Error | undefined;
@@ -127,15 +126,22 @@ async function test_connection(host: string, port: number, tls_opts?: TlsConnect
     expect(connection_error).toBeUndefined();
 }
 
-test('HTTP Connection Create/Destroy', async (done) => {
-    await test_connection("s3.amazonaws.com", 80);
-    done();
+test('HTTP Connection Create/Destroy', async () => {
+    await test_connection("s3.amazonaws.com", 80, undefined, new ClientBootstrap());
 });
 
-test('HTTPS Connection Create/Destroy', async (done) => {
+test('HTTP Connection Create/Destroy Undef Bootstrap', async () => {
+    await test_connection("s3.amazonaws.com", 80, undefined, undefined);
+});
+
+test('HTTPS Connection Create/Destroy', async () => {
     const host = "s3.amazonaws.com";
-    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host));
-    done();
+    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host), new ClientBootstrap());
+});
+
+test('HTTPS Connection Create/Destroy Undef Bootstrap', async () => {
+    const host = "s3.amazonaws.com";
+    await test_connection(host, 443, new TlsConnectionOptions(new ClientTlsContext(), host), undefined);
 });
 
 async function test_stream(method: string, host: string, port: number, activate: boolean, tls_opts?: TlsConnectionOptions) {
@@ -157,7 +163,7 @@ async function test_stream(method: string, host: string, port: number, activate:
             );
             let stream = connection.request(request);
             stream.on('response', (status_code, headers) => {
-                expect(status_code).toBe(200);
+                expect(status_code == 301 || status_code == 200).toBe(true);
                 expect(headers).toBeDefined();
             });
             stream.on('data', (body_data) => {
@@ -189,16 +195,17 @@ async function test_stream(method: string, host: string, port: number, activate:
 }
 
 test('HTTP Stream GET', async () => {
-    await test_stream('GET', 'example.com', 80, true, undefined);
+    await test_stream('GET', 'amazon.com', 80, true, undefined);
 });
 
+
 test('HTTPS Stream GET', async () => {
-    const host = 'example.com';
+    const host = 'amazon.com';
     await test_stream('GET', host, 443, true, new TlsConnectionOptions(new ClientTlsContext(), host));
 });
 
 test('HTTP Stream UnActivated', async () => {
-    await test_stream('GET', 'example.com', 80, false, undefined);
+    await test_stream('GET', 'amazon.com', 80, false, undefined);
 });
 
 test('HTTP Connection Manager create/destroy', () => {
@@ -236,11 +243,14 @@ test('HTTP Connection Manager acquire/release', async () => {
     connection_manager.close();
 });
 
+
+
+
 test('HTTP Connection Manager acquire/stream/release', async () => {
     const bootstrap = new ClientBootstrap();
     let connection_manager = new HttpClientConnectionManager(
         bootstrap,
-        "example.com",
+        "amazon.com",
         80,
         4,
         16 * 1024,
@@ -256,7 +266,7 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
         'GET',
         '/',
         new HttpHeaders([
-            ['host', 'example.com'],
+            ['host', 'amazon.com'],
             ['user-agent', 'AWS CRT for NodeJS']
         ])
     );
@@ -266,7 +276,7 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
     const promise = new Promise((resolve, reject) => {
         let stream = connection.request(request);
         stream.on('response', (status_code, headers) => {
-            expect(status_code).toBe(200);
+            expect(status_code == 301 || status_code == 200).toBe(true);
             expect(headers).toBeDefined();
         });
         stream.on('data', (body_data) => {
@@ -289,3 +299,4 @@ test('HTTP Connection Manager acquire/stream/release', async () => {
     await expect(promise).resolves.toBeTruthy();
     expect(connection_error).toBeUndefined();
 });
+

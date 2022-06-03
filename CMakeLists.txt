@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.1)
 project(aws-crt-nodejs C)
 option(BUILD_DEPS "Builds aws common runtime dependencies as part of build, only do this if you don't want to control your dependency chain." ON)
 
+option(CMAKE_JS_PLATFORM "Target platform. Should match node's os.platform()")
+if (NOT CMAKE_JS_PLATFORM)
+    message(FATAL_ERROR "CMAKE_JS_PLATFORM must be set")
+endif()
+
 include(CTest)
 
 # ensure that the release build has symbols
@@ -38,17 +43,24 @@ if (BUILD_DEPS)
 
     add_subdirectory(crt/aws-c-common)
     if (UNIX AND NOT APPLE)
-        include(crt/aws-c-cal/cmake/modules/aws-lc.cmake)
+        set(SEARCH_LIBCRYPTO OFF)
+        set(DISABLE_GO ON)
+        set(DISABLE_PERL ON)
+        set(BUILD_LIBSSL OFF)
+        add_subdirectory(crt/aws-lc)
+        set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
         add_subdirectory(crt/s2n)
     endif()
 
+    add_subdirectory(crt/aws-c-sdkutils)
     add_subdirectory(crt/aws-c-io)
     add_subdirectory(crt/aws-c-cal)
     add_subdirectory(crt/aws-c-compression)
     add_subdirectory(crt/aws-c-http)
     add_subdirectory(crt/aws-c-auth)
     add_subdirectory(crt/aws-c-mqtt)
-    
+    add_subdirectory(crt/aws-checksums)
+
     set(BUILD_TESTING ${BUILD_TESTING_PREV})
 else()
     include(AwsFindPackage)
@@ -73,6 +85,7 @@ add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
 aws_set_common_properties(${PROJECT_NAME})
 aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
 aws_add_sanitizers(${PROJECT_NAME})
+aws_split_debug_info(${PROJECT_NAME})
 
 # Gives our library file a .node extension without any "lib" prefix
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
@@ -85,15 +98,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 aws_use_package(aws-c-http REQUIRED)
 aws_use_package(aws-c-mqtt REQUIRED)
 aws_use_package(aws-c-auth REQUIRED)
+aws_use_package(aws-checksums REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
-if (CMAKE_JS_PLATFORM AND CMAKE_JS_ARCH)
-    # When run from build.ts, these are set
-    set(destination bin/${CMAKE_JS_PLATFORM}-${CMAKE_JS_ARCH})
-else()
-    # If not, default to "native"
-    set(destination bin/native)
-endif()
+set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
     DESTINATION ${destination})

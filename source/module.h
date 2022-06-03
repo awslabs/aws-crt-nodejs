@@ -13,7 +13,23 @@
 #define NAPI_VERSION 4
 #include <node_api.h>
 
-enum aws_napi_log_subject { AWS_LS_NODE = 0x900 };
+#define AWS_CRT_NODEJS_PACKAGE_ID 11
+
+struct aws_client_bootstrap;
+struct aws_event_loop;
+struct aws_event_loop_group;
+
+enum aws_crt_nodejs_errors {
+    AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV = AWS_ERROR_ENUM_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+
+    AWS_CRT_NODEJS_ERROR_END_RANGE = AWS_ERROR_ENUM_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID)
+};
+
+enum aws_napi_log_subject {
+    AWS_LS_NODEJS_CRT_GENERAL = AWS_LOG_SUBJECT_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+
+    AWS_LS_NODEJS_CRT_LAST = AWS_LOG_SUBJECT_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+};
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
@@ -30,6 +46,7 @@ void aws_napi_throw_last_error(napi_env env);
 struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);
 struct aws_event_loop_group *aws_napi_get_node_elg(void);
+struct aws_client_bootstrap *aws_napi_get_default_client_bootstrap(void);
 
 const char *aws_napi_status_to_str(napi_status status);
 
@@ -70,6 +87,12 @@ napi_status aws_napi_create_threadsafe_function(
     napi_threadsafe_function_call_js call_js,
     void *context,
     napi_threadsafe_function *result);
+
+/**
+ * Wrapper around napi_acquire_threadsafe_function,
+ * check the function before acquiring it.
+ */
+napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function function);
 
 /**
  * Wrapper around napi_release_threadsafe_function,

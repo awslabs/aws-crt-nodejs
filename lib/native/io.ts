@@ -1,6 +1,12 @@
-/**
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
+ */
+
+/**
+ *
+ * @packageDocumentation
+ * @module IO
  */
 
 import crt_native from './binding';
@@ -13,9 +19,12 @@ export { TlsVersion, SocketType, SocketDomain } from '../common/io';
  * Convert a native error code into a human-readable string
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @returns Long-form description of the error
  * @see CrtError
  *
  * nodejs only.
+ *
+ * @category System
  */
 export function error_code_to_string(error_code: number): string {
     return crt_native.error_code_to_string(error_code);
@@ -25,9 +34,12 @@ export function error_code_to_string(error_code: number): string {
  * Convert a native error code into a human-readable identifier
  * @param error_code - An error code returned from a native API call, or delivered
  * via callback.
+ * @return error name as a string
  * @see CrtError
  *
  * nodejs only.
+ *
+ * @category System
  */
 export function error_code_to_name(error_code: number): string {
     return crt_native.error_code_to_name(error_code);
@@ -35,7 +47,6 @@ export function error_code_to_name(error_code: number): string {
 
 /**
  * The amount of detail that will be logged
- * @module aws-crt
  * @category Logging
  */
 export enum LogLevel {
@@ -60,7 +71,6 @@ export enum LogLevel {
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
  * nodejs only.
- * @module aws-crt
  * @category Logging
  */
 export function enable_logging(level: LogLevel) {
@@ -72,7 +82,6 @@ export function enable_logging(level: LogLevel) {
  * @return true if ALPN is supported natively, false otherwise
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
 */
 export function is_alpn_available(): boolean {
@@ -84,8 +93,7 @@ export function is_alpn_available(): boolean {
  *  data into the AWS CRT libraries.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category IO
  */
 export class InputStream extends NativeResource {
     constructor(private source: Readable) {
@@ -106,8 +114,7 @@ export class InputStream extends NativeResource {
  * to be 1 of these per application, in most cases.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category IO
  */
 export class ClientBootstrap extends NativeResource {
     constructor() {
@@ -119,8 +126,7 @@ export class ClientBootstrap extends NativeResource {
  * Standard Berkeley socket style options.
  *
  * nodejs only.
- * @module aws-crt
- * @category I/O
+ * @category Network
 */
 export class SocketOptions extends NativeResource {
     constructor(
@@ -147,7 +153,6 @@ export class SocketOptions extends NativeResource {
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class TlsContextOptions {
@@ -173,6 +178,11 @@ export class TlsContextOptions {
     public pkcs12_filepath?: string;
     /** Password for PKCS#12. Currently, only supported on OSX. */
     public pkcs12_password?: string;
+    /** PKCS#11 options. Currently, only supported on Unix */
+    public pkcs11_options?: TlsContextOptions.Pkcs11Options;
+    /** Path to certificate in a Windows cert store. Windows only. */
+    public windows_cert_store_path?: string;
+
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
      * It is much better to just override the default trust store and pass the self-signed
@@ -203,9 +213,12 @@ export class TlsContextOptions {
     }
 
     /**
-     * Creates a client with secure-by-default options, along with a client cert and private key
-     * @param certificate - Client certificate, in PEM format
-     * @param private_key - Client private key, in PEM format
+     * Create options configured for mutual TLS in client mode,
+     * with client certificate and private key provided as in-memory strings.
+     * @param certificate - Client certificate file contents, in PEM format
+     * @param private_key - Client private key file contents, in PEM format
+     *
+     * @returns newly configured TlsContextOptions object
      */
     static create_client_with_mtls(certificate: string, private_key: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -216,9 +229,12 @@ export class TlsContextOptions {
     }
 
     /**
-     * Creates a client with secure-by-default options, along with a client cert and private key
+     * Create options configured for mutual TLS in client mode,
+     * with client certificate and private key provided via filepath.
      * @param certificate_filepath - Path to client certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
+     *
+     * @returns newly configured TlsContextOptions object
      */
     static create_client_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -229,14 +245,58 @@ export class TlsContextOptions {
     }
 
     /**
-     * Creates a TLS context with secure-by-default options, along with a client cert and password
-     * @param pkcs12_filepath - Path to client certificate in PKCS#12 format
+     * Create options for mutual TLS in client mode,
+     * with client certificate and private key bundled in a single PKCS#12 file.
+     * @param pkcs12_filepath - Path to PKCS#12 file containing client certificate and private key.
      * @param pkcs12_password - PKCS#12 password
+     *
+     * @returns newly configured TlsContextOptions object
     */
-    static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
+    static create_client_with_mtls_pkcs12_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs12_filepath = pkcs12_filepath;
         opt.pkcs12_password = pkcs12_password;
+        opt.verify_peer = true;
+        return opt;
+    }
+
+    /**
+     * @deprecated Renamed [[create_client_with_mtls_pkcs12_from_path]]
+     */
+    static create_client_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
+        return this.create_client_with_mtls_pkcs12_from_path(pkcs12_filepath, pkcs12_password);
+    }
+
+    /**
+     * Create options configured for mutual TLS in client mode,
+     * using a PKCS#11 library for private key operations.
+     *
+     * NOTE: This configuration only works on Unix devices.
+     *
+     * @param options - PKCS#11 options
+     *
+     * @returns newly configured TlsContextOptions object
+     */
+    static create_client_with_mtls_pkcs11(options: TlsContextOptions.Pkcs11Options): TlsContextOptions {
+        let opt = new TlsContextOptions();
+        opt.pkcs11_options = options;
+        opt.verify_peer = true;
+        return opt;
+    }
+
+    /**
+     * Create options configured for mutual TLS in client mode,
+     * using a certificate in a Windows certificate store.
+     *
+     * NOTE: Windows only.
+     *
+     * @param certificate_path - Path to certificate in a Windows certificate store.
+     *      The path must use backslashes and end with the certificate's thumbprint.
+     *      Example: `CurrentUser\MY\A11F8A9B5DF5B98BA3508FBCA575D09570E0D2C6`
+     */
+    static create_client_with_mtls_windows_cert_store_path(certificate_path: string): TlsContextOptions {
+        let opt = new TlsContextOptions();
+        opt.windows_cert_store_path = certificate_path;
         opt.verify_peer = true;
         return opt;
     }
@@ -246,6 +306,7 @@ export class TlsContextOptions {
      * @param certificate_filepath - Path to certificate, in PEM format
      * @param private_key_filepath - Path to private key, in PEM format
      *
+     * @returns newly configured TlsContextOptions object
      */
     static create_server_with_mtls_from_path(certificate_filepath: string, private_key_filepath: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -261,6 +322,7 @@ export class TlsContextOptions {
      * @param pkcs12_filepath - Path to certificate, in PKCS#12 format
      * @param pkcs12_password - PKCS#12 Password
      *
+     * @returns newly configured TlsContextOptions object
      */
     static create_server_with_mtls_pkcs_from_path(pkcs12_filepath: string, pkcs12_password: string): TlsContextOptions {
         let opt = new TlsContextOptions();
@@ -271,14 +333,71 @@ export class TlsContextOptions {
     }
 }
 
+export namespace TlsContextOptions {
+
+    /**
+     * Options for TLS using a PKCS#11 library for private key operations.
+     *
+     * Unix only. nodejs only.
+     *
+     * @see [[TlsContextOptions.create_client_with_mtls_pkcs11]]
+     */
+    export type Pkcs11Options = {
+        /**
+         * Use this PKCS#11 library.
+         */
+        pkcs11_lib: Pkcs11Lib,
+
+        /**
+         * Use this PIN to log the user into the PKCS#11 token. Pass `null`
+         * to log into a token with a "protected authentication path".
+         */
+        user_pin: null | string,
+
+        /**
+         * Specify the slot ID containing a PKCS#11 token. If not specified, the token
+         * will be chosen based on other criteria (such as [[token_label]]).
+         */
+        slot_id?: number,
+
+        /**
+         * Specify the label of the PKCS#11 token to use. If not specified, the token
+         * will be chosen based on other criteria (such as [[slot_id]]).
+         */
+        token_label?: string,
+
+        /**
+         * Specify the label of the private key object on the PKCS#11 token. If not
+         * specified, the key will be chosen based on other criteria (such as being the
+         * only available private key on the token).
+         */
+        private_key_object_label?: string,
+
+        /**
+         * Use this X.509 certificate (file on disk).
+         * The certificate must be PEM-formatted.
+         * The certificate may be specified by other means instead
+         * (ex: [[cert_file_contents]])
+         */
+        cert_file_path?: string,
+
+        /**
+         * Use this X.509 certificate (contents in memory).
+         * The certificate must be PEM-formatted.
+         * The certificate may be specified by other means instead
+         * (ex: [[cert_file_path]])
+         */
+        cert_file_contents?: string,
+    }
+}
+
 /**
- * TLS context used for client/server TLS communications over sockets.
+ * Abstract base TLS context used for client/server TLS communications over sockets.
  *
  * @see ClientTlsContext
  * @see ServerTlsContext
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
@@ -295,6 +414,8 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.private_key,
             ctx_opt.pkcs12_filepath,
             ctx_opt.pkcs12_password,
+            ctx_opt.pkcs11_options,
+            ctx_opt.windows_cert_store_path,
             ctx_opt.verify_peer));
     }
 }
@@ -305,7 +426,6 @@ export abstract class TlsContext extends NativeResource {
  * only.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class ClientTlsContext extends TlsContext {
@@ -324,7 +444,6 @@ export class ClientTlsContext extends TlsContext {
  * only.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class ServerTlsContext extends TlsContext {
@@ -341,7 +460,6 @@ export class ServerTlsContext extends TlsContext {
  * TLS options that are unique to a given connection using a shared TlsContext.
  *
  * nodejs only.
- * @module aws-crt
  * @category TLS
  */
 export class TlsConnectionOptions extends NativeResource {
@@ -351,5 +469,67 @@ export class TlsConnectionOptions extends NativeResource {
             server_name,
             (alpn_list && alpn_list.length > 0) ? alpn_list.join(';') : undefined
         ));
+    }
+}
+
+/**
+ * Handle to a loaded PKCS#11 library.
+ *
+ * For most use cases, a single instance of Pkcs11Lib should be used
+ * for the lifetime of your application.
+ *
+ * nodejs only.
+ * @category TLS
+ */
+export class Pkcs11Lib extends NativeResource {
+
+    /**
+     * @param path - Path to PKCS#11 library.
+     * @param behavior - Specifies how `C_Initialize()` and `C_Finalize()`
+     *                   will be called on the PKCS#11 library.
+     */
+    constructor(path: string, behavior: Pkcs11Lib.InitializeFinalizeBehavior = Pkcs11Lib.InitializeFinalizeBehavior.DEFAULT) {
+        super(crt_native.io_pkcs11_lib_new(path, behavior));
+    }
+
+    /**
+     * Release the PKCS#11 library immediately, without waiting for the GC.
+     */
+    close() {
+        crt_native.io_pkcs11_lib_close(this.native_handle());
+    }
+}
+
+export namespace Pkcs11Lib {
+
+    /**
+     * Controls `C_Initialize()` and `C_Finalize()` are called on the PKCS#11 library.
+     */
+    export enum InitializeFinalizeBehavior {
+        /**
+         * Default behavior that accommodates most use cases.
+         *
+         * `C_Initialize()` is called on creation, and "already-initialized"
+         * errors are ignored. `C_Finalize()` is never called, just in case
+         * another part of your application is still using the PKCS#11 library.
+         */
+        DEFAULT = 0,
+
+        /**
+         * Skip calling `C_Initialize()` and `C_Finalize()`.
+         *
+         * Use this if your application has already initialized the PKCS#11 library,
+         * and you do not want `C_Initialize()` called again.
+         */
+        OMIT = 1,
+
+        /**
+         * `C_Initialize()` is called on creation and `C_Finalize()` is called on cleanup.
+         *
+         * If `C_Initialize()` reports that's it's already initialized, this is
+         * treated as an error. Use this if you need perfect cleanup (ex: running
+         * valgrind with --leak-check).
+         */
+        STRICT = 2,
     }
 }

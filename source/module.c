@@ -4,6 +4,7 @@
  */
 
 #include "auth.h"
+#include "checksums.h"
 #include "crypto.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
@@ -20,6 +21,7 @@
 #include <aws/common/clock.h>
 #include <aws/common/environment.h>
 #include <aws/common/logging.h>
+#include <aws/common/mutex.h>
 #include <aws/common/ref_count.h>
 #include <aws/common/system_info.h>
 
@@ -32,11 +34,31 @@
 
 #include <uv.h>
 
-/* aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API */
+/*
+ * This is a multi-line comment to ensure that the static assert does not collide with the static asserts in
+ * aws/common/macro.h.
+ *
+ * aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API
+ */
 AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
+#define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
+
+/* clang-format off */
+static struct aws_error_info s_errors[] = {
+    AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
+        AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV,
+        "There was an attempt to execute a thread-safe napi function binding with a null napi environment.  This is usually due to the function binding being released by a shutdown/cleanup process while the execution is waiting in the queue."),
+};
+/* clang-format on */
+
+static struct aws_error_info_list s_error_list = {
+    .error_list = s_errors,
+    .count = sizeof(s_errors) / sizeof(struct aws_error_info),
+};
+
 static struct aws_log_subject_info s_log_subject_infos[] = {
-    DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODE, "node", "Node/N-API failures"),
+    DEFINE_LOG_SUBJECT_INFO(AWS_LS_NODEJS_CRT_GENERAL, "node", "General Node/N-API events"),
 };
 
 static struct aws_log_subject_info_list s_log_subject_list = {
@@ -46,7 +68,9 @@ static struct aws_log_subject_info_list s_log_subject_list = {
 
 static uv_loop_t *s_node_uv_loop = NULL;
 static struct aws_event_loop *s_node_uv_event_loop = NULL;
-static struct aws_event_loop_group *s_node_uv_elg;
+static struct aws_event_loop_group *s_node_uv_elg = NULL;
+static struct aws_host_resolver *s_default_host_resolver = NULL;
+static struct aws_client_bootstrap *s_default_client_bootstrap = NULL;
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
@@ -189,11 +213,17 @@ void aws_napi_throw_last_error(napi_env env) {
 struct uv_loop_s *aws_napi_get_node_uv_loop(void) {
     return s_node_uv_loop;
 }
+
 struct aws_event_loop *aws_napi_get_node_event_loop(void) {
     return s_node_uv_event_loop;
 }
+
 struct aws_event_loop_group *aws_napi_get_node_elg(void) {
     return s_node_uv_elg;
+}
+
+struct aws_client_bootstrap *aws_napi_get_default_client_bootstrap(void) {
+    return s_default_client_bootstrap;
 }
 
 /* The napi_status enum has grown, and is not bound by N-API versioning */
@@ -397,6 +427,13 @@ napi_status aws_napi_release_threadsafe_function(
     return napi_ok;
 }
 
+napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function function) {
+    if (function) {
+        return napi_acquire_threadsafe_function(function);
+    }
+    return napi_ok;
+}
+
 napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
     if (function) {
         return napi_unref_threadsafe_function(env, function);
@@ -491,9 +528,16 @@ static void s_install_crash_handler(void) {
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
+    aws_client_bootstrap_release(s_default_client_bootstrap);
+    aws_host_resolver_release(s_default_host_resolver);
     aws_event_loop_group_release(s_node_uv_elg);
 
     aws_thread_join_all_managed();
+
+    aws_unregister_log_subject_info_list(&s_log_subject_list);
+    aws_unregister_error_info(&s_error_list);
+    aws_auth_library_clean_up();
+    aws_mqtt_library_clean_up();
 
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
@@ -542,7 +586,28 @@ static bool s_create_and_register_function(
     return true;
 }
 
+/*
+ * Temporary hack to detect multi-init so we can throw an exception because we haven't figured out the right way
+ * to support it yet.  Better than a hard crash in native code.
+ */
+static struct aws_mutex s_module_lock = AWS_MUTEX_INIT;
+static bool s_module_initialized = false;
+
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
+
+    bool already_initialized = false;
+    aws_mutex_lock(&s_module_lock);
+    if (s_module_initialized) {
+        already_initialized = true;
+    }
+    s_module_initialized = true;
+    aws_mutex_unlock(&s_module_lock);
+
+    if (already_initialized) {
+        napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.");
+        return NULL;
+    }
+
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -553,10 +618,44 @@ static bool s_create_and_register_function(
     aws_http_library_init(allocator);
     aws_mqtt_library_init(allocator);
     aws_auth_library_init(allocator);
+    aws_register_error_info(&s_error_list);
     aws_register_log_subject_info_list(&s_log_subject_list);
 
     /* Initialize the event loop group */
+    /*
+     * We don't currently support multi-init of the module, but we should.
+     * Things that would need to be solved:
+     *    (1) global objects (event loop group, logger, allocator, more)
+     *    (2) multi-init/multi-cleanup of aws-c-*
+     *    (3) allocator cross-talk/lifetimes
+     */
+    AWS_FATAL_ASSERT(s_node_uv_elg == NULL);
     s_node_uv_elg = aws_event_loop_group_new_default(allocator, 1, NULL);
+    AWS_FATAL_ASSERT(s_node_uv_elg != NULL);
+
+    /*
+     * Default host resolver and client bootstrap to use if none specific at the javascript level.  In most
+     * cases the user doesn't even need to know about these, so let's let them leave it out completely.
+     */
+    AWS_FATAL_ASSERT(s_default_host_resolver == NULL);
+
+    struct aws_host_resolver_default_options resolver_options = {
+        .max_entries = 64,
+        .el_group = s_node_uv_elg,
+    };
+    s_default_host_resolver = aws_host_resolver_new_default(allocator, &resolver_options);
+    AWS_FATAL_ASSERT(s_default_host_resolver != NULL);
+
+    AWS_FATAL_ASSERT(s_default_client_bootstrap == NULL);
+
+    struct aws_client_bootstrap_options bootstrap_options = {
+        .event_loop_group = s_node_uv_elg,
+        .host_resolver = s_default_host_resolver,
+    };
+
+    s_default_client_bootstrap = aws_client_bootstrap_new(allocator, &bootstrap_options);
+
+    AWS_FATAL_ASSERT(s_default_client_bootstrap != NULL);
 
     napi_value null;
     napi_get_null(env, &null);
@@ -581,6 +680,8 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(io_socket_options_new)
     CREATE_AND_REGISTER_FN(io_input_stream_new)
     CREATE_AND_REGISTER_FN(io_input_stream_append)
+    CREATE_AND_REGISTER_FN(io_pkcs11_lib_new)
+    CREATE_AND_REGISTER_FN(io_pkcs11_lib_close)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)
@@ -598,15 +699,21 @@ static bool s_create_and_register_function(
 
     /* Crypto */
     CREATE_AND_REGISTER_FN(hash_md5_new)
+    CREATE_AND_REGISTER_FN(hash_sha1_new)
     CREATE_AND_REGISTER_FN(hash_sha256_new)
     CREATE_AND_REGISTER_FN(hash_update)
     CREATE_AND_REGISTER_FN(hash_digest)
     CREATE_AND_REGISTER_FN(hash_md5_compute)
+    CREATE_AND_REGISTER_FN(hash_sha1_compute)
     CREATE_AND_REGISTER_FN(hash_sha256_compute)
     CREATE_AND_REGISTER_FN(hmac_sha256_new)
     CREATE_AND_REGISTER_FN(hmac_update)
     CREATE_AND_REGISTER_FN(hmac_digest)
     CREATE_AND_REGISTER_FN(hmac_sha256_compute)
+
+    /* Checksums */
+    CREATE_AND_REGISTER_FN(checksums_crc32)
+    CREATE_AND_REGISTER_FN(checksums_crc32c)
 
     /* HTTP */
     CREATE_AND_REGISTER_FN(http_proxy_options_new)
