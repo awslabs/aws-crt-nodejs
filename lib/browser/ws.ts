@@ -9,7 +9,7 @@
  */
 
 import { MqttConnectionConfig } from "./mqtt";
-import { AWSCredentials, AWSCredentialsProviderCached, AwsSigningConfig} from "./auth";
+import { AWSCredentials, AwsSigningConfig} from "./auth";
 import { WebsocketOptionsBase } from "../common/auth";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
@@ -24,8 +24,6 @@ export interface WebsocketOptions extends WebsocketOptionsBase{
     headers?: { [index: string]: string };
     /** Websocket protocol, used during Upgrade */
     protocol?: string;
-
-    credentials_provider?: AWSCredentialsProviderCached;
 }
 
 function zero_pad(n: number) {
@@ -81,7 +79,7 @@ export function create_websocket_url(config: MqttConnectionConfig) {
     const protocol = (config.websocket || {}).protocol || 'wss';
     if (protocol === 'wss') {
         const websocketoptions = config.websocket!;
-        const credentials = websocketoptions.credentials_provider?.getCredentials();
+        const credentials = config.credentials_provider?.getCredentials();
         const signing_config_value = websocketoptions.create_signing_config?.()
                     ?? {
                     service: websocketoptions.service ?? "iotdevicegateway",

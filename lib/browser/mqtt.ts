@@ -127,7 +127,10 @@ export interface MqttConnectionConfig {
     password?: string;
 
     /** Options for the underlying websocket connection */
-    websocket: WebsocketOptions;
+    websocket?: WebsocketOptions;
+
+    /** Options for the underlying credentianls provider */
+    credentials_provider?: auth.CredentialsProvider;
 }
 
 /**

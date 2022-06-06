@@ -34,6 +34,8 @@ import * as iot_shared from "../common/aws_iot_shared"
  * @category IoT
  */
 export interface WebsocketConfig extends WebsocketOptionsBase{
+    /** Sources the AWS Credentials used to sign the websocket connection handshake */
+    credentials_provider: AwsCredentialsProvider;
 
     /** (Optional) http proxy configuration */
     proxy_options?: HttpProxyOptions;
@@ -45,12 +47,6 @@ export interface WebsocketConfig extends WebsocketOptionsBase{
 
     /** (Optional)  TLS configuration to use when establishing the connection */
     tls_ctx_options?: TlsContextOptions;
-
-    /**
-     *  For browser: credentials_provider is Type AWSCredentials
-     *  For native:  Type _crt_native_._AwsCredentialsProvider_
-     */
-    credentials_provider?: AwsCredentialsProvider;
 }
 
 /**
