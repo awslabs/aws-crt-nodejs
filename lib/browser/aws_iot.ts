@@ -11,7 +11,7 @@
  * @preferred
  */
 
-import { AWSCredentialsProviderCached, CredentialsProvider, StaticCredentialOptions, StaticCredentialProvider, CredentialsOptions} from "./auth"
+import { CredentialsProvider, StaticCredentialOptions, StaticCredentialProvider} from "./auth"
 import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
@@ -38,6 +38,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             username: '',
             password: undefined,
             websocket: {},
+            credentials_provider: undefined
         };
     }
 
@@ -195,7 +196,9 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns this builder object
      */
     with_websocket_headers(headers: { [index: string]: string }) {
-        this.params.websocket.headers = headers;
+        this.params.websocket = {
+            headers: headers
+        };
         return this;
     }
 
@@ -211,15 +214,8 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
      with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
         const options = new StaticCredentialOptions(aws_region, aws_access_id, aws_secret_key,aws_sts_token);
-        if(this.params.websocket.credentials_provider == undefined)
-        {
-            this.params.websocket.credentials_provider = new AWSCredentialsProviderCached(options);
-        }
-        else
-        {
-            const provider = new StaticCredentialProvider(options);
-            this.params.websocket.credentials_provider.add_provider(provider)
-        }
+        const provider = new StaticCredentialProvider(options);
+        this.params.credentials_provider = provider;
         return this;
     }
 
@@ -230,12 +226,8 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns this builder object
      */
     with_credential_provider( customer_provider : CredentialsProvider) {
-        if( this.params.websocket.credentials_provider == undefined)
-        {
-            const option = new CredentialsOptions();
-            this.params.websocket.credentials_provider = new AWSCredentialsProviderCached(option);
-        }
-        this.params.websocket.credentials_provider.add_provider(customer_provider);
+        this.params.credentials_provider = customer_provider;
+        setInterval(()=>{ customer_provider.refreshCredential();}, customer_provider.expire_interval_in_ms);
         return this;
     }
 

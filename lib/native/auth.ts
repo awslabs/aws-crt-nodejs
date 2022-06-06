@@ -177,6 +177,9 @@ export interface AwsSigningConfig extends auth.AwsSigningConfigBase {
 
     /** Controls what header, if any, should be added to the request, containing the body value */
     signed_body_header?: AwsSignedBodyHeaderType;
+
+    /** Query param signing only: how long the pre-signed URL is valid for */
+    expiration_in_seconds?: number;
 }
 
 /**

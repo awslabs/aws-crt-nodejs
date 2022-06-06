@@ -11,7 +11,6 @@
  * @preferred
  */
 
-import * as AWS from "aws-sdk";
 import { AwsSigningConfigBase } from '../common/auth';
 
  
@@ -32,35 +31,19 @@ export interface AWSCredentials{
 }
 
 /**
- * CredentialsOptions Base Class. The base class of the options used for credentials providers.
+ * CredentialsProviderOptions Base Class. The base class of the options used for credentials providers.
  *
  * @category Auth
  */
-export class CredentialsOptions{};
+export class CredentialsProviderOptions {};
 
-/**
- * AWSCognitoCredentialOptions. The credentials options used to create AWSCongnitoCredentialProvider.
- *
- * @category Auth
- */
-export class AWSCognitoCredentialOptions implements CredentialsOptions
-{
-    IdentityPoolId : string;
-    Region: string;
-
-    constructor(IdentityPoolId: string, region: string)
-    {
-        this.IdentityPoolId = IdentityPoolId;
-        this.Region = region;
-    }
-}
 
 /**
  * StaticCredentialOptions. The credentials options for CredentialsProvider.
  *
  * @category Auth
  */
-export class StaticCredentialOptions implements CredentialsOptions
+export class StaticCredentialOptions implements CredentialsProviderOptions 
 {
     /** region */
     aws_region: string;
@@ -86,27 +69,32 @@ export class StaticCredentialOptions implements CredentialsOptions
  * @category Auth
  */
 export class CredentialsProvider{
-    constructor(options: CredentialsOptions, expire_interval_in_ms? : number)
+    expire_interval_in_ms : number;
+    
+    constructor(expire_interval_in_ms? : number)
     {
-        this.source_provider_options = options;
         /** Default expiration interval is 1 hour */
         this.expire_interval_in_ms = expire_interval_in_ms? expire_interval_in_ms:3600000;
-        this.expire_time = undefined;
-        this.next = null;
     }
-    next : CredentialsProvider | null;
-    /* reference to the source provider configrations */
-    source_provider_options: CredentialsOptions; 
-    expire_interval_in_ms : number;
-    expire_time: Date | undefined;
 
-
+    /** Return a valid credentials. Please note mqtt.js does not support promises, meaning that
+     * you must use the refreshCredential function to handles application-level authentication refreshing
+     * so that the websocket connection could simply grab the latest valid tokens when getCredentials() get
+     * called. 
+     * 
+     * @Returns AWSCredentials
+     * 
+     * */
     getCredentials() : AWSCredentials | undefined
     { 
         return undefined;
     }
-    isExpired(){return false;}
-    refreshCredential(){}
+
+    /** Used to validate the token. */
+    isExpired() : boolean {return false;}
+
+    /** The function will get called every {expire_interval_in_ms} ms to refresh the credential session token. */
+    refreshCredential() : void {};
 }
 
 
@@ -116,193 +104,30 @@ export class CredentialsProvider{
  * @category Auth
  */
 export class StaticCredentialProvider extends CredentialsProvider{
-    constructor(options: CredentialsOptions, expire_interval_in_ms? : number)
+    options : StaticCredentialOptions;
+    constructor(options: StaticCredentialOptions, expire_interval_in_ms? : number)
     {
-        super(options, expire_interval_in_ms);
-        /** The provider with an "undefined" expire_time will be considered as never expired. */
-        this.expire_time = undefined;
+        super(expire_interval_in_ms);
+        this.options = options;
     }
 
-    getCredentials = () =>
+    getCredentials = () : AWSCredentials | undefined =>
     {
-        if (this.source_provider_options instanceof StaticCredentialOptions) {
-            const options = this.source_provider_options as StaticCredentialOptions;
-            return {
-                aws_region: options.aws_region,
-                aws_access_id : options.aws_access_id,
-                aws_secret_key: options.aws_secret_key,
-                aws_sts_token: options.aws_sts_token
-            }
+        return {
+            aws_region: this.options.aws_region,
+            aws_access_id : this.options.aws_access_id,
+            aws_secret_key: this.options.aws_secret_key,
+            aws_sts_token: this.options.aws_sts_token
         }
-        throw "Error in credentials options, failed to get Credentials."
     }
 
-    isExpired = () =>
+    isExpired = () : boolean =>
     {
         return false;
     }
 
     /** do nothing on refreshing static credentials */
-    refreshCredential = () => {}
-    
-}
-
-/**
- * AWSCognitoCredentialsProvider. The AWSCognitoCredentialsProvider implements AWS.CognitoIdentityCredentials.
- *
- * @category Auth
- */
-export class AWSCognitoCredentialsProvider extends CredentialsProvider{
-    source_provider : AWS.CognitoIdentityCredentials;
-    aws_credentials : AWSCredentials;
-    constructor(options: CredentialsOptions, expire_interval_in_ms? : number)
-    {
-        super(options, expire_interval_in_ms);
-        AWS.config.region = (options as AWSCognitoCredentialOptions).Region;
-        this.source_provider = new AWS.CognitoIdentityCredentials({
-            IdentityPoolId: (options as AWSCognitoCredentialOptions).IdentityPoolId
-        });
-        this.refreshCredential();
-        this.aws_credentials = 
-        {
-            aws_region: (options as AWSCognitoCredentialOptions).Region,
-            aws_access_id : this.source_provider.accessKeyId,
-            aws_secret_key: this.source_provider.secretAccessKey,
-            aws_sts_token: this.source_provider.sessionToken
-        }
-        setInterval(()=>{this.refreshCredential();}, expire_interval_in_ms?? 3600000);
-    }
-
-    getCredentials(){
-        return this.aws_credentials;
-    }
-
-    isExpired(){
-        return this.source_provider.expired;
-    }
-
-    refreshCredential(){
-        this.source_provider.get((err)=>
-        {
-            if(err)
-            {
-                this.source_provider.refresh((err) => {
-                    if(err)
-                    {
-                        console.log(`Error fetching cognito credentials: ${err}`);
-                    }
-                    else
-                    {
-                        this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                        this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                        this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                        this.aws_credentials.aws_region = (this.source_provider_options as AWSCognitoCredentialOptions).Region;
-                        this.expire_time = this.source_provider.expireTime;
-                    }
-                });
-            }
-            else
-            {
-                this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                this.aws_credentials.aws_region = (this.source_provider_options as AWSCognitoCredentialOptions).Region;
-                this.expire_time = this.source_provider.expireTime;
-
-            }
-       });
-    }
-
-
-    async refreshCredentialAsync()
-    {
-        return new Promise<AWSCognitoCredentialsProvider>((resolve, reject) => {
-            this.source_provider.get((err)=>{
-                if(err)
-                {
-                    reject("Failed to get cognito credentials.")
-                }
-                else
-                {
-                    this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                    this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                    this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                    this.aws_credentials.aws_region = (this.source_provider_options as AWSCognitoCredentialOptions).Region;
-                    this.expire_time = this.source_provider.expireTime;
-                    resolve(this);
-                }
-            });
-        });
-    }
-}
-
-
-
-/**
- * AWSCredentialsProviderCached. The AWSCredentialsProviderCached will be our main provider class.
- * The AWSCredentialsProviderCached will cached the current credential and expired_time, and stores a list of credentials providers. 
- *          If the credential is not expired, return the cached credentials.
- *          If the credential is expired, refresh the credential, and check the next credentialsProvider.
- * @category Auth
- */
-export class AWSCredentialsProviderCached extends CredentialsProvider{
-    cached_credentials : AWSCredentials | undefined;
-    source_provider : CredentialsProvider | null;
-
-    constructor(options: CredentialsOptions, expire_interval_in_ms? : number)
-    {
-        super(options,expire_interval_in_ms);
-        var provider = null;
-        if(options instanceof StaticCredentialOptions)
-        {
-            provider = new StaticCredentialProvider(options, expire_interval_in_ms);
-        }
-        else if (options instanceof AWSCognitoCredentialOptions)
-        {
-            provider = new AWSCognitoCredentialsProvider(options, expire_interval_in_ms);
-        }
-        this.source_provider = provider;
-        this.cached_credentials = this.source_provider?.getCredentials();
-        this.expire_time = this.source_provider?.expire_time;
-    }
-
-    add_provider(provider: CredentialsProvider)
-    {
-        provider.next = this.source_provider;
-        this.source_provider = provider;
-        this.cached_credentials = this.source_provider?.getCredentials();
-        this.expire_time = this.source_provider.expire_time;
-    }
-
-    getCredentials(){
-        if(!this.isExpired()) return this.cached_credentials;
-
-        var provider = this.source_provider;
-        if(provider == null)
-            throw "The credential provider is not set."
-        while(provider.isExpired())
-        {
-            provider.refreshCredential();
-            if(provider.next != null)
-                provider = provider.next;
-            else
-                break;
-        }
-        this.cached_credentials = provider.getCredentials();
-        this.expire_time = provider.expire_time;
-        return this.cached_credentials;
-    }
-
-    isExpired(){
-        if (this.expire_time == undefined) return false;
-        return this.expire_time <= new Date();
-    }
-
-    refreshCredential(){
-        if(this.source_provider == null)
-            throw "The credential provider is not set."
-        return this.source_provider.refreshCredential();
-    }
+    refreshCredential = () : void => {}
 }
 
 /**
