@@ -683,6 +683,9 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_new)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_close)
 
+    /* MQTT5 Client */
+    CREATE_AND_REGISTER_FN(mqtt5_client_new)
+
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)
 

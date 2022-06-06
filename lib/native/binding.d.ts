@@ -15,6 +15,7 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
+import {Mqtt5ClientConfig} from "@awscrt/mqtt5";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -133,6 +134,15 @@ export function hmac_sha256_compute(secret: StringLike, data: StringLike, trunca
 export function checksums_crc32(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc32c(data: StringLike, previous?: number): number;
+
+/** @internal */
+export function mqtt5_client_new(
+    config: Mqtt5ClientConfig,
+    client_bootstrap?: NativeHandle,
+    socket_options?: NativeHandle,
+    tls_ctx?: NativeHandle,
+    proxy_options?: NativeHandle,
+): NativeHandle;
 
 /* MQTT Client */
 /** @internal */
