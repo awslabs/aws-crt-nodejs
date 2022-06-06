@@ -13,6 +13,7 @@
 #include "http_stream.h"
 #include "io.h"
 #include "logger.h"
+#include "mqtt5_client.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 

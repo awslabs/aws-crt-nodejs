@@ -4,7 +4,12 @@
  */
 
 #include "mqtt5_client.h"
+#include "http_connection.h"
+#include "io.h"
 
+#include <aws/http/proxy.h>
+#include <aws/io/socket.h>
+#include <aws/io/tls_channel_handler.h>
 #include <aws/mqtt/v5/mqtt5_client.h>
 #include <aws/mqtt/v5/mqtt5_types.h>
 
@@ -22,7 +27,7 @@ static void s_mqtt5_client_on_terminate(void *user_data) {
 
     aws_tls_connection_options_clean_up(&binding->tls_connection_options);
 
-    aws_memory_release(binding->allocator, binding);
+    aws_mem_release(binding->allocator, binding);
 }
 
 static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
@@ -31,7 +36,7 @@ static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *fin
 
     struct aws_mqtt5_client_binding *binding = finalize_data;
 
-    aws_mqtt_client_release(binding->client);
+    aws_mqtt5_client_release(binding->client);
 }
 
 static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *publish_packet, void *user_data) {
@@ -43,11 +48,34 @@ static void s_lifecycle_event_callback(const struct aws_mqtt5_client_lifecycle_e
     (void)event;
 }
 
+static const uint32_t s_default_mqtt_keep_alive_interval_seconds = 1200;
 static const uint32_t s_default_socket_connect_timeout_ms = 10000;
+static const uint64_t s_default_min_reconnect_delay_ms = 1000;
+static const uint64_t s_default_max_reconnect_delay_ms = 120000;
+static const uint64_t s_default_min_connected_time_to_reset_reconnect_delay_ms = 30000;
+static const uint32_t s_default_ping_timeout_ms = 30000;
+static const uint32_t s_default_connack_timeout_ms = 20000;
+static const uint32_t s_default_operation_timeout_seconds = 60000;
 
 static void s_init_default_mqtt5_client_options(
     struct aws_mqtt5_client_options *client_options,
     struct aws_mqtt5_packet_connect_view *connect_options) {
+
+    connect_options->keep_alive_interval_seconds = s_default_mqtt_keep_alive_interval_seconds;
+
+    client_options->session_behavior = AWS_MQTT5_CSBT_CLEAN;
+    client_options->outbound_topic_aliasing_behavior = AWS_MQTT5_COTABT_DUMB;
+    client_options->extended_validation_and_flow_control_options = AWS_MQTT5_EVAFCO_NONE;
+    client_options->offline_queue_behavior = AWS_MQTT5_COQBT_FAIL_NON_QOS1_PUBLISH_ON_DISCONNECT;
+    client_options->retry_jitter_mode = AWS_EXPONENTIAL_BACKOFF_JITTER_DEFAULT;
+    client_options->min_reconnect_delay_ms = s_default_min_reconnect_delay_ms;
+    client_options->max_reconnect_delay_ms = s_default_max_reconnect_delay_ms;
+    client_options->min_connected_time_to_reset_reconnect_delay_ms =
+        s_default_min_connected_time_to_reset_reconnect_delay_ms;
+    client_options->ping_timeout_ms = s_default_ping_timeout_ms;
+    client_options->connack_timeout_ms = s_default_connack_timeout_ms;
+    client_options->operation_timeout_seconds = s_default_operation_timeout_seconds;
+
     client_options->connect_options = connect_options;
 }
 
@@ -69,7 +97,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     napi_value node_args[5];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to retrieve arguments");
         return NULL;
     });
@@ -82,6 +110,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     int result = AWS_OP_ERR;
     napi_value napi_client_wrapper = NULL;
     napi_value node_external = NULL;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
     struct aws_mqtt5_client_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct aws_mqtt5_client_binding));
     binding->allocator = allocator;
@@ -96,7 +125,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     AWS_ZERO_STRUCT(client_options);
 
     struct aws_mqtt5_packet_connect_view connect_options;
-    AWS_ZERO_STRUCT(connection_options);
+    AWS_ZERO_STRUCT(connect_options);
 
     struct aws_mqtt5_packet_publish_view will_options;
     AWS_ZERO_STRUCT(will_options);
@@ -140,7 +169,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     napi_value node_socket_options = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_client_config)) {
-        AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&options.socket_options), {
+        AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&client_options.socket_options), {
             napi_throw_error(env, NULL, "mqtt5_client_new - Unable to extract socket_options from external");
             goto cleanup;
         });
@@ -156,9 +185,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             goto cleanup;
         });
 
-        aws_tls_connection_options_init_from_ctx(&binding->tls_options, tls_ctx);
+        aws_tls_connection_options_init_from_ctx(&binding->tls_connection_options, tls_ctx);
 
-        client_options.tls_options = &binding->tls_options;
+        client_options.tls_options = &binding->tls_connection_options;
     }
 
     napi_value node_proxy_options = *arg++;
@@ -172,7 +201,16 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         client_options.http_proxy_options = aws_napi_get_http_proxy_options(proxy_binding);
     }
 
-    binding->client = aws_mqtt5_client_new(&client_options);
+    client_options.publish_received_handler = s_on_publish_received;
+    client_options.publish_received_handler_user_data = binding;
+
+    client_options.lifecycle_event_handler = s_lifecycle_event_callback;
+    client_options.lifecycle_event_handler_user_data = binding;
+
+    client_options.client_termination_handler = s_mqtt5_client_on_terminate;
+    client_options.client_termination_handler_user_data = binding;
+
+    binding->client = aws_mqtt5_client_new(allocator, &client_options);
     if (binding->client == NULL) {
         napi_throw_type_error(env, NULL, "mqtt5_client_new - failed to create client");
         goto cleanup;
