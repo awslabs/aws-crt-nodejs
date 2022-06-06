@@ -54,7 +54,7 @@
         [
             "npm",
             "install",
-            "--ignore-scripts"
+            "--unsafe-perm"
         ],
         [
             "node",
@@ -78,8 +78,19 @@
         ],
         [
             "npm",
+            "--prefix",
+            "{project_dir}/samples/node/elasticurl/",
             "install",
-            "{project_dir}/samples/node/elasticurl/"
+            "{project_dir}/samples/node/elasticurl/",
+            "--unsafe-perm"
+        ],
+        [
+            "npx",
+            "tsc",
+            "--project",
+            "{project_dir}/samples/node/elasticurl",
+            "--outDir",
+            "{project_dir}/samples/node/elasticurl/dist/"
         ],
         [
             "{python}",
