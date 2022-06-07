@@ -246,7 +246,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         private config: MqttConnectionConfig) {
         super();
 
-        const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);        
+        const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
         const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
         const will = this.config.will ? {
             topic: this.config.will.topic,
