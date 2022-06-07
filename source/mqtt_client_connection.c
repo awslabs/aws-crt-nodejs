@@ -693,7 +693,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     AWS_ZERO_STRUCT(server_name);
     struct connect_args *on_connect_args = NULL;
 
-    napi_value node_args[12];
+    napi_value node_args[10];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
