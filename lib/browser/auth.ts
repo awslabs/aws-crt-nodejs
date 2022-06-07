@@ -31,19 +31,11 @@ export interface AWSCredentials{
 }
 
 /**
- * CredentialsProviderOptions Base Class. The base class of the options used for credentials providers.
- *
- * @category Auth
- */
-export class CredentialsProviderOptions {};
-
-
-/**
  * StaticCredentialOptions. The credentials options for CredentialsProvider.
  *
  * @category Auth
  */
-export class StaticCredentialOptions implements CredentialsProviderOptions 
+export class StaticCredentialOptions 
 {
     /** region */
     aws_region: string;
@@ -69,18 +61,9 @@ export class StaticCredentialOptions implements CredentialsProviderOptions
  * @category Auth
  */
 export class CredentialsProvider{
-    expire_interval_in_ms : number;
-    
-    constructor(expire_interval_in_ms? : number)
-    {
-        /** Default expiration interval is 1 hour */
-        this.expire_interval_in_ms = expire_interval_in_ms? expire_interval_in_ms:3600000;
-    }
-
-    /** Return a valid credentials. Please note mqtt.js does not support promises, meaning that
-     * you must use the refreshCredential function to handles application-level authentication refreshing
-     * so that the websocket connection could simply grab the latest valid tokens when getCredentials() get
-     * called. 
+    /** Return a valid credentials. Please note mqtt.js does not support promises, meaning that credentials 
+     * provider implementation should handle application-level authentication refreshing so that the websocket 
+     * connection could simply grab the latest valid tokens when getCredentials() get called. 
      * 
      * @Returns AWSCredentials
      * 
@@ -89,12 +72,6 @@ export class CredentialsProvider{
     { 
         return undefined;
     }
-
-    /** Used to validate the token. */
-    isExpired() : boolean {return false;}
-
-    /** The function will get called every {expire_interval_in_ms} ms to refresh the credential session token. */
-    refreshCredential() : void {};
 }
 
 
@@ -105,9 +82,9 @@ export class CredentialsProvider{
  */
 export class StaticCredentialProvider extends CredentialsProvider{
     options : StaticCredentialOptions;
-    constructor(options: StaticCredentialOptions, expire_interval_in_ms? : number)
+    constructor(options: StaticCredentialOptions)
     {
-        super(expire_interval_in_ms);
+        super();
         this.options = options;
     }
 
@@ -120,14 +97,6 @@ export class StaticCredentialProvider extends CredentialsProvider{
             aws_sts_token: this.options.aws_sts_token
         }
     }
-
-    isExpired = () : boolean =>
-    {
-        return false;
-    }
-
-    /** do nothing on refreshing static credentials */
-    refreshCredential = () : void => {}
 }
 
 /**

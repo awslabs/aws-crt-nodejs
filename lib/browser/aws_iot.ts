@@ -227,7 +227,6 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_credential_provider( customer_provider : CredentialsProvider) {
         this.params.credentials_provider = customer_provider;
-        setInterval(()=>{ customer_provider.refreshCredential();}, customer_provider.expire_interval_in_ms);
         return this;
     }
 

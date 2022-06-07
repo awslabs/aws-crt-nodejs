@@ -16,39 +16,29 @@ function log(msg: string) {
 
 /**
  * AWSCognitoCredentialOptions. The credentials options used to create AWSCongnitoCredentialProvider.
- *
- * @category Auth
  */
-class AWSCognitoCredentialOptions implements auth.CredentialsProviderOptions
+interface AWSCognitoCredentialOptions
 {
-    IdentityPoolId : string;
-    Region: string;
-
-    constructor(IdentityPoolId: string, region: string)
-    {
-        this.IdentityPoolId = IdentityPoolId;
-        this.Region = region;
-    }
+    IdentityPoolId : string,
+    Region: string
 }
 
 /**
  * AWSCognitoCredentialsProvider. The AWSCognitoCredentialsProvider implements AWS.CognitoIdentityCredentials.
  *
- * @category Auth
  */
 export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
-    options: AWSCognitoCredentialOptions;
-    source_provider : AWS.CognitoIdentityCredentials;
-    aws_credentials : auth.AWSCredentials;
+    private options: AWSCognitoCredentialOptions;
+    private source_provider : AWS.CognitoIdentityCredentials;
+    private aws_credentials : auth.AWSCredentials;
     constructor(options: AWSCognitoCredentialOptions, expire_interval_in_ms? : number)
     {
-        super(expire_interval_in_ms);
+        super();
         this.options = options;
         AWS.config.region = options.Region;
         this.source_provider = new AWS.CognitoIdentityCredentials({
             IdentityPoolId: options.IdentityPoolId
         });
-        this.refreshCredential();
         this.aws_credentials = 
         {
             aws_region: options.Region,
@@ -56,46 +46,15 @@ export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
             aws_secret_key: this.source_provider.secretAccessKey,
             aws_sts_token: this.source_provider.sessionToken
         }
+
+        setInterval(async ()=>{
+            await this.refreshCredentialAsync();
+        },expire_interval_in_ms?? 3600*1000);
     }
 
     getCredentials(){
         return this.aws_credentials;
     }
-
-    isExpired(){
-        return this.source_provider.expired;
-    }
-
-    refreshCredential(){
-        this.source_provider.get((err)=>
-        {
-            if(err)
-            {
-                this.source_provider.refresh((err) => {
-                    if(err)
-                    {
-                        console.log(`Error fetching cognito credentials: ${err}`);
-                    }
-                    else
-                    {
-                        this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                        this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                        this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                        this.aws_credentials.aws_region = this.options.Region;
-                    }
-                });
-            }
-            else
-            {
-                this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                this.aws_credentials.aws_region = this.options.Region;
-            }
-        });
-    }
-    
-
 
     async refreshCredentialAsync()
     {
@@ -118,48 +77,12 @@ export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
     }
 }
 
-/**
- * AWSCredentialsProviderCached. The AWSCredentialsProviderCached will be our main provider class.
- * The AWSCredentialsProviderCached will cached the current credential and expired_time, and stores a list of credentials providers. 
- *          If the credential is not expired, return the cached credentials.
- *          If the credential is expired, refresh the credential, and check the next credentialsProvider.
- * @category Auth
- */
- export class AWSCredentialsProviderCached extends auth.CredentialsProvider{
-    cached_credentials : auth.AWSCredentials | undefined;
-    source_provider : AWSCredentialsProviderCached;
-
-    constructor(provider: AWSCredentialsProviderCached, expire_interval_in_ms? : number)
-    {
-        super(expire_interval_in_ms);
-        this.source_provider = provider;
-        this.cached_credentials = this.source_provider.getCredentials();
-    }
-
-    getCredentials() : auth.AWSCredentials | undefined{
-        if(!this.isExpired()) return this.cached_credentials;
-
-        this.cached_credentials = this.source_provider.getCredentials();
-        return this.cached_credentials;
-    }
-
-    isExpired() : boolean {
-        return this.source_provider.isExpired();
-    }
-
-    refreshCredential() : void {
-        return this.source_provider.refreshCredential();
-    }
-}
-
 async function connect_websocket(provider: auth.CredentialsProvider) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
             .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
-            /** The following line is a sample of static credential. Please note the static credential will fail when web session expires.*/
-            //.with_credentials(Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken)
             .with_credential_provider(provider)
             .with_use_websockets()
             .with_keep_alive_seconds(30)
@@ -193,11 +116,13 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
 
 async function main() {
     /** Set up the credentialsProvider */
-    const options = new AWSCognitoCredentialOptions(Config.AWS_COGNITO_IDENTITY_POOL_ID, Config.AWS_REGION);
-    const provider = new AWSCognitoCredentialsProvider(options);
+    const provider = new AWSCognitoCredentialsProvider({
+            IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID, 
+            Region: Config.AWS_REGION});
     /** Make sure the credential provider fetched before setup the connection */
     await provider.refreshCredentialAsync();
-    
+
+
     connect_websocket(provider)
     .then((connection) => {
         log(`start subscribe`)
