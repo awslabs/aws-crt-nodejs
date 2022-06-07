@@ -18,6 +18,7 @@ import * as resource_safety from './common/resource_safety';
 import * as crt from './native/crt';
 import * as io from './native/io';
 import * as mqtt from './native/mqtt';
+import * as mqtt5 from './native/mqtt5';
 import * as http from './native/http';
 import * as crypto from './native/crypto';
 import * as auth from './native/auth';
@@ -28,6 +29,7 @@ export {
     crt,
     io,
     mqtt,
+    mqtt5,
     http,
     crypto,
     auth,

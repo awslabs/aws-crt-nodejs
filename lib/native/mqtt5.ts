@@ -85,7 +85,6 @@ export interface Mqtt5ClientConfig {
 }
 
 export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
-    readonly tls_ctx?: io.ClientTlsContext; // this reference keeps the tls_ctx alive beyond the life of the connection
 
     /**
      * @param client The client that owns this connection
