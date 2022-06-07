@@ -212,10 +212,13 @@ async function main() {
         })
         .then((subscription) => {
             log(`start publish`)
-            connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+            var msg_count = 0;
+            connection.publish(subscription.topic, `NOTICE ME {${msg_count}}`, subscription.qos);
             /** The sample is used to demo long-running web service. The sample will keep publishing the message every minute.*/
             setInterval( ()=>{
-                connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                msg_count++;
+                const msg = `NOTICE ME {${msg_count}}`;
+                connection.publish(subscription.topic, msg, subscription.qos);
             }, 60000);
         });
     })
