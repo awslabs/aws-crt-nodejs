@@ -18,8 +18,6 @@ struct aws_mqtt5_client_binding {
     struct aws_mqtt5_client *client;
 
     struct aws_tls_connection_options tls_connection_options;
-
-    napi_env env;
 };
 
 static void s_mqtt5_client_on_terminate(void *user_data) {
@@ -46,6 +44,14 @@ static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *pu
 
 static void s_lifecycle_event_callback(const struct aws_mqtt5_client_lifecycle_event *event) {
     (void)event;
+}
+
+struct aws_napi_mqtt5_client_options_storage {
+    struct aws_byte_buf host_name;
+};
+
+static void s_aws_napi_mqtt5_client_options_storage_clean_up(struct aws_napi_mqtt5_client_options_storage *storage) {
+    aws_byte_buf_clean_up(&storage->host_name);
 }
 
 static const uint32_t s_default_mqtt_keep_alive_interval_seconds = 1200;
@@ -80,14 +86,34 @@ static void s_init_default_mqtt5_client_options(
 }
 
 static int s_init_client_configuration_from_js_client_configuration(
+    napi_env env,
     napi_value node_client_config,
     struct aws_mqtt5_client_options *client_options,
     struct aws_mqtt5_packet_connect_view *connect_options,
-    struct aws_mqtt5_packet_publish_view *will_options) {
-    (void)node_client_config;
-    (void)client_options;
-    (void)connect_options;
+    struct aws_mqtt5_packet_publish_view *will_options,
+    struct aws_napi_mqtt5_client_options_storage *options_storage) {
+
     (void)will_options;
+    (void)connect_options;
+
+    /* required config parameters */
+    if (!aws_napi_get_named_property_as_bytebuf(
+            env, node_client_config, "host_name", napi_string, &options_storage->host_name)) {
+        return AWS_OP_ERR;
+    }
+
+    client_options->host_name = aws_byte_cursor_from_buf(&options_storage->host_name);
+
+    if (!aws_napi_get_named_property_as_uint16(env, node_client_config, "port", napi_number, &client_options->port)) {
+        return AWS_OP_ERR;
+    }
+
+    /* optional config parameters */
+    uint32_t session_behavior = 0;
+    if (aws_napi_get_named_property_as_uint32(
+            env, node_client_config, "session_behavior", napi_number, (uint32_t *)&session_behavior)) {
+        client_options->session_behavior = (enum aws_mqtt5_client_session_behavior_type)session_behavior;
+    }
 
     return AWS_OP_SUCCESS;
 }
@@ -114,7 +140,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_mqtt5_client_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct aws_mqtt5_client_binding));
     binding->allocator = allocator;
-    binding->env = env;
 
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_mqtt5_client_finalize, NULL, &node_external), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
@@ -129,6 +154,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_mqtt5_packet_publish_view will_options;
     AWS_ZERO_STRUCT(will_options);
+
+    struct aws_napi_mqtt5_client_options_storage options_storage;
+    AWS_ZERO_STRUCT(options_storage);
 
     struct aws_socket_options default_socket_options = {
         .type = AWS_SOCKET_STREAM,
@@ -147,7 +175,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     }
 
     if (s_init_client_configuration_from_js_client_configuration(
-            node_client_config, &client_options, &connect_options, &will_options)) {
+            env, node_client_config, &client_options, &connect_options, &will_options, &options_storage)) {
         napi_throw_error(
             env,
             NULL,
@@ -220,6 +248,8 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     napi_client_wrapper = node_external;
 
 cleanup:
+
+    s_aws_napi_mqtt5_client_options_storage_clean_up(&options_storage);
 
     if (result) {
         s_mqtt5_client_on_terminate(binding);

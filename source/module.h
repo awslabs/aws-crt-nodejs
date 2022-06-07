@@ -31,6 +31,41 @@ enum aws_napi_log_subject {
     AWS_LS_NODEJS_CRT_LAST = AWS_LOG_SUBJECT_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
 };
 
+bool aws_napi_get_named_property(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    napi_value *result);
+
+bool aws_napi_get_named_property_as_uint16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    uint16_t *result);
+
+bool aws_napi_get_named_property_as_uint32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    uint32_t *result);
+
+bool aws_napi_get_named_property_as_uint64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    uint64_t *result);
+
+bool aws_napi_get_named_property_as_bytebuf(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    struct aws_byte_buf *result);
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
 /** Copies data from cur into a new ArrayBuffer, then returns a DataView to the buffer. */

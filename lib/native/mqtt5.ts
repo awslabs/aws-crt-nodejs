@@ -15,6 +15,33 @@ import * as io from "./io";
 import { HttpProxyOptions } from './http';
 export { HttpProxyOptions } from './http';
 
+export enum AwsMqtt5ClientSessionBehavior {
+    Clean = 0,
+
+    /**
+     * Always attempt to rejoin an existing session after an initial connection success.
+     */
+    RejoinPostSuccess,
+}
+
+export enum AwsMqtt5ClientExtendedValidationAndFlowControl {
+    None = 0,
+    AwsIotCoreDefaults = 1,
+}
+
+export enum AwsMqtt5ClientOperationQueueBehavior {
+    FailAllOnDisconnect = 0,
+    FailQos0PublishOnDisconnect = 1,
+    FailNonQos1PublishOnDisconnect = 2,
+}
+
+export enum AwsRetryJitterType {
+    Default = 0,
+    None = 1,
+    Full = 2,
+    Decorrelated = 3,
+}
+
 export interface Mqtt5ClientConfig {
 
     /** Server name to connect to */
@@ -37,6 +64,24 @@ export interface Mqtt5ClientConfig {
     /** Optional proxy options */
     proxy_options?: HttpProxyOptions;
 
+    session_behavior? : AwsMqtt5ClientSessionBehavior;
+
+    extended_validation_and_flow_control_options? : AwsMqtt5ClientExtendedValidationAndFlowControl;
+
+    offline_queue_behavior? : AwsMqtt5ClientOperationQueueBehavior;
+
+    retry_jitter_mode? : AwsRetryJitterType;
+
+    min_reconnect_delay_ms? : number;
+    max_reconnect_delay_ms? : number;
+
+    min_connected_time_to_reset_reconnect_delay_ms? : number;
+
+    ping_timeout_ms? : number;
+
+    connack_timeout_ms? : number;
+
+    operation_timeout_seconds? : number;
 }
 
 export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
