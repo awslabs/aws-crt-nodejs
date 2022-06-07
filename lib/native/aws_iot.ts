@@ -388,6 +388,26 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Configure the max reconnection period (in second). The reonnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
+     * @param reconnect_max_sec max reconnection period 
+     */
+     with_reconnect_max_sec(max_sec: number) {
+        this.params.reconnect_max_sec = max_sec;
+        return this;
+    }
+
+    /**
+     * Configure the min reconnection period (in second). The reonnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
+     * @param reconnect_min_sec min reconnection period 
+     */
+     with_reconnect_min_sec(min_sec: number) {
+        this.params.reconnect_min_sec = min_sec;
+        return this;
+    }
+
+    /**
      * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the TLS context is cached
      * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
