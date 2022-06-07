@@ -172,12 +172,13 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
         log('setup callbacks ...');
         connection.on('connect', (session_present) => {
             resolve(connection);
+            log("connection started:")
         });
         connection.on('interrupt', (error: CrtError) => {
             log(`Connection interrupted: error=${error}`);
         });
         connection.on('resume', (return_code: number, session_present: boolean) => {
-            log(`Resumed: rc: ${return_code} existing session: ${session_present}`);
+            log(`Resumed: rc: ${return_code} existing session: ${session_present}`)
         });
         connection.on('disconnect', () => {
             log('Disconnected');
@@ -211,18 +212,10 @@ async function main() {
         })
         .then((subscription) => {
             log(`start publish`)
-            var count = 0;
-            connection.publish(subscription.topic, `NOTICE ME + ${count}`, subscription.qos);
+            connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
             /** The sample is used to demo long-running web service. The sample will keep publishing the message every minute.*/
             setInterval( ()=>{
-                count++;
-                const msg = `NOTICE ME + ${count}`;
-                log(`Message published: topic=${subscription.topic} message=${msg}`);
-                connection.publish(subscription.topic, msg , subscription.qos)
-                .catch((reason)=>
-                {
-                    log(`Error while connecting: ${reason}`);
-                });
+                connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
             }, 60000);
         });
     })
