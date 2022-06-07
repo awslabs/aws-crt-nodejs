@@ -156,7 +156,7 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
     return new Promise<mqtt.MqttClientConnection>((resolve, reject) => {
         let config = iot.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket()
             .with_clean_session(true)
-            .with_client_id("pub_sub_sample")
+            .with_client_id(`pub_sub_sample(${new Date()})`)
             .with_endpoint(Config.AWS_IOT_ENDPOINT)
             /** The following line is a sample of static credential. Please note the static credential will fail when web session expires.*/
             //.with_credentials(Config.AWS_REGION, original_credential.accessKeyId, original_credential.secretAccessKey, original_credential.sessionToken)
@@ -178,7 +178,7 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
             log(`Connection interrupted: error=${error}`);
         });
         connection.on('resume', (return_code: number, session_present: boolean) => {
-            log(`Resumed: rc: ${return_code} existing session: ${session_present}`)
+            log(`Resumed: rc: ${return_code} existing session: ${session_present}`);
         });
         connection.on('disconnect', () => {
             log('Disconnected');
@@ -212,10 +212,16 @@ async function main() {
         })
         .then((subscription) => {
             log(`start publish`)
-            connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+            var count = 0;
+            connection.publish(subscription.topic, `NOTICE ME + ${count}`, subscription.qos);
             /** The sample is used to demo long-running web service. The sample will keep publishing the message every minute.*/
             setInterval( ()=>{
-                connection.publish(subscription.topic, 'NOTICE ME', subscription.qos);
+                count++;
+                connection.publish(subscription.topic, `NOTICE ME + ${count}` , subscription.qos)
+                .catch((reason)=>
+                {
+                    log(`Error while connecting: ${reason}`);
+                });
             }, 60000);
         });
     })
