@@ -153,10 +153,16 @@ export class MqttClient {
     }
 }
 
+interface SubInfo
+{
+    callback?: OnMessageCallback,
+    qos: QoS
+}
+
 /** @internal */
-class TopicTrie extends Trie<OnMessageCallback | undefined> {
+class TopicTrie extends Trie<SubInfo | undefined> {
     constructor() {
-        super('/');
+        super('/', '/');
     }
 
     protected find_node(key: string, op: TrieOp) {
@@ -289,8 +295,8 @@ export class  MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                reconnectPeriod: (this.config.reconnect_min_sec ? this.config.reconnect_min_sec : this.reconnect_min_sec) * 1000, // disable mqtt.js reconnect, we'll handle it our custom way
-                //reconnectPeriod: 0,
+                //reconnectPeriod: (this.config.reconnect_min_sec ? this.config.reconnect_min_sec : this.reconnect_min_sec) * 1000, // disable mqtt.js reconnect, we'll handle it our custom way
+                reconnectPeriod: 0,
                 will: will,
                 transformWsUrl: websocketXform,
             }
@@ -302,7 +308,6 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         new_connection.on('offline', this.on_offline);
         new_connection.on('end', this.on_disconnected);
         new_connection.on('close', this.on_close);
-        new_connection.on('reconnect', this.on_reconnect);
 
         return new_connection;
     }
@@ -383,20 +388,33 @@ export class  MqttClientConnection extends BufferedEventEmitter {
             this.emit('connect', session_present);
         } else {
             this.emit('resume', 0, session_present);
+
+            // Resubscribe after reconnect.
+            const subfunction = (topic:string, info: SubInfo) => {
+                this.connection.subscribe(topic, { qos: info.qos }, (error, packet) => {
+                    if (error) {
+                        console.log( `Resubscription failed: ${error}`);
+                    }
+                });
+            };
+            this.subscriptions.traverseAll(subfunction);
         }
     }
 
     private on_offline = () => {
-        this.emit('reonnect');
         console.log(`disconnected...offline`);
         this.emit('interrupt', -1);
+        if ( !this.connection_shutdown)
+        {
+            console.log(`disconnected...close but not shutdown`);
+            this.reconnect();
+            //this.connection_shutdown = true;
+        }
     }
 
     private on_disconnected = () => {
-        this.connection_shutdown = true
-        console.log(`disconnected...disconnect`);
-        this.connection_shutdown = true;
-        this.emit('disconnect');
+            console.log(`disconnected...disconnect`);
+            this.emit('disconnect');    
     }
 
     private on_error = (error: Error) => {
@@ -408,8 +426,8 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
 
         const callback = this.subscriptions.find(topic);
-        if (callback) {
-            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
+        if (callback && callback.callback) {
+            callback.callback?.(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
         
@@ -422,10 +440,6 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         {
             this.reconnect();
         }
-    }
-
-    private on_reconnect = () => {
-        console.log(`try ... reconnecting...`);
     }
 
     private reset_reconnect_times()
@@ -449,9 +463,9 @@ export class  MqttClientConnection extends BufferedEventEmitter {
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
-                resolve(connack.sessionPresent);
                 console.log("connecting...")
                 this.reset_reconnect_times();
+                resolve(connack.sessionPresent);
             });
             this.connection.once('error', on_connect_error);
         });
@@ -493,14 +507,14 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         this.connection = this.setup_new_connection();
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
-                console.log("reconnect failed, retrying...")
-                this.reconnect();
+                console.log("reconnect failed.")
+                reject(new CrtError(error));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
                 console.log("reconnecting...")
-                resolve(connack.sessionPresent);
                 this.reset_reconnect_times();
+                resolve(connack.sessionPresent);
             });
             this.connection.once('error', on_connect_error);
         });
@@ -555,7 +569,7 @@ export class  MqttClientConnection extends BufferedEventEmitter {
      *          from the server or is rejected when an exception occurs.
      */
     async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback): Promise<MqttSubscribeRequest> {
-        this.subscriptions.insert(topic, on_message);
+        this.subscriptions.insert(topic, {callback: on_message, qos: qos});
         return new Promise((resolve, reject) => {
             this.connection.subscribe(topic, { qos: qos }, (error, packet) => {
                 if (error) {
@@ -599,6 +613,7 @@ export class  MqttClientConnection extends BufferedEventEmitter {
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {
+        this.connection_shutdown = true;
         return new Promise((resolve) => {
             this.connection.end(undefined, resolve)
         });
