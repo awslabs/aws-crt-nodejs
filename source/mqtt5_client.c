@@ -46,11 +46,11 @@ static void s_lifecycle_event_callback(const struct aws_mqtt5_client_lifecycle_e
     (void)event;
 }
 
-struct aws_napi_mqtt5_client_options_storage {
+struct aws_napi_mqtt5_client_creation_storage {
     struct aws_byte_buf host_name;
 };
 
-static void s_aws_napi_mqtt5_client_options_storage_clean_up(struct aws_napi_mqtt5_client_options_storage *storage) {
+static void s_aws_napi_mqtt5_client_creation_storage_clean_up(struct aws_napi_mqtt5_client_creation_storage *storage) {
     aws_byte_buf_clean_up(&storage->host_name);
 }
 
@@ -91,7 +91,7 @@ static int s_init_client_configuration_from_js_client_configuration(
     struct aws_mqtt5_client_options *client_options,
     struct aws_mqtt5_packet_connect_view *connect_options,
     struct aws_mqtt5_packet_publish_view *will_options,
-    struct aws_napi_mqtt5_client_options_storage *options_storage) {
+    struct aws_napi_mqtt5_client_creation_storage *options_storage) {
 
     (void)will_options;
     (void)connect_options;
@@ -114,6 +114,52 @@ static int s_init_client_configuration_from_js_client_configuration(
             env, node_client_config, "session_behavior", napi_number, (uint32_t *)&session_behavior)) {
         client_options->session_behavior = (enum aws_mqtt5_client_session_behavior_type)session_behavior;
     }
+
+    uint32_t extended_validation_and_flow_control_behavior = 0;
+    if (aws_napi_get_named_property_as_uint32(
+            env,
+            node_client_config,
+            "extended_validation_and_flow_control_options",
+            napi_number,
+            (uint32_t *)&extended_validation_and_flow_control_behavior)) {
+        client_options->extended_validation_and_flow_control_options =
+            (enum aws_mqtt5_extended_validation_and_flow_control_options)extended_validation_and_flow_control_behavior;
+    }
+
+    uint32_t offline_queue_behavior = 0;
+    if (aws_napi_get_named_property_as_uint32(
+            env, node_client_config, "offline_queue_behavior", napi_number, (uint32_t *)&offline_queue_behavior)) {
+        client_options->offline_queue_behavior =
+            (enum aws_mqtt5_client_operation_queue_behavior_type)offline_queue_behavior;
+    }
+
+    uint32_t retry_jitter_mode = 0;
+    if (aws_napi_get_named_property_as_uint32(
+            env, node_client_config, "retry_jitter_mode", napi_number, (uint32_t *)&retry_jitter_mode)) {
+        client_options->retry_jitter_mode = (enum aws_mqtt5_client_session_behavior_type)retry_jitter_mode;
+    }
+
+    aws_napi_get_named_property_as_uint64(
+        env, node_client_config, "min_reconnect_delay_ms", napi_number, &client_options->min_reconnect_delay_ms);
+
+    aws_napi_get_named_property_as_uint64(
+        env, node_client_config, "max_reconnect_delay_ms", napi_number, &client_options->max_reconnect_delay_ms);
+
+    aws_napi_get_named_property_as_uint64(
+        env,
+        node_client_config,
+        "min_connected_time_to_reset_reconnect_delay_ms",
+        napi_number,
+        &client_options->min_connected_time_to_reset_reconnect_delay_ms);
+
+    aws_napi_get_named_property_as_uint32(
+        env, node_client_config, "ping_timeout_ms", napi_number, &client_options->ping_timeout_ms);
+
+    aws_napi_get_named_property_as_uint32(
+        env, node_client_config, "connack_timeout_ms", napi_number, &client_options->connack_timeout_ms);
+
+    aws_napi_get_named_property_as_uint32(
+        env, node_client_config, "operation_timeout_seconds", napi_number, &client_options->operation_timeout_seconds);
 
     return AWS_OP_SUCCESS;
 }
@@ -155,7 +201,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_mqtt5_packet_publish_view will_options;
     AWS_ZERO_STRUCT(will_options);
 
-    struct aws_napi_mqtt5_client_options_storage options_storage;
+    struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
 
     struct aws_socket_options default_socket_options = {
@@ -249,7 +295,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
 cleanup:
 
-    s_aws_napi_mqtt5_client_options_storage_clean_up(&options_storage);
+    s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
 
     if (result) {
         s_mqtt5_client_on_terminate(binding);
