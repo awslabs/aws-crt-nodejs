@@ -273,6 +273,15 @@ export class  MqttClientConnection extends BufferedEventEmitter {
 
     private setup_new_connection() : mqtt.MqttClient
     {
+        if(this.connection !== undefined)
+        {
+            this.connection.removeAllListeners('connect');
+            this.connection.removeAllListeners('error');
+            this.connection.removeAllListeners('message');
+            this.connection.removeAllListeners('end');
+            this.connection.removeAllListeners('close');
+        }
+
         const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);        
         const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
         const will = this.config.will ? {
@@ -284,7 +293,6 @@ export class  MqttClientConnection extends BufferedEventEmitter {
 
         const websocketXform = (this.config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
 
-        console.log(`print value of clean session ${this.config.clean_session}`);
         const new_connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
@@ -295,7 +303,8 @@ export class  MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                //reconnectPeriod: (this.config.reconnect_min_sec ? this.config.reconnect_min_sec : this.reconnect_min_sec) * 1000, // disable mqtt.js reconnect, we'll handle it our custom way
+                /** Set the reconnectPeriod to 0 to disable MQTT.js reconnection feature 
+                 *  so that we can add our own reconnection backoff */
                 reconnectPeriod: 0,
                 will: will,
                 transformWsUrl: websocketXform,
@@ -305,7 +314,6 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         new_connection.on('connect', this.on_connect);
         new_connection.on('error', this.on_error);
         new_connection.on('message', this.on_message);
-        new_connection.on('offline', this.on_offline);
         new_connection.on('end', this.on_disconnected);
         new_connection.on('close', this.on_close);
 
@@ -389,32 +397,20 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         } else {
             this.emit('resume', 0, session_present);
 
-            // Resubscribe after reconnect.
-            const subfunction = (topic:string, info: SubInfo) => {
+            // Force resubscribe after reconnect even if clean_session set to true
+            const resubscribe = (topic:string, info: SubInfo) => {
                 this.connection.subscribe(topic, { qos: info.qos }, (error, packet) => {
                     if (error) {
                         console.log( `Resubscription failed: ${error}`);
                     }
                 });
             };
-            this.subscriptions.traverseAll(subfunction);
-        }
-    }
-
-    private on_offline = () => {
-        console.log(`disconnected...offline`);
-        this.emit('interrupt', -1);
-        if ( !this.connection_shutdown)
-        {
-            console.log(`disconnected...close but not shutdown`);
-            this.reconnect();
-            //this.connection_shutdown = true;
+            this.subscriptions.traverseAll(resubscribe);
         }
     }
 
     private on_disconnected = () => {
-            console.log(`disconnected...disconnect`);
-            this.emit('disconnect');    
+        this.emit('disconnect');
     }
 
     private on_error = (error: Error) => {
@@ -430,14 +426,12 @@ export class  MqttClientConnection extends BufferedEventEmitter {
             callback.callback?.(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
-        
-        console.log(`recieved...message`);
     }
 
     private on_close = () => {
-        console.log(`connection....close`);
         if ( !this.connection_shutdown)
         {
+            this.emit('interrupt', -1);
             this.reconnect();
         }
     }
@@ -458,13 +452,10 @@ export class  MqttClientConnection extends BufferedEventEmitter {
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
-                console.log("reconnect failed.")
                 reject(new CrtError(error));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
-                console.log("connecting...")
-                this.reset_reconnect_times();
                 resolve(connack.sessionPresent);
             });
             this.connection.once('error', on_connect_error);
@@ -496,23 +487,19 @@ export class  MqttClientConnection extends BufferedEventEmitter {
      * @deprecated
      */
     async reconnect() {
-        // console.timeEnd(`get reconnection ${this.reconnect_count-1}`);
-        // console.time(`get reconnection ${this.reconnect_count}`);
+        // set reconnect backoff
         const waitTime = this.get_reconnect_time_sec();
-        console.log(`waiting Time...${waitTime}`);
-        //this.connection.options.reconnectPeriod = waitTime;
         setTimeout(() => { this.uncork() }, waitTime * 1000);
-        console.log("reconnecting...")
         this.reconnect_count = this.reconnect_count+1;
+
+        // setup new connection
         this.connection = this.setup_new_connection();
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
-                console.log("reconnect failed.")
                 reject(new CrtError(error));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
-                console.log("reconnecting...")
                 this.reset_reconnect_times();
                 resolve(connack.sessionPresent);
             });

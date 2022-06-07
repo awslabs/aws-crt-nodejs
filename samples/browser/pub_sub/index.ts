@@ -172,7 +172,6 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
         log('setup callbacks ...');
         connection.on('connect', (session_present) => {
             resolve(connection);
-            log("connection started:")
         });
         connection.on('interrupt', (error: CrtError) => {
             log(`Connection interrupted: error=${error}`);
@@ -217,7 +216,9 @@ async function main() {
             /** The sample is used to demo long-running web service. The sample will keep publishing the message every minute.*/
             setInterval( ()=>{
                 count++;
-                connection.publish(subscription.topic, `NOTICE ME + ${count}` , subscription.qos)
+                const msg = `NOTICE ME + ${count}`;
+                log(`Message published: topic=${subscription.topic} message=${msg}`);
+                connection.publish(subscription.topic, msg , subscription.qos)
                 .catch((reason)=>
                 {
                     log(`Error while connecting: ${reason}`);

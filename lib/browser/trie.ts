@@ -73,7 +73,7 @@ export class Trie<T> {
         return this.combine_key(list);
     }
 
-    protected traverseTree(node: Node<T>, fun: Function, parent_key?: string)
+    protected traverseTree(node: Node<T>, callback: Function, parent_key?: string)
     {
         var key = node.key == undefined? node.key: "";
         if(parent_key != undefined) {
@@ -81,10 +81,10 @@ export class Trie<T> {
         }
         if(node.value != undefined)
         {
-            fun(key, node.value);
+            callback(key, node.value);
         }
         for (const child of node.children) {
-            this.traverseTree(child[1], fun, key);
+            this.traverseTree(child[1], callback, key);
         }
     }
 
@@ -102,7 +102,7 @@ export class Trie<T> {
         return node ? node.value : undefined;
     }
 
-    traverseAll(fun: Function){
-        this.traverseTree(this.root, fun);
+    traverseAll(callback: Function){
+        this.traverseTree(this.root, callback);
     }
 }
