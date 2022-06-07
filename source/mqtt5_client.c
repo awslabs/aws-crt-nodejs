@@ -230,7 +230,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_client_bootstrap = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_client_config)) {
+    if (!aws_napi_is_null_or_undefined(env, node_client_bootstrap)) {
         struct client_bootstrap_binding *client_bootstrap_binding = NULL;
         napi_get_value_external(env, node_client_bootstrap, (void **)&client_bootstrap_binding);
 
@@ -242,7 +242,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     }
 
     napi_value node_socket_options = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_client_config)) {
+    if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&client_options.socket_options), {
             napi_throw_error(env, NULL, "mqtt5_client_new - Unable to extract socket_options from external");
             goto cleanup;
