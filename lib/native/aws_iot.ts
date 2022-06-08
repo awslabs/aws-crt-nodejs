@@ -11,7 +11,8 @@
  * @preferred
  */
 
-import { MqttConnectionConfig, MqttWill } from "./mqtt";
+import { MqttConnectionConfig, MqttWill} from "./mqtt";
+import { DEFAULT_RECONNECT_MIN_SEC, DEFAULT_RECONNECT_MAX_SEC} from "../common/mqtt"
 import * as io from "./io";
 import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
@@ -72,6 +73,8 @@ export class AwsIotMqttConnectionConfigBuilder {
             username: "",
             password: undefined,
             tls_ctx: undefined,
+            reconnect_min_sec: DEFAULT_RECONNECT_MIN_SEC,
+            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC
         };
         this.is_using_custom_authorizer = false
     }
@@ -392,7 +395,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
      * @param reconnect_max_sec max reconnection period 
      */
-     with_reconnect_max_sec(max_sec: number) {
+    with_reconnect_max_sec(max_sec: number) {
         this.params.reconnect_max_sec = max_sec;
         return this;
     }
@@ -402,7 +405,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
      * @param reconnect_min_sec min reconnection period 
      */
-     with_reconnect_min_sec(min_sec: number) {
+    with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
         return this;
     }

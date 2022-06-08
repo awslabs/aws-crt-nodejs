@@ -28,8 +28,8 @@ import {
     MqttConnectionError,
     MqttConnectionInterrupted,
     MqttConnectionResumed,
-    DERAULT_RECONNECT_MIN_SEC,
-    DERAULT_RECONNECT_MAX_SEC
+    DEFAULT_RECONNECT_MIN_SEC,
+    DEFAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
@@ -236,8 +236,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
     // track number of times in a row that reconnect has been attempted
     // use exponential backoff between subsequent failed attempts
     private reconnect_count = 0;
-    private reconnect_min_sec = DERAULT_RECONNECT_MIN_SEC;
-    private reconnect_max_sec = DERAULT_RECONNECT_MAX_SEC;
+    private reconnect_min_sec = DEFAULT_RECONNECT_MIN_SEC;
+    private reconnect_max_sec = DEFAULT_RECONNECT_MAX_SEC;
 
     /**
      * @param client The client that owns this connection
@@ -448,7 +448,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
         // But we take (min,max) as parameters, and don't don't allow results less than min.
         const cap = this.reconnect_max_sec - this.reconnect_min_sec;
         const base = Math.max(this.reconnect_min_sec, 1);
-        const sleep = Math.random() * Math.min(cap, base * (2 ** this.reconnect_count));
+        /** Use Math.pow() since IE does not support ** operator */
+        const sleep = Math.random() * Math.min(cap, base * Math.pow(2, this.reconnect_count));
         return this.reconnect_min_sec + sleep;
     }
 

@@ -186,11 +186,11 @@ export type MqttConnectionResumed = (return_code: number, session_present: boole
  * 
  * @category MQTT
  */
-export const DERAULT_RECONNECT_MAX_SEC = 128;
+export const DEFAULT_RECONNECT_MAX_SEC = 128;
 
 /**
  * Const value for min reconnection back off time
  * 
  * @category MQTT
  */
- export const DERAULT_RECONNECT_MIN_SEC = 1;
+ export const DEFAULT_RECONNECT_MIN_SEC = 1;
