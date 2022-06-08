@@ -31,31 +31,6 @@ export interface AWSCredentials{
 }
 
 /**
- * StaticCredentialOptions. The credentials options for CredentialsProvider.
- *
- * @category Auth
- */
-export class StaticCredentialOptions 
-{
-    /** region */
-    aws_region: string;
-    /** AWS access id */
-    aws_access_id: string;
-    /** AWS secret access key */
-    aws_secret_key: string;
-    /** Session token for session credentials */
-    aws_sts_token?: string;
-
-    constructor(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string)
-    {
-        this.aws_region = aws_region;
-        this.aws_access_id = aws_access_id;
-        this.aws_secret_key = aws_secret_key;
-        this.aws_sts_token = aws_sts_token;
-    }
-}
-
-/**
  * CredentialsProvider Base Class. The base class of credentials providers.
  *
  * @category Auth
@@ -81,21 +56,16 @@ export class CredentialsProvider{
  * @category Auth
  */
 export class StaticCredentialProvider extends CredentialsProvider{
-    options : StaticCredentialOptions;
-    constructor(options: StaticCredentialOptions)
+    credentials : AWSCredentials;
+    constructor(credentials: AWSCredentials)
     {
         super();
-        this.options = options;
+        this.credentials = credentials;
     }
 
     getCredentials = () : AWSCredentials | undefined =>
     {
-        return {
-            aws_region: this.options.aws_region,
-            aws_access_id : this.options.aws_access_id,
-            aws_secret_key: this.options.aws_secret_key,
-            aws_sts_token: this.options.aws_sts_token
-        }
+        return this.credentials;
     }
 }
 
