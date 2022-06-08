@@ -27,7 +27,9 @@ import {
     MqttConnectionDisconnected,
     MqttConnectionError,
     MqttConnectionInterrupted,
-    MqttConnectionResumed
+    MqttConnectionResumed,
+    DERAULT_RECONNECT_MIN_SEC,
+    DERAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
@@ -234,8 +236,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
     // track number of times in a row that reconnect has been attempted
     // use exponential backoff between subsequent failed attempts
     private reconnect_count = 0;
-    private reconnect_min_sec = 1;
-    private reconnect_max_sec = 128;
+    private reconnect_min_sec = DERAULT_RECONNECT_MIN_SEC;
+    private reconnect_max_sec = DERAULT_RECONNECT_MAX_SEC;
 
     /**
      * @param client The client that owns this connection
@@ -379,6 +381,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         const waitTime = this.get_reconnect_time_sec();
         setTimeout(() => {
             /** Emit reconnect after backoff time */
+            this.reconnect_count++;
             this.connection.reconnect();
         },
         waitTime * 1000);
