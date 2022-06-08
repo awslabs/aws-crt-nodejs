@@ -87,7 +87,6 @@ export interface Mqtt5ClientConfig {
 export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
 
     /**
-     * @param client The client that owns this connection
      * @param config The configuration for this connection
      */
     constructor(config: Mqtt5ClientConfig) {
@@ -109,5 +108,13 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
          */
         this.on('error', (error) => {
         });
+    }
+
+    start() {
+        crt_native.mqtt5_client_start(this.native_handle());
+    }
+
+    stop() {
+        crt_native.mqtt5_client_stop(this.native_handle());
     }
 }

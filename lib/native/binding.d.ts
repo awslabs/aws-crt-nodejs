@@ -135,6 +135,8 @@ export function checksums_crc32(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc32c(data: StringLike, previous?: number): number;
 
+/* MQTT5 Client */
+
 /** @internal */
 export function mqtt5_client_new(
     config: Mqtt5ClientConfig,
@@ -143,6 +145,10 @@ export function mqtt5_client_new(
     tls_ctx?: NativeHandle,
     proxy_options?: NativeHandle,
 ): NativeHandle;
+
+export function mqtt5_client_start(connection: NativeHandle) : void;
+
+export function mqtt5_client_stop(connection: NativeHandle) : void;
 
 /* MQTT Client */
 /** @internal */

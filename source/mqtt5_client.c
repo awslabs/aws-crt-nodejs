@@ -303,3 +303,79 @@ cleanup:
 
     return napi_client_wrapper;
 }
+
+napi_value aws_napi_mqtt5_client_start(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_start - Failed to parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_start - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_mqtt5_client_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_start - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_start - binding was null");
+        return NULL;
+    }
+
+    if (binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_start - client was null");
+        return NULL;
+    }
+
+    aws_mqtt5_client_start(binding->client);
+
+    return NULL;
+}
+
+napi_value aws_napi_mqtt5_client_stop(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - Failed to parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_mqtt5_client_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_stop - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - binding was null");
+        return NULL;
+    }
+
+    if (binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - client was null");
+        return NULL;
+    }
+
+    aws_mqtt5_client_stop(binding->client);
+
+    return NULL;
+}
