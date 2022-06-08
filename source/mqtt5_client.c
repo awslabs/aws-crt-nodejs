@@ -309,8 +309,8 @@ napi_value aws_napi_mqtt5_client_start(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_start - Failed to parameter array");
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_start - Failed to extract parameter array");
         return NULL;
     });
 
@@ -347,8 +347,8 @@ napi_value aws_napi_mqtt5_client_stop(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - Failed to parameter array");
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - Failed to extract parameter array");
         return NULL;
     });
 
@@ -375,7 +375,7 @@ napi_value aws_napi_mqtt5_client_stop(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    aws_mqtt5_client_stop(binding->client);
+    aws_mqtt5_client_stop(binding->client, NULL, NULL);
 
     return NULL;
 }
