@@ -56,9 +56,9 @@
     "ws": "^7.5.5"
   },
   "resolutions": {
-    "minimist": "^1.2.6",
-    "shelljs": "^0.8.5",
-    "tar@4.4.17": "^4.4.19",
+    "minimist": "1.2.6",
+    "shelljs": "0.8.5",
+    "tar@4.4.17": "4.4.19",
     "@types/prettier": "2.3.2"
   }
 }
