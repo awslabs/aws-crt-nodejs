@@ -479,9 +479,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
             napi_throw_error(env, NULL, "failed to set reconnect min/max timeout");
             goto cleanup;
         }
-    }
-    else
-    {
+    } else {
         napi_throw_error(env, NULL, "reconnect min/max timeout is missing.");
         goto cleanup;
     }
