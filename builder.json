@@ -48,17 +48,7 @@
             "--init",
             "--recursive"
         ],
-        "pkcs11-test-setup",
-        [
-            "npm",
-            "install",
-            "npm-force-resolutions"
-        ],
-        [
-            "npx",
-            "install",
-            "npm-force-resolutions"
-        ]
+        "pkcs11-test-setup"
     ],
     "build_steps": [
         [
