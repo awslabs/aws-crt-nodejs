@@ -444,11 +444,11 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     /* set reconnect min/max times. beware that user that might have passed only one of these values */
     napi_value node_reconnect_min_sec = *arg++;
     napi_value node_reconnect_max_sec = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_reconnect_min_sec) ||
+    if (!aws_napi_is_null_or_undefined(env, node_reconnect_min_sec) &&
         !aws_napi_is_null_or_undefined(env, node_reconnect_max_sec)) {
 
-        int64_t reconnect_min_sec = 1;
-        int64_t reconnect_max_sec = 128;
+        int64_t reconnect_min_sec = -1;
+        int64_t reconnect_max_sec = -1;
 
         if (!aws_napi_is_null_or_undefined(env, node_reconnect_min_sec)) {
             AWS_NAPI_CALL(env, napi_get_value_int64(env, node_reconnect_min_sec, &reconnect_min_sec), {
@@ -485,6 +485,11 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
             napi_throw_error(env, NULL, "failed to set reconnect min/max timeout");
             goto cleanup;
         }
+    }
+    else
+    {
+        napi_throw_error(env, NULL, "reconnect min/max timeout is missing.");
+        goto cleanup;
     }
 
     /* napi_create_reference() must be the last thing called by this function.
