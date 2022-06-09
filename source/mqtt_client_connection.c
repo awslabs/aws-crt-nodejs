@@ -460,9 +460,6 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
                 napi_throw_range_error(env, NULL, "reconnect_min_sec cannot be negative");
                 goto cleanup;
             }
-
-            /* clamp max, in case they only passed in min */
-            reconnect_max_sec = aws_max_i64(reconnect_min_sec, reconnect_max_sec);
         }
 
         if (!aws_napi_is_null_or_undefined(env, node_reconnect_max_sec)) {
@@ -475,9 +472,6 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
                 napi_throw_range_error(env, NULL, "reconnect_max_sec cannot be negative");
                 goto cleanup;
             }
-
-            /* clamp min, in case they only passed in max */
-            reconnect_min_sec = aws_min_i64(reconnect_min_sec, reconnect_max_sec);
         }
 
         if (aws_mqtt_client_connection_set_reconnect_timeout(
