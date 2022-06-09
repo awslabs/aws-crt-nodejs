@@ -11,7 +11,7 @@
  * @preferred
  */
 
-import { CredentialsProvider, StaticCredentialOptions, StaticCredentialProvider} from "./auth"
+import { CredentialsProvider, StaticCredentialProvider} from "./auth"
 import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
@@ -213,8 +213,11 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @returns this builder object
      */
      with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
-        const options = new StaticCredentialOptions(aws_region, aws_access_id, aws_secret_key,aws_sts_token);
-        const provider = new StaticCredentialProvider(options);
+        const provider = new StaticCredentialProvider(
+            { aws_region: aws_region, 
+              aws_access_id: aws_access_id, 
+              aws_secret_key: aws_secret_key,
+              aws_sts_token: aws_sts_token});
         this.params.credentials_provider = provider;
         return this;
     }
@@ -227,7 +230,6 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_credential_provider( customer_provider : CredentialsProvider) {
         this.params.credentials_provider = customer_provider;
-        setInterval(()=>{ customer_provider.refreshCredential();}, customer_provider.expire_interval_in_ms);
         return this;
     }
 

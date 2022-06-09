@@ -131,6 +131,9 @@ export interface MqttConnectionConfig {
     /** Options for the underlying websocket connection */
     websocket?: WebsocketOptions;
 
+    /** AWS credentials, which will be used to sign the websocket request */
+    credentials?: AWSCredentials;
+
     /** Options for the underlying credentianls provider */
     credentials_provider?: auth.CredentialsProvider;
 }
@@ -272,6 +275,17 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         this.reset_reconnect_times();
+
+        // If the credentials are set but no the credentials_provider
+        if (this.config.credentials_provider == undefined &&
+            this.config.credentials != undefined){
+            const provider = new auth.StaticCredentialProvider(
+                { aws_region: this.config.credentials.aws_region, 
+                    aws_access_id: this.config.credentials.aws_access_id, 
+                    aws_secret_key: this.config.credentials.aws_secret_key,
+                    aws_sts_token: this.config.credentials.aws_sts_token});
+            this.config.credentials_provider = provider;
+        }
 
         this.connection = new mqtt.MqttClient(
             create_websocket_stream,
