@@ -253,6 +253,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
         const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
+
         const will = this.config.will ? {
             topic: this.config.will.topic,
             payload: normalize_payload(this.config.will.payload),
@@ -260,7 +261,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
             retain: this.config.will.retain,
         } : undefined;
 
-        const websocketXform = (this.config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
 
         if (config.reconnect_min_sec !== undefined) {
             this.reconnect_min_sec = config.reconnect_min_sec;
@@ -287,6 +287,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
             this.config.credentials_provider = provider;
         }
 
+        const websocketXform = (this.config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
         this.connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
@@ -436,7 +437,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
-                console.log("reconnect failed.")
                 reject(new CrtError(error));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
