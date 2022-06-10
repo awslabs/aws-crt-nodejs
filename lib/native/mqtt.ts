@@ -26,7 +26,9 @@ import {
     MqttConnectionDisconnected,
     MqttConnectionError,
     MqttConnectionInterrupted,
-    MqttConnectionResumed
+    MqttConnectionResumed,
+    DEFAULT_RECONNECT_MIN_SEC,
+    DEFAULT_RECONNECT_MAX_SEC,
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
 
@@ -118,6 +120,20 @@ export interface MqttConnectionConfig {
     protocol_operation_timeout?: number;
 
     /**
+     * Minimum seconds to wait between reconnect attempts.
+     * Must be <= {@link reconnect_max_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_min_sec?: number;
+
+    /**
+     * Maximum seconds to wait between reconnect attempts.
+     * Must be >= {@link reconnect_min_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_max_sec?: number;
+
+    /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
      */
@@ -192,6 +208,21 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             }
             : undefined;
 
+        /** clamp reconnection time out values */
+        var min_sec = DEFAULT_RECONNECT_MIN_SEC;
+        var max_sec = DEFAULT_RECONNECT_MAX_SEC;
+        if (config.reconnect_min_sec !== undefined) {
+            min_sec = config.reconnect_min_sec;
+            // clamp max, in case they only passed in min
+            max_sec = Math.max(min_sec, max_sec);
+        }
+
+        if (config.reconnect_max_sec !== undefined) {
+            max_sec = config.reconnect_max_sec;
+            // clamp min, in case they only passed in max (or passed in min > max)
+            min_sec = Math.min(min_sec, max_sec);
+        }
+
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
@@ -203,6 +234,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             config.use_websocket,
             config.proxy_options ? config.proxy_options.create_native_handle() : undefined,
             config.websocket_handshake_transform,
+            min_sec,
+            max_sec,
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
