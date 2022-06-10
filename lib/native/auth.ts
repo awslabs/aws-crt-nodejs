@@ -11,6 +11,7 @@
  * @preferred
  */
 
+import * as auth from '../common/auth';
 import crt_native from './binding';
 import { CrtError } from './error';
 import { HttpRequest } from './http';
@@ -124,7 +125,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
  *
  * @category Auth
  */
-export interface AwsSigningConfig {
+export interface AwsSigningConfig extends auth.AwsSigningConfigBase {
     /** Which signing process to invoke */
     algorithm: AwsSigningAlgorithm;
 
@@ -133,19 +134,6 @@ export interface AwsSigningConfig {
 
     /** Credentials provider to fetch signing credentials with */
     provider: AwsCredentialsProvider;
-
-    /** The region to sign against */
-    region: string;
-
-    /** Name of service to sign a request for */
-    service?: string;
-
-    /**
-     * Date and time to use during the signing process. If not provided then
-     * the current time in UTC is used. Naive dates (lacking timezone info)
-     * are assumed to be in local time
-     */
-    date?: Date;
 
     /**
      * Headers to skip when signing.

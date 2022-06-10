@@ -181,4 +181,17 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  */
 export type MqttConnectionResumed = (return_code: number, session_present: boolean) => void;
 
+/**
+ * Const value for max reconnection back off time
+ * 
+ * @category MQTT
+ */
+export const DEFAULT_RECONNECT_MAX_SEC = 128;
 
+/**
+ * Const value for min reconnection back off time
+ * 
+ * @category MQTT
+ */
+ export const DEFAULT_RECONNECT_MIN_SEC = 1;
+ 

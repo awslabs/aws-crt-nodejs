@@ -11,6 +11,7 @@
  * @preferred
  */
 
+import { CredentialsProvider, StaticCredentialProvider} from "./auth"
 import { SocketOptions } from "./io";
 import { MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
@@ -37,6 +38,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             username: '',
             password: undefined,
             websocket: {},
+            credentials_provider: undefined
         };
     }
 
@@ -201,21 +203,33 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configures AWS credentials (usually from Cognito) for this connection
+     * Configures Static AWS credentials for this connection. 
+     * Please note that the static credential will fail when the web session expired.
      * @param aws_region The service region to connect to
      * @param aws_access_id IAM Access ID
      * @param aws_secret_key IAM Secret Key
      * @param aws_sts_token session credentials token (optional)
-     *
+     * 
      * @returns this builder object
      */
-    with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
-        this.params.credentials = {
-            aws_region: aws_region,
-            aws_access_id: aws_access_id,
-            aws_secret_key: aws_secret_key,
-            aws_sts_token: aws_sts_token,
-        };
+     with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
+        const provider = new StaticCredentialProvider(
+            { aws_region: aws_region, 
+              aws_access_id: aws_access_id, 
+              aws_secret_key: aws_secret_key,
+              aws_sts_token: aws_sts_token});
+        this.params.credentials_provider = provider;
+        return this;
+    }
+
+    /**
+     * Configures credentials provider (currently support for AWS Cognito Credential Provider) for this connection
+     * @param customer_provider credential provider used to update credential when session expired (optional)
+     * 
+     * @returns this builder object
+     */
+    with_credential_provider( customer_provider : CredentialsProvider) {
+        this.params.credentials_provider = customer_provider;
         return this;
     }
 
@@ -261,6 +275,26 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_password(password : string) {
         this.params.password = password;
+        return this;
+    }
+
+    /**
+     * Configure the max reconnection period (in second). The reonnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
+     * @param reconnect_max_sec max reconnection period 
+     */
+    with_reconnect_max_sec(max_sec: number) {
+        this.params.reconnect_max_sec = max_sec;
+        return this;
+    }
+
+    /**
+     * Configure the min reconnection period (in second). The reonnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
+     * @param reconnect_min_sec min reconnection period 
+     */
+    with_reconnect_min_sec(min_sec: number) {
+        this.params.reconnect_min_sec = min_sec;
         return this;
     }
 
