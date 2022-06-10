@@ -224,7 +224,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    napi_value node_args[10];
+    napi_value node_args[12];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -232,7 +232,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_new needs exactly 10 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_new received wrong number of arguments");
         return NULL;
     }
 
@@ -439,6 +439,49 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         } else {
             aws_mqtt_client_connection_use_websockets(binding->connection, NULL, NULL, NULL, NULL);
         }
+    }
+
+    /* set reconnect min/max times. beware that user that might have passed only one of these values */
+    napi_value node_reconnect_min_sec = *arg++;
+    napi_value node_reconnect_max_sec = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_reconnect_min_sec) &&
+        !aws_napi_is_null_or_undefined(env, node_reconnect_max_sec)) {
+
+        int64_t reconnect_min_sec = -1;
+        int64_t reconnect_max_sec = -1;
+
+        if (!aws_napi_is_null_or_undefined(env, node_reconnect_min_sec)) {
+            AWS_NAPI_CALL(env, napi_get_value_int64(env, node_reconnect_min_sec, &reconnect_min_sec), {
+                napi_throw_type_error(env, NULL, "reconnect_min_sec must be a Number");
+                goto cleanup;
+            });
+
+            if (reconnect_min_sec < 0) {
+                napi_throw_range_error(env, NULL, "reconnect_min_sec cannot be negative");
+                goto cleanup;
+            }
+        }
+
+        if (!aws_napi_is_null_or_undefined(env, node_reconnect_max_sec)) {
+            AWS_NAPI_CALL(env, napi_get_value_int64(env, node_reconnect_max_sec, &reconnect_max_sec), {
+                napi_throw_type_error(env, NULL, "reconnect_max_sec must be a Number");
+                goto cleanup;
+            });
+
+            if (reconnect_max_sec < 0) {
+                napi_throw_range_error(env, NULL, "reconnect_max_sec cannot be negative");
+                goto cleanup;
+            }
+        }
+
+        if (aws_mqtt_client_connection_set_reconnect_timeout(
+                binding->connection, (uint64_t)reconnect_min_sec, (uint64_t)reconnect_max_sec)) {
+            napi_throw_error(env, NULL, "failed to set reconnect min/max timeout");
+            goto cleanup;
+        }
+    } else {
+        napi_throw_error(env, NULL, "reconnect min/max timeout is missing.");
+        goto cleanup;
     }
 
     /* napi_create_reference() must be the last thing called by this function.
@@ -655,7 +698,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_connect needs exactly 10 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_connection_connect received wrong number of arguments");
         goto cleanup;
     }
 
