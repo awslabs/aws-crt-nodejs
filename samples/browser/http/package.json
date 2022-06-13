@@ -10,7 +10,7 @@
   "browser": "./dist/index.js",
   "scripts": {
     "webpack": "webpack --mode=development",
-    "prepare": "cd ../../.. && npm install && cd samples/browser/http && npm run webpack"
+    "prepare": "npm run webpack"
   },
   "keywords": [],
   "license": "Apache-2.0",
@@ -18,15 +18,16 @@
     "url": "https://github.com/awslabs/aws-crt-nodejs/issues"
   },
   "devDependencies": {
-    "@types/jquery": "^3.3.30",
-    "source-map-loader": "^0.2.4",
-    "ts-loader": "^6.2.1",
-    "typescript": "^3.7.3",
-    "webpack": "^5.52.0",
-    "webpack-cli": "^4.8.0"
+    "@types/jquery": "^3.5.14",
+    "node-polyfill-webpack-plugin": "^1.1.4",
+    "source-map-loader": "^2.0.2",
+    "ts-loader": "^8.3.0",
+    "typescript": "^3.9.10",
+    "webpack": "^5.73.0",
+    "webpack-cli": "^4.10.0"
   },
   "dependencies": {
-    "aws-crt": "file:../../../",
-    "jquery": "^3.5.0"
+    "aws-crt": "^1.12.4",
+    "jquery": "^3.6.0"
   }
 }

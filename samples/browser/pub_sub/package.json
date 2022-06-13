@@ -10,7 +10,7 @@
   "browser": "./dist/index.js",
   "scripts": {
     "webpack": "webpack --mode=development",
-    "prepare": "cd ../../.. && npm install && cd samples/browser/pub_sub && npm run webpack"
+    "prepare": "npm run webpack"
   },
   "keywords": [],
   "license": "Apache-2.0",
@@ -20,16 +20,16 @@
   "devDependencies": {
     "@types/jquery": "^3.3.31",
     "node-polyfill-webpack-plugin": "^1.1.4",
-    "source-map-loader": "^0.2.4",
-    "ts-loader": "^6.2.1",
+    "source-map-loader": "^2.0.2",
+    "ts-loader": "^8.3.0",
     "typescript": "^3.7.3",
-    "webpack": "^5.59.1",
-    "webpack-cli": "^4.9.1"
+    "webpack": "^5.73.0",
+    "webpack-cli": "^4.10.0"
   },
   "dependencies": {
-    "aws-crt": "file:../../../",
+    "aws-crt": "^1.12.4",
     "aws-sdk": "^2.585.0",
-    "jquery": "^3.5.0",
+    "jquery": "^3.6.0",
     "util": "^0.12.4"
   }
 }

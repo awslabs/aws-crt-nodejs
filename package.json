@@ -15,18 +15,18 @@
     "tsc": "node ./scripts/tsc.js",
     "test": "npm run test:native",
     "test:node": "npm run test:native",
-    "test:native": "npx jest --runInBand --verbose --config test/native/jest.config.js --forceExit",
+    "test:native": "npx jest --runInBand --verbose --config test/native/jest.config.js",
     "test:browser": "npx jest --runInBand --verbose --config test/browser/jest.config.js --forceExit",
     "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
     "install:puppeteer": "npm install --save-dev jest-puppeteer puppeteer @types/puppeteer",
     "prepare": "node ./scripts/tsc.js && node ./scripts/build.js",
     "install": "node ./scripts/install.js",
-    "preinstall": "npm install npm-force-resolutions && npx npm-force-resolutions && npm install npm-force-resolutions && npx npm-force-resolutions"
+    "preinstall": "npm install npm-force-resolutions && npx npm-force-resolutions"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^27.0.1",
-    "@types/node": "^10.17.54",
+    "@types/node": "^10.17.60",
     "@types/puppeteer": "^5.4.4",
     "@types/uuid": "^3.4.8",
     "@types/ws": "^7.4.7",
@@ -41,24 +41,22 @@
     "typedoc-plugin-as-member-of": "^1.0.2",
     "typedoc-plugin-external-module-name": "^4.0.6",
     "typedoc-plugin-remove-references": "^0.0.5",
-    "typescript": "^3.9.9",
+    "typescript": "^3.9.10",
     "uuid": "^8.3.2",
     "yargs": "^17.2.1"
   },
   "dependencies": {
     "@httptoolkit/websocket-stream": "^6.0.0",
-    "axios": "^0.24.0",
-    "cmake-js": "6.3.0",
+    "axios": "^0.27.2",
+    "cmake-js": "6.3.2",
     "crypto-js": "^4.0.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
-    "mqtt": "^4.3.4",
+    "mqtt": "^4.3.7",
     "tar": "^6.1.11",
-    "ws": "^7.5.5"
+    "ws": "^7.5.7"
   },
   "resolutions": {
     "minimist": "1.2.6",
-    "shelljs": "0.8.5",
-    "tar@4.4.17": "4.4.19",
     "@types/prettier": "2.3.2"
   }
 }
