@@ -538,7 +538,9 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     aws_mqtt_library_clean_up();
 
     struct aws_napi_context *ctx = user_data;
-    aws_napi_logger_destroy(ctx->logger);
+    if (ctx->logger != NULL) {
+        aws_napi_logger_destroy(ctx->logger);
+    }
     aws_mem_release(ctx->allocator, ctx);
 
     if (ctx->allocator != aws_default_allocator()) {
@@ -549,6 +551,44 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     }
 }
 
+AWS_STATIC_STRING_FROM_LITERAL(s_jest_worker_id_env, "JEST_WORKER_ID");
+AWS_STATIC_STRING_FROM_LITERAL(s_node_mode_env, "NODE_ENV");
+AWS_STATIC_STRING_FROM_LITERAL(s_aws_force_logging_env, "AWS_FORCE_LOGGING");
+AWS_STATIC_STRING_FROM_LITERAL(s_test_mode, "TEST");
+
+static bool s_should_create_napi_logger(struct aws_allocator *allocator) {
+
+    bool should_create = false;
+    struct aws_string *jest_worker_id_value = NULL;
+    struct aws_string *node_mode_value = NULL;
+    struct aws_string *aws_force_logging_value = NULL;
+
+    if (aws_get_environment_value(allocator, s_jest_worker_id_env, &jest_worker_id_value)) {
+        goto done;
+    }
+
+    if (aws_get_environment_value(allocator, s_node_mode_env, &node_mode_value)) {
+        goto done;
+    }
+
+    if (aws_get_environment_value(allocator, s_aws_force_logging_env, &aws_force_logging_value)) {
+        goto done;
+    }
+
+    should_create = ((jest_worker_id_value == NULL) || (jest_worker_id_value->len == 0)) &&
+                    ((node_mode_value == NULL) || !aws_string_eq_ignore_case(node_mode_value, s_test_mode));
+
+    should_create = should_create || (aws_force_logging_value != NULL && aws_force_logging_value->len > 0);
+
+done:
+
+    aws_string_destroy(jest_worker_id_value);
+    aws_string_destroy(node_mode_value);
+    aws_string_destroy(aws_force_logging_value);
+
+    return should_create;
+}
+
 static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env, napi_value exports) {
     struct aws_napi_context *ctx = aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_context));
     AWS_FATAL_ASSERT(ctx && "Failed to initialize napi context");
@@ -557,7 +597,9 @@ static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocat
     /* bind the context to exports, thus binding its lifetime to that object */
     AWS_NAPI_ENSURE(env, napi_wrap(env, exports, ctx, s_napi_context_finalize, NULL, NULL));
 
-    ctx->logger = aws_napi_logger_new(allocator, env);
+    if (s_should_create_napi_logger(allocator)) {
+        ctx->logger = aws_napi_logger_new(allocator, env);
+    }
 
     return ctx;
 }
