@@ -38,26 +38,11 @@ bool aws_napi_get_named_property(
     napi_valuetype type,
     napi_value *result);
 
-bool aws_napi_get_named_property_as_uint16(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    napi_valuetype type,
-    uint16_t *result);
+bool aws_napi_get_named_property_as_uint16(napi_env env, napi_value object, const char *name, uint16_t *result);
 
-bool aws_napi_get_named_property_as_uint32(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    napi_valuetype type,
-    uint32_t *result);
+bool aws_napi_get_named_property_as_uint32(napi_env env, napi_value object, const char *name, uint32_t *result);
 
-bool aws_napi_get_named_property_as_uint64(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    napi_valuetype type,
-    uint64_t *result);
+bool aws_napi_get_named_property_as_uint64(napi_env env, napi_value object, const char *name, uint64_t *result);
 
 bool aws_napi_get_named_property_as_bytebuf(
     napi_env env,
@@ -77,6 +62,7 @@ napi_status aws_napi_create_dataview_from_byte_cursor(
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
 
 void aws_napi_throw_last_error(napi_env env);
+void aws_napi_throw_last_error_with_context(napi_env env, const char *context);
 
 struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);

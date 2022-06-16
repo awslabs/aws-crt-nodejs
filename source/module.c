@@ -102,15 +102,10 @@ bool aws_napi_get_named_property(
     return true;
 }
 
-bool aws_napi_get_named_property_as_uint16(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    napi_valuetype type,
-    uint16_t *result) {
+bool aws_napi_get_named_property_as_uint16(napi_env env, napi_value object, const char *name, uint16_t *result) {
 
     napi_value node_result;
-    if (!aws_napi_get_named_property(env, object, name, type, &node_result)) {
+    if (!aws_napi_get_named_property(env, object, name, napi_number, &node_result)) {
         return false;
     }
 
@@ -125,15 +120,10 @@ bool aws_napi_get_named_property_as_uint16(
     return true;
 }
 
-bool aws_napi_get_named_property_as_uint32(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    napi_valuetype type,
-    uint32_t *result) {
+bool aws_napi_get_named_property_as_uint32(napi_env env, napi_value object, const char *name, uint32_t *result) {
 
     napi_value node_result;
-    if (!aws_napi_get_named_property(env, object, name, type, &node_result)) {
+    if (!aws_napi_get_named_property(env, object, name, napi_number, &node_result)) {
         return false;
     }
 
@@ -148,15 +138,10 @@ bool aws_napi_get_named_property_as_uint32(
     return true;
 }
 
-bool aws_napi_get_named_property_as_uint64(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    napi_valuetype type,
-    uint64_t *result) {
+bool aws_napi_get_named_property_as_uint64(napi_env env, napi_value object, const char *name, uint64_t *result) {
 
     napi_value node_result;
-    if (!aws_napi_get_named_property(env, object, name, type, &node_result)) {
+    if (!aws_napi_get_named_property(env, object, name, napi_number, &node_result)) {
         return false;
     }
 
@@ -324,6 +309,20 @@ bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
 void aws_napi_throw_last_error(napi_env env) {
     const int error_code = aws_last_error();
     napi_throw_error(env, aws_error_str(error_code), aws_error_debug_str(error_code));
+}
+
+void aws_napi_throw_last_error_with_context(napi_env env, const char *context) {
+    const int error_code = aws_last_error();
+
+    char full_msg[1024];
+    snprintf_s(
+        full_msg,
+        AWS_ARRAY_SIZE(full_msg),
+        "%s : (%s - %s)",
+        context,
+        aws_error_str(error_code),
+        aws_error_debug_str(error_code));
+    napi_throw_error(env, aws_error_str(error_code), full_msg);
 }
 
 struct uv_loop_s *aws_napi_get_node_uv_loop(void) {
@@ -722,11 +721,6 @@ static bool s_module_initialized = false;
     if (already_initialized) {
         napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.");
         return NULL;
-    }
-
-    bool done = false;
-    while (!done) {
-        ;
     }
 
     s_install_crash_handler();

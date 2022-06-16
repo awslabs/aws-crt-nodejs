@@ -13,6 +13,7 @@ import { NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import * as io from "./io";
 import { HttpProxyOptions } from './http';
+import { AwsMqtt5PacketDisconnect } from "./mqtt5_packet";
 export { HttpProxyOptions } from './http';
 
 export enum AwsMqtt5ClientSessionBehavior {
@@ -114,7 +115,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         crt_native.mqtt5_client_start(this.native_handle());
     }
 
-    stop() {
-        crt_native.mqtt5_client_stop(this.native_handle());
+    stop(disconnect_packet?: AwsMqtt5PacketDisconnect) {
+        crt_native.mqtt5_client_stop(this.native_handle(), disconnect_packet);
     }
 }
