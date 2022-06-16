@@ -505,11 +505,7 @@ static int s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object(
         }
     }
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_disconnect_packet, "server_reference", napi_string, &disconnect_storage->server_reference)) {
-        disconnect_storage->server_reference_cursor = aws_byte_cursor_from_buf(&disconnect_storage->server_reference);
-        disconnect_packet->server_reference = &disconnect_storage->server_reference_cursor;
-    }
+    /* Intentionally ignore server reference because it's a client error to send it */
 
     return AWS_OP_SUCCESS;
 }

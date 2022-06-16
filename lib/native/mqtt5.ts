@@ -88,7 +88,7 @@ export interface Mqtt5ClientConfig {
 export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
 
     /**
-     * @param config The configuration for this connection
+     * @param config The configuration for this client
      */
     constructor(config: Mqtt5ClientConfig) {
         super();

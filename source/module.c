@@ -315,7 +315,7 @@ void aws_napi_throw_last_error_with_context(napi_env env, const char *context) {
     const int error_code = aws_last_error();
 
     char full_msg[1024];
-    snprintf_s(
+    snprintf(
         full_msg,
         AWS_ARRAY_SIZE(full_msg),
         "%s : (%s - %s)",
@@ -722,6 +722,11 @@ static bool s_module_initialized = false;
         napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.");
         return NULL;
     }
+
+/*    bool done = false;
+    while (!done) {
+        ;
+    }*/
 
     s_install_crash_handler();
 
