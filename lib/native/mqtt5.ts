@@ -43,6 +43,31 @@ export enum AwsRetryJitterType {
     Decorrelated = 3,
 }
 
+export type Mqtt5ClientError = () => void;
+
+export type Mqtt5ClientStopped = () => void;
+
+export type Mqtt5ClientAttemptingConnect = () => void;
+
+export type Mqtt5ClientConnectionSuccess = () => void;
+
+export type Mqtt5ClientConnectionFailure = () => void;
+
+export type Mqtt5ClientDisconnection = () => void;
+
+export interface Mqtt5ClientLifecycleHandlers {
+
+    on_stopped? : Mqtt5ClientStopped;
+
+    on_attempting_connect? : Mqtt5ClientAttemptingConnect;
+
+    on_connection_success? : Mqtt5ClientConnectionSuccess;
+
+    on_connection_failure? : Mqtt5ClientConnectionFailure;
+
+    on_disconnection? : Mqtt5ClientDisconnection;
+}
+
 export interface Mqtt5ClientConfig {
 
     /** Server name to connect to */
@@ -50,6 +75,10 @@ export interface Mqtt5ClientConfig {
 
     /** Server port to connect to */
     port: number;
+
+    lifecycle_event_handlers? : Mqtt5ClientLifecycleHandlers;
+
+    error_handler? : Mqtt5ClientError;
 
     client_bootstrap?: io.ClientBootstrap;
 
@@ -107,8 +136,30 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
          * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
          * will be unaffected.
          */
-        this.on('error', (error) => {
+        this.on('error', () => {
         });
+    }
+
+    on(event: 'error', listener: Mqtt5ClientError): this;
+
+    on(event: 'stopped', listener: Mqtt5ClientStopped): this;
+
+    on(event: 'attempting_connect', listener: Mqtt5ClientAttemptingConnect): this;
+
+    on(event: 'connection_success', listener: Mqtt5ClientConnectionSuccess): this;
+
+    on(event: 'connection_failure', listener: Mqtt5ClientConnectionFailure): this;
+
+    on(event: 'disconnection', listener: Mqtt5ClientDisconnection): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        /*       if (event == 'connect') {
+                   process.nextTick(() => {
+                       this.uncork();
+                   })
+               }*/
+        return this;
     }
 
     start() {
@@ -118,4 +169,5 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
     stop(disconnect_packet?: AwsMqtt5PacketDisconnect) {
         crt_native.mqtt5_client_stop(this.native_handle(), disconnect_packet);
     }
+
 }
