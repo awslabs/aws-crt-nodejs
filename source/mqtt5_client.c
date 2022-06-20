@@ -792,7 +792,6 @@ struct aws_napi_mqtt5_connect_storage {
     uint8_t request_response_information;
     uint8_t request_problem_information;
     uint16_t receive_maximum;
-    uint16_t topic_alias_maximum;
     uint32_t maximum_packet_size_bytes;
     uint32_t will_delay_interval_seconds;
 
@@ -834,7 +833,11 @@ static int s_init_connect_options_from_napi(
         connect_options->username = &connect_storage->username_cursor;
     }
 
-    aws_napi_get_named_property_as_boolean(env, node_connect_config, "cleanStart", &connect_options->clean_start);
+    if (aws_napi_get_named_property_as_bytebuf(
+            env, node_connect_config, "password", napi_undefined, &connect_storage->password)) {
+        connect_storage->password_cursor = aws_byte_cursor_from_buf(&connect_storage->password);
+        connect_options->password = &connect_storage->password_cursor;
+    }
 
     if (aws_napi_get_named_property_as_uint32(
             env,
@@ -857,11 +860,6 @@ static int s_init_connect_options_from_napi(
     if (aws_napi_get_named_property_as_uint16(
             env, node_connect_config, "receiveMaximum", &connect_storage->receive_maximum)) {
         connect_options->receive_maximum = &connect_storage->receive_maximum;
-    }
-
-    if (aws_napi_get_named_property_as_uint16(
-            env, node_connect_config, "topicAliasMaximum", &connect_storage->topic_alias_maximum)) {
-        connect_options->topic_alias_maximum = &connect_storage->topic_alias_maximum;
     }
 
     if (aws_napi_get_named_property_as_uint32(

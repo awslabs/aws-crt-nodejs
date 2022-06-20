@@ -117,15 +117,12 @@ export interface AwsMqtt5PacketConnect {
     username?: string;
     password?: AwsMqtt5BinaryData;
 
-    cleanStart?: Boolean;
-
     sessionExpiryIntervalSeconds?: number;
 
     requestResponseInformation?: Boolean;
     requestProblemInformation?: Boolean;
 
     receiveMaximum?: number;
-    topicAliasMaximum?: number;
     maximumPacketSizeBytes?: number;
 
     willDelayIntervalSeconds?: number;
