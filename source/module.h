@@ -31,6 +31,42 @@ enum aws_napi_log_subject {
     AWS_LS_NODEJS_CRT_LAST = AWS_LOG_SUBJECT_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
 };
 
+int aws_napi_attach_object_property_boolean(napi_value object, napi_env env, const char *key_name, bool value);
+
+int aws_napi_attach_object_property_optional_boolean(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const bool *value);
+
+int aws_napi_attach_object_property_u32(napi_value object, napi_env env, const char *key_name, uint32_t value);
+
+int aws_napi_attach_object_property_optional_u32(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint32_t *value);
+
+int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value);
+
+int aws_napi_attach_object_property_optional_u16(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint16_t *value);
+
+int aws_napi_attach_object_property_string(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    struct aws_byte_cursor value);
+
+int aws_napi_attach_object_property_optional_string(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const struct aws_byte_cursor *value);
+
 bool aws_napi_get_named_property(
     napi_env env,
     napi_value object,
@@ -43,6 +79,10 @@ bool aws_napi_get_named_property_as_uint16(napi_env env, napi_value object, cons
 bool aws_napi_get_named_property_as_uint32(napi_env env, napi_value object, const char *name, uint32_t *result);
 
 bool aws_napi_get_named_property_as_uint64(napi_env env, napi_value object, const char *name, uint64_t *result);
+
+bool aws_napi_get_named_property_as_boolean(napi_env env, napi_value object, const char *name, bool *result);
+
+bool aws_napi_get_named_property_boolean_as_u8(napi_env env, napi_value object, const char *name, uint8_t *result);
 
 bool aws_napi_get_named_property_as_bytebuf(
     napi_env env,

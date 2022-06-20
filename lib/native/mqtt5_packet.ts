@@ -149,13 +149,13 @@ export interface AwsMqtt5PacketConnack {
 
     userProperties?: Array<AwsMqtt5UserProperty>;
 
-    wildcard_subscriptions_available?: Boolean;
-    subscription_identifiers_available?: Boolean;
-    shared_subscriptions_available?: Boolean;
+    wildcardSubscriptionsAvailable?: Boolean;
+    subscriptionIdentifiersAvailable?: Boolean;
+    sharedSubscriptionsAvailable?: Boolean;
 
     serverKeepAlive?: number;
-    response_information?: string;
-    server_reference?: string;
+    responseInformation?: string;
+    serverReference?: string;
 }
 
 export interface AwsMqtt5PacketDisconnect {

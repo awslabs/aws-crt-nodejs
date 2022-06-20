@@ -73,6 +73,96 @@ static struct aws_event_loop_group *s_node_uv_elg = NULL;
 static struct aws_host_resolver *s_default_host_resolver = NULL;
 static struct aws_client_bootstrap *s_default_client_bootstrap = NULL;
 
+int aws_napi_attach_object_property_boolean(napi_value object, napi_env env, const char *key_name, bool value) {
+    napi_value napi_boolean = NULL;
+
+    AWS_NAPI_CALL(env, napi_get_boolean(env, value, &napi_boolean), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_boolean), {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    });
+
+    return AWS_OP_SUCCESS;
+}
+
+int aws_napi_attach_object_property_optional_boolean(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const bool *value) {
+    if (value == NULL) {
+        return AWS_OP_SUCCESS;
+    }
+
+    return aws_napi_attach_object_property_boolean(object, env, key_name, *value);
+}
+
+int aws_napi_attach_object_property_u32(napi_value object, napi_env env, const char *key_name, uint32_t value) {
+    napi_value napi_u32 = NULL;
+
+    AWS_NAPI_CALL(env, napi_create_uint32(env, value, &napi_u32), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
+    AWS_NAPI_CALL(
+        env, napi_set_named_property(env, object, key_name, napi_u32), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
+
+    return AWS_OP_SUCCESS;
+}
+
+int aws_napi_attach_object_property_optional_u32(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint32_t *value) {
+    if (value == NULL) {
+        return AWS_OP_SUCCESS;
+    }
+
+    return aws_napi_attach_object_property_u32(object, env, key_name, *value);
+}
+
+int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value) {
+    return aws_napi_attach_object_property_u32(object, env, key_name, (uint32_t)value);
+}
+
+int aws_napi_attach_object_property_optional_u16(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint16_t *value) {
+    if (value == NULL) {
+        return AWS_OP_SUCCESS;
+    }
+
+    return aws_napi_attach_object_property_u16(object, env, key_name, *value);
+}
+
+int aws_napi_attach_object_property_string(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    struct aws_byte_cursor value) {
+    napi_value napi_string = NULL;
+
+    AWS_NAPI_CALL(env, napi_create_string_utf8(env, (const char *)(value.ptr), value.len, &napi_string), {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_string), {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    });
+
+    return AWS_OP_SUCCESS;
+}
+
+int aws_napi_attach_object_property_optional_string(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const struct aws_byte_cursor *value) {
+    if (value == NULL) {
+        return AWS_OP_SUCCESS;
+    }
+
+    return aws_napi_attach_object_property_string(object, env, key_name, *value);
+}
+
 bool aws_napi_get_named_property(
     napi_env env,
     napi_value object,
@@ -89,13 +179,15 @@ bool aws_napi_get_named_property(
         return false;
     }
 
-    napi_valuetype property_type = napi_undefined;
-    if (napi_typeof(env, property, &property_type)) {
-        return false;
-    }
+    if (type != napi_undefined) {
+        napi_valuetype property_type = napi_undefined;
+        if (napi_typeof(env, property, &property_type)) {
+            return false;
+        }
 
-    if (property_type != type) {
-        return false;
+        if (property_type != type) {
+            return false;
+        }
     }
 
     *result = property;
@@ -153,6 +245,31 @@ bool aws_napi_get_named_property_as_uint64(napi_env env, napi_value object, cons
     }
 
     *result = (uint64_t)int_value;
+    return true;
+}
+
+bool aws_napi_get_named_property_as_boolean(napi_env env, napi_value object, const char *name, bool *result) {
+    napi_value node_result;
+    if (!aws_napi_get_named_property(env, object, name, napi_boolean, &node_result)) {
+        return false;
+    }
+
+    AWS_NAPI_CALL(env, napi_get_value_bool(env, node_result, result), { return false; });
+
+    return true;
+}
+
+bool aws_napi_get_named_property_boolean_as_u8(napi_env env, napi_value object, const char *name, uint8_t *result) {
+    napi_value node_result;
+    if (!aws_napi_get_named_property(env, object, name, napi_boolean, &node_result)) {
+        return false;
+    }
+
+    bool bool_result = false;
+    AWS_NAPI_CALL(env, napi_get_value_bool(env, node_result, &bool_result), { return false; });
+
+    *result = bool_result ? 1 : 0;
+
     return true;
 }
 
@@ -723,10 +840,10 @@ static bool s_module_initialized = false;
         return NULL;
     }
 
-    /*    bool done = false;
-        while (!done) {
-            ;
-        }*/
+    bool done = false;
+    while (!done) {
+        ;
+    }
 
     s_install_crash_handler();
 
