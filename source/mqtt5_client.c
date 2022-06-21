@@ -93,6 +93,7 @@ struct on_connection_result_user_data {
     struct aws_mqtt5_packet_connack_storage connack_storage;
     bool is_connack_valid;
     int error_code;
+    struct aws_mqtt5_negotiated_settings settings;
 };
 
 static void s_on_connection_result_user_data_destroy(struct on_connection_result_user_data *connection_result_ud) {
@@ -108,6 +109,7 @@ static void s_on_connection_result_user_data_destroy(struct on_connection_result
 static struct on_connection_result_user_data *s_on_connection_result_user_data_new(
     struct aws_allocator *allocator,
     const struct aws_mqtt5_packet_connack_view *connack,
+    const struct aws_mqtt5_negotiated_settings *settings,
     int error_code) {
 
     struct on_connection_result_user_data *connection_result_ud =
@@ -125,6 +127,18 @@ static struct on_connection_result_user_data *s_on_connection_result_user_data_n
         connection_result_ud->is_connack_valid = false;
     }
 
+    if (settings != NULL) {
+        connection_result_ud->settings = *settings;
+
+        AWS_ZERO_STRUCT(connection_result_ud->settings.client_id_storage);
+        if (aws_byte_buf_init_copy_from_cursor(
+                &connection_result_ud->settings.client_id_storage,
+                aws_napi_get_allocator(),
+                aws_byte_cursor_from_buf(&settings->client_id_storage))) {
+            goto error;
+        }
+    }
+
     return connection_result_ud;
 
 error:
@@ -136,13 +150,15 @@ error:
 
 static void s_on_connection_success(
     struct aws_mqtt5_client_binding *binding,
-    const struct aws_mqtt5_packet_connack_view *connack) {
+    const struct aws_mqtt5_packet_connack_view *connack,
+    const struct aws_mqtt5_negotiated_settings *settings) {
+
     if (!binding->on_connection_success) {
         return;
     }
 
     struct on_connection_result_user_data *connection_result_ud =
-        s_on_connection_result_user_data_new(binding->allocator, connack, AWS_ERROR_SUCCESS);
+        s_on_connection_result_user_data_new(binding->allocator, connack, settings, AWS_ERROR_SUCCESS);
     if (connection_result_ud == NULL) {
         return;
     }
@@ -159,7 +175,7 @@ static void s_on_connection_failure(
     }
 
     struct on_connection_result_user_data *connection_result_ud =
-        s_on_connection_result_user_data_new(binding->allocator, connack, error_code);
+        s_on_connection_result_user_data_new(binding->allocator, connack, NULL, error_code);
     if (connection_result_ud == NULL) {
         return;
     }
@@ -242,7 +258,7 @@ static void s_lifecycle_event_callback(const struct aws_mqtt5_client_lifecycle_e
             break;
 
         case AWS_MQTT5_CLET_CONNECTION_SUCCESS:
-            s_on_connection_success(binding, event->connack_data);
+            s_on_connection_success(binding, event->connack_data, event->settings);
             break;
 
         case AWS_MQTT5_CLET_CONNECTION_FAILURE:
@@ -439,12 +455,77 @@ static int s_create_napi_connack_packet(
     return AWS_OP_SUCCESS;
 }
 
+static int s_create_napi_negotiated_settings(
+    napi_env env,
+    const struct aws_mqtt5_negotiated_settings *settings,
+    napi_value *value_out) {
+    napi_value napi_settings = NULL;
+    AWS_NAPI_CALL(env, napi_create_object(env, &napi_settings), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
+
+    uint32_t maximum_qos = settings->maximum_qos;
+    if (aws_napi_attach_object_property_u32(napi_settings, env, "maximumQos", maximum_qos)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_u32(
+            napi_settings, env, "sessionExpiryInterval", settings->session_expiry_interval)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_u32(
+            napi_settings, env, "receiveMaximumFromServer", (uint32_t)settings->receive_maximum_from_server)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_u32(
+            napi_settings, env, "maximumPacketSizeToServer", settings->maximum_packet_size_to_server)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_u32(
+            napi_settings, env, "serverKeepAlive", (uint32_t)settings->server_keep_alive)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_boolean(napi_settings, env, "retainAvailable", settings->retain_available)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_boolean(
+            napi_settings, env, "wildcardSubscriptionsAvailable", settings->wildcard_subscriptions_available)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_boolean(
+            napi_settings, env, "subscriptionIdentifiersAvailable", settings->subscription_identifiers_available)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_boolean(
+            napi_settings, env, "sharedSubscriptionsAvailable", settings->shared_subscriptions_available)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_boolean(napi_settings, env, "rejoinedSession", settings->rejoined_session)) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    if (aws_napi_attach_object_property_string(
+            napi_settings, env, "clientId", aws_byte_cursor_from_buf(&settings->client_id_storage))) {
+        return aws_raise_error(AWS_ERROR_UNKNOWN);
+    }
+
+    *value_out = napi_settings;
+
+    return AWS_OP_SUCCESS;
+}
+
 static void s_on_connection_success_call(napi_env env, napi_value function, void *context, void *user_data) {
     struct aws_mqtt5_client_binding *binding = context;
     struct on_connection_result_user_data *connection_result_ud = user_data;
 
     if (env) {
-        napi_value params[2];
+        napi_value params[3];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
         params[0] = NULL;
@@ -458,6 +539,14 @@ static void s_on_connection_success_call(napi_env env, napi_value function, void
         }
 
         if (params[1] == NULL) {
+            goto done;
+        }
+
+        if (s_create_napi_negotiated_settings(env, &connection_result_ud->settings, &params[2])) {
+            goto done;
+        }
+
+        if (params[2] == NULL) {
             goto done;
         }
 
