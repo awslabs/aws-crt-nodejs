@@ -12,7 +12,7 @@ import crt_native from './binding';
 import { NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import * as io from "./io";
-import { HttpProxyOptions } from './http';
+import {HttpProxyOptions, HttpRequest} from './http';
 import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketConnack, AwsMqtt5PacketConnect, AwsMqtt5QoS } from "./mqtt5_packet";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
@@ -107,6 +107,8 @@ export interface Mqtt5ClientConfig {
      * If None is provided, then an unencrypted connection is used.
      */
     tlsCtx?: io.ClientTlsContext;
+
+    websocketHandshakeTransform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
 
     /** Optional proxy options */
     proxyOptions?: HttpProxyOptions;

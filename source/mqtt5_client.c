@@ -5,6 +5,7 @@
 
 #include "mqtt5_client.h"
 #include "http_connection.h"
+#include "http_message.h"
 #include "io.h"
 
 #include <aws/http/proxy.h>
@@ -27,6 +28,7 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function on_connection_success;
     napi_threadsafe_function on_connection_failure;
     napi_threadsafe_function on_disconnection;
+    napi_threadsafe_function transform_websocket;
 };
 
 static void s_mqtt5_client_on_terminate(void *user_data) {
@@ -58,6 +60,7 @@ static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *fin
     AWS_CLEAN_THREADSAFE_FUNCTION(on_connection_success);
     AWS_CLEAN_THREADSAFE_FUNCTION(on_connection_failure);
     AWS_CLEAN_THREADSAFE_FUNCTION(on_disconnection);
+    AWS_CLEAN_THREADSAFE_FUNCTION(transform_websocket);
 
     if (binding->client != NULL) {
         aws_mqtt5_client_release(binding->client);
@@ -1001,9 +1004,107 @@ static void s_aws_napi_mqtt5_client_creation_storage_clean_up(struct aws_napi_mq
     s_aws_napi_mqtt5_connect_storage_clean_up(&storage->connect_storage);
 }
 
+struct mqtt5_transform_websocket_args {
+    struct aws_mqtt5_client_binding *binding;
+
+    struct aws_http_message *request;
+
+    aws_mqtt5_transform_websocket_handshake_complete_fn *complete_fn;
+    void *complete_ctx;
+};
+
+static napi_value s_napi_transform_websocket_complete(napi_env env, napi_callback_info cb_info) {
+
+    struct mqtt5_transform_websocket_args *args = NULL;
+    int error_code = AWS_ERROR_SUCCESS;
+
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, (void **)&args), {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        goto cleanup;
+    });
+    if (num_args > 1) {
+        napi_throw_error(env, NULL, "transform_websocket_complete needs exactly 0 or 1 arguments");
+        goto cleanup;
+    }
+
+    napi_value node_error_code = *arg++;
+    /* If the user didn't provide an error_code, the napi_value will be undefined, so we can ignore it */
+    if (!aws_napi_is_null_or_undefined(env, node_error_code)) {
+        AWS_NAPI_CALL(env, napi_get_value_int32(env, node_error_code, &error_code), {
+            napi_throw_type_error(env, NULL, "error_code must be a number or undefined");
+            goto cleanup;
+        });
+    }
+
+    args->complete_fn(args->request, error_code, args->complete_ctx);
+
+cleanup:
+
+    if (args != NULL) {
+        aws_mem_release(args->binding->allocator, args);
+    }
+
+    return NULL;
+}
+
+static void s_transform_websocket_call(napi_env env, napi_value transform_websocket, void *context, void *user_data) {
+    // struct mqtt_connection_binding *binding = context;
+    (void)context;
+    struct mqtt5_transform_websocket_args *args = user_data;
+
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        AWS_NAPI_ENSURE(env, aws_napi_http_message_wrap(env, args->request, &params[0]));
+        AWS_NAPI_ENSURE(
+            env,
+            napi_create_function(
+                env,
+                "transform_websocket_complete",
+                NAPI_AUTO_LENGTH,
+                &s_napi_transform_websocket_complete,
+                args,
+                &params[1]));
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, args->binding->transform_websocket, NULL, transform_websocket, num_params, params));
+    } else {
+        args->complete_fn(args->request, AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV, args->complete_ctx);
+
+        aws_mem_release(args->binding->allocator, args);
+    }
+}
+
+static void s_transform_websocket(
+    struct aws_http_message *request,
+    void *user_data,
+    aws_mqtt5_transform_websocket_handshake_complete_fn *complete_fn,
+    void *complete_ctx) {
+
+    struct aws_mqtt5_client_binding *binding = user_data;
+
+    struct mqtt5_transform_websocket_args *args =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct mqtt5_transform_websocket_args));
+    AWS_FATAL_ASSERT(args);
+
+    args->binding = binding;
+    args->request = request;
+    args->complete_fn = complete_fn;
+    args->complete_ctx = complete_ctx;
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->transform_websocket, args));
+}
+
 static int s_init_client_configuration_from_js_client_configuration(
     napi_env env,
     napi_value node_client_config,
+    struct aws_mqtt5_client_binding *binding,
     struct aws_mqtt5_client_options *client_options,
     struct aws_mqtt5_packet_connect_view *connect_options,
     struct aws_mqtt5_packet_publish_view *will_options,
@@ -1079,6 +1180,29 @@ static int s_init_client_configuration_from_js_client_configuration(
         if (s_init_connect_options_from_napi(
                 env, napi_value_connect, connect_options, will_options, &options_storage->connect_storage)) {
             return AWS_OP_ERR;
+        }
+    }
+
+    napi_value node_transform_websocket = NULL;
+    if (aws_napi_get_named_property(
+            env, node_client_config, "websocketHandshakeTransform", napi_function, &node_transform_websocket)) {
+        if (!aws_napi_is_null_or_undefined(env, node_transform_websocket)) {
+            AWS_NAPI_CALL(
+                env,
+                aws_napi_create_threadsafe_function(
+                    env,
+                    node_transform_websocket,
+                    "aws_mqtt5_client_transform_websocket",
+                    s_transform_websocket_call,
+                    binding,
+                    &binding->transform_websocket),
+                {
+                    napi_throw_error(env, NULL, "Failed to bind transform_websocket callback");
+                    return AWS_OP_ERR;
+                });
+
+            client_options->websocket_handshake_transform = s_transform_websocket;
+            client_options->websocket_handshake_transform_user_data = binding;
         }
     }
 
@@ -1275,7 +1399,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     }
 
     if (s_init_client_configuration_from_js_client_configuration(
-            env, node_client_config, &client_options, &connect_options, &will_options, &options_storage)) {
+            env, node_client_config, binding, &client_options, &connect_options, &will_options, &options_storage)) {
         napi_throw_error(
             env,
             NULL,
