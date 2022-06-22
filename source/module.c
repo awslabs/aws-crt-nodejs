@@ -76,9 +76,11 @@ static struct aws_client_bootstrap *s_default_client_bootstrap = NULL;
 int aws_napi_attach_object_property_boolean(napi_value object, napi_env env, const char *key_name, bool value) {
     napi_value napi_boolean = NULL;
 
-    AWS_NAPI_CALL(env, napi_get_boolean(env, value, &napi_boolean), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
+    AWS_NAPI_CALL(env, napi_get_boolean(env, value, &napi_boolean), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_boolean), {
-        return aws_raise_error(AWS_ERROR_UNKNOWN);
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
     });
 
     return AWS_OP_SUCCESS;
@@ -99,9 +101,11 @@ int aws_napi_attach_object_property_optional_boolean(
 int aws_napi_attach_object_property_u32(napi_value object, napi_env env, const char *key_name, uint32_t value) {
     napi_value napi_u32 = NULL;
 
-    AWS_NAPI_CALL(env, napi_create_uint32(env, value, &napi_u32), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
     AWS_NAPI_CALL(
-        env, napi_set_named_property(env, object, key_name, napi_u32), { return aws_raise_error(AWS_ERROR_UNKNOWN); });
+        env, napi_create_uint32(env, value, &napi_u32), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_u32), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
 
     return AWS_OP_SUCCESS;
 }
@@ -142,10 +146,10 @@ int aws_napi_attach_object_property_string(
     napi_value napi_string = NULL;
 
     AWS_NAPI_CALL(env, napi_create_string_utf8(env, (const char *)(value.ptr), value.len, &napi_string), {
-        return aws_raise_error(AWS_ERROR_UNKNOWN);
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
     });
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_string), {
-        return aws_raise_error(AWS_ERROR_UNKNOWN);
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
     });
 
     return AWS_OP_SUCCESS;

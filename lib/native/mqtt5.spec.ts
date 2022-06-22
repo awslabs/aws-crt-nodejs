@@ -11,20 +11,26 @@ import {
 } from './mqtt5';
 //import { AwsMqtt5DisconnectReasonCode, AwsMqtt5PacketDisconnect } from "./mqtt5_packet";
 import { once } from 'events';
-import {HttpRequest} from "./http";
-
+import {AwsMqtt5PacketConnect} from "./mqtt5_packet";
 
 jest.setTimeout(1200000);
 
 
 async function MakeGoodClient() {
 
+    const connect : AwsMqtt5PacketConnect = {
+        keepAliveIntervalSeconds: 3600,
+        userProperties: [
+            {
+                name: "name1",
+                value: "value1"
+            }
+        ]
+    };
 
     const client_config : Mqtt5ClientConfig = {
         hostName : "127.0.0.1",
-        port : 8080,
-
-        websocketHandshakeTransform: (request: HttpRequest, done: (error_code?: number) => void) => { done(0); },
+        port : 1883,
 
         sessionBehavior : AwsMqtt5ClientSessionBehavior.Clean,
         extendedValidationAndFlowControlOptions : AwsMqtt5ClientExtendedValidationAndFlowControl.AwsIotCoreDefaults,
@@ -39,7 +45,7 @@ async function MakeGoodClient() {
         connackTimeoutMs : 30000,
         operationTimeoutSeconds : 120,
 
-
+        connectProperties: connect,
     };
 
     let client : Mqtt5Client = new Mqtt5Client(client_config);
