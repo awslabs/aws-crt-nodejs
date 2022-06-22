@@ -32,6 +32,13 @@ enum aws_napi_log_subject {
     AWS_LS_NODEJS_CRT_LAST = AWS_LOG_SUBJECT_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
 };
 
+/*
+ * Helper functions for constructing JS objects.
+ *
+ * These create and attach properties of the associated JS type to an object.  For each type, two versions
+ * exist - one version taking the parameter value directly, another taking a pointer making it optional.  In this
+ * case, if the pointer is NULL, nothing is done.
+ */
 int aws_napi_attach_object_property_boolean(napi_value object, napi_env env, const char *key_name, bool value);
 
 int aws_napi_attach_object_property_optional_boolean(
@@ -68,6 +75,14 @@ int aws_napi_attach_object_property_optional_string(
     const char *key_name,
     const struct aws_byte_cursor *value);
 
+/*
+ * Helper functions for deconstructing JS objects into native data.
+ */
+
+/*
+ * Gets the property on an object, if it exists, with the supplied name.  If 'type' is not napi_undefined, then
+ * the type of the property must match the passed in value.
+ */
 bool aws_napi_get_named_property(
     napi_env env,
     napi_value object,

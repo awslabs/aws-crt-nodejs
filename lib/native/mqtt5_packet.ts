@@ -8,11 +8,20 @@
  * @module mqtt
  */
 
+/**
+ * Typescript interface for MQTT5 user properties
+ */
 export interface AwsMqtt5UserProperty {
     name: string;
     value: string;
 }
 
+/**
+ * Server return code for CONNECT attempts.
+ * Enum values match MQTT5 spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901079
+ */
 export enum AwsMqtt5ConnectReasonCode {
     Success = 0,
     UnspecifiedError = 128,
@@ -38,6 +47,12 @@ export enum AwsMqtt5ConnectReasonCode {
     ConnectionRateExceeded = 159,
 }
 
+/**
+ * Reason code inside DISCONNECT packets.
+ * Enum values match MQTT5 spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208
+ */
 export enum AwsMqtt5DisconnectReasonCode {
     NormalDisconnection = 0,
     DisconnectWithWillMessage = 4,
@@ -70,14 +85,33 @@ export enum AwsMqtt5DisconnectReasonCode {
     WildcardSubscriptionsNotSupported = 162,
 }
 
+/**
+ * Optional property describing a PUBLISH payload's format.
+ * Enum values match MQTT5 spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901063
+ */
 export enum AwsMqtt5PayloadFormatIndicator {
     Bytes = 0,
     Utf8 = 1,
 };
 
+/**
+ * Valid types for a PUBLISH packet's payload
+ */
 export type AwsMqtt5Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
+
+/**
+ * Valid types for MQTT5 packet binary data fields (other than PUBLISH payload)
+ */
 export type AwsMqtt5BinaryData = string | ArrayBuffer | ArrayBufferView;
 
+/**
+ * MQTT Message delivery quality of service.
+ * Enum values match MQTT5 spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901234
+ */
 export enum AwsMqtt5QoS {
 
     AtMostOnce = 0,
@@ -87,6 +121,11 @@ export enum AwsMqtt5QoS {
     ExactlyOnce = 2,
 };
 
+/**
+ * Typescript interface for an MQTT5 PUBLISH packet
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901100
+ */
 export interface AwsMqtt5PacketPublish {
     topic: string;
     payload: AwsMqtt5Payload;
@@ -109,6 +148,11 @@ export interface AwsMqtt5PacketPublish {
     userProperties?: Array<AwsMqtt5UserProperty>;
 }
 
+/**
+ * Typescript interface for an MQTT5 CONNECT packet.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901033
+ */
 export interface AwsMqtt5PacketConnect {
     keepAliveIntervalSeconds: number;
 
@@ -131,6 +175,11 @@ export interface AwsMqtt5PacketConnect {
     userProperties?: Array<AwsMqtt5UserProperty>;
 }
 
+/**
+ * Typescript interface for an MQTT5 CONNACK packet.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901074
+ */
 export interface AwsMqtt5PacketConnack {
     sessionPresent : Boolean;
     reasonCode : AwsMqtt5ConnectReasonCode;
@@ -155,6 +204,11 @@ export interface AwsMqtt5PacketConnack {
     serverReference?: string;
 }
 
+/**
+ * Typescript interface for an MQTT5 DISCONNECT packet.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901205
+ */
 export interface AwsMqtt5PacketDisconnect {
     reasonCode: AwsMqtt5DisconnectReasonCode;
 
