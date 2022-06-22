@@ -472,7 +472,12 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         crt_native.mqtt5_client_stop(this.native_handle(), disconnectPacket);
     }
 
-    /* Private helper functions */
+    /*
+     * Private helper functions
+     *
+     * Lifecycle event callbacks come through static functions so that the native threadsafe function objects do not
+     * capture the client object itself, which would lead to an uncollectable strong reference cycle.
+     */
 
     private static _s_on_stopped(client: Mqtt5Client) {
         client._on_stopped();

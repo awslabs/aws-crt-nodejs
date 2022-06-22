@@ -218,13 +218,7 @@ static struct on_connection_result_user_data *s_on_connection_result_user_data_n
     }
 
     if (settings != NULL) {
-        connection_result_ud->settings = *settings;
-
-        AWS_ZERO_STRUCT(connection_result_ud->settings.client_id_storage);
-        if (aws_byte_buf_init_copy_from_cursor(
-                &connection_result_ud->settings.client_id_storage,
-                aws_napi_get_allocator(),
-                aws_byte_cursor_from_buf(&settings->client_id_storage))) {
+        if (aws_mqtt5_negotiated_settings_copy(settings, &connection_result_ud->settings)) {
             goto error;
         }
     }
@@ -384,6 +378,7 @@ static void s_on_stopped_call(napi_env env, napi_value function, void *context, 
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
+            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
             return;
         }
 
@@ -409,6 +404,7 @@ static void s_on_attempting_connect_call(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
+            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
             return;
         }
 
@@ -682,6 +678,7 @@ static void s_on_connection_success_call(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
+            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
             goto done;
         }
 
@@ -720,6 +717,7 @@ static void s_on_connection_failure_call(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
+            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
             goto done;
         }
 
@@ -805,6 +803,7 @@ static void s_on_disconnection_call(napi_env env, napi_value function, void *con
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
+            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
             goto done;
         }
 
