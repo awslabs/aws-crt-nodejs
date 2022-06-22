@@ -378,7 +378,10 @@ static void s_on_stopped_call(napi_env env, napi_value function, void *context, 
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_stopped_call - mqtt5_client node wrapper no longer resolvable",
+                (void *)binding->client);
             return;
         }
 
@@ -404,7 +407,10 @@ static void s_on_attempting_connect_call(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_attempting_connect_call - mqtt5_client node wrapper no longer resolvable",
+                (void *)binding->client);
             return;
         }
 
@@ -678,15 +684,26 @@ static void s_on_connection_success_call(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_connection_success_call - mqtt5_client node wrapper no longer resolvable",
+                (void *)binding->client);
             goto done;
         }
 
         if (s_create_napi_connack_packet(env, connection_result_ud, &params[1])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_connection_success_call - failed to create connack object",
+                (void *)binding->client);
             goto done;
         }
 
         if (s_create_napi_negotiated_settings(env, &connection_result_ud->settings, &params[2])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_connection_success_call - failed to create negotiated settings object",
+                (void *)binding->client);
             goto done;
         }
 
@@ -717,13 +734,20 @@ static void s_on_connection_failure_call(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_connection_failure_call - mqtt5_client node wrapper no longer resolvable",
+                (void *)binding->client);
             goto done;
         }
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, connection_result_ud->error_code, &params[1]), { goto done; });
 
         if (s_create_napi_connack_packet(env, connection_result_ud, &params[2])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_connection_failure_call - failed to create connack object",
+                (void *)binding->client);
             goto done;
         }
 
@@ -803,13 +827,20 @@ static void s_on_disconnection_call(napi_env env, napi_value function, void *con
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(AWS_LS_NODEJS_CRT_GENERAL, "id=%p - mqtt5_client - node wrapper no longer resolvable", (void *)binding->client);
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_disconnection_call - mqtt5_client node wrapper no longer resolvable",
+                (void *)binding->client);
             goto done;
         }
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, disconnection_ud->error_code, &params[1]), { goto done; });
 
         if (s_create_napi_disconnect_packet(env, disconnection_ud, &params[2])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_on_disconnection_call - failed to create disconnect object",
+                (void *)binding->client);
             goto done;
         }
 
@@ -833,6 +864,7 @@ struct aws_napi_mqtt5_user_property_storage {
 
 /* Extract a set of user properties from a Napi object. */
 static int s_aws_mqtt5_user_properties_extract_from_js_object(
+    struct aws_mqtt5_client_binding *binding,
     struct aws_napi_mqtt5_user_property_storage *user_properties_storage,
     napi_env env,
     napi_value node_container,
@@ -854,6 +886,10 @@ static int s_aws_mqtt5_user_properties_extract_from_js_object(
     /* len of js array */
     uint32_t user_property_count = 0;
     AWS_NAPI_CALL(env, napi_get_array_length(env, node_user_properties, &user_property_count), {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_mqtt5_user_properties_extract_from_js_object - user properties is not an array",
+            (void *)binding->client);
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     });
 
@@ -862,6 +898,10 @@ static int s_aws_mqtt5_user_properties_extract_from_js_object(
     for (uint32_t i = 0; i < user_property_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_user_properties, i, &array_element), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_aws_mqtt5_user_properties_extract_from_js_object - user properties is not indexable",
+                (void *)binding->client);
             return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
         });
 
@@ -880,6 +920,10 @@ static int s_aws_mqtt5_user_properties_extract_from_js_object(
         aws_byte_buf_clean_up(&value_buf);
 
         if (!found_user_property) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_aws_mqtt5_user_properties_extract_from_js_object - malformed property name/value pair",
+                (void *)binding->client);
             return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
         }
     }
@@ -979,6 +1023,7 @@ static void s_aws_napi_mqtt5_publish_storage_clean_up(struct aws_napi_mqtt5_publ
 
 /* Extract a PUBLISH packet view from a Napi object (AwsMqtt5PacketPublish) and persist its data in storage. */
 static int s_init_publish_options_from_napi(
+    struct aws_mqtt5_client_binding *binding,
     napi_env env,
     napi_value node_publish_config,
     struct aws_mqtt5_packet_publish_view *publish_options,
@@ -986,18 +1031,30 @@ static int s_init_publish_options_from_napi(
 
     if (!aws_napi_get_named_property_as_bytebuf(
             env, node_publish_config, AWS_NAPI_KEY_TOPIC, napi_string, &publish_storage->topic)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_init_publish_options_from_napi - failed to extract required property: topic",
+            (void *)binding->client);
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
     publish_options->topic = aws_byte_cursor_from_buf(&publish_storage->topic);
 
     if (!aws_napi_get_named_property_as_bytebuf(
             env, node_publish_config, AWS_NAPI_KEY_PAYLOAD, napi_undefined, &publish_storage->payload)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_init_publish_options_from_napi - failed to extract required property: payload",
+            (void *)binding->client);
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
     publish_options->payload = aws_byte_cursor_from_buf(&publish_storage->payload);
 
     uint32_t qos = 0;
     if (!aws_napi_get_named_property_as_uint32(env, node_publish_config, AWS_NAPI_KEY_QOS, &qos)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_init_publish_options_from_napi - failed to extract required property: qos",
+            (void *)binding->client);
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
     publish_options->qos = qos;
@@ -1041,11 +1098,16 @@ static int s_init_publish_options_from_napi(
     }
 
     if (s_aws_mqtt5_user_properties_extract_from_js_object(
+            binding,
             &publish_storage->user_properties,
             env,
             node_publish_config,
             &publish_options->user_property_count,
             &publish_options->user_properties)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_init_publish_options_from_napi - failed to extract userProperties",
+            (void *)binding->client);
         return AWS_OP_ERR;
     }
 
@@ -1087,6 +1149,7 @@ static void s_aws_napi_mqtt5_connect_storage_clean_up(struct aws_napi_mqtt5_conn
 
 /* Extract a CONNECT packet view from a Napi object (AwsMqtt5PacketConnect) and persist its data in storage. */
 static int s_init_connect_options_from_napi(
+    struct aws_mqtt5_client_binding *binding,
     napi_env env,
     napi_value node_connect_config,
     struct aws_mqtt5_packet_connect_view *connect_options,
@@ -1098,6 +1161,9 @@ static int s_init_connect_options_from_napi(
             node_connect_config,
             AWS_NAPI_KEY_KEEP_ALIVE_INTERVAL_SECONDS,
             &connect_options->keep_alive_interval_seconds)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_init_connect_options_from_napi - failed to extract required parameter: keepAliveIntervalSeconds");
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
@@ -1166,7 +1232,11 @@ static int s_init_connect_options_from_napi(
     napi_value napi_will = NULL;
     if (aws_napi_get_named_property(env, node_connect_config, AWS_NAPI_KEY_WILL, napi_object, &napi_will)) {
         if (!aws_napi_is_null_or_undefined(env, napi_will)) {
-            if (s_init_publish_options_from_napi(env, napi_will, will_options, &connect_storage->will_storage)) {
+            if (s_init_publish_options_from_napi(
+                    binding, env, napi_will, will_options, &connect_storage->will_storage)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "s_init_connect_options_from_napi - failed to destructure will properties");
                 return AWS_OP_ERR;
             }
 
@@ -1175,11 +1245,14 @@ static int s_init_connect_options_from_napi(
     }
 
     if (s_aws_mqtt5_user_properties_extract_from_js_object(
+            binding,
             &connect_storage->user_properties,
             env,
             node_connect_config,
             &connect_options->user_property_count,
             &connect_options->user_properties)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL, "s_init_connect_options_from_napi - failed to extract userProperties");
         return AWS_OP_ERR;
     }
 
@@ -1318,12 +1391,18 @@ static int s_init_client_configuration_from_js_client_configuration(
     /* required config parameters */
     if (!aws_napi_get_named_property_as_bytebuf(
             env, node_client_config, AWS_NAPI_KEY_HOST_NAME, napi_string, &options_storage->host_name)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_init_client_configuration_from_js_client_configuration - failed to extract required property: hostName");
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
     client_options->host_name = aws_byte_cursor_from_buf(&options_storage->host_name);
 
     if (!aws_napi_get_named_property_as_uint16(env, node_client_config, AWS_NAPI_KEY_PORT, &client_options->port)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_init_client_configuration_from_js_client_configuration - failed to extract required property: port");
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
@@ -1382,7 +1461,10 @@ static int s_init_client_configuration_from_js_client_configuration(
     if (aws_napi_get_named_property(
             env, node_client_config, AWS_NAPI_KEY_CONNECT_PROPERTIES, napi_object, &napi_value_connect)) {
         if (s_init_connect_options_from_napi(
-                env, napi_value_connect, connect_options, will_options, &options_storage->connect_storage)) {
+                binding, env, napi_value_connect, connect_options, will_options, &options_storage->connect_storage)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_init_client_configuration_from_js_client_configuration - failed to destructure connect properties");
             return AWS_OP_ERR;
         }
     }
@@ -1427,10 +1509,18 @@ static int s_init_binding_threadsafe_function(
 
     napi_value node_function = NULL;
     if (!aws_napi_get_named_property(env, parent_object, property_name, napi_function, &node_function)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_init_binding_threadsafe_function - failed to find required function property: %s",
+            property_name);
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
     if (aws_napi_is_null_or_undefined(env, node_function)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_init_binding_threadsafe_function - required property `%s` is invalid",
+            property_name);
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
@@ -1770,6 +1860,7 @@ static void s_aws_napi_mqtt5_packet_disconnect_storage_clean_up(
 
 /* Extract a DISCONNECT packet view from a Napi object (AwsMqtt5PacketDisconnect) and persist its data in storage. */
 static int s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object(
+    struct aws_mqtt5_client_binding *binding,
     struct aws_napi_mqtt5_packet_disconnect_storage *disconnect_storage,
     struct aws_mqtt5_packet_disconnect_view *disconnect_packet,
     napi_env env,
@@ -1795,11 +1886,17 @@ static int s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object(
     }
 
     if (s_aws_mqtt5_user_properties_extract_from_js_object(
+            binding,
             &disconnect_storage->user_properties,
             env,
             node_disconnect_packet,
             &disconnect_packet->user_property_count,
             &disconnect_packet->user_properties)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object - failed to extract "
+            "userProperties",
+            (void *)binding->client);
         return AWS_OP_ERR;
     }
 
@@ -1851,7 +1948,7 @@ napi_value aws_napi_mqtt5_client_stop(napi_env env, napi_callback_info info) {
     napi_value node_disconnect_packet = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_disconnect_packet)) {
         if (s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object(
-                &disconnect_storage, &disconnect_view, env, node_disconnect_packet)) {
+                binding, &disconnect_storage, &disconnect_view, env, node_disconnect_packet)) {
             napi_throw_error(env, NULL, "aws_napi_mqtt5_client_stop - could not initialize disconnect packet");
             goto done;
         }
