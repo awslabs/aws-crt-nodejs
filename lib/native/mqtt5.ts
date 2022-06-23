@@ -35,7 +35,7 @@ export enum AwsMqtt5ClientSessionBehavior {
     /**
      * Always attempt to rejoin an existing session after an initial connection success.
      */
-    RejoinPostSuccess,
+    RejoinPostSuccess = 1,
 }
 
 /**
