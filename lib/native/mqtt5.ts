@@ -13,7 +13,13 @@ import { NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
 import * as io from "./io";
 import {HttpProxyOptions, HttpRequest} from './http';
-import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketConnack, AwsMqtt5PacketConnect, AwsMqtt5QoS } from "./mqtt5_packet";
+import {
+    AwsMqtt5PacketDisconnect,
+    AwsMqtt5PacketConnack,
+    AwsMqtt5PacketConnect,
+    AwsMqtt5QoS,
+    AwsMqtt5PacketSubscribe, AwsMqtt5PacketSuback
+} from "./mqtt5_packet";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 
@@ -472,6 +478,21 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         crt_native.mqtt5_client_stop(this.native_handle(), disconnectPacket);
     }
 
+    async subscribe(packet: AwsMqtt5PacketSubscribe) {
+        return new Promise<AwsMqtt5PacketSuback>((resolve, reject) => {
+
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback){
+                return Mqtt5Client._s_on_suback_callback(resolve, reject, client, errorCode, suback);
+            }
+
+            try {
+                crt_native.mqtt5_client_subscribe(this.native_handle(), packet, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
     /*
      * Private helper functions
      *
@@ -517,5 +538,20 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
 
     private _on_disconnection(error: CrtError, disconnect?: AwsMqtt5PacketDisconnect) {
         this.emit('disconnection', error, disconnect);
+    }
+
+    private _emitErrorOnNext(errorCode: number) {
+        process.nextTick(() => {
+            this.emit('error', new CrtError(errorCode));
+        });
+    }
+
+    private static _s_on_suback_callback(resolve : (value?: (AwsMqtt5PacketSuback | PromiseLike<AwsMqtt5PacketSuback> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) {
+        if (errorCode == 0) {
+            resolve(suback);
+        } else {
+            reject("Failed to subscribe: " + io.error_code_to_string(errorCode));
+            client._emitErrorOnNext(errorCode);
+        }
     }
 }

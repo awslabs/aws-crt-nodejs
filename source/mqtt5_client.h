@@ -14,4 +14,6 @@ napi_value aws_napi_mqtt5_client_start(napi_env env, napi_callback_info info);
 
 napi_value aws_napi_mqtt5_client_stop(napi_env env, napi_callback_info info);
 
+napi_value aws_napi_mqtt5_client_subscribe(napi_env env, napi_callback_info info);
+
 #endif /* AWS_CRT_NODEJS_MQTT5_CLIENT_H */

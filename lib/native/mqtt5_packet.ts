@@ -86,6 +86,27 @@ export enum AwsMqtt5DisconnectReasonCode {
 }
 
 /**
+ * Reason code inside SUBACK packet payloads.
+ * Enum values match mqtt spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901178
+ */
+export enum AwsMqtt5SubackReasonCode {
+    GrantedQoS0 = 0,
+    GrantedQoS1 = 1,
+    GrantedQoS2 = 2,
+    UnspecifiedError = 128,
+    ImplementationSpecificError = 131,
+    NotAuthorized = 135,
+    TopicFilterInvalid = 143,
+    PackedIdentifierInUse = 145,
+    QuotaExceeded = 151,
+    SharedSubscriptionsNotSupported = 158,
+    SubscriptionIdentifiersNotSupported = 161,
+    WildcardSubscriptionsNotSupported = 162,
+}
+
+/**
  * Optional property describing a PUBLISH payload's format.
  * Enum values match MQTT5 spec encoding values.
  *
@@ -94,7 +115,7 @@ export enum AwsMqtt5DisconnectReasonCode {
 export enum AwsMqtt5PayloadFormatIndicator {
     Bytes = 0,
     Utf8 = 1,
-};
+}
 
 /**
  * Valid types for a PUBLISH packet's payload
@@ -119,7 +140,32 @@ export enum AwsMqtt5QoS {
     AtLeastOnce = 1,
 
     ExactlyOnce = 2,
-};
+}
+
+/**
+ * Configures how retained messages should be handled when subscribing with a topic filter that matches topics with
+ * associated retained messages.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169
+ */
+export enum AwsMqtt5RetainHandlingType {
+
+    /**
+     * Server should send all retained messages on topics that match the subscription's filter.
+     */
+    SendOnSubscribe = 0x00,
+
+    /**
+     * Server should send all retained messages on topics that match the subscription's filter, where this is the
+     * first (relative to connection) subscription filter that matches the topic with a retained message.
+     */
+    SendOnSubscribeIfNew = 0x01,
+
+    /**
+     * Subscribe must not trigger any retained message publishes from the server.
+     */
+    DontSend = 0x02,
+}
 
 /**
  * Typescript interface for an MQTT5 PUBLISH packet
@@ -219,4 +265,60 @@ export interface AwsMqtt5PacketDisconnect {
     userProperties?: Array<AwsMqtt5UserProperty>;
 
     serverReference?: string;
+}
+
+/**
+ * Configures a single subscription within a Subscribe operation
+ */
+export interface AwsMqtt5Subscription {
+    /**
+     * Topic filter to subscribe to
+     */
+    topicFilter : string;
+
+    /**
+     * Maximum QOS that the subscriber will accept messages for.  Negotiated QoS may be different.
+     */
+    qos : AwsMqtt5QoS;
+
+    /**
+     * Should the server not send publishes to a client when that client was the one who sent the publish?
+     */
+    noLocal : Boolean;
+
+    /**
+     * Should messages sent due to this subscription keep the retain flag preserved on the message?
+     */
+    retainAsPublished : Boolean;
+
+    /**
+     * Should retained messages on matching topics be sent in reaction to this subscription?
+     */
+    retainHandlingType: AwsMqtt5RetainHandlingType;
+}
+
+/**
+ * Typescript interface for an MQTT5 SUBSCRIBE packet
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901161
+ */
+export interface AwsMqtt5PacketSubscribe {
+    subscriptions?: Array<AwsMqtt5Subscription>;
+
+    subscriptionIdentifier?: number;
+
+    userProperties?: Array<AwsMqtt5UserProperty>;
+}
+
+/**
+ * Typescript interface for an MQTT5 SUBACK packet.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901171
+ */
+export interface AwsMqtt5PacketSuback {
+    reasonString?: string;
+
+    userProperties?: Array<AwsMqtt5UserProperty>;
+
+    reasonCodes: Array<AwsMqtt5SubackReasonCode>;
 }

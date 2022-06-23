@@ -17,6 +17,7 @@ import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
 import {Mqtt5ClientConfig, Mqtt5ClientLifecycleHandlers, Mqtt5Client} from "./mqtt5";
 import * as mqtt5_packets from "./mqtt5_packet";
+import {AwsMqtt5PacketSuback} from "./mqtt5_packet";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -149,9 +150,15 @@ export function mqtt5_client_new(
     proxy_options?: NativeHandle,
 ): NativeHandle;
 
+/** @internal */
 export function mqtt5_client_start(connection: NativeHandle) : void;
 
+/** @internal */
 export function mqtt5_client_stop(connection: NativeHandle, disconnect_packet?: mqtt5_packets.AwsMqtt5PacketDisconnect) : void;
+
+/** @internal */
+export function mqtt5_client_subscribe(connection: NativeHandle, subscribe_packet: mqtt5_packets.AwsMqtt5PacketSubscribe, on_resolution: (client: Mqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) => void) : void;
+
 
 /* MQTT Client */
 /** @internal */
