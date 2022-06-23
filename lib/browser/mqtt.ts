@@ -500,7 +500,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     reject(new CrtError(error));
                     return this.on_error(error);
                 }
-                resolve({ packet_id: (packet as mqtt.IPublishPacket).messageId })
+                
+                let id = undefined;
+                if (qos != QoS.AtMostOnce) {
+                    id = (packet as mqtt.IPublishPacket).messageId;
+                }
+                resolve({packet_id: id} );
             });
         });
     }
