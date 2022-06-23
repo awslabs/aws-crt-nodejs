@@ -2426,3 +2426,10 @@ done:
 
     return NULL;
 }
+
+napi_value aws_napi_mqtt5_client_unsubscribe(napi_env env, napi_callback_info info) {
+    (void)env;
+    (void)info;
+
+    return NULL;
+}

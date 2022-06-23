@@ -16,7 +16,7 @@ import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
 import { Mqtt5ClientConfig, Mqtt5ClientLifecycleHandlers, Mqtt5Client } from "./mqtt5";
-import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketSuback, AwsMqtt5PacketSubscribe }  from "./mqtt5_packet";
+import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketSuback, AwsMqtt5PacketSubscribe, AwsMqtt5PacketUnsuback, AwsMqtt5PacketUnsubscribe }  from "./mqtt5_packet";
 
 
 /**
@@ -158,6 +158,9 @@ export function mqtt5_client_stop(connection: NativeHandle, disconnect_packet?: 
 
 /** @internal */
 export function mqtt5_client_subscribe(connection: NativeHandle, subscribe_packet: AwsMqtt5PacketSubscribe, on_resolution: (client: Mqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) => void) : void;
+
+/** @internal */
+export function mqtt5_client_unsubscribe(connection: NativeHandle, unsubscribe_packet: AwsMqtt5PacketUnsubscribe, on_resolution: (client: Mqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback) => void) : void;
 
 
 /* MQTT Client */

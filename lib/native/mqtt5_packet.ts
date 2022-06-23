@@ -99,11 +99,27 @@ export enum AwsMqtt5SubackReasonCode {
     ImplementationSpecificError = 131,
     NotAuthorized = 135,
     TopicFilterInvalid = 143,
-    PackedIdentifierInUse = 145,
+    PacketIdentifierInUse = 145,
     QuotaExceeded = 151,
     SharedSubscriptionsNotSupported = 158,
     SubscriptionIdentifiersNotSupported = 161,
     WildcardSubscriptionsNotSupported = 162,
+}
+
+/**
+ * Reason code inside UNSUBACK packet payloads.
+ * Enum values match mqtt spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901194
+ */
+export enum AwsMqtt5UnsubackReasonCode {
+    Success = 0,
+    NoSubscriptionExisted = 17,
+    UnspecifiedError = 128,
+    ImplementationSpecificError = 131,
+    NotAuthorized = 135,
+    TopicFilterInvalid = 143,
+    PacketIdentifierInUse = 145,
 }
 
 /**
@@ -328,4 +344,29 @@ export interface AwsMqtt5PacketSuback {
     userProperties?: Array<AwsMqtt5UserProperty>;
 
     reasonCodes: Array<AwsMqtt5SubackReasonCode>;
+}
+
+/**
+ * Typescript interface for an MQTT5 UNSUBSCRIBE packet
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901179
+ */
+export interface AwsMqtt5PacketUnsubscribe {
+    topicFilters: Array<string>;
+
+    userProperties?: Array<AwsMqtt5UserProperty>;
+}
+
+/**
+ * Typescript interface for an MQTT5 UNSUBACK packet
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901187
+ */
+export interface AwsMqtt5PacketUnsuback {
+
+    reasonString?: string;
+
+    userProperties?: Array<AwsMqtt5UserProperty>;
+
+    reasonCodes: Array<AwsMqtt5UnsubackReasonCode>;
 }

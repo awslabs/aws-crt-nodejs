@@ -947,6 +947,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(mqtt5_client_start)
     CREATE_AND_REGISTER_FN(mqtt5_client_stop)
     CREATE_AND_REGISTER_FN(mqtt5_client_subscribe)
+    CREATE_AND_REGISTER_FN(mqtt5_client_unsubscribe)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)

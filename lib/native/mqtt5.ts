@@ -18,7 +18,8 @@ import {
     AwsMqtt5PacketConnack,
     AwsMqtt5PacketConnect,
     AwsMqtt5QoS,
-    AwsMqtt5PacketSubscribe, AwsMqtt5PacketSuback
+    AwsMqtt5PacketSubscribe, AwsMqtt5PacketSuback,
+    AwsMqtt5PacketUnsubscribe, AwsMqtt5PacketUnsuback
 } from "./mqtt5_packet";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
@@ -505,6 +506,21 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         });
     }
 
+    async unsubscribe(packet: AwsMqtt5PacketUnsubscribe) {
+        return new Promise<AwsMqtt5PacketUnsuback>((resolve, reject) => {
+
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback){
+                return Mqtt5Client._s_on_unsuback_callback(resolve, reject, client, errorCode, unsuback);
+            }
+
+            try {
+                crt_native.mqtt5_client_unsubscribe(this.native_handle(), packet, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
     /*
      * Private helper functions
      *
@@ -563,6 +579,15 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
             resolve(suback);
         } else {
             reject("Failed to subscribe: " + io.error_code_to_string(errorCode));
+            client._emitErrorOnNext(errorCode);
+        }
+    }
+
+    private static _s_on_unsuback_callback(resolve : (value?: (AwsMqtt5PacketUnsuback | PromiseLike<AwsMqtt5PacketUnsuback> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback) {
+        if (errorCode == 0) {
+            resolve(unsuback);
+        } else {
+            reject("Failed to unsubscribe: " + io.error_code_to_string(errorCode));
             client._emitErrorOnNext(errorCode);
         }
     }
