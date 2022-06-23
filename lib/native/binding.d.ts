@@ -15,8 +15,8 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
-import {Mqtt5ClientConfig, Mqtt5ClientLifecycleHandlers, Mqtt5Client} from "./mqtt5";
-import * as mqtt5_packets from "./mqtt5_packet";
+import { Mqtt5ClientConfig, Mqtt5ClientLifecycleHandlers, Mqtt5Client } from "./mqtt5";
+import { AwsMqtt5PacketDisconnect }  from "./mqtt5_packet";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -151,7 +151,7 @@ export function mqtt5_client_new(
 
 export function mqtt5_client_start(connection: NativeHandle) : void;
 
-export function mqtt5_client_stop(connection: NativeHandle, disconnect_packet?: mqtt5_packets.AwsMqtt5PacketDisconnect) : void;
+export function mqtt5_client_stop(connection: NativeHandle, disconnect_packet?: AwsMqtt5PacketDisconnect) : void;
 
 /* MQTT Client */
 /** @internal */
