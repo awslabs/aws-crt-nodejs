@@ -120,16 +120,25 @@ export enum AwsRetryJitterType {
 
 /**
  * Mqtt behavior settings that are dynamically negotiated as part of the CONNECT/CONNACK exchange.
+ *
+ * While you can infer all of these values from a combination of
+ *   (1) the mqtt5 spec
+ *   (2) your CONNECT settings
+ *   (3) the CONNACK from the broker
+ *
+ * the client does all the combining for you and gives something with defined, authoritative values.
+ *
+ * Negotiated settings are communicated with every successful connection establishment.
  */
 export interface Mqtt5NegotiatedSettings {
 
     /**
-     * The maximum QoS used between the server and client.
+     * The maximum QoS allowed for publishes on this connection instance
      */
     maximumQos: AwsMqtt5QoS;
 
     /**
-     * the amount of time in seconds the server will retain the session after a disconnect.
+     * the amount of time in seconds the server will retain the MQTT session after a disconnect.
      */
     sessionExpiryInterval: number;
 
@@ -174,7 +183,10 @@ export interface Mqtt5NegotiatedSettings {
     rejoinedSession: Boolean;
 
     /**
-     * The final client id in use by the newly-established connection
+     * The final client id in use by the newly-established connection.  This will be the configured client id if one
+     * was given in the configuration, otherwise, if no client id was specified, this will be the client id assigned
+     * by the server.  Reconnection attempts will always use the auto-assigned client id, allowing for session
+     * resumption in that case.
      */
     clientId: string;
 }

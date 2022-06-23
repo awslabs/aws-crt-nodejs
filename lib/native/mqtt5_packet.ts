@@ -198,10 +198,17 @@ export interface AwsMqtt5PacketPublish {
  * Typescript interface for an MQTT5 CONNECT packet.
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901033
+ *
+ * The client configuration includes the connect properties that should be used for every connection attempt
+ * made by the client.
  */
 export interface AwsMqtt5PacketConnect {
     keepAliveIntervalSeconds: number;
 
+    /**
+     * If left empty, the broker will auto-assign a unique client id.  When reconnecting, the mqtt5 client will
+     * always use the original auto-assigned client id.
+     */
     clientId?: string;
 
     username?: string;
@@ -284,17 +291,17 @@ export interface AwsMqtt5Subscription {
     /**
      * Should the server not send publishes to a client when that client was the one who sent the publish?
      */
-    noLocal : Boolean;
+    noLocal? : Boolean;
 
     /**
      * Should messages sent due to this subscription keep the retain flag preserved on the message?
      */
-    retainAsPublished : Boolean;
+    retainAsPublished?: Boolean;
 
     /**
      * Should retained messages on matching topics be sent in reaction to this subscription?
      */
-    retainHandlingType: AwsMqtt5RetainHandlingType;
+    retainHandlingType?: AwsMqtt5RetainHandlingType;
 }
 
 /**

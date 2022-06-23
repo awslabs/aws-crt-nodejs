@@ -4,48 +4,21 @@
  */
 
 import {
-    AwsMqtt5ClientExtendedValidationAndFlowControl, AwsMqtt5ClientOperationQueueBehavior,
-    AwsMqtt5ClientSessionBehavior, AwsRetryJitterType,
     Mqtt5Client,
     Mqtt5ClientConfig
 } from './mqtt5';
 //import { AwsMqtt5DisconnectReasonCode, AwsMqtt5PacketDisconnect } from "./mqtt5_packet";
 import { once } from 'events';
-import {AwsMqtt5PacketConnect} from "./mqtt5_packet";
+import {AwsMqtt5PacketSubscribe, AwsMqtt5QoS, AwsMqtt5RetainHandlingType} from "./mqtt5_packet";
 
 jest.setTimeout(1200000);
 
 
 async function MakeGoodClient() {
 
-    const connect : AwsMqtt5PacketConnect = {
-        keepAliveIntervalSeconds: 3600,
-        userProperties: [
-            {
-                name: "name1",
-                value: "value1"
-            }
-        ]
-    };
-
     const client_config : Mqtt5ClientConfig = {
         hostName : "127.0.0.1",
         port : 1883,
-
-        sessionBehavior : AwsMqtt5ClientSessionBehavior.Clean,
-        extendedValidationAndFlowControlOptions : AwsMqtt5ClientExtendedValidationAndFlowControl.AwsIotCoreDefaults,
-        offlineQueueBehavior : AwsMqtt5ClientOperationQueueBehavior.FailNonQos1PublishOnDisconnect,
-        retryJitterMode : AwsRetryJitterType.Decorrelated,
-
-        minReconnectDelayMs : 1000,
-        maxReconnectDelayMs : 60000,
-        minConnectedTimeToResetReconnectDelayMs : 20000,
-
-        pingTimeoutMs : 20000,
-        connackTimeoutMs : 30000,
-        operationTimeoutSeconds : 120,
-
-        connectProperties: connect,
     };
 
     let client : Mqtt5Client = new Mqtt5Client(client_config);
@@ -65,6 +38,38 @@ async function MakeGoodClient() {
     console.log(await attemptingConnect);
     console.log('Waiting on connection result!');
     console.log(await connectionSuccess);
+
+    let subscribe_operation : AwsMqtt5PacketSubscribe = {
+        subscriptions: [
+            {
+                topicFilter : "derp/topic",
+                qos : AwsMqtt5QoS.AtLeastOnce,
+                noLocal : true,
+                retainAsPublished: true,
+                retainHandlingType: AwsMqtt5RetainHandlingType.SendOnSubscribeIfNew
+            }
+        ],
+        subscriptionIdentifier: 1,
+        userProperties: [
+            {
+                name: "subscribeName1",
+                value: "subscribeValue1"
+            }
+        ]
+    };
+
+    console.log(await client.subscribe(subscribe_operation));
+
+    let subscribe_minimal : AwsMqtt5PacketSubscribe = {
+        subscriptions: [
+            {
+                topicFilter : "derp/topic2",
+                qos : AwsMqtt5QoS.AtLeastOnce
+            }
+        ]
+    };
+
+    console.log(await client.subscribe(subscribe_minimal));
 
     client.stop();
 

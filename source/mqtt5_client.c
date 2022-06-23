@@ -21,6 +21,7 @@ static const char *AWS_NAPI_KEY_VALUE = "value";
 static const char *AWS_NAPI_KEY_USER_PROPERTIES = "userProperties";
 static const char *AWS_NAPI_KEY_SESSION_PRESENT = "sessionPresent";
 static const char *AWS_NAPI_KEY_REASON_CODE = "reasonCode";
+static const char *AWS_NAPI_KEY_REASON_CODES = "reasonCodes";
 static const char *AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL = "sessionExpiryInterval";
 static const char *AWS_NAPI_KEY_RECEIVE_MAXIMUM = "receiveMaximum";
 static const char *AWS_NAPI_KEY_MAXIMUM_QOS = "maximumQos";
@@ -78,6 +79,12 @@ static const char *AWS_NAPI_KEY_ON_ATTEMPTING_CONNECT = "onAttemptingConnect";
 static const char *AWS_NAPI_KEY_ON_CONNECTION_SUCCESS = "onConnectionSuccess";
 static const char *AWS_NAPI_KEY_ON_CONNECTION_FAILURE = "onConnectionFailure";
 static const char *AWS_NAPI_KEY_ON_DISCONNECTION = "onDisconnection";
+static const char *AWS_NAPI_KEY_SUBSCRIPTIONS = "subscriptions";
+static const char *AWS_NAPI_KEY_TOPIC_FILTER = "topicFilter";
+static const char *AWS_NAPI_KEY_NO_LOCAL = "noLocal";
+static const char *AWS_NAPI_KEY_RETAIN_AS_PUBLISHED = "retainAsPublished";
+static const char *AWS_NAPI_KEY_RETAIN_HANDLING_TYPE = "retainHandlingType";
+static const char *AWS_NAPI_KEY_SUBSCRIPTION_IDENTIFIER = "subscriptionIdentifier";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -85,6 +92,7 @@ static const char *AWS_NAPI_KEY_ON_DISCONNECTION = "onDisconnection";
  */
 struct aws_mqtt5_client_binding {
     struct aws_allocator *allocator;
+
     struct aws_mqtt5_client *client;
 
     struct aws_tls_connection_options tls_connection_options;
@@ -116,10 +124,10 @@ static void s_mqtt5_client_on_terminate(void *user_data) {
     aws_mem_release(binding->allocator, binding);
 }
 
-#define AWS_CLEAN_THREADSAFE_FUNCTION(function_name)                                                                   \
-    if (binding->function_name != NULL) {                                                                              \
-        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->function_name, napi_tsfn_abort));           \
-        binding->function_name = NULL;                                                                                 \
+#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
+    if (binding_name->function_name != NULL) {                                                                         \
+        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));      \
+        binding_name->function_name = NULL;                                                                            \
     }
 
 /*
@@ -135,12 +143,12 @@ static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *fin
         binding->node_mqtt5_client_weak_ref = NULL;
     }
 
-    AWS_CLEAN_THREADSAFE_FUNCTION(on_stopped);
-    AWS_CLEAN_THREADSAFE_FUNCTION(on_attempting_connect);
-    AWS_CLEAN_THREADSAFE_FUNCTION(on_connection_success);
-    AWS_CLEAN_THREADSAFE_FUNCTION(on_connection_failure);
-    AWS_CLEAN_THREADSAFE_FUNCTION(on_disconnection);
-    AWS_CLEAN_THREADSAFE_FUNCTION(transform_websocket);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stopped);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_attempting_connect);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_success);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_failure);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_disconnection);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, transform_websocket);
 
     if (binding->client != NULL) {
         /* if client is not null, then this is a successfully constructed client which should shutdown normally */
@@ -1969,9 +1977,452 @@ done:
     return NULL;
 }
 
+struct aws_napi_mqtt5_operation_binding {
+    struct aws_allocator *allocator;
+
+    /*
+     * Similar to the client binding, we keep a weak ref to the JS client and attempt to resolve the ref at the point
+     * in time we're calling back into node on the libuv thread.  This might occur after the client has
+     * completely cleaned up, so we can't just keep a pointer to the client binding.
+     */
+    napi_ref node_mqtt5_client_weak_ref;
+
+    napi_threadsafe_function on_operation_completion;
+
+    int error_code;
+
+    enum aws_mqtt5_packet_type valid_storage;
+
+    union {
+        struct aws_mqtt5_packet_suback_storage suback;
+        struct aws_mqtt5_packet_puback_storage puback;
+        struct aws_mqtt5_packet_unsuback_storage unsuback;
+    } packet_storage;
+};
+
+static void s_aws_napi_mqtt5_operation_binding_destroy(struct aws_napi_mqtt5_operation_binding *binding) {
+    if (binding == NULL) {
+        return;
+    }
+
+    switch (binding->valid_storage) {
+        case AWS_MQTT5_PT_SUBACK:
+            aws_mqtt5_packet_suback_storage_clean_up(&binding->packet_storage.suback);
+            break;
+
+        case AWS_MQTT5_PT_PUBACK:
+            aws_mqtt5_packet_puback_storage_clean_up(&binding->packet_storage.puback);
+            break;
+
+        case AWS_MQTT5_PT_UNSUBACK:
+            aws_mqtt5_packet_unsuback_storage_clean_up(&binding->packet_storage.unsuback);
+            break;
+
+        default:
+            break;
+    }
+
+    aws_mem_release(binding->allocator, binding);
+}
+
+static void s_aws_napi_mqtt5_operation_binding_clean_up_napi(
+    struct aws_napi_mqtt5_operation_binding *binding,
+    napi_env env) {
+    if (binding == NULL) {
+        return;
+    }
+
+    if (binding->node_mqtt5_client_weak_ref != NULL) {
+        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
+        binding->node_mqtt5_client_weak_ref = NULL;
+    }
+
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_operation_completion);
+}
+
+static int s_create_napi_suback_packet(
+    napi_env env,
+    const struct aws_mqtt5_packet_suback_view *suback,
+    napi_value *packet_out) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_suback = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_suback), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_optional_string(
+            napi_suback, env, AWS_NAPI_KEY_REASON_STRING, suback->reason_string)) {
+        return AWS_OP_ERR;
+    }
+
+    if (s_attach_object_property_user_properties(
+            napi_suback, env, suback->user_property_count, suback->user_properties)) {
+        return AWS_OP_ERR;
+    }
+
+    size_t reason_code_count = suback->reason_code_count;
+    if (reason_code_count == 0) {
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "s_create_napi_suback_packet - missing reason codes");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value suback_code_array = NULL;
+    AWS_NAPI_CALL(env, napi_create_array_with_length(env, reason_code_count, &suback_code_array), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    for (size_t i = 0; i < reason_code_count; ++i) {
+        napi_value napi_reason_code = NULL;
+        AWS_NAPI_CALL(env, napi_create_uint32(env, (uint32_t)suback->reason_codes[i], &napi_reason_code), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        AWS_NAPI_CALL(env, napi_set_element(env, suback_code_array, (uint32_t)i, napi_reason_code), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+    }
+
+    AWS_NAPI_CALL(env, napi_set_named_property(env, napi_suback, AWS_NAPI_KEY_REASON_CODES, suback_code_array), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    *packet_out = napi_suback;
+
+    return AWS_OP_SUCCESS;
+}
+
+/* in-node/libuv-thread function to trigger the emission of an ATTEMPTING_CONNECT client lifecycle event */
+static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)user_data;
+
+    struct aws_napi_mqtt5_operation_binding *binding = context;
+
+    if (env) {
+        napi_value params[3];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the mqtt5 client, then it's been garbage collected and we should not
+         * do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_on_subscribe_complete - mqtt5_client node wrapper no longer resolvable");
+            goto cleanup;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto cleanup; });
+
+        if (binding->valid_storage == AWS_MQTT5_PT_SUBACK &&
+            s_create_napi_suback_packet(env, &binding->packet_storage.suback.storage_view, &params[2])) {
+            goto cleanup;
+        }
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_operation_completion, NULL, function, num_params, params));
+
+    cleanup:
+
+        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
+    }
+
+    s_aws_napi_mqtt5_operation_binding_destroy(binding);
+}
+
+static void s_on_subscribe_complete(
+    const struct aws_mqtt5_packet_suback_view *suback,
+    int error_code,
+    void *complete_ctx) {
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_napi_mqtt5_operation_binding *binding = complete_ctx;
+
+    binding->error_code = error_code;
+    if (aws_mqtt5_packet_suback_storage_init(&binding->packet_storage.suback, allocator, suback) == AWS_OP_SUCCESS) {
+        binding->valid_storage = AWS_MQTT5_PT_SUBACK;
+    } else if (binding->error_code == AWS_ERROR_SUCCESS) {
+        binding->error_code = aws_last_error();
+    }
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion, binding));
+}
+
+struct aws_napi_mqtt5_subscribe_storage {
+    struct aws_array_list subscriptions;
+    struct aws_byte_buf topics;
+
+    uint32_t subscription_identifier;
+
+    struct aws_napi_mqtt5_user_property_storage user_properties;
+};
+
+static void s_aws_napi_mqtt5_subscribe_storage_clean_up(struct aws_napi_mqtt5_subscribe_storage *storage) {
+    aws_array_list_clean_up(&storage->subscriptions);
+    aws_byte_buf_clean_up(&storage->topics);
+
+    s_aws_mqtt5_user_properties_clean_up(&storage->user_properties);
+}
+
+static int s_aws_mqtt5_subscription_init_from_napi(
+    struct aws_mqtt5_subscription_view *subscription,
+    struct aws_mqtt5_client_binding *binding,
+    napi_env env,
+    napi_value node_subscription) {
+
+    uint32_t qos = 0;
+    if (!aws_napi_get_named_property_as_uint32(env, node_subscription, AWS_NAPI_KEY_QOS, &qos)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_mqtt5_subscription_init_from_napi - missing require parameter: qos",
+            (void *)binding->client);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+    subscription->qos = qos;
+
+    aws_napi_get_named_property_as_boolean(env, node_subscription, AWS_NAPI_KEY_NO_LOCAL, &subscription->no_local);
+    aws_napi_get_named_property_as_boolean(
+        env, node_subscription, AWS_NAPI_KEY_RETAIN_AS_PUBLISHED, &subscription->retain_as_published);
+
+    uint32_t retain_handling_type = 0;
+    if (aws_napi_get_named_property_as_uint32(
+            env, node_subscription, AWS_NAPI_KEY_RETAIN_HANDLING_TYPE, &retain_handling_type)) {
+        subscription->retain_handling_type = retain_handling_type;
+    }
+
+    return AWS_OP_SUCCESS;
+}
+
+static int s_aws_mqtt5_packet_subscribe_storage_init_from_napi(
+    struct aws_napi_mqtt5_subscribe_storage *subscribe_storage,
+    struct aws_mqtt5_packet_subscribe_view *subscribe_view,
+    struct aws_mqtt5_client_binding *binding,
+    napi_env env,
+    napi_value node_subscribe_packet) {
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_subscriptions = NULL;
+    if (!aws_napi_get_named_property(
+            env, node_subscribe_packet, AWS_NAPI_KEY_SUBSCRIPTIONS, napi_object, &napi_subscriptions)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_mqtt5_packet_subscribe_storage_init_from_napi - missing require parameter: subscriptions",
+            (void *)binding->client);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    /* how many subscriptions and total topic length */
+    uint32_t subscription_count = 0;
+    AWS_NAPI_CALL(env, napi_get_array_length(env, napi_subscriptions, &subscription_count), {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_mqtt5_packet_subscribe_storage_init_from_napi - subscriptions is not an array",
+            (void *)binding->client);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    });
+
+    size_t topic_length_sum = 0;
+    for (uint32_t i = 0; i < subscription_count; ++i) {
+        napi_value napi_subscription = NULL;
+        AWS_NAPI_CALL(env, napi_get_element(env, napi_subscriptions, i, &napi_subscription), { return AWS_OP_ERR; });
+
+        struct aws_byte_buf topic_filter_buf;
+        AWS_ZERO_STRUCT(topic_filter_buf);
+
+        bool success = aws_napi_get_named_property_as_bytebuf(
+            env, napi_subscription, AWS_NAPI_KEY_TOPIC_FILTER, napi_string, &topic_filter_buf);
+
+        topic_length_sum += topic_filter_buf.len;
+
+        aws_byte_buf_clean_up(&topic_filter_buf);
+        if (!success) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_aws_mqtt5_packet_subscribe_storage_init_from_napi - missing require parameter: topicFilter",
+                (void *)binding->client);
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        }
+    }
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    if (aws_array_list_init_dynamic(
+            &subscribe_storage->subscriptions,
+            allocator,
+            subscription_count,
+            sizeof(struct aws_mqtt5_subscription_view))) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_byte_buf_init(&subscribe_storage->topics, allocator, topic_length_sum)) {
+        return AWS_OP_ERR;
+    }
+
+    for (uint32_t i = 0; i < subscription_count; ++i) {
+        napi_value napi_subscription = NULL;
+        AWS_NAPI_CALL(env, napi_get_element(env, napi_subscriptions, i, &napi_subscription), { return AWS_OP_ERR; });
+
+        struct aws_byte_buf topic_filter_buf;
+        AWS_ZERO_STRUCT(topic_filter_buf);
+
+        aws_napi_get_named_property_as_bytebuf(
+            env, napi_subscription, AWS_NAPI_KEY_TOPIC_FILTER, napi_string, &topic_filter_buf);
+
+        struct aws_mqtt5_subscription_view subscription;
+        AWS_ZERO_STRUCT(subscription);
+
+        subscription.topic_filter = aws_byte_cursor_from_buf(&topic_filter_buf);
+
+        bool success =
+            aws_byte_buf_append_and_update(&subscribe_storage->topics, &subscription.topic_filter) == AWS_OP_SUCCESS;
+
+        aws_byte_buf_clean_up(&topic_filter_buf);
+
+        if (!success || s_aws_mqtt5_subscription_init_from_napi(&subscription, binding, env, napi_subscription)) {
+            return AWS_OP_ERR;
+        }
+
+        aws_array_list_push_back(&subscribe_storage->subscriptions, &subscription);
+    }
+
+    subscribe_view->subscription_count = subscription_count;
+    subscribe_view->subscriptions = subscribe_storage->subscriptions.data;
+
+    if (aws_napi_get_named_property_as_uint32(
+            env,
+            node_subscribe_packet,
+            AWS_NAPI_KEY_SUBSCRIPTION_IDENTIFIER,
+            &subscribe_storage->subscription_identifier)) {
+        subscribe_view->subscription_identifier = &subscribe_storage->subscription_identifier;
+    }
+
+    if (s_aws_mqtt5_user_properties_extract_from_js_object(
+            binding,
+            &subscribe_storage->user_properties,
+            env,
+            node_subscribe_packet,
+            &subscribe_view->user_property_count,
+            &subscribe_view->user_properties)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_mqtt5_packet_subscribe_storage_init_from_napi - failed to extract userProperties");
+        return AWS_OP_ERR;
+    }
+
+    return AWS_OP_SUCCESS;
+}
+
 napi_value aws_napi_mqtt5_client_subscribe(napi_env env, napi_callback_info info) {
-    (void)env;
-    (void)info;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - needs exactly 3 arguments");
+        return NULL;
+    }
+
+    bool successful = false;
+    struct aws_mqtt5_client_binding *client_binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&client_binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_subscribe - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (client_binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - binding was null");
+        return NULL;
+    }
+
+    if (client_binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - client was null");
+        return NULL;
+    }
+
+    struct aws_napi_mqtt5_operation_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
+    binding->allocator = allocator;
+
+    napi_value node_client = NULL;
+    if (napi_get_reference_value(env, client_binding->node_mqtt5_client_weak_ref, &node_client) != napi_ok ||
+        node_client == NULL) {
+        AWS_LOGF_INFO(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "aws_napi_mqtt5_client_subscribe - mqtt5_client node wrapper no longer resolvable");
+        goto done;
+    }
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_subscribe - Failed to create weak reference to node mqtt5 client");
+        goto done;
+    });
+
+    napi_value node_subscribe_packet = *arg++;
+
+    struct aws_napi_mqtt5_subscribe_storage subscribe_storage;
+    AWS_ZERO_STRUCT(subscribe_storage);
+    struct aws_mqtt5_packet_subscribe_view subscribe_view;
+    AWS_ZERO_STRUCT(subscribe_view);
+    if (s_aws_mqtt5_packet_subscribe_storage_init_from_napi(
+            &subscribe_storage, &subscribe_view, client_binding, env, node_subscribe_packet)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - storage init failure");
+        goto done;
+    }
+
+    napi_value completion_callback = *arg++;
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            completion_callback,
+            "aws_mqtt5_on_subsription_complete",
+            s_napi_on_subscribe_complete,
+            binding,
+            &binding->on_operation_completion),
+        {
+            napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - failed to create threadsafe function");
+            goto done;
+        });
+
+    struct aws_mqtt5_subscribe_completion_options completion_options = {
+        .completion_callback = s_on_subscribe_complete,
+        .completion_user_data = binding,
+    };
+
+    if (aws_mqtt5_client_subscribe(client_binding->client, &subscribe_view, &completion_options)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_subscribe - failure invoking native client subscribe");
+        goto done;
+    }
+
+    successful = true;
+
+done:
+
+    s_aws_napi_mqtt5_subscribe_storage_clean_up(&subscribe_storage);
+
+    if (!successful) {
+        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
+        s_aws_napi_mqtt5_operation_binding_destroy(binding);
+    }
 
     return NULL;
 }
