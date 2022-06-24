@@ -79,6 +79,7 @@ static const char *AWS_NAPI_KEY_ON_ATTEMPTING_CONNECT = "onAttemptingConnect";
 static const char *AWS_NAPI_KEY_ON_CONNECTION_SUCCESS = "onConnectionSuccess";
 static const char *AWS_NAPI_KEY_ON_CONNECTION_FAILURE = "onConnectionFailure";
 static const char *AWS_NAPI_KEY_ON_DISCONNECTION = "onDisconnection";
+static const char *AWS_NAPI_KEY_ON_MESSAGE_RECEIVED = "onMessageReceived";
 static const char *AWS_NAPI_KEY_SUBSCRIPTIONS = "subscriptions";
 static const char *AWS_NAPI_KEY_TOPIC_FILTER = "topicFilter";
 static const char *AWS_NAPI_KEY_TOPIC_FILTERS = "topicFilters";
@@ -93,6 +94,7 @@ static const char *AWS_NAPI_KEY_SUBSCRIPTION_IDENTIFIER = "subscriptionIdentifie
  */
 struct aws_mqtt5_client_binding {
     struct aws_allocator *allocator;
+    struct aws_ref_count ref_count;
 
     struct aws_mqtt5_client *client;
 
@@ -113,28 +115,66 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function on_connection_success;
     napi_threadsafe_function on_connection_failure;
     napi_threadsafe_function on_disconnection;
+    napi_threadsafe_function on_message_received;
 
     napi_threadsafe_function transform_websocket;
 };
 
-static void s_mqtt5_client_on_terminate(void *user_data) {
-    struct aws_mqtt5_client_binding *binding = user_data;
+#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
+    if (binding_name->function_name != NULL) {                                                                         \
+        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
+        binding_name->function_name = NULL;                                                                            \
+    }
+
+static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
+    if (binding == NULL) {
+        return;
+    }
 
     aws_tls_connection_options_clean_up(&binding->tls_connection_options);
+
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stopped);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_attempting_connect);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_success);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_failure);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_disconnection);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_message_received);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, transform_websocket);
 
     aws_mem_release(binding->allocator, binding);
 }
 
-#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
-    if (binding_name->function_name != NULL) {                                                                         \
-        AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));      \
-        binding_name->function_name = NULL;                                                                            \
+static void s_aws_mqtt5_client_binding_on_zero(void *object) {
+    s_aws_mqtt5_client_binding_destroy(object);
+}
+
+static struct aws_mqtt5_client_binding *s_aws_mqtt5_client_binding_acquire(struct aws_mqtt5_client_binding *binding) {
+    if (binding == NULL) {
+        return NULL;
     }
+
+    aws_ref_count_acquire(&binding->ref_count);
+    return binding;
+}
+
+static struct aws_mqtt5_client_binding *s_aws_mqtt5_client_binding_release(struct aws_mqtt5_client_binding *binding) {
+    if (binding != NULL) {
+        aws_ref_count_release(&binding->ref_count);
+    }
+
+    return NULL;
+}
+
+static void s_aws_mqtt5_client_binding_on_client_terminate(void *user_data) {
+    struct aws_mqtt5_client_binding *binding = user_data;
+
+    s_aws_mqtt5_client_binding_release(binding);
+}
 
 /*
  * Invoked when the node mqtt5 client is garbage collected or if fails construction partway through
  */
-static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+static void s_aws_mqtt5_client_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
 
     struct aws_mqtt5_client_binding *binding = finalize_data;
@@ -143,13 +183,6 @@ static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *fin
         napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
         binding->node_mqtt5_client_weak_ref = NULL;
     }
-
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stopped);
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_attempting_connect);
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_success);
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_failure);
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_disconnection);
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, transform_websocket);
 
     if (binding->client != NULL) {
         /* if client is not null, then this is a successfully constructed client which should shutdown normally */
@@ -160,13 +193,88 @@ static void s_mqtt5_client_finalize(napi_env env, void *finalize_data, void *fin
          * no client, this must be a creation attempt that failed partway through and we should directly clean up the
          * binding
          */
-        s_mqtt5_client_on_terminate(binding);
+        s_aws_mqtt5_client_binding_on_client_terminate(binding);
     }
 }
 
+struct on_message_received_user_data {
+    struct aws_allocator *allocator;
+    struct aws_mqtt5_client_binding *binding;
+    struct aws_mqtt5_packet_publish_storage publish_storage;
+};
+
+static void s_on_message_received_user_data_destroy(struct on_message_received_user_data *user_data) {
+    if (user_data == NULL) {
+        return;
+    }
+
+    user_data->binding = s_aws_mqtt5_client_binding_release(user_data->binding);
+    aws_mqtt5_packet_publish_storage_clean_up(&user_data->publish_storage);
+
+    aws_mem_release(user_data->allocator, user_data);
+}
+
+static struct on_message_received_user_data *s_on_message_received_user_data_new(
+    struct aws_mqtt5_client_binding *binding,
+    const struct aws_mqtt5_packet_publish_view *publish_packet) {
+
+    struct on_message_received_user_data *user_data =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct on_message_received_user_data));
+    user_data->allocator = binding->allocator;
+    if (aws_mqtt5_packet_publish_storage_init(&user_data->publish_storage, user_data->allocator, publish_packet)) {
+        goto error;
+    }
+    user_data->binding = s_aws_mqtt5_client_binding_acquire(binding);
+
+    return user_data;
+
+error:
+
+    s_on_message_received_user_data_destroy(user_data);
+
+    return NULL;
+}
+
 static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *publish_packet, void *user_data) {
-    (void)publish_packet;
-    (void)user_data;
+    struct aws_mqtt5_client_binding *binding = user_data;
+
+    if (!binding->on_message_received) {
+        return;
+    }
+
+    struct on_message_received_user_data *message_received_ud =
+        s_on_message_received_user_data_new(binding, publish_packet);
+    if (message_received_ud == NULL) {
+        return;
+    }
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_message_received, message_received_ud));
+}
+
+struct on_simple_event_user_data {
+    struct aws_allocator *allocator;
+    struct aws_mqtt5_client_binding *binding;
+};
+
+static void s_on_simple_event_user_data_destroy(struct on_simple_event_user_data *user_data) {
+    if (user_data == NULL) {
+        return;
+    }
+
+    user_data->binding = s_aws_mqtt5_client_binding_release(user_data->binding);
+
+    aws_mem_release(user_data->allocator, user_data);
+}
+
+static struct on_simple_event_user_data *s_on_simple_event_user_data_new(struct aws_mqtt5_client_binding *binding) {
+
+    struct on_simple_event_user_data *user_data =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct on_simple_event_user_data));
+    user_data->allocator = binding->allocator;
+    user_data->binding = s_aws_mqtt5_client_binding_acquire(binding);
+
+    return user_data;
 }
 
 static void s_on_stopped(struct aws_mqtt5_client_binding *binding) {
@@ -175,7 +283,8 @@ static void s_on_stopped(struct aws_mqtt5_client_binding *binding) {
     }
 
     /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_stopped, NULL));
+    AWS_NAPI_ENSURE(
+        NULL, aws_napi_queue_threadsafe_function(binding->on_stopped, s_on_simple_event_user_data_new(binding)));
 }
 
 static void s_on_attempting_connect(struct aws_mqtt5_client_binding *binding) {
@@ -184,12 +293,15 @@ static void s_on_attempting_connect(struct aws_mqtt5_client_binding *binding) {
     }
 
     /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_attempting_connect, NULL));
+    AWS_NAPI_ENSURE(
+        NULL,
+        aws_napi_queue_threadsafe_function(binding->on_attempting_connect, s_on_simple_event_user_data_new(binding)));
 }
 
 /* unions callback data needed for connection succes and failure as a convenience */
 struct on_connection_result_user_data {
     struct aws_allocator *allocator;
+    struct aws_mqtt5_client_binding *binding;
     struct aws_mqtt5_packet_connack_storage connack_storage;
     bool is_connack_valid;
     int error_code;
@@ -201,6 +313,8 @@ static void s_on_connection_result_user_data_destroy(struct on_connection_result
         return;
     }
 
+    connection_result_ud->binding = s_aws_mqtt5_client_binding_release(connection_result_ud->binding);
+
     aws_mqtt5_packet_connack_storage_clean_up(&connection_result_ud->connack_storage);
     aws_mqtt5_negotiated_settings_clean_up(&connection_result_ud->settings);
 
@@ -209,6 +323,7 @@ static void s_on_connection_result_user_data_destroy(struct on_connection_result
 
 static struct on_connection_result_user_data *s_on_connection_result_user_data_new(
     struct aws_allocator *allocator,
+    struct aws_mqtt5_client_binding *binding,
     const struct aws_mqtt5_packet_connack_view *connack,
     const struct aws_mqtt5_negotiated_settings *settings,
     int error_code) {
@@ -218,6 +333,7 @@ static struct on_connection_result_user_data *s_on_connection_result_user_data_n
 
     connection_result_ud->allocator = allocator;
     connection_result_ud->error_code = error_code;
+    connection_result_ud->binding = s_aws_mqtt5_client_binding_acquire(binding);
 
     if (connack != NULL) {
         if (aws_mqtt5_packet_connack_storage_init(&connection_result_ud->connack_storage, allocator, connack)) {
@@ -251,7 +367,7 @@ static void s_on_connection_success(
     }
 
     struct on_connection_result_user_data *connection_result_ud =
-        s_on_connection_result_user_data_new(binding->allocator, connack, settings, AWS_ERROR_SUCCESS);
+        s_on_connection_result_user_data_new(binding->allocator, binding, connack, settings, AWS_ERROR_SUCCESS);
     if (connection_result_ud == NULL) {
         return;
     }
@@ -269,7 +385,7 @@ static void s_on_connection_failure(
     }
 
     struct on_connection_result_user_data *connection_result_ud =
-        s_on_connection_result_user_data_new(binding->allocator, connack, NULL, error_code);
+        s_on_connection_result_user_data_new(binding->allocator, binding, connack, NULL, error_code);
     if (connection_result_ud == NULL) {
         return;
     }
@@ -280,6 +396,7 @@ static void s_on_connection_failure(
 
 struct on_disconnection_user_data {
     struct aws_allocator *allocator;
+    struct aws_mqtt5_client_binding *binding;
     struct aws_mqtt5_packet_disconnect_storage disconnect_storage;
     bool is_disconnect_valid;
     int error_code;
@@ -290,6 +407,8 @@ static void s_on_disconnection_user_data_destroy(struct on_disconnection_user_da
         return;
     }
 
+    disconnection_ud->binding = s_aws_mqtt5_client_binding_release(disconnection_ud->binding);
+
     aws_mqtt5_packet_disconnect_storage_clean_up(&disconnection_ud->disconnect_storage);
 
     aws_mem_release(disconnection_ud->allocator, disconnection_ud);
@@ -297,6 +416,7 @@ static void s_on_disconnection_user_data_destroy(struct on_disconnection_user_da
 
 static struct on_disconnection_user_data *s_on_disconnection_user_data_new(
     struct aws_allocator *allocator,
+    struct aws_mqtt5_client_binding *binding,
     const struct aws_mqtt5_packet_disconnect_view *disconnect,
     int error_code) {
     struct on_disconnection_user_data *disconnection_ud =
@@ -304,6 +424,7 @@ static struct on_disconnection_user_data *s_on_disconnection_user_data_new(
 
     disconnection_ud->allocator = allocator;
     disconnection_ud->error_code = error_code;
+    disconnection_ud->binding = s_aws_mqtt5_client_binding_acquire(binding);
 
     if (disconnect != NULL) {
         if (aws_mqtt5_packet_disconnect_storage_init(&disconnection_ud->disconnect_storage, allocator, disconnect)) {
@@ -330,7 +451,7 @@ static void s_on_disconnection(
     }
 
     struct on_disconnection_user_data *disconnection_ud =
-        s_on_disconnection_user_data_new(binding->allocator, disconnect, error_code);
+        s_on_disconnection_user_data_new(binding->allocator, binding, disconnect, error_code);
     if (disconnection_ud == NULL) {
         return;
     }
@@ -371,10 +492,11 @@ static void s_lifecycle_event_callback(const struct aws_mqtt5_client_lifecycle_e
 typedef void(napi_threadsafe_function_type)(napi_env env, napi_value function, void *context, void *user_data);
 
 /* in-node/libuv-thread function to trigger the emission of a STOPPED client lifecycle event */
-static void s_on_stopped_call(napi_env env, napi_value function, void *context, void *user_data) {
-    (void)user_data;
+static void s_napi_on_stopped(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)context;
 
-    struct aws_mqtt5_client_binding *binding = context;
+    struct on_simple_event_user_data *simple_ud = user_data;
+    struct aws_mqtt5_client_binding *binding = simple_ud->binding;
 
     if (env) {
         napi_value params[1];
@@ -391,19 +513,24 @@ static void s_on_stopped_call(napi_env env, napi_value function, void *context, 
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_stopped_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
-            return;
+            goto done;
         }
 
         AWS_NAPI_ENSURE(
             env, aws_napi_dispatch_threadsafe_function(env, binding->on_stopped, NULL, function, num_params, params));
     }
+
+done:
+
+    s_on_simple_event_user_data_destroy(simple_ud);
 }
 
 /* in-node/libuv-thread function to trigger the emission of an ATTEMPTING_CONNECT client lifecycle event */
-static void s_on_attempting_connect_call(napi_env env, napi_value function, void *context, void *user_data) {
-    (void)user_data;
+static void s_napi_on_attempting_connect(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)context;
 
-    struct aws_mqtt5_client_binding *binding = context;
+    struct on_simple_event_user_data *simple_ud = user_data;
+    struct aws_mqtt5_client_binding *binding = simple_ud->binding;
 
     if (env) {
         napi_value params[1];
@@ -420,7 +547,7 @@ static void s_on_attempting_connect_call(napi_env env, napi_value function, void
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_attempting_connect_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
-            return;
+            goto done;
         }
 
         AWS_NAPI_ENSURE(
@@ -428,6 +555,10 @@ static void s_on_attempting_connect_call(napi_env env, napi_value function, void
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_attempting_connect, NULL, function, num_params, params));
     }
+
+done:
+
+    s_on_simple_event_user_data_destroy(simple_ud);
 }
 
 /* utility function to attach native-specified user properties to a napi object as an array of user property objects */
@@ -678,9 +809,11 @@ static int s_create_napi_negotiated_settings(
 }
 
 /* in-node/libuv-thread function to trigger the emission of a CONNECTION_SUCCESS client lifecycle event */
-static void s_on_connection_success_call(napi_env env, napi_value function, void *context, void *user_data) {
-    struct aws_mqtt5_client_binding *binding = context;
+static void s_napi_on_connection_success(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)context;
+
     struct on_connection_result_user_data *connection_result_ud = user_data;
+    struct aws_mqtt5_client_binding *binding = connection_result_ud->binding;
 
     if (env) {
         napi_value params[3];
@@ -728,9 +861,11 @@ done:
 }
 
 /* in-node/libuv-thread function to trigger the emission of a CONNECTION_FAILURE client lifecycle event */
-static void s_on_connection_failure_call(napi_env env, napi_value function, void *context, void *user_data) {
-    struct aws_mqtt5_client_binding *binding = context;
+static void s_napi_on_connection_failure(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)context;
+
     struct on_connection_result_user_data *connection_result_ud = user_data;
+    struct aws_mqtt5_client_binding *binding = connection_result_ud->binding;
 
     if (env) {
         napi_value params[3];
@@ -821,9 +956,11 @@ static int s_create_napi_disconnect_packet(
 }
 
 /* in-node/libuv-thread function to trigger the emission of a DISCONNECTION client lifecycle event */
-static void s_on_disconnection_call(napi_env env, napi_value function, void *context, void *user_data) {
-    struct aws_mqtt5_client_binding *binding = context;
+static void s_napi_on_disconnection(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)context;
+
     struct on_disconnection_user_data *disconnection_ud = user_data;
+    struct aws_mqtt5_client_binding *binding = disconnection_ud->binding;
 
     if (env) {
         napi_value params[3];
@@ -861,6 +998,61 @@ static void s_on_disconnection_call(napi_env env, napi_value function, void *con
 done:
 
     s_on_disconnection_user_data_destroy(disconnection_ud);
+}
+
+static int s_create_napi_publish_packet(
+    napi_env env,
+    const struct aws_mqtt5_packet_publish_view *publish_view,
+    napi_value *packet_out) {
+    (void)env;
+    (void)publish_view;
+    (void)packet_out;
+
+    return AWS_OP_ERR;
+}
+
+/* in-node/libuv-thread function to trigger the emission of a PUBLISH packet on the messageReceived event */
+static void s_napi_on_message_received(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)context;
+
+    struct on_message_received_user_data *on_message_received_ud = user_data;
+    struct aws_mqtt5_client_binding *binding = on_message_received_ud->binding;
+
+    if (env) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the mqtt5 client, then it's been garbage collected and we should not
+         * do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_napi_on_message_received - mqtt5_client node wrapper no longer resolvable",
+                (void *)binding->client);
+            goto done;
+        }
+
+        if (s_create_napi_publish_packet(env, &on_message_received_ud->publish_storage.storage_view, &params[1])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_napi_on_message_received - failed to create publish object",
+                (void *)binding->client);
+            goto done;
+        }
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_message_received, NULL, function, num_params, params));
+    }
+
+done:
+
+    s_on_message_received_user_data_destroy(on_message_received_ud);
 }
 
 /*
@@ -1333,7 +1525,7 @@ cleanup:
 }
 
 /* in-node/libuv-thread function to trigger websocket handshake transform callback */
-static void s_mqtt5_transform_websocket_call(
+static void s_napi_mqtt5_transform_websocket(
     napi_env env,
     napi_value transform_websocket,
     void *context,
@@ -1492,7 +1684,7 @@ static int s_init_client_configuration_from_js_client_configuration(
                     env,
                     node_transform_websocket,
                     "aws_mqtt5_client_transform_websocket",
-                    s_mqtt5_transform_websocket_call,
+                    s_napi_mqtt5_transform_websocket,
                     binding,
                     &binding->transform_websocket),
                 { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
@@ -1508,7 +1700,6 @@ static int s_init_client_configuration_from_js_client_configuration(
 /* helper function for creating threadsafe napi functions from napi function objects that are properties of a parent
  * object */
 static int s_init_binding_threadsafe_function(
-    struct aws_mqtt5_client_binding *binding,
     napi_env env,
     napi_value parent_object,
     const char *property_name,
@@ -1536,70 +1727,75 @@ static int s_init_binding_threadsafe_function(
     AWS_NAPI_CALL(
         env,
         aws_napi_create_threadsafe_function(
-            env, node_function, threadsafe_name, threadsafe_function, binding, function_out),
+            env, node_function, threadsafe_name, threadsafe_function, NULL, function_out),
         { return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); });
 
     return AWS_OP_SUCCESS;
 }
 
-/* creates threadsafe functions for all mqtt5 client lifecycle events */
-static int s_init_lifecycle_event_threadsafe_functions(
+/* creates threadsafe functions for all mqtt5 client events */
+static int s_init_event_threadsafe_functions(
     struct aws_mqtt5_client_binding *binding,
     napi_env env,
-    napi_value node_lifecycle_event_handlers) {
+    napi_value node_event_handlers) {
 
     if (s_init_binding_threadsafe_function(
-            binding,
             env,
-            node_lifecycle_event_handlers,
+            node_event_handlers,
             AWS_NAPI_KEY_ON_STOPPED,
             "aws_mqtt5_client_on_stopped",
-            s_on_stopped_call,
+            s_napi_on_stopped,
             &binding->on_stopped)) {
         return AWS_OP_ERR;
     }
 
     if (s_init_binding_threadsafe_function(
-            binding,
             env,
-            node_lifecycle_event_handlers,
+            node_event_handlers,
             AWS_NAPI_KEY_ON_ATTEMPTING_CONNECT,
             "aws_mqtt5_client_on_attempting_connect",
-            s_on_attempting_connect_call,
+            s_napi_on_attempting_connect,
             &binding->on_attempting_connect)) {
         return AWS_OP_ERR;
     }
 
     if (s_init_binding_threadsafe_function(
-            binding,
             env,
-            node_lifecycle_event_handlers,
+            node_event_handlers,
             AWS_NAPI_KEY_ON_CONNECTION_SUCCESS,
             "aws_mqtt5_client_on_connection_success",
-            s_on_connection_success_call,
+            s_napi_on_connection_success,
             &binding->on_connection_success)) {
         return AWS_OP_ERR;
     }
 
     if (s_init_binding_threadsafe_function(
-            binding,
             env,
-            node_lifecycle_event_handlers,
+            node_event_handlers,
             AWS_NAPI_KEY_ON_CONNECTION_FAILURE,
             "aws_mqtt5_client_on_connection_failure",
-            s_on_connection_failure_call,
+            s_napi_on_connection_failure,
             &binding->on_connection_failure)) {
         return AWS_OP_ERR;
     }
 
     if (s_init_binding_threadsafe_function(
-            binding,
             env,
-            node_lifecycle_event_handlers,
+            node_event_handlers,
             AWS_NAPI_KEY_ON_DISCONNECTION,
             "aws_mqtt5_client_on_disconnection",
-            s_on_disconnection_call,
+            s_napi_on_disconnection,
             &binding->on_disconnection)) {
+        return AWS_OP_ERR;
+    }
+
+    if (s_init_binding_threadsafe_function(
+            env,
+            node_event_handlers,
+            AWS_NAPI_KEY_ON_MESSAGE_RECEIVED,
+            "aws_mqtt5_client_on_message_received",
+            s_napi_on_message_received,
+            &binding->on_message_received)) {
         return AWS_OP_ERR;
     }
 
@@ -1663,8 +1859,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_mqtt5_client_binding *binding = aws_mem_calloc(allocator, 1, sizeof(struct aws_mqtt5_client_binding));
     binding->allocator = allocator;
+    aws_ref_count_init(&binding->ref_count, binding, s_aws_mqtt5_client_binding_on_zero);
 
-    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_mqtt5_client_finalize, NULL, &node_external), {
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_binding_finalize, NULL, &node_external), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
         goto cleanup;
     });
@@ -1723,7 +1920,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     }
 
-    if (s_init_lifecycle_event_threadsafe_functions(binding, env, node_lifecycle_event_handlers)) {
+    if (s_init_event_threadsafe_functions(binding, env, node_lifecycle_event_handlers)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize lifecycle event threadsafe handlers");
         goto cleanup;
     }
@@ -1780,7 +1977,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     client_options.lifecycle_event_handler = s_lifecycle_event_callback;
     client_options.lifecycle_event_handler_user_data = binding;
 
-    client_options.client_termination_handler = s_mqtt5_client_on_terminate;
+    client_options.client_termination_handler = s_aws_mqtt5_client_binding_on_client_terminate;
     client_options.client_termination_handler_user_data = binding;
 
     binding->client = aws_mqtt5_client_new(allocator, &client_options);
@@ -1797,7 +1994,7 @@ cleanup:
     s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
 
     if (result) {
-        s_mqtt5_client_finalize(env, binding, NULL);
+        s_aws_mqtt5_client_binding_finalize(env, binding, NULL);
     }
 
     return napi_client_wrapper;
@@ -1981,12 +2178,7 @@ done:
 struct aws_napi_mqtt5_operation_binding {
     struct aws_allocator *allocator;
 
-    /*
-     * Similar to the client binding, we keep a weak ref to the JS client and attempt to resolve the ref at the point
-     * in time we're calling back into node on the libuv thread.  This might occur after the client has
-     * completely cleaned up, so we can't just keep a pointer to the client binding.
-     */
-    napi_ref node_mqtt5_client_weak_ref;
+    struct aws_mqtt5_client_binding *client_binding;
 
     napi_threadsafe_function on_operation_completion;
 
@@ -2006,6 +2198,10 @@ static void s_aws_napi_mqtt5_operation_binding_destroy(struct aws_napi_mqtt5_ope
         return;
     }
 
+    binding->client_binding = s_aws_mqtt5_client_binding_release(binding->client_binding);
+
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_operation_completion);
+
     switch (binding->valid_storage) {
         case AWS_MQTT5_PT_SUBACK:
             aws_mqtt5_packet_suback_storage_clean_up(&binding->packet_storage.suback);
@@ -2024,21 +2220,6 @@ static void s_aws_napi_mqtt5_operation_binding_destroy(struct aws_napi_mqtt5_ope
     }
 
     aws_mem_release(binding->allocator, binding);
-}
-
-static void s_aws_napi_mqtt5_operation_binding_clean_up_napi(
-    struct aws_napi_mqtt5_operation_binding *binding,
-    napi_env env) {
-    if (binding == NULL) {
-        return;
-    }
-
-    if (binding->node_mqtt5_client_weak_ref != NULL) {
-        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
-        binding->node_mqtt5_client_weak_ref = NULL;
-    }
-
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_operation_completion);
 }
 
 static int s_create_napi_suback_packet(
@@ -2110,30 +2291,28 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "s_napi_on_subscribe_complete - mqtt5_client node wrapper no longer resolvable");
-            goto cleanup;
+            goto done;
         }
 
-        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto cleanup; });
+        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto done; });
 
         if (binding->valid_storage == AWS_MQTT5_PT_SUBACK &&
             s_create_napi_suback_packet(env, &binding->packet_storage.suback.storage_view, &params[2])) {
-            goto cleanup;
+            goto done;
         }
 
         AWS_NAPI_ENSURE(
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
-
-    cleanup:
-
-        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
     }
+
+done:
 
     s_aws_napi_mqtt5_operation_binding_destroy(binding);
 }
@@ -2361,21 +2540,7 @@ napi_value aws_napi_mqtt5_client_subscribe(napi_env env, napi_callback_info info
     struct aws_napi_mqtt5_operation_binding *binding =
         aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
     binding->allocator = allocator;
-
-    napi_value node_client = NULL;
-    if (napi_get_reference_value(env, client_binding->node_mqtt5_client_weak_ref, &node_client) != napi_ok ||
-        node_client == NULL) {
-        AWS_LOGF_INFO(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "aws_napi_mqtt5_client_subscribe - mqtt5_client node wrapper no longer resolvable");
-        goto done;
-    }
-
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
-        napi_throw_error(
-            env, NULL, "aws_napi_mqtt5_client_subscribe - Failed to create weak reference to node mqtt5 client");
-        goto done;
-    });
+    binding->client_binding = s_aws_mqtt5_client_binding_acquire(client_binding);
 
     napi_value node_subscribe_packet = *arg++;
 
@@ -2421,7 +2586,6 @@ done:
     s_aws_napi_mqtt5_subscribe_storage_clean_up(&subscribe_storage);
 
     if (!successful) {
-        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
         s_aws_napi_mqtt5_operation_binding_destroy(binding);
     }
 
@@ -2497,30 +2661,28 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "s_napi_on_unsubscribe_complete - mqtt5_client node wrapper no longer resolvable");
-            goto cleanup;
+            goto done;
         }
 
-        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto cleanup; });
+        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto done; });
 
         if (binding->valid_storage == AWS_MQTT5_PT_UNSUBACK &&
             s_create_napi_unsuback_packet(env, &binding->packet_storage.unsuback.storage_view, &params[2])) {
-            goto cleanup;
+            goto done;
         }
 
         AWS_NAPI_ENSURE(
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
-
-    cleanup:
-
-        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
     }
+
+done:
 
     s_aws_napi_mqtt5_operation_binding_destroy(binding);
 }
@@ -2702,21 +2864,7 @@ napi_value aws_napi_mqtt5_client_unsubscribe(napi_env env, napi_callback_info in
     struct aws_napi_mqtt5_operation_binding *binding =
         aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
     binding->allocator = allocator;
-
-    napi_value node_client = NULL;
-    if (napi_get_reference_value(env, client_binding->node_mqtt5_client_weak_ref, &node_client) != napi_ok ||
-        node_client == NULL) {
-        AWS_LOGF_INFO(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "aws_napi_mqtt5_client_unsubscribe - mqtt5_client node wrapper no longer resolvable");
-        goto done;
-    }
-
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
-        napi_throw_error(
-            env, NULL, "aws_napi_mqtt5_client_unsubscribe - Failed to create weak reference to node mqtt5 client");
-        goto done;
-    });
+    binding->client_binding = s_aws_mqtt5_client_binding_acquire(client_binding);
 
     napi_value node_unsubscribe_packet = *arg++;
 
@@ -2762,7 +2910,6 @@ done:
     s_aws_napi_mqtt5_unsubscribe_storage_clean_up(&unsubscribe_storage);
 
     if (!successful) {
-        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
         s_aws_napi_mqtt5_operation_binding_destroy(binding);
     }
 
@@ -2816,30 +2963,28 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "s_napi_on_publish_complete - mqtt5_client node wrapper no longer resolvable");
-            goto cleanup;
+            goto done;
         }
 
-        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto cleanup; });
+        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto done; });
 
         if (binding->valid_storage == AWS_MQTT5_PT_PUBACK &&
             s_create_napi_puback_packet(env, &binding->packet_storage.puback.storage_view, &params[2])) {
-            goto cleanup;
+            goto done;
         }
 
         AWS_NAPI_ENSURE(
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
-
-    cleanup:
-
-        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
     }
+
+done:
 
     s_aws_napi_mqtt5_operation_binding_destroy(binding);
 }
@@ -2901,21 +3046,7 @@ napi_value aws_napi_mqtt5_client_publish(napi_env env, napi_callback_info info) 
     struct aws_napi_mqtt5_operation_binding *binding =
         aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
     binding->allocator = allocator;
-
-    napi_value node_client = NULL;
-    if (napi_get_reference_value(env, client_binding->node_mqtt5_client_weak_ref, &node_client) != napi_ok ||
-        node_client == NULL) {
-        AWS_LOGF_INFO(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "aws_napi_mqtt5_client_publish - mqtt5_client node wrapper no longer resolvable");
-        goto done;
-    }
-
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
-        napi_throw_error(
-            env, NULL, "aws_napi_mqtt5_client_publish - Failed to create weak reference to node mqtt5 client");
-        goto done;
-    });
+    binding->client_binding = s_aws_mqtt5_client_binding_acquire(client_binding);
 
     napi_value node_publish_packet = *arg++;
 
@@ -2960,7 +3091,6 @@ done:
     s_aws_napi_mqtt5_publish_storage_clean_up(&publish_storage);
 
     if (!successful) {
-        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
         s_aws_napi_mqtt5_operation_binding_destroy(binding);
     }
 

@@ -225,9 +225,14 @@ export type Mqtt5ClientConnectionFailure = (client: Mqtt5Client, errorCode: numb
 export type Mqtt5ClientDisconnection = (client: Mqtt5Client, errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => void;
 
 /**
- * Configuration interface for the mqtt5 client lifecycle event handler set
+ * Message received event handler signature
  */
-export interface Mqtt5ClientLifecycleHandlers {
+export type Mqtt5ClientMessageReceived = (client: Mqtt5Client, message: AwsMqtt5PacketPublish) => void;
+
+/**
+ * Configuration interface for the mqtt5 client event handler set
+ */
+export interface Mqtt5ClientEventHandlers {
     /**
      * Handler for the client's Stopped lifecycle event
      */
@@ -252,6 +257,11 @@ export interface Mqtt5ClientLifecycleHandlers {
      * Handler for the client's Disconnection lifecycle event
      */
     onDisconnection : Mqtt5ClientDisconnection;
+
+    /**
+     * Handler for client's MessageReceived event
+     */
+    onMessageReceived : Mqtt5ClientMessageReceived;
 }
 
 /**
@@ -379,18 +389,19 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
     constructor(config: Mqtt5ClientConfig) {
         super();
 
-        let lifecycle_event_handlers : Mqtt5ClientLifecycleHandlers = {
+        let event_handlers : Mqtt5ClientEventHandlers = {
             onStopped : (client: Mqtt5Client) => { Mqtt5Client._s_on_stopped(client); },
             onAttemptingConnect : (client: Mqtt5Client) => { Mqtt5Client._s_on_attempting_connect(client); },
             onConnectionSuccess : (client: Mqtt5Client, connack : AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
             onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack? : AwsMqtt5PacketConnack) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
             onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect? : AwsMqtt5PacketDisconnect) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
+            onMessageReceived : (client: Mqtt5Client, message : AwsMqtt5PacketPublish) => { Mqtt5Client._s_on_message_received(client, message); }
         };
 
         this._super(crt_native.mqtt5_client_new(
             this,
             config,
-            lifecycle_event_handlers,
+            event_handlers,
             config.clientBootstrap ? config.clientBootstrap.native_handle() : null,
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
@@ -417,6 +428,16 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
      * @event
      */
     on(event: 'error', listener: Mqtt5ClientError): this;
+
+    /**
+     * Emitted when an mqtt PUBLISH packet is received by the client
+     *
+     * @param event the type of event (messageReceived)
+     * @param listener the messageReceived event listener to add
+     *
+     * @event
+     */
+    on(event: 'messageReceived', listener: Mqtt5ClientMessageReceived): this;
 
     /**
      * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
@@ -562,43 +583,23 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
      */
 
     private static _s_on_stopped(client: Mqtt5Client) {
-        client._on_stopped();
+        client.emit('stopped');
     }
 
     private static _s_on_attempting_connect(client: Mqtt5Client) {
-        client._on_attempting_connect();
+        client.emit('attemptingConnect');
     }
 
     private static _s_on_connection_success(client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) {
-        client._on_connection_success(connack, settings);
+        client.emit('connectionSuccess', connack, settings);
     }
 
     private static _s_on_connection_failure(client: Mqtt5Client, error: CrtError, connack?: AwsMqtt5PacketConnack) {
-        client._on_connection_failure(error, connack);
+        client.emit('connectionFailure', error, connack);
     }
 
     private static _s_on_disconnection(client: Mqtt5Client, error: CrtError, disconnect?: AwsMqtt5PacketDisconnect) {
-        client._on_disconnection(error, disconnect);
-    }
-
-    private _on_stopped() {
-        this.emit('stopped');
-    }
-
-    private _on_attempting_connect() {
-        this.emit('attemptingConnect');
-    }
-
-    private _on_connection_success(connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) {
-        this.emit('connectionSuccess', connack, settings);
-    }
-
-    private _on_connection_failure(error: CrtError, connack?: AwsMqtt5PacketConnack) {
-        this.emit('connectionFailure', error, connack);
-    }
-
-    private _on_disconnection(error: CrtError, disconnect?: AwsMqtt5PacketDisconnect) {
-        this.emit('disconnection', error, disconnect);
+        client.emit('disconnection', error, disconnect);
     }
 
     private _emitErrorOnNext(errorCode: number) {
@@ -632,5 +633,9 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
             reject("Failed to publish: " + io.error_code_to_string(errorCode));
             client._emitErrorOnNext(errorCode);
         }
+    }
+
+    private static _s_on_message_received(client: Mqtt5Client, message : AwsMqtt5PacketPublish) {
+        client.emit('messageReceived', message);
     }
 }

@@ -15,7 +15,7 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
-import { Mqtt5ClientConfig, Mqtt5ClientLifecycleHandlers, Mqtt5Client } from "./mqtt5";
+import {Mqtt5ClientConfig, Mqtt5Client, Mqtt5ClientEventHandlers} from "./mqtt5";
 import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketPuback, AwsMqtt5PacketPublish, AwsMqtt5PacketSuback, AwsMqtt5PacketSubscribe, AwsMqtt5PacketUnsuback, AwsMqtt5PacketUnsubscribe }  from "./mqtt5_packet";
 
 
@@ -143,7 +143,7 @@ export function checksums_crc32c(data: StringLike, previous?: number): number;
 export function mqtt5_client_new(
     client: Mqtt5Client,
     config: Mqtt5ClientConfig,
-    lifecycle_event_handlers : Mqtt5ClientLifecycleHandlers,
+    event_handlers : Mqtt5ClientEventHandlers,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
