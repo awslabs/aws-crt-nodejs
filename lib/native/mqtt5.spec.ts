@@ -9,7 +9,7 @@ import {
 } from './mqtt5';
 //import { AwsMqtt5DisconnectReasonCode, AwsMqtt5PacketDisconnect } from "./mqtt5_packet";
 import { once } from 'events';
-import {AwsMqtt5PacketSubscribe, AwsMqtt5QoS, AwsMqtt5RetainHandlingType} from "./mqtt5_packet";
+import {AwsMqtt5PacketSubscribe, AwsMqtt5QoS, AwsMqtt5RetainHandlingType, AwsMqtt5PacketUnsubscribe} from "./mqtt5_packet";
 
 jest.setTimeout(1200000);
 
@@ -70,6 +70,22 @@ async function MakeGoodClient() {
     };
 
     console.log(await client.subscribe(subscribe_minimal));
+
+    let unsubscribe_op : AwsMqtt5PacketUnsubscribe = {
+        topicFilters: [
+            "Not/Subscribed",
+            "derp/topic2",
+            "Also/Not/Subscribed"
+        ],
+        userProperties: [
+            {
+                name: "subscribeName1",
+                value: "subscribeValue1"
+            }
+        ]
+    };
+
+    console.log(await client.unsubscribe(unsubscribe_op));
 
     client.stop();
 

@@ -81,6 +81,7 @@ static const char *AWS_NAPI_KEY_ON_CONNECTION_FAILURE = "onConnectionFailure";
 static const char *AWS_NAPI_KEY_ON_DISCONNECTION = "onDisconnection";
 static const char *AWS_NAPI_KEY_SUBSCRIPTIONS = "subscriptions";
 static const char *AWS_NAPI_KEY_TOPIC_FILTER = "topicFilter";
+static const char *AWS_NAPI_KEY_TOPIC_FILTERS = "topicFilters";
 static const char *AWS_NAPI_KEY_NO_LOCAL = "noLocal";
 static const char *AWS_NAPI_KEY_RETAIN_AS_PUBLISHED = "retainAsPublished";
 static const char *AWS_NAPI_KEY_RETAIN_HANDLING_TYPE = "retainHandlingType";
@@ -2427,9 +2428,345 @@ done:
     return NULL;
 }
 
+///////////////////////
+
+static int s_create_napi_unsuback_packet(
+    napi_env env,
+    const struct aws_mqtt5_packet_unsuback_view *unsuback,
+    napi_value *packet_out) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_unsuback = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_unsuback), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_optional_string(
+            napi_unsuback, env, AWS_NAPI_KEY_REASON_STRING, unsuback->reason_string)) {
+        return AWS_OP_ERR;
+    }
+
+    if (s_attach_object_property_user_properties(
+            napi_unsuback, env, unsuback->user_property_count, unsuback->user_properties)) {
+        return AWS_OP_ERR;
+    }
+
+    size_t reason_code_count = unsuback->reason_code_count;
+    if (reason_code_count == 0) {
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "s_create_napi_unsuback_packet - missing reason codes");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value unsuback_code_array = NULL;
+    AWS_NAPI_CALL(env, napi_create_array_with_length(env, reason_code_count, &unsuback_code_array), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    for (size_t i = 0; i < reason_code_count; ++i) {
+        napi_value napi_reason_code = NULL;
+        AWS_NAPI_CALL(env, napi_create_uint32(env, (uint32_t)unsuback->reason_codes[i], &napi_reason_code), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        AWS_NAPI_CALL(env, napi_set_element(env, unsuback_code_array, (uint32_t)i, napi_reason_code), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+    }
+
+    AWS_NAPI_CALL(env, napi_set_named_property(env, napi_unsuback, AWS_NAPI_KEY_REASON_CODES, unsuback_code_array), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    *packet_out = napi_unsuback;
+
+    return AWS_OP_SUCCESS;
+}
+
+/* in-node/libuv-thread function to trigger the emission of an ATTEMPTING_CONNECT client lifecycle event */
+static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)user_data;
+
+    struct aws_napi_mqtt5_operation_binding *binding = context;
+
+    if (env) {
+        napi_value params[3];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the mqtt5 client, then it's been garbage collected and we should not
+         * do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_on_unsubscribe_complete - mqtt5_client node wrapper no longer resolvable");
+            goto cleanup;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto cleanup; });
+
+        if (binding->valid_storage == AWS_MQTT5_PT_UNSUBACK &&
+            s_create_napi_unsuback_packet(env, &binding->packet_storage.unsuback.storage_view, &params[2])) {
+            goto cleanup;
+        }
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_operation_completion, NULL, function, num_params, params));
+
+    cleanup:
+
+        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
+    }
+
+    s_aws_napi_mqtt5_operation_binding_destroy(binding);
+}
+
+static void s_on_unsubscribe_complete(
+    const struct aws_mqtt5_packet_unsuback_view *unsuback,
+    int error_code,
+    void *complete_ctx) {
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_napi_mqtt5_operation_binding *binding = complete_ctx;
+
+    binding->error_code = error_code;
+    if (aws_mqtt5_packet_unsuback_storage_init(&binding->packet_storage.unsuback, allocator, unsuback) ==
+        AWS_OP_SUCCESS) {
+        binding->valid_storage = AWS_MQTT5_PT_UNSUBACK;
+    } else if (binding->error_code == AWS_ERROR_SUCCESS) {
+        binding->error_code = aws_last_error();
+    }
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion, binding));
+}
+
+struct aws_napi_mqtt5_unsubscribe_storage {
+    struct aws_array_list topic_filter_cursors;
+    struct aws_byte_buf topic_filters;
+
+    struct aws_napi_mqtt5_user_property_storage user_properties;
+};
+
+static void s_aws_napi_mqtt5_unsubscribe_storage_clean_up(struct aws_napi_mqtt5_unsubscribe_storage *storage) {
+    aws_array_list_clean_up(&storage->topic_filter_cursors);
+    aws_byte_buf_clean_up(&storage->topic_filters);
+
+    s_aws_mqtt5_user_properties_clean_up(&storage->user_properties);
+}
+
+static int s_aws_mqtt5_packet_unsubscribe_storage_init_from_napi(
+    struct aws_napi_mqtt5_unsubscribe_storage *unsubscribe_storage,
+    struct aws_mqtt5_packet_unsubscribe_view *unsubscribe_view,
+    struct aws_mqtt5_client_binding *binding,
+    napi_env env,
+    napi_value node_unsubscribe_packet) {
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_topic_filters = NULL;
+    if (!aws_napi_get_named_property(
+            env, node_unsubscribe_packet, AWS_NAPI_KEY_TOPIC_FILTERS, napi_object, &napi_topic_filters)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_mqtt5_packet_unsubscribe_storage_init_from_napi - missing require parameter: subscriptions",
+            (void *)binding->client);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    /* how many topic filters and total topic filter length */
+    uint32_t topic_filter_count = 0;
+    AWS_NAPI_CALL(env, napi_get_array_length(env, napi_topic_filters, &topic_filter_count), {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_mqtt5_packet_unsubscribe_storage_init_from_napi - topic filters is not an array",
+            (void *)binding->client);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    });
+
+    size_t topic_filter_length_sum = 0;
+    for (uint32_t i = 0; i < topic_filter_count; ++i) {
+        napi_value napi_topic_filter = NULL;
+        AWS_NAPI_CALL(env, napi_get_element(env, napi_topic_filters, i, &napi_topic_filter), { return AWS_OP_ERR; });
+
+        struct aws_byte_buf topic_filter_buf;
+        AWS_ZERO_STRUCT(topic_filter_buf);
+
+        AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&topic_filter_buf, env, napi_topic_filter), {
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        });
+
+        topic_filter_length_sum += topic_filter_buf.len;
+
+        aws_byte_buf_clean_up(&topic_filter_buf);
+    }
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    if (aws_array_list_init_dynamic(
+            &unsubscribe_storage->topic_filter_cursors,
+            allocator,
+            topic_filter_count,
+            sizeof(struct aws_byte_cursor))) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_byte_buf_init(&unsubscribe_storage->topic_filters, allocator, topic_filter_length_sum)) {
+        return AWS_OP_ERR;
+    }
+
+    for (uint32_t i = 0; i < topic_filter_count; ++i) {
+        napi_value napi_topic_filter = NULL;
+        AWS_NAPI_CALL(env, napi_get_element(env, napi_topic_filters, i, &napi_topic_filter), { return AWS_OP_ERR; });
+
+        struct aws_byte_buf topic_filter_buf;
+        AWS_ZERO_STRUCT(topic_filter_buf);
+
+        AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&topic_filter_buf, env, napi_topic_filter), {
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        });
+
+        struct aws_byte_cursor topic_filter = aws_byte_cursor_from_buf(&topic_filter_buf);
+
+        bool success =
+            aws_byte_buf_append_and_update(&unsubscribe_storage->topic_filters, &topic_filter) == AWS_OP_SUCCESS;
+
+        aws_byte_buf_clean_up(&topic_filter_buf);
+
+        if (!success) {
+            return AWS_OP_ERR;
+        }
+
+        aws_array_list_push_back(&unsubscribe_storage->topic_filter_cursors, &topic_filter);
+    }
+
+    unsubscribe_view->topic_filter_count = topic_filter_count;
+    unsubscribe_view->topic_filters = unsubscribe_storage->topic_filter_cursors.data;
+
+    if (s_aws_mqtt5_user_properties_extract_from_js_object(
+            binding,
+            &unsubscribe_storage->user_properties,
+            env,
+            node_unsubscribe_packet,
+            &unsubscribe_view->user_property_count,
+            &unsubscribe_view->user_properties)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_mqtt5_packet_unsubscribe_storage_init_from_napi - failed to extract userProperties");
+        return AWS_OP_ERR;
+    }
+
+    return AWS_OP_SUCCESS;
+}
+
 napi_value aws_napi_mqtt5_client_unsubscribe(napi_env env, napi_callback_info info) {
-    (void)env;
-    (void)info;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - needs exactly 3 arguments");
+        return NULL;
+    }
+
+    bool successful = false;
+    struct aws_mqtt5_client_binding *client_binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&client_binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_unsubscribe - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (client_binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - binding was null");
+        return NULL;
+    }
+
+    if (client_binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - client was null");
+        return NULL;
+    }
+
+    struct aws_napi_mqtt5_operation_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
+    binding->allocator = allocator;
+
+    napi_value node_client = NULL;
+    if (napi_get_reference_value(env, client_binding->node_mqtt5_client_weak_ref, &node_client) != napi_ok ||
+        node_client == NULL) {
+        AWS_LOGF_INFO(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "aws_napi_mqtt5_client_unsubscribe - mqtt5_client node wrapper no longer resolvable");
+        goto done;
+    }
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_unsubscribe - Failed to create weak reference to node mqtt5 client");
+        goto done;
+    });
+
+    napi_value node_unsubscribe_packet = *arg++;
+
+    struct aws_napi_mqtt5_unsubscribe_storage unsubscribe_storage;
+    AWS_ZERO_STRUCT(unsubscribe_storage);
+    struct aws_mqtt5_packet_unsubscribe_view unsubscribe_view;
+    AWS_ZERO_STRUCT(unsubscribe_view);
+    if (s_aws_mqtt5_packet_unsubscribe_storage_init_from_napi(
+            &unsubscribe_storage, &unsubscribe_view, client_binding, env, node_unsubscribe_packet)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - storage init failure");
+        goto done;
+    }
+
+    napi_value completion_callback = *arg++;
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            completion_callback,
+            "aws_mqtt5_on_unsubscribe_complete",
+            s_napi_on_unsubscribe_complete,
+            binding,
+            &binding->on_operation_completion),
+        {
+            napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - failed to create threadsafe function");
+            goto done;
+        });
+
+    struct aws_mqtt5_unsubscribe_completion_options completion_options = {
+        .completion_callback = s_on_unsubscribe_complete,
+        .completion_user_data = binding,
+    };
+
+    if (aws_mqtt5_client_unsubscribe(client_binding->client, &unsubscribe_view, &completion_options)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_unsubscribe - failure invoking native client unsubscribe");
+        goto done;
+    }
+
+    successful = true;
+
+done:
+
+    s_aws_napi_mqtt5_unsubscribe_storage_clean_up(&unsubscribe_storage);
+
+    if (!successful) {
+        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
+        s_aws_napi_mqtt5_operation_binding_destroy(binding);
+    }
 
     return NULL;
 }

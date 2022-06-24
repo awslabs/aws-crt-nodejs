@@ -483,7 +483,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
     }
 
     /**
-     * Notifies the mqtt5 client that you want it to transition to the stopped state.
+     * Notifies the mqtt5 client that you want it to transition to the stopped state, disconnecting any existing
+     * connection and ceasing subsequent reconnect attempts.
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
@@ -491,6 +492,11 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         crt_native.mqtt5_client_stop(this.native_handle(), disconnectPacket);
     }
 
+    /**
+     * Tells the client to attempt to subscribe to one or more topic filters.
+     *
+     * @param packet configuration of the SUBSCRIBE packet to send to the broker
+     */
     async subscribe(packet: AwsMqtt5PacketSubscribe) {
         return new Promise<AwsMqtt5PacketSuback>((resolve, reject) => {
 
@@ -506,6 +512,11 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         });
     }
 
+    /**
+     * Tells the client to attempt to unsubscribe from one or more topic filters.
+     *
+     * @param packet configuration of the UNSUBSCRIBE packet to send to the broker
+     */
     async unsubscribe(packet: AwsMqtt5PacketUnsubscribe) {
         return new Promise<AwsMqtt5PacketUnsuback>((resolve, reject) => {
 
@@ -524,7 +535,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
     /*
      * Private helper functions
      *
-     * Lifecycle event callbacks come through static functions so that the native threadsafe function objects do not
+     * Callbacks come through static functions so that the native threadsafe function objects do not
      * capture the client object itself, which would lead to an uncollectable strong reference cycle.
      */
 
