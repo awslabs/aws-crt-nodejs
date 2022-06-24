@@ -9,7 +9,14 @@ import {
 } from './mqtt5';
 //import { AwsMqtt5DisconnectReasonCode, AwsMqtt5PacketDisconnect } from "./mqtt5_packet";
 import { once } from 'events';
-import {AwsMqtt5PacketSubscribe, AwsMqtt5QoS, AwsMqtt5RetainHandlingType, AwsMqtt5PacketUnsubscribe} from "./mqtt5_packet";
+import {
+    AwsMqtt5PacketSubscribe,
+    AwsMqtt5QoS,
+    AwsMqtt5RetainHandlingType,
+    AwsMqtt5PacketUnsubscribe,
+    AwsMqtt5PacketPublish,
+    AwsMqtt5PayloadFormatIndicator
+} from "./mqtt5_packet";
 
 jest.setTimeout(1200000);
 
@@ -86,6 +93,25 @@ async function MakeGoodClient() {
     };
 
     console.log(await client.unsubscribe(unsubscribe_op));
+
+    let publish_op : AwsMqtt5PacketPublish = {
+        topic: "derp/topic",
+        payload: "This is a message payload",
+        qos: AwsMqtt5QoS.AtLeastOnce,
+        retain: true,
+        payloadFormat: AwsMqtt5PayloadFormatIndicator.Utf8,
+        messageExpiryIntervalSeconds: 3600,
+        responseTopic: "DontTalkToMe/Again",
+        contentType: "not-json",
+        userProperties: [
+            {
+                name: "publishName1",
+                value: "publishValue1"
+            }
+        ]
+    }
+
+    console.log(await client.publish(publish_op));
 
     client.stop();
 

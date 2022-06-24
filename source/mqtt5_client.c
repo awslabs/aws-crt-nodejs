@@ -2428,8 +2428,6 @@ done:
     return NULL;
 }
 
-///////////////////////
-
 static int s_create_napi_unsuback_packet(
     napi_env env,
     const struct aws_mqtt5_packet_unsuback_view *unsuback,
@@ -2771,9 +2769,200 @@ done:
     return NULL;
 }
 
+static int s_create_napi_puback_packet(
+    napi_env env,
+    const struct aws_mqtt5_packet_puback_view *puback,
+    napi_value *packet_out) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_puback = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_puback), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_u32(napi_puback, env, AWS_NAPI_KEY_REASON_CODE, puback->reason_code)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_optional_string(
+            napi_puback, env, AWS_NAPI_KEY_REASON_STRING, puback->reason_string)) {
+        return AWS_OP_ERR;
+    }
+
+    if (s_attach_object_property_user_properties(
+            napi_puback, env, puback->user_property_count, puback->user_properties)) {
+        return AWS_OP_ERR;
+    }
+
+    *packet_out = napi_puback;
+
+    return AWS_OP_SUCCESS;
+}
+
+/* in-node/libuv-thread function to trigger the completion of a publish promise */
+static void s_napi_on_publish_complete(napi_env env, napi_value function, void *context, void *user_data) {
+    (void)user_data;
+
+    struct aws_napi_mqtt5_operation_binding *binding = context;
+
+    if (env) {
+        napi_value params[3];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the mqtt5 client, then it's been garbage collected and we should not
+         * do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_on_publish_complete - mqtt5_client node wrapper no longer resolvable");
+            goto cleanup;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto cleanup; });
+
+        if (binding->valid_storage == AWS_MQTT5_PT_PUBACK &&
+            s_create_napi_puback_packet(env, &binding->packet_storage.puback.storage_view, &params[2])) {
+            goto cleanup;
+        }
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_operation_completion, NULL, function, num_params, params));
+
+    cleanup:
+
+        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
+    }
+
+    s_aws_napi_mqtt5_operation_binding_destroy(binding);
+}
+
+static void s_on_publish_complete(
+    const struct aws_mqtt5_packet_puback_view *puback,
+    int error_code,
+    void *complete_ctx) {
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_napi_mqtt5_operation_binding *binding = complete_ctx;
+
+    binding->error_code = error_code;
+    if (aws_mqtt5_packet_puback_storage_init(&binding->packet_storage.puback, allocator, puback) == AWS_OP_SUCCESS) {
+        binding->valid_storage = AWS_MQTT5_PT_PUBACK;
+    } else if (binding->error_code == AWS_ERROR_SUCCESS) {
+        binding->error_code = aws_last_error();
+    }
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion, binding));
+}
+
 napi_value aws_napi_mqtt5_client_publish(napi_env env, napi_callback_info info) {
-    (void)env;
-    (void)info;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - needs exactly 3 arguments");
+        return NULL;
+    }
+
+    bool successful = false;
+    struct aws_mqtt5_client_binding *client_binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&client_binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_publish - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (client_binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - binding was null");
+        return NULL;
+    }
+
+    if (client_binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - client was null");
+        return NULL;
+    }
+
+    struct aws_napi_mqtt5_operation_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
+    binding->allocator = allocator;
+
+    napi_value node_client = NULL;
+    if (napi_get_reference_value(env, client_binding->node_mqtt5_client_weak_ref, &node_client) != napi_ok ||
+        node_client == NULL) {
+        AWS_LOGF_INFO(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "aws_napi_mqtt5_client_publish - mqtt5_client node wrapper no longer resolvable");
+        goto done;
+    }
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_publish - Failed to create weak reference to node mqtt5 client");
+        goto done;
+    });
+
+    napi_value node_publish_packet = *arg++;
+
+    struct aws_napi_mqtt5_publish_storage publish_storage;
+    AWS_ZERO_STRUCT(publish_storage);
+    struct aws_mqtt5_packet_publish_view publish_view;
+    AWS_ZERO_STRUCT(publish_view);
+    if (s_init_publish_options_from_napi(client_binding, env, node_publish_packet, &publish_view, &publish_storage)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - storage init failure");
+        goto done;
+    }
+
+    napi_value completion_callback = *arg++;
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            completion_callback,
+            "aws_mqtt5_on_publish_complete",
+            s_napi_on_publish_complete,
+            binding,
+            &binding->on_operation_completion),
+        {
+            napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - failed to create threadsafe function");
+            goto done;
+        });
+
+    struct aws_mqtt5_publish_completion_options completion_options = {
+        .completion_callback = s_on_publish_complete,
+        .completion_user_data = binding,
+    };
+
+    if (aws_mqtt5_client_publish(client_binding->client, &publish_view, &completion_options)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_publish - failure invoking native client publish");
+        goto done;
+    }
+
+    successful = true;
+
+done:
+
+    s_aws_napi_mqtt5_publish_storage_clean_up(&publish_storage);
+
+    if (!successful) {
+        s_aws_napi_mqtt5_operation_binding_clean_up_napi(binding, env);
+        s_aws_napi_mqtt5_operation_binding_destroy(binding);
+    }
 
     return NULL;
 }
