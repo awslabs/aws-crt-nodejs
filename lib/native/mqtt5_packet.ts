@@ -123,6 +123,24 @@ export enum AwsMqtt5UnsubackReasonCode {
 }
 
 /**
+ * Reason code inside PUBACK packets.
+ * Enum values match mqtt spec encoding values.
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901124
+ */
+export enum AwsMqtt5PubackReasonCode {
+    Success = 0,
+    NoMatchingSubscribers = 16,
+    UnspecifiedError = 128,
+    ImplementationSpecificError = 131,
+    NotAuthorized = 135,
+    TopicNameInvalid = 144,
+    PacketIdentifierInUse = 145,
+    QuotaExceeded = 151,
+    PayloadFormatInvalid = 153,
+}
+
+/**
  * Optional property describing a PUBLISH payload's format.
  * Enum values match MQTT5 spec encoding values.
  *
@@ -206,6 +224,20 @@ export interface AwsMqtt5PacketPublish {
     subscriptionIdentifiers?: Array<number>;
 
     contentType?: string;
+
+    userProperties?: Array<AwsMqtt5UserProperty>;
+}
+
+/**
+ * Typescript interface for an MQTT5 PUBACK packet
+ *
+ * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901121
+ */
+export interface AwsMqtt5PacketPuback {
+
+    reasonCode: AwsMqtt5PubackReasonCode;
+
+    reasonString?: string;
 
     userProperties?: Array<AwsMqtt5UserProperty>;
 }

@@ -17,6 +17,8 @@ import {
     AwsMqtt5PacketDisconnect,
     AwsMqtt5PacketConnack,
     AwsMqtt5PacketConnect,
+    AwsMqtt5PacketPuback,
+    AwsMqtt5PacketPublish,
     AwsMqtt5QoS,
     AwsMqtt5PacketSubscribe, AwsMqtt5PacketSuback,
     AwsMqtt5PacketUnsubscribe, AwsMqtt5PacketUnsuback
@@ -532,6 +534,26 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         });
     }
 
+    /**
+     * Tells the client to attempt to send a PUBLISH packet
+     *
+     * @param packet configuration of the PUBLISH packet to send to the broker
+     */
+    async publish(packet: AwsMqtt5PacketPublish) {
+        return new Promise<AwsMqtt5PacketPuback>((resolve, reject) => {
+
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback){
+                return Mqtt5Client._s_on_puback_callback(resolve, reject, client, errorCode, puback);
+            }
+
+            try {
+                crt_native.mqtt5_client_publish(this.native_handle(), packet, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
     /*
      * Private helper functions
      *
@@ -599,6 +621,15 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
             resolve(unsuback);
         } else {
             reject("Failed to unsubscribe: " + io.error_code_to_string(errorCode));
+            client._emitErrorOnNext(errorCode);
+        }
+    }
+
+    private static _s_on_puback_callback(resolve : (value?: (AwsMqtt5PacketPuback | PromiseLike<AwsMqtt5PacketPuback> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback) {
+        if (errorCode == 0) {
+            resolve(puback);
+        } else {
+            reject("Failed to publish: " + io.error_code_to_string(errorCode));
             client._emitErrorOnNext(errorCode);
         }
     }
