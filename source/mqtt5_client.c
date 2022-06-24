@@ -87,6 +87,7 @@ static const char *AWS_NAPI_KEY_NO_LOCAL = "noLocal";
 static const char *AWS_NAPI_KEY_RETAIN_AS_PUBLISHED = "retainAsPublished";
 static const char *AWS_NAPI_KEY_RETAIN_HANDLING_TYPE = "retainHandlingType";
 static const char *AWS_NAPI_KEY_SUBSCRIPTION_IDENTIFIER = "subscriptionIdentifier";
+static const char *AWS_NAPI_KEY_SUSBCRIPTION_IDENTIFIERS = "subscriptionIdentifiers";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -1004,11 +1005,94 @@ static int s_create_napi_publish_packet(
     napi_env env,
     const struct aws_mqtt5_packet_publish_view *publish_view,
     napi_value *packet_out) {
-    (void)env;
-    (void)publish_view;
-    (void)packet_out;
 
-    return AWS_OP_ERR;
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value packet = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &packet), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_string(
+            packet, env, AWS_NAPI_KEY_TOPIC, publish_view->topic)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_binary(
+            packet, env, AWS_NAPI_KEY_PAYLOAD, publish_view->payload)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u32(
+            packet, env, AWS_NAPI_KEY_QOS, (uint32_t)publish_view->qos)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_boolean(
+            packet, env, AWS_NAPI_KEY_RETAIN, publish_view->retain)) {
+        return AWS_OP_ERR;
+    }
+
+    if (publish_view->payload_format != NULL) {
+        if (aws_napi_attach_object_property_u32(
+                packet, env, AWS_NAPI_KEY_PAYLOAD_FORMAT, (uint32_t)(*publish_view->payload_format))) {
+            return AWS_OP_ERR;
+        }
+    }
+
+    if (aws_napi_attach_object_property_optional_u32(
+            packet, env, AWS_NAPI_KEY_MESSAGE_EXPIRY_INTERVAL_SECONDS, publish_view->message_expiry_interval_seconds)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_optional_string(
+            packet, env, AWS_NAPI_KEY_RESPONSE_TOPIC, publish_view->response_topic)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_optional_binary(
+            packet, env, AWS_NAPI_KEY_CORRELATION_DATA, publish_view->correlation_data)) {
+        return AWS_OP_ERR;
+    }
+
+    if (publish_view->subscription_identifier_count > 0) {
+        napi_value subscription_identifier_array = NULL;
+        AWS_NAPI_CALL(env, napi_create_array_with_length(env, publish_view->subscription_identifier_count, &subscription_identifier_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        for (size_t i = 0; i < publish_view->subscription_identifier_count; ++i) {
+            uint32_t subscription_identifier = publish_view->subscription_identifiers[i];
+
+            napi_value napi_subscription_identifier = NULL;
+            AWS_NAPI_CALL(env, napi_create_uint32(env, subscription_identifier, &napi_subscription_identifier), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            AWS_NAPI_CALL(env, napi_set_element(env, subscription_identifier_array, (uint32_t)i, napi_subscription_identifier), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+        }
+
+        AWS_NAPI_CALL(env, napi_set_named_property(env, packet, AWS_NAPI_KEY_SUSBCRIPTION_IDENTIFIERS, subscription_identifier_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+    }
+
+    if (aws_napi_attach_object_property_optional_string(
+            packet, env, AWS_NAPI_KEY_CONTENT_TYPE, publish_view->content_type)) {
+        return AWS_OP_ERR;
+    }
+
+    if (s_attach_object_property_user_properties(
+            packet, env, publish_view->user_property_count, publish_view->user_properties)) {
+        return AWS_OP_ERR;
+    }
+
+    *packet_out = packet;
+
+    return AWS_OP_SUCCESS;
 }
 
 /* in-node/libuv-thread function to trigger the emission of a PUBLISH packet on the messageReceived event */

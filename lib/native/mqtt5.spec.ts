@@ -32,6 +32,8 @@ async function MakeGoodClient() {
 
     expect(client).toBeDefined();
 
+    client.on('messageReceived', (client: Mqtt5Client, message:AwsMqtt5PacketPublish) => { console.log('DERPPP'); console.log(message); });
+
     const attemptingConnect = once(client, 'attemptingConnect');
     const connectionSuccess = once(client, 'connectionSuccess');
     //const connectionFailure = once(client, 'connectionFailure');
@@ -94,6 +96,8 @@ async function MakeGoodClient() {
 
     console.log(await client.unsubscribe(unsubscribe_op));
 
+    const messageReceived = once(client, "messageReceived");
+
     let publish_op : AwsMqtt5PacketPublish = {
         topic: "derp/topic",
         payload: "This is a message payload",
@@ -112,6 +116,8 @@ async function MakeGoodClient() {
     }
 
     console.log(await client.publish(publish_op));
+
+    console.log(await messageReceived);
 
     client.stop();
 
