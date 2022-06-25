@@ -154,12 +154,12 @@ export enum AwsMqtt5PayloadFormatIndicator {
 /**
  * Valid types for a PUBLISH packet's payload
  */
-export type AwsMqtt5Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
+export type AwsMqtt5Payload = string | ArrayBuffer | ArrayBufferView;
 
 /**
  * Valid types for MQTT5 packet binary data fields (other than PUBLISH payload)
  */
-export type AwsMqtt5BinaryData = string | ArrayBuffer | ArrayBufferView;
+export type AwsMqtt5BinaryData = ArrayBuffer | ArrayBufferView;
 
 /**
  * MQTT Message delivery quality of service.
@@ -208,6 +208,13 @@ export enum AwsMqtt5RetainHandlingType {
  */
 export interface AwsMqtt5PacketPublish {
     topic: string;
+
+    /*
+     * While the payload as input can be one of several types, the payload as output (via message receipt)
+     * will always be an ArrayBuffer of binary data.
+     *
+     * TODO: consider convenience converting to string in native if payload format is utf-8
+     */
     payload: AwsMqtt5Payload;
 
     qos: AwsMqtt5QoS;

@@ -75,17 +75,11 @@ int aws_napi_attach_object_property_optional_string(
     const char *key_name,
     const struct aws_byte_cursor *value);
 
-int aws_napi_attach_object_property_binary(
+int aws_napi_attach_object_property_binary_as_finalizable_external(
     napi_value object,
     napi_env env,
     const char *key_name,
-    struct aws_byte_cursor value);
-
-int aws_napi_attach_object_property_optional_binary(
-    napi_value object,
-    napi_env env,
-    const char *key_name,
-    const struct aws_byte_cursor *value);
+    struct aws_byte_buf *data_buffer);
 
 /*
  * Helper functions for deconstructing JS objects into native data.

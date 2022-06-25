@@ -4,6 +4,7 @@
  */
 
 import {
+    AwsMqtt5NegotiatedSettings,
     Mqtt5Client,
     Mqtt5ClientConfig
 } from './mqtt5';
@@ -11,14 +12,28 @@ import {
 import { once } from 'events';
 import {
     AwsMqtt5PacketSubscribe,
+    AwsMqtt5PacketConnack,
     AwsMqtt5QoS,
-    AwsMqtt5PacketUnsubscribe,
     AwsMqtt5PacketPublish,
-    AwsMqtt5PayloadFormatIndicator
+    AwsMqtt5PacketDisconnect
 } from "./mqtt5_packet";
+import {CrtError} from "./error";
 
 jest.setTimeout(1200000);
 
+let connectedCallCount : number = 0;
+
+function WhileConnectedEverySecond() {
+    connectedCallCount++;
+    console.log('#' + connectedCallCount.toString() + ': I am connected!  Do something.');
+}
+
+let disconnectedCallCount : number = 0;
+
+function WhileNotConnectedEverySecond() {
+    disconnectedCallCount++;
+    console.log('#' + disconnectedCallCount.toString() + ': Woe is me!  I have no connection.');
+}
 
 async function MakeGoodClient() {
 
@@ -29,95 +44,74 @@ async function MakeGoodClient() {
 
     let client : Mqtt5Client = new Mqtt5Client(client_config);
 
-    expect(client).toBeDefined();
+    client.on("messageReceived", (packet: AwsMqtt5PacketPublish) => {
+        if (typeof packet.payload !== 'string') {
+            let payloadAsString: string = new TextDecoder().decode(packet.payload);
+            console.log('Message received with payload: ' + payloadAsString);
+        } else {
+            console.log('Message received with payload: ' + packet.payload as string);
+        }
+    });
 
-    const attemptingConnect = once(client, 'attemptingConnect');
-    const connectionSuccess = once(client, 'connectionSuccess');
-    //const connectionFailure = once(client, 'connectionFailure');
-    const disconnection = once(client, 'disconnection');
+    client.on("attemptingConnect", () => {
+        console.log('Attempting Connect');
+    });
+
+    client.on("connectionFailure", (errorCode: number, connack?: AwsMqtt5PacketConnack) => {
+        console.log('connectionFailure: ' + new CrtError(errorCode));
+    });
+
+    let serviceTask : NodeJS.Timeout | undefined = undefined;
+
+    client.on("connectionSuccess", async (connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => {
+        console.log('Connected! Transitioning to online mode!');
+    });
+
+    client.on("disconnection", (errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => {
+        console.log('Disonnected! Transitioning to offline mode!');
+    });
+
     const stopped = once(client, "stopped");
 
+    let connected = once(client, "connectionSuccess");
+    let disconnected = once(client, "disconnection");
 
-    client.start()
+    client.start();
 
-    console.log('Waiting on connection attempt!');
-    console.log(await attemptingConnect);
-    console.log('Waiting on connection result!');
-    console.log(await connectionSuccess);
+    let done = false;
+    while (!done) {
+        let result = await connected;
+        connected = once(client, "connectionSuccess");
+        if (serviceTask != undefined) {
+            clearInterval(serviceTask);
+        }
 
-    let subscribe_operation : AwsMqtt5PacketSubscribe = {
-        subscriptions: [
-            {
-                topicFilter : "derp/topic",
-                qos : AwsMqtt5QoS.AtLeastOnce
-            }
-        ],
-        subscriptionIdentifier: 1,
-        userProperties: [
-            {
-                name: "subscribeName1",
-                value: "subscribeValue1"
-            }
-        ]
-    };
+        let settings : AwsMqtt5NegotiatedSettings = result[1];
+        if (!settings.rejoinedSession) {
+            let subscribe_minimal : AwsMqtt5PacketSubscribe = {
+                subscriptions: [
+                    {
+                        topicFilter : "derp/topic",
+                        qos : AwsMqtt5QoS.AtLeastOnce
+                    }
+                ]
+            };
 
-    console.log(await client.subscribe(subscribe_operation));
+            await client.subscribe(subscribe_minimal);
+        }
 
-    let subscribe_minimal : AwsMqtt5PacketSubscribe = {
-        subscriptions: [
-            {
-                topicFilter : "derp/topic2",
-                qos : AwsMqtt5QoS.AtLeastOnce
-            }
-        ]
-    };
+        serviceTask = setInterval(WhileConnectedEverySecond, 1000);
 
-    console.log(await client.subscribe(subscribe_minimal));
+        await disconnected;
+        disconnected = once(client, "disconnection");
 
-    let unsubscribe_op : AwsMqtt5PacketUnsubscribe = {
-        topicFilters: [
-            "Not/Subscribed",
-            "derp/topic2",
-            "Also/Not/Subscribed"
-        ],
-        userProperties: [
-            {
-                name: "subscribeName1",
-                value: "subscribeValue1"
-            }
-        ]
-    };
-
-    console.log(await client.unsubscribe(unsubscribe_op));
-
-    const messageReceived = once(client, "messageReceived");
-
-    let publish_op : AwsMqtt5PacketPublish = {
-        topic: "derp/topic",
-        payload: "This is a message payload",
-        qos: AwsMqtt5QoS.AtLeastOnce,
-        payloadFormat: AwsMqtt5PayloadFormatIndicator.Utf8,
-        messageExpiryIntervalSeconds: 3600,
-        responseTopic: "DontTalkToMe/Again",
-        contentType: "not-json",
-        userProperties: [
-            {
-                name: "publishName1",
-                value: "publishValue1"
-            }
-        ]
+        if (serviceTask != undefined) {
+            clearInterval(serviceTask);
+        }
+        serviceTask = setInterval(WhileNotConnectedEverySecond, 1000);
     }
 
-    console.log(await client.publish(publish_op));
-
-    console.log(await messageReceived);
-
-    client.stop();
-
-    console.log('Waiting on disconnection!');
-    console.log(await disconnection);
-    console.log('Waiting on stopped!');
-    console.log(await stopped);
+    await stopped;
 }
 
 test('MQTT5ClientCreateDefault', async () => {

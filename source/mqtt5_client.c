@@ -202,6 +202,9 @@ struct on_message_received_user_data {
     struct aws_allocator *allocator;
     struct aws_mqtt5_client_binding *binding;
     struct aws_mqtt5_packet_publish_storage publish_storage;
+
+    struct aws_byte_buf *payload;
+    struct aws_byte_buf *correlation_data;
 };
 
 static void s_on_message_received_user_data_destroy(struct on_message_received_user_data *user_data) {
@@ -211,6 +214,16 @@ static void s_on_message_received_user_data_destroy(struct on_message_received_u
 
     user_data->binding = s_aws_mqtt5_client_binding_release(user_data->binding);
     aws_mqtt5_packet_publish_storage_clean_up(&user_data->publish_storage);
+
+    if (user_data->payload != NULL) {
+        aws_byte_buf_clean_up(user_data->payload);
+        aws_mem_release(user_data->allocator, user_data->payload);
+    }
+
+    if (user_data->correlation_data != NULL) {
+        aws_byte_buf_clean_up(user_data->correlation_data);
+        aws_mem_release(user_data->allocator, user_data->correlation_data);
+    }
 
     aws_mem_release(user_data->allocator, user_data);
 }
@@ -222,7 +235,34 @@ static struct on_message_received_user_data *s_on_message_received_user_data_new
     struct on_message_received_user_data *user_data =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct on_message_received_user_data));
     user_data->allocator = binding->allocator;
-    if (aws_mqtt5_packet_publish_storage_init(&user_data->publish_storage, user_data->allocator, publish_packet)) {
+
+    /*
+     * Binary data needs to be separately pinned and tracked so that it can be individually finalized.  In order to not
+     * make even more redundant copies of it, we do some hacky nonsense to "split" it out of the storage into separate
+     * buffers.  We can then "take" the buffer pointers when we're calling into node and manage them separately.
+     */
+    struct aws_mqtt5_packet_publish_view publish_copy = *publish_packet;
+
+    user_data->payload = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
+    if (aws_byte_buf_init_copy_from_cursor(user_data->payload, binding->allocator, publish_copy.payload)) {
+        goto error;
+    }
+    AWS_ZERO_STRUCT(publish_copy.payload);
+
+    if (publish_copy.correlation_data != NULL) {
+        user_data->correlation_data = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
+        if (aws_byte_buf_init_copy_from_cursor(
+                user_data->correlation_data, binding->allocator, *publish_copy.correlation_data)) {
+            goto error;
+        }
+        publish_copy.correlation_data = NULL;
+    }
+
+    /*
+     * We've saved off correlation data and payload separately and erased them from the packet copy.  Now we can make
+     * a persistent copy of the packet without copying the binary data twice.
+     */
+    if (aws_mqtt5_packet_publish_storage_init(&user_data->publish_storage, user_data->allocator, &publish_copy)) {
         goto error;
     }
     user_data->binding = s_aws_mqtt5_client_binding_acquire(binding);
@@ -1003,34 +1043,34 @@ done:
 
 static int s_create_napi_publish_packet(
     napi_env env,
-    const struct aws_mqtt5_packet_publish_view *publish_view,
+    struct on_message_received_user_data *message_received_ud,
     napi_value *packet_out) {
 
     if (env == NULL) {
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
     }
 
+    const struct aws_mqtt5_packet_publish_view *publish_view = &message_received_ud->publish_storage.storage_view;
+
     napi_value packet = NULL;
     AWS_NAPI_CALL(
         env, napi_create_object(env, &packet), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
-    if (aws_napi_attach_object_property_string(
-            packet, env, AWS_NAPI_KEY_TOPIC, publish_view->topic)) {
+    if (aws_napi_attach_object_property_string(packet, env, AWS_NAPI_KEY_TOPIC, publish_view->topic)) {
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_binary(
-            packet, env, AWS_NAPI_KEY_PAYLOAD, publish_view->payload)) {
+    if (aws_napi_attach_object_property_binary_as_finalizable_external(
+            packet, env, AWS_NAPI_KEY_PAYLOAD, message_received_ud->payload)) {
+        return AWS_OP_ERR;
+    }
+    message_received_ud->payload = NULL;
+
+    if (aws_napi_attach_object_property_u32(packet, env, AWS_NAPI_KEY_QOS, (uint32_t)publish_view->qos)) {
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_u32(
-            packet, env, AWS_NAPI_KEY_QOS, (uint32_t)publish_view->qos)) {
-        return AWS_OP_ERR;
-    }
-
-    if (aws_napi_attach_object_property_boolean(
-            packet, env, AWS_NAPI_KEY_RETAIN, publish_view->retain)) {
+    if (aws_napi_attach_object_property_boolean(packet, env, AWS_NAPI_KEY_RETAIN, publish_view->retain)) {
         return AWS_OP_ERR;
     }
 
@@ -1051,16 +1091,21 @@ static int s_create_napi_publish_packet(
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_optional_binary(
-            packet, env, AWS_NAPI_KEY_CORRELATION_DATA, publish_view->correlation_data)) {
-        return AWS_OP_ERR;
+    if (message_received_ud->correlation_data != NULL) {
+        if (aws_napi_attach_object_property_binary_as_finalizable_external(
+                packet, env, AWS_NAPI_KEY_CORRELATION_DATA, message_received_ud->correlation_data)) {
+            return AWS_OP_ERR;
+        }
+        message_received_ud->correlation_data = NULL;
     }
 
     if (publish_view->subscription_identifier_count > 0) {
         napi_value subscription_identifier_array = NULL;
-        AWS_NAPI_CALL(env, napi_create_array_with_length(env, publish_view->subscription_identifier_count, &subscription_identifier_array), {
-            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-        });
+        AWS_NAPI_CALL(
+            env,
+            napi_create_array_with_length(
+                env, publish_view->subscription_identifier_count, &subscription_identifier_array),
+            { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
         for (size_t i = 0; i < publish_view->subscription_identifier_count; ++i) {
             uint32_t subscription_identifier = publish_view->subscription_identifiers[i];
@@ -1070,14 +1115,16 @@ static int s_create_napi_publish_packet(
                 return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
             });
 
-            AWS_NAPI_CALL(env, napi_set_element(env, subscription_identifier_array, (uint32_t)i, napi_subscription_identifier), {
-                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-            });
+            AWS_NAPI_CALL(
+                env, napi_set_element(env, subscription_identifier_array, (uint32_t)i, napi_subscription_identifier), {
+                    return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+                });
         }
 
-        AWS_NAPI_CALL(env, napi_set_named_property(env, packet, AWS_NAPI_KEY_SUSBCRIPTION_IDENTIFIERS, subscription_identifier_array), {
-            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-        });
+        AWS_NAPI_CALL(
+            env,
+            napi_set_named_property(env, packet, AWS_NAPI_KEY_SUSBCRIPTION_IDENTIFIERS, subscription_identifier_array),
+            { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
     }
 
     if (aws_napi_attach_object_property_optional_string(
@@ -1120,7 +1167,7 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
             goto done;
         }
 
-        if (s_create_napi_publish_packet(env, &on_message_received_ud->publish_storage.storage_view, &params[1])) {
+        if (s_create_napi_publish_packet(env, on_message_received_ud, &params[1])) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_napi_on_message_received - failed to create publish object",

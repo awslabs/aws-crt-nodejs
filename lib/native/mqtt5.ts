@@ -133,7 +133,7 @@ export enum AwsRetryJitterType {
  *
  * Negotiated settings are communicated with every successful connection establishment.
  */
-export interface Mqtt5NegotiatedSettings {
+export interface AwsMqtt5NegotiatedSettings {
 
     /**
      * The maximum QoS allowed for publishes on this connection instance
@@ -212,7 +212,7 @@ export type Mqtt5ClientAttemptingConnect = () => void;
 /**
  * Client ConnectionSuccess lifecycle event handler signature
  */
-export type Mqtt5ClientConnectionSuccess = (connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => void;
+export type Mqtt5ClientConnectionSuccess = (connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => void;
 
 /**
  * Client ConnectionFailure lifecycle event handler signature
@@ -246,7 +246,7 @@ export interface Mqtt5ClientEventHandlers {
     /**
      * Handler for the client's ConnectionSuccess lifecycle event
      */
-    onConnectionSuccess : (client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => void;
+    onConnectionSuccess : (client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => void;
 
     /**
      * Handler for the client's ConnectionFailure lifecycle event
@@ -392,7 +392,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         let event_handlers : Mqtt5ClientEventHandlers = {
             onStopped : (client: Mqtt5Client) => { Mqtt5Client._s_on_stopped(client); },
             onAttemptingConnect : (client: Mqtt5Client) => { Mqtt5Client._s_on_attempting_connect(client); },
-            onConnectionSuccess : (client: Mqtt5Client, connack : AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
+            onConnectionSuccess : (client: Mqtt5Client, connack : AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
             onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack? : AwsMqtt5PacketConnack) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
             onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect? : AwsMqtt5PacketDisconnect) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
             onMessageReceived : (client: Mqtt5Client, message : AwsMqtt5PacketPublish) => { Mqtt5Client._s_on_message_received(client, message); }
@@ -590,7 +590,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
         client.emit('attemptingConnect');
     }
 
-    private static _s_on_connection_success(client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) {
+    private static _s_on_connection_success(client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) {
         client.emit('connectionSuccess', connack, settings);
     }
 

@@ -180,38 +180,43 @@ int aws_napi_attach_object_property_optional_string(
     return aws_napi_attach_object_property_string(object, env, key_name, *value);
 }
 
-int aws_napi_attach_object_property_binary(
+static void s_finalize_external_binary_byte_buf(napi_env env, void *finalize_data, void *finalize_hint) {
+    struct aws_byte_buf *buffer = finalize_hint;
+    if (buffer == NULL) {
+        return;
+    }
+
+    struct aws_allocator *allocator = buffer->allocator;
+    aws_byte_buf_clean_up(buffer);
+    aws_mem_release(allocator, buffer);
+}
+
+int aws_napi_attach_object_property_binary_as_finalizable_external(
     napi_value object,
     napi_env env,
     const char *key_name,
-    struct aws_byte_cursor value) {
+    struct aws_byte_buf *data_buffer) {
 
     if (key_name == NULL) {
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
     napi_value napi_binary = NULL;
-    AWS_NAPI_CALL(env, napi_create_arraybuffer(env, value.len, (void **)&value.ptr, &napi_binary), {
-        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-    });
+    AWS_NAPI_ENSURE(
+        env,
+        napi_create_external_arraybuffer(
+            env,
+            data_buffer->buffer,
+            data_buffer->len,
+            s_finalize_external_binary_byte_buf,
+            data_buffer,
+            &napi_binary));
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_binary), {
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
     });
 
     return AWS_OP_SUCCESS;
-}
-
-int aws_napi_attach_object_property_optional_binary(
-    napi_value object,
-    napi_env env,
-    const char *key_name,
-    const struct aws_byte_cursor *value) {
-    if (value == NULL) {
-        return AWS_OP_SUCCESS;
-    }
-
-    return aws_napi_attach_object_property_binary(object, env, key_name, *value);
 }
 
 bool aws_napi_get_named_property(
@@ -896,12 +901,12 @@ static bool s_module_initialized = false;
         return NULL;
     }
 
-/*
-    bool done = false;
-    while (!done) {
-        ;
-    }
-*/
+    /*
+        bool done = false;
+        while (!done) {
+            ;
+        }
+    */
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
