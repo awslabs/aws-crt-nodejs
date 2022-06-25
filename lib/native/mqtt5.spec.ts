@@ -12,7 +12,6 @@ import { once } from 'events';
 import {
     AwsMqtt5PacketSubscribe,
     AwsMqtt5QoS,
-    AwsMqtt5RetainHandlingType,
     AwsMqtt5PacketUnsubscribe,
     AwsMqtt5PacketPublish,
     AwsMqtt5PayloadFormatIndicator
@@ -32,8 +31,6 @@ async function MakeGoodClient() {
 
     expect(client).toBeDefined();
 
-    client.on('messageReceived', (client: Mqtt5Client, message:AwsMqtt5PacketPublish) => { console.log('DERPPP'); console.log(message); });
-
     const attemptingConnect = once(client, 'attemptingConnect');
     const connectionSuccess = once(client, 'connectionSuccess');
     //const connectionFailure = once(client, 'connectionFailure');
@@ -52,10 +49,7 @@ async function MakeGoodClient() {
         subscriptions: [
             {
                 topicFilter : "derp/topic",
-                qos : AwsMqtt5QoS.AtLeastOnce,
-                noLocal : true,
-                retainAsPublished: true,
-                retainHandlingType: AwsMqtt5RetainHandlingType.SendOnSubscribeIfNew
+                qos : AwsMqtt5QoS.AtLeastOnce
             }
         ],
         subscriptionIdentifier: 1,
@@ -102,7 +96,6 @@ async function MakeGoodClient() {
         topic: "derp/topic",
         payload: "This is a message payload",
         qos: AwsMqtt5QoS.AtLeastOnce,
-        retain: true,
         payloadFormat: AwsMqtt5PayloadFormatIndicator.Utf8,
         messageExpiryIntervalSeconds: 3600,
         responseTopic: "DontTalkToMe/Again",

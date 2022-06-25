@@ -202,32 +202,32 @@ export type Mqtt5ClientError = (error: CrtError) => void;
 /**
  * Client Stopped lifecycle event handler signature
  */
-export type Mqtt5ClientStopped = (client: Mqtt5Client) => void;
+export type Mqtt5ClientStopped = () => void;
 
 /**
  * Client AttemptingConnect lifecycle event handler signature
  */
-export type Mqtt5ClientAttemptingConnect = (client: Mqtt5Client) => void;
+export type Mqtt5ClientAttemptingConnect = () => void;
 
 /**
  * Client ConnectionSuccess lifecycle event handler signature
  */
-export type Mqtt5ClientConnectionSuccess = (client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => void;
+export type Mqtt5ClientConnectionSuccess = (connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => void;
 
 /**
  * Client ConnectionFailure lifecycle event handler signature
  */
-export type Mqtt5ClientConnectionFailure = (client: Mqtt5Client, errorCode: number, connack?: AwsMqtt5PacketConnack) => void;
+export type Mqtt5ClientConnectionFailure = (errorCode: number, connack?: AwsMqtt5PacketConnack) => void;
 
 /**
  * Client Disconnection lifecycle event handler signature
  */
-export type Mqtt5ClientDisconnection = (client: Mqtt5Client, errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => void;
+export type Mqtt5ClientDisconnection = (errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => void;
 
 /**
  * Message received event handler signature
  */
-export type Mqtt5ClientMessageReceived = (client: Mqtt5Client, message: AwsMqtt5PacketPublish) => void;
+export type Mqtt5ClientMessageReceived = (message: AwsMqtt5PacketPublish) => void;
 
 /**
  * Configuration interface for the mqtt5 client event handler set
@@ -236,32 +236,32 @@ export interface Mqtt5ClientEventHandlers {
     /**
      * Handler for the client's Stopped lifecycle event
      */
-    onStopped : Mqtt5ClientStopped;
+    onStopped : (client: Mqtt5Client) => void;
 
     /**
      * Handler for the client's AttemptingConnect lifecycle event
      */
-    onAttemptingConnect : Mqtt5ClientAttemptingConnect;
+    onAttemptingConnect : (client: Mqtt5Client) => void;
 
     /**
      * Handler for the client's ConnectionSuccess lifecycle event
      */
-    onConnectionSuccess : Mqtt5ClientConnectionSuccess;
+    onConnectionSuccess : (client: Mqtt5Client, connack: AwsMqtt5PacketConnack, settings: Mqtt5NegotiatedSettings) => void;
 
     /**
      * Handler for the client's ConnectionFailure lifecycle event
      */
-    onConnectionFailure : Mqtt5ClientConnectionFailure;
+    onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack?: AwsMqtt5PacketConnack) => void;
 
     /**
      * Handler for the client's Disconnection lifecycle event
      */
-    onDisconnection : Mqtt5ClientDisconnection;
+    onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => void;
 
     /**
      * Handler for client's MessageReceived event
      */
-    onMessageReceived : Mqtt5ClientMessageReceived;
+    onMessageReceived : (client: Mqtt5Client, message: AwsMqtt5PacketPublish) => void;
 }
 
 /**
