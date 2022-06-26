@@ -98,7 +98,7 @@ async function MakeGoodClient() {
             };
 
             let stats : AwsMqtt5ClientOperationStatistics = client.getQueueStatistics();
-            console.log('Post subscribe stats: ' + stats.toString());
+            console.log('Post subscribe stats: ' + JSON.stringify(stats));
 
             await client.subscribe(subscribe_minimal);
         }

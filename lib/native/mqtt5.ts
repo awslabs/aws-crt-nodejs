@@ -503,7 +503,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      * returns a small set of statistics about the current state of the operation queue
      */
     getQueueStatistics() : AwsMqtt5ClientOperationStatistics {
-        return crt_native.get_queue_statistics(this.native_handle());
+        return crt_native.mqtt5_client_get_queue_statistics(this.native_handle());
     }
 
     /*

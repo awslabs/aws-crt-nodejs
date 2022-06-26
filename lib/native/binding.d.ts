@@ -151,22 +151,22 @@ export function mqtt5_client_new(
 ): NativeHandle;
 
 /** @internal */
-export function mqtt5_client_start(connection: NativeHandle) : void;
+export function mqtt5_client_start(client: NativeHandle) : void;
 
 /** @internal */
-export function mqtt5_client_stop(connection: NativeHandle, disconnect_packet?: AwsMqtt5PacketDisconnect) : void;
+export function mqtt5_client_stop(client: NativeHandle, disconnect_packet?: AwsMqtt5PacketDisconnect) : void;
 
 /** @internal */
-export function mqtt5_client_subscribe(connection: NativeHandle, subscribe_packet: AwsMqtt5PacketSubscribe, on_resolution: (client: AwsMqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) => void) : void;
+export function mqtt5_client_subscribe(client: NativeHandle, subscribe_packet: AwsMqtt5PacketSubscribe, on_resolution: (client: AwsMqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) => void) : void;
 
 /** @internal */
-export function mqtt5_client_unsubscribe(connection: NativeHandle, unsubscribe_packet: AwsMqtt5PacketUnsubscribe, on_resolution: (client: AwsMqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback) => void) : void;
+export function mqtt5_client_unsubscribe(client: NativeHandle, unsubscribe_packet: AwsMqtt5PacketUnsubscribe, on_resolution: (client: AwsMqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback) => void) : void;
 
 /** @internal */
-export function mqtt5_client_publish(connection: NativeHandle, publish_packet: AwsMqtt5PacketPublish, on_resolution: (client: AwsMqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback) => void) : void;
+export function mqtt5_client_publish(client: NativeHandle, publish_packet: AwsMqtt5PacketPublish, on_resolution: (client: AwsMqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback) => void) : void;
 
 /** @internal */
-export function get_queue_statistics(connection: NativeHandle) : AwsMqtt5ClientOperationStatistics;
+export function mqtt5_client_get_queue_statistics(client: NativeHandle) : AwsMqtt5ClientOperationStatistics;
 
 /* MQTT Client */
 /** @internal */
