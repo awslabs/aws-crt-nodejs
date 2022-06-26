@@ -19,7 +19,7 @@ import * as crt from './native/crt';
 import * as io from './native/io';
 import * as mqtt from './native/mqtt';
 import * as mqtt5 from './native/mqtt5';
-import * as mqtt5_packet from './native/mqtt5_packet';
+import * as mqtt5_packet from './common/mqtt5_packet';
 import * as http from './native/http';
 import * as crypto from './native/crypto';
 import * as auth from './native/auth';

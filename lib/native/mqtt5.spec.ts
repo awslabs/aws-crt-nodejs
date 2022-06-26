@@ -5,11 +5,9 @@
 
 import {
     AwsMqtt5ClientOperationStatistics,
-    AwsMqtt5NegotiatedSettings,
-    Mqtt5Client,
-    Mqtt5ClientConfig
+    AwsMqtt5Client,
+    AwsMqtt5ClientConfig
 } from './mqtt5';
-//import { AwsMqtt5DisconnectReasonCode, AwsMqtt5PacketDisconnect } from "./mqtt5_packet";
 import { once } from 'events';
 import {
     AwsMqtt5PacketSubscribe,
@@ -17,7 +15,8 @@ import {
     AwsMqtt5QoS,
     AwsMqtt5PacketPublish,
     AwsMqtt5PacketDisconnect
-} from "./mqtt5_packet";
+} from "../common/mqtt5_packet";
+import { AwsMqtt5NegotiatedSettings } from "../common/mqtt5";
 import {CrtError} from "./error";
 
 jest.setTimeout(1200000);
@@ -38,12 +37,12 @@ function WhileNotConnectedEverySecond() {
 
 async function MakeGoodClient() {
 
-    const client_config : Mqtt5ClientConfig = {
+    const client_config : AwsMqtt5ClientConfig = {
         hostName : "127.0.0.1",
         port : 1883,
     };
 
-    let client : Mqtt5Client = new Mqtt5Client(client_config);
+    let client : AwsMqtt5Client = new AwsMqtt5Client(client_config);
 
     client.on("messageReceived", (packet: AwsMqtt5PacketPublish) => {
         if (typeof packet.payload !== 'string') {

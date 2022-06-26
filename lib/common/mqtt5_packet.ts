@@ -213,7 +213,7 @@ export interface AwsMqtt5PacketPublish {
      * While the payload as input can be one of several types, the payload as output (via message receipt)
      * will always be an ArrayBuffer of binary data.
      *
-     * TODO: consider convenience converting to string in native if payload format is utf-8
+     * TODO: consider convenience try-converting to string in native if payload format is utf-8
      */
     payload: AwsMqtt5Payload;
 
