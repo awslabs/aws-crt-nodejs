@@ -15,7 +15,7 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
-import {Mqtt5ClientConfig, Mqtt5Client, Mqtt5ClientEventHandlers} from "./mqtt5";
+import {Mqtt5ClientConfig, Mqtt5Client, Mqtt5ClientEventHandlers, AwsMqtt5ClientOperationStatistics} from "./mqtt5";
 import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketPuback, AwsMqtt5PacketPublish, AwsMqtt5PacketSuback, AwsMqtt5PacketSubscribe, AwsMqtt5PacketUnsuback, AwsMqtt5PacketUnsubscribe }  from "./mqtt5_packet";
 
 
@@ -165,6 +165,8 @@ export function mqtt5_client_unsubscribe(connection: NativeHandle, unsubscribe_p
 /** @internal */
 export function mqtt5_client_publish(connection: NativeHandle, publish_packet: AwsMqtt5PacketPublish, on_resolution: (client: Mqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback) => void) : void;
 
+/** @internal */
+export function get_queue_statistics(connection: NativeHandle) : AwsMqtt5ClientOperationStatistics;
 
 /* MQTT Client */
 /** @internal */

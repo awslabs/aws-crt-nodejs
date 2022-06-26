@@ -102,6 +102,45 @@ int aws_napi_attach_object_property_optional_boolean(
     return aws_napi_attach_object_property_boolean(object, env, key_name, *value);
 }
 
+/*
+ * IEEE fp double analysis says 2 ^ 53 is the maximum sequential value we could support, but the napi docs for
+ * napi_create_int64() say (2 ^ 53 - 1) so we'll use their more conservative bound.
+ */
+#define MAX_ALLOWED_UINT64_T_TO_DOUBLE ((((uint64_t)1) << 53) - 1)
+
+int aws_napi_attach_object_property_u64(napi_value object, napi_env env, const char *key_name, uint64_t value) {
+    if (key_name == NULL) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (value > MAX_ALLOWED_UINT64_T_TO_DOUBLE) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value napi_i64 = NULL;
+
+    AWS_NAPI_CALL(env, napi_create_int64(env, (int64_t)value, &napi_i64), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_i64), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    return AWS_OP_SUCCESS;
+}
+
+int aws_napi_attach_object_property_optional_u64(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint64_t *value) {
+    if (value == NULL) {
+        return AWS_OP_SUCCESS;
+    }
+
+    return aws_napi_attach_object_property_u64(object, env, key_name, *value);
+}
+
 int aws_napi_attach_object_property_u32(napi_value object, napi_env env, const char *key_name, uint32_t value) {
     if (key_name == NULL) {
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
@@ -181,6 +220,9 @@ int aws_napi_attach_object_property_optional_string(
 }
 
 static void s_finalize_external_binary_byte_buf(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)env;
+    (void)finalize_data;
+
     struct aws_byte_buf *buffer = finalize_hint;
     if (buffer == NULL) {
         return;
@@ -989,6 +1031,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(mqtt5_client_subscribe)
     CREATE_AND_REGISTER_FN(mqtt5_client_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt5_client_publish)
+    CREATE_AND_REGISTER_FN(mqtt5_client_get_queue_statistics)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)

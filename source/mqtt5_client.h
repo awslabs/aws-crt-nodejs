@@ -20,4 +20,6 @@ napi_value aws_napi_mqtt5_client_unsubscribe(napi_env env, napi_callback_info in
 
 napi_value aws_napi_mqtt5_client_publish(napi_env env, napi_callback_info info);
 
+napi_value aws_napi_mqtt5_client_get_queue_statistics(napi_env env, napi_callback_info info);
+
 #endif /* AWS_CRT_NODEJS_MQTT5_CLIENT_H */

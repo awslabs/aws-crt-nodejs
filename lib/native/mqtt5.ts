@@ -27,6 +27,35 @@ import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 
 /**
+ * Information about the queue state of the client.
+ */
+export interface AwsMqtt5ClientOperationStatistics {
+    /**
+     * total number of operations submitted to the client that have not yet been completed.  Unacked operations
+     * are a subset of this.
+     */
+    incompleteOperationCount : number;
+
+    /**
+     * total packet size of operations submitted to the client that have not yet been completed.  Unacked operations
+     * are a subset of this.
+     */
+    incompleteOperationSize : number;
+
+    /**
+     * total number of operations that have been sent to the server and are waiting for a corresponding ACK before
+     * they can be completed.
+     */
+    unackedOperationCount : number;
+
+    /**
+     * total packet size of operations that have been sent to the server and are waiting for a corresponding ACK before
+     * they can be completed.
+     */
+    unackedOperationSize : number;
+};
+
+/**
  * Controls how the MQTT5 client should behave with respect to MQTT sessions.
  */
 export enum AwsMqtt5ClientSessionBehavior {
@@ -573,6 +602,10 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) {
                 reject(e);
             }
         });
+    }
+
+    getQueueStatistics() : AwsMqtt5ClientOperationStatistics {
+        return crt_native.get_queue_statistics(this.native_handle());
     }
 
     /*

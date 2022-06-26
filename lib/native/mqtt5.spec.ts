@@ -4,6 +4,7 @@
  */
 
 import {
+    AwsMqtt5ClientOperationStatistics,
     AwsMqtt5NegotiatedSettings,
     Mqtt5Client,
     Mqtt5ClientConfig
@@ -96,6 +97,9 @@ async function MakeGoodClient() {
                     }
                 ]
             };
+
+            let stats : AwsMqtt5ClientOperationStatistics = client.getQueueStatistics();
+            console.log('Post subscribe stats: ' + stats.toString());
 
             await client.subscribe(subscribe_minimal);
         }
