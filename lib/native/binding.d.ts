@@ -168,6 +168,9 @@ export function mqtt5_client_publish(client: NativeHandle, publish_packet: AwsMq
 /** @internal */
 export function mqtt5_client_get_queue_statistics(client: NativeHandle) : AwsMqtt5ClientOperationStatistics;
 
+/** @internal */
+export function mqtt5_client_close(client: NativeHandle) : void;
+
 /* MQTT Client */
 /** @internal */
 export function mqtt_client_new(client_bootstrap?: NativeHandle): NativeHandle;

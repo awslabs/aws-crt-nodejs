@@ -14,7 +14,6 @@ import {
     AwsMqtt5PacketPublish, AwsMqtt5PacketSuback,
     AwsMqtt5PacketSubscribe, AwsMqtt5PacketUnsuback, AwsMqtt5PacketUnsubscribe, AwsMqtt5QoS
 } from "./mqtt5_packet";
-import {CrtError} from "@awscrt";
 
 /**
  * Mqtt behavior settings that are dynamically negotiated as part of the CONNECT/CONNACK exchange.
@@ -90,11 +89,6 @@ export interface AwsMqtt5NegotiatedSettings {
 }
 
 /**
- * Client Error event handler signature
- */
-export type AwsMqtt5ClientError = (error: CrtError) => void;
-
-/**
  * Client Stopped lifecycle event handler signature
  */
 export type AwsMqtt5ClientStopped = () => void;
@@ -128,16 +122,6 @@ export type AwsMqtt5ClientMessageReceived = (message: AwsMqtt5PacketPublish) => 
  * Shared Mqtt5 client interface across browser and node
  */
 export interface IAwsMqtt5Client {
-
-    /**
-     * Emitted when a client method invocation results in an error
-     *
-     * @param event the type of event (error)
-     * @param listener the error event listener to add
-     *
-     * @event
-     */
-    on(event: 'error', listener: AwsMqtt5ClientError): this;
 
     /**
      * Emitted when an mqtt PUBLISH packet is received by the client

@@ -943,12 +943,12 @@ static bool s_module_initialized = false;
         return NULL;
     }
 
-    /*
+/*
         bool done = false;
         while (!done) {
             ;
         }
-    */
+*/
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -1032,6 +1032,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(mqtt5_client_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt5_client_publish)
     CREATE_AND_REGISTER_FN(mqtt5_client_get_queue_statistics)
+    CREATE_AND_REGISTER_FN(mqtt5_client_close)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)

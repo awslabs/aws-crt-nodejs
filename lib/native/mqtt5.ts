@@ -22,10 +22,21 @@ import {
     AwsMqtt5PacketSubscribe, AwsMqtt5PacketSuback,
     AwsMqtt5PacketUnsubscribe, AwsMqtt5PacketUnsuback
 } from "../common/mqtt5_packet";
-import { AwsMqtt5NegotiatedSettings, IAwsMqtt5Client, AwsMqtt5ClientMessageReceived, AwsMqtt5ClientStopped, AwsMqtt5ClientAttemptingConnect, AwsMqtt5ClientConnectionSuccess, AwsMqtt5ClientConnectionFailure, AwsMqtt5ClientDisconnection, AwsMqtt5ClientError } from "../common/mqtt5";
+import { AwsMqtt5NegotiatedSettings, IAwsMqtt5Client, AwsMqtt5ClientMessageReceived, AwsMqtt5ClientStopped, AwsMqtt5ClientAttemptingConnect, AwsMqtt5ClientConnectionSuccess, AwsMqtt5ClientConnectionFailure, AwsMqtt5ClientDisconnection } from "../common/mqtt5";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 
+export { AwsMqtt5NegotiatedSettings, AwsMqtt5ClientStopped, AwsMqtt5ClientAttemptingConnect, AwsMqtt5ClientConnectionSuccess, AwsMqtt5ClientConnectionFailure, AwsMqtt5ClientDisconnection, AwsMqtt5ClientMessageReceived, IAwsMqtt5Client,  } from "../common/mqtt5";
+
+/**
+ * Websocket handshake http request transformation function signature
+ */
+export type AwsMqtt5WebsocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => void;
+
+/**
+ * Client Error event handler signature
+ */
+export type AwsMqtt5ClientError = (error: CrtError) => void;
 
 /**
  * Information about the queue state of the client.
@@ -224,7 +235,7 @@ export interface AwsMqtt5ClientConfig {
      * Callback that allows a custom transformation of the http request that functions as the websocket handshake.
      * To use websockets but not perform a transformation, just set this as a trivial completion callback.
      */
-    websocketHandshakeTransform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
+    websocketHandshakeTransform?: AwsMqtt5WebsocketHandshakeTransform;
 
     /**
      * Controls http proxy usage when establishing mqtt connections
@@ -417,6 +428,16 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
     }
 
     /* Public API for MQTT5 */
+
+    /**
+     * Triggers cleanup of native resources associated with the mqtt5 client.  Once this has been invoked, callbacks
+     * and events are not guaranteed to be received.
+     *
+     * This must be called when finished with a client.  Otherwise, native resources will leak.
+     */
+    close() {
+        crt_native.mqtt5_client_close(this.native_handle());
+    }
 
     /**
      * Notifies the native mqtt5 client that you want it to attempt to connect to the configured endpoint.

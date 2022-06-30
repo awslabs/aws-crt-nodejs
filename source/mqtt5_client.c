@@ -115,6 +115,12 @@ struct aws_mqtt5_client_binding {
      */
     napi_ref node_mqtt5_client_weak_ref;
 
+    /*
+     * Single count ref to keep the node external managed by the client alive.  When the finalizer associated with the
+     * client is invoked, this is cleared.
+     */
+    napi_ref node_client_external_ref;
+
     napi_threadsafe_function on_stopped;
     napi_threadsafe_function on_attempting_connect;
     napi_threadsafe_function on_connection_success;
@@ -184,9 +190,19 @@ static void s_aws_mqtt5_client_binding_finalize(napi_env env, void *finalize_dat
 
     struct aws_mqtt5_client_binding *binding = finalize_data;
 
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_finalize - mqtt5_client node wrapper is being finalized",
+        (void *)binding->client);
+
     if (binding->node_mqtt5_client_weak_ref != NULL) {
         napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
         binding->node_mqtt5_client_weak_ref = NULL;
+    }
+
+    if (binding->node_client_external_ref != NULL) {
+        napi_delete_reference(env, binding->node_client_external_ref);
+        binding->node_client_external_ref = NULL;
     }
 
     if (binding->client != NULL) {
@@ -1972,6 +1988,51 @@ static void s_init_default_mqtt5_client_options(
     client_options->connect_options = connect_options;
 }
 
+napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_mqtt5_client_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_close - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - binding was null");
+        return NULL;
+    }
+
+    if (binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - client was null");
+        return NULL;
+    }
+
+    if (binding->node_client_external_ref != NULL) {
+        napi_delete_reference(env, binding->node_client_external_ref);
+        binding->node_client_external_ref = NULL;
+    }
+
+    if (binding->node_mqtt5_client_weak_ref != NULL) {
+        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
+        binding->node_mqtt5_client_weak_ref = NULL;
+    }
+
+    return NULL;
+}
+
 napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     napi_value node_args[7];
@@ -2029,7 +2090,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     }
 
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 0, &binding->node_mqtt5_client_weak_ref), {
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 1, &binding->node_mqtt5_client_weak_ref), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create weak reference to node mqtt5 client");
         goto cleanup;
     });
@@ -2114,6 +2175,11 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     client_options.client_termination_handler = s_aws_mqtt5_client_binding_on_client_terminate;
     client_options.client_termination_handler_user_data = binding;
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_client_external_ref), {
+        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create one count reference to napi external");
+        goto cleanup;
+    });
 
     binding->client = aws_mqtt5_client_new(allocator, &client_options);
     if (binding->client == NULL) {
