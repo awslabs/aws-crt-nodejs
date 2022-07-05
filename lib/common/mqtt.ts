@@ -149,6 +149,14 @@ export type MqttConnectionConnected = (session_present: boolean) => void;
 export type MqttConnectionDisconnected = () => void;
 
 /**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection is closed
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+ export type MqttConnectionClose = () => void;
+
+/**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
  *
  * @param error the error that occurred

@@ -28,6 +28,7 @@ import {
     MqttConnectionError,
     MqttConnectionInterrupted,
     MqttConnectionResumed,
+    MqttConnectionClose,
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
@@ -309,6 +310,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.connection.on('message', this.on_message);
         this.connection.on('offline', this.on_offline);
         this.connection.on('end', this.on_disconnected);
+        this.connection.on('close', this.on_connection_lost);
     }
 
     /**
@@ -362,6 +364,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * @event
      */
     on(event: 'resume', listener: MqttConnectionResumed): this;
+
+    /**
+     * Emitted when the connection lost. The event will get triggered when connection is lost or get closed by server.
+     *
+     * @param event the type of event (connection_lost)
+     * @param listener the event listener to use
+     *
+     * @event
+     */
+    on(event: 'connection_lost', listener: MqttConnectionClose): this;
 
     /**
      * Emitted when any MQTT publish message arrives.
@@ -419,6 +431,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
             callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
         }
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
+    }
+
+    private on_connection_lost = () => {
+        this.emit('connection_lost');
     }
 
     private reset_reconnect_times()
