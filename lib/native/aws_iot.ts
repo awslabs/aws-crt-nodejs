@@ -18,6 +18,7 @@ import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import { WebsocketOptionsBase } from "../common/auth";
+import { CrtError } from "./error";
 
 import {
     aws_sign_request,
@@ -178,7 +179,11 @@ export class AwsIotMqttConnectionConfigBuilder {
                     await aws_sign_request(request, signing_config as AwsSigningConfig);
                     done();
                 } catch (error) {
-                    done(error);
+                    if (error instanceof CrtError) {
+                        done(error.error_code);
+                    } else {
+                        done(3); /* TODO: AWS_ERROR_UNKNOWN */
+                    }
                 }
             };
         }
