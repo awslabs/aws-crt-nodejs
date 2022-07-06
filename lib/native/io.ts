@@ -5,8 +5,18 @@
 
 /**
  *
+ * A module containing a grab bag of support for core network I/O functionality, including sockets, TLS, DNS, logging,
+ * error handling, streams, and connection -> thread mapping.
+ *
+ * Categories include:
+ * - Network: socket configuration
+ * - TLS: tls configuration
+ * - Logging: logging controls and configuration
+ * - IO: everything else
+ *
  * @packageDocumentation
- * @module IO
+ * @module io
+ * @mergeTarget
  */
 
 import crt_native from './binding';

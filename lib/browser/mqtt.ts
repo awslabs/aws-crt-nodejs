@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing support for mqtt connection establishment and operations.
+ *
  * @packageDocumentation
  * @module mqtt
+ * @mergeTarget
  */
 
 import * as mqtt from "mqtt";
@@ -25,13 +29,32 @@ import {
     OnMessageCallback,
     MqttConnectionConnected,
     MqttConnectionDisconnected,
-    MqttConnectionError,
-    MqttConnectionInterrupted,
     MqttConnectionResumed,
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
+ *
+ * @param error the error that occurred
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionError = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * interrupted unexpectedly.
+ *
+ * @param error description of the error that occurred
+ *
+ * @asMemberOf MqttClientConnection
+ * @category MQTT
+ */
+export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
  * @category MQTT
@@ -314,116 +337,61 @@ export class MqttClientConnection extends BufferedEventEmitter {
     /**
      * Emitted when the connection successfully establishes itself for the first time
      *
-     * @param event the type of event (connect)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'connect', listener: MqttConnectionConnected): this;
+    static CONNECT = 'connect';
 
     /**
      * Emitted when connection has disconnected sucessfully.
      *
-     * @param event the type of event (disconnect)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+    static DISCONNECT = 'disconnect';
 
     /**
      * Emitted when an error occurs.  The error will contain the error
      * code and message.
      *
-     * @param event the type of event (error)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: MqttConnectionError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the connection is dropped unexpectedly. The error will contain the error
      * code and message.  The underlying mqtt implementation will attempt to reconnect.
      *
-     * @param event the type of event (interrupt)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+    static INTERRUPT = 'interrupt';
 
     /**
      * Emitted when the connection reconnects (after an interrupt). Only triggers on connections after the initial one.
      *
-     * @param event the type of event (resume)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'resume', listener: MqttConnectionResumed): this;
+    static RESUME = 'resume';
 
     /**
      * Emitted when any MQTT publish message arrives.
      *
-     * @param event the type of event (message)
-     * @param listener the event listener to use
-     *
      * @event
      */
+    static MESSAGE = 'message';
+
+    on(event: 'connect', listener: MqttConnectionConnected): this;
+
+    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+
+    on(event: 'error', listener: MqttConnectionError): this;
+
+    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+
+    on(event: 'resume', listener: MqttConnectionResumed): this;
+
     on(event: 'message', listener: OnMessageCallback): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
-    }
-
-    private on_connect = (connack: mqtt.IConnackPacket) => {
-        this.on_online(connack.sessionPresent);
-    }
-
-    private on_online = (session_present: boolean) => {
-        if (++this.connection_count == 1) {
-            this.emit('connect', session_present);
-        } else {
-            /** Reset reconnect times after reconnect succeed. */
-            this.reset_reconnect_times();
-            this.emit('resume', 0, session_present);
-        }
-    }
-
-    private on_offline = () => {
-        this.emit('interrupt', -1);
-        const waitTime = this.get_reconnect_time_sec();
-        setTimeout(() => {
-            /** Emit reconnect after backoff time */
-            this.reconnect_count++;
-            this.connection.reconnect();
-        },
-        waitTime * 1000);
-    }
-
-    private on_disconnected = () => {
-        this.emit('disconnect');
-    }
-
-    private on_error = (error: Error) => {
-        this.emit('error', new CrtError(error))
-    }
-
-    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
-        // pass payload as ArrayBuffer
-        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
-
-        const callback = this.subscriptions.find(topic);
-        if (callback) {
-            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
-        }
-        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
-    }
-
-    private reset_reconnect_times()
-    {
-        this.reconnect_count = 0;
     }
 
     /**
@@ -445,26 +413,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
             });
             this.connection.once('error', on_connect_error);
         });
-    }
-
-    /**
-     * Returns seconds until next reconnect attempt.
-     */
-    private get_reconnect_time_sec(): number {
-        if (this.reconnect_min_sec == 0 && this.reconnect_max_sec == 0) {
-            return 0;
-        }
-
-        // Uses "FullJitter" backoff algorithm, described here:
-        // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
-        // We slightly vary the algorithm described on the page,
-        // which takes (base,cap) and may result in 0.
-        // But we take (min,max) as parameters, and don't don't allow results less than min.
-        const cap = this.reconnect_max_sec - this.reconnect_min_sec;
-        const base = Math.max(this.reconnect_min_sec, 1);
-        /** Use Math.pow() since IE does not support ** operator */
-        const sleep = Math.random() * Math.min(cap, base * Math.pow(2, this.reconnect_count));
-        return this.reconnect_min_sec + sleep;
     }
 
     /**
@@ -577,5 +525,74 @@ export class MqttClientConnection extends BufferedEventEmitter {
         return new Promise((resolve) => {
             this.connection.end(undefined, resolve)
         });
+    }
+
+    private on_connect = (connack: mqtt.IConnackPacket) => {
+        this.on_online(connack.sessionPresent);
+    }
+
+    private on_online = (session_present: boolean) => {
+        if (++this.connection_count == 1) {
+            this.emit('connect', session_present);
+        } else {
+            /** Reset reconnect times after reconnect succeed. */
+            this.reset_reconnect_times();
+            this.emit('resume', 0, session_present);
+        }
+    }
+
+    private on_offline = () => {
+        this.emit('interrupt', -1);
+        const waitTime = this.get_reconnect_time_sec();
+        setTimeout(() => {
+                /** Emit reconnect after backoff time */
+                this.reconnect_count++;
+                this.connection.reconnect();
+            },
+            waitTime * 1000);
+    }
+
+    private on_disconnected = () => {
+        this.emit('disconnect');
+    }
+
+    private on_error = (error: Error) => {
+        this.emit('error', new CrtError(error))
+    }
+
+    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
+        // pass payload as ArrayBuffer
+        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
+
+        const callback = this.subscriptions.find(topic);
+        if (callback) {
+            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
+        }
+        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
+    }
+
+    private reset_reconnect_times()
+    {
+        this.reconnect_count = 0;
+    }
+
+    /**
+     * Returns seconds until next reconnect attempt.
+     */
+    private get_reconnect_time_sec(): number {
+        if (this.reconnect_min_sec == 0 && this.reconnect_max_sec == 0) {
+            return 0;
+        }
+
+        // Uses "FullJitter" backoff algorithm, described here:
+        // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+        // We slightly vary the algorithm described on the page,
+        // which takes (base,cap) and may result in 0.
+        // But we take (min,max) as parameters, and don't don't allow results less than min.
+        const cap = this.reconnect_max_sec - this.reconnect_min_sec;
+        const base = Math.max(this.reconnect_min_sec, 1);
+        /** Use Math.pow() since IE does not support ** operator */
+        const sleep = Math.random() * Math.min(cap, base * Math.pow(2, this.reconnect_count));
+        return this.reconnect_min_sec + sleep;
     }
 }

@@ -10,7 +10,6 @@
  *
  * @packageDocumentation
  * @module http
- * @preferred
  */
 
 /**
@@ -35,7 +34,11 @@ export enum HttpVersion {
  */
 export type HttpHeader = [string, string];
 
-/** @internal */
+/**
+ * Common interface for a set of HTTP headers.
+ *
+ * @category HTTP
+ */
 export interface HttpHeaders {
     readonly length: number;
 

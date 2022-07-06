@@ -9,16 +9,7 @@
  *
  * @packageDocumentation
  * @module mqtt
- * @preferred
  */
-
-/**
- * MQTT Quality of Service
- * [MQTT-4.3]
- *
- * @category MQTT
- */
-import {CrtError} from "../browser/error";
 
 /**
  * Quality of service control for mqtt publish operations
@@ -147,27 +138,6 @@ export type MqttConnectionConnected = (session_present: boolean) => void;
  * @category MQTT
  */
 export type MqttConnectionDisconnected = () => void;
-
-/**
- * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
- *
- * @param error the error that occurred
- *
- * @asMemberOf MqttClientConnection
- * @category MQTT
- */
-export type MqttConnectionError = (error: CrtError) => void;
-
-/**
- * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
- * interrupted unexpectedly.
- *
- * @param error description of the error that occurred
- *
- * @asMemberOf MqttClientConnection
- * @category MQTT
- */
-export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection successfully

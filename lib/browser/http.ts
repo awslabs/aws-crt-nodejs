@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing support for creating http connections and making requests on them.
+ *
  * @packageDocumentation
  * @module http
+ * @mergeTarget
  */
 
 import {
@@ -267,31 +271,28 @@ export class HttpClientConnection extends BufferedEventEmitter {
     /**
      * Emitted when the connection is connected and ready to start streams
      *
-     * @param event type of event (connect)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'connect', listener: HttpClientConnectionConnected): this;
+    static CONNECT = 'connect';
 
     /**
      * Emitted when an error occurs on the connection
      *
-     * @param event type of event (error)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: HttpClientConnectionError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the connection has completed
      *
-     * @param event type of event (close)
-     * @param listener event listener to use
-     *
      * @event
      */
+    static CLOSE = 'close';
+
+    on(event: 'connect', listener: HttpClientConnectionConnected): this;
+
+    on(event: 'error', listener: HttpClientConnectionError): this;
+
     on(event: 'close', listener: HttpClientConnectionClosed): this;
 
     // Override to allow uncorking on ready
@@ -402,42 +403,37 @@ export class HttpClientStream extends BufferedEventEmitter {
     /**
      * Emitted when the http response headers have arrived.
      *
-     * @param event type of event (response)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'response', listener: HttpStreamResponse): this;
-
+    static RESPONSE = 'response';
 
     /**
      * Emitted when http response data is available.
      *
-     * @param event type of event (data)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'data', listener: HttpStreamData): this;
+    static DATA = 'data';
 
     /**
      * Emitted when an error occurs in stream processing
      *
-     * @param event type of event (error)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: HttpStreamError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the stream has completed
      *
-     * @param event type of event (end)
-     * @param listener event listener to use
-     *
      * @event
      */
+    static END = 'end';
+
+    on(event: 'response', listener: HttpStreamResponse): this;
+
+    on(event: 'data', listener: HttpStreamData): this;
+
+    on(event: 'error', listener: HttpStreamError): this;
+
     on(event: 'end', listener: HttpStreamComplete): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {

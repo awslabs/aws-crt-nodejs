@@ -4,12 +4,14 @@
  */
 
 /**
+ * Library-specific error extension type
+ *
  * @packageDocumentation
- * @module crt
+ * @module error
+ * @mergeTarget
  */
 
 import crt_native from './binding';
-import { isNumber } from 'util';
 
 /**
  * Represents an error encountered in native code. Can also be used to convert a numeric error code into
@@ -32,7 +34,7 @@ export class CrtError extends Error {
 }
 
 function extract_message(error: any): string {
-    if (isNumber(error)) {
+    if (typeof error === 'number') {
         return crt_native.error_code_to_string(error);
     } else if (error instanceof CrtError) {
         return error.message;
@@ -41,7 +43,7 @@ function extract_message(error: any): string {
 }
 
 function extract_code(error: any) {
-    if (isNumber(error)) {
+    if (typeof error === 'number') {
         return error;
     } else if (error instanceof CrtError) {
         return error.error_code;
@@ -50,7 +52,7 @@ function extract_code(error: any) {
 }
 
 function extract_name(error: any) {
-    if (isNumber(error)) {
+    if (typeof error === 'number') {
         return crt_native.error_code_to_name(error);
     } else if (error instanceof CrtError) {
         return error.error_name;

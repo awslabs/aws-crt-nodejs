@@ -4,8 +4,11 @@
  */
 
 /**
+ * Module for utilities related to websocket connection establishment
+ *
  * @packageDocumentation
- * @module mqtt
+ * @module ws
+ * @mergeTarget
  */
 
 import { MqttConnectionConfig } from "./mqtt";
@@ -19,27 +22,31 @@ import * as Crypto from "crypto-js";
  *
  * @category MQTT
  */
-export interface WebsocketOptions extends WebsocketOptionsBase{
+export interface WebsocketOptions extends WebsocketOptionsBase {
     /** Additional headers to add */
     headers?: { [index: string]: string };
     /** Websocket protocol, used during Upgrade */
     protocol?: string;
 }
 
+/** @internal */
 function zero_pad(n: number) {
     return (n > 9) ? n : '0' + n.toString();
 }
 
+/** @internal */
 function canonical_time(time?: Date) {
     const now = time?? new Date();
     return `${now.getUTCFullYear()}${zero_pad(now.getUTCMonth() + 1)}${zero_pad(now.getUTCDate())}T` +
         `${zero_pad(now.getUTCHours())}${zero_pad(now.getUTCMinutes())}${zero_pad(now.getUTCSeconds())}Z`;
 }
 
+/** @internal */
 function canonical_day(time: string = canonical_time()) {
     return time.substring(0, time.indexOf('T'));
 }
 
+/** @internal */
 function make_signing_key(credentials: AWSCredentials, day: string, service_name: string) {
     const hash_opts = { asBytes: true };
     let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key, hash_opts);
@@ -49,6 +56,7 @@ function make_signing_key(credentials: AWSCredentials, day: string, service_name
     return hash;
 }
 
+/** @internal */
 function sign_url(method: string,
     url: URL,
     signing_config: AwsSigningConfig,

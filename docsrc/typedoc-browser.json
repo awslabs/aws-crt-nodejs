@@ -1,14 +1,32 @@
 {
-    "mode": "modules",
-    "inputFiles": "lib/browser.ts",
-    "tsconfig": "tsconfig.browser.json",
-    "out": "docs/browser",
-    "includeDeclarations": true,
+    "entryPoints": [
+        "../lib/browser/auth.ts",
+        "../lib/browser/aws_iot.ts",
+        "../lib/browser/crypto.ts",
+        "../lib/browser/error.ts",
+        "../lib/browser/http.ts",
+        "../lib/browser/io.ts",
+        "../lib/browser/mqtt.ts",
+        "../lib/browser/ws.ts",
+        "../lib/common/auth.ts",
+        "../lib/common/crypto.ts",
+        "../lib/common/event.ts",
+        "../lib/common/http.ts",
+        "../lib/common/io.ts",
+        "../lib/common/mqtt.ts"
+    ],
+    "tsconfig": "../tsconfig.browser.json",
+    "out": "../docs/browser",
     "excludeExternals": true,
-    "excludeNotExported": true,
     "excludePrivate": true,
-    "stripInternal": true,
+    "excludeInternal": true,
+    "excludeProtected": true,
     "disableSources": true,
-    "listInvalidSymbolLinks": true
+    "categorizeByGroup": true,
+    "validation": {
+        "invalidLink" : true
+    },
+    "treatWarningsAsErrors" : true,
+    "mergeModulesMergeMode": "module"
 }
 

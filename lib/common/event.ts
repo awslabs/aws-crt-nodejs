@@ -4,8 +4,10 @@
  */
 
 /**
+ * Module for base types related to event emission
+ *
  * @packageDocumentation
- * @module crt
+ * @module events
  */
 
 import { EventEmitter } from 'events';
@@ -15,7 +17,7 @@ import { EventEmitter } from 'events';
  *
  * @category Events
  */
-type EventKey = string | symbol;
+export type EventKey = string | symbol;
 
 /**
  * @internal
@@ -30,9 +32,9 @@ class BufferedEvent {
 
 /**
  * Provides buffered event emitting semantics, similar to many Node-style streams.
- * Subclasses will override {@link BufferedEventEmitter.on} and trigger uncorking.
+ * Subclasses will override EventEmitter.on() and trigger uncorking.
  * NOTE: It is HIGHLY recommended that uncorking should always be done via
- * ```process.nextTick()```, not during the {@link BufferedEventEmitter.on} call.
+ * ```process.nextTick()```, not during the EventEmitter.on() call.
  *
  * See also: [Node writable streams](https://nodejs.org/api/stream.html#stream_writable_cork)
  *

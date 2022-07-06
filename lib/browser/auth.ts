@@ -8,7 +8,7 @@
  *
  * @packageDocumentation
  * @module auth
- * @preferred
+ * @mergeTarget
  */
 
 import { AwsSigningConfigBase } from '../common/auth';
