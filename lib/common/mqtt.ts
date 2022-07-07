@@ -125,7 +125,6 @@ export class MqttWill {
  *
  * @param session_present true if the reconnection went to an existing session, false if this is a clean session
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionConnected = (session_present: boolean) => void;
@@ -134,7 +133,6 @@ export type MqttConnectionConnected = (session_present: boolean) => void;
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has fully disconnected
  * by user request
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionDisconnected = () => void;
@@ -146,7 +144,6 @@ export type MqttConnectionDisconnected = () => void;
  * @param return_code MQTT connect return code (should be 0 for a successful reconnection)
  * @param session_present true if the reconnection went to an existing session, false if this is a clean session
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionResumed = (return_code: number, session_present: boolean) => void;

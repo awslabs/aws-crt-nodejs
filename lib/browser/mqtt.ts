@@ -40,7 +40,6 @@ export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../co
  *
  * @param error the error that occurred
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionError = (error: CrtError) => void;
@@ -51,7 +50,6 @@ export type MqttConnectionError = (error: CrtError) => void;
  *
  * @param error description of the error that occurred
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionInterrupted = (error: CrtError) => void;

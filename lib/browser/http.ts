@@ -359,7 +359,6 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
  * @param status_code http response status code
  * @param headers the response's set of headers
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;

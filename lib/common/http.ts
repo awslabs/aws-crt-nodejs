@@ -146,7 +146,6 @@ export class CommonHttpProxyOptions {
  * Listener signature for event emitted from an {@link HttpClientConnection} when the connection reaches the
  * connected state
  *
- * @asMemberOf HttpClientConnection
  * @category HTTP
  */
 export type HttpClientConnectionConnected = () => void;
@@ -156,7 +155,6 @@ export type HttpClientConnectionConnected = () => void;
  *
  * @param error - A CrtError containing the error that occurred
  *
- * @asMemberOf HttpClientConnection
  * @category HTTP
  */
 export type HttpClientConnectionError = (error: Error) => void;
@@ -164,7 +162,6 @@ export type HttpClientConnectionError = (error: Error) => void;
 /**
  * Listener signature for event emitted from an {@link HttpClientConnection} when the connection has been closed
  *
- * @asMemberOf HttpClientConnection
  * @category HTTP
  */
 export type HttpClientConnectionClosed = () => void;
@@ -174,7 +171,6 @@ export type HttpClientConnectionClosed = () => void;
  *
  * @param body_data - The chunk of body data
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamData = (body_data: ArrayBuffer) => void;
@@ -185,7 +181,6 @@ export type HttpStreamData = (body_data: ArrayBuffer) => void;
  *
  * @param error - A CrtError containing the error that occurred
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamError = (error: Error) => void;
@@ -193,7 +188,6 @@ export type HttpStreamError = (error: Error) => void;
 /**
  * Listener signature for event emitted from an {@link HttpClientStream} when the http stream has completed.
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamComplete = () => void;

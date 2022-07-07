@@ -349,7 +349,6 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
  *
  * @param headers the set of headers
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamHeaders = (headers: HttpHeaders) => void;
@@ -360,7 +359,6 @@ export type HttpStreamHeaders = (headers: HttpHeaders) => void;
  * @param status_code http response status code
  * @param headers the response's set of headers
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
