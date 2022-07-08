@@ -22,7 +22,6 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
  */
 type NativeHandle = any;
 
-/** @internal */
 type StringLike = string | ArrayBuffer | ArrayBufferView;
 
 /* common */
@@ -375,7 +374,6 @@ export class HttpRequest {
     public body: InputStream;
 }
 
-/** @internal */
 export class AwsCredentialsProvider {
     protected constructor();
 

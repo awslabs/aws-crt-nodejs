@@ -9,7 +9,6 @@
  *
  * @packageDocumentation
  * @module crypto
- * @preferred
  */
 
 /**

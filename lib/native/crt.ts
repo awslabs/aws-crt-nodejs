@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing some miscellaneous crt native memory queries
+ *
  * @packageDocumentation
  * @module crt
+ * @mergeTarget
  */
 
 /**

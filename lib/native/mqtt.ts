@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing support for mqtt connection establishment and operations.
+ *
  * @packageDocumentation
  * @module mqtt
+ * @mergeTarget
  */
 
 import crt_native, { StringLike } from './binding';
@@ -24,13 +28,30 @@ import {
     OnMessageCallback,
     MqttConnectionConnected,
     MqttConnectionDisconnected,
-    MqttConnectionError,
-    MqttConnectionInterrupted,
     MqttConnectionResumed,
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC,
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
+ *
+ * @param error the error that occurred
+ *
+ * @category MQTT
+ */
+export type MqttConnectionError = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * interrupted unexpectedly.
+ *
+ * @param error description of the error that occurred
+ *
+ * @category MQTT
+ */
+export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
  * MQTT client
@@ -256,63 +277,57 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     /**
      * Emitted when the connection successfully establishes itself for the first time
      *
-     * @param event the type of event (connect)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'connect', listener: MqttConnectionConnected): this;
+    static CONNECT = 'connect';
 
     /**
      * Emitted when connection has disconnected sucessfully.
      *
-     * @param event the type of event (disconnect)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+    static DISCONNECT = 'disconnect';
 
     /**
      * Emitted when an error occurs.  The error will contain the error
      * code and message.
      *
-     * @param event the type of event (error)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: MqttConnectionError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the connection is dropped unexpectedly. The error will contain the error
      * code and message.  The underlying mqtt implementation will attempt to reconnect.
      *
-     * @param event the type of event (interrupt)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+    static INTERRUPT = 'interrupt';
 
     /**
      * Emitted when the connection reconnects (after an interrupt). Only triggers on connections after the initial one.
      *
-     * @param event the type of event (resume)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'resume', listener: MqttConnectionResumed): this;
+    static RESUME = 'resume';
 
     /**
      * Emitted when any MQTT publish message arrives.
      *
-     * @param event the type of event (message)
-     * @param listener the event listener to use
-     *
      * @event
      */
+    static MESSAGE = 'message';
+
+    on(event: 'connect', listener: MqttConnectionConnected): this;
+
+    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+
+    on(event: 'error', listener: MqttConnectionError): this;
+
+    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+
+    on(event: 'resume', listener: MqttConnectionResumed): this;
+
     on(event: 'message', listener: OnMessageCallback): this;
 
     // Overridden to allow uncorking on ready
@@ -493,7 +508,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         this.emit('message', topic, payload, dup, qos, retain);
     }
 
-    private _on_connect_callback(resolve : (value?: (boolean | PromiseLike<boolean> | undefined)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
+    private _on_connect_callback(resolve : (value: (boolean | PromiseLike<boolean>)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
@@ -504,7 +519,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_puback_callback(resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+    private _on_puback_callback(resolve : (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id });
         } else {
@@ -512,7 +527,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_suback_callback(resolve : (value?: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest> | undefined)) => void, reject : (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
+    private _on_suback_callback(resolve : (value: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest>)) => void, reject : (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id, topic, qos, error_code });
         } else {
@@ -520,7 +535,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_unsuback_callback(resolve : (value?: (MqttRequest | PromiseLike<MqttRequest> | undefined)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+    private _on_unsuback_callback(resolve : (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id });
         } else {
@@ -528,7 +543,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void> | undefined )) => void) {
+    private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void>)) => void) {
         resolve();
         this.emit('disconnect');
         this.close();

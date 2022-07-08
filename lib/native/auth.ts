@@ -8,7 +8,7 @@
  *
  * @packageDocumentation
  * @module auth
- * @preferred
+ * @mergeTarget
  */
 
 import * as auth from '../common/auth';

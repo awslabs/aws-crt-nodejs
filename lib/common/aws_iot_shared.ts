@@ -9,12 +9,13 @@
  *
  * @packageDocumentation
  * @module aws_iot
- * @preferred
  */
 
 
 /**
  * A helper function to add parameters to the username in with_custom_authorizer function
+ *
+ * @internal
  */
  export function add_to_username_parameter(current_username : string, parameter_value : string, parameter_pre_text : string) {
     let return_string = current_username;
@@ -34,6 +35,8 @@
 
 /**
  * A helper function to see if a string is not null, is defined, and is not an empty string
+ *
+ * @internal
  */
  export function is_string_and_not_empty(item : any) {
     return item != undefined && typeof(item) == 'string' && item != "";
@@ -47,6 +50,8 @@
  * @param input_signature the name of the signature to add - can be an empty string to skip
  * @param input_builder_username the username from the MQTT builder
  * @returns The finished username with the additions added to it
+ *
+ * @internal
  */
 export function populate_username_string_with_custom_authorizer(
     current_username? : string, input_username? : string, input_authorizer? : string,

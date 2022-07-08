@@ -4,8 +4,11 @@
  */
 
 /**
+ * Library-specific error extension type
+ *
  * @packageDocumentation
- * @module crt
+ * @module error
+ * @mergeTarget
  */
 
 /**

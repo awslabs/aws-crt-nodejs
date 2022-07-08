@@ -7,8 +7,8 @@
  * Module for AWS IoT configuration and connection establishment
  *
  * @packageDocumentation
- * @module aws-iot
- * @preferred
+ * @module aws_iot
+ * @mergeTarget
  */
 
 import { CredentialsProvider, StaticCredentialProvider} from "./auth"

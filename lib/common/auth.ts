@@ -4,11 +4,15 @@
  */
 
 /**
+ * @packageDocumentation
+ * @module auth
+ */
+
+/**
  * Configuration for use in AWS-related signing.
  * AwsSigningConfig is immutable.
  * It is good practice to use a new config for each signature, or the date might get too old.
  *
- * @internal
  */
 export interface AwsSigningConfigBase {
 
@@ -28,7 +32,6 @@ export interface AwsSigningConfigBase {
  * Configuration for websocket signing
  * It is good practice to use a new config for each signature, or the date might get too old.
  *
- * @Internal
  */
 export interface WebsocketOptionsBase {
     /**

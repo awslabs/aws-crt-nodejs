@@ -3,11 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-/**
- * @packageDocumentation
- * @module crt
- */
-
 // This is the entry point for the AWS CRT nodejs native libraries
 
 /* common libs */
@@ -22,6 +17,7 @@ import * as http from './native/http';
 import * as crypto from './native/crypto';
 import * as auth from './native/auth';
 import * as iot from './native/aws_iot';
+import * as checksums from './native/checksums';
 import { CrtError } from './native/error';
 
 export {
@@ -34,5 +30,6 @@ export {
     iot,
     platform,
     resource_safety,
+    checksums,
     CrtError
 };
