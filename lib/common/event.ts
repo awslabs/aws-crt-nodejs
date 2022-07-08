@@ -7,7 +7,7 @@
  * Module for base types related to event emission
  *
  * @packageDocumentation
- * @module events
+ * @module event
  */
 
 import { EventEmitter } from 'events';

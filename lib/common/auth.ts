@@ -4,8 +4,6 @@
  */
 
 /**
- * TestCommon
- *
  * @packageDocumentation
  * @module auth
  */
