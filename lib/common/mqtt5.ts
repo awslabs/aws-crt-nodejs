@@ -9,10 +9,10 @@
  */
 
 import {
-    AwsMqtt5PacketConnack,
-    AwsMqtt5PacketDisconnect, AwsMqtt5PacketPuback,
-    AwsMqtt5PacketPublish, AwsMqtt5PacketSuback,
-    AwsMqtt5PacketSubscribe, AwsMqtt5PacketUnsuback, AwsMqtt5PacketUnsubscribe, AwsMqtt5QoS
+    ConnackPacket,
+    DisconnectPacket, PubackPacket,
+    PublishPacket, SubackPacket,
+    SubscribePacket, UnsubackPacket, UnsubscribePacket, QoS
 } from "./mqtt5_packet";
 
 /**
@@ -27,12 +27,12 @@ import {
  *
  * Negotiated settings are communicated with every successful connection establishment.
  */
-export interface AwsMqtt5NegotiatedSettings {
+export interface NegotiatedSettings {
 
     /**
      * The maximum QoS allowed for publishes on this connection instance
      */
-    maximumQos: AwsMqtt5QoS;
+    maximumQos: QoS;
 
     /**
      * the amount of time in seconds the server will retain the MQTT session after a disconnect.
@@ -91,37 +91,37 @@ export interface AwsMqtt5NegotiatedSettings {
 /**
  * Client Stopped lifecycle event handler signature
  */
-export type AwsMqtt5ClientStopped = () => void;
+export type StoppedEventHandler = () => void;
 
 /**
  * Client AttemptingConnect lifecycle event handler signature
  */
-export type AwsMqtt5ClientAttemptingConnect = () => void;
+export type AttemptingConnectEventHandler = () => void;
 
 /**
  * Client ConnectionSuccess lifecycle event handler signature
  */
-export type AwsMqtt5ClientConnectionSuccess = (connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => void;
+export type ConnectionSuccessEventHandler = (connack: ConnackPacket, settings: NegotiatedSettings) => void;
 
 /**
  * Client ConnectionFailure lifecycle event handler signature
  */
-export type AwsMqtt5ClientConnectionFailure = (errorCode: number, connack?: AwsMqtt5PacketConnack) => void;
+export type ConnectionFailureEventHandler = (errorCode: number, connack?: ConnackPacket) => void;
 
 /**
  * Client Disconnection lifecycle event handler signature
  */
-export type AwsMqtt5ClientDisconnection = (errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => void;
+export type DisconnectionEventHandler = (errorCode: number, disconnect?: DisconnectPacket) => void;
 
 /**
  * Message received event handler signature
  */
-export type AwsMqtt5ClientMessageReceived = (message: AwsMqtt5PacketPublish) => void;
+export type MessageReceivedEventHandler = (message: PublishPacket) => void;
 
 /**
  * Shared Mqtt5 client interface across browser and node
  */
-export interface IAwsMqtt5Client {
+export interface IMqtt5Client {
 
     /**
      * Emitted when an mqtt PUBLISH packet is received by the client
@@ -131,7 +131,7 @@ export interface IAwsMqtt5Client {
      *
      * @event
      */
-    on(event: 'messageReceived', listener: AwsMqtt5ClientMessageReceived): this;
+    on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
 
     /**
      * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
@@ -141,7 +141,7 @@ export interface IAwsMqtt5Client {
      *
      * @event
      */
-    on(event: 'stopped', listener: AwsMqtt5ClientStopped): this;
+    on(event: 'stopped', listener: StoppedEventHandler): this;
 
     /**
      * Emitted when the client begins a connection attempt
@@ -151,7 +151,7 @@ export interface IAwsMqtt5Client {
      *
      * @event
      */
-    on(event: 'attemptingConnect', listener: AwsMqtt5ClientAttemptingConnect): this;
+    on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
     /**
      * Emitted when the client successfully establishes an mqtt connection
@@ -161,7 +161,7 @@ export interface IAwsMqtt5Client {
      *
      * @event
      */
-    on(event: 'connectionSuccess', listener: AwsMqtt5ClientConnectionSuccess): this;
+    on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
     /**
      * Emitted when the client fails to establish an mqtt connection
@@ -171,7 +171,7 @@ export interface IAwsMqtt5Client {
      *
      * @event
      */
-    on(event: 'connectionFailure', listener: AwsMqtt5ClientConnectionFailure): this;
+    on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
     /**
      * Emitted when the client's current mqtt connection is shut down
@@ -181,9 +181,7 @@ export interface IAwsMqtt5Client {
      *
      * @event
      */
-    on(event: 'disconnection', listener: AwsMqtt5ClientDisconnection): this;
-
-
+    on(event: 'disconnection', listener: DisconnectionEventHandler): this;
 
     /**
      * Notifies the mqtt5 client that you want it to attempt to connect to the configured endpoint.
@@ -198,26 +196,26 @@ export interface IAwsMqtt5Client {
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
-    stop(disconnectPacket?: AwsMqtt5PacketDisconnect) : void;
+    stop(disconnectPacket?: DisconnectPacket) : void;
 
     /**
      * Tells the client to attempt to subscribe to one or more topic filters.
      *
      * @param packet configuration of the SUBSCRIBE packet to send to the broker
      */
-    subscribe(packet: AwsMqtt5PacketSubscribe) : Promise<AwsMqtt5PacketSuback>;
+    subscribe(packet: SubscribePacket) : Promise<SubackPacket>;
 
     /**
      * Tells the client to attempt to unsubscribe from one or more topic filters.
      *
      * @param packet configuration of the UNSUBSCRIBE packet to send to the broker
      */
-    unsubscribe(packet: AwsMqtt5PacketUnsubscribe) : Promise<AwsMqtt5PacketUnsuback>;
+    unsubscribe(packet: UnsubscribePacket) : Promise<UnsubackPacket>;
 
     /**
      * Tells the client to attempt to send a PUBLISH packet
      *
      * @param packet configuration of the PUBLISH packet to send to the broker
      */
-    publish(packet: AwsMqtt5PacketPublish) : Promise<AwsMqtt5PacketPuback>;
+    publish(packet: PublishPacket) : Promise<PubackPacket>;
 }

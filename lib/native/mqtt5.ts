@@ -14,34 +14,34 @@ import { BufferedEventEmitter } from '../common/event';
 import * as io from "./io";
 import {HttpProxyOptions, HttpRequest} from './http';
 import {
-    AwsMqtt5PacketDisconnect,
-    AwsMqtt5PacketConnack,
-    AwsMqtt5PacketConnect,
-    AwsMqtt5PacketPuback,
-    AwsMqtt5PacketPublish,
-    AwsMqtt5PacketSubscribe, AwsMqtt5PacketSuback,
-    AwsMqtt5PacketUnsubscribe, AwsMqtt5PacketUnsuback
+    DisconnectPacket,
+    ConnackPacket,
+    ConnectPacket,
+    PubackPacket,
+    PublishPacket,
+    SubscribePacket, SubackPacket,
+    UnsubscribePacket, UnsubackPacket
 } from "../common/mqtt5_packet";
-import { AwsMqtt5NegotiatedSettings, IAwsMqtt5Client, AwsMqtt5ClientMessageReceived, AwsMqtt5ClientStopped, AwsMqtt5ClientAttemptingConnect, AwsMqtt5ClientConnectionSuccess, AwsMqtt5ClientConnectionFailure, AwsMqtt5ClientDisconnection } from "../common/mqtt5";
+import { NegotiatedSettings, IMqtt5Client, MessageReceivedEventHandler, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler } from "../common/mqtt5";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 
-export { AwsMqtt5NegotiatedSettings, AwsMqtt5ClientStopped, AwsMqtt5ClientAttemptingConnect, AwsMqtt5ClientConnectionSuccess, AwsMqtt5ClientConnectionFailure, AwsMqtt5ClientDisconnection, AwsMqtt5ClientMessageReceived, IAwsMqtt5Client,  } from "../common/mqtt5";
+export { NegotiatedSettings, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler, MessageReceivedEventHandler, IMqtt5Client,  } from "../common/mqtt5";
 
 /**
  * Websocket handshake http request transformation function signature
  */
-export type AwsMqtt5WebsocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => void;
+export type WebsocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => void;
 
 /**
  * Client Error event handler signature
  */
-export type AwsMqtt5ClientError = (error: CrtError) => void;
+export type ErrorEventHandler = (error: CrtError) => void;
 
 /**
  * Information about the queue state of the client.
  */
-export interface AwsMqtt5ClientOperationStatistics {
+export interface ClientStatistics {
     /**
      * total number of operations submitted to the client that have not yet been completed.  Unacked operations
      * are a subset of this.
@@ -70,7 +70,7 @@ export interface AwsMqtt5ClientOperationStatistics {
 /**
  * Controls how the MQTT5 client should behave with respect to MQTT sessions.
  */
-export enum AwsMqtt5ClientSessionBehavior {
+export enum ClientSessionBehavior {
     /**
      * Always ask for a clean session when connecting
      */
@@ -86,7 +86,7 @@ export enum AwsMqtt5ClientSessionBehavior {
  * Additional controls for client behavior with respect to operation validation and flow control; these checks
  * go beyond the base mqtt5 spec to respect limits of specific MQTT brokers.
  */
-export enum AwsMqtt5ClientExtendedValidationAndFlowControl {
+export enum ClientExtendedValidationAndFlowControl {
     /**
      * Do not do any additional validation or flow control outside of the MQTT5 spec
      */
@@ -114,12 +114,13 @@ export enum AwsMqtt5ClientExtendedValidationAndFlowControl {
  * how operations are handled while the client is not connected.  In particular, if the client is not connected,
  * then any operation that would be failed on disconnect (according to these rules) will be rejected.
  */
-export enum AwsMqtt5ClientOperationQueueBehavior {
+export enum ClientOperationQueueBehavior {
+
     /**
-     * All operations that are not complete at the time of disconnection are failed, except those operations that
-     * the mqtt 5 spec requires to be retransmitted (unacked qos1+ publishes).
+     * Requeues QoS 1+ publishes on disconnect; unacked publishes go to the front, unprocessed publishes stay
+     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
      */
-    FailAllOnDisconnect = 0,
+    FailNonQos1PublishOnDisconnect = 0,
 
     /**
      * Qos 0 publishes that are not complete at the time of disconnection are failed.  Unacked QoS 1+ publishes are
@@ -129,10 +130,10 @@ export enum AwsMqtt5ClientOperationQueueBehavior {
     FailQos0PublishOnDisconnect = 1,
 
     /**
-     * Requeues QoS 1+ publishes on disconnect; unacked publishes go to the front, unprocessed publishes stay
-     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
+     * All operations that are not complete at the time of disconnection are failed, except those operations that
+     * the mqtt 5 spec requires to be retransmitted (unacked qos1+ publishes).
      */
-    FailNonQos1PublishOnDisconnect = 2,
+    FailAllOnDisconnect = 2,
 }
 
 /**
@@ -140,7 +141,7 @@ export enum AwsMqtt5ClientOperationQueueBehavior {
  *
  * https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
  */
-export enum AwsRetryJitterType {
+export enum RetryJitterType {
     /**
      * Maps to Full
      */
@@ -165,42 +166,42 @@ export enum AwsRetryJitterType {
 /**
  * Configuration interface for the mqtt5 client event handler set
  */
-export interface AwsMqtt5ClientEventHandlers {
+export interface ClientEventHandlers {
     /**
      * Handler for the client's Stopped lifecycle event
      */
-    onStopped : (client: AwsMqtt5Client) => void;
+    onStopped : (client: Mqtt5Client) => void;
 
     /**
      * Handler for the client's AttemptingConnect lifecycle event
      */
-    onAttemptingConnect : (client: AwsMqtt5Client) => void;
+    onAttemptingConnect : (client: Mqtt5Client) => void;
 
     /**
      * Handler for the client's ConnectionSuccess lifecycle event
      */
-    onConnectionSuccess : (client: AwsMqtt5Client, connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => void;
+    onConnectionSuccess : (client: Mqtt5Client, connack: ConnackPacket, settings: NegotiatedSettings) => void;
 
     /**
      * Handler for the client's ConnectionFailure lifecycle event
      */
-    onConnectionFailure : (client: AwsMqtt5Client, errorCode: number, connack?: AwsMqtt5PacketConnack) => void;
+    onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack?: ConnackPacket) => void;
 
     /**
      * Handler for the client's Disconnection lifecycle event
      */
-    onDisconnection : (client: AwsMqtt5Client, errorCode: number, disconnect?: AwsMqtt5PacketDisconnect) => void;
+    onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect?: DisconnectPacket) => void;
 
     /**
      * Handler for client's MessageReceived event
      */
-    onMessageReceived : (client: AwsMqtt5Client, message: AwsMqtt5PacketPublish) => void;
+    onMessageReceived : (client: Mqtt5Client, message: PublishPacket) => void;
 }
 
 /**
  * Configuration interface for mqtt5 clients
  */
-export interface AwsMqtt5ClientConfig {
+export interface Mqtt5ClientConfig {
 
     /**
      * Host name of the MQTT broker to connect to
@@ -235,7 +236,7 @@ export interface AwsMqtt5ClientConfig {
      * Callback that allows a custom transformation of the http request that functions as the websocket handshake.
      * To use websockets but not perform a transformation, just set this as a trivial completion callback.
      */
-    websocketHandshakeTransform?: AwsMqtt5WebsocketHandshakeTransform;
+    websocketHandshakeTransform?: WebsocketHandshakeTransform;
 
     /**
      * Controls http proxy usage when establishing mqtt connections
@@ -245,25 +246,25 @@ export interface AwsMqtt5ClientConfig {
     /**
      * Controls how the MQTT5 client should behave with respect to MQTT sessions.
      */
-    sessionBehavior? : AwsMqtt5ClientSessionBehavior;
+    sessionBehavior? : ClientSessionBehavior;
 
     /**
      * Additional controls for client behavior with respect to operation validation and flow control; these checks
      * go beyond the base mqtt5 spec to respect limits of specific MQTT brokers.
      */
-    extendedValidationAndFlowControlOptions? : AwsMqtt5ClientExtendedValidationAndFlowControl;
+    extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
 
     /**
      * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
      * how operations are handled while the client is not connected.  In particular, if the client is not connected,
      * then any operation that would be failed on disconnect (according to these rules) will be rejected.
      */
-    offlineQueueBehavior? : AwsMqtt5ClientOperationQueueBehavior;
+    offlineQueueBehavior? : ClientOperationQueueBehavior;
 
     /**
      * Controls how the reconnect delay is modified in order to smooth reconnects when applied to large sets of hosts.
      */
-    retryJitterMode? : AwsRetryJitterType;
+    retryJitterMode? : RetryJitterType;
 
     /**
      * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
@@ -304,7 +305,7 @@ export interface AwsMqtt5ClientConfig {
     /**
      * All configurable options with respect to the CONNECT packet sent by the client.  This includes the will.
      */
-    connectProperties?: AwsMqtt5PacketConnect;
+    connectProperties?: ConnectPacket;
 }
 
 /**
@@ -312,23 +313,23 @@ export interface AwsMqtt5ClientConfig {
  *
  * <TODO> Long-form client documentation
  */
-export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) implements IAwsMqtt5Client {
+export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) implements IMqtt5Client {
 
     /**
      * Client constructor
      *
      * @param config The configuration for this client
      */
-    constructor(config: AwsMqtt5ClientConfig) {
+    constructor(config: Mqtt5ClientConfig) {
         super();
 
-        let event_handlers : AwsMqtt5ClientEventHandlers = {
-            onStopped : (client: AwsMqtt5Client) => { AwsMqtt5Client._s_on_stopped(client); },
-            onAttemptingConnect : (client: AwsMqtt5Client) => { AwsMqtt5Client._s_on_attempting_connect(client); },
-            onConnectionSuccess : (client: AwsMqtt5Client, connack : AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) => { AwsMqtt5Client._s_on_connection_success(client, connack, settings); },
-            onConnectionFailure : (client: AwsMqtt5Client, errorCode: number, connack? : AwsMqtt5PacketConnack) => { AwsMqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
-            onDisconnection : (client: AwsMqtt5Client, errorCode: number, disconnect? : AwsMqtt5PacketDisconnect) => { AwsMqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
-            onMessageReceived : (client: AwsMqtt5Client, message : AwsMqtt5PacketPublish) => { AwsMqtt5Client._s_on_message_received(client, message); }
+        let event_handlers : ClientEventHandlers = {
+            onStopped : (client: Mqtt5Client) => { Mqtt5Client._s_on_stopped(client); },
+            onAttemptingConnect : (client: Mqtt5Client) => { Mqtt5Client._s_on_attempting_connect(client); },
+            onConnectionSuccess : (client: Mqtt5Client, connack : ConnackPacket, settings: NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
+            onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack? : ConnackPacket) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
+            onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect? : DisconnectPacket) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
+            onMessageReceived : (client: Mqtt5Client, message : PublishPacket) => { Mqtt5Client._s_on_message_received(client, message); }
         };
 
         this._super(crt_native.mqtt5_client_new(
@@ -360,7 +361,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'error', listener: AwsMqtt5ClientError): this;
+    on(event: 'error', listener: ErrorEventHandler): this;
 
     /**
      * Emitted when an mqtt PUBLISH packet is received by the client
@@ -370,7 +371,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'messageReceived', listener: AwsMqtt5ClientMessageReceived): this;
+    on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
 
     /**
      * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
@@ -380,7 +381,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'stopped', listener: AwsMqtt5ClientStopped): this;
+    on(event: 'stopped', listener: StoppedEventHandler): this;
 
     /**
      * Emitted when the client begins a connection attempt
@@ -390,7 +391,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'attemptingConnect', listener: AwsMqtt5ClientAttemptingConnect): this;
+    on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
     /**
      * Emitted when the client successfully establishes an mqtt connection
@@ -400,7 +401,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'connectionSuccess', listener: AwsMqtt5ClientConnectionSuccess): this;
+    on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
     /**
      * Emitted when the client fails to establish an mqtt connection
@@ -410,7 +411,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'connectionFailure', listener: AwsMqtt5ClientConnectionFailure): this;
+    on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
     /**
      * Emitted when the client's current mqtt connection is shut down
@@ -420,7 +421,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @event
      */
-    on(event: 'disconnection', listener: AwsMqtt5ClientDisconnection): this;
+    on(event: 'disconnection', listener: DisconnectionEventHandler): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -454,7 +455,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
-    stop(disconnectPacket?: AwsMqtt5PacketDisconnect) {
+    stop(disconnectPacket?: DisconnectPacket) {
         crt_native.mqtt5_client_stop(this.native_handle(), disconnectPacket);
     }
 
@@ -463,11 +464,11 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @param packet configuration of the SUBSCRIBE packet to send to the broker
      */
-    async subscribe(packet: AwsMqtt5PacketSubscribe) {
-        return new Promise<AwsMqtt5PacketSuback>((resolve, reject) => {
+    async subscribe(packet: SubscribePacket) {
+        return new Promise<SubackPacket>((resolve, reject) => {
 
-            function curriedPromiseCallback(client: AwsMqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback){
-                return AwsMqtt5Client._s_on_suback_callback(resolve, reject, client, errorCode, suback);
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, suback?: SubackPacket){
+                return Mqtt5Client._s_on_suback_callback(resolve, reject, client, errorCode, suback);
             }
 
             try {
@@ -483,11 +484,11 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @param packet configuration of the UNSUBSCRIBE packet to send to the broker
      */
-    async unsubscribe(packet: AwsMqtt5PacketUnsubscribe) {
-        return new Promise<AwsMqtt5PacketUnsuback>((resolve, reject) => {
+    async unsubscribe(packet: UnsubscribePacket) {
+        return new Promise<UnsubackPacket>((resolve, reject) => {
 
-            function curriedPromiseCallback(client: AwsMqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback){
-                return AwsMqtt5Client._s_on_unsuback_callback(resolve, reject, client, errorCode, unsuback);
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket){
+                return Mqtt5Client._s_on_unsuback_callback(resolve, reject, client, errorCode, unsuback);
             }
 
             try {
@@ -503,11 +504,11 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * @param packet configuration of the PUBLISH packet to send to the broker
      */
-    async publish(packet: AwsMqtt5PacketPublish) {
-        return new Promise<AwsMqtt5PacketPuback>((resolve, reject) => {
+    async publish(packet: PublishPacket) {
+        return new Promise<PubackPacket>((resolve, reject) => {
 
-            function curriedPromiseCallback(client: AwsMqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback){
-                return AwsMqtt5Client._s_on_puback_callback(resolve, reject, client, errorCode, puback);
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, puback?: PubackPacket){
+                return Mqtt5Client._s_on_puback_callback(resolve, reject, client, errorCode, puback);
             }
 
             try {
@@ -523,7 +524,7 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      *
      * returns a small set of statistics about the current state of the operation queue
      */
-    getQueueStatistics() : AwsMqtt5ClientOperationStatistics {
+    getQueueStatistics() : ClientStatistics {
         return crt_native.mqtt5_client_get_queue_statistics(this.native_handle());
     }
 
@@ -534,60 +535,60 @@ export class AwsMqtt5Client extends NativeResourceMixin(BufferedEventEmitter) im
      * capture the client object itself, which would lead to an uncollectable strong reference cycle.
      */
 
-    private static _s_on_stopped(client: AwsMqtt5Client) {
+    private static _s_on_stopped(client: Mqtt5Client) {
         client.emit('stopped');
     }
 
-    private static _s_on_attempting_connect(client: AwsMqtt5Client) {
+    private static _s_on_attempting_connect(client: Mqtt5Client) {
         client.emit('attemptingConnect');
     }
 
-    private static _s_on_connection_success(client: AwsMqtt5Client, connack: AwsMqtt5PacketConnack, settings: AwsMqtt5NegotiatedSettings) {
+    private static _s_on_connection_success(client: Mqtt5Client, connack: ConnackPacket, settings: NegotiatedSettings) {
         client.emit('connectionSuccess', connack, settings);
     }
 
-    private static _s_on_connection_failure(client: AwsMqtt5Client, error: CrtError, connack?: AwsMqtt5PacketConnack) {
+    private static _s_on_connection_failure(client: Mqtt5Client, error: CrtError, connack?: ConnackPacket) {
         client.emit('connectionFailure', error, connack);
     }
 
-    private static _s_on_disconnection(client: AwsMqtt5Client, error: CrtError, disconnect?: AwsMqtt5PacketDisconnect) {
+    private static _s_on_disconnection(client: Mqtt5Client, error: CrtError, disconnect?: DisconnectPacket) {
         client.emit('disconnection', error, disconnect);
     }
 
-    private static _emitErrorOnNext(client: AwsMqtt5Client, errorCode: number) {
+    private static _emitErrorOnNext(client: Mqtt5Client, errorCode: number) {
         process.nextTick(() => {
             client.emit('error', new CrtError(errorCode));
         });
     }
 
-    private static _s_on_suback_callback(resolve : (value?: (AwsMqtt5PacketSuback | PromiseLike<AwsMqtt5PacketSuback> | undefined)) => void, reject : (reason?: any) => void, client: AwsMqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) {
+    private static _s_on_suback_callback(resolve : (value?: (SubackPacket | PromiseLike<SubackPacket> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, suback?: SubackPacket) {
         if (errorCode == 0) {
             resolve(suback);
         } else {
             reject("Failed to subscribe: " + io.error_code_to_string(errorCode));
-            AwsMqtt5Client._emitErrorOnNext(client, errorCode);
+            Mqtt5Client._emitErrorOnNext(client, errorCode);
         }
     }
 
-    private static _s_on_unsuback_callback(resolve : (value?: (AwsMqtt5PacketUnsuback | PromiseLike<AwsMqtt5PacketUnsuback> | undefined)) => void, reject : (reason?: any) => void, client: AwsMqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback) {
+    private static _s_on_unsuback_callback(resolve : (value?: (UnsubackPacket | PromiseLike<UnsubackPacket> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket) {
         if (errorCode == 0) {
             resolve(unsuback);
         } else {
             reject("Failed to unsubscribe: " + io.error_code_to_string(errorCode));
-            AwsMqtt5Client._emitErrorOnNext(client, errorCode);
+            Mqtt5Client._emitErrorOnNext(client, errorCode);
         }
     }
 
-    private static _s_on_puback_callback(resolve : (value?: (AwsMqtt5PacketPuback | PromiseLike<AwsMqtt5PacketPuback> | undefined)) => void, reject : (reason?: any) => void, client: AwsMqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback) {
+    private static _s_on_puback_callback(resolve : (value?: (PubackPacket | PromiseLike<PubackPacket> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, puback?: PubackPacket) {
         if (errorCode == 0) {
             resolve(puback);
         } else {
             reject("Failed to publish: " + io.error_code_to_string(errorCode));
-            AwsMqtt5Client._emitErrorOnNext(client, errorCode);
+            Mqtt5Client._emitErrorOnNext(client, errorCode);
         }
     }
 
-    private static _s_on_message_received(client: AwsMqtt5Client, message : AwsMqtt5PacketPublish) {
+    private static _s_on_message_received(client: Mqtt5Client, message : PublishPacket) {
         client.emit('messageReceived', message);
     }
 }

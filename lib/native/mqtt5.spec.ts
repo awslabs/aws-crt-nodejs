@@ -4,14 +4,14 @@
  */
 
 import {
-    AwsMqtt5Client,
-    AwsMqtt5ClientConfig, HttpProxyOptions
+    Mqtt5Client,
+    Mqtt5ClientConfig, HttpProxyOptions
 } from './mqtt5';
 import { once } from 'events';
 import {
-    AwsMqtt5PacketConnack,
+    ConnackPacket,
 } from "../common/mqtt5_packet";
-import { AwsMqtt5NegotiatedSettings } from "../common/mqtt5";
+import { NegotiatedSettings } from "../common/mqtt5";
 import { ClientTlsContext, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 
@@ -134,8 +134,8 @@ class ClientEnvironmentalConfig {
             ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType) != 0;
     }
 
-    public static getSuccessfulConnectionTestConfig(testType : SuccessfulConnectionTestType) : AwsMqtt5ClientConfig {
-        let config : AwsMqtt5ClientConfig = {
+    public static getSuccessfulConnectionTestConfig(testType : SuccessfulConnectionTestType) : Mqtt5ClientConfig {
+        let config : Mqtt5ClientConfig = {
             hostName : ClientEnvironmentalConfig.getSuccessfulConnectionTestHost(testType),
             port : ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType),
         }
@@ -179,9 +179,9 @@ class ClientEnvironmentalConfig {
 
 async function testSuccessfulConnection(testType : SuccessfulConnectionTestType) {
 
-    const client_config : AwsMqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType);
+    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType);
 
-    let client : AwsMqtt5Client = new AwsMqtt5Client(client_config);
+    let client : Mqtt5Client = new Mqtt5Client(client_config);
 
     const attemptingConnect = once(client, "attemptingConnect");
     const connectionSuccess = once(client, "connectionSuccess");
@@ -190,8 +190,8 @@ async function testSuccessfulConnection(testType : SuccessfulConnectionTestType)
 
     await attemptingConnect;
     let connectionResults = await connectionSuccess;
-    let connack : AwsMqtt5PacketConnack = connectionResults[0];
-    let settings : AwsMqtt5NegotiatedSettings = connectionResults[1];
+    let connack : ConnackPacket = connectionResults[0];
+    let settings : NegotiatedSettings = connectionResults[1];
 
     expect(connack).toBeDefined();
     expect(settings).toBeDefined();

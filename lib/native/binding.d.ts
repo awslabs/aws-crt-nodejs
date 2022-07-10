@@ -15,8 +15,8 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
-import {AwsMqtt5ClientConfig, AwsMqtt5Client, AwsMqtt5ClientEventHandlers, AwsMqtt5ClientOperationStatistics} from "./mqtt5";
-import { AwsMqtt5PacketDisconnect, AwsMqtt5PacketPuback, AwsMqtt5PacketPublish, AwsMqtt5PacketSuback, AwsMqtt5PacketSubscribe, AwsMqtt5PacketUnsuback, AwsMqtt5PacketUnsubscribe }  from "../common/mqtt5_packet";
+import {Mqtt5ClientConfig, Mqtt5Client, ClientEventHandlers, ClientStatistics} from "./mqtt5";
+import { DisconnectPacket, PubackPacket, PublishPacket, SubackPacket, SubscribePacket, UnsubackPacket, UnsubscribePacket }  from "../common/mqtt5_packet";
 
 
 /**
@@ -141,9 +141,9 @@ export function checksums_crc32c(data: StringLike, previous?: number): number;
 
 /** @internal */
 export function mqtt5_client_new(
-    client: AwsMqtt5Client,
-    config: AwsMqtt5ClientConfig,
-    event_handlers : AwsMqtt5ClientEventHandlers,
+    client: Mqtt5Client,
+    config: Mqtt5ClientConfig,
+    event_handlers : ClientEventHandlers,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
@@ -154,19 +154,19 @@ export function mqtt5_client_new(
 export function mqtt5_client_start(client: NativeHandle) : void;
 
 /** @internal */
-export function mqtt5_client_stop(client: NativeHandle, disconnect_packet?: AwsMqtt5PacketDisconnect) : void;
+export function mqtt5_client_stop(client: NativeHandle, disconnect_packet?: DisconnectPacket) : void;
 
 /** @internal */
-export function mqtt5_client_subscribe(client: NativeHandle, subscribe_packet: AwsMqtt5PacketSubscribe, on_resolution: (client: AwsMqtt5Client, errorCode: number, suback?: AwsMqtt5PacketSuback) => void) : void;
+export function mqtt5_client_subscribe(client: NativeHandle, subscribe_packet: SubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, suback?: SubackPacket) => void) : void;
 
 /** @internal */
-export function mqtt5_client_unsubscribe(client: NativeHandle, unsubscribe_packet: AwsMqtt5PacketUnsubscribe, on_resolution: (client: AwsMqtt5Client, errorCode: number, unsuback?: AwsMqtt5PacketUnsuback) => void) : void;
+export function mqtt5_client_unsubscribe(client: NativeHandle, unsubscribe_packet: UnsubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket) => void) : void;
 
 /** @internal */
-export function mqtt5_client_publish(client: NativeHandle, publish_packet: AwsMqtt5PacketPublish, on_resolution: (client: AwsMqtt5Client, errorCode: number, puback?: AwsMqtt5PacketPuback) => void) : void;
+export function mqtt5_client_publish(client: NativeHandle, publish_packet: PublishPacket, on_resolution: (client: Mqtt5Client, errorCode: number, puback?: PubackPacket) => void) : void;
 
 /** @internal */
-export function mqtt5_client_get_queue_statistics(client: NativeHandle) : AwsMqtt5ClientOperationStatistics;
+export function mqtt5_client_get_queue_statistics(client: NativeHandle) : ClientStatistics;
 
 /** @internal */
 export function mqtt5_client_close(client: NativeHandle) : void;

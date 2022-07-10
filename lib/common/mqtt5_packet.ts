@@ -11,7 +11,7 @@
 /**
  * Typescript interface for MQTT5 user properties
  */
-export interface AwsMqtt5UserProperty {
+export interface UserProperty {
     name: string;
     value: string;
 }
@@ -22,7 +22,7 @@ export interface AwsMqtt5UserProperty {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901079
  */
-export enum AwsMqtt5ConnectReasonCode {
+export enum ConnectReasonCode {
     Success = 0,
     UnspecifiedError = 128,
     MalformedPacket = 129,
@@ -53,7 +53,7 @@ export enum AwsMqtt5ConnectReasonCode {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208
  */
-export enum AwsMqtt5DisconnectReasonCode {
+export enum DisconnectReasonCode {
     NormalDisconnection = 0,
     DisconnectWithWillMessage = 4,
     UnspecifiedError = 128,
@@ -91,7 +91,7 @@ export enum AwsMqtt5DisconnectReasonCode {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901178
  */
-export enum AwsMqtt5SubackReasonCode {
+export enum SubackReasonCode {
     GrantedQoS0 = 0,
     GrantedQoS1 = 1,
     GrantedQoS2 = 2,
@@ -112,7 +112,7 @@ export enum AwsMqtt5SubackReasonCode {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901194
  */
-export enum AwsMqtt5UnsubackReasonCode {
+export enum UnsubackReasonCode {
     Success = 0,
     NoSubscriptionExisted = 17,
     UnspecifiedError = 128,
@@ -128,7 +128,7 @@ export enum AwsMqtt5UnsubackReasonCode {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901124
  */
-export enum AwsMqtt5PubackReasonCode {
+export enum PubackReasonCode {
     Success = 0,
     NoMatchingSubscribers = 16,
     UnspecifiedError = 128,
@@ -146,7 +146,7 @@ export enum AwsMqtt5PubackReasonCode {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901063
  */
-export enum AwsMqtt5PayloadFormatIndicator {
+export enum PayloadFormatIndicator {
     Bytes = 0,
     Utf8 = 1,
 }
@@ -154,12 +154,12 @@ export enum AwsMqtt5PayloadFormatIndicator {
 /**
  * Valid types for a PUBLISH packet's payload
  */
-export type AwsMqtt5Payload = string | ArrayBuffer | ArrayBufferView;
+export type Payload = string | ArrayBuffer | ArrayBufferView;
 
 /**
  * Valid types for MQTT5 packet binary data fields (other than PUBLISH payload)
  */
-export type AwsMqtt5BinaryData = ArrayBuffer | ArrayBufferView;
+export type BinaryData = ArrayBuffer | ArrayBufferView;
 
 /**
  * MQTT Message delivery quality of service.
@@ -167,7 +167,7 @@ export type AwsMqtt5BinaryData = ArrayBuffer | ArrayBufferView;
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901234
  */
-export enum AwsMqtt5QoS {
+export enum QoS {
 
     AtMostOnce = 0,
 
@@ -182,7 +182,7 @@ export enum AwsMqtt5QoS {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169
  */
-export enum AwsMqtt5RetainHandlingType {
+export enum RetainHandlingType {
 
     /**
      * Server should send all retained messages on topics that match the subscription's filter.
@@ -206,7 +206,7 @@ export enum AwsMqtt5RetainHandlingType {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901100
  */
-export interface AwsMqtt5PacketPublish {
+export interface PublishPacket {
     topic: string;
 
     /*
@@ -215,24 +215,24 @@ export interface AwsMqtt5PacketPublish {
      *
      * TODO: consider convenience try-converting to string in native if payload format is utf-8
      */
-    payload: AwsMqtt5Payload;
+    payload: Payload;
 
-    qos: AwsMqtt5QoS;
+    qos: QoS;
 
     retain?: Boolean;
 
-    payloadFormat?: AwsMqtt5PayloadFormatIndicator;
+    payloadFormat?: PayloadFormatIndicator;
 
     messageExpiryIntervalSeconds?: number;
 
     responseTopic?: string;
-    correlationData?: AwsMqtt5BinaryData;
+    correlationData?: BinaryData;
 
     subscriptionIdentifiers?: Array<number>;
 
     contentType?: string;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 }
 
 /**
@@ -240,13 +240,13 @@ export interface AwsMqtt5PacketPublish {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901121
  */
-export interface AwsMqtt5PacketPuback {
+export interface PubackPacket {
 
-    reasonCode: AwsMqtt5PubackReasonCode;
+    reasonCode: PubackReasonCode;
 
     reasonString?: string;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 }
 
 /**
@@ -257,7 +257,7 @@ export interface AwsMqtt5PacketPuback {
  * The client configuration includes the connect properties that should be used for every connection attempt
  * made by the client.
  */
-export interface AwsMqtt5PacketConnect {
+export interface ConnectPacket {
     keepAliveIntervalSeconds: number;
 
     /**
@@ -267,7 +267,7 @@ export interface AwsMqtt5PacketConnect {
     clientId?: string;
 
     username?: string;
-    password?: AwsMqtt5BinaryData;
+    password?: BinaryData;
 
     sessionExpiryIntervalSeconds?: number;
 
@@ -278,9 +278,9 @@ export interface AwsMqtt5PacketConnect {
     maximumPacketSizeBytes?: number;
 
     willDelayIntervalSeconds?: number;
-    will?: AwsMqtt5PacketPublish;
+    will?: PublishPacket;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 }
 
 /**
@@ -288,20 +288,20 @@ export interface AwsMqtt5PacketConnect {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901074
  */
-export interface AwsMqtt5PacketConnack {
+export interface ConnackPacket {
     sessionPresent : Boolean;
-    reasonCode : AwsMqtt5ConnectReasonCode;
+    reasonCode : ConnectReasonCode;
 
     sessionExpiryInterval?: number;
     receiveMaximum?: number;
-    maximumQos?: AwsMqtt5QoS;
+    maximumQos?: QoS;
     retainAvailable?: Boolean;
     maximumPacketSize?: number;
     assignedClientIdentifier?: string;
     topicAliasMaximum?: number;
     reasonString?: string;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 
     wildcardSubscriptionsAvailable?: Boolean;
     subscriptionIdentifiersAvailable?: Boolean;
@@ -317,14 +317,14 @@ export interface AwsMqtt5PacketConnack {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901205
  */
-export interface AwsMqtt5PacketDisconnect {
-    reasonCode: AwsMqtt5DisconnectReasonCode;
+export interface DisconnectPacket {
+    reasonCode: DisconnectReasonCode;
 
     sessionExpiryIntervalSeconds?: number;
 
     reasonString?: string;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 
     serverReference?: string;
 }
@@ -332,7 +332,7 @@ export interface AwsMqtt5PacketDisconnect {
 /**
  * Configures a single subscription within a Subscribe operation
  */
-export interface AwsMqtt5Subscription {
+export interface Subscription {
     /**
      * Topic filter to subscribe to
      */
@@ -341,7 +341,7 @@ export interface AwsMqtt5Subscription {
     /**
      * Maximum QOS that the subscriber will accept messages for.  Negotiated QoS may be different.
      */
-    qos : AwsMqtt5QoS;
+    qos : QoS;
 
     /**
      * Should the server not send publishes to a client when that client was the one who sent the publish?
@@ -356,7 +356,7 @@ export interface AwsMqtt5Subscription {
     /**
      * Should retained messages on matching topics be sent in reaction to this subscription?
      */
-    retainHandlingType?: AwsMqtt5RetainHandlingType;
+    retainHandlingType?: RetainHandlingType;
 }
 
 /**
@@ -364,12 +364,12 @@ export interface AwsMqtt5Subscription {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901161
  */
-export interface AwsMqtt5PacketSubscribe {
-    subscriptions?: Array<AwsMqtt5Subscription>;
+export interface SubscribePacket {
+    subscriptions?: Array<Subscription>;
 
     subscriptionIdentifier?: number;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 }
 
 /**
@@ -377,12 +377,12 @@ export interface AwsMqtt5PacketSubscribe {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901171
  */
-export interface AwsMqtt5PacketSuback {
+export interface SubackPacket {
     reasonString?: string;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 
-    reasonCodes: Array<AwsMqtt5SubackReasonCode>;
+    reasonCodes: Array<SubackReasonCode>;
 }
 
 /**
@@ -390,10 +390,10 @@ export interface AwsMqtt5PacketSuback {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901179
  */
-export interface AwsMqtt5PacketUnsubscribe {
+export interface UnsubscribePacket {
     topicFilters: Array<string>;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 }
 
 /**
@@ -401,11 +401,11 @@ export interface AwsMqtt5PacketUnsubscribe {
  *
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901187
  */
-export interface AwsMqtt5PacketUnsuback {
+export interface UnsubackPacket {
 
     reasonString?: string;
 
-    userProperties?: Array<AwsMqtt5UserProperty>;
+    userProperties?: Array<UserProperty>;
 
-    reasonCodes: Array<AwsMqtt5UnsubackReasonCode>;
+    reasonCodes: Array<UnsubackReasonCode>;
 }

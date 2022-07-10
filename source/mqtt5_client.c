@@ -1958,79 +1958,13 @@ static int s_init_event_threadsafe_functions(
  * them sensible defaults at the binding level.
  */
 static const uint32_t s_default_mqtt_keep_alive_interval_seconds = 1200;
-static const uint32_t s_default_socket_connect_timeout_ms = 10000;
-static const uint64_t s_default_min_reconnect_delay_ms = 1000;
-static const uint64_t s_default_max_reconnect_delay_ms = 120000;
-static const uint64_t s_default_min_connected_time_to_reset_reconnect_delay_ms = 30000;
-static const uint32_t s_default_ping_timeout_ms = 30000;
-static const uint32_t s_default_connack_timeout_ms = 20000;
-static const uint32_t s_default_operation_timeout_seconds = 60000;
 
 static void s_init_default_mqtt5_client_options(
     struct aws_mqtt5_client_options *client_options,
     struct aws_mqtt5_packet_connect_view *connect_options) {
 
     connect_options->keep_alive_interval_seconds = s_default_mqtt_keep_alive_interval_seconds;
-
-    client_options->session_behavior = AWS_MQTT5_CSBT_CLEAN;
-    client_options->outbound_topic_aliasing_behavior = AWS_MQTT5_COTABT_DUMB;
-    client_options->extended_validation_and_flow_control_options = AWS_MQTT5_EVAFCO_NONE;
-    client_options->offline_queue_behavior = AWS_MQTT5_COQBT_FAIL_NON_QOS1_PUBLISH_ON_DISCONNECT;
-    client_options->retry_jitter_mode = AWS_EXPONENTIAL_BACKOFF_JITTER_DEFAULT;
-    client_options->min_reconnect_delay_ms = s_default_min_reconnect_delay_ms;
-    client_options->max_reconnect_delay_ms = s_default_max_reconnect_delay_ms;
-    client_options->min_connected_time_to_reset_reconnect_delay_ms =
-        s_default_min_connected_time_to_reset_reconnect_delay_ms;
-    client_options->ping_timeout_ms = s_default_ping_timeout_ms;
-    client_options->connack_timeout_ms = s_default_connack_timeout_ms;
-    client_options->operation_timeout_seconds = s_default_operation_timeout_seconds;
-
     client_options->connect_options = connect_options;
-}
-
-napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
-    napi_value node_args[1];
-    size_t num_args = AWS_ARRAY_SIZE(node_args);
-    napi_value *arg = &node_args[0];
-    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - Failed to retrieve arguments");
-        return NULL;
-    });
-
-    if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - needs exactly 1 argument");
-        return NULL;
-    }
-
-    struct aws_mqtt5_client_binding *binding = NULL;
-    napi_value node_binding = *arg++;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
-        napi_throw_error(
-            env, NULL, "aws_napi_mqtt5_client_close - Failed to extract client binding from first argument");
-        return NULL;
-    });
-
-    if (binding == NULL) {
-        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - binding was null");
-        return NULL;
-    }
-
-    if (binding->client == NULL) {
-        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - client was null");
-        return NULL;
-    }
-
-    if (binding->node_client_external_ref != NULL) {
-        napi_delete_reference(env, binding->node_client_external_ref);
-        binding->node_client_external_ref = NULL;
-    }
-
-    if (binding->node_mqtt5_client_weak_ref != NULL) {
-        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
-        binding->node_mqtt5_client_weak_ref = NULL;
-    }
-
-    return NULL;
 }
 
 napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
@@ -2073,14 +2007,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
-
-    struct aws_socket_options default_socket_options = {
-        .type = AWS_SOCKET_STREAM,
-        .connect_timeout_ms = s_default_socket_connect_timeout_ms,
-        .keep_alive_timeout_sec = 0,
-        .keepalive = false,
-        .keep_alive_interval_sec = 0,
-    };
 
     s_init_default_mqtt5_client_options(&client_options, &connect_options);
 
@@ -2139,8 +2065,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             napi_throw_error(env, NULL, "mqtt5_client_new - Unable to extract socket_options from external");
             goto cleanup;
         });
-    } else {
-        client_options.socket_options = &default_socket_options;
     }
 
     napi_value node_tls = *arg++;
@@ -3383,4 +3307,49 @@ napi_value aws_napi_mqtt5_client_get_queue_statistics(napi_env env, napi_callbac
     }
 
     return napi_stats;
+}
+
+napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_mqtt5_client_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_close - Failed to extract client binding from first argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - binding was null");
+        return NULL;
+    }
+
+    if (binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - client was null");
+        return NULL;
+    }
+
+    if (binding->node_client_external_ref != NULL) {
+        napi_delete_reference(env, binding->node_client_external_ref);
+        binding->node_client_external_ref = NULL;
+    }
+
+    if (binding->node_mqtt5_client_weak_ref != NULL) {
+        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
+        binding->node_mqtt5_client_weak_ref = NULL;
+    }
+
+    return NULL;
 }
