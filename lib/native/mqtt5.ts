@@ -374,16 +374,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
 
     /**
-     * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
-     *
-     * @param event the type of event (stopped)
-     * @param listener the stopped event listener to add
-     *
-     * @event
-     */
-    on(event: 'stopped', listener: StoppedEventHandler): this;
-
-    /**
      * Emitted when the client begins a connection attempt
      *
      * @param event the type of event (attemptingConnect)
@@ -422,6 +412,16 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * @event
      */
     on(event: 'disconnection', listener: DisconnectionEventHandler): this;
+
+    /**
+     * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
+     *
+     * @param event the type of event (stopped)
+     * @param listener the stopped event listener to add
+     *
+     * @event
+     */
+    on(event: 'stopped', listener: StoppedEventHandler): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);

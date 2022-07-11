@@ -82,8 +82,8 @@ export interface NegotiatedSettings {
     /**
      * The final client id in use by the newly-established connection.  This will be the configured client id if one
      * was given in the configuration, otherwise, if no client id was specified, this will be the client id assigned
-     * by the server.  Reconnection attempts will always use the auto-assigned client id, allowing for session
-     * resumption in that case.
+     * by the server.  Reconnection attempts will always use the auto-assigned client id, allowing for auto-assigned
+     * session resumption.
      */
     clientId: string;
 }
@@ -134,16 +134,6 @@ export interface IMqtt5Client {
     on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
 
     /**
-     * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
-     *
-     * @param event the type of event (stopped)
-     * @param listener the stopped event listener to add
-     *
-     * @event
-     */
-    on(event: 'stopped', listener: StoppedEventHandler): this;
-
-    /**
      * Emitted when the client begins a connection attempt
      *
      * @param event the type of event (attemptingConnect)
@@ -184,6 +174,17 @@ export interface IMqtt5Client {
     on(event: 'disconnection', listener: DisconnectionEventHandler): this;
 
     /**
+     * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
+     *
+     * @param event the type of event (stopped)
+     * @param listener the stopped event listener to add
+     *
+     * @event
+     */
+    on(event: 'stopped', listener: StoppedEventHandler): this;
+
+
+    /**
      * Notifies the mqtt5 client that you want it to attempt to connect to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
      * from the client configuration.
@@ -194,14 +195,15 @@ export interface IMqtt5Client {
      * Notifies the mqtt5 client that you want it to transition to the stopped state, disconnecting any existing
      * connection and ceasing subsequent reconnect attempts.
      *
-     * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
+     * @param packet (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
-    stop(disconnectPacket?: DisconnectPacket) : void;
+    stop(packet?: DisconnectPacket) : void;
 
     /**
      * Tells the client to attempt to subscribe to one or more topic filters.
      *
      * @param packet configuration of the SUBSCRIBE packet to send to the broker
+     * @returns a promise that will be rejected with an error or resolve with the SUBACK response
      */
     subscribe(packet: SubscribePacket) : Promise<SubackPacket>;
 
@@ -209,6 +211,7 @@ export interface IMqtt5Client {
      * Tells the client to attempt to unsubscribe from one or more topic filters.
      *
      * @param packet configuration of the UNSUBSCRIBE packet to send to the broker
+     * @returns a promise that will be rejected with an error or resolve with the UNSUBACK response
      */
     unsubscribe(packet: UnsubscribePacket) : Promise<UnsubackPacket>;
 
@@ -216,6 +219,7 @@ export interface IMqtt5Client {
      * Tells the client to attempt to send a PUBLISH packet
      *
      * @param packet configuration of the PUBLISH packet to send to the broker
+     * @returns a promise that will be rejected with an error or resolve with the PUBACK response
      */
     publish(packet: PublishPacket) : Promise<PubackPacket>;
 }
