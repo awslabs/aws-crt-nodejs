@@ -9,16 +9,7 @@
  *
  * @packageDocumentation
  * @module mqtt
- * @preferred
  */
-
-/**
- * MQTT Quality of Service
- * [MQTT-4.3]
- *
- * @category MQTT
- */
-import {CrtError} from "../browser/error";
 
 /**
  * Quality of service control for mqtt publish operations
@@ -134,7 +125,6 @@ export class MqttWill {
  *
  * @param session_present true if the reconnection went to an existing session, false if this is a clean session
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionConnected = (session_present: boolean) => void;
@@ -143,31 +133,9 @@ export type MqttConnectionConnected = (session_present: boolean) => void;
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has fully disconnected
  * by user request
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionDisconnected = () => void;
-
-/**
- * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
- *
- * @param error the error that occurred
- *
- * @asMemberOf MqttClientConnection
- * @category MQTT
- */
-export type MqttConnectionError = (error: CrtError) => void;
-
-/**
- * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
- * interrupted unexpectedly.
- *
- * @param error description of the error that occurred
- *
- * @asMemberOf MqttClientConnection
- * @category MQTT
- */
-export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection successfully
@@ -176,9 +144,21 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  * @param return_code MQTT connect return code (should be 0 for a successful reconnection)
  * @param session_present true if the reconnection went to an existing session, false if this is a clean session
  *
- * @asMemberOf MqttClientConnection
  * @category MQTT
  */
 export type MqttConnectionResumed = (return_code: number, session_present: boolean) => void;
 
+/**
+ * Const value for max reconnection back off time
+ * 
+ * @category MQTT
+ */
+export const DEFAULT_RECONNECT_MAX_SEC = 128;
 
+/**
+ * Const value for min reconnection back off time
+ * 
+ * @category MQTT
+ */
+ export const DEFAULT_RECONNECT_MIN_SEC = 1;
+ 

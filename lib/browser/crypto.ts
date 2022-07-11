@@ -4,9 +4,11 @@
  */
 
 /**
+ * A module containing support for a variety of cryptographic operations.
  *
  * @packageDocumentation
  * @module crypto
+ * @mergeTarget
  */
 
 import * as Crypto from "crypto-js";

@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing miscellaneous types for resource management
+ *
  * @packageDocumentation
- * @module crt
+ * @module resource_safety
+ * @mergeTarget
  */
 
 /**
