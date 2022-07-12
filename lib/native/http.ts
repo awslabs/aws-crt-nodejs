@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing support for creating http connections and making requests on them.
+ *
  * @packageDocumentation
  * @module http
+ * @mergeTarget
  */
 
 import crt_native from './binding';
@@ -80,31 +84,28 @@ export class HttpConnection extends NativeResourceMixin(BufferedEventEmitter) im
     /**
      * Emitted when the connection is connected and ready to start streams
      *
-     * @param event type of event (connect)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'connect', listener: HttpClientConnectionConnected): this;
+    static CONNECT = 'connect';
 
     /**
      * Emitted when an error occurs on the connection
      *
-     * @param event type of event (error)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: HttpClientConnectionError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the connection has completed
      *
-     * @param event type of event (close)
-     * @param listener event listener to use
-     *
      * @event
      */
+    static CLOSE = 'close';
+
+    on(event: 'connect', listener: HttpClientConnectionConnected): this;
+
+    on(event: 'error', listener: HttpClientConnectionError): this;
+
     on(event: 'close', listener: HttpClientConnectionClosed): this;
 
     // Overridden to allow uncorking on ready
@@ -348,7 +349,6 @@ export class HttpStream extends NativeResourceMixin(BufferedEventEmitter) implem
  *
  * @param headers the set of headers
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamHeaders = (headers: HttpHeaders) => void;
@@ -359,7 +359,6 @@ export type HttpStreamHeaders = (headers: HttpHeaders) => void;
  * @param status_code http response status code
  * @param headers the response's set of headers
  *
- * @asMemberOf HttpClientStream
  * @category HTTP
  */
 export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => void;
@@ -394,52 +393,46 @@ export class HttpClientStream extends HttpStream {
     /**
      * Emitted when the http response headers have arrived.
      *
-     * @param event type of event (response)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'response', listener: HttpStreamResponse): this;
-
+    static RESPONSE = 'response';
 
     /**
      * Emitted when http response data is available.
      *
-     * @param event type of event (data)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'data', listener: HttpStreamData): this;
+    static DATA = 'data';
 
     /**
      * Emitted when an error occurs in stream processing
      *
-     * @param event type of event (error)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: HttpStreamError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the stream has completed
      *
-     * @param event type of event (end)
-     * @param listener event listener to use
-     *
      * @event
      */
-    on(event: 'end', listener: HttpStreamComplete): this;
+    static END = 'end';
 
     /**
      * Emitted when inline headers are delivered while communicating over H2
      *
-     * @param event type of event (headers)
-     * @param listener event listener to use
-     *
      * @event
-    */
+     */
+    static HEADERS = 'headers';
+
+    on(event: 'response', listener: HttpStreamResponse): this;
+
+    on(event: 'data', listener: HttpStreamData): this;
+
+    on(event: 'error', listener: HttpStreamError): this;
+
+    on(event: 'end', listener: HttpStreamComplete): this;
+
     on(event: 'headers', listener: HttpStreamHeaders): this;
 
     // Overridden to allow uncorking on ready and response

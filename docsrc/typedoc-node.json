@@ -1,15 +1,33 @@
 {
-    "mode": "modules",
-    "inputFiles": ["lib/index.ts", "lib/native/*.ts", "lib/common/*.ts"],
-    "exclude": ["lib/native/binding.js", "lib/browser", "lib/native/*.spec.ts", "lib/common/*.spec.ts"],
-    "out": "docs/node",
-    "includeDeclarations": true,
+    "entryPoints": [
+        "../lib/native/auth.ts",
+        "../lib/native/aws_iot.ts",
+        "../lib/native/checksums.ts",
+        "../lib/native/crt.ts",
+        "../lib/native/crypto.ts",
+        "../lib/native/error.ts",
+        "../lib/native/http.ts",
+        "../lib/native/io.ts",
+        "../lib/native/mqtt.ts",
+        "../lib/native/binding.d.ts",
+        "../lib/common/auth.ts",
+        "../lib/common/crypto.ts",
+        "../lib/common/event.ts",
+        "../lib/common/http.ts",
+        "../lib/common/mqtt.ts",
+        "../lib/common/resource_safety.ts"
+    ],
+    "out": "../docs/node",
     "excludeExternals": true,
-    "excludeNotExported": true,
     "excludePrivate": true,
-    "stripInternal": true,
+    "excludeInternal": true,
+    "excludeProtected": true,
     "disableSources": true,
     "categorizeByGroup": true,
-    "listInvalidSymbolLinks": true
+    "validation": {
+        "invalidLink" : true
+    },
+    "treatWarningsAsErrors" : true,
+    "mergeModulesMergeMode": "module"
 }
 

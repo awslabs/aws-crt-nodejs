@@ -15,8 +15,7 @@
  * - IO: everything else
  *
  * @packageDocumentation
- * @module IO
- * @preferred
+ * @module io
  */
 
 /**

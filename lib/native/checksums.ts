@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing various checksum implementations intended for streaming payloads
+ *
  * @packageDocumentation
- * @module crypto
+ * @module checksums
+ * @mergeTarget
  */
 
  import crt_native from './binding';

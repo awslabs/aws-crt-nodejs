@@ -4,8 +4,12 @@
  */
 
 /**
+ *
+ * A module containing support for mqtt connection establishment and operations.
+ *
  * @packageDocumentation
  * @module mqtt
+ * @mergeTarget
  */
 
 import * as mqtt from "mqtt";
@@ -25,11 +29,30 @@ import {
     OnMessageCallback,
     MqttConnectionConnected,
     MqttConnectionDisconnected,
-    MqttConnectionError,
-    MqttConnectionInterrupted,
-    MqttConnectionResumed
+    MqttConnectionResumed,
+    DEFAULT_RECONNECT_MIN_SEC,
+    DEFAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
+ *
+ * @param error the error that occurred
+ *
+ * @category MQTT
+ */
+export type MqttConnectionError = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * interrupted unexpectedly.
+ *
+ * @param error description of the error that occurred
+ *
+ * @category MQTT
+ */
+export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
  * @category MQTT
@@ -101,6 +124,20 @@ export interface MqttConnectionConfig {
     protocol_operation_timeout?: number;
 
     /**
+     * Minimum seconds to wait between reconnect attempts.
+     * Must be <= {@link reconnect_max_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_min_sec?: number;
+
+    /**
+     * Maximum seconds to wait between reconnect attempts.
+     * Must be >= {@link reconnect_min_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_max_sec?: number;
+
+    /**
      * Will to send with CONNECT packet. The will is
      * published by the server when its connection to the client is unexpectedly lost.
      */
@@ -117,6 +154,9 @@ export interface MqttConnectionConfig {
 
     /** AWS credentials, which will be used to sign the websocket request */
     credentials?: AWSCredentials;
+
+    /** Options for the underlying credentianls provider */
+    credentials_provider?: auth.CredentialsProvider;
 }
 
 /**
@@ -217,6 +257,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private subscriptions = new TopicTrie();
     private connection_count = 0;
 
+    // track number of times in a row that reconnect has been attempted
+    // use exponential backoff between subsequent failed attempts
+    private reconnect_count = 0;
+    private reconnect_min_sec = DEFAULT_RECONNECT_MIN_SEC;
+    private reconnect_max_sec = DEFAULT_RECONNECT_MAX_SEC;
+
     /**
      * @param client The client that owns this connection
      * @param config The configuration for this connection
@@ -236,7 +282,33 @@ export class MqttClientConnection extends BufferedEventEmitter {
             retain: this.config.will.retain,
         } : undefined;
 
-        const websocketXform = (config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
+
+        if (config.reconnect_min_sec !== undefined) {
+            this.reconnect_min_sec = config.reconnect_min_sec;
+            // clamp max, in case they only passed in min
+            this.reconnect_max_sec = Math.max(this.reconnect_min_sec, this.reconnect_max_sec);
+        }
+
+        if (config.reconnect_max_sec !== undefined) {
+            this.reconnect_max_sec = config.reconnect_max_sec;
+            // clamp min, in case they only passed in max (or passed in min > max)
+            this.reconnect_min_sec = Math.min(this.reconnect_min_sec, this.reconnect_max_sec);
+        }
+
+        this.reset_reconnect_times();
+
+        // If the credentials are set but no the credentials_provider
+        if (this.config.credentials_provider == undefined &&
+            this.config.credentials != undefined){
+            const provider = new auth.StaticCredentialProvider(
+                { aws_region: this.config.credentials.aws_region, 
+                    aws_access_id: this.config.credentials.aws_access_id, 
+                    aws_secret_key: this.config.credentials.aws_secret_key,
+                    aws_sts_token: this.config.credentials.aws_sts_token});
+            this.config.credentials_provider = provider;
+        }
+
+        const websocketXform = (this.config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
         this.connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
@@ -247,8 +319,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                // reconnectPeriod default is 1000ms
-                reconnectPeriod: 1000,
+                reconnectPeriod: this.reconnect_max_sec * 1000, 
                 will: will,
                 transformWsUrl: websocketXform,
             }
@@ -264,102 +335,61 @@ export class MqttClientConnection extends BufferedEventEmitter {
     /**
      * Emitted when the connection successfully establishes itself for the first time
      *
-     * @param event the type of event (connect)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'connect', listener: MqttConnectionConnected): this;
+    static CONNECT = 'connect';
 
     /**
      * Emitted when connection has disconnected sucessfully.
      *
-     * @param event the type of event (disconnect)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+    static DISCONNECT = 'disconnect';
 
     /**
      * Emitted when an error occurs.  The error will contain the error
      * code and message.
      *
-     * @param event the type of event (error)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'error', listener: MqttConnectionError): this;
+    static ERROR = 'error';
 
     /**
      * Emitted when the connection is dropped unexpectedly. The error will contain the error
      * code and message.  The underlying mqtt implementation will attempt to reconnect.
      *
-     * @param event the type of event (interrupt)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+    static INTERRUPT = 'interrupt';
 
     /**
      * Emitted when the connection reconnects (after an interrupt). Only triggers on connections after the initial one.
      *
-     * @param event the type of event (resume)
-     * @param listener the event listener to use
-     *
      * @event
      */
-    on(event: 'resume', listener: MqttConnectionResumed): this;
+    static RESUME = 'resume';
 
     /**
      * Emitted when any MQTT publish message arrives.
      *
-     * @param event the type of event (message)
-     * @param listener the event listener to use
-     *
      * @event
      */
+    static MESSAGE = 'message';
+
+    on(event: 'connect', listener: MqttConnectionConnected): this;
+
+    on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
+
+    on(event: 'error', listener: MqttConnectionError): this;
+
+    on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+
+    on(event: 'resume', listener: MqttConnectionResumed): this;
+
     on(event: 'message', listener: OnMessageCallback): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
-    }
-
-    private on_connect = (connack: mqtt.IConnackPacket) => {
-        this.on_online(connack.sessionPresent);
-    }
-
-    private on_online = (session_present: boolean) => {
-        if (++this.connection_count == 1) {
-            this.emit('connect', session_present);
-        } else {
-            this.emit('resume', 0, session_present);
-        }
-    }
-
-    private on_offline = () => {
-        this.emit('interrupt', -1);
-    }
-
-    private on_disconnected = () => {
-        this.emit('disconnect');
-    }
-
-    private on_error = (error: Error) => {
-        this.emit('error', new CrtError(error))
-    }
-
-    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
-        // pass payload as ArrayBuffer
-        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
-
-        const callback = this.subscriptions.find(topic);
-        if (callback) {
-            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
-        }
-        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }
 
     /**
@@ -416,7 +446,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     reject(new CrtError(error));
                     return this.on_error(error);
                 }
-                resolve({ packet_id: (packet as mqtt.IPublishPacket).messageId })
+                
+                let id = undefined;
+                if (qos != QoS.AtMostOnce) {
+                    id = (packet as mqtt.IPublishPacket).messageId;
+                }
+                resolve({packet_id: id} );
             });
         });
     }
@@ -488,5 +523,74 @@ export class MqttClientConnection extends BufferedEventEmitter {
         return new Promise((resolve) => {
             this.connection.end(undefined, resolve)
         });
+    }
+
+    private on_connect = (connack: mqtt.IConnackPacket) => {
+        this.on_online(connack.sessionPresent);
+    }
+
+    private on_online = (session_present: boolean) => {
+        if (++this.connection_count == 1) {
+            this.emit('connect', session_present);
+        } else {
+            /** Reset reconnect times after reconnect succeed. */
+            this.reset_reconnect_times();
+            this.emit('resume', 0, session_present);
+        }
+    }
+
+    private on_offline = () => {
+        this.emit('interrupt', -1);
+        const waitTime = this.get_reconnect_time_sec();
+        setTimeout(() => {
+                /** Emit reconnect after backoff time */
+                this.reconnect_count++;
+                this.connection.reconnect();
+            },
+            waitTime * 1000);
+    }
+
+    private on_disconnected = () => {
+        this.emit('disconnect');
+    }
+
+    private on_error = (error: Error) => {
+        this.emit('error', new CrtError(error))
+    }
+
+    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
+        // pass payload as ArrayBuffer
+        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
+
+        const callback = this.subscriptions.find(topic);
+        if (callback) {
+            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
+        }
+        this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
+    }
+
+    private reset_reconnect_times()
+    {
+        this.reconnect_count = 0;
+    }
+
+    /**
+     * Returns seconds until next reconnect attempt.
+     */
+    private get_reconnect_time_sec(): number {
+        if (this.reconnect_min_sec == 0 && this.reconnect_max_sec == 0) {
+            return 0;
+        }
+
+        // Uses "FullJitter" backoff algorithm, described here:
+        // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+        // We slightly vary the algorithm described on the page,
+        // which takes (base,cap) and may result in 0.
+        // But we take (min,max) as parameters, and don't don't allow results less than min.
+        const cap = this.reconnect_max_sec - this.reconnect_min_sec;
+        const base = Math.max(this.reconnect_min_sec, 1);
+        /** Use Math.pow() since IE does not support ** operator */
+        const sleep = Math.random() * Math.min(cap, base * Math.pow(2, this.reconnect_count));
+        return this.reconnect_min_sec + sleep;
     }
 }
