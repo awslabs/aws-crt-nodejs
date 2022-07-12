@@ -7,15 +7,19 @@
  * Module for AWS IoT configuration and connection establishment
  *
  * @packageDocumentation
- * @module aws-iot
- * @preferred
+ * @module aws_iot
+ * @mergeTarget
  */
 
-import { MqttConnectionConfig, MqttWill } from "./mqtt";
+import { MqttConnectionConfig, MqttWill} from "./mqtt";
+import { DEFAULT_RECONNECT_MIN_SEC, DEFAULT_RECONNECT_MAX_SEC} from "../common/mqtt"
 import * as io from "./io";
 import { TlsContextOptions } from "./io";
 import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
+import { WebsocketOptionsBase } from "../common/auth";
+import { CrtError } from "./error";
+
 import {
     aws_sign_request,
     AwsCredentialsProvider,
@@ -31,16 +35,9 @@ import * as iot_shared from "../common/aws_iot_shared"
  *
  * @category IoT
  */
-export interface WebsocketConfig {
-
+export interface WebsocketConfig extends WebsocketOptionsBase{
     /** Sources the AWS Credentials used to sign the websocket connection handshake */
     credentials_provider: AwsCredentialsProvider;
-
-    /**
-     * (Optional) factory function to create the configuration used to sign the websocket handshake.  Leave null
-     * to use the default settings.
-     */
-    create_signing_config?: () => AwsSigningConfig;
 
     /** (Optional) http proxy configuration */
     proxy_options?: HttpProxyOptions;
@@ -49,12 +46,6 @@ export interface WebsocketConfig {
      * endpoint.
      */
     region: string;
-
-    /**
-     * (Optional) override for the service name used in signing the websocket handshake.  Leave null to use the
-     * default (iotdevicegateway)
-     */
-    service?: string;
 
     /** (Optional)  TLS configuration to use when establishing the connection */
     tls_ctx_options?: TlsContextOptions;
@@ -83,6 +74,8 @@ export class AwsIotMqttConnectionConfigBuilder {
             username: "",
             password: undefined,
             tls_ctx: undefined,
+            reconnect_min_sec: DEFAULT_RECONNECT_MIN_SEC,
+            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC
         };
         this.is_using_custom_authorizer = false
     }
@@ -183,10 +176,14 @@ export class AwsIotMqttConnectionConfigBuilder {
                 };
 
                 try {
-                    await aws_sign_request(request, signing_config);
+                    await aws_sign_request(request, signing_config as AwsSigningConfig);
                     done();
                 } catch (error) {
-                    done(error);
+                    if (error instanceof CrtError) {
+                        done(error.error_code);
+                    } else {
+                        done(3); /* TODO: AWS_ERROR_UNKNOWN */
+                    }
                 }
             };
         }
@@ -395,6 +392,26 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_password(password : string) {
         this.params.password = password;
+        return this;
+    }
+
+    /**
+     * Configure the max reconnection period (in second). The reonnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
+     * @param reconnect_max_sec max reconnection period 
+     */
+    with_reconnect_max_sec(max_sec: number) {
+        this.params.reconnect_max_sec = max_sec;
+        return this;
+    }
+
+    /**
+     * Configure the min reconnection period (in second). The reonnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
+     * @param reconnect_min_sec min reconnection period 
+     */
+    with_reconnect_min_sec(min_sec: number) {
+        this.params.reconnect_min_sec = min_sec;
         return this;
     }
 

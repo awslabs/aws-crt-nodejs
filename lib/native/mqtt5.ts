@@ -562,8 +562,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         });
     }
 
-    private static _s_on_suback_callback(resolve : (value?: (SubackPacket | PromiseLike<SubackPacket> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, suback?: SubackPacket) {
-        if (errorCode == 0) {
+    private static _s_on_suback_callback(resolve : (value: (SubackPacket | PromiseLike<SubackPacket>)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, suback?: SubackPacket) {
+        if (errorCode == 0 && suback !== undefined) {
             resolve(suback);
         } else {
             reject("Failed to subscribe: " + io.error_code_to_string(errorCode));
@@ -571,8 +571,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         }
     }
 
-    private static _s_on_unsuback_callback(resolve : (value?: (UnsubackPacket | PromiseLike<UnsubackPacket> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket) {
-        if (errorCode == 0) {
+    private static _s_on_unsuback_callback(resolve : (value: (UnsubackPacket | PromiseLike<UnsubackPacket>)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket) {
+        if (errorCode == 0 && unsuback !== undefined) {
             resolve(unsuback);
         } else {
             reject("Failed to unsubscribe: " + io.error_code_to_string(errorCode));
@@ -580,8 +580,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         }
     }
 
-    private static _s_on_puback_callback(resolve : (value?: (PubackPacket | PromiseLike<PubackPacket> | undefined)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, puback?: PubackPacket) {
-        if (errorCode == 0) {
+    private static _s_on_puback_callback(resolve : (value: (PubackPacket | PromiseLike<PubackPacket>)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, puback?: PubackPacket) {
+        if (errorCode == 0 && puback !== undefined) {
             resolve(puback);
         } else {
             reject("Failed to publish: " + io.error_code_to_string(errorCode));

@@ -5,11 +5,11 @@
 
 /**
  *
- * A module containing miscellaneous functionality for error reporting, platform functionality, and package-wide logic.
+ * A module containing miscellaneous platform-related queries
  *
  * @packageDocumentation
- * @module crt
- * @preferred
+ * @module platform
+ * @mergeTarget
  */
 
 /**

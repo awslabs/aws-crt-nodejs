@@ -3,11 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-/**
- * @packageDocumentation
- * @module crt
- */
-
 // This is the entry point for the browser AWS CRT shim library
 
 /* common libs */
@@ -20,6 +15,7 @@ import * as mqtt from './browser/mqtt';
 import * as http from './browser/http';
 import * as crypto from './browser/crypto';
 import * as iot from './browser/aws_iot';
+import * as auth from './browser/auth';
 import { CrtError } from './browser/error';
 
 export {
@@ -27,6 +23,7 @@ export {
     mqtt,
     http,
     crypto,
+    auth,
     iot,
     platform,
     resource_safety,
