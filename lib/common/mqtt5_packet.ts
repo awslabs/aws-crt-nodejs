@@ -5,7 +5,7 @@
 
 /**
  * @packageDocumentation
- * @module mqtt
+ * @module mqtt5
  */
 
 /**
@@ -23,8 +23,18 @@ export interface UserProperty {
  * https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901079
  */
 export enum ConnectReasonCode {
+
+    /**
+     * Returned when the connection is accepted.
+     */
     Success = 0,
+
+    /**
+     * Returned when the server has a failure but does not want to specify a reason or none
+     * of the other reason codes apply.
+     */
     UnspecifiedError = 128,
+
     MalformedPacket = 129,
     ProtocolError = 130,
     ImplementationSpecificError = 131,
@@ -212,8 +222,6 @@ export interface PublishPacket {
     /*
      * While the payload as input can be one of several types, the payload as output (via message receipt)
      * will always be an ArrayBuffer of binary data.
-     *
-     * TODO: consider convenience try-converting to string in native if payload format is utf-8
      */
     payload: Payload;
 

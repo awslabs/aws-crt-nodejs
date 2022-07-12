@@ -5,7 +5,7 @@
 
 /**
  * @packageDocumentation
- * @module mqtt
+ * @module mqtt5
  */
 
 import {

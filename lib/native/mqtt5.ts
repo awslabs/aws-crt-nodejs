@@ -5,7 +5,8 @@
 
 /**
  * @packageDocumentation
- * @module mqtt
+ * @module mqtt5
+ * @mergeTarget
  */
 
 import crt_native from './binding';
