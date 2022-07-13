@@ -40,29 +40,30 @@ export type WebsocketHandshakeTransform = (request: HttpRequest, done: (error_co
 export type ErrorEventHandler = (error: CrtError) => void;
 
 /**
- * Information about the queue state of the client.
+ * Information about the client's queue of operations
  */
 export interface ClientStatistics {
+
     /**
-     * total number of operations submitted to the client that have not yet been completed.  Unacked operations
+     * Total number of operations submitted to the client that have not yet been completed.  Unacked operations
      * are a subset of this.
      */
     incompleteOperationCount : number;
 
     /**
-     * total packet size of operations submitted to the client that have not yet been completed.  Unacked operations
+     * Total packet size of operations submitted to the client that have not yet been completed.  Unacked operations
      * are a subset of this.
      */
     incompleteOperationSize : number;
 
     /**
-     * total number of operations that have been sent to the server and are waiting for a corresponding ACK before
+     * Total number of operations that have been sent to the server and are waiting for a corresponding ACK before
      * they can be completed.
      */
     unackedOperationCount : number;
 
     /**
-     * total packet size of operations that have been sent to the server and are waiting for a corresponding ACK before
+     * Total packet size of operations that have been sent to the server and are waiting for a corresponding ACK before
      * they can be completed.
      */
     unackedOperationSize : number;
@@ -72,6 +73,7 @@ export interface ClientStatistics {
  * Controls how the MQTT5 client should behave with respect to MQTT sessions.
  */
 export enum ClientSessionBehavior {
+
     /**
      * Always ask for a clean session when connecting
      */
@@ -85,7 +87,7 @@ export enum ClientSessionBehavior {
 
 /**
  * Additional controls for client behavior with respect to operation validation and flow control; these checks
- * go beyond the base mqtt5 spec to respect limits of specific MQTT brokers.
+ * go beyond the MQTT5 spec to respect limits of specific MQTT brokers.
  */
 export enum ClientExtendedValidationAndFlowControl {
     /**
@@ -98,14 +100,16 @@ export enum ClientExtendedValidationAndFlowControl {
      * default AWS IoT Core limits.
      *
      * Currently applies the following additional validation:
-     *  (1) No more than 8 subscriptions per SUBSCRIBE packet
-     *  (2) Topics and topic filters have a maximum of 7 slashes (8 segments), not counting any AWS rules prefix
-     *  (3) Topics must be <= 256 bytes in length
-     *  (4) Client id must be <= 128 bytes in length
+     *
+     * 1. No more than 8 subscriptions per SUBSCRIBE packet
+     * 1. Topics and topic filters have a maximum of 7 slashes (8 segments), not counting any AWS rules prefix
+     * 1. Topics must be <= 256 bytes in length
+     * 1. Client id must be <= 128 bytes in length
      *
      * Also applies the following flow control:
-     *  (1) Outbound throughput throttled to 512KB/s
-     *  (2) Outbound publish TPS throttled to 100
+     *
+     * 1. Outbound throughput throttled to 512KB/s
+     * 1. Outbound publish TPS throttled to 100
      */
     AwsIotCoreDefaults = 1,
 }
@@ -118,48 +122,51 @@ export enum ClientExtendedValidationAndFlowControl {
 export enum ClientOperationQueueBehavior {
 
     /**
-     * Requeues QoS 1+ publishes on disconnect; unacked publishes go to the front, unprocessed publishes stay
+     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
      * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
      */
     FailNonQos1PublishOnDisconnect = 0,
 
     /**
-     * Qos 0 publishes that are not complete at the time of disconnection are failed.  Unacked QoS 1+ publishes are
-     * requeued at the head of the line for immediate retransmission on a session resumption.  All other operations
+     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
+     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
      * are requeued in original order behind any retransmissions.
      */
     FailQos0PublishOnDisconnect = 1,
 
     /**
-     * All operations that are not complete at the time of disconnection are failed, except those operations that
-     * the mqtt 5 spec requires to be retransmitted (unacked qos1+ publishes).
+     * All operations that are not complete at the time of disconnection are failed, except operations that
+     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
      */
     FailAllOnDisconnect = 2,
 }
 
 /**
- * Controls how the reconnect delay is modified in order to smooth reconnects when applied to large sets of hosts.
+ * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
+ * timepoints for a large set of reconnecting clients.
  *
  * See [Exponential Backoff and Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
  */
 export enum RetryJitterType {
+
     /**
      * Maps to Full
      */
     Default = 0,
 
     /**
-     * Do not perform any randomization on the reconnect delay
+     * Do not perform any randomization on the reconnect delay:
+     * ```NextReconnectDelay = CurrentExponentialBackoffValue```
      */
     None = 1,
 
     /**
-     * ReconnectDelay = Random(0, CurrentExponentialBackoff)
+     * ```NextReconnectDelay = Random(0, CurrentExponentialBackoffValue)```
      */
     Full = 2,
 
     /**
-     * ReconnectDelay = Min(MaxReconnectDelay, Random(MinReconnectDelay, 3 * ReconnectDelay)
+     * ```NextReconnectDelay = Min(MaxReconnectDelay, Random(MinReconnectDelay, 3 * CurrentReconnectDelay)```
      */
     Decorrelated = 3,
 }
@@ -168,6 +175,7 @@ export enum RetryJitterType {
  * Configuration interface for the mqtt5 client event handler set
  */
 export interface ClientEventHandlers {
+
     /**
      * Handler for the client's Stopped lifecycle event
      */
@@ -205,12 +213,12 @@ export interface ClientEventHandlers {
 export interface Mqtt5ClientConfig {
 
     /**
-     * Host name of the MQTT broker to connect to
+     * Host name of the MQTT server to connect to.
      */
     hostName: string;
 
     /**
-     * Host port of the MQTT broker to connect to
+     * Network port of the MQTT server to connect to.
      */
     port: number;
 
@@ -220,27 +228,26 @@ export interface Mqtt5ClientConfig {
     clientBootstrap?: io.ClientBootstrap;
 
     /**
-     * Controls socket properties of the underlying MQTT connections made by the client
+     * Controls socket properties of the underlying MQTT connections made by the client.
      */
     socketOptions?: io.SocketOptions;
 
     /**
      * TLS context for secure socket connections.
-     * If None is provided, then an unencrypted connection is used.
+     * If undefined, then a plaintext connection will be used.
      */
     tlsCtx?: io.ClientTlsContext;
 
     /**
-     * Websocket configuration.  Websockets will be used if this is set to a valid transformation callback.  If null
-     * or undefined, the connection will be made with direct mqtt.
-     *
-     * Callback that allows a custom transformation of the http request that functions as the websocket handshake.
-     * To use websockets but not perform a transformation, just set this as a trivial completion callback.
+     * This callback allows a custom transformation of the http request that functions as the websocket handshake.
+     * Websockets will be used if this is set to a valid transformation callback.  To use websockets but not perform
+     * a transformation, just set this as a trivial completion callback.  If undefined, the connection will be made
+     * with direct mqtt.
      */
     websocketHandshakeTransform?: WebsocketHandshakeTransform;
 
     /**
-     * Controls http proxy usage when establishing mqtt connections
+     * Configures (tunneling) http proxy usage when establishing MQTT connections
      */
     proxyOptions?: HttpProxyOptions;
 
@@ -257,13 +264,14 @@ export interface Mqtt5ClientConfig {
 
     /**
      * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
-     * how operations are handled while the client is not connected.  In particular, if the client is not connected,
-     * then any operation that would be failed on disconnect (according to these rules) will be rejected.
+     * how new operations are handled while the client is not connected.  In particular, if the client is not connected,
+     * then any operation that would be failed on disconnect (according to these rules) will also be rejected.
      */
     offlineQueueBehavior? : ClientOperationQueueBehavior;
 
     /**
-     * Controls how the reconnect delay is modified in order to smooth reconnects when applied to large sets of hosts.
+     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
+     * timepoints for a large set of reconnecting clients.
      */
     retryJitterMode? : RetryJitterType;
 
@@ -286,8 +294,8 @@ export interface Mqtt5ClientConfig {
     minConnectedTimeToResetReconnectDelayMs? : number;
 
     /**
-     * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the connection
-     * will be shut down.
+     * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
+     * close the current connection.
      */
     pingTimeoutMs? : number;
 
@@ -298,7 +306,7 @@ export interface Mqtt5ClientConfig {
     connackTimeoutMs? : number;
 
     /**
-     * Time interval to wait for an ack after sending a QoS1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
+     * Time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
      * failing the packet, notifying the client of failure, and removing it from the retry queue.
      */
     operationTimeoutSeconds? : number;
@@ -386,7 +394,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
     /**
-     * Emitted when the client successfully establishes an mqtt connection
+     * Emitted when the client successfully establishes an MQTT connection
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
@@ -396,7 +404,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
     /**
-     * Emitted when the client fails to establish an mqtt connection
+     * Emitted when the client fails to establish an MQTT connection
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
@@ -406,7 +414,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
     /**
-     * Emitted when the client's current mqtt connection is shut down
+     * Emitted when the client's current MQTT connection is shut down
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
@@ -430,30 +438,35 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         return this;
     }
 
-    /* Public API for MQTT5 */
 
     /**
-     * Triggers cleanup of native resources associated with the mqtt5 client.  Once this has been invoked, callbacks
+     * Triggers cleanup of native resources associated with the MQTT5 client.  Once this has been invoked, callbacks
      * and events are not guaranteed to be received.
      *
      * This must be called when finished with a client.  Otherwise, native resources will leak.
+     *
+     * This is an asynchronous operation.
      */
     close() {
         crt_native.mqtt5_client_close(this.native_handle());
     }
 
     /**
-     * Notifies the native mqtt5 client that you want it to attempt to connect to the configured endpoint.
+     * Notifies the MQTT5 client that you want it to attempt to connect to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
      * in the mqtt5 client configuration.
+     *
+     * This is an asynchronous operation.
      */
     start() {
         crt_native.mqtt5_client_start(this.native_handle());
     }
 
     /**
-     * Notifies the mqtt5 client that you want it to transition to the stopped state, disconnecting any existing
-     * connection and ceasing subsequent reconnect attempts.
+     * Notifies the MQTT5 client that you want it to transition to the stopped state, disconnecting any existing
+     * connection and stopping subsequent reconnect attempts.
+     *
+     * This is an asynchronous operation.
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
@@ -464,9 +477,10 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     /**
      * Tells the client to attempt to subscribe to one or more topic filters.
      *
-     * @param packet configuration of the SUBSCRIBE packet to send to the broker
+     * @param packet SUBSCRIBE packet to send to the server
+     * @returns a promise that will be rejected with an error or resolved with the SUBACK response
      */
-    async subscribe(packet: SubscribePacket) {
+    async subscribe(packet: SubscribePacket) : Promise<SubackPacket> {
         return new Promise<SubackPacket>((resolve, reject) => {
 
             function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, suback?: SubackPacket){
@@ -484,9 +498,10 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     /**
      * Tells the client to attempt to unsubscribe from one or more topic filters.
      *
-     * @param packet configuration of the UNSUBSCRIBE packet to send to the broker
+     * @param packet UNSUBSCRIBE packet to send to the server
+     * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
      */
-    async unsubscribe(packet: UnsubscribePacket) {
+    async unsubscribe(packet: UnsubscribePacket) : Promise<UnsubackPacket> {
         return new Promise<UnsubackPacket>((resolve, reject) => {
 
             function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket){
@@ -504,9 +519,10 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     /**
      * Tells the client to attempt to send a PUBLISH packet
      *
-     * @param packet configuration of the PUBLISH packet to send to the broker
+     * @param packet PUBLISH packet to send to the server
+     * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
-    async publish(packet: PublishPacket) {
+    async publish(packet: PublishPacket) : Promise<PubackPacket> {
         return new Promise<PubackPacket>((resolve, reject) => {
 
             function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, puback?: PubackPacket){

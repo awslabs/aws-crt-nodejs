@@ -646,25 +646,25 @@ export enum RetainHandlingType {
 export interface PublishPacket {
 
     /**
-     * Outbound publishes - The topic this message should be published to.
+     * Sent publishes - The topic this message should be published to.
      *
-     * Inbound publishes - The topic this message was published to.
+     * Received publishes - The topic this message was published to.
      *
      * See [MQTT5 Topic Name](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901107)
      */
     topicName: string;
 
     /**
-     * The payload of the message.
+     * The payload of the publish message.
      *
      * See [MQTT5 Publish Payload](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901119)
      */
     payload: Payload;
 
     /**
-     * Outbound publishes - The MQTT quality of service level this message should be delivered with.
+     * Sent publishes - The MQTT quality of service level this message should be delivered with.
      *
-     * Inbound publishes - The MQTT quality of service level this message was delivered at.
+     * Received publishes - The MQTT quality of service level this message was delivered at.
      *
      * See [MQTT5 QoS](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901103)
      */
@@ -673,7 +673,7 @@ export interface PublishPacket {
     /**
      * True if this is a retained message, false otherwise.
      *
-     * Always set on inbound packets; on outbound packets, undefined implies false.
+     * Always set on received publishes; on sent publishes, undefined implies false.
      *
      * See [MQTT5 Retain](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901104)
      */
@@ -688,13 +688,13 @@ export interface PublishPacket {
     payloadFormat?: PayloadFormatIndicator;
 
     /**
-     * Outbound publishes - indicates the maximum amount of time allowed to elapse for message delivery before the server
+     * Sent publishes - indicates the maximum amount of time allowed to elapse for message delivery before the server
      * should instead delete the message (relative to a recipient).
      *
-     * Inbound publishes - indicates the remaining amount of time (from the server's perspective) before the message would
+     * Received publishes - indicates the remaining amount of time (from the server's perspective) before the message would
      * have been deleted relative to the subscribing client.
      *
-     * If left empty, indicates no expiration timeout.
+     * If left undefined, indicates no expiration timeout.
      *
      * See [MQTT5 Message Expiry Interval](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901112)
      */
@@ -717,9 +717,9 @@ export interface PublishPacket {
     correlationData?: BinaryData;
 
     /**
-     * Outbound publishes - ignored
+     * Sent publishes - ignored
      *
-     * Inbound publishes - the subscription identifiers of all the subscriptions this message matches.
+     * Received publishes - the subscription identifiers of all the subscriptions this message matched.
      *
      * See [MQTT5 Subscription Identifier](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901117)
      */
@@ -865,7 +865,7 @@ export interface ConnectPacket {
 
     /**
      * The definition of a message to be published when the connection's session is destroyed by the server or when
-     * the will delay interval has elapsed, whichever comes first.
+     * the will delay interval has elapsed, whichever comes first.  If undefined, then nothing will be sent.
      *
      * See [MQTT5 Will](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901040)
      */
@@ -907,7 +907,7 @@ export interface ConnackPacket {
     sessionExpiryInterval?: number;
 
     /**
-     * The maximum amount of in-flight Qos 1 or 2 messages that the server is willing to handle at once.  If omitted,
+     * The maximum amount of in-flight QoS 1 or 2 messages that the server is willing to handle at once.  If omitted,
      * the limit is based on the valid MQTT packet id space (65535).
      *
      * See [MQTT5 Receive Maximum](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901083)
@@ -922,7 +922,7 @@ export interface ConnackPacket {
     maximumQos?: QoS;
 
     /**
-     * Indicates whether the server supports retained messages.  If unspecified, retained messages are
+     * Indicates whether the server supports retained messages.  If undefined, retained messages are
      * supported.
      *
      * See [MQTT5 Retain Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901085)
@@ -930,7 +930,7 @@ export interface ConnackPacket {
     retainAvailable?: Boolean;
 
     /**
-     * Specifies the maximum packet size, in bytes, that the server is willing to accept.  If unspecified, there
+     * Specifies the maximum packet size, in bytes, that the server is willing to accept.  If undefined, there
      * is no limit beyond what is imposed by the MQTT spec itself.
      *
      * See [MQTT5 Maximum Packet Size](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901086)
@@ -960,7 +960,7 @@ export interface ConnackPacket {
     reasonString?: string;
 
     /**
-     * Indicates whether the server supports wildcard subscriptions.  If unspecified, wildcard subscriptions
+     * Indicates whether the server supports wildcard subscriptions.  If undefined, wildcard subscriptions
      * are supported.
      *
      * See [MQTT5 Wildcard Subscriptions Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901091)
@@ -968,7 +968,7 @@ export interface ConnackPacket {
     wildcardSubscriptionsAvailable?: Boolean;
 
     /**
-     * Indicates whether the server supports subscription identifiers.  If unspecified, subscription identifiers
+     * Indicates whether the server supports subscription identifiers.  If undefined, subscription identifiers
      * are supported.
      *
      * See [MQTT5 Subscription Identifiers Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901092)
@@ -976,7 +976,7 @@ export interface ConnackPacket {
     subscriptionIdentifiersAvailable?: Boolean;
 
     /**
-     * Indicates whether the server supports shared subscription topic filters.  If unspecified, shared subscriptions
+     * Indicates whether the server supports shared subscription topic filters.  If undefined, shared subscriptions
      * are supported.
      *
      * See [MQTT5 Shared Subscriptions Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901093)
@@ -984,7 +984,7 @@ export interface ConnackPacket {
     sharedSubscriptionsAvailable?: Boolean;
 
     /**
-     * Server-requested override of the keep alive interval, in seconds.  If unspecified, the keep alive value sent
+     * Server-requested override of the keep alive interval, in seconds.  If undefined, the keep alive value sent
      * by the client should be used.
      *
      * See [MQTT5 Server Keep Alive](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901094)
@@ -1001,7 +1001,8 @@ export interface ConnackPacket {
 
     /**
      * Property indicating an alternate server that the client may temporarily or permanently attempt
-     * to connect to instead of the configured one.
+     * to connect to instead of the configured endpoint.  Will only be set if the reason code indicates another
+     * server may be used (ServerMoved, UseAnotherServer).
      *
      * See [MQTT5 Server Reference](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901096)
      */
@@ -1021,7 +1022,7 @@ export interface ConnackPacket {
 export interface DisconnectPacket {
 
     /**
-     * Value indicating the reason that the remote endpoint sent the DISCONNECT packet
+     * Value indicating the reason that the sender is closing the connection
      *
      * See [MQTT5 Disconnect Reason Code](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208)
      */
@@ -1037,7 +1038,7 @@ export interface DisconnectPacket {
     sessionExpiryIntervalSeconds?: number;
 
     /**
-     * Additional diagnostic information about the result of the connection attempt.
+     * Additional diagnostic information about the reason that the sender is closing the connection
      *
      * See [MQTT5 Reason String](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901212)
      */
@@ -1052,7 +1053,8 @@ export interface DisconnectPacket {
 
     /**
      * Property indicating an alternate server that the client may temporarily or permanently attempt
-     * to connect to instead of the configured one.
+     * to connect to instead of the configured endpoint.  Will only be set if the reason code indicates another
+     * server may be used (ServerMoved, UseAnotherServer).
      *
      * See [MQTT5 Server Reference](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901214)
      */
@@ -1073,7 +1075,7 @@ export interface Subscription {
     topicFilter : string;
 
     /**
-     * Maximum QOS that the subscriber will accept messages for.  Negotiated QoS may be different.
+     * Maximum QoS on which the subscriber will accept publish messages.  Negotiated QoS may be different.
      *
      * See [MQTT5 Subscription Options](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169)
      */
@@ -1081,14 +1083,14 @@ export interface Subscription {
 
     /**
      * Should the server not send publishes to a client when that client was the one who sent the publish?  If
-     * omitted, this is assumed to be false.
+     * undefined, this is assumed to be false.
      *
      * See [MQTT5 Subscription Options](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169)
      */
     noLocal? : Boolean;
 
     /**
-     * Should messages sent due to this subscription keep the retain flag preserved on the message?  If omitted,
+     * Should messages sent due to this subscription keep the retain flag preserved on the message?  If undefined,
      * this is assumed to be false.
      *
      * See [MQTT5 Subscription Options](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169)
@@ -1096,7 +1098,7 @@ export interface Subscription {
     retainAsPublished?: Boolean;
 
     /**
-     * Should retained messages on matching topics be sent in reaction to this subscription?  If omitted,
+     * Should retained messages on matching topics be sent in reaction to this subscription?  If undefined,
      * this is assumed to be RetainHandlingType.SendOnSubscribe.
      *
      * See [MQTT5 Subscription Options](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169)
@@ -1110,7 +1112,7 @@ export interface Subscription {
 export interface SubscribePacket {
 
     /**
-     * List of topic filter subscriptions that the client wishes to perform
+     * List of topic filter subscriptions that the client wishes to listen to
      *
      * See [MQTT5 Subscribe Payload](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901168)
      */
@@ -1186,7 +1188,7 @@ export interface UnsubscribePacket {
 export interface UnsubackPacket {
 
     /**
-     * A list of reason codes indicating the result of each individual unsubscribe-to-a-topic-filter entry in the
+     * A list of reason codes indicating the result of unsubscribing from each individual topic filter entry in the
      * associated UNSUBSCRIBE packet.
      *
      * See [MQTT5 Unsuback Payload](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901194)

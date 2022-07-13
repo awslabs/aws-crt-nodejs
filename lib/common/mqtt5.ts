@@ -23,7 +23,7 @@ import {
  *   (2) your CONNECT settings
  *   (3) the CONNACK from the broker
  *
- * the client does all the combining for you and gives something with final, authoritative values.
+ * the client instead does the combining for you and emits a NegotiatedSettings object with final, authoritative values.
  *
  * Negotiated settings are communicated with every successful connection establishment.
  */
@@ -35,17 +35,17 @@ export interface NegotiatedSettings {
     maximumQos: QoS;
 
     /**
-     * the amount of time in seconds the server will retain the MQTT session after a disconnect.
+     * The amount of time in seconds the server will retain the MQTT session after a disconnect.
      */
     sessionExpiryInterval: number;
 
     /**
-     * the number of QoS 1 and QoS2 publications the server is willing to process concurrently.
+     * The number of in-flight QoS 1 and QoS2 publications the server is willing to process concurrently.
      */
     receiveMaximumFromServer: number;
 
     /**
-     * the maximum packet size the server is willing to accept.
+     * The maximum packet size the server is willing to accept.
      */
     maximumPacketSizeToServer: number;
 
@@ -62,22 +62,22 @@ export interface NegotiatedSettings {
     retainAvailable: Boolean;
 
     /**
-     * whether the server supports wildcard subscriptions.
+     * Whether the server supports wildcard subscriptions.
      */
     wildcardSubscriptionsAvailable: Boolean;
 
     /**
-     * whether the server supports subscription identifiers
+     * Whether the server supports subscription identifiers
      */
     subscriptionIdentifiersAvailable: Boolean;
 
     /**
-     * whether the server supports shared subscriptions
+     * Whether the server supports shared subscriptions
      */
     sharedSubscriptionsAvailable: Boolean;
 
     /**
-     * whether the client has rejoined an existing session.
+     * Whether the client has rejoined an existing session.
      */
     rejoinedSession: Boolean;
 
@@ -121,12 +121,12 @@ export type DisconnectionEventHandler = (errorCode: number, disconnect?: Disconn
 export type MessageReceivedEventHandler = (message: PublishPacket) => void;
 
 /**
- * Shared Mqtt5 client interface across browser and node
+ * Shared MQTT5 client interface across browser and node
  */
 export interface IMqtt5Client {
 
     /**
-     * Emitted when an mqtt PUBLISH packet is received by the client
+     * Emitted when an MQTT PUBLISH packet is received by the client
      *
      * @param event the type of event (messageReceived)
      * @param listener the messageReceived event listener to add
@@ -146,7 +146,7 @@ export interface IMqtt5Client {
     on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
     /**
-     * Emitted when the client successfully establishes an mqtt connection
+     * Emitted when the client successfully establishes an MQTT connection
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
@@ -156,7 +156,7 @@ export interface IMqtt5Client {
     on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
     /**
-     * Emitted when the client fails to establish an mqtt connection
+     * Emitted when the client fails to establish an MQTT connection
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
@@ -166,7 +166,7 @@ export interface IMqtt5Client {
     on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
     /**
-     * Emitted when the client's current mqtt connection is shut down
+     * Emitted when the client's current MQTT connection is closed
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
@@ -187,15 +187,19 @@ export interface IMqtt5Client {
 
 
     /**
-     * Notifies the mqtt5 client that you want it to attempt to connect to the configured endpoint.
+     * Notifies the MQTT5 client that you want it to attempt to connect to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
      * from the client configuration.
+     *
+     * This is an asynchronous operation.
      */
     start() : void;
 
     /**
-     * Notifies the mqtt5 client that you want it to transition to the stopped state, disconnecting any existing
-     * connection and ceasing subsequent reconnect attempts.
+     * Notifies the MQTT5 client that you want it to transition to the stopped state, disconnecting any existing
+     * connection and stopping subsequent reconnect attempts.
+     *
+     * This is an asynchronous operation.
      *
      * @param packet (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
@@ -204,24 +208,24 @@ export interface IMqtt5Client {
     /**
      * Tells the client to attempt to subscribe to one or more topic filters.
      *
-     * @param packet configuration of the SUBSCRIBE packet to send to the broker
-     * @returns a promise that will be rejected with an error or resolve with the SUBACK response
+     * @param packet SUBSCRIBE packet to send to the server
+     * @returns a promise that will be rejected with an error or resolved with the SUBACK response
      */
     subscribe(packet: SubscribePacket) : Promise<SubackPacket>;
 
     /**
      * Tells the client to attempt to unsubscribe from one or more topic filters.
      *
-     * @param packet configuration of the UNSUBSCRIBE packet to send to the broker
-     * @returns a promise that will be rejected with an error or resolve with the UNSUBACK response
+     * @param packet UNSUBSCRIBE packet to send to the server
+     * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
      */
     unsubscribe(packet: UnsubscribePacket) : Promise<UnsubackPacket>;
 
     /**
      * Tells the client to attempt to send a PUBLISH packet
      *
-     * @param packet configuration of the PUBLISH packet to send to the broker
-     * @returns a promise that will be rejected with an error or resolve with the PUBACK response
+     * @param packet PUBLISH packet to send to the server
+     * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
     publish(packet: PublishPacket) : Promise<PubackPacket>;
 }
