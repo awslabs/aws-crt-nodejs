@@ -29,7 +29,7 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import axios = require('axios');
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
-import { TextEncoder } from './polyfills';
+import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
 /**
  * A collection of HTTP headers
@@ -373,7 +373,7 @@ export type HttpStreamResponse = (status_code: number, headers: HttpHeaders) => 
  */
 export class HttpClientStream extends BufferedEventEmitter {
     private response_status_code?: number;
-    private encoder = new TextEncoder();
+
     private constructor(readonly connection: HttpClientConnection) {
         super();
         this.cork();
@@ -456,7 +456,7 @@ export class HttpClientStream extends BufferedEventEmitter {
         this.emit('response', this.response_status_code, headers);
         let data = response.data;
         if (data && !(data instanceof ArrayBuffer)) {
-            data = this.encoder.encode(data.toString());
+            data = fromUtf8(data.toString());
         }
         this.emit('data', data);
         this.emit('end');
