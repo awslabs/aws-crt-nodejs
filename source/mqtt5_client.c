@@ -41,7 +41,7 @@ static const char *AWS_NAPI_KEY_MAXIMUM_PACKET_SIZE_TO_SERVER = "maximumPacketSi
 static const char *AWS_NAPI_KEY_REJOINED_SESSION = "rejoinedSession";
 static const char *AWS_NAPI_KEY_CLIENT_ID = "clientId";
 static const char *AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL_SECONDS = "sessionExpiryIntervalSeconds";
-static const char *AWS_NAPI_KEY_TOPIC = "topic";
+static const char *AWS_NAPI_KEY_TOPIC_NAME = "topicName";
 static const char *AWS_NAPI_KEY_PAYLOAD = "payload";
 static const char *AWS_NAPI_KEY_QOS = "qos";
 static const char *AWS_NAPI_KEY_RETAIN = "retain";
@@ -1076,7 +1076,7 @@ static int s_create_napi_publish_packet(
     AWS_NAPI_CALL(
         env, napi_create_object(env, &packet), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
-    if (aws_napi_attach_object_property_string(packet, env, AWS_NAPI_KEY_TOPIC, publish_view->topic)) {
+    if (aws_napi_attach_object_property_string(packet, env, AWS_NAPI_KEY_TOPIC_NAME, publish_view->topic)) {
         return AWS_OP_ERR;
     }
 
@@ -1382,7 +1382,7 @@ static int s_init_publish_options_from_napi(
     struct aws_napi_mqtt5_publish_storage *publish_storage) {
 
     if (!aws_napi_get_named_property_as_bytebuf(
-            env, node_publish_config, AWS_NAPI_KEY_TOPIC, napi_string, &publish_storage->topic)) {
+            env, node_publish_config, AWS_NAPI_KEY_TOPIC_NAME, napi_string, &publish_storage->topic)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_init_publish_options_from_napi - failed to extract required property: topic",

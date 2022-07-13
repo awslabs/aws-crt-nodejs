@@ -140,7 +140,7 @@ export enum ClientOperationQueueBehavior {
 /**
  * Controls how the reconnect delay is modified in order to smooth reconnects when applied to large sets of hosts.
  *
- * https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+ * See [Exponential Backoff and Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
  */
 export enum RetryJitterType {
     /**
@@ -304,7 +304,8 @@ export interface Mqtt5ClientConfig {
     operationTimeoutSeconds? : number;
 
     /**
-     * All configurable options with respect to the CONNECT packet sent by the client.  This includes the will.
+     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
+     * connect properties will be used for every connection attempt made by the client.
      */
     connectProperties?: ConnectPacket;
 }

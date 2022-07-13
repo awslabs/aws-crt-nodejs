@@ -19,11 +19,11 @@ import {
  * Mqtt behavior settings that are dynamically negotiated as part of the CONNECT/CONNACK exchange.
  *
  * While you can infer all of these values from a combination of
- *   (1) the mqtt5 spec
+ *   (1) defaults as specified in the mqtt5 spec
  *   (2) your CONNECT settings
  *   (3) the CONNACK from the broker
  *
- * the client does all the combining for you and gives something with defined, authoritative values.
+ * the client does all the combining for you and gives something with final, authoritative values.
  *
  * Negotiated settings are communicated with every successful connection establishment.
  */
@@ -50,12 +50,14 @@ export interface NegotiatedSettings {
     maximumPacketSizeToServer: number;
 
     /**
-     * the amount of time in seconds before the server will disconnect the client for inactivity.
+     * The maximum amount of time in seconds between client packets.  The client should use PINGREQs to ensure this
+     * limit is not breached.  The server will disconnect the client for inactivity if no MQTT packet is received
+     * in a time interval equal to 1.5 x this value.
      */
     serverKeepAlive: number;
 
     /**
-     * whether the server supports retained messages.
+     * Whether the server supports retained messages.
      */
     retainAvailable: Boolean;
 
