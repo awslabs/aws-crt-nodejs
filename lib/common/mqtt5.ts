@@ -14,6 +14,7 @@ import {
     PublishPacket, SubackPacket,
     SubscribePacket, UnsubackPacket, UnsubscribePacket, QoS
 } from "./mqtt5_packet";
+import {ICrtError} from "./error";
 
 /**
  * Mqtt behavior settings that are dynamically negotiated as part of the CONNECT/CONNACK exchange.
@@ -91,6 +92,11 @@ export interface NegotiatedSettings {
 }
 
 /**
+ * Client Error event handler signature
+ */
+export type ErrorEventHandler = (error: ICrtError) => void;
+
+/**
  * Client Stopped lifecycle event handler signature
  */
 export type StoppedEventHandler = () => void;
@@ -124,6 +130,16 @@ export type MessageReceivedEventHandler = (message: PublishPacket) => void;
  * Shared MQTT5 client interface across browser and node
  */
 export interface IMqtt5Client {
+
+    /**
+     * Emitted when a client method invocation results in an error
+     *
+     * @param event the type of event (error)
+     * @param listener the error event listener to add
+     *
+     * @event
+     */
+    on(event: 'error', listener: ErrorEventHandler): this;
 
     /**
      * Emitted when an MQTT PUBLISH packet is received by the client

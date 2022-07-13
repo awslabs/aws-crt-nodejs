@@ -12,6 +12,7 @@
  */
 
 import crt_native from './binding';
+import {ICrtError} from "../common/error";
 
 /**
  * Represents an error encountered in native code. Can also be used to convert a numeric error code into
@@ -19,7 +20,7 @@ import crt_native from './binding';
  *
  * @category System
  */
-export class CrtError extends Error {
+export class CrtError extends Error implements ICrtError {
     /** The original integer error code from the CRT */
     readonly error_code?: number;
     /** The translated error name (e.g. AWS_ERROR_UNKNOWN) */

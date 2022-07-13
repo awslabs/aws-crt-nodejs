@@ -13,6 +13,7 @@
         "../lib/native/binding.d.ts",
         "../lib/common/auth.ts",
         "../lib/common/crypto.ts",
+        "../lib/common/error.ts",
         "../lib/common/event.ts",
         "../lib/common/http.ts",
         "../lib/common/mqtt.ts",

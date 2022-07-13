@@ -23,7 +23,18 @@ import {
     SubscribePacket, SubackPacket,
     UnsubscribePacket, UnsubackPacket
 } from "../common/mqtt5_packet";
-import { NegotiatedSettings, IMqtt5Client, MessageReceivedEventHandler, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler } from "../common/mqtt5";
+import {
+    NegotiatedSettings,
+    IMqtt5Client,
+    ErrorEventHandler,
+    MessageReceivedEventHandler,
+    StoppedEventHandler,
+    AttemptingConnectEventHandler,
+    ConnectionSuccessEventHandler,
+    ConnectionFailureEventHandler,
+    DisconnectionEventHandler
+} from "../common/mqtt5";
+import {ICrtError} from "../common/error";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 
@@ -33,11 +44,6 @@ export { NegotiatedSettings, StoppedEventHandler, AttemptingConnectEventHandler,
  * Websocket handshake http request transformation function signature
  */
 export type WebsocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => void;
-
-/**
- * Client Error event handler signature
- */
-export type ErrorEventHandler = (error: CrtError) => void;
 
 /**
  * Information about the client's queue of operations
@@ -358,7 +364,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
          * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
          * will be unaffected.
          */
-        this.on('error', (error: CrtError) => {});
+        this.on('error', (error: ICrtError) => {});
     }
 
     /* Client events */

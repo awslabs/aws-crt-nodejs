@@ -8,6 +8,7 @@
 /* common libs */
 import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
+import { ICrtError } from './common/error';
 
 /* browser specific libs */
 import * as io from './browser/io';
@@ -27,5 +28,6 @@ export {
     iot,
     platform,
     resource_safety,
+    ICrtError,
     CrtError
 };
