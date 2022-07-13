@@ -74,12 +74,6 @@ static const char *AWS_NAPI_KEY_CONNACK_TIMEOUT_MS = "connackTimeoutMs";
 static const char *AWS_NAPI_KEY_OPERATION_TIMEOUT_SECONDS = "operationTimeoutSeconds";
 static const char *AWS_NAPI_KEY_CONNECT_PROPERTIES = "connectProperties";
 static const char *AWS_NAPI_KEY_WEBSOCKET_HANDSHAKE_TRANSFORM = "websocketHandshakeTransform";
-static const char *AWS_NAPI_KEY_ON_STOPPED = "onStopped";
-static const char *AWS_NAPI_KEY_ON_ATTEMPTING_CONNECT = "onAttemptingConnect";
-static const char *AWS_NAPI_KEY_ON_CONNECTION_SUCCESS = "onConnectionSuccess";
-static const char *AWS_NAPI_KEY_ON_CONNECTION_FAILURE = "onConnectionFailure";
-static const char *AWS_NAPI_KEY_ON_DISCONNECTION = "onDisconnection";
-static const char *AWS_NAPI_KEY_ON_MESSAGE_RECEIVED = "onMessageReceived";
 static const char *AWS_NAPI_KEY_SUBSCRIPTIONS = "subscriptions";
 static const char *AWS_NAPI_KEY_TOPIC_FILTER = "topicFilter";
 static const char *AWS_NAPI_KEY_TOPIC_FILTERS = "topicFilters";
@@ -1848,107 +1842,20 @@ static int s_init_client_configuration_from_js_client_configuration(
     return AWS_OP_SUCCESS;
 }
 
-/* helper function for creating threadsafe napi functions from napi function objects that are properties of a parent
- * object */
-static int s_init_binding_threadsafe_function(
+static int s_init_event_handler_threadsafe_function(
     napi_env env,
-    napi_value parent_object,
-    const char *property_name,
+    napi_value node_event_handler,
     const char *threadsafe_name,
-    napi_threadsafe_function_type threadsafe_function,
+    napi_threadsafe_function_call_js callback_function,
     napi_threadsafe_function *function_out) {
 
-    napi_value node_function = NULL;
-    if (!aws_napi_get_named_property(env, parent_object, property_name, napi_function, &node_function)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "s_init_binding_threadsafe_function - failed to find required function property: %s",
-            property_name);
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
-
-    if (aws_napi_is_null_or_undefined(env, node_function)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "s_init_binding_threadsafe_function - required property `%s` is invalid",
-            property_name);
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
+    AWS_FATAL_ASSERT(function_out != NULL && *function_out == NULL);
 
     AWS_NAPI_CALL(
         env,
         aws_napi_create_threadsafe_function(
-            env, node_function, threadsafe_name, threadsafe_function, NULL, function_out),
+            env, node_event_handler, threadsafe_name, callback_function, NULL, function_out),
         { return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); });
-
-    return AWS_OP_SUCCESS;
-}
-
-/* creates threadsafe functions for all mqtt5 client events */
-static int s_init_event_threadsafe_functions(
-    struct aws_mqtt5_client_binding *binding,
-    napi_env env,
-    napi_value node_event_handlers) {
-
-    if (s_init_binding_threadsafe_function(
-            env,
-            node_event_handlers,
-            AWS_NAPI_KEY_ON_STOPPED,
-            "aws_mqtt5_client_on_stopped",
-            s_napi_on_stopped,
-            &binding->on_stopped)) {
-        return AWS_OP_ERR;
-    }
-
-    if (s_init_binding_threadsafe_function(
-            env,
-            node_event_handlers,
-            AWS_NAPI_KEY_ON_ATTEMPTING_CONNECT,
-            "aws_mqtt5_client_on_attempting_connect",
-            s_napi_on_attempting_connect,
-            &binding->on_attempting_connect)) {
-        return AWS_OP_ERR;
-    }
-
-    if (s_init_binding_threadsafe_function(
-            env,
-            node_event_handlers,
-            AWS_NAPI_KEY_ON_CONNECTION_SUCCESS,
-            "aws_mqtt5_client_on_connection_success",
-            s_napi_on_connection_success,
-            &binding->on_connection_success)) {
-        return AWS_OP_ERR;
-    }
-
-    if (s_init_binding_threadsafe_function(
-            env,
-            node_event_handlers,
-            AWS_NAPI_KEY_ON_CONNECTION_FAILURE,
-            "aws_mqtt5_client_on_connection_failure",
-            s_napi_on_connection_failure,
-            &binding->on_connection_failure)) {
-        return AWS_OP_ERR;
-    }
-
-    if (s_init_binding_threadsafe_function(
-            env,
-            node_event_handlers,
-            AWS_NAPI_KEY_ON_DISCONNECTION,
-            "aws_mqtt5_client_on_disconnection",
-            s_napi_on_disconnection,
-            &binding->on_disconnection)) {
-        return AWS_OP_ERR;
-    }
-
-    if (s_init_binding_threadsafe_function(
-            env,
-            node_event_handlers,
-            AWS_NAPI_KEY_ON_MESSAGE_RECEIVED,
-            "aws_mqtt5_client_on_message_received",
-            s_napi_on_message_received,
-            &binding->on_message_received)) {
-        return AWS_OP_ERR;
-    }
 
     return AWS_OP_SUCCESS;
 }
@@ -1969,7 +1876,7 @@ static void s_init_default_mqtt5_client_options(
 
 napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
-    napi_value node_args[7];
+    napi_value node_args[12];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -1978,7 +1885,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     });
 
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt5_client_new - needs exactly 7 arguments");
+        napi_throw_error(env, NULL, "mqtt5_client_new - needs exactly 12 arguments");
         return NULL;
     }
 
@@ -2010,6 +1917,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     s_init_default_mqtt5_client_options(&client_options, &connect_options);
 
+    /* Arg #1: the mqtt5 client */
     napi_value node_client = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_client)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - Required client parameter is null");
@@ -2021,6 +1929,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     });
 
+    /* Arg #2: the mqtt5 client config object */
     napi_value node_client_config = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_client_config)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - Required configuration parameter is null");
@@ -2036,17 +1945,105 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     }
 
-    napi_value node_lifecycle_event_handlers = *arg++;
-    if (aws_napi_is_null_or_undefined(env, node_lifecycle_event_handlers)) {
-        napi_throw_error(env, NULL, "mqtt5_client_new - required lifecycle event handler set is null");
+    /* Arg #3: on stopped event */
+    napi_value on_stopped_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_stopped_event_handler)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - required on_stopped event handler is null");
         goto cleanup;
     }
 
-    if (s_init_event_threadsafe_functions(binding, env, node_lifecycle_event_handlers)) {
-        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize lifecycle event threadsafe handlers");
+    if (s_init_event_handler_threadsafe_function(
+            env, on_stopped_event_handler, "aws_mqtt5_client_on_stopped", s_napi_on_stopped, &binding->on_stopped)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_stopped event handler");
         goto cleanup;
     }
 
+    /* Arg #4: on attempting connect event */
+    napi_value on_attempting_connect_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_attempting_connect_event_handler)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - required on_attempting_connect event handler is null");
+        goto cleanup;
+    }
+
+    if (s_init_event_handler_threadsafe_function(
+            env,
+            on_attempting_connect_event_handler,
+            "aws_mqtt5_client_on_attempting_connect",
+            s_napi_on_attempting_connect,
+            &binding->on_attempting_connect)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_attempting_connect event handler");
+        goto cleanup;
+    }
+
+    /* Arg #5: on connection success event */
+    napi_value on_connection_success_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_connection_success_event_handler)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - required on_connection_success event handler is null");
+        goto cleanup;
+    }
+
+    if (s_init_event_handler_threadsafe_function(
+            env,
+            on_connection_success_event_handler,
+            "aws_mqtt5_client_on_connection_success",
+            s_napi_on_connection_success,
+            &binding->on_connection_success)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_connection_success event handler");
+        goto cleanup;
+    }
+
+    /* Arg #6: on connection failure event */
+    napi_value on_connection_failure_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_connection_failure_event_handler)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - required on_connection_failure event handler is null");
+        goto cleanup;
+    }
+
+    if (s_init_event_handler_threadsafe_function(
+            env,
+            on_connection_failure_event_handler,
+            "aws_mqtt5_client_on_connection_failure",
+            s_napi_on_connection_failure,
+            &binding->on_connection_failure)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_connection_failure event handler");
+        goto cleanup;
+    }
+
+    /* Arg #7: on disconnection event */
+    napi_value on_disconnection_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_disconnection_event_handler)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - required on_disconnection event handler is null");
+        goto cleanup;
+    }
+
+    if (s_init_event_handler_threadsafe_function(
+            env,
+            on_disconnection_event_handler,
+            "aws_mqtt5_client_on_disconnection",
+            s_napi_on_disconnection,
+            &binding->on_disconnection)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_disconnection event handler");
+        goto cleanup;
+    }
+
+    /* Arg #8: on message received event */
+    napi_value on_message_received_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_message_received_event_handler)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - required on_message_received event handler is null");
+        goto cleanup;
+    }
+
+    if (s_init_event_handler_threadsafe_function(
+            env,
+            on_message_received_event_handler,
+            "aws_mqtt5_client_on_message_received",
+            s_napi_on_message_received,
+            &binding->on_message_received)) {
+        napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_message_received event handler");
+        goto cleanup;
+    }
+
+    /* Arg #9: client bootstrap */
     napi_value node_client_bootstrap = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_client_bootstrap)) {
         struct client_bootstrap_binding *client_bootstrap_binding = NULL;
@@ -2059,6 +2056,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         client_options.bootstrap = aws_napi_get_default_client_bootstrap();
     }
 
+    /* Arg #10: socket options */
     napi_value node_socket_options = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&client_options.socket_options), {
@@ -2067,6 +2065,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         });
     }
 
+    /* Arg #11: tls options */
     napi_value node_tls = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_tls)) {
         struct aws_tls_ctx *tls_ctx;
@@ -2080,6 +2079,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         client_options.tls_options = &binding->tls_connection_options;
     }
 
+    /* Arg #12: http proxy options */
     napi_value node_proxy_options = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_proxy_options)) {
         struct http_proxy_options_binding *proxy_binding = NULL;

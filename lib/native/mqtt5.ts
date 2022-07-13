@@ -178,42 +178,6 @@ export enum RetryJitterType {
 }
 
 /**
- * Configuration interface for the mqtt5 client event handler set
- */
-export interface ClientEventHandlers {
-
-    /**
-     * Handler for the client's Stopped lifecycle event
-     */
-    onStopped : (client: Mqtt5Client) => void;
-
-    /**
-     * Handler for the client's AttemptingConnect lifecycle event
-     */
-    onAttemptingConnect : (client: Mqtt5Client) => void;
-
-    /**
-     * Handler for the client's ConnectionSuccess lifecycle event
-     */
-    onConnectionSuccess : (client: Mqtt5Client, connack: ConnackPacket, settings: NegotiatedSettings) => void;
-
-    /**
-     * Handler for the client's ConnectionFailure lifecycle event
-     */
-    onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack?: ConnackPacket) => void;
-
-    /**
-     * Handler for the client's Disconnection lifecycle event
-     */
-    onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect?: DisconnectPacket) => void;
-
-    /**
-     * Handler for client's MessageReceived event
-     */
-    onMessageReceived : (client: Mqtt5Client, message: PublishPacket) => void;
-}
-
-/**
  * Configuration interface for mqtt5 clients
  */
 export interface Mqtt5ClientConfig {
@@ -339,19 +303,15 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     constructor(config: Mqtt5ClientConfig) {
         super();
 
-        let event_handlers : ClientEventHandlers = {
-            onStopped : (client: Mqtt5Client) => { Mqtt5Client._s_on_stopped(client); },
-            onAttemptingConnect : (client: Mqtt5Client) => { Mqtt5Client._s_on_attempting_connect(client); },
-            onConnectionSuccess : (client: Mqtt5Client, connack : ConnackPacket, settings: NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
-            onConnectionFailure : (client: Mqtt5Client, errorCode: number, connack? : ConnackPacket) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
-            onDisconnection : (client: Mqtt5Client, errorCode: number, disconnect? : DisconnectPacket) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
-            onMessageReceived : (client: Mqtt5Client, message : PublishPacket) => { Mqtt5Client._s_on_message_received(client, message); }
-        };
-
         this._super(crt_native.mqtt5_client_new(
             this,
             config,
-            event_handlers,
+            (client: Mqtt5Client) => { Mqtt5Client._s_on_stopped(client); },
+            (client: Mqtt5Client) => { Mqtt5Client._s_on_attempting_connect(client); },
+            (client: Mqtt5Client, connack : ConnackPacket, settings: NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
+            (client: Mqtt5Client, errorCode: number, connack? : ConnackPacket) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
+            (client: Mqtt5Client, errorCode: number, disconnect? : DisconnectPacket) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
+            (client: Mqtt5Client, message : PublishPacket) => { Mqtt5Client._s_on_message_received(client, message); },
             config.clientBootstrap ? config.clientBootstrap.native_handle() : null,
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
@@ -367,7 +327,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         this.on('error', (error: ICrtError) => {});
     }
 
-    /* Client events */
 
     /**
      * Emitted when a client method invocation results in an error
@@ -380,7 +339,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'error', listener: ErrorEventHandler): this;
 
     /**
-     * Emitted when an mqtt PUBLISH packet is received by the client
+     * Emitted when an MQTT PUBLISH packet is received by the client
      *
      * @param event the type of event (messageReceived)
      * @param listener the messageReceived event listener to add
@@ -556,7 +515,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * Private helper functions
      *
      * Callbacks come through static functions so that the native threadsafe function objects do not
-     * capture the client object itself, which would lead to an uncollectable strong reference cycle.
+     * capture the client object itself, simplifying the number of strong references to the client floating around.
      */
 
     private static _s_on_stopped(client: Mqtt5Client) {

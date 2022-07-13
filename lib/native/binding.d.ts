@@ -15,8 +15,17 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
-import {Mqtt5ClientConfig, Mqtt5Client, ClientEventHandlers, ClientStatistics} from "./mqtt5";
-import { DisconnectPacket, PubackPacket, PublishPacket, SubackPacket, SubscribePacket, UnsubackPacket, UnsubscribePacket }  from "../common/mqtt5_packet";
+import {Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings} from "./mqtt5";
+import {
+    ConnackPacket,
+    DisconnectPacket,
+    PubackPacket,
+    PublishPacket,
+    SubackPacket,
+    SubscribePacket,
+    UnsubackPacket,
+    UnsubscribePacket
+} from "../common/mqtt5_packet";
 
 
 /**
@@ -142,7 +151,12 @@ export function checksums_crc32c(data: StringLike, previous?: number): number;
 export function mqtt5_client_new(
     client: Mqtt5Client,
     config: Mqtt5ClientConfig,
-    event_handlers : ClientEventHandlers,
+    on_stopped_event_handler: (client: Mqtt5Client) => void,
+    on_attempt_connect_handler: (client: Mqtt5Client) => void,
+    on_connection_success_handler: (client: Mqtt5Client, connack: ConnackPacket, settings: NegotiatedSettings) => void,
+    on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: ConnackPacket) => void,
+    on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: DisconnectPacket) => void,
+    on_message_received_handler: (client: Mqtt5Client, message: PublishPacket) => void,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
