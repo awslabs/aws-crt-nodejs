@@ -8,7 +8,8 @@ import { v4 as uuid } from 'uuid';
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-import { TextDecoder } from '@awscrt/polyfills';
+//import { TextDecoder } from '@awscrt/polyfills';
+import { TextDecoder } from "util"; // Test - see if direct import works.
 import { Config, fetch_credentials } from '@test/credentials';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
