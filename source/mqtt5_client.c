@@ -93,6 +93,19 @@ static const char *AWS_NAPI_KEY_UNACKED_OPERATION_SIZE = "unackedOperationSize";
  */
 struct aws_mqtt5_client_binding {
     struct aws_allocator *allocator;
+
+    /*
+     * We ref count the binding itself because there are anomalous situations where the binding must outlive even
+     * the native client.  In particular, if we have a native client being destroyed it may emit lifecycle events
+     * or completion callbacks for submitted operations as it does so.  Those events get marshalled across to the
+     * node/libuv thread and in the time it takes to do so, the native client may have completed destruction.  But
+     * we still need the binding when we're processing those events/callbacks in the libuv thread so the binding
+     * must not simply destroy itself as soon as the native client has destroyed itself.
+     *
+     * We handle this by having all operations/events inc/dec this ref count as well as the base of one from
+     * creating the client.  In this way, the binding will only destroy itself when the native client is completely
+     * gone and all callbacks and events have been successfully emitted to node.
+     */
     struct aws_ref_count ref_count;
 
     struct aws_mqtt5_client *client;
@@ -100,18 +113,12 @@ struct aws_mqtt5_client_binding {
     struct aws_tls_connection_options tls_connection_options;
 
     /*
-     * we keep a weak ref to the client to avoid making a strong ref cycle between native and node, which would be
-     * unbreakable.  It is *critical* that none of the callbacks capture the Mqtt5Client node object as part of the
-     * lambda context, otherwise we'd get another strong ref cycle.
-     *
-     * Instead, all of the lifecycle callbacks map to static functions that take the client as the first parameter,
-     * and we only invoke them if we can (temporarily) convert the weak ref to a strong ref beforehand.
+     * Single count ref to the JS mqtt 5 client object.
      */
-    napi_ref node_mqtt5_client_weak_ref;
+    napi_ref node_mqtt5_client_ref;
 
     /*
-     * Single count ref to keep the node external managed by the client alive.  When the finalizer associated with the
-     * client is invoked, this is cleared.
+     * Single count ref to the node external managed by the client.
      */
     napi_ref node_client_external_ref;
 
@@ -179,19 +186,19 @@ static void s_aws_mqtt5_client_binding_on_client_terminate(void *user_data) {
 /*
  * Invoked when the node mqtt5 client is garbage collected or if fails construction partway through
  */
-static void s_aws_mqtt5_client_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+static void s_aws_mqtt5_client_extern_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
 
     struct aws_mqtt5_client_binding *binding = finalize_data;
 
     AWS_LOGF_INFO(
         AWS_LS_NODEJS_CRT_GENERAL,
-        "id=%p s_aws_mqtt5_client_binding_finalize - mqtt5_client node wrapper is being finalized",
+        "id=%p s_aws_mqtt5_client_extern_finalize - mqtt5_client node wrapper is being finalized",
         (void *)binding->client);
 
-    if (binding->node_mqtt5_client_weak_ref != NULL) {
-        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
-        binding->node_mqtt5_client_weak_ref = NULL;
+    if (binding->node_mqtt5_client_ref != NULL) {
+        napi_delete_reference(env, binding->node_mqtt5_client_ref);
+        binding->node_mqtt5_client_ref = NULL;
     }
 
     if (binding->node_client_external_ref != NULL) {
@@ -562,8 +569,7 @@ static void s_napi_on_stopped(napi_env env, napi_value function, void *context, 
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_stopped_call - mqtt5_client node wrapper no longer resolvable",
@@ -596,8 +602,7 @@ static void s_napi_on_attempting_connect(napi_env env, napi_value function, void
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_attempting_connect_call - mqtt5_client node wrapper no longer resolvable",
@@ -879,8 +884,7 @@ static void s_napi_on_connection_success(napi_env env, napi_value function, void
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_connection_success_call - mqtt5_client node wrapper no longer resolvable",
@@ -931,8 +935,7 @@ static void s_napi_on_connection_failure(napi_env env, napi_value function, void
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_connection_failure_call - mqtt5_client node wrapper no longer resolvable",
@@ -1026,8 +1029,7 @@ static void s_napi_on_disconnection(napi_env env, napi_value function, void *con
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_disconnection_call - mqtt5_client node wrapper no longer resolvable",
@@ -1172,8 +1174,7 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
+        if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_napi_on_message_received - mqtt5_client node wrapper no longer resolvable",
@@ -1898,7 +1899,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     binding->allocator = allocator;
     aws_ref_count_init(&binding->ref_count, binding, s_aws_mqtt5_client_binding_on_zero);
 
-    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_binding_finalize, NULL, &node_external), {
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_extern_finalize, NULL, &node_external), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
         goto cleanup;
     });
@@ -1924,8 +1925,8 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         goto cleanup;
     }
 
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 1, &binding->node_mqtt5_client_weak_ref), {
-        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create weak reference to node mqtt5 client");
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 1, &binding->node_mqtt5_client_ref), {
+        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create reference to node mqtt5 client");
         goto cleanup;
     });
 
@@ -2118,8 +2119,8 @@ cleanup:
 
     s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
 
-    if (result) {
-        s_aws_mqtt5_client_binding_finalize(env, binding, NULL);
+    if (result == AWS_OP_ERR) {
+        s_aws_mqtt5_client_extern_finalize(env, binding, NULL);
     }
 
     return napi_client_wrapper;
@@ -2416,7 +2417,7 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
@@ -2786,7 +2787,7 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
@@ -3088,7 +3089,7 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
          * do anything.
          */
         params[0] = NULL;
-        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_weak_ref, &params[0]) != napi_ok ||
+        if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
@@ -3346,9 +3347,9 @@ napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
         binding->node_client_external_ref = NULL;
     }
 
-    if (binding->node_mqtt5_client_weak_ref != NULL) {
-        napi_delete_reference(env, binding->node_mqtt5_client_weak_ref);
-        binding->node_mqtt5_client_weak_ref = NULL;
+    if (binding->node_mqtt5_client_ref != NULL) {
+        napi_delete_reference(env, binding->node_mqtt5_client_ref);
+        binding->node_mqtt5_client_ref = NULL;
     }
 
     return NULL;

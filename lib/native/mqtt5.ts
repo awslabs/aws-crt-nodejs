@@ -97,7 +97,7 @@ export enum ClientSessionBehavior {
  */
 export enum ClientExtendedValidationAndFlowControl {
     /**
-     * Do not do any additional validation or flow control outside of the MQTT5 spec
+     * Do not do any additional validation or flow control
      */
     None = 0,
 
@@ -167,6 +167,7 @@ export enum RetryJitterType {
     None = 1,
 
     /**
+     * Fully random between no delay and the current exponential backoff value.
      * ```NextReconnectDelay = Random(0, CurrentExponentialBackoffValue)```
      */
     Full = 2,
@@ -408,7 +409,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * Triggers cleanup of native resources associated with the MQTT5 client.  Once this has been invoked, callbacks
      * and events are not guaranteed to be received.
      *
-     * This must be called when finished with a client.  Otherwise, native resources will leak.
+     * This must be called when finished with a client.  Otherwise, native resources will leak.  It is not safe
+     * to invoke any further operations on the client after close() has been called.
      *
      * This is an asynchronous operation.
      */
