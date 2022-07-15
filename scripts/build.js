@@ -5,12 +5,19 @@
 const os = require('os');
 const fs = require("fs");
 const crypto = require('crypto');
+const child_process = require("child_process");
 const process = require("process");
 const path = require("path");
 
-const cmake = require("cmake-js");
 const axios = require("axios");
-const tar = require('tar');
+
+// We'll populate this with the cmake-js module if we load it.
+// If null, then cmake-js is not loaded and npmDownloadAndInstallRuntimePackage should be called.
+let cmake = null;
+// Versions of dyanmic modules if we need to load them:
+let cmake_version = "6.3.2"
+let tar_version = "6.1.11"
+
 function rmRecursive(rmPath) {
     let rmBasePath = path.basename(rmPath);
     if (rmBasePath == "." || rmBasePath == "..") {
@@ -89,13 +96,88 @@ function checkChecksum(url, local_file) {
     })
 }
 
+/**
+ * Downloads an NPM package for use dynamically - so it will only be loaded and used for this single script.
+ * What it does under the hood is check for the npm package in the node modules, then in the npm list, and if
+ * it does not find it in either location, it will download the package at that point, adding it as a dev-dependency.
+ *
+ * It it downloads it dynamically, then it will return true. This is so you can delete the package once you are done,
+ * so it doesn't leave a zombie package in your node_modules. To remove the package, call npmDeleteRuntimePackage
+ *
+ * @param {*} package_name The name of the package you want to download (example: 'cmake-js')
+ * @param {*} package_version The version of the package to download - leave blank for latest. (example: '6.3.2')
+ * @returns True if the package was downloaded dynamically, otherwise false.
+ */
+function npmDownloadAndInstallRuntimePackage(package_name, package_version=null) {
+    console.log("Looking for " + package_name + " as a dependency...");
+
+    // Do we have it in node modules? If so, then use that!
+    try {
+        if (fs.existsSync("./node_modules/" + package_name)) {
+            console.log("Found " + package_name + " in node_modules!");
+            return false;
+        }
+    } catch (error) {}
+
+    // Do we have it in our node list? If so, then use that!
+    try {
+        list_output = child_process.execSync("npm list " + package_name, {encoding: "utf8"});
+        if (list_output.indexOf(package_name) !== -1) {
+            console.log("Found " + package_name + " in npm list!");
+            return false;
+        }
+    } catch (error) {}
+
+    // If it is not found in either, then download it into our node_modules
+    try {
+        console.log("Could not find " + package_name);
+        console.log("Downloading " + package_name + " from npm for build...");
+        // Try to intall the given package and ONLY the given package. Will throw an exception if there is an error.
+        if (package_version != null) {
+            child_process.execSync("npm install --no-package-lock --save-dev --ignore-scripts " + package_name + "@" + package_version);
+        } else {
+            child_process.execSync("npm install --no-package-lock --save-dev --ignore-scripts " + package_name);
+        }
+        return true;
+
+    } catch (err) {
+        console.log("ERROR - npm could not download " + package_name + "! " + package_name + " is required to build the CRT");
+        throw err;
+    }
+}
+
+/**
+ * Tells NPM to uninstall a package. This should only be used to clean up a dynamic package downloaded with the
+ * npmDownloadAndInstallRuntimePackage function, as otherwise it could remove a non-dynamic package.
+ * @param {*} package_name The name of the package you want to delete (example 'cmake-js')
+ */
+function npmDeleteRuntimePackage(package_name) {
+    console.log("Removing " + package_name + "...");
+    try {
+        child_process.execSync("npm uninstall " + package_name);
+    } catch (err) {
+        console.log("ERROR - npm could not remove " + package_name + "!");
+        throw err;
+    }
+}
+
+
 async function fetchNativeCode(url, version, path) {
+    // Get tar if it doesn't exist
+    var remove_tar_at_end = npmDownloadAndInstallRuntimePackage("tar", tar_version);
+    var tar = require('tar');
+
     const sourceURL = `${url}/aws-crt-${version}-source.tgz`
     const tarballPath = path + "source.tgz";
     await downloadFile(sourceURL, tarballPath);
     const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`;
     await checkChecksum(sourceChecksumURL, tarballPath);
     await tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
+
+    if (remove_tar_at_end == true) {
+        npmDeleteRuntimePackage("tar");
+        tar = null;
+    }
 }
 
 function buildLocally() {
@@ -150,6 +232,10 @@ function buildLocally() {
 }
 
 async function buildFromRemoteSource(tmpPath) {
+    // Get cmake-js if it doesn't exist
+    var remove_cmake_at_end = npmDownloadAndInstallRuntimePackage("cmake-js", cmake_version);
+    cmake = require("cmake-js");
+
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
         rmRecursive(nativeSourceDir);
@@ -171,6 +257,11 @@ async function buildFromRemoteSource(tmpPath) {
     await buildLocally();
     // Local build finished successfully, we don't need source anymore.
     rmRecursive(nativeSourceDir);
+
+    if (remove_cmake_at_end == true) {
+        npmDeleteRuntimePackage("cmake-js");
+        cmake = null;
+    }
 }
 
 function checkDoDownload() {
@@ -197,6 +288,15 @@ if (checkDoDownload()) {
         throw err;
     }
 } else {
+    // Get cmake-js if it doesn't exist
+    remove_cmake_at_end = npmDownloadAndInstallRuntimePackage("cmake-js", cmake_version);
+    cmake = require("cmake-js");
+
     // Kick off local build
     buildLocally();
+
+    if (remove_cmake_at_end == true) {
+        npmDeleteRuntimePackage("cmake-js");
+        cmake = null;
+    }
 }
