@@ -160,9 +160,16 @@ function npmDeleteRuntimePackage(package_name) {
 
 
 async function fetchNativeCode(url, version, path) {
+    let remove_tar_at_end = false;
+    let tar = null;
     // Get tar if it doesn't exist
-    var remove_tar_at_end = npmDownloadAndInstallRuntimePackage("tar", tar_version);
-    var tar = require('tar');
+    try {
+        remove_tar_at_end = npmDownloadAndInstallRuntimePackage("tar", tar_version);
+        tar = require('tar');
+    } catch (error) {
+        console.log("ERROR: Could not download tar! Cannot build CRT");
+        process.exit(1);
+    }
 
     const sourceURL = `${url}/aws-crt-${version}-source.tgz`
     const tarballPath = path + "source.tgz";
