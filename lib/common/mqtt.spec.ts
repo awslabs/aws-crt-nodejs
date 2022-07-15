@@ -8,8 +8,9 @@ import { v4 as uuid } from 'uuid';
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-import { TextDecoder, TextEncoder } from '@awscrt/polyfills';
+//import { TextDecoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
+import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
 jest.setTimeout(10000);
 
@@ -221,17 +222,16 @@ test('MQTT payload types', async () => {
             .build()
         const client = new MqttClient(new ClientBootstrap());
         const connection = client.new_connection(config);
-        const encoder = new TextEncoder();
         const id = uuid();
 
         const tests: { [key: string]: { send: Payload, recv: ArrayBuffer } } = {
             [`/test/types/${id}/string`]: {
                 send: 'utf-8 👁👄👁 time',
-                recv: encoder.encode('utf-8 👁👄👁 time').buffer,
+                recv: fromUtf8('utf-8 👁👄👁 time').buffer,
             },
             [`/test/types/${id}/dataview`]: {
-                send: new DataView(encoder.encode('I was a DataView').buffer),
-                recv: encoder.encode('I was a DataView').buffer,
+                send: new DataView(fromUtf8('I was a DataView').buffer),
+                recv: fromUtf8('I was a DataView').buffer,
             },
             [`/test/types/${id}/uint8array`]: {
                 // note: sending partial view of a larger buffer
@@ -244,7 +244,7 @@ test('MQTT payload types', async () => {
             },
             [`/test/types/${id}/json`]: {
                 send: { I: "was JSON" },
-                recv: encoder.encode('{"I": "was JSON"}').buffer,
+                recv: fromUtf8('{"I": "was JSON"}').buffer,
             },
         }
 
