@@ -10,12 +10,9 @@ const process = require("process");
 const path = require("path");
 
 const axios = require("axios");
+const cmake = require("cmake-js");
 
-// We'll populate this with the cmake-js module if we load it.
-// If null, then cmake-js is not loaded and npmDownloadAndInstallRuntimePackage should be called.
-let cmake = null;
 // Versions of dyanmic modules if we need to load them:
-let cmake_version = "6.3.2"
 let tar_version = "6.1.11"
 
 function rmRecursive(rmPath) {
@@ -232,10 +229,6 @@ function buildLocally() {
 }
 
 async function buildFromRemoteSource(tmpPath) {
-    // Get cmake-js if it doesn't exist
-    var remove_cmake_at_end = npmDownloadAndInstallRuntimePackage("cmake-js", cmake_version);
-    cmake = require("cmake-js");
-
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
         rmRecursive(nativeSourceDir);
@@ -257,11 +250,6 @@ async function buildFromRemoteSource(tmpPath) {
     await buildLocally();
     // Local build finished successfully, we don't need source anymore.
     rmRecursive(nativeSourceDir);
-
-    if (remove_cmake_at_end == true) {
-        npmDeleteRuntimePackage("cmake-js");
-        cmake = null;
-    }
 }
 
 function checkDoDownload() {
@@ -288,15 +276,6 @@ if (checkDoDownload()) {
         throw err;
     }
 } else {
-    // Get cmake-js if it doesn't exist
-    remove_cmake_at_end = npmDownloadAndInstallRuntimePackage("cmake-js", cmake_version);
-    cmake = require("cmake-js");
-
     // Kick off local build
     buildLocally();
-
-    if (remove_cmake_at_end == true) {
-        npmDeleteRuntimePackage("cmake-js");
-        cmake = null;
-    }
 }
