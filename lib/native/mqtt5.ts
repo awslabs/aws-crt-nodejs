@@ -87,6 +87,8 @@ export enum ClientSessionBehavior {
 
     /**
      * Always attempt to rejoin an existing session after an initial connection success.
+     *
+     * Session rejoin requires an appropriate non-zero session expiry interval in the client's CONNECT options.
      */
     RejoinPostSuccess = 1,
 }
@@ -199,7 +201,8 @@ export interface Mqtt5ClientConfig {
     clientBootstrap?: io.ClientBootstrap;
 
     /**
-     * Controls socket properties of the underlying MQTT connections made by the client.
+     * Controls socket properties of the underlying MQTT connections made by the client.  Leave undefined to use
+     * defaults (no TCP keep alive, 10 second socket timeout).
      */
     socketOptions?: io.SocketOptions;
 
@@ -210,15 +213,15 @@ export interface Mqtt5ClientConfig {
     tlsCtx?: io.ClientTlsContext;
 
     /**
-     * This callback allows a custom transformation of the http request that functions as the websocket handshake.
+     * This callback allows a custom transformation of the HTTP request that acts as the websocket handshake.
      * Websockets will be used if this is set to a valid transformation callback.  To use websockets but not perform
      * a transformation, just set this as a trivial completion callback.  If undefined, the connection will be made
-     * with direct mqtt.
+     * with direct MQTT.
      */
     websocketHandshakeTransform?: WebsocketHandshakeTransform;
 
     /**
-     * Configures (tunneling) http proxy usage when establishing MQTT connections
+     * Configures (tunneling) HTTP proxy usage when establishing MQTT connections
      */
     proxyOptions?: HttpProxyOptions;
 
@@ -229,7 +232,7 @@ export interface Mqtt5ClientConfig {
 
     /**
      * Additional controls for client behavior with respect to operation validation and flow control; these checks
-     * go beyond the base mqtt5 spec to respect limits of specific MQTT brokers.
+     * go beyond the base MQTT5 spec to respect limits of specific MQTT brokers.
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
 
@@ -259,7 +262,7 @@ export interface Mqtt5ClientConfig {
     maxReconnectDelayMs? : number;
 
     /**
-     * Amount of time that must elapse with a "good" connection before the reconnect delay is reset to the minimum.
+     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
      * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
      */
     minConnectedTimeToResetReconnectDelayMs? : number;
@@ -278,7 +281,7 @@ export interface Mqtt5ClientConfig {
 
     /**
      * Time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
-     * failing the packet, notifying the client of failure, and removing it from the retry queue.
+     * failing the operation.
      */
     operationTimeoutSeconds? : number;
 
@@ -320,7 +323,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         ));
 
         /*
-         * Failed mqtt operations (which is normal) emit error events as well as rejecting the original promise.
+         * Failed MQTT operations (which is normal) emit error events as well as rejecting the original promise.
          * By installing a default error handler here we help prevent common issues where operation failures bring
          * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
          * will be unaffected.
@@ -409,7 +412,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * Triggers cleanup of native resources associated with the MQTT5 client.  Once this has been invoked, callbacks
      * and events are not guaranteed to be received.
      *
-     * This must be called when finished with a client.  Otherwise, native resources will leak.  It is not safe
+     * This must be called when finished with a client; otherwise, native resources will leak.  It is not safe
      * to invoke any further operations on the client after close() has been called.
      *
      * This is an asynchronous operation.
@@ -419,7 +422,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     }
 
     /**
-     * Notifies the MQTT5 client that you want it to attempt to connect to the configured endpoint.
+     * Notifies the MQTT5 client that you want it maintain connectivity to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
      * in the mqtt5 client configuration.
      *
@@ -430,8 +433,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     }
 
     /**
-     * Notifies the MQTT5 client that you want it to transition to the stopped state, disconnecting any existing
-     * connection and stopping subsequent reconnect attempts.
+     * Notifies the MQTT5 client that you want it to end connectivity to the configured endpoint, disconnecting any
+     * existing connection and halting any reconnect attempts.
      *
      * This is an asynchronous operation.
      *
