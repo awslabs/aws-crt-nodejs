@@ -17,7 +17,6 @@ import {HttpProxyOptions, HttpRequest} from './http';
 import {
     DisconnectPacket,
     ConnackPacket,
-    ConnectPacket,
     PubackPacket,
     PublishPacket,
     SubscribePacket, SubackPacket,
@@ -32,13 +31,14 @@ import {
     AttemptingConnectEventHandler,
     ConnectionSuccessEventHandler,
     ConnectionFailureEventHandler,
-    DisconnectionEventHandler
+    DisconnectionEventHandler,
+    Mqtt5ClientConfigShared
 } from "../common/mqtt5";
 import {ICrtError} from "../common/error";
 import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 
-export { NegotiatedSettings, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler, MessageReceivedEventHandler, IMqtt5Client,  } from "../common/mqtt5";
+export { NegotiatedSettings, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler, MessageReceivedEventHandler, IMqtt5Client, ClientSessionBehavior, RetryJitterType, ClientOperationQueueBehavior, Mqtt5ClientConfigShared } from "../common/mqtt5";
 
 /**
  * Websocket handshake http request transformation function signature
@@ -76,24 +76,6 @@ export interface ClientStatistics {
 };
 
 /**
- * Controls how the MQTT5 client should behave with respect to MQTT sessions.
- */
-export enum ClientSessionBehavior {
-
-    /**
-     * Always ask for a clean session when connecting
-     */
-    Clean = 0,
-
-    /**
-     * Always attempt to rejoin an existing session after an initial connection success.
-     *
-     * Session rejoin requires an appropriate non-zero session expiry interval in the client's CONNECT options.
-     */
-    RejoinPostSuccess = 1,
-}
-
-/**
  * Additional controls for client behavior with respect to operation validation and flow control; these checks
  * go beyond the MQTT5 spec to respect limits of specific MQTT brokers.
  */
@@ -123,77 +105,10 @@ export enum ClientExtendedValidationAndFlowControl {
 }
 
 /**
- * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
- * how operations are handled while the client is not connected.  In particular, if the client is not connected,
- * then any operation that would be failed on disconnect (according to these rules) will be rejected.
- */
-export enum ClientOperationQueueBehavior {
-
-    /**
-     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
-     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
-     */
-    FailNonQos1PublishOnDisconnect = 0,
-
-    /**
-     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
-     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
-     * are requeued in original order behind any retransmissions.
-     */
-    FailQos0PublishOnDisconnect = 1,
-
-    /**
-     * All operations that are not complete at the time of disconnection are failed, except operations that
-     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
-     */
-    FailAllOnDisconnect = 2,
-}
-
-/**
- * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
- * timepoints for a large set of reconnecting clients.
- *
- * See [Exponential Backoff and Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
- */
-export enum RetryJitterType {
-
-    /**
-     * Maps to Full
-     */
-    Default = 0,
-
-    /**
-     * Do not perform any randomization on the reconnect delay:
-     * ```NextReconnectDelay = CurrentExponentialBackoffValue```
-     */
-    None = 1,
-
-    /**
-     * Fully random between no delay and the current exponential backoff value.
-     * ```NextReconnectDelay = Random(0, CurrentExponentialBackoffValue)```
-     */
-    Full = 2,
-
-    /**
-     * ```NextReconnectDelay = Min(MaxReconnectDelay, Random(MinReconnectDelay, 3 * CurrentReconnectDelay)```
-     */
-    Decorrelated = 3,
-}
-
-/**
  * Configuration interface for mqtt5 clients
  */
-export interface Mqtt5ClientConfig {
+export interface Mqtt5ClientConfig extends Mqtt5ClientConfigShared {
 
-    /**
-     * Host name of the MQTT server to connect to.
-     */
-    hostName: string;
-
-    /**
-     * Network port of the MQTT server to connect to.
-     */
-    port: number;
 
     /**
      * Client bootstrap to use.  In almost all cases, this can be left undefined.
@@ -226,70 +141,10 @@ export interface Mqtt5ClientConfig {
     proxyOptions?: HttpProxyOptions;
 
     /**
-     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
-     */
-    sessionBehavior? : ClientSessionBehavior;
-
-    /**
      * Additional controls for client behavior with respect to operation validation and flow control; these checks
      * go beyond the base MQTT5 spec to respect limits of specific MQTT brokers.
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
-
-    /**
-     * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
-     * how new operations are handled while the client is not connected.  In particular, if the client is not connected,
-     * then any operation that would be failed on disconnect (according to these rules) will also be rejected.
-     */
-    offlineQueueBehavior? : ClientOperationQueueBehavior;
-
-    /**
-     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
-     * timepoints for a large set of reconnecting clients.
-     */
-    retryJitterMode? : RetryJitterType;
-
-    /**
-     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    minReconnectDelayMs? : number;
-
-    /**
-     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    maxReconnectDelayMs? : number;
-
-    /**
-     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
-     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
-     */
-    minConnectedTimeToResetReconnectDelayMs? : number;
-
-    /**
-     * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
-     * close the current connection.
-     */
-    pingTimeoutMs? : number;
-
-    /**
-     * Time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not arrive, the
-     * connection will be shut down.
-     */
-    connackTimeoutMs? : number;
-
-    /**
-     * Time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
-     * failing the operation.
-     */
-    operationTimeoutSeconds? : number;
-
-    /**
-     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
-     * connect properties will be used for every connection attempt made by the client.
-     */
-    connectProperties?: ConnectPacket;
 }
 
 /**
