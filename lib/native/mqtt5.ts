@@ -524,23 +524,33 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      */
 
     private static _s_on_stopped(client: Mqtt5Client) {
-        client.emit('stopped');
+        process.nextTick(() => {
+            client.emit('stopped');
+        });
     }
 
     private static _s_on_attempting_connect(client: Mqtt5Client) {
-        client.emit('attemptingConnect');
+        process.nextTick(() => {
+            client.emit('attemptingConnect');
+        });
     }
 
     private static _s_on_connection_success(client: Mqtt5Client, connack: ConnackPacket, settings: NegotiatedSettings) {
-        client.emit('connectionSuccess', connack, settings);
+        process.nextTick(() => {
+            client.emit('connectionSuccess', connack, settings);
+        });
     }
 
     private static _s_on_connection_failure(client: Mqtt5Client, error: CrtError, connack?: ConnackPacket) {
-        client.emit('connectionFailure', error, connack);
+        process.nextTick(() => {
+            client.emit('connectionFailure', error, connack);
+        });
     }
 
     private static _s_on_disconnection(client: Mqtt5Client, error: CrtError, disconnect?: DisconnectPacket) {
-        client.emit('disconnection', error, disconnect);
+        process.nextTick(() => {
+            client.emit('disconnection', error, disconnect);
+        });
     }
 
     private static _emitErrorOnNext(client: Mqtt5Client, errorCode: number) {
@@ -577,6 +587,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     }
 
     private static _s_on_message_received(client: Mqtt5Client, message : PublishPacket) {
-        client.emit('messageReceived', message);
+        process.nextTick(() => {
+            client.emit('messageReceived', message);
+        });
     }
 }
