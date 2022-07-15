@@ -121,7 +121,7 @@ function npmDownloadAndInstallRuntimePackage(package_name, package_version=null)
 
     // Do we have it in our node list? If so, then use that!
     try {
-        list_output = child_process.execSync("npm list " + package_name, {encoding: "utf8"});
+        var list_output = child_process.execSync("npm list " + package_name, {encoding: "utf8"});
         if (list_output.indexOf(package_name) !== -1) {
             console.log("Found " + package_name + " in npm list!");
             return false;
