@@ -5,7 +5,7 @@
  */
 
 import * as mqtt from "mqtt";
-import {ConnackPacket, ConnectReasonCode, QoS} from "../common/mqtt5_packet";
+import {ConnackPacket, ConnectReasonCode, QoS, ConnectPacket, UserProperty} from "../common/mqtt5_packet";
 import {NegotiatedSettings} from "../common/mqtt5";
 import {Mqtt5ClientConfig} from "./mqtt5";
 
@@ -32,4 +32,18 @@ export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: 
         rejoinedSession: connack.sessionPresent,
         clientId: "derp"
     };
+}
+
+export function create_mqtt_js_will_from_config(connectProperties? : ConnectPacket) : any {
+    return {
+        ??
+    };
+}
+
+export function create_mqtt_js_user_properties_from_user_properties(userProperties?: [UserProperty]) : mqtt.UserProperties {
+    if (userProperties == null) {
+        return ??;
+    } else {
+        ??;
+    }
 }

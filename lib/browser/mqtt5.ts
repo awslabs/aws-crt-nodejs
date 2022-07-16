@@ -39,7 +39,7 @@ import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import {WebsocketOptions} from "./ws";
 import * as auth from "./auth";
-import * as mqtt5_adapter from "./mqtt5_adapter";
+import * as mqtt_utils from "./mqtt_utils";
 
 
 /**
@@ -174,20 +174,34 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
             const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_mqtt5_websocket_stream(this.config);
             const websocketXform = undefined;
 
-            this.browserClient = new mqtt.MqttClient(
-                create_websocket_stream,
-                {
-                    // service default is 1200 seconds
-                    keepalive: this.config.connectProperties?.keepAliveIntervalSeconds ?? 1200,
-                    clientId: this.config.connectProperties?.clientId,
-                    connectTimeout: this.config.connackTimeoutMs ?? 30 * 1000,
-                    clean: this.config.sessionBehavior == ClientSessionBehavior.Clean,
-                    username: this.config.connectProperties?.username,
-                    // password: this.config.connectProperties?.password ?? undefined,
-                    reconnectPeriod: this.config.maxReconnectDelayMs ?? 30000,
-                    transformWsUrl: websocketXform,
-                }
-            );
+            let will = mqtt_utils.create_mqtt_js_will_from_config(this.config.connectProperties);
+
+            let mqtt_js_options : mqtt.IClientOptions = {
+                keepalive: this.config.connectProperties?.keepAliveIntervalSeconds ?? 1200,
+                clientId: this.config.connectProperties?.clientId ?? '',
+                connectTimeout: this.config.connackTimeoutMs ?? 30 * 1000,
+                clean: this.config.sessionBehavior == ClientSessionBehavior.Clean,
+                reconnectPeriod: this.config.maxReconnectDelayMs ?? 120000,
+                username: this.config.connectProperties?.username,
+                // password: this.config.connectProperties?.password ?? undefined,
+                queueQoSZero : false,
+                // @ts-ignore
+                autoUseTopicAlias : false,
+                autoAssignTopicAlias : false,
+                properties : {
+                    sessionExpiryInterval : this.config.connectProperties?.sessionExpiryIntervalSeconds,
+                    receiveMaximum : this.config.connectProperties?.receiveMaximum,
+                    maximumPacketSize : this.config.connectProperties?.maximumPacketSizeBytes,
+                    requestResponseInformation : this.config.connectProperties?.requestResponseInformation?.valueOf() ?? undefined,
+                    requestProblemInformation : this.config.connectProperties?.requestProblemInformation?.valueOf() ?? undefined,
+                    userProperties : ??
+                },
+                will: will,
+                transformWsUrl: websocketXform,
+                resubscribe : false
+            };
+
+            this.browserClient = new mqtt.MqttClient(create_websocket_stream, mqtt_js_options);
 
             // hook up events
             this.browserClient.on('end', () => {this._on_stopped_internal();});
@@ -209,8 +223,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
     }
 
     private on_connection_success = (connack: mqtt.IConnackPacket) => {
-        let crt_connack : ConnackPacket = mqtt5_adapter.transform_mqtt_js_connack_to_crt_connack(connack);
-        let settings : NegotiatedSettings = mqtt5_adapter.create_negotiated_settings(this.config, crt_connack);
+        let crt_connack : ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
+        let settings : NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
 
         this.emit('connectionSuccess', crt_connack, settings);
     }
