@@ -677,7 +677,7 @@ export interface PublishPacket {
      *
      * See [MQTT5 Retain](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901104)
      */
-    retain?: Boolean;
+    retain?: boolean;
 
     /**
      * Property specifying the format of the payload data.  The mqtt5 client does not enforce or use this
@@ -827,7 +827,7 @@ export interface ConnectPacket {
      *
      * See [MQTT5 Request Response Information](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901052)
      */
-    requestResponseInformation?: Boolean;
+    requestResponseInformation?: boolean;
 
     /**
      * If set to true, requests that the server send additional diagnostic information (via response string or
@@ -835,7 +835,7 @@ export interface ConnectPacket {
      *
      * See [MQTT5 Request Problem Information](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901053)
      */
-    requestProblemInformation?: Boolean;
+    requestProblemInformation?: boolean;
 
     /**
      * Notifies the server of the maximum number of in-flight Qos 1 and 2 messages the client is willing to handle.  If
@@ -889,7 +889,7 @@ export interface ConnackPacket {
      *
      * See [MQTT5 Session Present](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901078)
      */
-    sessionPresent : Boolean;
+    sessionPresent : boolean;
 
     /**
      * Indicates either success or the reason for failure for the connection attempt.
@@ -927,7 +927,7 @@ export interface ConnackPacket {
      *
      * See [MQTT5 Retain Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901085)
      */
-    retainAvailable?: Boolean;
+    retainAvailable?: boolean;
 
     /**
      * Specifies the maximum packet size, in bytes, that the server is willing to accept.  If undefined, there
@@ -965,7 +965,7 @@ export interface ConnackPacket {
      *
      * See [MQTT5 Wildcard Subscriptions Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901091)
      */
-    wildcardSubscriptionsAvailable?: Boolean;
+    wildcardSubscriptionsAvailable?: boolean;
 
     /**
      * Indicates whether the server supports subscription identifiers.  If undefined, subscription identifiers
@@ -973,7 +973,7 @@ export interface ConnackPacket {
      *
      * See [MQTT5 Subscription Identifiers Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901092)
      */
-    subscriptionIdentifiersAvailable?: Boolean;
+    subscriptionIdentifiersAvailable?: boolean;
 
     /**
      * Indicates whether the server supports shared subscription topic filters.  If undefined, shared subscriptions
@@ -981,7 +981,7 @@ export interface ConnackPacket {
      *
      * See [MQTT5 Shared Subscriptions Available](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901093)
      */
-    sharedSubscriptionsAvailable?: Boolean;
+    sharedSubscriptionsAvailable?: boolean;
 
     /**
      * Server-requested override of the keep alive interval, in seconds.  If undefined, the keep alive value sent
@@ -1087,7 +1087,7 @@ export interface Subscription {
      *
      * See [MQTT5 Subscription Options](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169)
      */
-    noLocal? : Boolean;
+    noLocal? : boolean;
 
     /**
      * Should messages sent due to this subscription keep the retain flag preserved on the message?  If undefined,
@@ -1095,7 +1095,7 @@ export interface Subscription {
      *
      * See [MQTT5 Subscription Options](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901169)
      */
-    retainAsPublished?: Boolean;
+    retainAsPublished?: boolean;
 
     /**
      * Should retained messages on matching topics be sent in reaction to this subscription?  If undefined,

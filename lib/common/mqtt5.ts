@@ -60,27 +60,27 @@ export interface NegotiatedSettings {
     /**
      * Whether the server supports retained messages.
      */
-    retainAvailable: Boolean;
+    retainAvailable: boolean;
 
     /**
      * Whether the server supports wildcard subscriptions.
      */
-    wildcardSubscriptionsAvailable: Boolean;
+    wildcardSubscriptionsAvailable: boolean;
 
     /**
      * Whether the server supports subscription identifiers
      */
-    subscriptionIdentifiersAvailable: Boolean;
+    subscriptionIdentifiersAvailable: boolean;
 
     /**
      * Whether the server supports shared subscriptions
      */
-    sharedSubscriptionsAvailable: Boolean;
+    sharedSubscriptionsAvailable: boolean;
 
     /**
      * Whether the client has rejoined an existing session.
      */
-    rejoinedSession: Boolean;
+    rejoinedSession: boolean;
 
     /**
      * The final client id in use by the newly-established connection.  This will be the configured client id if one

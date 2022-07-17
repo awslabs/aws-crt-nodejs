@@ -66,7 +66,7 @@ export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: 
 }
 
 /** @internal */
-export function create_mqtt_js_will_from_crt_config(connectProperties? : ConnectPacket) : any {
+function create_mqtt_js_will_from_crt_config(connectProperties? : ConnectPacket) : any {
     if (connectProperties === undefined || connectProperties.will == undefined) {
         return undefined;
     }

@@ -193,3 +193,11 @@ test('create_negotiated_settings full connack, empty connect', async() => {
 test('create_negotiated_settings full connack, full connect', async() => {
 
 });
+
+test('create_mqtt_js_client_config_from_crt_client_config minimal', async() => {
+
+});
+
+test('create_mqtt_js_client_config_from_crt_client_config maximal', async() => {
+
+});
