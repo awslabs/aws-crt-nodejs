@@ -23,7 +23,6 @@ import {
 import {BufferedEventEmitter} from "../common/event";
 import {
     AttemptingConnectEventHandler,
-    ClientSessionBehavior,
     ConnectionFailureEventHandler,
     ConnectionSuccessEventHandler,
     DisconnectionEventHandler,
@@ -40,6 +39,7 @@ import * as WebsocketUtils from "./ws";
 import {WebsocketOptions} from "./ws";
 import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt_utils";
+import {create_mqtt_js_client_config_from_crt_client_config} from "./mqtt_utils";
 
 
 /**
@@ -172,35 +172,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
             this.emit('attemptingConnect');
 
             const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_mqtt5_websocket_stream(this.config);
-            const websocketXform = undefined;
-
-            let will = mqtt_utils.create_mqtt_js_will_from_config(this.config.connectProperties);
-
-            let mqtt_js_options : mqtt.IClientOptions = {
-                keepalive: this.config.connectProperties?.keepAliveIntervalSeconds ?? 1200,
-                clientId: this.config.connectProperties?.clientId ?? '',
-                connectTimeout: this.config.connackTimeoutMs ?? 30 * 1000,
-                clean: this.config.sessionBehavior == ClientSessionBehavior.Clean,
-                reconnectPeriod: this.config.maxReconnectDelayMs ?? 120000,
-                username: this.config.connectProperties?.username,
-                // password: this.config.connectProperties?.password ?? undefined,
-                queueQoSZero : false,
-                // @ts-ignore
-                autoUseTopicAlias : false,
-                autoAssignTopicAlias : false,
-                properties : {
-                    sessionExpiryInterval : this.config.connectProperties?.sessionExpiryIntervalSeconds,
-                    receiveMaximum : this.config.connectProperties?.receiveMaximum,
-                    maximumPacketSize : this.config.connectProperties?.maximumPacketSizeBytes,
-                    requestResponseInformation : this.config.connectProperties?.requestResponseInformation?.valueOf() ?? undefined,
-                    requestProblemInformation : this.config.connectProperties?.requestProblemInformation?.valueOf() ?? undefined,
-                    userProperties : ??
-                },
-                will: will,
-                transformWsUrl: websocketXform,
-                resubscribe : false
-            };
-
+            let mqtt_js_options : mqtt.IClientOptions = create_mqtt_js_client_config_from_crt_client_config(this.config);
             this.browserClient = new mqtt.MqttClient(create_websocket_stream, mqtt_js_options);
 
             // hook up events
