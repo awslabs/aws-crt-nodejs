@@ -107,6 +107,7 @@ function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5_packet.C
 /** @internal */
 export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : Mqtt5ClientConfig) : mqtt.IClientOptions {
     let mqttJsClientConfig : mqtt.IClientOptions = {
+        protocolVersion: 5,
         keepalive: crtConfig.connectProperties?.keepAliveIntervalSeconds ?? DEFAULT_KEEP_ALIVE,
         connectTimeout: crtConfig.connackTimeoutMs ?? DEFAULT_CONNACK_TIMEOUT_MS,
         clean: (crtConfig.sessionBehavior ?? ClientSessionBehavior.Clean) == ClientSessionBehavior.Clean,
@@ -345,7 +346,18 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 }
 
 /** @internal **/
-export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacket) : mqtt5_packet.PubackPacket {
+export function transform_mqtt_js_puback_to_crt_puback(packet: mqtt.IPacket) : mqtt5_packet.PubackPacket {
+
+    /* sadly, mqtt-js returns the original publish packet when the puback is a success, so we have no access
+     * to the puback's user properties or response string.
+     */
+    if (packet.cmd != 'puback') {
+        return {
+            reasonCode: mqtt5_packet.PubackReasonCode.Success
+        };
+    }
+
+    let puback = packet as mqtt.IPubackPacket;
 
     let crtPuback : mqtt5_packet.PubackPacket = {
         reasonCode: puback.reasonCode ?? mqtt5_packet.PubackReasonCode.Success,
@@ -400,4 +412,34 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
     }
 
     return crtUnsuback;
+}
+
+/**
+ * Converts payload to Buffer or string regardless of the supplied type
+ * @param payload The payload to convert
+ * @internal
+ */
+export function normalize_payload(payload: any): Buffer | string {
+    if (payload instanceof Buffer) {
+        // pass Buffer through
+        return payload;
+    }
+    if (typeof payload === 'string') {
+        // pass string through
+        return payload;
+    }
+    if (ArrayBuffer.isView(payload)) {
+        // return Buffer with view upon the same bytes (no copy)
+        const view = payload as ArrayBufferView;
+        return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    }
+    if (payload instanceof ArrayBuffer) {
+        // return Buffer with view upon the same bytes (no copy)
+        return Buffer.from(payload);
+    }
+    if (typeof payload === 'object') {
+        // Convert Object to JSON string
+        return JSON.stringify(payload);
+    }
+    throw new TypeError("payload parameter must be a string, object, or DataView.");
 }

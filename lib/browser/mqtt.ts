@@ -15,6 +15,7 @@
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
+import * as mqtt_utils from "./mqtt_utils";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
@@ -218,36 +219,6 @@ class TopicTrie extends Trie<OnMessageCallback | undefined> {
 }
 
 /**
- * Converts payload to Buffer or string regardless of the supplied type
- * @param payload The payload to convert
- * @internal
- */
-function normalize_payload(payload: Payload): Buffer | string {
-    if (payload instanceof Buffer) {
-        // pass Buffer through
-        return payload;
-    }
-    if (typeof payload === 'string') {
-        // pass string through
-        return payload;
-    }
-    if (ArrayBuffer.isView(payload)) {
-        // return Buffer with view upon the same bytes (no copy)
-        const view = payload as ArrayBufferView;
-        return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
-    }
-    if (payload instanceof ArrayBuffer) {
-        // return Buffer with view upon the same bytes (no copy)
-        return Buffer.from(payload);
-    }
-    if (typeof payload === 'object') {
-        // Convert Object to JSON string
-        return JSON.stringify(payload);
-    }
-    throw new TypeError("payload parameter must be a string, object, or DataView.");
-}
-
-/**
  * MQTT client connection
  *
  * @category MQTT
@@ -277,7 +248,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const will = this.config.will ? {
             topic: this.config.will.topic,
-            payload: normalize_payload(this.config.will.payload),
+            payload: mqtt_utils.normalize_payload(this.config.will.payload),
             qos: this.config.will.qos,
             retain: this.config.will.retain,
         } : undefined;
@@ -439,7 +410,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * * For QoS 2, completes when PUBCOMP is received.
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
-        let payload_data = normalize_payload(payload);
+        let payload_data = mqtt_utils.normalize_payload(payload);
         return new Promise((resolve, reject) => {
             this.connection.publish(topic, payload_data, { qos: qos, retain: retain }, (error, packet) => {
                 if (error) {

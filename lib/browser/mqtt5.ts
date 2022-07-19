@@ -9,29 +9,8 @@
  * @mergeTarget
  */
 
-
-import {
-    ConnackPacket,
-    DisconnectPacket,
-    PubackPacket,
-    PublishPacket,
-    SubackPacket,
-    SubscribePacket,
-    UnsubackPacket,
-    UnsubscribePacket
-} from "../common/mqtt5_packet";
 import {BufferedEventEmitter} from "../common/event";
-import {
-    AttemptingConnectEventHandler,
-    ConnectionFailureEventHandler,
-    ConnectionSuccessEventHandler,
-    DisconnectionEventHandler,
-    ErrorEventHandler,
-    IMqtt5Client,
-    MessageReceivedEventHandler,
-    Mqtt5ClientConfigShared, NegotiatedSettings,
-    StoppedEventHandler
-} from "../common/mqtt5";
+import * as mqtt5 from "../common/mqtt5";
 
 import {CrtError} from "./error";
 import * as mqtt from "mqtt";
@@ -39,13 +18,12 @@ import * as WebsocketUtils from "./ws";
 import {WebsocketOptions} from "./ws";
 import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt_utils";
-import {create_mqtt_js_client_config_from_crt_client_config} from "./mqtt_utils";
-
+import * as mqtt5_packet from "../common/mqtt5_packet";
 
 /**
  * Configuration interface for mqtt5 clients
  */
-export interface Mqtt5ClientConfig extends Mqtt5ClientConfigShared {
+export interface Mqtt5ClientConfig extends mqtt5.Mqtt5ClientConfigShared {
 
     /** Options for the underlying websocket connection */
     websocket?: WebsocketOptions;
@@ -66,7 +44,7 @@ enum Mqtt5ClientState {
  *
  * <TODO> Long-form client documentation
  */
-export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
+export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Client {
     private browserClient?: mqtt.MqttClient;
     private state : Mqtt5ClientState;
 
@@ -91,7 +69,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'error', listener: ErrorEventHandler): this;
+    on(event: 'error', listener: mqtt5.ErrorEventHandler): this;
 
     /**
      * Emitted when an MQTT PUBLISH packet is received by the client
@@ -101,7 +79,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
+    on(event: 'messageReceived', listener: mqtt5.MessageReceivedEventHandler): this;
 
     /**
      * Emitted when the client begins a connection attempt
@@ -111,7 +89,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
+    on(event: 'attemptingConnect', listener: mqtt5.AttemptingConnectEventHandler): this;
 
     /**
      * Emitted when the client successfully establishes an MQTT connection
@@ -121,7 +99,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
+    on(event: 'connectionSuccess', listener: mqtt5.ConnectionSuccessEventHandler): this;
 
     /**
      * Emitted when the client fails to establish an MQTT connection
@@ -131,7 +109,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
+    on(event: 'connectionFailure', listener: mqtt5.ConnectionFailureEventHandler): this;
 
     /**
      * Emitted when the client's current MQTT connection is shut down
@@ -141,7 +119,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'disconnection', listener: DisconnectionEventHandler): this;
+    on(event: 'disconnection', listener: mqtt5.DisconnectionEventHandler): this;
 
     /**
      * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
@@ -151,7 +129,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @event
      */
-    on(event: 'stopped', listener: StoppedEventHandler): this;
+    on(event: 'stopped', listener: mqtt5.StoppedEventHandler): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -172,13 +150,15 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
             this.emit('attemptingConnect');
 
             const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_mqtt5_websocket_stream(this.config);
-            let mqtt_js_options : mqtt.IClientOptions = create_mqtt_js_client_config_from_crt_client_config(this.config);
+            let mqtt_js_options : mqtt.IClientOptions = mqtt_utils.create_mqtt_js_client_config_from_crt_client_config(this.config);
             this.browserClient = new mqtt.MqttClient(create_websocket_stream, mqtt_js_options);
 
             // hook up events
             this.browserClient.on('end', () => {this._on_stopped_internal();});
             this.browserClient.on('reconnect', () => {this.on_attempting_connect();});
             this.browserClient.on('connect', (connack: mqtt.IConnackPacket) => {this.on_connection_success(connack);});
+            this.browserClient.on('message', this.on_message);
+
             this.browserClient.on('close', () => {console.log('Close event received!');});
             this.browserClient.on('offline', () => {console.log('Offline event received!');});
             this.browserClient.on('disconnect', (packet: mqtt.IDisconnectPacket) => {console.log('Disconnect event received!');});
@@ -195,8 +175,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
     }
 
     private on_connection_success = (connack: mqtt.IConnackPacket) => {
-        let crt_connack : ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
-        let settings : NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
+        let crt_connack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
+        let settings : mqtt5.NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
 
         this.emit('connectionSuccess', crt_connack, settings);
     }
@@ -209,7 +189,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
-    stop(disconnectPacket?: DisconnectPacket) {
+    stop(disconnectPacket?: mqtt5_packet.DisconnectPacket) {
         if (this.state == Mqtt5ClientState.Running) {
             this.state = Mqtt5ClientState.Stopping;
             this.browserClient?.end(true);
@@ -224,9 +204,32 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      * @param packet SUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the SUBACK response
      */
-    async subscribe(packet: SubscribePacket) : Promise<SubackPacket> {
-        return new Promise<SubackPacket>((resolve, reject) => {
-            reject(new CrtError("Unimplemented"));
+    async subscribe(packet: mqtt5_packet.SubscribePacket) : Promise<mqtt5_packet.SubackPacket> {
+        return new Promise<mqtt5_packet.SubackPacket>((resolve, reject) => {
+
+            let rejectAndEmit = (error: Error) => {
+                let crtError : CrtError = new CrtError(error);
+                reject(crtError);
+                this.on_error(crtError);
+            };
+
+            if (this.browserClient === undefined) {
+                rejectAndEmit(new Error("Client is stopped and cannot subscribe"));
+                return;
+            }
+
+            let subMap : mqtt.ISubscriptionMap = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscription_map(packet);
+            let subOptions : mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(packet);
+
+            this.browserClient.subscribe(subMap, subOptions, (error, grants) => {
+                if (error) {
+                    rejectAndEmit(error);
+                    return;
+                }
+
+                const suback : mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(grants);
+                resolve(suback);
+            });
         });
     }
 
@@ -236,9 +239,45 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      * @param packet UNSUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
      */
-    async unsubscribe(packet: UnsubscribePacket) : Promise<UnsubackPacket> {
-        return new Promise<UnsubackPacket>((resolve, reject) => {
-            reject(new CrtError("Unimplemented"));
+    async unsubscribe(packet: mqtt5_packet.UnsubscribePacket) : Promise<mqtt5_packet.UnsubackPacket> {
+        let topicFilters : string[] = packet.topicFilters;
+
+        return new Promise<mqtt5_packet.UnsubackPacket>((resolve, reject) => {
+            let rejectAndEmit = (error: Error) => {
+                let crtError : CrtError = new CrtError(error);
+                reject(crtError);
+                this.on_error(crtError);
+            };
+
+            if (this.browserClient === undefined) {
+                rejectAndEmit(new Error("Client is stopped and cannot unsubscribe"));
+                return;
+            }
+
+            let topicFilters : string[] = packet.topicFilters;
+            let unsubOptions : Object = mqtt_utils.transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(packet);
+
+            this.browserClient.unsubscribe(topicFilters, unsubOptions, (error, packet) => {
+                if (error) {
+                    rejectAndEmit(error);
+                    return;
+                }
+
+                /*
+                 * sigh, mqtt-js doesn't emit the unsuback packet, we have to make something up that won't reflect
+                 * reality.
+                 */
+                if (packet === undefined) {
+                    /* this is a complete lie */
+                    let unsuback : mqtt5_packet.UnsubackPacket = {
+                        reasonCodes: topicFilters.map((filter: string, index: number, array : string[]) : mqtt5_packet.UnsubackReasonCode => { return mqtt5_packet.UnsubackReasonCode.Success; });
+                    };
+                    resolve(unsuback);
+                } else {
+                    const unsuback: mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(packet as mqtt.IUnsubackPacket);
+                    resolve(unsuback);
+                }
+            });
         });
     }
 
@@ -248,9 +287,35 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
      * @param packet PUBLISH packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
-    async publish(packet: PublishPacket) : Promise<PubackPacket> {
-        return new Promise<PubackPacket>((resolve, reject) => {
-            reject(new CrtError("Unimplemented"));
+    async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5_packet.PubackPacket> {
+        return new Promise<mqtt5_packet.PubackPacket>((resolve, reject) => {
+            let rejectAndEmit = (error: Error) => {
+                let crtError : CrtError = new CrtError(error);
+                reject(crtError);
+                this.on_error(crtError);
+            };
+
+            if (this.browserClient === undefined) {
+                rejectAndEmit(new Error("Client is stopped and cannot publish"));
+                return;
+            }
+
+            let publishOptions : mqtt.IClientPublishOptions = mqtt_utils.transform_crt_publish_to_mqtt_js_publish_options(packet);
+
+            this.browserClient.publish(packet.topicName, mqtt_utils.normalize_payload(packet.payload), publishOptions, (error, packet) => {
+                if (error) {
+                    rejectAndEmit(error);
+                    return;
+                }
+
+                if (packet === undefined) {
+                    rejectAndEmit(new Error("Undefined puback packet from mqtt-js"));
+                    return;
+                }
+
+                const puback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(packet as mqtt.IPubackPacket);
+                resolve(puback);
+            });
         });
     }
 
@@ -263,5 +328,15 @@ export class Mqtt5Client extends BufferedEventEmitter implements IMqtt5Client {
         } else {
             this.state = Mqtt5ClientState.Stopped;
         }
+    }
+
+    private on_error = (error: CrtError) => {
+        this.emit('error', error);
+    }
+
+    private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
+        let crtPublish : mqtt5_packet.PublishPacket = mqtt_utils.transform_mqtt_js_publish_to_crt_publish(packet);
+
+        this.emit('messageReceived', crtPublish);
     }
 }
