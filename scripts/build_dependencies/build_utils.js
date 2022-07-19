@@ -6,7 +6,18 @@ const child_process = require("child_process");
 
 module.exports = {
 
+    /**
+     * Checks if the given node package exists. If it does, it returns true, otherwise it returns false.
+     * This is used to check and see if we have a package before calling "require(<package_name>)".
+     * @param {string} package_name
+     * @param {string} package_version
+     * @returns true if the package exists, false otherwise
+     */
     npmCheckIfPackageExists: function (package_name, package_version) {
+
+        // TODO - Look at using require.resolve instead of checking the node modules lists using "npm list"
+        // This requires working around the issue where the package cannot be found, so it is downloaded but then
+        // using require right afterwards causes a crash. This crash would need to be worked around and/or fixed.
 
         // Do we have it in our node list? If so, then use that!
         try {
@@ -15,7 +26,10 @@ module.exports = {
                 console.log("Found " + package_name + " in node list!");
                 return true;
             }
-        } catch (error) {}
+        } catch (error) {
+            console.log("npm list " + package_name + " error:");
+            console.log(error);
+        }
 
         // Do we have it in our global list?
         try {
@@ -24,7 +38,10 @@ module.exports = {
                 console.log("Found " + package_name + " in node list!");
                 return true;
             }
-        } catch (error) {}
+        } catch (error) {
+            console.log("npm global list " + package_name + " error:");
+            console.log(error);
+        }
 
         console.log("Could not find " + package_name + " version " + package_version);
         return false;
@@ -38,8 +55,8 @@ module.exports = {
      * It it downloads it dynamically, then it will return true. This is so you can delete the package once you are done,
      * so it doesn't leave a zombie package in your node_modules. To remove the package, call npmDeleteRuntimePackage
      *
-     * @param {*} package_name The name of the package you want to download (example: 'cmake-js')
-     * @param {*} package_version The version of the package to download - leave blank for latest. (example: '6.3.2')
+     * @param {string} package_name The name of the package you want to download (example: 'cmake-js')
+     * @param {string} package_version The version of the package to download - leave blank for latest. (example: '6.3.2')
      * @returns True if the package was downloaded dynamically, otherwise false.
      */
     npmDownloadAndInstallRuntimePackage : function(package_name, package_version) {
@@ -55,9 +72,9 @@ module.exports = {
             console.log("Downloading " + package_name + " from npm for build...");
             // Try to intall the given package and ONLY the given package. Will throw an exception if there is an error.
             if (package_version != null) {
-                child_process.execSync("npm install --no-package-lock --ignore-scripts " + package_name + "@" + package_version);
+                child_process.execSync("npm install --no-package-lock --ignore-scripts --no-save " + package_name + "@" + package_version);
             } else {
-                child_process.execSync("npm install --no-package-lock --ignore-scripts " + package_name);
+                child_process.execSync("npm install --no-package-lock --ignore-scripts --no-save " + package_name);
             }
             return true;
 
@@ -68,18 +85,17 @@ module.exports = {
     },
 
     /**
-     * Tells NPM to uninstall a package. This should only be used to clean up a dynamic package downloaded with the
-     * npmDownloadAndInstallRuntimePackage function, as otherwise it could remove a non-dynamic package.
-     * @param {*} package_name The name of the package you want to delete (example 'cmake-js')
+     * Prints an error message explaining why the script failed and encourages the reader to download the package
+     * and make sure their development environment is setup correctly.
+     * @param {string} package_name
+     * @param {string} package_version
      */
-    npmDeleteRuntimePackage : function (package_name) {
-        console.log("Removing " + package_name + "...");
-        try {
-            child_process.execSync("npm uninstall " + package_name);
-        } catch (err) {
-            console.log("ERROR - npm could not remove " + package_name + "!");
-            throw err;
-        }
+    npmErrorPrint : function (package_name, package_version) {
+        console.log("ERROR: Could not download " + package_name + "! Cannot build CRT");
+        console.log("This is likely due to being unable to download the package.");
+        console.log("Please install " + package_name + " version " + this.package_version + " and then run the aws-crt install script again");
+        console.log("If that does not work, ensure that:");
+        console.log("* you have npm (node package manager) installed");
+        console.log("* " + package_name + " version " + package_version + " is available in your node package registry");
     }
-
 };

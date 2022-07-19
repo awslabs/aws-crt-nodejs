@@ -17,7 +17,7 @@ module.exports = {
      * or download the runtime-package for cmake-js as needed.
      */
     performStep: async function () {
-        if (utils.npmCheckIfPackageExists("cmake-js") == true) {
+        if (utils.npmCheckIfPackageExists("cmake-js")) {
             await this.buildSource();
         } else {
             await this.getPackageAndBuildSource();
@@ -47,8 +47,8 @@ module.exports = {
                 utils.npmDownloadAndInstallRuntimePackage("cmake-js", this.cmake_version);
                 this.cmake = require('cmake-js');
             } catch (error) {
-                console.log("ERROR: Could not download cmake-js! Cannot build CRT");
-                console.log("Please install cmake-js verion " + this.cmake_version + " and then run the aws-crt install script again");
+                utils.npmErrorPrint("cmake-js", this.cmake_version);
+                process.chdir(workDir);
                 process.exit(1);
             }
         }
@@ -61,7 +61,6 @@ module.exports = {
     /**
      * Builds the cmake source using cmake-js. You should not call this directly and instead call
      * "performStep", "buildSource", or "getPackageAndBuildSource" depending on your need.
-     * @returns
      */
     buildLocally: function () {
         const platform = os.platform();

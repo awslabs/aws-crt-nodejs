@@ -21,15 +21,15 @@ module.exports = {
 
         process.chdir(__dirname);
         if (this.axios == null) {
-            if (utils.npmCheckIfPackageExists("axios", this.axios_version) == true) {
+            if (utils.npmCheckIfPackageExists("axios", this.axios_version)) {
                 this.axios = require("axios");
             } else {
                 try {
                     this.clean_up_axios = utils.npmDownloadAndInstallRuntimePackage("axios", this.axios_version);
                     this.axios = require('axios');
                 } catch (error) {
-                    console.log("ERROR: Could not download axios! Cannot build CRT");
-                    console.log("Please install axios verion " + this.axios_version + " and then run the aws-crt install script again");
+                    utils.npmErrorPrint("axios", this.axios_version);
+                    process.chdir(workDir);
                     process.exit(1);
                 }
             }

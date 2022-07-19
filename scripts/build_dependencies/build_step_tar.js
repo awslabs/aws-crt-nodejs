@@ -15,7 +15,7 @@ module.exports = {
      * Will automatically either use or download the runtime-package for tar as needed.
      */
     performStep: async function (url, version, path) {
-        if (utils.npmCheckIfPackageExists("tar") == true) {
+        if (utils.npmCheckIfPackageExists("tar")) {
             await this.buildSource(url, version, path);
         } else {
             await this.getModuleAndBuildSource(url, version, path);
@@ -35,8 +35,8 @@ module.exports = {
                 utils.npmDownloadAndInstallRuntimePackage("tar", tar_version);
                 this.tar = require('tar');
             } catch (error) {
-                console.log("ERROR: Could not download tar! Cannot build CRT");
-                console.log("Please install tar verion " + this.tar_version + " and then run the aws-crt install script again");
+                utils.npmErrorPrint("tar", this.tar_version);
+                process.chdir(workDir);
                 process.exit(1);
             }
         }
