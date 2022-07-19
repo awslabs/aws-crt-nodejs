@@ -1386,15 +1386,10 @@ static int s_init_publish_options_from_napi(
     }
     publish_options->topic = aws_byte_cursor_from_buf(&publish_storage->topic);
 
-    if (!aws_napi_get_named_property_as_bytebuf(
+    if (aws_napi_get_named_property_as_bytebuf(
             env, node_publish_config, AWS_NAPI_KEY_PAYLOAD, napi_undefined, &publish_storage->payload)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "id=%p s_init_publish_options_from_napi - failed to extract required property: payload",
-            (void *)binding->client);
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        publish_options->payload = aws_byte_cursor_from_buf(&publish_storage->payload);
     }
-    publish_options->payload = aws_byte_cursor_from_buf(&publish_storage->payload);
 
     uint32_t qos = 0;
     if (!aws_napi_get_named_property_as_uint32(env, node_publish_config, AWS_NAPI_KEY_QOS, &qos)) {

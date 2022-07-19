@@ -659,7 +659,7 @@ export interface PublishPacket {
      *
      * See [MQTT5 Publish Payload](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901119)
      */
-    payload: Payload;
+    payload?: Payload;
 
     /**
      * Sent publishes - The MQTT quality of service level this message should be delivered with.
