@@ -2,9 +2,7 @@
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
-const fs = require("fs");
 const child_process = require("child_process");
-const process = require("process");
 
 module.exports = {
 
