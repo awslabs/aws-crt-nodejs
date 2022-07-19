@@ -739,33 +739,168 @@ test('transform_crt_publish_to_mqtt_js_publish_options maximal', async() => {
 });
 
 test('transform_mqtt_js_publish_to_crt_publish minimal', async() => {
+    let payload : Buffer = Buffer.from("", "utf-8");
 
+    let mqttJsPublish : mqtt.IPublishPacket = {
+        cmd: 'publish',
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        dup: false,
+        retain: false,
+        topic: 'hello/there',
+        payload: payload
+    };
+
+    let crtPublish : mqtt5_packet.PublishPacket = mqtt_utils.transform_mqtt_js_publish_to_crt_publish(mqttJsPublish);
+
+    expect(crtPublish).toEqual({
+        topicName: "hello/there",
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        payload: payload,
+        retain: false
+    });
 });
 
 test('transform_mqtt_js_publish_to_crt_publish maximal', async() => {
+    let payload : Buffer = Buffer.from("Actual data", "utf-8");
+    let correlationData : Buffer = Buffer.from("some-id", "utf-8");
 
+    let mqttJsPublish : mqtt.IPublishPacket = {
+        cmd: 'publish',
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        dup: false,
+        retain: true,
+        topic: 'hello/there',
+        payload: payload,
+        properties: {
+            payloadFormatIndicator: false,
+            messageExpiryInterval: 30,
+            topicAlias: 1,
+            responseTopic: "response/goes/here",
+            correlationData: correlationData,
+            userProperties: {
+                prop1: "value1"
+            },
+            subscriptionIdentifier: 5,
+            contentType: "cbor"
+        }
+    };
+
+    let crtPublish : mqtt5_packet.PublishPacket = mqtt_utils.transform_mqtt_js_publish_to_crt_publish(mqttJsPublish);
+
+    expect(crtPublish).toEqual({
+        topicName: "hello/there",
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        payload: payload,
+        retain: true,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Bytes,
+        messageExpiryIntervalSeconds: 30,
+        responseTopic: "response/goes/here",
+        correlationData: correlationData,
+        userProperties: [
+            { name: "prop1", value: "value1" }
+        ],
+        subscriptionIdentifiers: [ 5 ],
+        contentType: "cbor"
+    });
 });
 
 test('transform_mqtt_js_puback_to_crt_puback minimal', async() => {
+    let mqttJsPuback : mqtt.IPubackPacket = {
+        cmd: 'puback'
+    };
 
+    let crtPuback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(mqttJsPuback);
+
+    expect(crtPuback).toEqual({
+        reasonCode: mqtt5_packet.PubackReasonCode.Success
+    });
 });
 
 test('transform_mqtt_js_puback_to_crt_puback maximal', async() => {
+    let mqttJsPuback : mqtt.IPubackPacket = {
+        cmd: 'puback',
+        reasonCode: mqtt5_packet.PubackReasonCode.NotAuthorized,
+        properties: {
+            reasonString: "Insufficient privilege",
+            userProperties: {
+                prop1: "value1"
+            }
+        }
+    };
 
+    let crtPuback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(mqttJsPuback);
+
+    expect(crtPuback).toEqual({
+        reasonCode: mqtt5_packet.PubackReasonCode.NotAuthorized,
+        reasonString: "Insufficient privilege",
+        userProperties: [
+            { name: "prop1", value: "value1" }
+        ]
+    });
 });
 
 test('transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options minimal', async() => {
+    let crtUnsubscribe : mqtt5_packet.UnsubscribePacket = {
+        topicFilters: [ "hello/there" ]
+    };
 
+    let mqttJsUnsubscribeOptions : Object = mqtt_utils.transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(crtUnsubscribe);
+
+    expect(mqttJsUnsubscribeOptions).toEqual({});
 });
 
 test('transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options maximal', async() => {
+    let crtUnsubscribe : mqtt5_packet.UnsubscribePacket = {
+        topicFilters: [ "hello/there" ],
+        userProperties: [
+            { name: "prop1", value: "value1" }
+        ]
+    };
 
+    let mqttJsUnsubscribeOptions : Object = mqtt_utils.transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(crtUnsubscribe);
+
+    expect(mqttJsUnsubscribeOptions).toEqual({
+        properties: {
+            userProperties: {
+                prop1: [ "value1" ]
+            }
+        }
+    });
 });
 
 test('transform_mqtt_js_unsuback_to_crt_unsuback minimal', async() => {
+    let mqttJsUnsuback : mqtt.IUnsubackPacket = {
+        cmd: 'unsuback',
+        reasonCode: mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted
+    };
 
+    let crtUnsuback : mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(mqttJsUnsuback);
+
+    expect(crtUnsuback).toEqual({
+        reasonCodes: [ mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted ]
+    });
 });
 
 test('transform_mqtt_js_unsuback_to_crt_unsuback maximal', async() => {
+    let mqttJsUnsuback : mqtt.IUnsubackPacket = {
+        cmd: 'unsuback',
+        // @ts-ignore
+        reasonCode: [mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted, mqtt5_packet.UnsubackReasonCode.ImplementationSpecificError],
+        properties: {
+            reasonString: "Dunno",
+            userProperties: {
+                prop1: "value1"
+            }
+        }
+    };
 
+    let crtUnsuback : mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(mqttJsUnsuback);
+
+    expect(crtUnsuback).toEqual({
+        reasonCodes: [ mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted, mqtt5_packet.UnsubackReasonCode.ImplementationSpecificError ],
+        reasonString: "Dunno",
+        userProperties: [
+            { name: "prop1", value: "value1" }
+        ]
+    });
 });
