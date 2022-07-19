@@ -10,27 +10,11 @@ module.exports = {
 
     npmCheckIfPackageExists: function (package_name, package_version) {
 
-        // TODO - check the version as well!
-        // TODO - look at using require.resolve instead of fs.existsSync
-
-        // Do we have it in our node dependencies?
-        try {
-            console.log("Looking for " + package_name + " in node_modules in root and scripts/build_dependencies...");
-            if (fs.existsSync(process.cwd() + "/node_modules/" + package_name)) {
-                console.log("Found " + package_name + " in node_dependencies!");
-                return true;
-            }
-            if (fs.existsSync(__dirname + "/node_modules/" + package_name)) {
-                console.log("Found " + package_name + " in scripts/build_dependencies/node_dependencies!");
-                return true;
-            }
-        } catch (error) {}
-
         // Do we have it in our node list? If so, then use that!
         try {
             var list_output = child_process.execSync("npm list --depth 0 " + package_name, {encoding: "utf8"});
-            if (list_output.indexOf(package_name) !== -1) {
-                console.log("Found " + package_name + " in npm list!");
+            if (list_output.indexOf(package_name + "@" + package_version) !== -1) {
+                console.log("Found " + package_name + " in node list!");
                 return true;
             }
         } catch (error) {}
@@ -38,13 +22,13 @@ module.exports = {
         // Do we have it in our global list?
         try {
             var list_output = child_process.execSync("npm list -g --depth 0 " + package_name, {encoding: "utf8"});
-            if (list_output.indexOf(package_name) !== -1) {
-                console.log("Found " + package_name + " in npm list!");
+            if (list_output.indexOf(package_name + "@" + package_version) !== -1) {
+                console.log("Found " + package_name + " in node list!");
                 return true;
             }
         } catch (error) {}
 
-        console.log("Could not find " + package_name);
+        console.log("Could not find " + package_name + " version " + package_version);
         return false;
     },
 
@@ -61,7 +45,7 @@ module.exports = {
      * @returns True if the package was downloaded dynamically, otherwise false.
      */
     npmDownloadAndInstallRuntimePackage : function(package_name, package_version) {
-        console.log("Looking for " + package_name + " as a dependency...");
+        console.log("Looking for " + package_name + " version " + package_version + " as a dependency...");
 
         if (this.npmCheckIfPackageExists(package_name, package_version) == true) {
             return false;

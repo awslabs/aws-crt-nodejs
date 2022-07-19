@@ -42,29 +42,19 @@ module.exports = {
         const workDir = path.join(__dirname, "../../")
 
         process.chdir(__dirname);
-        let clean_up_cmake = false;
         if (this.cmake == null) {
             try {
-                clean_up_cmake = utils.npmDownloadAndInstallRuntimePackage("cmake-js", this.cmake_version);
+                utils.npmDownloadAndInstallRuntimePackage("cmake-js", this.cmake_version);
                 this.cmake = require('cmake-js');
             } catch (error) {
                 console.log("ERROR: Could not download cmake-js! Cannot build CRT");
+                console.log("Please install cmake-js verion " + this.cmake_version + " and then run the aws-crt install script again");
                 process.exit(1);
             }
         }
         process.chdir(workDir);
 
         await this.buildSource();
-
-        // Optional: To remove the dependency once you are finish with it, uncomment below
-        // but note that you will may need to download it again upon a rebuild.
-        // if (clean_up_cmake) {
-        //     process.chdir(__dirname);
-        //     utils.npmDeleteRuntimePackage("cmake-js");
-        //     process.chdir(workDir);
-        //     this.cmake = null;
-        // }
-
         return;
     },
 

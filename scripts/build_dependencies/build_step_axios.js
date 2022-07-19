@@ -8,44 +8,44 @@ const utils = require('./build_utils');
 
 module.exports = {
 
-    // TODO - document this and only download axios if it does not already exist.
-
     axios: null,
     clean_up_axios: false,
     axios_version: "0.24.0",
 
+    /**
+     * Loads the axios library. We want to do this seperate instead of having a performStep function
+     * because the axios library is needed for multiple functions that have different data passed to them.
+     */
     loadAxios: function () {
         const workDir = path.join(__dirname, "../../")
 
         process.chdir(__dirname);
         if (this.axios == null) {
-            try {
-                this.clean_up_axios = utils.npmDownloadAndInstallRuntimePackage("axios", this.axios_version);
-                this.axios = require('axios');
-            } catch (error) {
-                console.log("ERROR: Could not download axios! Cannot build CRT");
-                process.exit(1);
+            if (utils.npmCheckIfPackageExists("axios", this.axios_version) == true) {
+                this.axios = require("axios");
+            } else {
+                try {
+                    this.clean_up_axios = utils.npmDownloadAndInstallRuntimePackage("axios", this.axios_version);
+                    this.axios = require('axios');
+                } catch (error) {
+                    console.log("ERROR: Could not download axios! Cannot build CRT");
+                    console.log("Please install axios verion " + this.axios_version + " and then run the aws-crt install script again");
+                    process.exit(1);
+                }
             }
         }
         process.chdir(workDir);
     },
 
-    unloadAxios: function () {
-        const workDir = path.join(__dirname, "../../")
-
-        // Optional: To remove the dependency once you are finish with it, uncomment below
-        // but note that you will may need to download it again upon a rebuild.
-        // if (this.clean_up_axios) {
-        //     process.chdir(__dirname);
-        //     utils.npmDeleteRuntimePackage("axios");
-        //     process.chdir(workDir);
-        //     this.axios = null;
-        // }
-    },
-
+    /**
+     * Downloads the file from the given file URL and places it in the given output location path.
+     * @param {*} fileUrl The file to download
+     * @param {*} outputLocationPath The location to store the downloaded file
+     * @returns A promise for the file download
+     */
     downloadFile: function (fileUrl, outputLocationPath) {
         const writer = fs.createWriteStream(outputLocationPath);
-        return axios({
+        return this.axios({
             method: 'get',
             url: fileUrl,
             responseType: 'stream',
@@ -67,8 +67,15 @@ module.exports = {
         });
     },
 
+    /**
+     * Performs a checksum check on the given file. The checksum is downloaded from the given URL
+     * and then the file given is checked using said checksum.
+     * @param {*} url The URL containing the checksum
+     * @param {*} local_file The file to check
+     * @returns A promise for the result of the check
+     */
     checkChecksum: function (url, local_file) {
-        return axios({
+        return this.axios({
             method: 'get',
             url: url,
             responseType: 'text',

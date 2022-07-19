@@ -30,29 +30,19 @@ module.exports = {
         const workDir = path.join(__dirname, "../../")
 
         process.chdir(__dirname);
-        let remove_tar_at_end = false;
         if (this.tar == null) {
             try {
-                remove_tar_at_end = utils.npmDownloadAndInstallRuntimePackage("tar", tar_version);
+                utils.npmDownloadAndInstallRuntimePackage("tar", tar_version);
                 this.tar = require('tar');
             } catch (error) {
                 console.log("ERROR: Could not download tar! Cannot build CRT");
+                console.log("Please install tar verion " + this.tar_version + " and then run the aws-crt install script again");
                 process.exit(1);
             }
         }
         process.chdir(workDir);
 
-        fetchNativeCode(url, version, path);
-
-        // Optional: To remove the dependency once you are finish with it, uncomment below
-        // but note that you will may need to download it again upon a rebuild.
-        // if (remove_tar_at_end == true) {
-        //     process.chdir(__dirname);
-        //     utils.npmDeleteRuntimePackage("tar");
-        //     process.chdir(workDir);
-        //     this.tar = null;
-        // }
-
+        this.fetchNativeCode(url, version, path);
     },
 
     /**
@@ -69,7 +59,5 @@ module.exports = {
         const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`;
         await build_step_axios.checkChecksum(sourceChecksumURL, tarballPath);
         await this.tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
-
-        build_step_axios.unloadAxios();
     }
 }

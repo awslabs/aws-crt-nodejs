@@ -1,8 +1,6 @@
 {
   "name": "aws-crt-build",
   "private": true,
-  "dependencies": {
-    "cmake-js": "^6.3.2"
-  },
+  "dependencies": {},
   "devDependencies": {}
 }
