@@ -233,12 +233,11 @@ export function transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe: m
 
     for (const subscription of subscribe.subscriptions) {
         let mqttJsSub = {
-            qos: subscription.qos
+            qos: subscription.qos,
+            nl : subscription.noLocal ?? false,
+            rap: subscription.retainAsPublished ?? false,
+            rh: subscription.retainHandlingType ?? mqtt5_packet.RetainHandlingType.SendOnSubscribe
         };
-
-        set_defined_property(mqttJsSub, "nl", subscription.noLocal);
-        set_defined_property(mqttJsSub, "rap", subscription.retainAsPublished);
-        set_defined_property(mqttJsSub, "rh", subscription.retainHandlingType);
 
         subscriptionMap[subscription.topicFilter] = mqttJsSub;
     }
@@ -300,10 +299,9 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5_
     propertiesValid = set_defined_property(properties, "contentType", publish.contentType) || propertiesValid;
 
     let mqttJsPublish : mqtt.IClientPublishOptions = {
-        qos: publish.qos
+        qos: publish.qos,
+        retain: publish.retain ?? false,
     };
-
-    set_defined_property(mqttJsPublish, "retain", publish.retain);
 
     if (propertiesValid) {
         mqttJsPublish["properties"] = properties;

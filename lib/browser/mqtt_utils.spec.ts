@@ -5,6 +5,7 @@
 
 import * as mqtt from "mqtt";
 import * as mqtt5_packet from "../common/mqtt5_packet";
+import {PayloadFormatIndicator} from "../common/mqtt5_packet";
 import * as mqtt_utils from "./mqtt_utils";
 import {Mqtt5ClientConfig} from "./mqtt5";
 import {ClientOperationQueueBehavior, ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
@@ -584,27 +585,157 @@ test('transform_crt_disconnect_to_mqtt_js_disconnect maximal', async() => {
 });
 
 test('transform_crt_subscribe_to_mqtt_js_subscription_map', async() => {
+    let subscribe : mqtt5_packet.SubscribePacket = {
+        subscriptions: [
+            {
+                qos: mqtt5_packet.QoS.AtLeastOnce,
+                topicFilter: "hello/world",
+                noLocal: true,
+                retainAsPublished: true,
+                retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribeIfNew
+            },
+            {
+                qos: mqtt5_packet.QoS.ExactlyOnce,
+                topicFilter: "hello/world2"
+            }
+        ]
+    }
 
+    let mqttJsSubscriptionMap : mqtt.ISubscriptionMap = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe);
+
+    expect(mqttJsSubscriptionMap).toEqual({
+        "hello/world": {
+            qos: mqtt5_packet.QoS.AtLeastOnce,
+            nl: true,
+            rap: true,
+            rh: mqtt5_packet.RetainHandlingType.SendOnSubscribeIfNew
+        },
+        "hello/world2": {
+            qos: mqtt5_packet.QoS.ExactlyOnce,
+            nl: false,
+            rap: false,
+            rh: mqtt5_packet.RetainHandlingType.SendOnSubscribe
+        }
+    });
 });
 
-test('transform_crt_subscribe_to_mqtt_js_subscribe_options minimal', async() => {
+//function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: mqtt5_packet.SubscribePacket) : mqtt.IClientSubscribeOptions
 
+test('transform_crt_subscribe_to_mqtt_js_subscribe_options minimal', async() => {
+    let subscribe : mqtt5_packet.SubscribePacket = {
+        subscriptions: [
+            {
+                qos: mqtt5_packet.QoS.ExactlyOnce,
+                topicFilter: "hello/world2"
+            }
+        ]
+    };
+
+    let mqttJsSubscribeOptions : mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe);
+
+    expect(mqttJsSubscribeOptions).toEqual({
+        qos: 0 // unfortunately, the typescript definition requires this parameter despite it not being used by us
+    });
 });
 
 test('transform_crt_subscribe_to_mqtt_js_subscribe_options maximal', async() => {
+    let subscribe : mqtt5_packet.SubscribePacket = {
+        subscriptions: [
+            {
+                qos: mqtt5_packet.QoS.ExactlyOnce,
+                topicFilter: "hello/world2"
+            }
+        ],
+        subscriptionIdentifier: 5,
+        userProperties: [
+            { name: "prop1", value: "value1" }
+        ]
+    };
 
+    let mqttJsSubscribeOptions : mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe);
+
+    expect(mqttJsSubscribeOptions).toEqual({
+        qos: 0, // unfortunately, the typescript definition requires this parameter despite it not being used by us
+        properties: {
+            subscriptionIdentifier: 5,
+            userProperties: {
+                prop1: [ "value1" ]
+            }
+        }
+    });
 });
 
 test('transform_mqtt_js_subscription_grants_to_crt_suback', async() => {
+    let subscriptionsGranted : mqtt.ISubscriptionGrant[] = [
+        {
+            topic: "my/topic",
+            qos: 2
+        },
+        {
+            topic: "a/different/topic",
+            qos: mqtt5_packet.SubackReasonCode.NotAuthorized,
+            nl: true,
+            rap: true,
+            rh: 2
+        }
+    ];
 
+    let suback : mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted);
+
+    expect(suback).toEqual({
+        reasonCodes: [2, mqtt5_packet.SubackReasonCode.NotAuthorized]
+    });
 });
 
 test('transform_crt_publish_to_mqtt_js_publish_options minimal', async() => {
+    let publish : mqtt5_packet.PublishPacket = {
+        topicName: "hello/there",
+        qos: mqtt5_packet.QoS.AtMostOnce
+    };
 
+    let publishOptions: mqtt.IClientPublishOptions = mqtt_utils.transform_crt_publish_to_mqtt_js_publish_options(publish);
+
+    expect(publishOptions).toEqual({
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        retain: false
+    });
 });
 
 test('transform_crt_publish_to_mqtt_js_publish_options maximal', async() => {
+    let payload: Buffer = Buffer.from("warglgarbl", "utf-8");
+    let correlationData: Buffer = Buffer.from("VeryUnique", "utf-8");
 
+    let publish : mqtt5_packet.PublishPacket = {
+        topicName: "hello/there",
+        qos: mqtt5_packet.QoS.ExactlyOnce,
+        retain: true,
+        payload: payload,
+        payloadFormat: PayloadFormatIndicator.Bytes,
+        messageExpiryIntervalSeconds: 60,
+        responseTopic: "the/answer",
+        correlationData: correlationData,
+        userProperties: [
+            { name: "prop1", value: "value1" }
+        ],
+        contentType: "not-xml"
+    };
+
+    let publishOptions: mqtt.IClientPublishOptions = mqtt_utils.transform_crt_publish_to_mqtt_js_publish_options(publish);
+
+    expect(publishOptions).toEqual({
+        qos: mqtt5_packet.QoS.ExactlyOnce,
+        retain: true,
+        properties: {
+            payloadFormatIndicator: false,
+            messageExpiryInterval: 60,
+            responseTopic: "the/answer",
+            correlationData: correlationData,
+            userProperties: {
+                prop1: ["value1"]
+            },
+            contentType: "not-xml"
+        }
+    });
 });
 
 test('transform_mqtt_js_publish_to_crt_publish minimal', async() => {
