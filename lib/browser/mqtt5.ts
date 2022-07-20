@@ -240,7 +240,6 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
      */
     async unsubscribe(packet: mqtt5_packet.UnsubscribePacket) : Promise<mqtt5_packet.UnsubackPacket> {
-        let topicFilters : string[] = packet.topicFilters;
 
         return new Promise<mqtt5_packet.UnsubackPacket>((resolve, reject) => {
             let rejectAndEmit = (error: Error) => {
@@ -267,10 +266,10 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                  * sigh, mqtt-js doesn't emit the unsuback packet, we have to make something up that won't reflect
                  * reality.
                  */
-                if (packet === undefined) {
+                if (packet === undefined || packet.cmd !== 'unsuback') {
                     /* this is a complete lie */
                     let unsuback : mqtt5_packet.UnsubackPacket = {
-                        reasonCodes: topicFilters.map((filter: string, index: number, array : string[]) : mqtt5_packet.UnsubackReasonCode => { return mqtt5_packet.UnsubackReasonCode.Success; });
+                        reasonCodes: topicFilters.map((filter: string, index: number, array : string[]) : mqtt5_packet.UnsubackReasonCode => { return mqtt5_packet.UnsubackReasonCode.Success; })
                     };
                     resolve(unsuback);
                 } else {
