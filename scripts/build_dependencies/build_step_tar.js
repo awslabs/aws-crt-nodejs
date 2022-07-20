@@ -9,6 +9,7 @@
 module.exports = {
 
     tar : null,
+    tar_version : "6.1.11",
 
     /**
      * Will download the file at the given url with the given version to the given path using tar.
@@ -32,7 +33,7 @@ module.exports = {
         process.chdir(__dirname);
         if (this.tar == null) {
             try {
-                utils.npmDownloadAndInstallRuntimePackage("tar", tar_version);
+                utils.npmDownloadAndInstallRuntimePackage("tar", this.tar_version);
                 this.tar = require('tar');
             } catch (error) {
                 utils.npmErrorPrint("tar", this.tar_version);
