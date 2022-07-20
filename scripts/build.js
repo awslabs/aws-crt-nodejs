@@ -36,7 +36,6 @@ function rmRecursive(rmPath) {
 };
 
 async function buildFromRemoteSource(tmpPath) {
-
     if (fs.existsSync(nativeSourceDir)) {
         //teardown the local source code
         rmRecursive(nativeSourceDir);
@@ -52,7 +51,7 @@ async function buildFromRemoteSource(tmpPath) {
     let rawData = fs.readFileSync('package.json');
     const version = JSON.parse(rawData)["version"];
     // Get the file using tar, loaded as an install-time dependency (see scripts/build_dependencies)
-    await build_step_tar.performStep(host, version, tmpPath);
+    await build_step_tar.performStep(host, version, tmpPath, nativeSourceDir);
     // Clean up temp directory
     rmRecursive(tmpPath);
     // Kick off local build using cmake-js loaded as an install-time dependency (see scripts/build_dependencies)

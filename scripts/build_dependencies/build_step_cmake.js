@@ -10,14 +10,14 @@ const utils = require('./build_utils');
 
 module.exports = {
     cmake: null,
-    cmake_version: "6.3.2",
+    cmake_version: require("../../package.json").devDependencies['cmake-js'].replace("^", ""),
 
     /**
      * Will compile the source code for the CRT using cmake-js. Will automatically either use
      * or download the runtime-package for cmake-js as needed.
      */
     performStep: async function () {
-        if (utils.npmCheckIfPackageExists("cmake-js")) {
+        if (utils.npmCheckIfPackageExists("cmake-js", this.cmake_version)) {
             await this.buildSource();
         } else {
             await this.getPackageAndBuildSource();

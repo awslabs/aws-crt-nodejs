@@ -2,6 +2,7 @@
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
+const path = require("path");
 const fs = require("fs");
 const crypto = require('crypto');
 const utils = require('./build_utils');
@@ -10,7 +11,7 @@ module.exports = {
 
     axios: null,
     clean_up_axios: false,
-    axios_version: "0.24.0",
+    axios_version: require("../../package.json").dependencies['axios'].replace("^", ""),
 
     /**
      * Loads the axios library. We want to do this seperate instead of having a performStep function
