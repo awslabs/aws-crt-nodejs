@@ -16,9 +16,9 @@ module.exports = {
      */
     performStep: async function (url, version, path) {
         if (utils.npmCheckIfPackageExists("tar")) {
-            await this.buildSource(url, version, path);
+            await this.fetchNativeCode(url, version, path);
         } else {
-            await this.getModuleAndBuildSource(url, version, path);
+            await this.getPackageAndFetchNativeCode(url, version, path);
         }
     },
 
