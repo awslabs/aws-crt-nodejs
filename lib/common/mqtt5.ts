@@ -263,12 +263,12 @@ export type ConnectionSuccessEventHandler = (connack: ConnackPacket, settings: N
 /**
  * Client ConnectionFailure lifecycle event handler signature
  */
-export type ConnectionFailureEventHandler = (errorCode: number, connack?: ConnackPacket) => void;
+export type ConnectionFailureEventHandler = (error: ICrtError, connack?: ConnackPacket) => void;
 
 /**
  * Client Disconnection lifecycle event handler signature
  */
-export type DisconnectionEventHandler = (errorCode: number, disconnect?: DisconnectPacket) => void;
+export type DisconnectionEventHandler = (error: ICrtError, disconnect?: DisconnectPacket) => void;
 
 /**
  * Message received event handler signature

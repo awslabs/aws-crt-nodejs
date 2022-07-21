@@ -39,6 +39,13 @@ enum Mqtt5ClientState {
     Restarting = 3,
 }
 
+enum Mqtt5ClientLifecycleEventState {
+    None = 0,
+    Connecting = 1,
+    Connected = 2,
+    Disconnected = 3,
+}
+
 /**
  * Browser-specific MQTT5 client.
  *
@@ -47,6 +54,7 @@ enum Mqtt5ClientState {
 export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Client {
     private browserClient?: mqtt.MqttClient;
     private state : Mqtt5ClientState;
+    private lifecycleEventState : Mqtt5ClientLifecycleEventState;
 
     /**
      * Client constructor
@@ -57,6 +65,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         super();
 
         this.state = Mqtt5ClientState.Stopped;
+        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.None;
 
         this.on('stopped', () => { this._on_stopped_internal(); });
     }
@@ -146,6 +155,9 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     start() {
         if (this.state == Mqtt5ClientState.Stopped) {
 
+            this.state = Mqtt5ClientState.Running;
+            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
+
             this.cork();
             this.emit('attemptingConnect');
 
@@ -158,8 +170,9 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             this.browserClient.on('reconnect', () => {this.on_attempting_connect();});
             this.browserClient.on('connect', (connack: mqtt.IConnackPacket) => {this.on_connection_success(connack);});
             this.browserClient.on('message', this.on_message);
+            this.browserClient.on('error', this.on_browser_client_error);
+            this.browserClient.on('close', this.on_browser_close);
 
-            this.browserClient.on('close', () => {console.log('Close event received!');});
             this.browserClient.on('offline', () => {console.log('Offline event received!');});
             this.browserClient.on('disconnect', (packet: mqtt.IDisconnectPacket) => {console.log('Disconnect event received!');});
 
@@ -170,11 +183,33 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         }
     }
 
-    private on_attempting_connect = () => {
+    private on_browser_close() {
+        console.log('Close event received!');
+        if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connected) {
+            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
+            this.emit('disconnection', new CrtError("disconnected"));
+        } else {
+            console.log('This should never happen.  If it does it means that our model of the browser clients state transitions is wrong and we need to fix our implementation');
+        }
+    }
+
+    private on_browser_client_error(error: Error) {
+        if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connecting) {
+            this.emit('connectionFailure', new CrtError(error), null);
+            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
+        }
+
+        this.emit('error', error);
+    }
+
+    private on_attempting_connect () {
+        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
         this.emit('attemptingConnect');
     }
 
-    private on_connection_success = (connack: mqtt.IConnackPacket) => {
+    private on_connection_success (connack: mqtt.IConnackPacket) {
+        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connected;
+
         let crt_connack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
         let settings : mqtt5.NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
 
@@ -320,6 +355,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
     private _on_stopped_internal() {
         this.browserClient = undefined;
+        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.None;
 
         if (this.state == Mqtt5ClientState.Restarting) {
             this.state = Mqtt5ClientState.Stopped;
