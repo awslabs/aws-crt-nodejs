@@ -14,7 +14,9 @@ export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
 export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 export const DEFAULT_CONNACK_TIMEOUT_MS : number = 30000;
+export const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
 export const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
+export const DEFAULT_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS : number = 30000;
 
 /** @internal */
 function set_defined_property(object: any, propertyName: string, value: any) : boolean {
@@ -105,13 +107,33 @@ function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5_packet.C
 }
 
 /** @internal */
+export function getOrderedReconnectDelayBounds(configMin?: number, configMax?: number) : [number, number] {
+    const minDelay : number = Math.max(1, configMin ?? DEFAULT_MIN_RECONNECT_DELAY_MS);
+    const maxDelay : number = Math.max(1, configMax ?? DEFAULT_MAX_RECONNECT_DELAY_MS);
+    if (minDelay > maxDelay) {
+        return [maxDelay, minDelay];
+    } else {
+        return [minDelay, maxDelay];
+    }
+}
+
+/** @internal */
 export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : Mqtt5ClientConfig) : mqtt.IClientOptions {
+
+    let [_, maxDelay] = getOrderedReconnectDelayBounds(crtConfig.minReconnectDelayMs, crtConfig.maxReconnectDelayMs);
+
+    /*
+     * This is an attempt to guarantee that the mqtt-js will never try to reconnect on its own and instead always
+     * be controlled by our reconnection scheduler logic.
+     */
+    maxDelay = maxDelay * 2 + 60000;
+
     let mqttJsClientConfig : mqtt.IClientOptions = {
         protocolVersion: 5,
         keepalive: crtConfig.connectProperties?.keepAliveIntervalSeconds ?? DEFAULT_KEEP_ALIVE,
         connectTimeout: crtConfig.connackTimeoutMs ?? DEFAULT_CONNACK_TIMEOUT_MS,
         clean: (crtConfig.sessionBehavior ?? ClientSessionBehavior.Clean) == ClientSessionBehavior.Clean,
-        reconnectPeriod: crtConfig.maxReconnectDelayMs ?? DEFAULT_MAX_RECONNECT_DELAY_MS,
+        reconnectPeriod: maxDelay,
         queueQoSZero : false,
         // @ts-ignore
         autoUseTopicAlias : false,

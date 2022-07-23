@@ -20,6 +20,8 @@ import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 
+export { NegotiatedSettings, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler, MessageReceivedEventHandler, IMqtt5Client, ClientSessionBehavior, RetryJitterType, ClientOperationQueueBehavior, Mqtt5ClientConfigShared } from "../common/mqtt5";
+
 /**
  * Configuration interface for mqtt5 clients
  */
@@ -32,6 +34,78 @@ export interface Mqtt5ClientConfig extends mqtt5.Mqtt5ClientConfigShared {
     credentials_provider?: auth.CredentialsProvider;
 }
 
+class ReconnectionScheduler {
+    private connectionFailureCount: number;
+    private lastReconnectDelay: number | undefined;
+    private resetConnectionFailureCountTask : ReturnType<typeof setTimeout> | undefined;
+    private reconnectionTask : ReturnType<typeof setTimeout> | undefined;
+
+    constructor(private browserClient: mqtt.MqttClient, private clientConfig: Mqtt5ClientConfig) {
+        this.connectionFailureCount = 0;
+        this.lastReconnectDelay = 0;
+        this.resetConnectionFailureCountTask = undefined;
+        this.reconnectionTask = undefined;
+        this.lastReconnectDelay = undefined;
+    }
+
+    onSuccessfulConnection() : void {
+        this.clearTasks();
+
+        this.resetConnectionFailureCountTask = setTimeout(() => {
+            this.connectionFailureCount = 0;
+            this.lastReconnectDelay = undefined;
+        }, this.clientConfig.minConnectedTimeToResetReconnectDelayMs ?? mqtt_utils.DEFAULT_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS);
+    }
+
+    onConnectionFailureOrDisconnection() : void {
+        this.clearTasks();
+
+        let nextDelay : number = this.calculateNextReconnectDelay();
+
+        this.lastReconnectDelay = nextDelay;
+        this.connectionFailureCount += 1;
+
+        this.reconnectionTask = setTimeout(() => {
+            this.browserClient.reconnect();
+        }, nextDelay);
+    }
+
+    clearTasks() : void {
+        if (this.reconnectionTask !== undefined) {
+            clearTimeout(this.reconnectionTask);
+        }
+
+        if (this.resetConnectionFailureCountTask !== undefined) {
+            clearTimeout(this.resetConnectionFailureCountTask);
+        }
+    }
+
+    private randomInRange(min: number, max: number) : number {
+        return min + (max - min) * Math.random();
+    }
+
+    private calculateNextReconnectDelay() : number {
+        const jitterType : mqtt5.RetryJitterType = this.clientConfig.retryJitterMode ?? mqtt5.RetryJitterType.Default;
+        const [minDelay, maxDelay] : [number, number] = mqtt_utils.getOrderedReconnectDelayBounds(this.clientConfig.minReconnectDelayMs, this.clientConfig.maxReconnectDelayMs);
+        const clampedFailureCount : number = Math.min(52, this.connectionFailureCount);
+        let delay : number = 0;
+
+        if (jitterType == mqtt5.RetryJitterType.None) {
+            delay = minDelay * Math.pow(2, clampedFailureCount);
+        } else if (jitterType == mqtt5.RetryJitterType.Decorrelated && this.lastReconnectDelay !== undefined) {
+            delay = this.randomInRange(minDelay, 3 * this.lastReconnectDelay);
+        } else {
+            delay = this.randomInRange(minDelay, Math.min(maxDelay, minDelay * Math.pow(2, clampedFailureCount)));
+        }
+
+        delay = Math.min(maxDelay, delay);
+        this.lastReconnectDelay = delay;
+
+        return delay;
+    }
+}
+
+/** @internal */
 enum Mqtt5ClientState {
     Stopped = 0,
     Running = 1,
@@ -39,6 +113,7 @@ enum Mqtt5ClientState {
     Restarting = 3,
 }
 
+/** @internal */
 enum Mqtt5ClientLifecycleEventState {
     None = 0,
     Connecting = 1,
@@ -55,13 +130,15 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     private browserClient?: mqtt.MqttClient;
     private state : Mqtt5ClientState;
     private lifecycleEventState : Mqtt5ClientLifecycleEventState;
+    private lastDisconnect? : mqtt5_packet.DisconnectPacket;
+    private reconnectionScheduler? : ReconnectionScheduler;
 
     /**
      * Client constructor
      *
      * @param config The configuration for this client
      */
-    constructor(private config: Mqtt5ClientConfig) {
+    constructor(public config: Mqtt5ClientConfig) {
         super();
 
         this.state = Mqtt5ClientState.Stopped;
@@ -157,6 +234,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
             this.state = Mqtt5ClientState.Running;
             this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
+            this.lastDisconnect = undefined;
 
             this.cork();
             this.emit('attemptingConnect');
@@ -169,51 +247,18 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             this.browserClient.on('end', () => {this._on_stopped_internal();});
             this.browserClient.on('reconnect', () => {this.on_attempting_connect();});
             this.browserClient.on('connect', (connack: mqtt.IConnackPacket) => {this.on_connection_success(connack);});
-            this.browserClient.on('message', this.on_message);
-            this.browserClient.on('error', this.on_browser_client_error);
-            this.browserClient.on('close', this.on_browser_close);
+            this.browserClient.on('message', (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => { this.on_message(topic, payload, packet);});
+            this.browserClient.on('error', (error: Error) => { this.on_browser_client_error(error); });
+            this.browserClient.on('close', () => { this.on_browser_close(); });
+            this.browserClient.on('disconnect', (packet: mqtt.IDisconnectPacket) => { this.on_browser_disconnect_packet(packet); });
 
-            this.browserClient.on('offline', () => {console.log('Offline event received!');});
-            this.browserClient.on('disconnect', (packet: mqtt.IDisconnectPacket) => {console.log('Disconnect event received!');});
+            this.reconnectionScheduler = new ReconnectionScheduler(this.browserClient, this.config);
 
             // uncork
             this.uncork();
         } else if (this.state == Mqtt5ClientState.Stopping) {
             this.state = Mqtt5ClientState.Restarting;
         }
-    }
-
-    private on_browser_close() {
-        console.log('Close event received!');
-        if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connected) {
-            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
-            this.emit('disconnection', new CrtError("disconnected"));
-        } else {
-            console.log('This should never happen.  If it does it means that our model of the browser clients state transitions is wrong and we need to fix our implementation');
-        }
-    }
-
-    private on_browser_client_error(error: Error) {
-        if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connecting) {
-            this.emit('connectionFailure', new CrtError(error), null);
-            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
-        }
-
-        this.emit('error', error);
-    }
-
-    private on_attempting_connect () {
-        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
-        this.emit('attemptingConnect');
-    }
-
-    private on_connection_success (connack: mqtt.IConnackPacket) {
-        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connected;
-
-        let crt_connack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
-        let settings : mqtt5.NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
-
-        this.emit('connectionSuccess', crt_connack, settings);
     }
 
     /**
@@ -353,7 +398,46 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         });
     }
 
+    private on_browser_disconnect_packet(packet: mqtt.IDisconnectPacket) {
+        this.lastDisconnect = mqtt_utils.transform_mqtt_js_disconnect_to_crt_disconnect(packet);
+    }
+
+    private on_browser_close() {
+        if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connected) {
+            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
+            this.reconnectionScheduler?.onConnectionFailureOrDisconnection();
+            this.emit('disconnection', new CrtError("disconnected"), this.lastDisconnect);
+            this.lastDisconnect = undefined;
+        } else if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connecting) {
+            this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
+            this.reconnectionScheduler?.onConnectionFailureOrDisconnection();
+            this.emit('connectionFailure', new CrtError("connectionFailure"), null);
+        }
+    }
+
+    private on_browser_client_error(error: Error) {
+        this.emit('error', new CrtError(error));
+    }
+
+    private on_attempting_connect () {
+        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
+        this.emit('attemptingConnect');
+    }
+
+    private on_connection_success (connack: mqtt.IConnackPacket) {
+        this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connected;
+
+        this.reconnectionScheduler?.onSuccessfulConnection();
+
+        let crt_connack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
+        let settings : mqtt5.NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
+
+        this.emit('connectionSuccess', crt_connack, settings);
+    }
+
     private _on_stopped_internal() {
+        this.reconnectionScheduler?.clearTasks();
+        this.reconnectionScheduler = undefined;
         this.browserClient = undefined;
         this.lifecycleEventState = Mqtt5ClientLifecycleEventState.None;
 
