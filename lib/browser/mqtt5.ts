@@ -19,32 +19,90 @@ import {WebsocketOptions} from "./ws";
 import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
+import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
 
 export {
     NegotiatedSettings,
-    StoppedEventHandler,
-    AttemptingConnectEventHandler,
-    ConnectionSuccessEventHandler,
-    ConnectionFailureEventHandler,
-    DisconnectionEventHandler,
-    MessageReceivedEventHandler,
+    StoppedEventListener,
+    AttemptingConnectEventListener,
+    ConnectionSuccessEventListener,
+    ConnectionFailureEventListener,
+    DisconnectionEventListener,
+    MessageReceivedEventListener,
     IMqtt5Client,
     ClientSessionBehavior,
     RetryJitterType,
-    ClientOperationQueueBehavior,
-    Mqtt5ClientConfigShared } from "../common/mqtt5";
+    ClientOperationQueueBehavior
+} from "../common/mqtt5";
 
 /**
- * Configuration options for mqtt5 clients.
- *
- * These options are only relevant to the browser client.
+ * Configuration options for mqtt5 client creation.
  */
-export interface Mqtt5ClientConfig extends mqtt5.Mqtt5ClientConfigShared {
+export interface Mqtt5ClientConfig {
 
-    /** Options for the underlying websocket connection */
+    /**
+     * Host name of the MQTT server to connect to.
+     */
+    hostName: string;
+
+    /**
+     * Network port of the MQTT server to connect to.
+     */
+    port: number;
+
+    /**
+     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
+     */
+    sessionBehavior? : ClientSessionBehavior;
+
+    /**
+     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
+     * timepoints for a large set of reconnecting clients.
+     */
+    retryJitterMode? : RetryJitterType;
+
+    /**
+     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
+     * after each connection failure.
+     */
+    minReconnectDelayMs? : number;
+
+    /**
+     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
+     * after each connection failure.
+     */
+    maxReconnectDelayMs? : number;
+
+    /**
+     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
+     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
+     */
+    minConnectedTimeToResetReconnectDelayMs? : number;
+
+    /**
+     * Time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not arrive, the
+     * connection will be shut down.
+     */
+    connackTimeoutMs? : number;
+
+    /**
+     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
+     * connect properties will be used for every connection attempt made by the client.
+     */
+    connectProperties?: mqtt5_packet.ConnectPacket;
+
+    /**
+     * Options for the underlying websocket connection
+     *
+     * @group Browser-only
+     */
     websocket?: WebsocketOptions;
 
-    /** Options for the underlying credentianls provider */
+    /**
+     * Options for the underlying credentianls provider
+     *
+     * @group Browser-only
+     */
     credentials_provider?: auth.CredentialsProvider;
 }
 
@@ -53,10 +111,10 @@ export interface Mqtt5ClientConfig extends mqtt5.Mqtt5ClientConfigShared {
  *
  * Mqtt-js only supports reconnect on a fixed delay.
  *
- * This support class allows for variable time-delay rescheduling of reconnect attempts by implementing the
+ * This helper class allows for variable time-delay rescheduling of reconnect attempts by implementing the
  * reconnect delay options supported by the native client.  Variable-delay reconnect actually happens by configuring
  * the mqtt-js client to have a much longer reconnect delay than our configured maximum and then letting this class
- * "interrupt" that long reconnect delay with the real, shorter wait-and-connect each time.
+ * "interrupt" that long reconnect delay with the real, shorter wait-then-connect each time.
  */
 class ReconnectionScheduler {
     private connectionFailureCount: number;
@@ -146,7 +204,7 @@ class ReconnectionScheduler {
 }
 
 /**
- * Elements of the simple state machine that allows us to adapt the mqtt-js control model to our mqtt5 client
+ * Elements of a simple state machine that allows us to adapt the mqtt-js control model to our mqtt5 client
  * control model (start/stop).
  *
  * @internal
@@ -159,7 +217,7 @@ enum Mqtt5ClientState {
 }
 
 /**
- * Elements of the simple state machine that allows us to adapt the mqtt-js event set to our mqtt5 client's
+ * Elements of a simple state machine that allows us to adapt the mqtt-js event set to our mqtt5 client's
  * lifecycle event set.
  *
  * @internal
@@ -188,7 +246,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      *
      * @param config The configuration for this client
      */
-    constructor(public config: Mqtt5ClientConfig) {
+    constructor(private config: Mqtt5ClientConfig) {
         super();
 
         this.state = Mqtt5ClientState.Stopped;
@@ -198,85 +256,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     }
 
     /**
-     * Emitted when a client method invocation results in an error
-     *
-     * @param event the type of event (error)
-     * @param listener the error event listener to add
-     *
-     * @event
-     */
-    on(event: 'error', listener: mqtt5.ErrorEventHandler): this;
-
-    /**
-     * Emitted when an MQTT PUBLISH packet is received by the client
-     *
-     * @param event the type of event (messageReceived)
-     * @param listener the messageReceived event listener to add
-     *
-     * @event
-     */
-    on(event: 'messageReceived', listener: mqtt5.MessageReceivedEventHandler): this;
-
-    /**
-     * Emitted when the client begins a connection attempt
-     *
-     * @param event the type of event (attemptingConnect)
-     * @param listener the attemptingConnect event listener to add
-     *
-     * @event
-     */
-    on(event: 'attemptingConnect', listener: mqtt5.AttemptingConnectEventHandler): this;
-
-    /**
-     * Emitted when the client successfully establishes an MQTT connection.  Always follows an 'attemptingConnect'
-     * event.
-     *
-     * @param event the type of event (connectionSuccess)
-     * @param listener the connectionSuccess event listener to add
-     *
-     * @event
-     */
-    on(event: 'connectionSuccess', listener: mqtt5.ConnectionSuccessEventHandler): this;
-
-    /**
-     * Emitted when the client fails to establish an MQTT connection.  Always follows an 'attemptingConnect'
-     * event.
-     *
-     * @param event the type of event (connectionFailure)
-     * @param listener the connectionFailure event listener to add
-     *
-     * @event
-     */
-    on(event: 'connectionFailure', listener: mqtt5.ConnectionFailureEventHandler): this;
-
-    /**
-     * Emitted when the client's current MQTT connection is shut down.  Always follows a 'connectionSuccess'
-     * event.
-     *
-     * @param event the type of event (disconnection)
-     * @param listener the disconnection event listener to add
-     *
-     * @event
-     */
-    on(event: 'disconnection', listener: mqtt5.DisconnectionEventHandler): this;
-
-    /**
-     * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
-     *
-     * @param event the type of event (stopped)
-     * @param listener the stopped event listener to add
-     *
-     * @event
-     */
-    on(event: 'stopped', listener: mqtt5.StoppedEventHandler): this;
-
-    on(event: string | symbol, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        return this;
-    }
-
-    /**
-     * Notifies the MQTT5 client that you want it maintain connectivity to the configured endpoint.
+     * Notifies the MQTT5 client that you want it to maintain connectivity to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
      * in the mqtt5 client configuration.
      *
@@ -317,9 +297,10 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
     /**
      * Notifies the MQTT5 client that you want it to end connectivity to the configured endpoint, disconnecting any
-     * existing connection and halting any reconnect attempts.
+     * existing connection and halting reconnection attempts.
      *
-     * This is an asynchronous operation.
+     * This is an asynchronous operation.  Once the process completes, no further events will be emitted until the client
+     * has {@link start} invoked.
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
@@ -333,7 +314,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     }
 
     /**
-     * Tells the client to attempt to subscribe to one or more topic filters.
+     * Subscribe to one or more topic filters by queuing a SUBSCRIBE packet to be sent to the server.
      *
      * @param packet SUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the SUBACK response
@@ -368,7 +349,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     }
 
     /**
-     * Tells the client to attempt to unsubscribe from one or more topic filters.
+     * Unsubscribe from one or more topic filters by queuing an UNSUBSCRIBE packet to be sent to the server.
      *
      * @param packet UNSUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
@@ -415,7 +396,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     }
 
     /**
-     * Tells the client to attempt to send a PUBLISH packet
+     * Send a message to subscribing clients by queuing a PUBLISH packet to be sent to the server.
      *
      * @param packet PUBLISH packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
@@ -441,8 +422,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                     return;
                 }
 
-                if (packet === undefined) {
-                    rejectAndEmit(new Error("Undefined puback packet from mqtt-js"));
+                if (packet === undefined || packet.cmd !== 'puback') {
+                    rejectAndEmit(new Error("Invalid puback packet from mqtt-js"));
                     return;
                 }
 
@@ -450,6 +431,145 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 resolve(puback);
             });
         });
+    }
+
+    /**
+     * Event emitted when the client encounters an error condition.
+     *
+     * Listener type: {@link ErrorEventListener}
+     *
+     * @event
+     */
+    static ERROR : string = 'error';
+
+    /**
+     * Event emitted when an MQTT PUBLISH packet is received by the client.
+     *
+     * Listener type: {@link MessageReceivedEventListener}
+     *
+     * @event
+     */
+    static MESSAGE_RECEIVED : string = 'messageReceived';
+
+    /**
+     * Event emitted when the client begins a connection attempt.
+     *
+     * Listener type: {@link AttemptingConnectEventListener}
+     *
+     * @event
+     */
+    static ATTEMPTING_CONNECT : string = 'attemptingConnect';
+
+    /**
+     * Event emitted when the client successfully establishes an MQTT connection.  Only emitted after
+     * an {@link ATTEMPTING_CONNECT attemptingConnect} event.
+     *
+     * Listener type: {@link ConnectionSuccessEventListener}
+     *
+     * @event
+     */
+    static CONNECTION_SUCCESS : string = 'connectionSuccess';
+
+    /**
+     * Event emitted when the client fails to establish an MQTT connection.  Only emitted after
+     * an {@link ATTEMPTING_CONNECT attemptingConnect} event.
+     *
+     * Listener type: {@link ConnectionFailureEventListener}
+     *
+     * @event
+     */
+    static CONNECTION_FAILURE : string = 'connectionFailure';
+
+    /**
+     * Event emitted when the client's current connection is closed for any reason.  Only emitted after
+     * a {@link CONNECTION_SUCCESS connectionSuccess} event.
+     *
+     * Listener type: {@link DisconnectionEventListener}
+     *
+     * @event
+     */
+    static DISCONNECTION : string = 'disconnection';
+
+    /**
+     * Event emitted when the client finishes shutdown as a result of the user invoking {@link stop}.
+     *
+     * Listener type: {@link StoppedEventListener}
+     *
+     * @event
+     */
+    static STOPPED : string = 'stopped';
+
+    /**
+     * Registers a listener for the client's {@link ERROR error} event.  An {@link ERROR error} event is emitted when
+     * the client encounters an error condition.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'error', listener: mqtt5.ErrorEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link MESSAGE_RECEIVED messageReceived} event.  A
+     * {@link MESSAGE_RECEIVED messageReceived} event is emitted when an MQTT PUBLISH packet is received by the
+     * client.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'messageReceived', listener: mqtt5.MessageReceivedEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link ATTEMPTING_CONNECT attemptingConnect} event.  A
+     * {@link ATTEMPTING_CONNECT attemptingConnect} event is emitted every time the client begins a connection attempt.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'attemptingConnect', listener: mqtt5.AttemptingConnectEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link CONNECTION_SUCCESS connectionSuccess} event.  A
+     * {@link CONNECTION_SUCCESS connectionSuccess} event is emitted every time the client successfully establishes
+     * an MQTT connection.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'connectionSuccess', listener: mqtt5.ConnectionSuccessEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link CONNECTION_FAILURE connectionFailure} event.  A
+     * {@link CONNECTION_FAILURE connectionFailure} event is emitted every time the client fails to establish an
+     * MQTT connection.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'connectionFailure', listener: mqtt5.ConnectionFailureEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link DISCONNECTION disconnection} event.  A
+     * {@link DISCONNECTION disconnection} event is emitted when the client's current MQTT connection is closed
+     * for any reason.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'disconnection', listener: mqtt5.DisconnectionEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link STOPPED stopped} event.  A
+     * {@link STOPPED stopped} event is emitted when the client finishes shutdown as a
+     * result of the user invoking {@link stop}.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'stopped', listener: mqtt5.StoppedEventListener): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
     }
 
     private on_browser_disconnect_packet(packet: mqtt.IDisconnectPacket) {

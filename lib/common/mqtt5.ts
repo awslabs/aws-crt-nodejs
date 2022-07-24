@@ -8,12 +8,7 @@
  * @module mqtt5
  */
 
-import {
-    ConnackPacket,
-    DisconnectPacket, PubackPacket,
-    PublishPacket, SubackPacket,
-    SubscribePacket, UnsubackPacket, UnsubscribePacket, QoS, ConnectPacket
-} from "./mqtt5_packet";
+import * as mqtt5_packet from "./mqtt5_packet";
 import {ICrtError} from "./error";
 
 /**
@@ -33,7 +28,7 @@ export interface NegotiatedSettings {
     /**
      * The maximum QoS allowed for publishes on this connection instance
      */
-    maximumQos: QoS;
+    maximumQos: mqtt5_packet.QoS;
 
     /**
      * The amount of time in seconds the server will retain the MQTT session after a disconnect.
@@ -168,204 +163,86 @@ export enum RetryJitterType {
 }
 
 /**
- * Configuration options for mqtt5 clients.
- *
- * These options are relevant to both the browser and the node/native clients.
+ * Client Error event listener signature
  */
-export interface Mqtt5ClientConfigShared {
-
-    /**
-     * Host name of the MQTT server to connect to.
-     */
-    hostName: string;
-
-    /**
-     * Network port of the MQTT server to connect to.
-     */
-    port: number;
-
-    /**
-     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
-     */
-    sessionBehavior? : ClientSessionBehavior;
-
-    /**
-     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
-     * timepoints for a large set of reconnecting clients.
-     */
-    retryJitterMode? : RetryJitterType;
-
-    /**
-     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    minReconnectDelayMs? : number;
-
-    /**
-     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    maxReconnectDelayMs? : number;
-
-    /**
-     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
-     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
-     */
-    minConnectedTimeToResetReconnectDelayMs? : number;
-
-    /**
-     * Time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not arrive, the
-     * connection will be shut down.
-     */
-    connackTimeoutMs? : number;
-
-    /**
-     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
-     * connect properties will be used for every connection attempt made by the client.
-     */
-    connectProperties?: ConnectPacket;
-}
+export type ErrorEventListener = (error: ICrtError) => void;
 
 /**
- * Client Error event handler signature
+ * Client Stopped lifecycle event listener signature
  */
-export type ErrorEventHandler = (error: ICrtError) => void;
+export type StoppedEventListener = () => void;
 
 /**
- * Client Stopped lifecycle event handler signature
+ * Client AttemptingConnect lifecycle event listener signature
  */
-export type StoppedEventHandler = () => void;
+export type AttemptingConnectEventListener = () => void;
 
 /**
- * Client AttemptingConnect lifecycle event handler signature
+ * Client ConnectionSuccess lifecycle event listener signature
  */
-export type AttemptingConnectEventHandler = () => void;
+export type ConnectionSuccessEventListener = (connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void;
 
 /**
- * Client ConnectionSuccess lifecycle event handler signature
+ * Client ConnectionFailure lifecycle event listener signature
  */
-export type ConnectionSuccessEventHandler = (connack: ConnackPacket, settings: NegotiatedSettings) => void;
+export type ConnectionFailureEventListener = (error: ICrtError, connack?: mqtt5_packet.ConnackPacket) => void;
 
 /**
- * Client ConnectionFailure lifecycle event handler signature
+ * Client Disconnection lifecycle event listener signature
  */
-export type ConnectionFailureEventHandler = (error: ICrtError, connack?: ConnackPacket) => void;
+export type DisconnectionEventListener = (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => void;
 
 /**
- * Client Disconnection lifecycle event handler signature
+ * Message received event listener signature
  */
-export type DisconnectionEventHandler = (error: ICrtError, disconnect?: DisconnectPacket) => void;
+export type MessageReceivedEventListener = (message: mqtt5_packet.PublishPacket) => void;
 
 /**
- * Message received event handler signature
- */
-export type MessageReceivedEventHandler = (message: PublishPacket) => void;
-
-/**
- * Shared MQTT5 client interface across browser and node
+ * Shared MQTT5 client interface across browser and node.
  */
 export interface IMqtt5Client {
 
     /**
-     * Emitted when a client method invocation results in an error
-     *
-     * @param event the type of event (error)
-     * @param listener the error event listener to add
-     */
-    on(event: 'error', listener: ErrorEventHandler): this;
-
-    /**
-     * Emitted when an MQTT PUBLISH packet is received by the client
-     *
-     * @param event the type of event (messageReceived)
-     * @param listener the messageReceived event listener to add
-     */
-    on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
-
-    /**
-     * Emitted when the client begins a connection attempt
-     *
-     * @param event the type of event (attemptingConnect)
-     * @param listener the attemptingConnect event listener to add
-     */
-    on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
-
-    /**
-     * Emitted when the client successfully establishes an MQTT connection.  Always follows an 'attemptingConnect'
-     * event.
-     *
-     * @param event the type of event (connectionSuccess)
-     * @param listener the connectionSuccess event listener to add
-     */
-    on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
-
-    /**
-     * Emitted when the client fails to establish an MQTT connection.  Always follows an 'attemptingConnect'
-     * event.
-     *
-     * @param event the type of event (connectionFailure)
-     * @param listener the connectionFailure event listener to add
-     */
-    on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
-
-    /**
-     * Emitted when the client's current MQTT connection is closed.  Always follows a 'connectionSuccess'
-     * event.
-     *
-     * @param event the type of event (disconnection)
-     * @param listener the disconnection event listener to add
-     */
-    on(event: 'disconnection', listener: DisconnectionEventHandler): this;
-
-    /**
-     * Emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
-     *
-     * @param event the type of event (stopped)
-     * @param listener the stopped event listener to add
-     */
-    on(event: 'stopped', listener: StoppedEventHandler): this;
-
-
-    /**
-     * Notifies the MQTT5 client that you want it to attempt to connect to the configured endpoint.
+     * Notifies the MQTT5 client that you want it to maintain connectivity to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
-     * from the client configuration.
+     * in the mqtt5 client configuration.
      *
      * This is an asynchronous operation.
      */
     start() : void;
 
     /**
-     * Notifies the MQTT5 client that you want it to transition to the stopped state, disconnecting any existing
-     * connection and stopping subsequent reconnect attempts.
+     * Notifies the MQTT5 client that you want it to end connectivity to the configured endpoint, disconnecting any
+     * existing connection and halting reconnection attempts.
      *
-     * This is an asynchronous operation.
+     * This is an asynchronous operation.  Once the process completes, no further events will be emitted until the client
+     * has {@link start} invoked.
      *
-     * @param packet (optional) properties of a DISCONNECT packet to send as part of the shutdown process
+     * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
-    stop(packet?: DisconnectPacket) : void;
+    stop(packet?: mqtt5_packet.DisconnectPacket) : void;
 
     /**
-     * Tells the client to attempt to subscribe to one or more topic filters.
+     * Subscribe to one or more topic filters by queuing a SUBSCRIBE packet to be sent to the server.
      *
      * @param packet SUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the SUBACK response
      */
-    subscribe(packet: SubscribePacket) : Promise<SubackPacket>;
+    subscribe(packet: mqtt5_packet.SubscribePacket) : Promise<mqtt5_packet.SubackPacket>;
 
     /**
-     * Tells the client to attempt to unsubscribe from one or more topic filters.
+     * Unsubscribe from one or more topic filters by queuing an UNSUBSCRIBE packet to be sent to the server.
      *
      * @param packet UNSUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
      */
-    unsubscribe(packet: UnsubscribePacket) : Promise<UnsubackPacket>;
+    unsubscribe(packet: mqtt5_packet.UnsubscribePacket) : Promise<mqtt5_packet.UnsubackPacket>;
 
     /**
-     * Tells the client to attempt to send a PUBLISH packet
+     * Send a message to subscribing clients by queuing a PUBLISH packet to be sent to the server.
      *
      * @param packet PUBLISH packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
-    publish(packet: PublishPacket) : Promise<PubackPacket>;
+    publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5_packet.PubackPacket>;
 }
