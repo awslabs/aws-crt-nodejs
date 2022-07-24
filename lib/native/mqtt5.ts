@@ -206,14 +206,63 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         this.on('error', (error: ICrtError) => {});
     }
 
+    /**
+     * Event emitted when a client method invocation results in an error
+     *
+     * @event
+     */
+    static ERROR : string = 'error';
 
     /**
-     * Emitted when a client method invocation results in an error
+     * Event emitted when an MQTT PUBLISH packet is received by the client
+     *
+     * @event
+     */
+    static MESSAGE_RECEIVED : string = 'messageReceived';
+
+    /**
+     * Event emitted when the client begins a connection attempt
+     *
+     * @event
+     */
+    static ATTEMPTING_CONNECT : string = 'attemptingConnect';
+
+    /**
+     * Event emitted when the client successfully establishes an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
+     *
+     * @event
+     */
+    static CONNECTION_SUCCESS : string = 'connectionSuccess';
+
+    /**
+     * Event emitted when the client fails to establish an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
+     *
+     * @event
+     */
+    static CONNECTION_FAILURE : string = 'connectionFailure';
+
+    /**
+     * Event emitted when the client's current MQTT connection is shut down.  Always follows a 'connectionSuccess'
+     * event.
+     *
+     * @event
+     */
+    static DISCONNECTION : string = 'disconnection';
+
+    /**
+     * Event emitted when the client reaches the 'Stopped' state as a result of the user invoking .stop()
+     *
+     * @event
+     */
+    static STOPPED : string = 'stopped';
+
+    /**
+     * Register a listener for an 'error' event
      *
      * @param event the type of event (error)
      * @param listener the error event listener to add
-     *
-     * @event
      */
     on(event: 'error', listener: ErrorEventHandler): this;
 
@@ -222,8 +271,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @param event the type of event (messageReceived)
      * @param listener the messageReceived event listener to add
-     *
-     * @event
      */
     on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
 
@@ -232,8 +279,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @param event the type of event (attemptingConnect)
      * @param listener the attemptingConnect event listener to add
-     *
-     * @event
      */
     on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
@@ -243,8 +288,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
-     *
-     * @event
      */
     on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
@@ -254,8 +297,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
-     *
-     * @event
      */
     on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
@@ -265,8 +306,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
-     *
-     * @event
      */
     on(event: 'disconnection', listener: DisconnectionEventHandler): this;
 

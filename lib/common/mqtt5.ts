@@ -271,8 +271,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (error)
      * @param listener the error event listener to add
-     *
-     * @event
      */
     on(event: 'error', listener: ErrorEventHandler): this;
 
@@ -281,8 +279,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (messageReceived)
      * @param listener the messageReceived event listener to add
-     *
-     * @event
      */
     on(event: 'messageReceived', listener: MessageReceivedEventHandler): this;
 
@@ -291,8 +287,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (attemptingConnect)
      * @param listener the attemptingConnect event listener to add
-     *
-     * @event
      */
     on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
@@ -302,8 +296,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
-     *
-     * @event
      */
     on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
@@ -313,8 +305,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
-     *
-     * @event
      */
     on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
@@ -324,8 +314,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
-     *
-     * @event
      */
     on(event: 'disconnection', listener: DisconnectionEventHandler): this;
 
@@ -334,8 +322,6 @@ export interface IMqtt5Client {
      *
      * @param event the type of event (stopped)
      * @param listener the stopped event listener to add
-     *
-     * @event
      */
     on(event: 'stopped', listener: StoppedEventHandler): this;
 
