@@ -20,10 +20,24 @@ import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 
-export { NegotiatedSettings, StoppedEventHandler, AttemptingConnectEventHandler, ConnectionSuccessEventHandler, ConnectionFailureEventHandler, DisconnectionEventHandler, MessageReceivedEventHandler, IMqtt5Client, ClientSessionBehavior, RetryJitterType, ClientOperationQueueBehavior, Mqtt5ClientConfigShared } from "../common/mqtt5";
+export {
+    NegotiatedSettings,
+    StoppedEventHandler,
+    AttemptingConnectEventHandler,
+    ConnectionSuccessEventHandler,
+    ConnectionFailureEventHandler,
+    DisconnectionEventHandler,
+    MessageReceivedEventHandler,
+    IMqtt5Client,
+    ClientSessionBehavior,
+    RetryJitterType,
+    ClientOperationQueueBehavior,
+    Mqtt5ClientConfigShared } from "../common/mqtt5";
 
 /**
- * Configuration interface for mqtt5 clients
+ * Configuration options for mqtt5 clients.
+ *
+ * These options are only relevant to the browser client.
  */
 export interface Mqtt5ClientConfig extends mqtt5.Mqtt5ClientConfigShared {
 
@@ -34,6 +48,16 @@ export interface Mqtt5ClientConfig extends mqtt5.Mqtt5ClientConfigShared {
     credentials_provider?: auth.CredentialsProvider;
 }
 
+/**
+ * @internal
+ *
+ * Mqtt-js only supports reconnect on a fixed delay.
+ *
+ * This support class allows for variable time-delay rescheduling of reconnect attempts by implementing the
+ * reconnect delay options supported by the native client.  Variable-delay reconnect actually happens by configuring
+ * the mqtt-js client to have a much longer reconnect delay than our configured maximum and then letting this class
+ * "interrupt" that long reconnect delay with the real, shorter wait-and-connect each time.
+ */
 class ReconnectionScheduler {
     private connectionFailureCount: number;
     private lastReconnectDelay: number | undefined;
@@ -48,6 +72,10 @@ class ReconnectionScheduler {
         this.lastReconnectDelay = undefined;
     }
 
+    /**
+     * Invoked by the client when a successful connection is established.  Schedules the task that will reset the
+     * delay if a configurable amount of time elapses with a good connection.
+     */
     onSuccessfulConnection() : void {
         this.clearTasks();
 
@@ -57,6 +85,10 @@ class ReconnectionScheduler {
         }, this.clientConfig.minConnectedTimeToResetReconnectDelayMs ?? mqtt_utils.DEFAULT_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS);
     }
 
+    /**
+     * Invoked by the client after a disconnection or connection failure occurs.  Schedules the next reconnect
+     * task.
+     */
     onConnectionFailureOrDisconnection() : void {
         this.clearTasks();
 
@@ -70,6 +102,9 @@ class ReconnectionScheduler {
         }, nextDelay);
     }
 
+    /**
+     * Resets any reconnect/clear-delay tasks.
+     */
     clearTasks() : void {
         if (this.reconnectionTask !== undefined) {
             clearTimeout(this.reconnectionTask);
@@ -84,6 +119,11 @@ class ReconnectionScheduler {
         return min + (max - min) * Math.random();
     }
 
+    /**
+     * Computes the next reconnect delay based on the Jitter/Retry configuration.
+     * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+     * @private
+     */
     private calculateNextReconnectDelay() : number {
         const jitterType : mqtt5.RetryJitterType = this.clientConfig.retryJitterMode ?? mqtt5.RetryJitterType.Default;
         const [minDelay, maxDelay] : [number, number] = mqtt_utils.getOrderedReconnectDelayBounds(this.clientConfig.minReconnectDelayMs, this.clientConfig.maxReconnectDelayMs);
@@ -105,7 +145,12 @@ class ReconnectionScheduler {
     }
 }
 
-/** @internal */
+/**
+ * Elements of the simple state machine that allows us to adapt the mqtt-js control model to our mqtt5 client
+ * control model (start/stop).
+ *
+ * @internal
+ */
 enum Mqtt5ClientState {
     Stopped = 0,
     Running = 1,
@@ -113,7 +158,12 @@ enum Mqtt5ClientState {
     Restarting = 3,
 }
 
-/** @internal */
+/**
+ * Elements of the simple state machine that allows us to adapt the mqtt-js event set to our mqtt5 client's
+ * lifecycle event set.
+ *
+ * @internal
+ */
 enum Mqtt5ClientLifecycleEventState {
     None = 0,
     Connecting = 1,
@@ -178,7 +228,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     on(event: 'attemptingConnect', listener: mqtt5.AttemptingConnectEventHandler): this;
 
     /**
-     * Emitted when the client successfully establishes an MQTT connection
+     * Emitted when the client successfully establishes an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
@@ -188,7 +239,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     on(event: 'connectionSuccess', listener: mqtt5.ConnectionSuccessEventHandler): this;
 
     /**
-     * Emitted when the client fails to establish an MQTT connection
+     * Emitted when the client fails to establish an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
@@ -198,7 +250,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     on(event: 'connectionFailure', listener: mqtt5.ConnectionFailureEventHandler): this;
 
     /**
-     * Emitted when the client's current MQTT connection is shut down
+     * Emitted when the client's current MQTT connection is shut down.  Always follows a 'connectionSuccess'
+     * event.
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
@@ -236,6 +289,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
             this.lastDisconnect = undefined;
 
+            /* pause event emission until everything is fully-initialized */
             this.cork();
             this.emit('attemptingConnect');
 
@@ -254,7 +308,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
             this.reconnectionScheduler = new ReconnectionScheduler(this.browserClient, this.config);
 
-            // uncork
+            /* unpause event emission */
             this.uncork();
         } else if (this.state == Mqtt5ClientState.Stopping) {
             this.state = Mqtt5ClientState.Restarting;

@@ -32,7 +32,7 @@ import {
     ConnectionSuccessEventHandler,
     ConnectionFailureEventHandler,
     DisconnectionEventHandler,
-    Mqtt5ClientConfigShared
+    Mqtt5ClientConfigShared, ClientOperationQueueBehavior
 } from "../common/mqtt5";
 import {ICrtError} from "../common/error";
 import {CrtError} from "./error";
@@ -105,10 +105,30 @@ export enum ClientExtendedValidationAndFlowControl {
 }
 
 /**
- * Configuration interface for mqtt5 clients
+ * Configuration options for mqtt5 clients.
+ *
+ * These options are only relevant to the native/node client.
  */
 export interface Mqtt5ClientConfig extends Mqtt5ClientConfigShared {
 
+    /**
+     * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
+     * how new operations are handled while the client is not connected.  In particular, if the client is not connected,
+     * then any operation that would be failed on disconnect (according to these rules) will also be rejected.
+     */
+    offlineQueueBehavior? : ClientOperationQueueBehavior;
+
+    /**
+     * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
+     * close the current connection.
+     */
+    pingTimeoutMs? : number;
+
+    /**
+     * Time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
+     * failing the operation.
+     */
+    operationTimeoutSeconds? : number;
 
     /**
      * Client bootstrap to use.  In almost all cases, this can be left undefined.
@@ -218,7 +238,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
     /**
-     * Emitted when the client successfully establishes an MQTT connection
+     * Emitted when the client successfully establishes an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
@@ -228,7 +249,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
     /**
-     * Emitted when the client fails to establish an MQTT connection
+     * Emitted when the client fails to establish an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
@@ -238,7 +260,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
     /**
-     * Emitted when the client's current MQTT connection is shut down
+     * Emitted when the client's current MQTT connection is shut down.  Always follows a 'connectionSuccess'
+     * event.
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
@@ -363,9 +386,9 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     }
 
     /**
-     * Node-only API
+     * Queries a small set of statistics about the current state of the client's operation queue
      *
-     * returns a small set of statistics about the current state of the operation queue
+     * Node-only API
      */
     getQueueStatistics() : ClientStatistics {
         return crt_native.mqtt5_client_get_queue_statistics(this.native_handle());

@@ -167,6 +167,11 @@ export enum RetryJitterType {
     Decorrelated = 3,
 }
 
+/**
+ * Configuration options for mqtt5 clients.
+ *
+ * These options are relevant to both the browser and the node/native clients.
+ */
 export interface Mqtt5ClientConfigShared {
 
     /**
@@ -183,13 +188,6 @@ export interface Mqtt5ClientConfigShared {
      * Controls how the MQTT5 client should behave with respect to MQTT sessions.
      */
     sessionBehavior? : ClientSessionBehavior;
-
-    /**
-     * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
-     * how new operations are handled while the client is not connected.  In particular, if the client is not connected,
-     * then any operation that would be failed on disconnect (according to these rules) will also be rejected.
-     */
-    offlineQueueBehavior? : ClientOperationQueueBehavior;
 
     /**
      * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
@@ -216,22 +214,10 @@ export interface Mqtt5ClientConfigShared {
     minConnectedTimeToResetReconnectDelayMs? : number;
 
     /**
-     * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
-     * close the current connection.
-     */
-    pingTimeoutMs? : number;
-
-    /**
      * Time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not arrive, the
      * connection will be shut down.
      */
     connackTimeoutMs? : number;
-
-    /**
-     * Time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
-     * failing the operation.
-     */
-    operationTimeoutSeconds? : number;
 
     /**
      * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
@@ -311,7 +297,8 @@ export interface IMqtt5Client {
     on(event: 'attemptingConnect', listener: AttemptingConnectEventHandler): this;
 
     /**
-     * Emitted when the client successfully establishes an MQTT connection
+     * Emitted when the client successfully establishes an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
      *
      * @param event the type of event (connectionSuccess)
      * @param listener the connectionSuccess event listener to add
@@ -321,7 +308,8 @@ export interface IMqtt5Client {
     on(event: 'connectionSuccess', listener: ConnectionSuccessEventHandler): this;
 
     /**
-     * Emitted when the client fails to establish an MQTT connection
+     * Emitted when the client fails to establish an MQTT connection.  Always follows an 'attemptingConnect'
+     * event.
      *
      * @param event the type of event (connectionFailure)
      * @param listener the connectionFailure event listener to add
@@ -331,7 +319,8 @@ export interface IMqtt5Client {
     on(event: 'connectionFailure', listener: ConnectionFailureEventHandler): this;
 
     /**
-     * Emitted when the client's current MQTT connection is closed
+     * Emitted when the client's current MQTT connection is closed.  Always follows a 'connectionSuccess'
+     * event.
      *
      * @param event the type of event (disconnection)
      * @param listener the disconnection event listener to add
