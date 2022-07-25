@@ -50,6 +50,6 @@
     "fastestsmallesttextencoderdecoder": "^1.0.22",
     "mqtt": "^4.3.7",
     "tar": "^6.1.11",
-    "ws": "^7.5.5"
+    "ws": "^8.8.1"
   }
 }

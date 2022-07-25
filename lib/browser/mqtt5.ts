@@ -251,8 +251,6 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
         this.state = Mqtt5ClientState.Stopped;
         this.lifecycleEventState = Mqtt5ClientLifecycleEventState.None;
-
-        this.on('stopped', () => { this._on_stopped_internal(); });
     }
 
     /**
@@ -422,7 +420,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                     return;
                 }
 
-                if (packet === undefined || packet.cmd !== 'puback') {
+                if (packet === undefined) {
                     rejectAndEmit(new Error("Invalid puback packet from mqtt-js"));
                     return;
                 }
@@ -618,8 +616,9 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         if (this.state == Mqtt5ClientState.Restarting) {
             this.state = Mqtt5ClientState.Stopped;
             this.start();
-        } else {
+        } else if (this.state != Mqtt5ClientState.Stopped) {
             this.state = Mqtt5ClientState.Stopped;
+            this.emit('stopped');
         }
     }
 
