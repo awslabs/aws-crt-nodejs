@@ -15,7 +15,6 @@
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
-import * as mqtt_utils from "./mqtt_utils";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
 import { BufferedEventEmitter } from "../common/event";
@@ -34,6 +33,8 @@ import {
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
+import {normalize_payload} from "../common/mqtt_shared";
+
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 /**
@@ -248,7 +249,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const will = this.config.will ? {
             topic: this.config.will.topic,
-            payload: mqtt_utils.normalize_payload(this.config.will.payload),
+            payload: normalize_payload(this.config.will.payload),
             qos: this.config.will.qos,
             retain: this.config.will.retain,
         } : undefined;
@@ -410,7 +411,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * * For QoS 2, completes when PUBCOMP is received.
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
-        let payload_data = mqtt_utils.normalize_payload(payload);
+        let payload_data = normalize_payload(payload);
         return new Promise((resolve, reject) => {
             this.connection.publish(topic, payload_data, { qos: qos, retain: retain }, (error, packet) => {
                 if (error) {

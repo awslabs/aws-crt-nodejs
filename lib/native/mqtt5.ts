@@ -18,7 +18,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as mqtt5 from "../common/mqtt5";
 import {ICrtError} from "../common/error";
 import {CrtError} from "./error";
-import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
+import {normalize_payload} from "../common/mqtt_shared";
 
 export { HttpProxyOptions } from './http';
 
@@ -32,8 +32,7 @@ export {
     MessageReceivedEventListener,
     IMqtt5Client,
     ClientSessionBehavior,
-    RetryJitterType,
-    ClientOperationQueueBehavior
+    RetryJitterType
 } from "../common/mqtt5";
 
 /**
@@ -70,6 +69,36 @@ export interface ClientStatistics {
      */
     unackedOperationSize : number;
 };
+
+/**
+ * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
+ * how operations are handled while the client is not connected.  In particular, if the client is not connected,
+ * then any operation that would be failed on disconnect (according to these rules) will be rejected.
+ */
+export enum ClientOperationQueueBehavior {
+
+    /** Same as FailQos0PublishOnDisconnect */
+    Default = 0,
+
+    /**
+     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
+     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
+     */
+    FailNonQos1PublishOnDisconnect = 1,
+
+    /**
+     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
+     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
+     * are requeued in original order behind any retransmissions.
+     */
+    FailQos0PublishOnDisconnect = 2,
+
+    /**
+     * All operations that are not complete at the time of disconnection are failed, except operations that
+     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
+     */
+    FailAllOnDisconnect = 3,
+}
 
 /**
  * Additional controls for client behavior with respect to operation validation and flow control; these checks
@@ -118,13 +147,13 @@ export interface Mqtt5ClientConfig {
     /**
      * Controls how the MQTT5 client should behave with respect to MQTT sessions.
      */
-    sessionBehavior? : ClientSessionBehavior;
+    sessionBehavior? : mqtt5.ClientSessionBehavior;
 
     /**
      * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
      * timepoints for a large set of reconnecting clients.
      */
-    retryJitterMode? : RetryJitterType;
+    retryJitterMode? : mqtt5.RetryJitterType;
 
     /**
      * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
@@ -163,7 +192,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Node-only
      */
-    offlineQueueBehavior? : mqtt5.ClientOperationQueueBehavior;
+    offlineQueueBehavior? : ClientOperationQueueBehavior;
 
     /**
      * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
@@ -365,11 +394,15 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * @param packet PUBLISH packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
-    async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5_packet.PubackPacket> {
-        return new Promise<mqtt5_packet.PubackPacket>((resolve, reject) => {
+    async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5.PublishCompletionResult> {
+        if (packet.payload !== undefined) {
+            packet.payload = normalize_payload(packet.payload);
+        }
 
-            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, puback?: mqtt5_packet.PubackPacket){
-                return Mqtt5Client._s_on_puback_callback(resolve, reject, client, errorCode, puback);
+        return new Promise<mqtt5.PublishCompletionResult>((resolve, reject) => {
+
+            function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, result: mqtt5.PublishCompletionResult){
+                return Mqtt5Client._s_on_puback_callback(resolve, reject, client, errorCode, result);
             }
 
             try {
@@ -589,9 +622,9 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         }
     }
 
-    private static _s_on_puback_callback(resolve : (value: (mqtt5_packet.PubackPacket | PromiseLike<mqtt5_packet.PubackPacket>)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, puback?: mqtt5_packet.PubackPacket) {
-        if (errorCode == 0 && puback !== undefined) {
-            resolve(puback);
+    private static _s_on_puback_callback(resolve : (value: (mqtt5.PublishCompletionResult | PromiseLike<mqtt5.PublishCompletionResult>)) => void, reject : (reason?: any) => void, client: Mqtt5Client, errorCode: number, result:mqtt5.PublishCompletionResult) {
+        if (errorCode == 0) {
+            resolve(result);
         } else {
             reject("Failed to publish: " + io.error_code_to_string(errorCode));
             Mqtt5Client._emitErrorOnNext(client, errorCode);

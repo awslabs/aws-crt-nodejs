@@ -15,9 +15,9 @@ import {ICrtError} from "./error";
  * Mqtt behavior settings that are dynamically negotiated as part of the CONNECT/CONNACK exchange.
  *
  * While you can infer all of these values from a combination of
- *   (1) defaults as specified in the mqtt5 spec
- *   (2) your CONNECT settings
- *   (3) the CONNACK from the broker
+ *   1. defaults as specified in the mqtt5 spec
+ *   1. your CONNECT settings
+ *   1. the CONNACK from the broker
  *
  * the client instead does the combining for you and emits a NegotiatedSettings object with final, authoritative values.
  *
@@ -91,44 +91,20 @@ export interface NegotiatedSettings {
  */
 export enum ClientSessionBehavior {
 
+    /** Maps to Clean */
+    Default = 0,
+
     /**
      * Always ask for a clean session when connecting
      */
-    Clean = 0,
+    Clean = 1,
 
     /**
      * Always attempt to rejoin an existing session after an initial connection success.
      *
      * Session rejoin requires an appropriate non-zero session expiry interval in the client's CONNECT options.
      */
-    RejoinPostSuccess = 1,
-}
-
-/**
- * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
- * how operations are handled while the client is not connected.  In particular, if the client is not connected,
- * then any operation that would be failed on disconnect (according to these rules) will be rejected.
- */
-export enum ClientOperationQueueBehavior {
-
-    /**
-     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
-     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
-     */
-    FailNonQos1PublishOnDisconnect = 0,
-
-    /**
-     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
-     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
-     * are requeued in original order behind any retransmissions.
-     */
-    FailQos0PublishOnDisconnect = 1,
-
-    /**
-     * All operations that are not complete at the time of disconnection are failed, except operations that
-     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
-     */
-    FailAllOnDisconnect = 2,
+    RejoinPostSuccess = 2,
 }
 
 /**
@@ -198,6 +174,15 @@ export type DisconnectionEventListener = (error: ICrtError, disconnect?: mqtt5_p
 export type MessageReceivedEventListener = (message: mqtt5_packet.PublishPacket) => void;
 
 /**
+ * Polymorphic success result for publish actions:
+ *
+ * * QoS 0 - resolves to undefined
+ * * QoS 1 - resolves to a {@link PubackPacket}
+ * * QoS 2 - (not yet supported) would resolve to a Pubcomp
+ */
+export type PublishCompletionResult = mqtt5_packet.PubackPacket | undefined;
+
+/**
  * Shared MQTT5 client interface across browser and node.
  */
 export interface IMqtt5Client {
@@ -244,5 +229,5 @@ export interface IMqtt5Client {
      * @param packet PUBLISH packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
-    publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5_packet.PubackPacket>;
+    publish(packet: mqtt5_packet.PublishPacket) : Promise<PublishCompletionResult>;
 }

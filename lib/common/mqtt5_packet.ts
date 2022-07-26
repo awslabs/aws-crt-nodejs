@@ -584,7 +584,7 @@ export enum PayloadFormatIndicator {
  * While the payload as input can be one of several types, the payload as output (via message receipt)
  * will always be an ArrayBuffer of binary data.
  */
-export type Payload = string | ArrayBuffer | ArrayBufferView;
+export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
 
 /**
  * Valid types for MQTT5 packet binary data fields (other than PUBLISH payload)
@@ -641,9 +641,47 @@ export enum RetainHandlingType {
 }
 
 /**
+ * Packet type indicator that allows for basic polymorphism with user-received packets.  Enum values
+ * match the mqtt spec's [packet type encoding](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022) values.
+ */
+export enum PacketType {
+    Connect = 1,
+    Connack = 2,
+    Publish = 3,
+    Puback = 4,
+    Pubrec = 5,
+    Pubrel = 6,
+    Pubcomp = 7,
+    Subscribe = 8,
+    Suback = 9,
+    Unsubscribe = 10,
+    Unsuback = 11,
+    Pingreq = 12,
+    Pingresp = 13,
+    Disconnect = 14,
+    Auth = 15,
+}
+
+/**
+ * Common interface for all packet types.
+ */
+export interface IPacket {
+
+    /**
+     * Always set on packets coming from the client to the user.  Ignored if set on packets that come from the
+     * user to the client.
+     *
+     * The primary use is to allow users to distinguish between packets in polymorphic situations (for example,
+     * the result of a publish attempt which might be a Puback (QoS 1) or Pubcomp (QoS 2, when we support it).
+     */
+    type?: PacketType;
+
+}
+
+/**
  * Data model of an [MQTT5 PUBLISH](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901100) packet
  */
-export interface PublishPacket {
+export interface PublishPacket extends IPacket {
 
     /**
      * Sent publishes - The topic this message should be published to.
@@ -743,7 +781,7 @@ export interface PublishPacket {
 /**
  * Data model of an [MQTT5 PUBACK](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901121) packet
  */
-export interface PubackPacket {
+export interface PubackPacket extends IPacket {
 
     /**
      * Success indicator or failure reason for the associated PUBLISH packet.
@@ -770,7 +808,7 @@ export interface PubackPacket {
 /**
  * Data model of an [MQTT5 CONNECT](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901033) packet.
  */
-export interface ConnectPacket {
+export interface ConnectPacket extends IPacket {
 
     /**
      * The maximum time interval, in seconds, that is permitted to elapse between the point at which the client
@@ -882,7 +920,7 @@ export interface ConnectPacket {
 /**
  * Data model of an [MQTT5 CONNACK](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901074) packet.
  */
-export interface ConnackPacket {
+export interface ConnackPacket extends IPacket {
 
     /**
      * True if the client rejoined an existing session on the server, false otherwise.
@@ -1019,7 +1057,7 @@ export interface ConnackPacket {
 /**
  * Data model of an [MQTT5 DISCONNECT](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901205) packet.
  */
-export interface DisconnectPacket {
+export interface DisconnectPacket extends IPacket {
 
     /**
      * Value indicating the reason that the sender is closing the connection
@@ -1109,7 +1147,7 @@ export interface Subscription {
 /**
  * Data model of an [MQTT5 SUBSCRIBE](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901161) packet.
  */
-export interface SubscribePacket {
+export interface SubscribePacket extends IPacket {
 
     /**
      * List of topic filter subscriptions that the client wishes to listen to
@@ -1137,7 +1175,7 @@ export interface SubscribePacket {
 /**
  * Data model of an [MQTT5 SUBACK](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901171) packet.
  */
-export interface SubackPacket {
+export interface SubackPacket extends IPacket {
 
     /**
      * A list of reason codes indicating the result of each individual subscription entry in the
@@ -1165,7 +1203,7 @@ export interface SubackPacket {
 /**
  * Data model of an [MQTT5 UNSUBSCRIBE](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901179) packet.
  */
-export interface UnsubscribePacket {
+export interface UnsubscribePacket extends IPacket {
 
     /**
      * List of topic filters that the client wishes to unsubscribe from.
@@ -1185,7 +1223,7 @@ export interface UnsubscribePacket {
 /**
  * Data model of an [MQTT5 UNSUBACK](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901187) packet.
  */
-export interface UnsubackPacket {
+export interface UnsubackPacket extends IPacket {
 
     /**
      * A list of reason codes indicating the result of unsubscribing from each individual topic filter entry in the

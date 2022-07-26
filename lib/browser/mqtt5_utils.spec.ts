@@ -6,9 +6,10 @@
 import * as mqtt from "mqtt";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import {PayloadFormatIndicator} from "../common/mqtt5_packet";
-import * as mqtt_utils from "./mqtt_utils";
+import * as mqtt_utils from "./mqtt5_utils";
 import {Mqtt5ClientConfig} from "./mqtt5";
-import {ClientOperationQueueBehavior, ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
+import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
+import {compute_mqtt_js_reconnect_delay_from_crt_max_delay} from "./mqtt5_utils";
 
 
 test('MQTT.JS User Properties to CRT User Properties undefined', async () => {
@@ -121,6 +122,7 @@ test('transform_mqtt_js_connack_to_crt_connack minimal', async() => {
     let crtConnack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(mqttJsConnack);
 
     expect(crtConnack).toEqual({
+        type: mqtt5_packet.PacketType.Connack,
         sessionPresent : true,
         reasonCode : mqtt5_packet.ConnectReasonCode.Success
     });
@@ -157,6 +159,7 @@ test('transform_mqtt_js_connack_to_crt_connack maximal', async() => {
     let crtConnack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(mqttJsConnack);
 
     expect(crtConnack).toEqual({
+        type: mqtt5_packet.PacketType.Connack,
         sessionPresent : false,
         reasonCode : mqtt5_packet.ConnectReasonCode.UnspecifiedError,
         sessionExpiryInterval: 3600,
@@ -327,7 +330,8 @@ function create_base_expected_mqtt_js_config() : mqtt.IClientOptions {
         keepalive: mqtt_utils.DEFAULT_KEEP_ALIVE,
         connectTimeout: mqtt_utils.DEFAULT_CONNACK_TIMEOUT_MS,
         clean: true,
-        reconnectPeriod: mqtt_utils.DEFAULT_MAX_RECONNECT_DELAY_MS,
+        protocolVersion : 5,
+        reconnectPeriod: compute_mqtt_js_reconnect_delay_from_crt_max_delay(mqtt_utils.DEFAULT_MAX_RECONNECT_DELAY_MS),
         queueQoSZero : false,
         autoUseTopicAlias : false,
         autoAssignTopicAlias : false,
@@ -356,14 +360,11 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, minimal will'
         hostName: "derp.com",
         port: 8883,
         sessionBehavior: ClientSessionBehavior.RejoinPostSuccess,
-        offlineQueueBehavior: ClientOperationQueueBehavior.FailQos0PublishOnDisconnect,
         retryJitterMode: RetryJitterType.Decorrelated,
         minReconnectDelayMs : 1000,
         maxReconnectDelayMs : 60000,
         minConnectedTimeToResetReconnectDelayMs : 30000,
-        pingTimeoutMs : 30000,
         connackTimeoutMs : 10000,
-        operationTimeoutSeconds : 120000,
         connectProperties: {
             keepAliveIntervalSeconds : 120,
             clientId : "MyClientId",
@@ -391,7 +392,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, minimal will'
     expectedOptions["keepalive"] = 120;
     expectedOptions["clientId"] = "MyClientId";
     expectedOptions["connectTimeout"] = 10000;
-    expectedOptions["reconnectPeriod"] = 60000;
+    expectedOptions["reconnectPeriod"] = compute_mqtt_js_reconnect_delay_from_crt_max_delay(60000);
     expectedOptions["username"] = "Larry";
     expectedOptions["password"] = myPassword;
     expectedOptions["will"] = {
@@ -423,14 +424,11 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, maximal will'
         hostName: "derp.com",
         port: 8883,
         sessionBehavior: ClientSessionBehavior.RejoinPostSuccess,
-        offlineQueueBehavior: ClientOperationQueueBehavior.FailQos0PublishOnDisconnect,
         retryJitterMode: RetryJitterType.Decorrelated,
         minReconnectDelayMs : 1000,
         maxReconnectDelayMs : 60000,
         minConnectedTimeToResetReconnectDelayMs : 30000,
-        pingTimeoutMs : 30000,
         connackTimeoutMs : 10000,
-        operationTimeoutSeconds : 120000,
         connectProperties: {
             keepAliveIntervalSeconds : 120,
             clientId : "MyClientId",
@@ -469,7 +467,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, maximal will'
     expectedOptions["keepalive"] = 120;
     expectedOptions["clientId"] = "MyClientId";
     expectedOptions["connectTimeout"] = 10000;
-    expectedOptions["reconnectPeriod"] = 60000;
+    expectedOptions["reconnectPeriod"] = compute_mqtt_js_reconnect_delay_from_crt_max_delay(60000);
     expectedOptions["username"] = "Larry";
     expectedOptions["password"] = myPassword;
     expectedOptions["will"] = {
@@ -511,6 +509,7 @@ test('transform_mqtt_js_disconnect_to_crt_disconnect minimal', async() => {
     let crtDisconnect : mqtt5_packet.DisconnectPacket = mqtt_utils.transform_mqtt_js_disconnect_to_crt_disconnect(mqttJsDisconnect);
 
     expect(crtDisconnect).toEqual( {
+            type: mqtt5_packet.PacketType.Disconnect,
             reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
         }
     )
@@ -533,6 +532,7 @@ test('transform_mqtt_js_disconnect_to_crt_disconnect maximal', async() => {
     let crtDisconnect : mqtt5_packet.DisconnectPacket = mqtt_utils.transform_mqtt_js_disconnect_to_crt_disconnect(mqttJsDisconnect);
 
     expect(crtDisconnect).toEqual({
+        type: mqtt5_packet.PacketType.Disconnect,
         reasonCode : mqtt5_packet.DisconnectReasonCode.AdministrativeAction,
         sessionExpiryIntervalSeconds : 120,
         reasonString : "Misbehavior",
@@ -683,6 +683,7 @@ test('transform_mqtt_js_subscription_grants_to_crt_suback', async() => {
     let suback : mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted);
 
     expect(suback).toEqual({
+        type: mqtt5_packet.PacketType.Suback,
         reasonCodes: [2, mqtt5_packet.SubackReasonCode.NotAuthorized]
     });
 });
@@ -753,6 +754,7 @@ test('transform_mqtt_js_publish_to_crt_publish minimal', async() => {
     let crtPublish : mqtt5_packet.PublishPacket = mqtt_utils.transform_mqtt_js_publish_to_crt_publish(mqttJsPublish);
 
     expect(crtPublish).toEqual({
+        type: mqtt5_packet.PacketType.Publish,
         topicName: "hello/there",
         qos: mqtt5_packet.QoS.AtMostOnce,
         payload: payload,
@@ -788,6 +790,7 @@ test('transform_mqtt_js_publish_to_crt_publish maximal', async() => {
     let crtPublish : mqtt5_packet.PublishPacket = mqtt_utils.transform_mqtt_js_publish_to_crt_publish(mqttJsPublish);
 
     expect(crtPublish).toEqual({
+        type: mqtt5_packet.PacketType.Publish,
         topicName: "hello/there",
         qos: mqtt5_packet.QoS.AtMostOnce,
         payload: payload,
@@ -812,6 +815,7 @@ test('transform_mqtt_js_puback_to_crt_puback minimal', async() => {
     let crtPuback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(mqttJsPuback);
 
     expect(crtPuback).toEqual({
+        type: mqtt5_packet.PacketType.Puback,
         reasonCode: mqtt5_packet.PubackReasonCode.Success
     });
 });
@@ -831,6 +835,7 @@ test('transform_mqtt_js_puback_to_crt_puback maximal', async() => {
     let crtPuback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(mqttJsPuback);
 
     expect(crtPuback).toEqual({
+        type: mqtt5_packet.PacketType.Puback,
         reasonCode: mqtt5_packet.PubackReasonCode.NotAuthorized,
         reasonString: "Insufficient privilege",
         userProperties: [
@@ -877,6 +882,7 @@ test('transform_mqtt_js_unsuback_to_crt_unsuback minimal', async() => {
     let crtUnsuback : mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(mqttJsUnsuback);
 
     expect(crtUnsuback).toEqual({
+        type: mqtt5_packet.PacketType.Unsuback,
         reasonCodes: [ mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted ]
     });
 });
@@ -897,6 +903,7 @@ test('transform_mqtt_js_unsuback_to_crt_unsuback maximal', async() => {
     let crtUnsuback : mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(mqttJsUnsuback);
 
     expect(crtUnsuback).toEqual({
+        type: mqtt5_packet.PacketType.Unsuback,
         reasonCodes: [ mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted, mqtt5_packet.UnsubackReasonCode.ImplementationSpecificError ],
         reasonString: "Dunno",
         userProperties: [

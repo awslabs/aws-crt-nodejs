@@ -157,3 +157,7 @@ deps_build/
 
 # docs are updated automatically by .github/workflows/docs.yml
 docs/
+
+# samples shouldn't have package-lock committed
+samples/browser/**/package-lock.json
+samples/node/**/package-lock.json

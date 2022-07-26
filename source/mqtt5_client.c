@@ -86,6 +86,7 @@ static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_COUNT = "incompleteOperatio
 static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE = "incompleteOperationSize";
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_COUNT = "unackedOperationCount";
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_SIZE = "unackedOperationSize";
+static const char *AWS_NAPI_KEY_TYPE = "type";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -684,6 +685,10 @@ static int s_create_napi_connack_packet(
 
     const struct aws_mqtt5_packet_connack_view *connack_view = &connection_result_ud->connack_storage.storage_view;
 
+    if (aws_napi_attach_object_property_u32(packet, env, AWS_NAPI_KEY_TYPE, (uint32_t)AWS_MQTT5_PT_CONNACK)) {
+        return AWS_OP_ERR;
+    }
+
     if (aws_napi_attach_object_property_boolean(
             packet, env, AWS_NAPI_KEY_SESSION_PRESENT, connack_view->session_present)) {
         return AWS_OP_ERR;
@@ -984,6 +989,10 @@ static int s_create_napi_disconnect_packet(
     AWS_NAPI_CALL(
         env, napi_create_object(env, &packet), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
+    if (aws_napi_attach_object_property_u32(packet, env, AWS_NAPI_KEY_TYPE, (uint32_t)AWS_MQTT5_PT_DISCONNECT)) {
+        return AWS_OP_ERR;
+    }
+
     const struct aws_mqtt5_packet_disconnect_view *disconnect_view = &disconnection_ud->disconnect_storage.storage_view;
 
     if (aws_napi_attach_object_property_u32(packet, env, AWS_NAPI_KEY_REASON_CODE, disconnect_view->reason_code)) {
@@ -1071,6 +1080,10 @@ static int s_create_napi_publish_packet(
     napi_value packet = NULL;
     AWS_NAPI_CALL(
         env, napi_create_object(env, &packet), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_u32(packet, env, AWS_NAPI_KEY_TYPE, (uint32_t)AWS_MQTT5_PT_PUBLISH)) {
+        return AWS_OP_ERR;
+    }
 
     if (aws_napi_attach_object_property_string(packet, env, AWS_NAPI_KEY_TOPIC_NAME, publish_view->topic)) {
         return AWS_OP_ERR;
@@ -2356,6 +2369,10 @@ static int s_create_napi_suback_packet(
     AWS_NAPI_CALL(
         env, napi_create_object(env, &napi_suback), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
+    if (aws_napi_attach_object_property_u32(napi_suback, env, AWS_NAPI_KEY_TYPE, (uint32_t)AWS_MQTT5_PT_SUBACK)) {
+        return AWS_OP_ERR;
+    }
+
     if (aws_napi_attach_object_property_optional_string(
             napi_suback, env, AWS_NAPI_KEY_REASON_STRING, suback->reason_string)) {
         return AWS_OP_ERR;
@@ -2726,6 +2743,10 @@ static int s_create_napi_unsuback_packet(
     AWS_NAPI_CALL(
         env, napi_create_object(env, &napi_unsuback), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
+    if (aws_napi_attach_object_property_u32(napi_unsuback, env, AWS_NAPI_KEY_TYPE, (uint32_t)AWS_MQTT5_PT_UNSUBACK)) {
+        return AWS_OP_ERR;
+    }
+
     if (aws_napi_attach_object_property_optional_string(
             napi_unsuback, env, AWS_NAPI_KEY_REASON_STRING, unsuback->reason_string)) {
         return AWS_OP_ERR;
@@ -3050,6 +3071,10 @@ static int s_create_napi_puback_packet(
     AWS_NAPI_CALL(
         env, napi_create_object(env, &napi_puback), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
+    if (aws_napi_attach_object_property_u32(napi_puback, env, AWS_NAPI_KEY_TYPE, (uint32_t)AWS_MQTT5_PT_PUBACK)) {
+        return AWS_OP_ERR;
+    }
+
     if (aws_napi_attach_object_property_u32(napi_puback, env, AWS_NAPI_KEY_REASON_CODE, puback->reason_code)) {
         return AWS_OP_ERR;
     }
@@ -3094,9 +3119,14 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto done; });
 
-        if (binding->valid_storage == AWS_MQTT5_PT_PUBACK &&
-            s_create_napi_puback_packet(env, &binding->packet_storage.puback.storage_view, &params[2])) {
-            goto done;
+        if (binding->valid_storage == AWS_MQTT5_PT_PUBACK) {
+            if (s_create_napi_puback_packet(env, &binding->packet_storage.puback.storage_view, &params[2])) {
+                goto done;
+            }
+        } else {
+            if (napi_get_undefined(env, &params[2])) {
+                goto done;
+            }
         }
 
         AWS_NAPI_ENSURE(
@@ -3111,7 +3141,8 @@ done:
 }
 
 static void s_on_publish_complete(
-    const struct aws_mqtt5_packet_puback_view *puback,
+    enum aws_mqtt5_packet_type packet_type,
+    const void *packet,
     int error_code,
     void *complete_ctx) {
 
@@ -3119,10 +3150,15 @@ static void s_on_publish_complete(
     struct aws_napi_mqtt5_operation_binding *binding = complete_ctx;
 
     binding->error_code = error_code;
-    if (aws_mqtt5_packet_puback_storage_init(&binding->packet_storage.puback, allocator, puback) == AWS_OP_SUCCESS) {
-        binding->valid_storage = AWS_MQTT5_PT_PUBACK;
-    } else if (binding->error_code == AWS_ERROR_SUCCESS) {
-        binding->error_code = aws_last_error();
+
+    if (packet_type == AWS_MQTT5_PT_PUBACK) {
+        const struct aws_mqtt5_packet_puback_view *puback = packet;
+        if (aws_mqtt5_packet_puback_storage_init(&binding->packet_storage.puback, allocator, puback) ==
+            AWS_OP_SUCCESS) {
+            binding->valid_storage = AWS_MQTT5_PT_PUBACK;
+        } else if (binding->error_code == AWS_ERROR_SUCCESS) {
+            binding->error_code = aws_last_error();
+        }
     }
 
     /* queue a callback in node's libuv thread */

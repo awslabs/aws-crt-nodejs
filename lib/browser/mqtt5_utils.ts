@@ -32,6 +32,7 @@ function set_defined_property(object: any, propertyName: string, value: any) : b
 /** @internal */
 export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.IConnackPacket) : mqtt5_packet.ConnackPacket {
     let connack : mqtt5_packet.ConnackPacket =  {
+        type: mqtt5_packet.PacketType.Connack,
         sessionPresent: mqtt_js_connack.sessionPresent,
         reasonCode : mqtt_js_connack.reasonCode ?? mqtt5_packet.ConnectReasonCode.Success
     };
@@ -118,21 +119,31 @@ export function getOrderedReconnectDelayBounds(configMin?: number, configMax?: n
 }
 
 /** @internal */
-export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : Mqtt5ClientConfig) : mqtt.IClientOptions {
+function should_mqtt_js_use_clean_start(session_behavior? : ClientSessionBehavior) : boolean {
+    return session_behavior !== ClientSessionBehavior.RejoinPostSuccess;
+}
 
-    let [_, maxDelay] = getOrderedReconnectDelayBounds(crtConfig.minReconnectDelayMs, crtConfig.maxReconnectDelayMs);
-
+/** @internal */
+export function compute_mqtt_js_reconnect_delay_from_crt_max_delay(maxReconnectDelayMs : number) : number {
     /*
      * This is an attempt to guarantee that the mqtt-js will never try to reconnect on its own and instead always
      * be controlled by our reconnection scheduler logic.
      */
-    maxDelay = maxDelay * 2 + 60000;
+    return maxReconnectDelayMs * 2 + 60000;
+}
+
+/** @internal */
+export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : Mqtt5ClientConfig) : mqtt.IClientOptions {
+
+    let [_, maxDelay] = getOrderedReconnectDelayBounds(crtConfig.minReconnectDelayMs, crtConfig.maxReconnectDelayMs);
+
+    maxDelay = compute_mqtt_js_reconnect_delay_from_crt_max_delay(maxDelay);
 
     let mqttJsClientConfig : mqtt.IClientOptions = {
         protocolVersion: 5,
         keepalive: crtConfig.connectProperties?.keepAliveIntervalSeconds ?? DEFAULT_KEEP_ALIVE,
         connectTimeout: crtConfig.connackTimeoutMs ?? DEFAULT_CONNACK_TIMEOUT_MS,
-        clean: (crtConfig.sessionBehavior ?? ClientSessionBehavior.Clean) == ClientSessionBehavior.Clean,
+        clean: should_mqtt_js_use_clean_start(crtConfig.sessionBehavior),
         reconnectPeriod: maxDelay,
         queueQoSZero : false,
         // @ts-ignore
@@ -238,6 +249,7 @@ export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5
 export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.IDisconnectPacket) : mqtt5_packet.DisconnectPacket {
 
     let crtDisconnect : mqtt5_packet.DisconnectPacket = {
+        type: mqtt5_packet.PacketType.Disconnect,
         reasonCode : disconnect.reasonCode ?? mqtt5_packet.DisconnectReasonCode.NormalDisconnection
     };
 
@@ -292,6 +304,7 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
 export function transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted: mqtt.ISubscriptionGrant[]) : mqtt5_packet.SubackPacket {
 
     let crtSuback : mqtt5_packet.SubackPacket = {
+        type: mqtt5_packet.PacketType.Suback,
         reasonCodes : subscriptionsGranted.map((subscription: mqtt.ISubscriptionGrant, index: number, array : mqtt.ISubscriptionGrant[]) : mqtt5_packet.SubackReasonCode => { return subscription.qos; })
     }
 
@@ -337,6 +350,7 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5_
 export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishPacket) : mqtt5_packet.PublishPacket {
 
     let crtPublish : mqtt5_packet.PublishPacket = {
+        type: mqtt5_packet.PacketType.Publish,
         qos: publish.qos,
         retain: publish.retain,
         topicName: publish.topic,
@@ -368,20 +382,10 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 }
 
 /** @internal **/
-export function transform_mqtt_js_puback_to_crt_puback(packet: mqtt.IPacket) : mqtt5_packet.PubackPacket {
-
-    /* sadly, mqtt-js returns the original publish packet when the puback is a success, so we have no access
-     * to the puback's user properties or response string.
-     */
-    if (packet.cmd != 'puback') {
-        return {
-            reasonCode: mqtt5_packet.PubackReasonCode.Success
-        };
-    }
-
-    let puback = packet as mqtt.IPubackPacket;
+export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacket) : mqtt5_packet.PubackPacket {
 
     let crtPuback : mqtt5_packet.PubackPacket = {
+        type: mqtt5_packet.PacketType.Puback,
         reasonCode: puback.reasonCode ?? mqtt5_packet.PubackReasonCode.Success,
     };
 
@@ -425,6 +429,7 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
     }
 
     let crtUnsuback : mqtt5_packet.UnsubackPacket = {
+        type: mqtt5_packet.PacketType.Unsuback,
         reasonCodes : codes
     }
 
@@ -434,34 +439,4 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
     }
 
     return crtUnsuback;
-}
-
-/**
- * Converts payload to Buffer or string regardless of the supplied type
- * @param payload The payload to convert
- * @internal
- */
-export function normalize_payload(payload: any): Buffer | string {
-    if (payload instanceof Buffer) {
-        // pass Buffer through
-        return payload;
-    }
-    if (typeof payload === 'string') {
-        // pass string through
-        return payload;
-    }
-    if (ArrayBuffer.isView(payload)) {
-        // return Buffer with view upon the same bytes (no copy)
-        const view = payload as ArrayBufferView;
-        return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
-    }
-    if (payload instanceof ArrayBuffer) {
-        // return Buffer with view upon the same bytes (no copy)
-        return Buffer.from(payload);
-    }
-    if (typeof payload === 'object') {
-        // Convert Object to JSON string
-        return JSON.stringify(payload);
-    }
-    throw new TypeError("payload parameter must be a string, object, or DataView.");
 }

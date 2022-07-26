@@ -17,9 +17,10 @@ import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import {WebsocketOptions} from "./ws";
 import * as auth from "./auth";
-import * as mqtt_utils from "./mqtt_utils";
+import * as mqtt_utils from "./mqtt5_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
+import {normalize_payload} from "../common/mqtt_shared";
 
 export {
     NegotiatedSettings,
@@ -31,8 +32,7 @@ export {
     MessageReceivedEventListener,
     IMqtt5Client,
     ClientSessionBehavior,
-    RetryJitterType,
-    ClientOperationQueueBehavior
+    RetryJitterType
 } from "../common/mqtt5";
 
 /**
@@ -382,6 +382,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 if (packet === undefined || packet.cmd !== 'unsuback') {
                     /* this is a complete lie */
                     let unsuback : mqtt5_packet.UnsubackPacket = {
+                        type: mqtt5_packet.PacketType.Unsuback,
                         reasonCodes: topicFilters.map((filter: string, index: number, array : string[]) : mqtt5_packet.UnsubackReasonCode => { return mqtt5_packet.UnsubackReasonCode.Success; })
                     };
                     resolve(unsuback);
@@ -397,10 +398,11 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      * Send a message to subscribing clients by queuing a PUBLISH packet to be sent to the server.
      *
      * @param packet PUBLISH packet to send to the server
-     * @returns a promise that will be rejected with an error or resolved with the PUBACK response
+     * @returns a promise that will be rejected with an error or resolved with the PUBACK response (QoS 1), or
+     * undefined (QoS 0)
      */
-    async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5_packet.PubackPacket> {
-        return new Promise<mqtt5_packet.PubackPacket>((resolve, reject) => {
+    async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5.PublishCompletionResult> {
+        return new Promise<mqtt5.PublishCompletionResult>((resolve, reject) => {
             let rejectAndEmit = (error: Error) => {
                 let crtError : CrtError = new CrtError(error);
                 reject(crtError);
@@ -413,20 +415,46 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             }
 
             let publishOptions : mqtt.IClientPublishOptions = mqtt_utils.transform_crt_publish_to_mqtt_js_publish_options(packet);
+            let qos : mqtt5_packet.QoS = packet.qos;
 
-            this.browserClient.publish(packet.topicName, mqtt_utils.normalize_payload(packet.payload), publishOptions, (error, packet) => {
+            this.browserClient.publish(packet.topicName, normalize_payload(packet.payload), publishOptions, (error, completionPacket) => {
                 if (error) {
                     rejectAndEmit(error);
                     return;
                 }
 
-                if (packet === undefined) {
-                    rejectAndEmit(new Error("Invalid puback packet from mqtt-js"));
-                    return;
-                }
+                switch (qos) {
+                    case mqtt5_packet.QoS.AtMostOnce:
+                        resolve(undefined);
+                        break;
 
-                const puback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(packet as mqtt.IPubackPacket);
-                resolve(puback);
+                    case mqtt5_packet.QoS.AtLeastOnce:
+                        if (completionPacket === undefined) {
+                            rejectAndEmit(new Error("Invalid puback packet from mqtt-js"));
+                            return;
+                        }
+
+                        /*
+                         * sadly, mqtt-js returns the original publish packet when the puback is a success, so we have
+                         * to create a fake puback instead.  This means we won't reflect any reason string or
+                         * user properties that might have been present in the real puback.
+                         */
+                        if (completionPacket.cmd !== "puback") {
+                            resolve({
+                                type : mqtt5_packet.PacketType.Puback,
+                                reasonCode : mqtt5_packet.PubackReasonCode.Success
+                            })
+                        }
+
+                        const puback : mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(completionPacket as mqtt.IPubackPacket);
+                        resolve(puback);
+                        break;
+
+                    default:
+                        /* Technically, mqtt-js supports QoS 2 but we don't yet model it in the CRT types */
+                        rejectAndEmit(new Error("Unsupported QoS value"));
+                        break;
+                }
             });
         });
     }
