@@ -115,36 +115,63 @@ export function create_websocket_stream(config: MqttConnectionConfig) {
     return websocket(url, ['mqttv3.1'], config.websocket);
 }
 
+export enum WebsocketMqtt5Protocol {
+
+    Ws = 1,
+
+    Wss = 2,
+
+    Wss_with_sigv4 = 3
+}
+
+export interface WebsocketMqtt5Config extends WebsocketOptionsBase {
+
+    protocol?: WebsocketMqtt5Protocol;
+
+    /*
+     * Unchecked options set passed through to the websocket implementation.
+     * Use this to control proxy settings amongst other things.
+     */
+    ws_options: any;
+}
+
 /** @internal */
 export function create_mqtt5_websocket_url(config: Mqtt5ClientConfig) {
     const path = '/mqtt';
-    const protocol = (config.websocket || {}).protocol || 'wss';
-    if (protocol === 'wss') {
-        const websocketoptions = config.websocket!;
-        const credentials = config.credentials_provider?.getCredentials();
-        const signing_config_value = websocketoptions.create_signing_config?.()
-            ?? {
-                service: websocketoptions.service ?? "iotdevicegateway",
-                credentials: credentials,
-                date: new Date()
-            };
-        const signing_config = signing_config_value as AwsSigningConfig;
-        const time = canonical_time(signing_config.date);
-        const day = canonical_day(time);
-        const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.credentials.aws_access_id}` +
-            `%2F${day}%2F${signing_config.credentials.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
-        const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
-        return sign_url('GET', url, signing_config, time, day);
-    } else if (protocol === 'wss-custom-auth') {
-        return `wss://${config.hostName}:${config.port}${path}`;
-    } else if (protocol === 'ws') {
-        return `ws://${config.hostName}:${config.port}${path}`;
+    const protocol : WebsocketMqtt5Protocol = config.websocket?.protocol || WebsocketMqtt5Protocol.Ws;
+
+    switch(protocol) {
+        case WebsocketMqtt5Protocol.Ws:
+            return `ws://${config.hostName}:${config.port}${path}`;
+            break;
+
+        case WebsocketMqtt5Protocol.Wss:
+            return `wss://${config.hostName}:${config.port}${path}`;
+            break;
+
+        case WebsocketMqtt5Protocol.Wss_with_sigv4:
+            const websocketoptions = config.websocket!;
+            const credentials = config.credentials_provider?.getCredentials();
+            const signing_config_value = websocketoptions.create_signing_config?.()
+                ?? {
+                    service: websocketoptions.service ?? "iotdevicegateway",
+                    credentials: credentials,
+                    date: new Date()
+                };
+            const signing_config = signing_config_value as AwsSigningConfig;
+            const time = canonical_time(signing_config.date);
+            const day = canonical_day(time);
+            const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.credentials.aws_access_id}` +
+                `%2F${day}%2F${signing_config.credentials.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
+            const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
+            return sign_url('GET', url, signing_config, time, day);
     }
+
     throw new URIError(`Invalid protocol requested: ${protocol}`);
 }
 
 /** @internal */
 export function create_mqtt5_websocket_stream(config: Mqtt5ClientConfig) {
     const url = create_mqtt5_websocket_url(config);
-    return websocket(url, ['mqtt'], config.websocket);
+    return websocket(url, ['mqtt'], config.websocket?.ws_options);
 }

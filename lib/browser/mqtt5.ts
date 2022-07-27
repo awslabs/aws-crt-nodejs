@@ -15,7 +15,7 @@ import * as mqtt5 from "../common/mqtt5";
 import {CrtError} from "./error";
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
-import {WebsocketOptions} from "./ws";
+import {WebsocketMqtt5Config} from "./ws";
 import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt5_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
@@ -96,7 +96,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Browser-only
      */
-    websocket?: WebsocketOptions;
+    websocket?: WebsocketMqtt5Config;
 
     /**
      * Options for the underlying credentianls provider
@@ -334,6 +334,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             let subMap : mqtt.ISubscriptionMap = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscription_map(packet);
             let subOptions : mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(packet);
 
+            // @ts-ignore
             this.browserClient.subscribe(subMap, subOptions, (error, grants) => {
                 if (error) {
                     rejectAndEmit(error);

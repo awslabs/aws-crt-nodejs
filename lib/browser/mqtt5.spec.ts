@@ -3,24 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {SuccessfulConnectionTestType, ClientEnvironmentalConfig, ApplyCustomMqtt5ClientConfig} from "@test/mqtt5";
-import {Mqtt5ClientConfig} from "./mqtt5";
-import {Mqtt5Client} from "./mqtt5";
+import {ApplyCustomMqtt5ClientConfig, ClientEnvironmentalConfig, SuccessfulConnectionTestType} from "@test/mqtt5";
+import {Mqtt5Client, Mqtt5ClientConfig} from "./mqtt5";
 import {once} from "events";
+import {WebsocketMqtt5Protocol} from "./ws";
 
 jest.setTimeout(10000);
 
 function applyBrowserSpecificTestConfig (config: Mqtt5ClientConfig, testType: SuccessfulConnectionTestType) : Mqtt5ClientConfig {
+    config.websocket = {
+        protocol: undefined,
+        ws_options: {}
+    }
+
     if (ClientEnvironmentalConfig.doesTestUseTls(testType)) {
-        config.websocket = {
-            protocol: "wss-custom-auth",
-            // @ts-ignore
-            rejectUnauthorized: false,
-        };
+        config.websocket.protocol = WebsocketMqtt5Protocol.Wss;
+        config.websocket.ws_options.rejectUnauthorized = false;
     } else {
-        config.websocket = {
-            protocol: "ws"
-        };
+        config.websocket.protocol = WebsocketMqtt5Protocol.Ws;
     }
 
     if (ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
@@ -29,10 +29,7 @@ function applyBrowserSpecificTestConfig (config: Mqtt5ClientConfig, testType: Su
         var HttpsProxyAgent = require('https-proxy-agent');
         var agent = new HttpsProxyAgent(options);
 
-        if (config.websocket !== undefined) {
-            // @ts-ignore
-            config.websocket.agent = agent;
-        }
+        config.websocket.ws_options.agent = agent;
     }
 
     return config;
@@ -73,7 +70,7 @@ test('basic auth', async() => {
 
 const conditional_test = (condition : boolean) => condition ? it : it.skip;
 
-/*
+
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT))('Websocket Mqtt connection', async () => {
     await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT, applyBrowserSpecificTestConfig);
 });
@@ -82,7 +79,7 @@ conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfi
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH))('Websocket Mqtt connection with basic authentication', async () => {
     await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH, applyBrowserSpecificTestConfig);
 });
-*/
+
 
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS))('Websocket Mqtt connection with TLS', async () => {
     await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS, applyBrowserSpecificTestConfig);
