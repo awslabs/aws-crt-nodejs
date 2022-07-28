@@ -12,9 +12,10 @@
  */
 
 import { MqttConnectionConfig } from "./mqtt";
-import { Mqtt5ClientConfig} from "./mqtt5";
+import * as mqtt5 from "./mqtt5";
 import { AWSCredentials, AwsSigningConfig} from "./auth";
 import { WebsocketOptionsBase } from "../common/auth";
+import { CrtError } from "./error";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
 
@@ -115,63 +116,53 @@ export function create_websocket_stream(config: MqttConnectionConfig) {
     return websocket(url, ['mqttv3.1'], config.websocket);
 }
 
-export enum WebsocketMqtt5Protocol {
-
-    Ws = 1,
-
-    Wss = 2,
-
-    Wss_with_sigv4 = 3
-}
-
-export interface WebsocketMqtt5Config extends WebsocketOptionsBase {
-
-    protocol?: WebsocketMqtt5Protocol;
-
-    /*
-     * Unchecked options set passed through to the websocket implementation.
-     * Use this to control proxy settings amongst other things.
-     */
-    ws_options: any;
-}
 
 /** @internal */
-export function create_mqtt5_websocket_url(config: Mqtt5ClientConfig) {
+export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
     const path = '/mqtt';
-    const protocol : WebsocketMqtt5Protocol = config.websocket?.protocol || WebsocketMqtt5Protocol.Ws;
+    const websocketConfig : mqtt5.Mqtt5WebsocketConfig = config.websocketOptions ?? { urlFactoryOptions: { urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws} };
+    const urlFactory : mqtt5.Mqtt5WebsocketUrlFactoryType = websocketConfig.urlFactoryOptions.urlFactory;
 
-    switch(protocol) {
-        case WebsocketMqtt5Protocol.Ws:
+    switch(urlFactory) {
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Ws:
             return `ws://${config.hostName}:${config.port}${path}`;
             break;
 
-        case WebsocketMqtt5Protocol.Wss:
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Wss:
             return `wss://${config.hostName}:${config.port}${path}`;
             break;
 
-        case WebsocketMqtt5Protocol.Wss_with_sigv4:
-            const websocketoptions = config.websocket!;
-            const credentials = config.credentials_provider?.getCredentials();
-            const signing_config_value = websocketoptions.create_signing_config?.()
-                ?? {
-                    service: websocketoptions.service ?? "iotdevicegateway",
-                    credentials: credentials,
-                    date: new Date()
-                };
-            const signing_config = signing_config_value as AwsSigningConfig;
-            const time = canonical_time(signing_config.date);
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Sigv4:
+            const sigv4Options : mqtt5.Mqtt5WebsocketUrlFactorySigv4Options = websocketConfig.urlFactoryOptions as mqtt5.Mqtt5WebsocketUrlFactorySigv4Options;
+            const credentials = sigv4Options.credentials_provider.getCredentials();
+            if (credentials === undefined) {
+                throw new CrtError("Websockets with sigv4 requires valid AWS credentials");
+            }
+
+            const signingConfig : AwsSigningConfig = {
+                service: "iotdevicegateway",
+                region: sigv4Options.region,
+                credentials: credentials,
+                date: new Date()
+            };
+
+            const time = canonical_time(signingConfig.date);
             const day = canonical_day(time);
-            const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.credentials.aws_access_id}` +
-                `%2F${day}%2F${signing_config.credentials.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
+            const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signingConfig.credentials.aws_access_id}` +
+                `%2F${day}%2F${signingConfig.credentials.aws_region}%2F${signingConfig.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
             const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
-            return sign_url('GET', url, signing_config, time, day);
+            return sign_url('GET', url, signingConfig, time, day);
+
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Custom:
+            const customOptions : mqtt5.Mqtt5WebsocketUrlFactoryCustomOptions = websocketConfig.urlFactoryOptions as mqtt5.Mqtt5WebsocketUrlFactoryCustomOptions;
+            return customOptions.customUrlFactory();
     }
 
-    throw new URIError(`Invalid protocol requested: ${protocol}`);
+    throw new URIError(`Invalid url factory requested: ${urlFactory}`);
 }
 
 /** @internal */
-export function create_mqtt5_websocket_stream(config: Mqtt5ClientConfig) {
+export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) {
     const url = create_mqtt5_websocket_url(config);
-    return websocket(url, ['mqtt'], config.websocket?.ws_options);
+    return websocket(url, ['mqtt'], config.websocketOptions?.wsOptions);
 }

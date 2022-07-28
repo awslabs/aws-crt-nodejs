@@ -15,12 +15,11 @@ import * as mqtt5 from "../common/mqtt5";
 import {CrtError} from "./error";
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
-import {WebsocketMqtt5Config} from "./ws";
-import * as auth from "./auth";
 import * as mqtt_utils from "./mqtt5_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
 import {normalize_payload} from "../common/mqtt_shared";
+import * as auth from "./auth";
 
 export {
     NegotiatedSettings,
@@ -34,6 +33,102 @@ export {
     ClientSessionBehavior,
     RetryJitterType
 } from "../common/mqtt5";
+
+
+/**
+ * Factory function that allows the user to completely control the url used to form the websocket handshake
+ * request.
+ */
+export type Mqtt5WebsocketUrlFactory = () => string;
+
+/**
+ * Type of url to construct when establishing an MQTT5 connection over websockets
+ */
+export enum Mqtt5WebsocketUrlFactoryType {
+
+    /**
+     * Websocket connection over plain-text with no additional handshake transformation
+     */
+    Ws = 1,
+
+    /**
+     * Websocket connection over TLS with no additional handshake transformation
+     */
+    Wss = 2,
+
+    /**
+     * Websocket connection over TLS with a handshake signed by the Aws Sigv4 signing process
+     */
+    Sigv4 = 3,
+
+    /**
+     * Websocket connection whose url is formed by a user-supplied callback function
+     */
+    Custom = 4
+}
+
+/**
+ * Websocket factory options discriminated union variant for untransformed connections over plain-text
+ */
+export interface Mqtt5WebsocketUrlFactoryWsOptions {
+    urlFactory: Mqtt5WebsocketUrlFactoryType.Ws;
+};
+
+/**
+ * Websocket factory options discriminated union variant for untransformed connections over TLS
+ */
+export interface Mqtt5WebsocketUrlFactoryWssOptions {
+    urlFactory: Mqtt5WebsocketUrlFactoryType.Wss;
+};
+
+/**
+ * Websocket factory options discriminated union variant for untransformed connections over TLS signed by
+ * the AWS Sigv4 signing process.
+ */
+export interface Mqtt5WebsocketUrlFactorySigv4Options {
+    urlFactory : Mqtt5WebsocketUrlFactoryType.Sigv4;
+
+    /**
+     * AWS Region to sign against.
+     */
+    region: string;
+
+    /**
+     * Provider to source AWS credentials from
+     */
+    credentials_provider: auth.CredentialsProvider;
+}
+
+/**
+ * Websocket factory options discriminated union variant for arbitrarily transformed handshake urls.
+ */
+export interface Mqtt5WebsocketUrlFactoryCustomOptions {
+    urlFactory: Mqtt5WebsocketUrlFactoryType.Custom;
+
+    customUrlFactory: Mqtt5WebsocketUrlFactory;
+};
+
+/**
+ * Union of all websocket factory option possibilities.
+ */
+export type Mqtt5WebsocketUrlFactoryOptions = Mqtt5WebsocketUrlFactoryWsOptions | Mqtt5WebsocketUrlFactoryWssOptions | Mqtt5WebsocketUrlFactorySigv4Options | Mqtt5WebsocketUrlFactoryCustomOptions;
+
+/**
+ * Browser-specific websocket configuration options for connection establishment
+ */
+export interface Mqtt5WebsocketConfig {
+
+    /**
+     * Options determining how the websocket url is created.
+     */
+    urlFactoryOptions : Mqtt5WebsocketUrlFactoryOptions;
+
+    /**
+     * Unchecked options set passed through to the underlying websocket implementation regardless of url factory.
+     * Use this to control proxy settings amongst other things.
+     */
+    wsOptions?: any;
+}
 
 /**
  * Configuration options for mqtt5 client creation.
@@ -96,14 +191,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Browser-only
      */
-    websocket?: WebsocketMqtt5Config;
-
-    /**
-     * Options for the underlying credentianls provider
-     *
-     * @group Browser-only
-     */
-    credentials_provider?: auth.CredentialsProvider;
+    websocketOptions?: Mqtt5WebsocketConfig;
 }
 
 /**

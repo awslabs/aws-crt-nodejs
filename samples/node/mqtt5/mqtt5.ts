@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {io, mqtt5, mqtt5_packet} from "aws-crt";
+import {mqtt5, mqtt5_packet} from "aws-crt";
 import {once} from "events";
+import {ICrtError} from "../../../dist.browser/common/error";
 
 type Args = { [index: string]: any };
 
@@ -13,14 +14,53 @@ const yargs = require('yargs');
 yargs.command('*', false, (yargs: any) => {
 }, main).parse();
 
-async function testSuccessfulConnection() {
-
+function createClient() : mqtt5.Mqtt5Client {
     const client_config : mqtt5.Mqtt5ClientConfig = {
         hostName : "127.0.0.1",
         port : 1883
-    }
+    };
 
     let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(client_config);
+
+    client.on('error', (error: ICrtError) => {
+        console.log("Error event: " + error.toString());
+    });
+
+    client.on("messageReceived",(message: mqtt5_packet.PublishPacket) : void => {
+        console.log("Message Received event: " + JSON.stringify(message));
+    } );
+
+    client.on('attemptingConnect', () => {
+        console.log("Attempting Connect event");
+    });
+
+    client.on('connectionSuccess', (connack: mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) => {
+        console.log("Connection Success event");
+        console.log ("Connack: " + JSON.stringify(connack));
+        console.log ("Settings: " + JSON.stringify(settings));
+    });
+
+    client.on('connectionFailure', (error: ICrtError) => {
+        console.log("Connection failure event: " + error.toString());
+    });
+
+    client.on('disconnection', (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => {
+        console.log("Disconnection event: " + error.toString());
+        if (disconnect !== undefined) {
+            console.log('Disconnect packet: ' + JSON.stringify(disconnect));
+        }
+    });
+
+    client.on('stopped', () => {
+        console.log("Stopped event");
+    });
+
+    return client;
+}
+
+async function testSuccessfulConnection() {
+
+    let client : mqtt5.Mqtt5Client = createClient();
 
     const attemptingConnect = once(client, "attemptingConnect");
     const connectionSuccess = once(client, "connectionSuccess");
@@ -71,7 +111,7 @@ async function testSuccessfulConnection() {
 }
 
 async function main(args : Args){
-    io.enable_logging(io.LogLevel.TRACE);
+    //io.enable_logging(io.LogLevel.TRACE);
 
     // make it wait as long as possible once the promise completes we'll turn it off.
     const timer = setTimeout(() => {}, 2147483647);

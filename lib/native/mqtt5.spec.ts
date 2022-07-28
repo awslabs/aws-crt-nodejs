@@ -5,8 +5,7 @@
 
 import {
     SuccessfulConnectionTestType,
-    ClientEnvironmentalConfig,
-    ApplyCustomMqtt5ClientConfig
+    ClientEnvironmentalConfig, CreateBaseMqtt5ClientConfig
 } from "@test/mqtt5";
 import {HttpProxyOptions, Mqtt5Client, Mqtt5ClientConfig} from "./mqtt5";
 import {ClientTlsContext, TlsContextOptions} from "./io";
@@ -15,38 +14,49 @@ import {once} from "events";
 
 jest.setTimeout(10000);
 
-function applyNodeSpecificTestConfig (config: Mqtt5ClientConfig, testType: SuccessfulConnectionTestType) : Mqtt5ClientConfig {
+function applyNodeSpecificTestConfig (testType: SuccessfulConnectionTestType) : Mqtt5ClientConfig {
+
+    let tlsCtx = undefined;
+
     if (ClientEnvironmentalConfig.doesTestUseTls(testType)) {
         let tls_ctx_opt = new TlsContextOptions();
         tls_ctx_opt.verify_peer = false;
 
-        config.tlsCtx = new ClientTlsContext(tls_ctx_opt);
+        tlsCtx = new ClientTlsContext(tls_ctx_opt);
     }
 
+    let wsTransform = undefined;
     if (ClientEnvironmentalConfig.doesTestUseWebsockets(testType)) {
-        config.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) =>
+        wsTransform = (request: HttpRequest, done: (error_code?: number) => void) =>
         {
             done(0);
-        }
+        };
     }
 
+    let proxyOptions = undefined;
     if (ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
-        config.proxyOptions = new HttpProxyOptions(
+        proxyOptions = new HttpProxyOptions(
             ClientEnvironmentalConfig.PROXY_HOST,
             ClientEnvironmentalConfig.PROXY_PORT,
             HttpProxyAuthenticationType.None,
             undefined,
             undefined,
             undefined,
-            HttpProxyConnectionType.Tunneling)
+            HttpProxyConnectionType.Tunneling);
     }
 
-    return config;
+    return {
+        hostName: "unknown",
+        port: 0,
+        tlsCtx: tlsCtx,
+        proxyOptions: proxyOptions,
+        websocketHandshakeTransform: wsTransform
+    };
 }
 
-export async function testSuccessfulConnection(testType : SuccessfulConnectionTestType, customConfigCallback: ApplyCustomMqtt5ClientConfig) {
+export async function testSuccessfulConnection(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) {
 
-    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, customConfigCallback);
+    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, createConfigCallback);
 
     let client : Mqtt5Client = new Mqtt5Client(client_config);
 

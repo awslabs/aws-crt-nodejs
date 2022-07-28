@@ -17,11 +17,8 @@ function log(msg: string) {
 function createClient() : mqtt5.Mqtt5Client {
     const client_config : mqtt5.Mqtt5ClientConfig = {
         hostName : "localhost",
-        port : 8080,
-        websocket : {
-            protocol: "ws"
-        }
-    }
+        port : 8080
+    };
 
     let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(client_config);
 
@@ -50,7 +47,7 @@ function createClient() : mqtt5.Mqtt5Client {
     client.on('disconnection', (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => {
         log("Disconnection event: " + error.toString());
         if (disconnect !== undefined) {
-            log('Disconnect pacaket: ' + JSON.stringify(disconnect));
+            log('Disconnect packet: ' + JSON.stringify(disconnect));
         }
     });
 

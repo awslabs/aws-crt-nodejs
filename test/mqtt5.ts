@@ -16,7 +16,7 @@ export enum SuccessfulConnectionTestType {
     WS_MQTT_WITH_TLS_VIA_PROXY = 7
 }
 
-export type ApplyCustomMqtt5ClientConfig = (config: Mqtt5ClientConfig, testType: SuccessfulConnectionTestType) => Mqtt5ClientConfig;
+export type CreateBaseMqtt5ClientConfig = (testType: SuccessfulConnectionTestType) => Mqtt5ClientConfig;
 
 export class ClientEnvironmentalConfig {
 
@@ -124,11 +124,11 @@ export class ClientEnvironmentalConfig {
             ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType) != 0;
     }
 
-    public static getSuccessfulConnectionTestConfig(testType : SuccessfulConnectionTestType, customConfigCallback: ApplyCustomMqtt5ClientConfig) : Mqtt5ClientConfig {
-        let config : Mqtt5ClientConfig = {
-            hostName : ClientEnvironmentalConfig.getSuccessfulConnectionTestHost(testType),
-            port : ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType),
-        }
+    public static getSuccessfulConnectionTestConfig(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) : Mqtt5ClientConfig {
+        let config : Mqtt5ClientConfig = createConfigCallback(testType);
+
+        config.hostName = ClientEnvironmentalConfig.getSuccessfulConnectionTestHost(testType);
+        config.port = ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType);
 
         if (ClientEnvironmentalConfig.isTestBasicAuth(testType)) {
             config.connectProperties = {
@@ -138,7 +138,7 @@ export class ClientEnvironmentalConfig {
             }
         }
 
-        return customConfigCallback(config, testType);
+        return config;
     }
 }
 

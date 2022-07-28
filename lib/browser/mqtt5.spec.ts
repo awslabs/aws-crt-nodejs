@@ -3,41 +3,47 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {ApplyCustomMqtt5ClientConfig, ClientEnvironmentalConfig, SuccessfulConnectionTestType} from "@test/mqtt5";
-import {Mqtt5Client, Mqtt5ClientConfig} from "./mqtt5";
+import {CreateBaseMqtt5ClientConfig, ClientEnvironmentalConfig, SuccessfulConnectionTestType} from "@test/mqtt5";
+import {Mqtt5Client, Mqtt5ClientConfig, Mqtt5WebsocketUrlFactoryOptions, Mqtt5WebsocketUrlFactoryType} from "./mqtt5";
 import {once} from "events";
-import {WebsocketMqtt5Protocol} from "./ws";
 
 jest.setTimeout(10000);
 
-function applyBrowserSpecificTestConfig (config: Mqtt5ClientConfig, testType: SuccessfulConnectionTestType) : Mqtt5ClientConfig {
-    config.websocket = {
-        protocol: undefined,
-        ws_options: {}
-    }
+function createBrowserSpecificTestConfig (testType: SuccessfulConnectionTestType) : Mqtt5ClientConfig {
 
-    if (ClientEnvironmentalConfig.doesTestUseTls(testType)) {
-        config.websocket.protocol = WebsocketMqtt5Protocol.Wss;
-        config.websocket.ws_options.rejectUnauthorized = false;
-    } else {
-        config.websocket.protocol = WebsocketMqtt5Protocol.Ws;
-    }
+    let wsOptions : any = {}
 
     if (ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
         var url = require('url');
-        var options = url.parse('http://localhost:3128');
+        var options = url.parse(`http://${ClientEnvironmentalConfig.PROXY_HOST}:${ClientEnvironmentalConfig.PROXY_PORT}`);
         var HttpsProxyAgent = require('https-proxy-agent');
         var agent = new HttpsProxyAgent(options);
 
-        config.websocket.ws_options.agent = agent;
+        wsOptions.agent = agent;
     }
 
-    return config;
+    let urlFactoryOptions : Mqtt5WebsocketUrlFactoryOptions;
+    if (ClientEnvironmentalConfig.doesTestUseTls(testType)) {
+        urlFactoryOptions = { urlFactory: Mqtt5WebsocketUrlFactoryType.Wss };
+        wsOptions.rejectUnauthorized = false;
+    } else {
+        urlFactoryOptions = { urlFactory: Mqtt5WebsocketUrlFactoryType.Ws };
+    }
+
+    return {
+        hostName: "unknown",
+        port: 0,
+
+        websocketOptions: {
+            urlFactoryOptions: urlFactoryOptions,
+            wsOptions: wsOptions
+        }
+    };
 }
 
-export async function testSuccessfulConnection(testType : SuccessfulConnectionTestType, customConfigCallback: ApplyCustomMqtt5ClientConfig) {
+export async function testSuccessfulConnection(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) {
 
-    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, customConfigCallback);
+    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, createConfigCallback);
 
     let client : Mqtt5Client = new Mqtt5Client(client_config);
 
@@ -61,30 +67,21 @@ export async function testSuccessfulConnection(testType : SuccessfulConnectionTe
     await stopped;
 }
 
-/*
-test('basic auth', async() => {
-    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH, applyBrowserSpecificTestConfig);
-});
-*/
-
-
 const conditional_test = (condition : boolean) => condition ? it : it.skip;
 
-
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT))('Websocket Mqtt connection', async () => {
-    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT, applyBrowserSpecificTestConfig);
+    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT, createBrowserSpecificTestConfig);
 });
 
-
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH))('Websocket Mqtt connection with basic authentication', async () => {
-    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH, applyBrowserSpecificTestConfig);
+    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH, createBrowserSpecificTestConfig);
 });
 
 
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS))('Websocket Mqtt connection with TLS', async () => {
-    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS, applyBrowserSpecificTestConfig);
+    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS, createBrowserSpecificTestConfig);
 });
-/*
+
 conditional_test(ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Websocket Mqtt connection with tls through an http proxy', async () => {
-    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY, applyBrowserSpecificTestConfig);
-});*/
+    await testSuccessfulConnection(SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY, createBrowserSpecificTestConfig);
+});
