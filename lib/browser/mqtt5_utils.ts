@@ -6,8 +6,8 @@
 
 import * as mqtt from "mqtt";
 import * as mqtt5_packet from "../common/mqtt5_packet";
-import {ClientSessionBehavior, NegotiatedSettings} from "../common/mqtt5";
-import {Mqtt5ClientConfig} from "./mqtt5";
+import { ClientSessionBehavior, NegotiatedSettings } from "../common/mqtt5";
+import { Mqtt5ClientConfig } from "./mqtt5";
 
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
 export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;

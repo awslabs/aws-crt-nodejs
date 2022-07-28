@@ -9,7 +9,7 @@
  */
 
 import * as mqtt5_packet from "./mqtt5_packet";
-import {ICrtError} from "./error";
+import { ICrtError } from "./error";
 
 /**
  * Mqtt behavior settings that are dynamically negotiated as part of the CONNECT/CONNACK exchange.

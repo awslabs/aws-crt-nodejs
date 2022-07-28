@@ -9,16 +9,16 @@
  * @mergeTarget
  */
 
-import {BufferedEventEmitter} from "../common/event";
+import { BufferedEventEmitter } from "../common/event";
 import * as mqtt5 from "../common/mqtt5";
 
-import {CrtError} from "./error";
+import { CrtError } from "./error";
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as mqtt_utils from "./mqtt5_utils";
 import * as mqtt5_packet from "../common/mqtt5_packet";
-import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
-import {normalize_payload} from "../common/mqtt_shared";
+import { ClientSessionBehavior, RetryJitterType } from "../common/mqtt5";
+import { normalize_payload } from "../common/mqtt_shared";
 import * as auth from "./auth";
 
 export {

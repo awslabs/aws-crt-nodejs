@@ -15,17 +15,9 @@ import { InputStream, TlsContextOptions } from "./io";
 import { AwsSigningConfig } from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
-import {Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings} from "./mqtt5";
-import {
-    ConnackPacket,
-    DisconnectPacket,
-    PubackPacket,
-    PublishPacket,
-    SubackPacket,
-    SubscribePacket,
-    UnsubackPacket,
-    UnsubscribePacket
-} from "../common/mqtt5_packet";
+import { Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings } from "./mqtt5";
+import * as mqtt5_packet from "../common/mqtt5_packet";
+import { PublishCompletionResult } from "../common/mqtt5";
 
 
 /**
@@ -153,10 +145,10 @@ export function mqtt5_client_new(
     config: Mqtt5ClientConfig,
     on_stopped_event_handler: (client: Mqtt5Client) => void,
     on_attempt_connect_handler: (client: Mqtt5Client) => void,
-    on_connection_success_handler: (client: Mqtt5Client, connack: ConnackPacket, settings: NegotiatedSettings) => void,
-    on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: ConnackPacket) => void,
-    on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: DisconnectPacket) => void,
-    on_message_received_handler: (client: Mqtt5Client, message: PublishPacket) => void,
+    on_connection_success_handler: (client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void,
+    on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: mqtt5_packet.ConnackPacket) => void,
+    on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: mqtt5_packet.DisconnectPacket) => void,
+    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket) => void,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
@@ -167,16 +159,16 @@ export function mqtt5_client_new(
 export function mqtt5_client_start(client: NativeHandle) : void;
 
 /** @internal */
-export function mqtt5_client_stop(client: NativeHandle, disconnect_packet?: DisconnectPacket) : void;
+export function mqtt5_client_stop(client: NativeHandle, disconnect_packet?: mqtt5_packet.DisconnectPacket) : void;
 
 /** @internal */
-export function mqtt5_client_subscribe(client: NativeHandle, subscribe_packet: SubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, suback?: SubackPacket) => void) : void;
+export function mqtt5_client_subscribe(client: NativeHandle, subscribe_packet: mqtt5_packet.SubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, suback?: mqtt5_packet.SubackPacket) => void) : void;
 
 /** @internal */
-export function mqtt5_client_unsubscribe(client: NativeHandle, unsubscribe_packet: UnsubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, unsuback?: UnsubackPacket) => void) : void;
+export function mqtt5_client_unsubscribe(client: NativeHandle, unsubscribe_packet: mqtt5_packet.UnsubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, unsuback?: mqtt5_packet.UnsubackPacket) => void) : void;
 
 /** @internal */
-export function mqtt5_client_publish(client: NativeHandle, publish_packet: PublishPacket, on_resolution: (client: Mqtt5Client, errorCode: number, puback?: PubackPacket) => void) : void;
+export function mqtt5_client_publish(client: NativeHandle, publish_packet: mqtt5_packet.PublishPacket, on_resolution: (client: Mqtt5Client, errorCode: number, result: PublishCompletionResult) => void) : void;
 
 /** @internal */
 export function mqtt5_client_get_queue_statistics(client: NativeHandle) : ClientStatistics;
