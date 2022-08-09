@@ -536,13 +536,19 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     async disconnect() {
         this.desiredState = MqttBrowserClientState.Stopped;
+
+        /* If the user wants to disconnect, stop the recurrent connection task */
         if (this.reconnectTask) {
             clearTimeout(this.reconnectTask);
             this.reconnectTask = undefined;
         }
 
         return new Promise((resolve) => {
-            this.connection.end(false, {}, resolve)
+            /*
+             * The original implementation did not force the disconnect so in our update to fix the promise resolution,
+             * we need to keep that contract.
+             */
+            this.connection.end(false, {}, resolve);
         });
     }
 
@@ -563,11 +569,13 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_close = () => {
+        /* Only emit an interruption event if we were connected, otherwise we just failed to reconnect */
         if (this.currentState == MqttBrowserClientState.Connected) {
             this.currentState = MqttBrowserClientState.Stopped;
             this.emit('interrupt', -1);
         }
 
+        /* Only try and reconnect if our desired state is connected -- no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
