@@ -575,7 +575,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
             this.emit('interrupt', -1);
         }
 
-        /* Only try and reconnect if our desired state is connected -- no one has called disconnect() */
+        /* Only try and reconnect if our desired state is connected, ie no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
