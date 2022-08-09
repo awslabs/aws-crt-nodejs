@@ -569,7 +569,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_close = () => {
-        /* Only emit an interruption event if we were connected, otherwise we just failed to reconnect */
+        /*
+         * Only emit an interruption event if we were connected, otherwise we just failed to reconnect after
+         * a disconnection.
+         */
         if (this.currentState == MqttBrowserClientState.Connected) {
             this.currentState = MqttBrowserClientState.Stopped;
             this.emit('interrupt', -1);
