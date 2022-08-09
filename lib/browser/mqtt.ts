@@ -274,7 +274,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private currentState: MqttBrowserClientState = MqttBrowserClientState.Stopped;
     private desiredState: MqttBrowserClientState = MqttBrowserClientState.Stopped;
-    private reconnectTask?: NodeJS.Timer;
+    private reconnectTask?: ReturnType<typeof setTimeout>;
 
     /**
      * @param client The client that owns this connection
