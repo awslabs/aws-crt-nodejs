@@ -743,15 +743,23 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     }
 
     private on_browser_close() {
+        let lastDisconnect : mqtt5_packet.DisconnectPacket | undefined = this.lastDisconnect;
+        let lastError : Error | undefined = this.lastError;
+
         if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connected) {
             this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
             this.reconnectionScheduler?.onConnectionFailureOrDisconnection();
-            this.emit(Mqtt5Client.DISCONNECTION, new CrtError(this.lastError?.toString() ?? "disconnected"), this.lastDisconnect);
+            setTimeout(() => {
+                this.emit(Mqtt5Client.DISCONNECTION, new CrtError(lastError?.toString() ?? "disconnected"), lastDisconnect);
+                }, 0);
         } else if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connecting) {
             this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Disconnected;
             this.reconnectionScheduler?.onConnectionFailureOrDisconnection();
-            this.emit(Mqtt5Client.CONNECTION_FAILURE, new CrtError(this.lastError?.toString() ?? "connectionFailure"), null);
+            setTimeout(() => {
+                this.emit(Mqtt5Client.CONNECTION_FAILURE, new CrtError(lastError?.toString() ?? "connectionFailure"), null);
+            }, 0);
         }
+
         this.lastDisconnect = undefined;
         this.lastError = undefined;
     }
@@ -759,12 +767,16 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
     private on_browser_client_error(error: Error) {
         this.lastError = error;
-        this.emit(Mqtt5Client.INFO, new CrtError(error));
+        setTimeout(() => {
+            this.emit(Mqtt5Client.INFO, new CrtError(error));
+        }, 0);
     }
 
     private on_attempting_connect () {
         this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connecting;
-        this.emit(Mqtt5Client.ATTEMPTING_CONNECT);
+        setTimeout(() => {
+            this.emit(Mqtt5Client.ATTEMPTING_CONNECT);
+        }, 0);
     }
 
     private on_connection_success (connack: mqtt.IConnackPacket) {
@@ -775,7 +787,9 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         let crt_connack : mqtt5_packet.ConnackPacket = mqtt_utils.transform_mqtt_js_connack_to_crt_connack(connack);
         let settings : mqtt5.NegotiatedSettings = mqtt_utils.create_negotiated_settings(this.config, crt_connack);
 
-        this.emit(Mqtt5Client.CONNECTION_SUCCESS, crt_connack, settings);
+        setTimeout(() => {
+            this.emit(Mqtt5Client.CONNECTION_SUCCESS, crt_connack, settings);
+        }, 0);
     }
 
     private _on_stopped_internal() {
@@ -798,6 +812,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
         let crtPublish : mqtt5_packet.PublishPacket = mqtt_utils.transform_mqtt_js_publish_to_crt_publish(packet);
 
-        this.emit(Mqtt5Client.MESSAGE_RECEIVED, crtPublish);
+        setTimeout(() => {
+            this.emit(Mqtt5Client.MESSAGE_RECEIVED, crtPublish);
+        }, 0);
     }
 }
