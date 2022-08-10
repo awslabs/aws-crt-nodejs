@@ -8,19 +8,20 @@ import * as mqtt from "mqtt";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import { ClientSessionBehavior, NegotiatedSettings } from "../common/mqtt5";
 import { Mqtt5ClientConfig } from "./mqtt5";
+import { CrtError } from "./error";
 
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
 export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
 export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
 export const DEFAULT_KEEP_ALIVE : number = 1200;
-export const DEFAULT_CONNACK_TIMEOUT_MS : number = 30000;
+export const DEFAULT_CONNECT_TIMEOUT_MS : number = 30000;
 export const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
 export const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
 export const DEFAULT_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS : number = 30000;
 
 /** @internal */
 function set_defined_property(object: any, propertyName: string, value: any) : boolean {
-    if (value === undefined) {
+    if (value === undefined || value == null) {
         return false;
     }
 
@@ -59,7 +60,7 @@ export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.I
 /** @internal */
 export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: mqtt5_packet.ConnackPacket) : NegotiatedSettings {
     return {
-        maximumQos: connack.maximumQos ?? mqtt5_packet.QoS.ExactlyOnce,
+        maximumQos: Math.min(connack.maximumQos ?? mqtt5_packet.QoS.ExactlyOnce, mqtt5_packet.QoS.AtLeastOnce),
         sessionExpiryInterval: connack.sessionExpiryInterval ?? config.connectProperties?.sessionExpiryIntervalSeconds ?? 0,
         receiveMaximumFromServer: connack.receiveMaximum ?? DEFAULT_RECEIVE_MAXIMUM,
         maximumPacketSizeToServer: connack.maximumPacketSize ?? MAXIMUM_PACKET_SIZE,
@@ -75,7 +76,7 @@ export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: 
 
 /** @internal */
 function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5_packet.ConnectPacket) : any {
-    if (connectProperties === undefined || connectProperties.will == undefined) {
+    if (!connectProperties || !connectProperties.will) {
         return undefined;
     }
 
@@ -132,8 +133,54 @@ export function compute_mqtt_js_reconnect_delay_from_crt_max_delay(maxReconnectD
     return maxReconnectDelayMs * 2 + 60000;
 }
 
+function validate_required_uint16(propertyName : string, value: number) {
+    if (value < 0 || value > 65535) {
+        throw new CrtError(`Invalid value for property ${propertyName}: ` + value);
+    }
+}
+
+function validate_optional_uint16(propertyName : string, value?: number) {
+    if (value !== undefined) {
+        validate_required_uint16(propertyName, value);
+    }
+}
+
+function validate_required_uint32(propertyName : string, value: number) {
+    if (value < 0 || value >= 4294967296) {
+        throw new CrtError(`Invalid value for property ${propertyName}: ` + value);
+    }
+}
+
+function validate_optional_uint32(propertyName : string, value?: number) {
+    if (value !== undefined) {
+        validate_required_uint32(propertyName, value);
+    }
+}
+
+function validate_required_nonnegative_uint32(propertyName : string, value: number) {
+    if (value <= 0 || value >= 4294967296) {
+        throw new CrtError(`Invalid value for property ${propertyName}: ` + value);
+    }
+}
+
+function validate_optional_nonnegative_uint32(propertyName : string, value?: number) {
+    if (value !== undefined) {
+        validate_required_nonnegative_uint32(propertyName, value);
+    }
+}
+
+function validate_mqtt5_client_config(crtConfig : Mqtt5ClientConfig) {
+    validate_required_uint16("keepAliveIntervalSeconds", crtConfig.connectProperties?.keepAliveIntervalSeconds ?? 0);
+    validate_optional_uint32("sessionExpiryIntervalSeconds", crtConfig.connectProperties?.sessionExpiryIntervalSeconds);
+    validate_optional_uint16("receiveMaximum", crtConfig.connectProperties?.receiveMaximum);
+    validate_optional_nonnegative_uint32("maximumPacketSizeBytes", crtConfig.connectProperties?.maximumPacketSizeBytes);
+    validate_optional_uint32("willDelayIntervalSeconds", crtConfig.connectProperties?.willDelayIntervalSeconds);
+}
+
 /** @internal */
 export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : Mqtt5ClientConfig) : mqtt.IClientOptions {
+
+    validate_mqtt5_client_config(crtConfig);
 
     let [_, maxDelay] = getOrderedReconnectDelayBounds(crtConfig.minReconnectDelayMs, crtConfig.maxReconnectDelayMs);
 
@@ -142,7 +189,7 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
     let mqttJsClientConfig : mqtt.IClientOptions = {
         protocolVersion: 5,
         keepalive: crtConfig.connectProperties?.keepAliveIntervalSeconds ?? DEFAULT_KEEP_ALIVE,
-        connectTimeout: crtConfig.connackTimeoutMs ?? DEFAULT_CONNACK_TIMEOUT_MS,
+        connectTimeout: crtConfig.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
         clean: should_mqtt_js_use_clean_start(crtConfig.sessionBehavior),
         reconnectPeriod: maxDelay,
         queueQoSZero : false,
@@ -154,7 +201,11 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
         resubscribe : false
     };
 
-    set_defined_property(mqttJsClientConfig, "clientId", crtConfig.connectProperties?.clientId);
+    /*
+     * If you leave clientId undefined, mqtt-js will make up some weird thing for you, but the intent is that it
+     * should pass the empty client id so that the server assigns you one.
+     */
+    set_defined_property(mqttJsClientConfig, "clientId", crtConfig.connectProperties?.clientId ?? "");
     set_defined_property(mqttJsClientConfig, "username", crtConfig.connectProperties?.username);
     set_defined_property(mqttJsClientConfig, "password", crtConfig.connectProperties?.password);
     set_defined_property(mqttJsClientConfig, "will", create_mqtt_js_will_from_crt_config(crtConfig.connectProperties));
@@ -177,7 +228,7 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
 
 /** @internal */
 export function transform_crt_user_properties_to_mqtt_js_user_properties(userProperties?: mqtt5_packet.UserProperty[]) : mqtt.UserProperties | undefined {
-    if (userProperties == undefined) {
+    if (!userProperties) {
         return undefined;
     }
 
@@ -200,7 +251,7 @@ export function transform_crt_user_properties_to_mqtt_js_user_properties(userPro
 
 /** @internal */
 export function transform_mqtt_js_user_properties_to_crt_user_properties(userProperties?: mqtt.UserProperties) : mqtt5_packet.UserProperty[] | undefined {
-    if (userProperties === undefined) {
+    if (!userProperties) {
         return undefined;
     }
 
@@ -211,7 +262,7 @@ export function transform_mqtt_js_user_properties_to_crt_user_properties(userPro
         let values : string[] = (typeof propValue === 'string') ? [propValue] : propValue;
         for (const valueIter of values) {
             let propertyEntry = {name : propName, value : valueIter};
-            if (crtProperties === undefined) {
+            if (!crtProperties) {
                 crtProperties = [propertyEntry];
             } else {
                 crtProperties.push(propertyEntry);
@@ -222,8 +273,14 @@ export function transform_mqtt_js_user_properties_to_crt_user_properties(userPro
     return crtProperties;
 }
 
+function validate_crt_disconnect(disconnect: mqtt5_packet.DisconnectPacket) {
+    validate_optional_uint32("sessionExpiryIntervalSeconds", disconnect.sessionExpiryIntervalSeconds);
+}
+
 /** @internal */
 export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5_packet.DisconnectPacket) : mqtt.IDisconnectPacket {
+
+    validate_crt_disconnect(disconnect);
 
     let properties = {};
     let propertiesValid : boolean = false;
@@ -261,8 +318,14 @@ export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.
     return crtDisconnect;
 }
 
+function validate_crt_subscribe(subscribe: mqtt5_packet.SubscribePacket) {
+    validate_optional_uint32("subscriptionIdentifier", subscribe.subscriptionIdentifier);
+}
+
 /** @internal **/
 export function transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe: mqtt5_packet.SubscribePacket) : mqtt.ISubscriptionMap {
+
+    validate_crt_subscribe(subscribe);
 
     let subscriptionMap : mqtt.ISubscriptionMap = {};
 
@@ -319,8 +382,14 @@ export function transform_mqtt_js_subscription_grants_to_crt_suback(subscription
     return crtSuback;
 }
 
+function validate_crt_publish(publish: mqtt5_packet.PublishPacket) {
+    validate_optional_uint32("messageExpiryIntervalSeconds", publish.messageExpiryIntervalSeconds);
+}
+
 /** @internal */
 export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5_packet.PublishPacket) : mqtt.IClientPublishOptions {
+
+    validate_crt_publish(publish);
 
     let properties = {};
     let propertiesValid : boolean = false;
@@ -357,7 +426,7 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
         payload: publish.payload
     };
 
-    if (publish.properties !== undefined) {
+    if (publish.properties) {
         if (publish.properties.payloadFormatIndicator !== undefined) {
             set_defined_property(crtPublish, "payloadFormat", publish.properties.payloadFormatIndicator ? mqtt5_packet.PayloadFormatIndicator.Utf8 : mqtt5_packet.PayloadFormatIndicator.Bytes);
         }
@@ -369,7 +438,7 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 
         let subIds : number | number[] | undefined = publish.properties?.subscriptionIdentifier;
         let subIdsType : string = typeof subIds;
-        if (subIds !== undefined) {
+        if (subIds) {
             if (subIdsType == 'number') {
                 crtPublish["subscriptionIdentifiers"] = [subIds];
             } else if (Array.isArray(subIds)) {
@@ -389,7 +458,7 @@ export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacke
         reasonCode: puback.reasonCode ?? mqtt5_packet.PubackReasonCode.Success,
     };
 
-    if (puback.properties !== undefined) {
+    if (puback.properties) {
         set_defined_property(crtPuback, "reasonString", puback.properties?.reasonString);
         set_defined_property(crtPuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(puback.properties?.userProperties));
     }
@@ -433,7 +502,7 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
         reasonCodes : codes
     }
 
-    if (packet.properties !== undefined) {
+    if (packet.properties) {
         set_defined_property(crtUnsuback, "reasonString", packet.properties?.reasonString);
         set_defined_property(crtUnsuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(packet.properties?.userProperties));
     }

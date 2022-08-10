@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {Mqtt5ClientConfig} from "@awscrt/mqtt5";
+import {Mqtt5Client, Mqtt5ClientConfig} from "@awscrt/mqtt5";
+import * as mqtt5_common from "../lib/common/mqtt5";
+import * as mqtt5_packet from "../lib/common/mqtt5_packet";
+import {DisconnectReasonCode, QoS} from "../lib/common/mqtt5_packet";
+import {once} from "events";
 
 export enum SuccessfulConnectionTestType {
     DIRECT_MQTT = 0,
@@ -16,28 +20,45 @@ export enum SuccessfulConnectionTestType {
     WS_MQTT_WITH_TLS_VIA_PROXY = 7
 }
 
+export enum ConnectionFailureTestType {
+    DIRECT_MQTT_BAD_HOST,
+    DIRECT_MQTT_BAD_PORT,
+    DIRECT_MQTT_PROTOCOL_MISMATCH,
+    DIRECT_MQTT_TRANSPORT_MISMATCH,
+    DIRECT_MQTT_SOCKET_TIMEOUT,
+    DIRECT_MQTT_BASIC_AUTH_BAD_CREDS,
+    WS_MQTT_BAD_HOST,
+    WS_MQTT_BAD_PORT,
+    WS_MQTT_PROTOCOL_MISMATCH,
+    WS_MQTT_TRANSPORT_MISMATCH,
+    WS_MQTT_SOCKET_TIMEOUT,
+    WS_MQTT_BASIC_AUTH_BAD_CREDS,
+    WS_MQTT_HANDSHAKE_TRANSFORM_BAD,
+    WS_MQTT_HANDSHAKE_TRANSFORM_FAILURE
+}
+
 export type CreateBaseMqtt5ClientConfig = (testType: SuccessfulConnectionTestType) => Mqtt5ClientConfig;
 
 export class ClientEnvironmentalConfig {
 
-    public static DIRECT_MQTT_HOST = process.env.AWS_MQTT5_TEST_DIRECT_MQTT_HOST ?? "";
-    public static DIRECT_MQTT_PORT = parseInt(process.env.AWS_MQTT5_TEST_DIRECT_MQTT_PORT ?? "0");
-    public static DIRECT_MQTT_BASIC_AUTH_HOST = process.env.AWS_MQTT5_TEST_DIRECT_MQTT_BASIC_AUTH_HOST ?? "";
-    public static DIRECT_MQTT_BASIC_AUTH_PORT = parseInt(process.env.AWS_MQTT5_TEST_DIRECT_MQTT_BASIC_AUTH_PORT ?? "0");
-    public static DIRECT_MQTT_TLS_HOST = process.env.AWS_MQTT5_TEST_DIRECT_MQTT_TLS_HOST ?? "";
-    public static DIRECT_MQTT_TLS_PORT = parseInt(process.env.AWS_MQTT5_TEST_DIRECT_MQTT_TLS_PORT ?? "0");
-    public static WS_MQTT_HOST = process.env.AWS_MQTT5_TEST_WS_MQTT_HOST ?? "";
-    public static WS_MQTT_PORT = parseInt(process.env.AWS_MQTT5_TEST_WS_MQTT_PORT ?? "0");
-    public static WS_MQTT_BASIC_AUTH_HOST = process.env.AWS_MQTT5_TEST_WS_MQTT_BASIC_AUTH_HOST ?? "";
-    public static WS_MQTT_BASIC_AUTH_PORT = parseInt(process.env.AWS_MQTT5_TEST_WS_MQTT_BASIC_AUTH_PORT ?? "0");
-    public static WS_MQTT_TLS_HOST = process.env.AWS_MQTT5_TEST_WS_MQTT_TLS_HOST ?? "";
-    public static WS_MQTT_TLS_PORT = parseInt(process.env.AWS_MQTT5_TEST_WS_MQTT_TLS_PORT ?? "0");
+    public static DIRECT_MQTT_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_HOST ?? "";
+    public static DIRECT_MQTT_PORT = parseInt(process.env.AWS_TEST_MQTT5_DIRECT_MQTT_PORT ?? "0");
+    public static DIRECT_MQTT_BASIC_AUTH_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_BASIC_AUTH_HOST ?? "";
+    public static DIRECT_MQTT_BASIC_AUTH_PORT = parseInt(process.env.AWS_TEST_MQTT5_DIRECT_MQTT_BASIC_AUTH_PORT ?? "0");
+    public static DIRECT_MQTT_TLS_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_TLS_HOST ?? "";
+    public static DIRECT_MQTT_TLS_PORT = parseInt(process.env.AWS_TEST_MQTT5_DIRECT_MQTT_TLS_PORT ?? "0");
+    public static WS_MQTT_HOST = process.env.AWS_TEST_MQTT5_WS_MQTT_HOST ?? "";
+    public static WS_MQTT_PORT = parseInt(process.env.AWS_TEST_MQTT5_WS_MQTT_PORT ?? "0");
+    public static WS_MQTT_BASIC_AUTH_HOST = process.env.AWS_TEST_MQTT5_WS_MQTT_BASIC_AUTH_HOST ?? "";
+    public static WS_MQTT_BASIC_AUTH_PORT = parseInt(process.env.AWS_TEST_MQTT5_WS_MQTT_BASIC_AUTH_PORT ?? "0");
+    public static WS_MQTT_TLS_HOST = process.env.AWS_TEST_MQTT5_WS_MQTT_TLS_HOST ?? "";
+    public static WS_MQTT_TLS_PORT = parseInt(process.env.AWS_TEST_MQTT5_WS_MQTT_TLS_PORT ?? "0");
 
-    public static BASIC_AUTH_USERNAME = process.env.AWS_MQTT5_TEST_BASIC_AUTH_USERNAME ?? "";
-    public static BASIC_AUTH_PASSWORD = Buffer.from(process.env.AWS_MQTT5_TEST_BASIC_AUTH_USERNAME ?? "", "utf-8");
+    public static BASIC_AUTH_USERNAME = process.env.AWS_TEST_MQTT5_BASIC_AUTH_USERNAME ?? "";
+    public static BASIC_AUTH_PASSWORD = Buffer.from(process.env.AWS_TEST_MQTT5_BASIC_AUTH_USERNAME ?? "", "utf-8");
 
-    public static PROXY_HOST = process.env.AWS_MQTT5_TEST_PROXY_HOST ?? "";
-    public static PROXY_PORT = parseInt(process.env.AWS_MQTT5_TEST_PROXY_PORT ?? "0");
+    public static PROXY_HOST = process.env.AWS_TEST_MQTT5_PROXY_HOST ?? "";
+    public static PROXY_PORT = parseInt(process.env.AWS_TEST_MQTT5_PROXY_PORT ?? "0");
 
     private static getSuccessfulConnectionTestHost(testType : SuccessfulConnectionTestType) : string {
         if (testType == SuccessfulConnectionTestType.DIRECT_MQTT) {
@@ -142,3 +163,285 @@ export class ClientEnvironmentalConfig {
     }
 }
 
+export const conditional_test = (condition : boolean) => condition ? it : it.skip;
+
+export async function testConnect(client : Mqtt5Client) {
+
+    const attemptingConnect = once(client, "attemptingConnect");
+    const connectionSuccess = once(client, "connectionSuccess");
+
+    client.start();
+
+    await attemptingConnect;
+    let connectionResults = await connectionSuccess;
+
+    expect(connectionResults[0]).toBeDefined();
+    expect(connectionResults[1]).toBeDefined();
+
+    const disconnection = once(client, "disconnection");
+    const stopped = once(client, "stopped");
+
+    client.stop();
+
+    await disconnection;
+    await stopped;
+
+    client.close();
+}
+
+export async function testSuccessfulConnection(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) {
+
+    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, createConfigCallback);
+
+    await testConnect(new Mqtt5Client(client_config));
+}
+
+export async function testFailedConnection(client : Mqtt5Client) {
+    const attemptingConnect = once(client, "attemptingConnect");
+    const connectionFailure = once(client, "connectionFailure");
+
+    client.start();
+
+    await attemptingConnect;
+    let [error, connack] = await connectionFailure;
+
+    expect(error).toBeDefined();
+    if (connack !== null) {
+        expect(connack?.reasonCode).toBeGreaterThanOrEqual(128);
+    }
+
+    const stopped = once(client, "stopped");
+
+    client.stop();
+
+    await stopped;
+
+    client.close();
+}
+
+export async function testDisconnectValidationFailure(client : Mqtt5Client, sessionExpiry: number) {
+    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+
+    client.start();
+
+    await connectionSuccess;
+
+    expect(() => {
+        client.stop({
+            reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
+            sessionExpiryIntervalSeconds: sessionExpiry
+        });
+    }).toThrow();
+
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function testPublishValidationFailure(client : Mqtt5Client, messageExpiry: number) {
+    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await expect(client.publish({
+        topicName: "a/topic",
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        messageExpiryIntervalSeconds: messageExpiry
+    })).rejects.toThrow();
+
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function testSubscribeValidationFailure(client : Mqtt5Client, subscriptionIdentifier: number) {
+    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await expect(client.subscribe({
+        subscriptions: [
+            { topicFilter: "hello/there", qos: QoS.AtLeastOnce }
+        ],
+        subscriptionIdentifier: subscriptionIdentifier
+    })).rejects.toThrow();
+
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export function verifyCommonNegotiatedSettings(settings: mqtt5_common.NegotiatedSettings) {
+    expect(settings.maximumQos).toEqual(mqtt5_packet.QoS.AtLeastOnce);
+    expect(settings.sessionExpiryInterval).toBeDefined();
+    expect(settings.receiveMaximumFromServer).toBeDefined();
+    expect(settings.maximumPacketSizeToServer).toEqual(268435460);
+    expect(settings.serverKeepAlive).toBeDefined();
+    expect(settings.retainAvailable).toBeTruthy();
+    expect(settings.wildcardSubscriptionsAvailable).toBeTruthy();
+    expect(settings.subscriptionIdentifiersAvailable).toBeTruthy();
+    expect(settings.sharedSubscriptionsAvailable).toBeTruthy();
+    expect(settings.rejoinedSession).toBeFalsy();
+    expect(settings.clientId).toBeDefined();
+    expect(settings.sessionExpiryInterval).toBeDefined();
+}
+
+export async function testNegotiatedSettings(client: Mqtt5Client) : Promise<mqtt5_common.NegotiatedSettings> {
+    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, Mqtt5Client.STOPPED)
+
+    return new Promise<mqtt5_common.NegotiatedSettings>(async (resolve, reject) => {
+        try {
+            client.start();
+
+            let [_, settings] = await connectionSuccess;
+
+            client.stop();
+            await stopped;
+
+            client.close();
+
+            verifyCommonNegotiatedSettings(settings);
+
+            resolve(settings);
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+export async function subPubUnsubTest(client: Mqtt5Client, qos: mqtt5_packet.QoS, topic: string, testPayload: mqtt5_packet.Payload) {
+    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+    let messageReceived = once(client, Mqtt5Client.MESSAGE_RECEIVED);
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload
+    });
+
+    await messageReceived;
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await setTimeout(()=>{}, 2000);
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function willTest(publisher: Mqtt5Client, subscriber: Mqtt5Client, willTopic: string) {
+    let publisherConnected = once(publisher, Mqtt5Client.CONNECTION_SUCCESS);
+    let publisherStopped = once(publisher, Mqtt5Client.STOPPED);
+    let subscriberConnected = once(subscriber, Mqtt5Client.CONNECTION_SUCCESS);
+    let subscriberStopped = once(subscriber, Mqtt5Client.STOPPED);
+
+    let willReceived = once(subscriber, Mqtt5Client.MESSAGE_RECEIVED);
+
+    publisher.start();
+    await publisherConnected;
+
+    subscriber.start();
+    await subscriberConnected;
+
+    await subscriber.subscribe({
+        subscriptions: [
+            { qos : QoS.AtLeastOnce, topicFilter: willTopic }
+        ]
+    });
+
+    publisher.stop({
+        reasonCode: DisconnectReasonCode.DisconnectWithWillMessage
+    });
+
+    await willReceived;
+    await publisherStopped;
+
+    subscriber.stop();
+    await subscriberStopped;
+
+    publisher.close();
+    subscriber.close();
+}
+
+export async function nullSubscribeTest(client: Mqtt5Client) {
+    let connected = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.start();
+    await connected;
+
+    // @ts-ignore
+    await expect(client.subscribe(null)).rejects.toThrow();
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function nullUnsubscribeTest(client: Mqtt5Client) {
+    let connected = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.start();
+    await connected;
+
+    // @ts-ignore
+    await expect(client.unsubscribe(null)).rejects.toThrow();
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function nullPublishTest(client: Mqtt5Client) {
+    let connected = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, Mqtt5Client.STOPPED);
+
+    client.start();
+    await connected;
+
+    // @ts-ignore
+    await expect(client.publish(null)).rejects.toThrow();
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}

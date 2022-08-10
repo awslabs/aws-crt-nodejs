@@ -181,6 +181,15 @@ export class MqttClient {
     }
 }
 
+/**
+ * @internal
+ */
+enum MqttBrowserClientState {
+    Connected,
+    Stopped
+};
+
+
 /** @internal */
 class TopicTrie extends Trie<OnMessageCallback | undefined> {
     constructor() {
@@ -235,6 +244,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private reconnect_min_sec = DEFAULT_RECONNECT_MIN_SEC;
     private reconnect_max_sec = DEFAULT_RECONNECT_MAX_SEC;
 
+    private currentState: MqttBrowserClientState = MqttBrowserClientState.Stopped;
+    private desiredState: MqttBrowserClientState = MqttBrowserClientState.Stopped;
+    private reconnectTask?: ReturnType<typeof setTimeout>;
+
     /**
      * @param client The client that owns this connection
      * @param config The configuration for this connection
@@ -273,8 +286,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (this.config.credentials_provider == undefined &&
             this.config.credentials != undefined){
             const provider = new auth.StaticCredentialProvider(
-                { aws_region: this.config.credentials.aws_region, 
-                    aws_access_id: this.config.credentials.aws_access_id, 
+                { aws_region: this.config.credentials.aws_region,
+                    aws_access_id: this.config.credentials.aws_access_id,
                     aws_secret_key: this.config.credentials.aws_secret_key,
                     aws_sts_token: this.config.credentials.aws_sts_token});
             this.config.credentials_provider = provider;
@@ -291,7 +304,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clean: this.config.clean_session,
                 username: this.config.username,
                 password: this.config.password,
-                reconnectPeriod: this.reconnect_max_sec * 1000, 
+                reconnectPeriod: this.reconnect_max_sec * 1000,
                 will: will,
                 transformWsUrl: websocketXform,
             }
@@ -300,7 +313,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.connection.on('connect', this.on_connect);
         this.connection.on('error', this.on_error);
         this.connection.on('message', this.on_message);
-        this.connection.on('offline', this.on_offline);
+        this.connection.on('close', this.on_close);
         this.connection.on('end', this.on_disconnected);
     }
 
@@ -372,6 +385,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *          true for resuming an existing session, or false if the session is new
      */
     async connect() {
+        this.desiredState = MqttBrowserClientState.Connected;
+
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
@@ -418,7 +433,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     reject(new CrtError(error));
                     return this.on_error(error);
                 }
-                
+
                 let id = undefined;
                 if (qos != QoS.AtMostOnce) {
                     id = (packet as mqtt.IPublishPacket).messageId;
@@ -462,13 +477,13 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     /**
-    * Unsubscribe from a topic filter (async).
-    * The client sends an UNSUBSCRIBE packet, and the server responds with an UNSUBACK.
-    * @param topic The topic filter to unsubscribe from. May contain wildcards.
-    * @returns Promise wihch returns a {@link MqttRequest} which will contain the packet id
-    *          of the UNSUBSCRIBE packet being acknowledged. Promise is resolved when an
-    *          UNSUBACK is received from the server or is rejected when an exception occurs.
-    */
+     * Unsubscribe from a topic filter (async).
+     * The client sends an UNSUBSCRIBE packet, and the server responds with an UNSUBACK.
+     * @param topic The topic filter to unsubscribe from. May contain wildcards.
+     * @returns Promise wihch returns a {@link MqttRequest} which will contain the packet id
+     *          of the UNSUBSCRIBE packet being acknowledged. Promise is resolved when an
+     *          UNSUBACK is received from the server or is rejected when an exception occurs.
+     */
     async unsubscribe(topic: string): Promise<MqttRequest> {
         this.subscriptions.remove(topic);
         return new Promise((resolve, reject) => {
@@ -490,10 +505,22 @@ export class MqttClientConnection extends BufferedEventEmitter {
     /**
      * Close the connection (async).
      * @returns Promise which completes when the connection is closed.
-    */
+     */
     async disconnect() {
+        this.desiredState = MqttBrowserClientState.Stopped;
+
+        /* If the user wants to disconnect, stop the recurrent connection task */
+        if (this.reconnectTask) {
+            clearTimeout(this.reconnectTask);
+            this.reconnectTask = undefined;
+        }
+
         return new Promise((resolve) => {
-            this.connection.end(undefined, resolve)
+            /*
+             * The original implementation did not force the disconnect so in our update to fix the promise resolution,
+             * we need to keep that contract.
+             */
+            this.connection.end(false, {}, resolve);
         });
     }
 
@@ -502,6 +529,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_online = (session_present: boolean) => {
+        this.currentState = MqttBrowserClientState.Connected;
+
         if (++this.connection_count == 1) {
             this.emit('connect', session_present);
         } else {
@@ -511,15 +540,26 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
     }
 
-    private on_offline = () => {
-        this.emit('interrupt', -1);
-        const waitTime = this.get_reconnect_time_sec();
-        setTimeout(() => {
-                /** Emit reconnect after backoff time */
-                this.reconnect_count++;
-                this.connection.reconnect();
-            },
-            waitTime * 1000);
+    private on_close = () => {
+        /*
+         * Only emit an interruption event if we were connected, otherwise we just failed to reconnect after
+         * a disconnection.
+         */
+        if (this.currentState == MqttBrowserClientState.Connected) {
+            this.currentState = MqttBrowserClientState.Stopped;
+            this.emit('interrupt', -1);
+        }
+
+        /* Only try and reconnect if our desired state is connected, ie no one has called disconnect() */
+        if (this.desiredState == MqttBrowserClientState.Connected) {
+            const waitTime = this.get_reconnect_time_sec();
+            this.reconnectTask = setTimeout(() => {
+                    /** Emit reconnect after backoff time */
+                    this.reconnect_count++;
+                    this.connection.reconnect();
+                },
+                waitTime * 1000);
+        }
     }
 
     private on_disconnected = () => {

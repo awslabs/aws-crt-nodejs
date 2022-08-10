@@ -188,6 +188,28 @@ export type PublishCompletionResult = mqtt5_packet.PubackPacket | undefined;
 export interface IMqtt5Client {
 
     /**
+     * Triggers cleanup of native resources associated with the MQTT5 client.  Once this has been invoked, callbacks
+     * and events are not guaranteed to be received.
+     *
+     * On the browser, the implementation is an empty function.
+     *
+     * On Node, this must be called when finished with a client; otherwise, native resources will leak.  It is not safe
+     * to invoke any further operations on the client after close() has been called.
+     *
+     * For a running client, safe and proper shutdown can be accomplished by
+     *
+     * ```ts
+     * const stopped = once(client, "stopped");
+     * client.stop();
+     * await stopped;
+     * client.close();
+     * ```
+     *
+     * This is an asynchronous operation.
+     */
+    close() : void;
+
+    /**
      * Notifies the MQTT5 client that you want it to maintain connectivity to the configured endpoint.
      * The client will attempt to stay connected using the properties of the reconnect-related parameters
      * in the mqtt5 client configuration.

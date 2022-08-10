@@ -35,5 +35,10 @@ export function normalize_payload(payload: any): Buffer | string {
         // Convert Object to JSON string
         return JSON.stringify(payload);
     }
+
+    if (!payload) {
+        return "";
+    }
+
     throw new TypeError("payload parameter must be a string, object, or DataView.");
 }

@@ -16,7 +16,6 @@ import * as io from "./io";
 import * as http from './http';
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as mqtt5 from "../common/mqtt5";
-import {ICrtError} from "../common/error";
 import {CrtError} from "./error";
 import {normalize_payload} from "../common/mqtt_shared";
 
@@ -288,14 +287,6 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
             config.proxyOptions ? config.proxyOptions.create_native_handle() : null
         ));
-
-        /*
-         * Failed MQTT operations (which is normal) emit error events as well as rejecting the original promise.
-         * By installing a default error handler here we help prevent common issues where operation failures bring
-         * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
-         * will be unaffected.
-         */
-        this.on('error', (error: ICrtError) => {});
     }
 
     /**
@@ -338,7 +329,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * existing connection and halting reconnection attempts.
      *
      * This is an asynchronous operation.  Once the process completes, no further events will be emitted until the client
-     * has {@link start} invoked.
+     * has {@link start} invoked.  Invoking {@link start start()} after a {@link stop stop()} will always result in a
+     * new MQTT session.
      *
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
@@ -395,11 +387,11 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
     async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5.PublishCompletionResult> {
-        if (packet.payload !== undefined) {
-            packet.payload = normalize_payload(packet.payload);
-        }
-
         return new Promise<mqtt5.PublishCompletionResult>((resolve, reject) => {
+
+            if (packet && packet.payload) {
+                packet.payload = normalize_payload(packet.payload);
+            }
 
             function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, result: mqtt5.PublishCompletionResult){
                 return Mqtt5Client._s_on_puback_callback(resolve, reject, client, errorCode, result);
@@ -423,7 +415,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     }
 
     /**
-     * Event emitted when the client encounters an error condition.
+     * Event emitted when the client encounters a serious error condition, such as invalid input, napi failures, and
+     * other potentially unrecoverable situations.
      *
      * Listener type: {@link ErrorEventListener}
      *
@@ -490,7 +483,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
 
     /**
      * Registers a listener for the client's {@link ERROR error} event.  An {@link ERROR error} event is emitted when
-     * the client encounters an error condition.
+     * the client encounters a serious error condition, such as invalid input, napi failures, and other potentially
+     * unrecoverable situations.
      *
      * @param event the type of event to listen to
      * @param listener the event listener to add
@@ -570,37 +564,31 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
 
     private static _s_on_stopped(client: Mqtt5Client) {
         process.nextTick(() => {
-            client.emit('stopped');
+            client.emit(Mqtt5Client.STOPPED);
         });
     }
 
     private static _s_on_attempting_connect(client: Mqtt5Client) {
         process.nextTick(() => {
-            client.emit('attemptingConnect');
+            client.emit(Mqtt5Client.ATTEMPTING_CONNECT);
         });
     }
 
     private static _s_on_connection_success(client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) {
         process.nextTick(() => {
-            client.emit('connectionSuccess', connack, settings);
+            client.emit(Mqtt5Client.CONNECTION_SUCCESS, connack, settings);
         });
     }
 
     private static _s_on_connection_failure(client: Mqtt5Client, error: CrtError, connack?: mqtt5_packet.ConnackPacket) {
         process.nextTick(() => {
-            client.emit('connectionFailure', error, connack);
+            client.emit(Mqtt5Client.CONNECTION_FAILURE, error, connack);
         });
     }
 
     private static _s_on_disconnection(client: Mqtt5Client, error: CrtError, disconnect?: mqtt5_packet.DisconnectPacket) {
         process.nextTick(() => {
-            client.emit('disconnection', error, disconnect);
-        });
-    }
-
-    private static _emitErrorOnNext(client: Mqtt5Client, errorCode: number) {
-        process.nextTick(() => {
-            client.emit('error', new CrtError(errorCode));
+            client.emit(Mqtt5Client.DISCONNECTION, error, disconnect);
         });
     }
 
@@ -608,8 +596,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         if (errorCode == 0 && suback !== undefined) {
             resolve(suback);
         } else {
-            reject("Failed to subscribe: " + io.error_code_to_string(errorCode));
-            Mqtt5Client._emitErrorOnNext(client, errorCode);
+            reject(io.error_code_to_string(errorCode));
         }
     }
 
@@ -617,8 +604,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         if (errorCode == 0 && unsuback !== undefined) {
             resolve(unsuback);
         } else {
-            reject("Failed to unsubscribe: " + io.error_code_to_string(errorCode));
-            Mqtt5Client._emitErrorOnNext(client, errorCode);
+            reject(io.error_code_to_string(errorCode));
         }
     }
 
@@ -626,14 +612,13 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         if (errorCode == 0) {
             resolve(result);
         } else {
-            reject("Failed to publish: " + io.error_code_to_string(errorCode));
-            Mqtt5Client._emitErrorOnNext(client, errorCode);
+            reject(io.error_code_to_string(errorCode));
         }
     }
 
     private static _s_on_message_received(client: Mqtt5Client, message : mqtt5_packet.PublishPacket) {
         process.nextTick(() => {
-            client.emit('messageReceived', message);
+            client.emit(Mqtt5Client.MESSAGE_RECEIVED, message);
         });
     }
 }

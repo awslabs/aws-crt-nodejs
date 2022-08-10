@@ -197,16 +197,6 @@ static void s_aws_mqtt5_client_extern_finalize(napi_env env, void *finalize_data
         "id=%p s_aws_mqtt5_client_extern_finalize - mqtt5_client node wrapper is being finalized",
         (void *)binding->client);
 
-    if (binding->node_mqtt5_client_ref != NULL) {
-        napi_delete_reference(env, binding->node_mqtt5_client_ref);
-        binding->node_mqtt5_client_ref = NULL;
-    }
-
-    if (binding->node_client_external_ref != NULL) {
-        napi_delete_reference(env, binding->node_client_external_ref);
-        binding->node_client_external_ref = NULL;
-    }
-
     if (binding->client != NULL) {
         /* if client is not null, then this is a successfully constructed client which should shutdown normally */
         aws_mqtt5_client_release(binding->client);
@@ -1232,9 +1222,10 @@ static int s_aws_mqtt5_user_properties_extract_from_js_object(
     const struct aws_mqtt5_user_property **user_properties_out) {
 
     napi_value node_user_properties = NULL;
-    if (!aws_napi_get_named_property(
-            env, node_container, AWS_NAPI_KEY_USER_PROPERTIES, napi_object, &node_user_properties)) {
-        return AWS_OP_SUCCESS;
+    enum aws_napi_get_named_property_result gpr = aws_napi_get_named_property(
+        env, node_container, AWS_NAPI_KEY_USER_PROPERTIES, napi_object, &node_user_properties);
+    if (gpr != AWS_NGNPR_VALID_VALUE) {
+        return (gpr == AWS_NGNPR_NO_VALUE) ? AWS_OP_SUCCESS : AWS_OP_ERR;
     }
 
     if (aws_napi_is_null_or_undefined(env, node_user_properties)) {
@@ -1270,8 +1261,9 @@ static int s_aws_mqtt5_user_properties_extract_from_js_object(
         struct aws_byte_buf value_buf;
         AWS_ZERO_STRUCT(value_buf);
 
-        bool found_user_property =
-            aws_napi_get_named_property_as_bytebuf(env, array_element, AWS_NAPI_KEY_NAME, napi_string, &name_buf) &&
+        enum aws_napi_get_named_property_result name_gpr =
+            aws_napi_get_named_property_as_bytebuf(env, array_element, AWS_NAPI_KEY_NAME, napi_string, &name_buf);
+        enum aws_napi_get_named_property_result value_gpr =
             aws_napi_get_named_property_as_bytebuf(env, array_element, AWS_NAPI_KEY_VALUE, napi_string, &value_buf);
 
         total_property_length += name_buf.len + value_buf.len;
@@ -1279,7 +1271,7 @@ static int s_aws_mqtt5_user_properties_extract_from_js_object(
         aws_byte_buf_clean_up(&name_buf);
         aws_byte_buf_clean_up(&value_buf);
 
-        if (!found_user_property) {
+        if (name_gpr != AWS_NGNPR_VALID_VALUE || value_gpr != AWS_NGNPR_VALID_VALUE) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_aws_mqtt5_user_properties_extract_from_js_object - malformed property name/value pair",
@@ -1381,6 +1373,42 @@ static void s_aws_napi_mqtt5_publish_storage_clean_up(struct aws_napi_mqtt5_publ
     s_aws_mqtt5_user_properties_clean_up(&storage->user_properties);
 }
 
+static void s_log_get_property_error(
+    void *context,
+    const char *function_name,
+    const char *message,
+    const char *property_name) {
+    AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "id=%p %s - %s: %s", context, function_name, message, property_name);
+}
+
+#define PARSE_REQUIRED_NAPI_PROPERTY(property_name, function_name, call_expression, success_block)                     \
+    {                                                                                                                  \
+        enum aws_napi_get_named_property_result gpr = call_expression;                                                 \
+        if (gpr == AWS_NGNPR_VALID_VALUE) {                                                                            \
+            success_block;                                                                                             \
+        } else if (gpr == AWS_NGNPR_INVALID_VALUE) {                                                                   \
+            s_log_get_property_error(                                                                                  \
+                (void *)binding->client, function_name, "invalid value for property", property_name);                  \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        } else {                                                                                                       \
+            s_log_get_property_error(                                                                                  \
+                (void *)binding->client, function_name, "failed to extract required property", property_name);         \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        }                                                                                                              \
+    }
+
+#define PARSE_OPTIONAL_NAPI_PROPERTY(property_name, function_name, call_expression, success_block)                     \
+    {                                                                                                                  \
+        enum aws_napi_get_named_property_result gpr = call_expression;                                                 \
+        if (gpr == AWS_NGNPR_VALID_VALUE) {                                                                            \
+            success_block;                                                                                             \
+        } else if (gpr == AWS_NGNPR_INVALID_VALUE) {                                                                   \
+            s_log_get_property_error(                                                                                  \
+                (void *)binding->client, function_name, "invalid value for property", property_name);                  \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        }                                                                                                              \
+    }
+
 /* Extract a PUBLISH packet view from a Napi object (AwsMqtt5PacketPublish) and persist its data in storage. */
 static int s_init_publish_options_from_napi(
     struct aws_mqtt5_client_binding *binding,
@@ -1389,68 +1417,86 @@ static int s_init_publish_options_from_napi(
     struct aws_mqtt5_packet_publish_view *publish_options,
     struct aws_napi_mqtt5_publish_storage *publish_storage) {
 
-    if (!aws_napi_get_named_property_as_bytebuf(
-            env, node_publish_config, AWS_NAPI_KEY_TOPIC_NAME, napi_string, &publish_storage->topic)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "id=%p s_init_publish_options_from_napi - failed to extract required property: topic",
-            (void *)binding->client);
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
-    publish_options->topic = aws_byte_cursor_from_buf(&publish_storage->topic);
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_NAPI_KEY_TOPIC_NAME,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_publish_config, AWS_NAPI_KEY_TOPIC_NAME, napi_string, &publish_storage->topic),
+        { publish_options->topic = aws_byte_cursor_from_buf(&publish_storage->topic); });
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_publish_config, AWS_NAPI_KEY_PAYLOAD, napi_undefined, &publish_storage->payload)) {
-        publish_options->payload = aws_byte_cursor_from_buf(&publish_storage->payload);
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_PAYLOAD,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_publish_config, AWS_NAPI_KEY_PAYLOAD, napi_undefined, &publish_storage->payload),
+        { publish_options->payload = aws_byte_cursor_from_buf(&publish_storage->payload); });
 
     uint32_t qos = 0;
-    if (!aws_napi_get_named_property_as_uint32(env, node_publish_config, AWS_NAPI_KEY_QOS, &qos)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "id=%p s_init_publish_options_from_napi - failed to extract required property: qos",
-            (void *)binding->client);
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
-    publish_options->qos = qos;
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_NAPI_KEY_QOS,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_uint32(env, node_publish_config, AWS_NAPI_KEY_QOS, &qos),
+        { publish_options->qos = qos; });
 
-    aws_napi_get_named_property_as_boolean(env, node_publish_config, AWS_NAPI_KEY_RETAIN, &publish_options->retain);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_RETAIN,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_boolean(env, node_publish_config, AWS_NAPI_KEY_RETAIN, &publish_options->retain),
+        {});
 
     uint32_t payload_format = 0;
-    if (aws_napi_get_named_property_as_uint32(env, node_publish_config, AWS_NAPI_KEY_PAYLOAD_FORMAT, &payload_format)) {
-        publish_storage->payload_format = payload_format;
-        publish_options->payload_format = &publish_storage->payload_format;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_PAYLOAD_FORMAT,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_uint32(env, node_publish_config, AWS_NAPI_KEY_PAYLOAD_FORMAT, &payload_format),
+        {
+            publish_storage->payload_format = payload_format;
+            publish_options->payload_format = &publish_storage->payload_format;
+        });
 
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_MESSAGE_EXPIRY_INTERVAL_SECONDS,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_publish_config,
             AWS_NAPI_KEY_MESSAGE_EXPIRY_INTERVAL_SECONDS,
-            &publish_storage->message_expiry_interval_seconds)) {
-        publish_options->message_expiry_interval_seconds = &publish_storage->message_expiry_interval_seconds;
-    }
+            &publish_storage->message_expiry_interval_seconds),
+        { publish_options->message_expiry_interval_seconds = &publish_storage->message_expiry_interval_seconds; });
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_publish_config, AWS_NAPI_KEY_RESPONSE_TOPIC, napi_string, &publish_storage->response_topic)) {
-        publish_storage->response_topic_cursor = aws_byte_cursor_from_buf(&publish_storage->response_topic);
-        publish_options->response_topic = &publish_storage->response_topic_cursor;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_RESPONSE_TOPIC,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_publish_config, AWS_NAPI_KEY_RESPONSE_TOPIC, napi_string, &publish_storage->response_topic),
+        {
+            publish_storage->response_topic_cursor = aws_byte_cursor_from_buf(&publish_storage->response_topic);
+            publish_options->response_topic = &publish_storage->response_topic_cursor;
+        });
 
-    if (aws_napi_get_named_property_as_bytebuf(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_CORRELATION_DATA,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
             env,
             node_publish_config,
             AWS_NAPI_KEY_CORRELATION_DATA,
             napi_undefined,
-            &publish_storage->correlation_data)) {
-        publish_storage->correlation_data_cursor = aws_byte_cursor_from_buf(&publish_storage->correlation_data);
-        publish_options->correlation_data = &publish_storage->correlation_data_cursor;
-    }
+            &publish_storage->correlation_data),
+        {
+            publish_storage->correlation_data_cursor = aws_byte_cursor_from_buf(&publish_storage->correlation_data);
+            publish_options->correlation_data = &publish_storage->correlation_data_cursor;
+        });
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_publish_config, AWS_NAPI_KEY_CONTENT_TYPE, napi_string, &publish_storage->content_type)) {
-        publish_storage->content_type_cursor = aws_byte_cursor_from_buf(&publish_storage->content_type);
-        publish_options->content_type = &publish_storage->content_type_cursor;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_CONTENT_TYPE,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_publish_config, AWS_NAPI_KEY_CONTENT_TYPE, napi_string, &publish_storage->content_type),
+        {
+            publish_storage->content_type_cursor = aws_byte_cursor_from_buf(&publish_storage->content_type);
+            publish_options->content_type = &publish_storage->content_type_cursor;
+        });
 
     if (s_aws_mqtt5_user_properties_extract_from_js_object(
             binding,
@@ -1511,81 +1557,103 @@ static int s_init_connect_options_from_napi(
     struct aws_mqtt5_packet_publish_view *will_options,
     struct aws_napi_mqtt5_connect_storage *connect_storage) {
 
-    if (!aws_napi_get_named_property_as_uint16(
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_NAPI_KEY_KEEP_ALIVE_INTERVAL_SECONDS,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_uint16(
             env,
             node_connect_config,
             AWS_NAPI_KEY_KEEP_ALIVE_INTERVAL_SECONDS,
-            &connect_options->keep_alive_interval_seconds)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "s_init_connect_options_from_napi - failed to extract required parameter: keepAliveIntervalSeconds");
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
+            &connect_options->keep_alive_interval_seconds),
+        {});
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_connect_config, AWS_NAPI_KEY_CLIENT_ID, napi_string, &connect_storage->client_id)) {
-        connect_options->client_id = aws_byte_cursor_from_buf(&connect_storage->client_id);
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_CLIENT_ID,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_connect_config, AWS_NAPI_KEY_CLIENT_ID, napi_string, &connect_storage->client_id),
+        { connect_options->client_id = aws_byte_cursor_from_buf(&connect_storage->client_id); });
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_connect_config, AWS_NAPI_KEY_USERNAME, napi_string, &connect_storage->username)) {
-        connect_storage->username_cursor = aws_byte_cursor_from_buf(&connect_storage->username);
-        connect_options->username = &connect_storage->username_cursor;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_USERNAME,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_connect_config, AWS_NAPI_KEY_USERNAME, napi_string, &connect_storage->username),
+        {
+            connect_storage->username_cursor = aws_byte_cursor_from_buf(&connect_storage->username);
+            connect_options->username = &connect_storage->username_cursor;
+        });
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_connect_config, AWS_NAPI_KEY_PASSWORD, napi_undefined, &connect_storage->password)) {
-        connect_storage->password_cursor = aws_byte_cursor_from_buf(&connect_storage->password);
-        connect_options->password = &connect_storage->password_cursor;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_PASSWORD,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_connect_config, AWS_NAPI_KEY_PASSWORD, napi_undefined, &connect_storage->password),
+        {
+            connect_storage->password_cursor = aws_byte_cursor_from_buf(&connect_storage->password);
+            connect_options->password = &connect_storage->password_cursor;
+        });
 
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL_SECONDS,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_connect_config,
             AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL_SECONDS,
-            &connect_storage->session_expiry_interval_seconds)) {
-        connect_options->session_expiry_interval_seconds = &connect_storage->session_expiry_interval_seconds;
-    }
+            &connect_storage->session_expiry_interval_seconds),
+        { connect_options->session_expiry_interval_seconds = &connect_storage->session_expiry_interval_seconds; });
 
-    if (aws_napi_get_named_property_boolean_as_u8(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_REQUEST_RESPONSE_INFORMATION,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_boolean_as_u8(
             env,
             node_connect_config,
             AWS_NAPI_KEY_REQUEST_RESPONSE_INFORMATION,
-            &connect_storage->request_response_information)) {
-        connect_options->request_response_information = &connect_storage->request_response_information;
-    }
+            &connect_storage->request_response_information),
+        { connect_options->request_response_information = &connect_storage->request_response_information; });
 
-    if (aws_napi_get_named_property_boolean_as_u8(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_REQUEST_PROBLEM_INFORMATION,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_boolean_as_u8(
             env,
             node_connect_config,
             AWS_NAPI_KEY_REQUEST_PROBLEM_INFORMATION,
-            &connect_storage->request_problem_information)) {
-        connect_options->request_problem_information = &connect_storage->request_problem_information;
-    }
+            &connect_storage->request_problem_information),
+        { connect_options->request_problem_information = &connect_storage->request_problem_information; });
 
-    if (aws_napi_get_named_property_as_uint16(
-            env, node_connect_config, AWS_NAPI_KEY_RECEIVE_MAXIMUM, &connect_storage->receive_maximum)) {
-        connect_options->receive_maximum = &connect_storage->receive_maximum;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_RECEIVE_MAXIMUM,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_uint16(
+            env, node_connect_config, AWS_NAPI_KEY_RECEIVE_MAXIMUM, &connect_storage->receive_maximum),
+        { connect_options->receive_maximum = &connect_storage->receive_maximum; });
 
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_MAXIMUM_PACKET_SIZE_BYTES,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_connect_config,
             AWS_NAPI_KEY_MAXIMUM_PACKET_SIZE_BYTES,
-            &connect_storage->maximum_packet_size_bytes)) {
-        connect_options->maximum_packet_size_bytes = &connect_storage->maximum_packet_size_bytes;
-    }
+            &connect_storage->maximum_packet_size_bytes),
+        { connect_options->maximum_packet_size_bytes = &connect_storage->maximum_packet_size_bytes; });
 
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_WILL_DELAY_INTERVAL_SECONDS,
+        "s_init_connect_options_from_napi",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_connect_config,
             AWS_NAPI_KEY_WILL_DELAY_INTERVAL_SECONDS,
-            &connect_storage->will_delay_interval_seconds)) {
-        connect_options->will_delay_interval_seconds = &connect_storage->will_delay_interval_seconds;
-    }
+            &connect_storage->will_delay_interval_seconds),
+        { connect_options->will_delay_interval_seconds = &connect_storage->will_delay_interval_seconds; });
 
     napi_value napi_will = NULL;
-    if (aws_napi_get_named_property(env, node_connect_config, AWS_NAPI_KEY_WILL, napi_object, &napi_will)) {
+    if (AWS_NGNPR_VALID_VALUE ==
+        aws_napi_get_named_property(env, node_connect_config, AWS_NAPI_KEY_WILL, napi_object, &napi_will)) {
         if (!aws_napi_is_null_or_undefined(env, napi_will)) {
             if (s_init_publish_options_from_napi(
                     binding, env, napi_will, will_options, &connect_storage->will_storage)) {
@@ -1631,6 +1699,7 @@ static void s_aws_napi_mqtt5_client_creation_storage_clean_up(struct aws_napi_mq
 
 /* persistent storage for all the data necessary to transform the websocket handshake */
 struct mqtt5_transform_websocket_args {
+    struct aws_allocator *allocator;
     struct aws_mqtt5_client_binding *binding;
 
     struct aws_http_message *request;
@@ -1638,6 +1707,16 @@ struct mqtt5_transform_websocket_args {
     aws_mqtt5_transform_websocket_handshake_complete_fn *complete_fn;
     void *complete_ctx;
 };
+
+static void s_mqtt5_transform_websocket_args_destroy(struct mqtt5_transform_websocket_args *args) {
+    if (args == NULL) {
+        return;
+    }
+
+    args->binding = s_aws_mqtt5_client_binding_release(args->binding);
+
+    aws_mem_release(args->allocator, args);
+}
 
 /* invoked from node once the JS handshake transform callback has completed */
 static napi_value s_napi_mqtt5_transform_websocket_complete(napi_env env, napi_callback_info cb_info) {
@@ -1671,9 +1750,7 @@ static napi_value s_napi_mqtt5_transform_websocket_complete(napi_env env, napi_c
 
 cleanup:
 
-    if (args != NULL) {
-        aws_mem_release(args->binding->allocator, args);
-    }
+    s_mqtt5_transform_websocket_args_destroy(args);
 
     return NULL;
 }
@@ -1710,7 +1787,7 @@ static void s_napi_mqtt5_transform_websocket(
     } else {
         args->complete_fn(args->request, AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV, args->complete_ctx);
 
-        aws_mem_release(args->binding->allocator, args);
+        s_mqtt5_transform_websocket_args_destroy(args);
     }
 }
 
@@ -1725,7 +1802,8 @@ static void s_mqtt5_transform_websocket(
     struct mqtt5_transform_websocket_args *args =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct mqtt5_transform_websocket_args));
 
-    args->binding = binding;
+    args->binding = s_aws_mqtt5_client_binding_acquire(binding);
+    args->allocator = binding->allocator;
     args->request = request;
     args->complete_fn = complete_fn;
     args->complete_ctx = complete_ctx;
@@ -1744,76 +1822,113 @@ static int s_init_client_configuration_from_js_client_configuration(
     struct aws_napi_mqtt5_client_creation_storage *options_storage) {
 
     /* required config parameters */
-    if (!aws_napi_get_named_property_as_bytebuf(
-            env, node_client_config, AWS_NAPI_KEY_HOST_NAME, napi_string, &options_storage->host_name)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "s_init_client_configuration_from_js_client_configuration - failed to extract required property: hostName");
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_NAPI_KEY_HOST_NAME,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_client_config, AWS_NAPI_KEY_HOST_NAME, napi_string, &options_storage->host_name),
+        { client_options->host_name = aws_byte_cursor_from_buf(&options_storage->host_name); });
 
-    client_options->host_name = aws_byte_cursor_from_buf(&options_storage->host_name);
-
-    if (!aws_napi_get_named_property_as_uint16(env, node_client_config, AWS_NAPI_KEY_PORT, &client_options->port)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "s_init_client_configuration_from_js_client_configuration - failed to extract required property: port");
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_NAPI_KEY_PORT,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint16(env, node_client_config, AWS_NAPI_KEY_PORT, &client_options->port),
+        {});
 
     /* optional config parameters */
     uint32_t session_behavior = 0;
-    if (aws_napi_get_named_property_as_uint32(
-            env, node_client_config, AWS_NAPI_KEY_SESSION_BEHAVIOR, (uint32_t *)&session_behavior)) {
-        client_options->session_behavior = (enum aws_mqtt5_client_session_behavior_type)session_behavior;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_SESSION_BEHAVIOR,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
+            env, node_client_config, AWS_NAPI_KEY_SESSION_BEHAVIOR, (uint32_t *)&session_behavior),
+        { client_options->session_behavior = (enum aws_mqtt5_client_session_behavior_type)session_behavior; });
 
     uint32_t extended_validation_and_flow_control_behavior = 0;
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_EXTENDED_VALIDATION_AND_FLOW_CONTROL_OPTIONS,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_client_config,
             AWS_NAPI_KEY_EXTENDED_VALIDATION_AND_FLOW_CONTROL_OPTIONS,
-            (uint32_t *)&extended_validation_and_flow_control_behavior)) {
-        client_options->extended_validation_and_flow_control_options =
-            (enum aws_mqtt5_extended_validation_and_flow_control_options)extended_validation_and_flow_control_behavior;
-    }
+            (uint32_t *)&extended_validation_and_flow_control_behavior),
+        {
+            client_options->extended_validation_and_flow_control_options =
+                (enum aws_mqtt5_extended_validation_and_flow_control_options)
+                    extended_validation_and_flow_control_behavior;
+        });
 
     uint32_t offline_queue_behavior = 0;
-    if (aws_napi_get_named_property_as_uint32(
-            env, node_client_config, AWS_NAPI_KEY_OFFLINE_QUEUE_BEHAVIOR, (uint32_t *)&offline_queue_behavior)) {
-        client_options->offline_queue_behavior =
-            (enum aws_mqtt5_client_operation_queue_behavior_type)offline_queue_behavior;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_OFFLINE_QUEUE_BEHAVIOR,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
+            env, node_client_config, AWS_NAPI_KEY_OFFLINE_QUEUE_BEHAVIOR, (uint32_t *)&offline_queue_behavior),
+        {
+            client_options->offline_queue_behavior =
+                (enum aws_mqtt5_client_operation_queue_behavior_type)offline_queue_behavior;
+        });
 
     uint32_t retry_jitter_mode = 0;
-    if (aws_napi_get_named_property_as_uint32(
-            env, node_client_config, AWS_NAPI_KEY_RETRY_JITTER_MODE, (uint32_t *)&retry_jitter_mode)) {
-        client_options->retry_jitter_mode = (enum aws_mqtt5_client_session_behavior_type)retry_jitter_mode;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_OFFLINE_QUEUE_BEHAVIOR,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
+            env, node_client_config, AWS_NAPI_KEY_RETRY_JITTER_MODE, (uint32_t *)&retry_jitter_mode),
+        { client_options->retry_jitter_mode = (enum aws_mqtt5_client_session_behavior_type)retry_jitter_mode; });
 
-    aws_napi_get_named_property_as_uint64(
-        env, node_client_config, AWS_NAPI_KEY_MIN_RECONNECT_DELAY_MS, &client_options->min_reconnect_delay_ms);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_MIN_RECONNECT_DELAY_MS,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint64(
+            env, node_client_config, AWS_NAPI_KEY_MIN_RECONNECT_DELAY_MS, &client_options->min_reconnect_delay_ms),
+        {});
 
-    aws_napi_get_named_property_as_uint64(
-        env, node_client_config, AWS_NAPI_KEY_MAX_RECONNECT_DELAY_MS, &client_options->max_reconnect_delay_ms);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_MAX_RECONNECT_DELAY_MS,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint64(
+            env, node_client_config, AWS_NAPI_KEY_MAX_RECONNECT_DELAY_MS, &client_options->max_reconnect_delay_ms),
+        {});
 
-    aws_napi_get_named_property_as_uint64(
-        env,
-        node_client_config,
+    PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS,
-        &client_options->min_connected_time_to_reset_reconnect_delay_ms);
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint64(
+            env,
+            node_client_config,
+            AWS_NAPI_KEY_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS,
+            &client_options->min_connected_time_to_reset_reconnect_delay_ms),
+        {});
 
-    aws_napi_get_named_property_as_uint32(
-        env, node_client_config, AWS_NAPI_KEY_PING_TIMEOUT_MS, &client_options->ping_timeout_ms);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_PING_TIMEOUT_MS,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
+            env, node_client_config, AWS_NAPI_KEY_PING_TIMEOUT_MS, &client_options->ping_timeout_ms),
+        {});
 
-    aws_napi_get_named_property_as_uint32(
-        env, node_client_config, AWS_NAPI_KEY_CONNACK_TIMEOUT_MS, &client_options->connack_timeout_ms);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_CONNACK_TIMEOUT_MS,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
+            env, node_client_config, AWS_NAPI_KEY_CONNACK_TIMEOUT_MS, &client_options->connack_timeout_ms),
+        {});
 
-    aws_napi_get_named_property_as_uint32(
-        env, node_client_config, AWS_NAPI_KEY_OPERATION_TIMEOUT_SECONDS, &client_options->operation_timeout_seconds);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_CONNACK_TIMEOUT_MS,
+        "s_init_client_configuration_from_js_client_configuration",
+        aws_napi_get_named_property_as_uint32(
+            env,
+            node_client_config,
+            AWS_NAPI_KEY_OPERATION_TIMEOUT_SECONDS,
+            &client_options->operation_timeout_seconds),
+        {});
 
     napi_value napi_value_connect = NULL;
-    if (aws_napi_get_named_property(
+    if (AWS_NGNPR_VALID_VALUE ==
+        aws_napi_get_named_property(
             env, node_client_config, AWS_NAPI_KEY_CONNECT_PROPERTIES, napi_object, &napi_value_connect)) {
         if (s_init_connect_options_from_napi(
                 binding, env, napi_value_connect, connect_options, will_options, &options_storage->connect_storage)) {
@@ -1825,12 +1940,12 @@ static int s_init_client_configuration_from_js_client_configuration(
     }
 
     napi_value node_transform_websocket = NULL;
-    if (aws_napi_get_named_property(
-            env,
-            node_client_config,
-            AWS_NAPI_KEY_WEBSOCKET_HANDSHAKE_TRANSFORM,
-            napi_function,
-            &node_transform_websocket)) {
+    if (AWS_NGNPR_VALID_VALUE == aws_napi_get_named_property(
+                                     env,
+                                     node_client_config,
+                                     AWS_NAPI_KEY_WEBSOCKET_HANDSHAKE_TRANSFORM,
+                                     napi_function,
+                                     &node_transform_websocket)) {
         if (!aws_napi_is_null_or_undefined(env, node_transform_websocket)) {
             AWS_NAPI_CALL(
                 env,
@@ -1898,7 +2013,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    int result = AWS_OP_ERR;
     napi_value napi_client_wrapper = NULL;
     napi_value node_external = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -2109,27 +2223,22 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     client_options.client_termination_handler = s_aws_mqtt5_client_binding_on_client_terminate;
     client_options.client_termination_handler_user_data = binding;
 
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_client_external_ref), {
-        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create one count reference to napi external");
-        goto cleanup;
-    });
-
     binding->client = aws_mqtt5_client_new(allocator, &client_options);
     if (binding->client == NULL) {
         aws_napi_throw_last_error_with_context(env, "mqtt5_client_new - failed to create client");
         goto cleanup;
     }
 
-    result = AWS_OP_SUCCESS;
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_client_external_ref), {
+        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create one count reference to napi external");
+        goto cleanup;
+    });
+
     napi_client_wrapper = node_external;
 
 cleanup:
 
     s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
-
-    if (result == AWS_OP_ERR) {
-        s_aws_mqtt5_client_extern_finalize(env, binding, NULL);
-    }
 
     return napi_client_wrapper;
 }
@@ -2206,24 +2315,32 @@ static int s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object(
     napi_env env,
     napi_value node_disconnect_packet) {
     uint32_t reason_code = 0;
-    if (aws_napi_get_named_property_as_uint32(
-            env, node_disconnect_packet, AWS_NAPI_KEY_REASON_CODE, (uint32_t *)&reason_code)) {
-        disconnect_packet->reason_code = (enum aws_mqtt5_disconnect_reason_code)reason_code;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_REASON_CODE,
+        "s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object",
+        aws_napi_get_named_property_as_uint32(
+            env, node_disconnect_packet, AWS_NAPI_KEY_REASON_CODE, (uint32_t *)&reason_code),
+        { disconnect_packet->reason_code = (enum aws_mqtt5_disconnect_reason_code)reason_code; });
 
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL_SECONDS,
+        "s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_disconnect_packet,
             AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL_SECONDS,
-            &disconnect_storage->session_expiry_interval_seconds)) {
-        disconnect_packet->session_expiry_interval_seconds = &disconnect_storage->session_expiry_interval_seconds;
-    }
+            &disconnect_storage->session_expiry_interval_seconds),
+        { disconnect_packet->session_expiry_interval_seconds = &disconnect_storage->session_expiry_interval_seconds; });
 
-    if (aws_napi_get_named_property_as_bytebuf(
-            env, node_disconnect_packet, AWS_NAPI_KEY_REASON_STRING, napi_string, &disconnect_storage->reason_string)) {
-        disconnect_storage->reason_string_cursor = aws_byte_cursor_from_buf(&disconnect_storage->reason_string);
-        disconnect_packet->reason_string = &disconnect_storage->reason_string_cursor;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_REASON_STRING,
+        "s_aws_napi_mqtt5_packet_disconnect_storage_initialize_from_js_object",
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_disconnect_packet, AWS_NAPI_KEY_REASON_STRING, napi_string, &disconnect_storage->reason_string),
+        {
+            disconnect_storage->reason_string_cursor = aws_byte_cursor_from_buf(&disconnect_storage->reason_string);
+            disconnect_packet->reason_string = &disconnect_storage->reason_string_cursor;
+        });
 
     if (s_aws_mqtt5_user_properties_extract_from_js_object(
             binding,
@@ -2497,24 +2614,32 @@ static int s_aws_mqtt5_subscription_init_from_napi(
     napi_value node_subscription) {
 
     uint32_t qos = 0;
-    if (!aws_napi_get_named_property_as_uint32(env, node_subscription, AWS_NAPI_KEY_QOS, &qos)) {
-        AWS_LOGF_ERROR(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "id=%p s_aws_mqtt5_subscription_init_from_napi - missing require parameter: qos",
-            (void *)binding->client);
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
-    subscription->qos = qos;
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_NAPI_KEY_QOS,
+        "s_aws_mqtt5_subscription_init_from_napi",
+        aws_napi_get_named_property_as_uint32(env, node_subscription, AWS_NAPI_KEY_QOS, &qos),
+        { subscription->qos = qos; });
 
-    aws_napi_get_named_property_as_boolean(env, node_subscription, AWS_NAPI_KEY_NO_LOCAL, &subscription->no_local);
-    aws_napi_get_named_property_as_boolean(
-        env, node_subscription, AWS_NAPI_KEY_RETAIN_AS_PUBLISHED, &subscription->retain_as_published);
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_NO_LOCAL,
+        "s_aws_mqtt5_subscription_init_from_napi",
+        aws_napi_get_named_property_as_boolean(env, node_subscription, AWS_NAPI_KEY_NO_LOCAL, &subscription->no_local),
+        {});
+
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_RETAIN_AS_PUBLISHED,
+        "s_aws_mqtt5_subscription_init_from_napi",
+        aws_napi_get_named_property_as_boolean(
+            env, node_subscription, AWS_NAPI_KEY_RETAIN_AS_PUBLISHED, &subscription->retain_as_published),
+        {});
 
     uint32_t retain_handling_type = 0;
-    if (aws_napi_get_named_property_as_uint32(
-            env, node_subscription, AWS_NAPI_KEY_RETAIN_HANDLING_TYPE, &retain_handling_type)) {
-        subscription->retain_handling_type = retain_handling_type;
-    }
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_RETAIN_HANDLING_TYPE,
+        "s_aws_mqtt5_subscription_init_from_napi",
+        aws_napi_get_named_property_as_uint32(
+            env, node_subscription, AWS_NAPI_KEY_RETAIN_HANDLING_TYPE, &retain_handling_type),
+        { subscription->retain_handling_type = retain_handling_type; });
 
     return AWS_OP_SUCCESS;
 }
@@ -2530,7 +2655,8 @@ static int s_aws_mqtt5_packet_subscribe_storage_init_from_napi(
     }
 
     napi_value napi_subscriptions = NULL;
-    if (!aws_napi_get_named_property(
+    if (AWS_NGNPR_VALID_VALUE !=
+        aws_napi_get_named_property(
             env, node_subscribe_packet, AWS_NAPI_KEY_SUBSCRIPTIONS, napi_object, &napi_subscriptions)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
@@ -2557,8 +2683,9 @@ static int s_aws_mqtt5_packet_subscribe_storage_init_from_napi(
         struct aws_byte_buf topic_filter_buf;
         AWS_ZERO_STRUCT(topic_filter_buf);
 
-        bool success = aws_napi_get_named_property_as_bytebuf(
-            env, napi_subscription, AWS_NAPI_KEY_TOPIC_FILTER, napi_string, &topic_filter_buf);
+        bool success = AWS_NGNPR_VALID_VALUE ==
+                       aws_napi_get_named_property_as_bytebuf(
+                           env, napi_subscription, AWS_NAPI_KEY_TOPIC_FILTER, napi_string, &topic_filter_buf);
 
         topic_length_sum += topic_filter_buf.len;
 
@@ -2616,13 +2743,15 @@ static int s_aws_mqtt5_packet_subscribe_storage_init_from_napi(
     subscribe_view->subscription_count = subscription_count;
     subscribe_view->subscriptions = subscribe_storage->subscriptions.data;
 
-    if (aws_napi_get_named_property_as_uint32(
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_SUBSCRIPTION_IDENTIFIER,
+        "s_aws_mqtt5_packet_subscribe_storage_init_from_napi",
+        aws_napi_get_named_property_as_uint32(
             env,
             node_subscribe_packet,
             AWS_NAPI_KEY_SUBSCRIPTION_IDENTIFIER,
-            &subscribe_storage->subscription_identifier)) {
-        subscribe_view->subscription_identifier = &subscribe_storage->subscription_identifier;
-    }
+            &subscribe_storage->subscription_identifier),
+        { subscribe_view->subscription_identifier = &subscribe_storage->subscription_identifier; });
 
     if (s_aws_mqtt5_user_properties_extract_from_js_object(
             binding,
@@ -2874,7 +3003,8 @@ static int s_aws_mqtt5_packet_unsubscribe_storage_init_from_napi(
     }
 
     napi_value napi_topic_filters = NULL;
-    if (!aws_napi_get_named_property(
+    if (AWS_NGNPR_VALID_VALUE !=
+        aws_napi_get_named_property(
             env, node_unsubscribe_packet, AWS_NAPI_KEY_TOPIC_FILTERS, napi_object, &napi_topic_filters)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
@@ -3373,14 +3503,18 @@ napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    if (binding->node_client_external_ref != NULL) {
-        napi_delete_reference(env, binding->node_client_external_ref);
-        binding->node_client_external_ref = NULL;
+    napi_ref node_client_external_ref = binding->node_client_external_ref;
+    binding->node_client_external_ref = NULL;
+
+    napi_ref node_mqtt5_client_ref = binding->node_mqtt5_client_ref;
+    binding->node_mqtt5_client_ref = NULL;
+
+    if (node_client_external_ref != NULL) {
+        napi_delete_reference(env, node_client_external_ref);
     }
 
-    if (binding->node_mqtt5_client_ref != NULL) {
-        napi_delete_reference(env, binding->node_mqtt5_client_ref);
-        binding->node_mqtt5_client_ref = NULL;
+    if (node_mqtt5_client_ref != NULL) {
+        napi_delete_reference(env, node_mqtt5_client_ref);
     }
 
     return NULL;

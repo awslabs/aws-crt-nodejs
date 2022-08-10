@@ -164,5 +164,7 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
 /** @internal */
 export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) {
     const url = create_mqtt5_websocket_url(config);
-    return websocket(url, ['mqtt'], config.websocketOptions?.wsOptions);
+    let ws = websocket(url, ['mqtt'], config.websocketOptions?.wsOptions);
+
+    return ws;
 }

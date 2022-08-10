@@ -198,7 +198,7 @@ test('create_negotiated_settings empty connack, empty connect', async() => {
     let settings = mqtt_utils.create_negotiated_settings(clientConfig, connack);
 
     expect(settings).toEqual({
-        maximumQos: mqtt5_packet.QoS.ExactlyOnce,
+        maximumQos: mqtt5_packet.QoS.AtLeastOnce,
         sessionExpiryInterval: 0,
         receiveMaximumFromServer: 65535,
         maximumPacketSizeToServer: mqtt_utils.MAXIMUM_PACKET_SIZE,
@@ -231,7 +231,7 @@ test('create_negotiated_settings empty connack, full connect', async() => {
     let settings = mqtt_utils.create_negotiated_settings(clientConfig, connack);
 
     expect(settings).toEqual({
-        maximumQos: mqtt5_packet.QoS.ExactlyOnce,
+        maximumQos: mqtt5_packet.QoS.AtLeastOnce,
         sessionExpiryInterval: 3600,
         receiveMaximumFromServer: 65535,
         maximumPacketSizeToServer: mqtt_utils.MAXIMUM_PACKET_SIZE,
@@ -328,15 +328,18 @@ test('create_negotiated_settings full connack, full connect', async() => {
 function create_base_expected_mqtt_js_config() : mqtt.IClientOptions {
     return {
         keepalive: mqtt_utils.DEFAULT_KEEP_ALIVE,
-        connectTimeout: mqtt_utils.DEFAULT_CONNACK_TIMEOUT_MS,
+        connectTimeout: mqtt_utils.DEFAULT_CONNECT_TIMEOUT_MS,
         clean: true,
         protocolVersion : 5,
         reconnectPeriod: compute_mqtt_js_reconnect_delay_from_crt_max_delay(mqtt_utils.DEFAULT_MAX_RECONNECT_DELAY_MS),
         queueQoSZero : false,
+        // @ts-ignore
         autoUseTopicAlias : false,
+        // @ts-ignore
         autoAssignTopicAlias : false,
         transformWsUrl: undefined, /* TOFIX */
-        resubscribe : false
+        resubscribe : false,
+        clientId : ""
     };
 }
 
@@ -364,7 +367,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, minimal will'
         minReconnectDelayMs : 1000,
         maxReconnectDelayMs : 60000,
         minConnectedTimeToResetReconnectDelayMs : 30000,
-        connackTimeoutMs : 10000,
+        connectTimeoutMs : 10000,
         connectProperties: {
             keepAliveIntervalSeconds : 120,
             clientId : "MyClientId",
@@ -394,6 +397,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, minimal will'
     expectedOptions["connectTimeout"] = 10000;
     expectedOptions["reconnectPeriod"] = compute_mqtt_js_reconnect_delay_from_crt_max_delay(60000);
     expectedOptions["username"] = "Larry";
+    // @ts-ignore
     expectedOptions["password"] = myPassword;
     expectedOptions["will"] = {
         topic : "Ohno",
@@ -428,7 +432,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, maximal will'
         minReconnectDelayMs : 1000,
         maxReconnectDelayMs : 60000,
         minConnectedTimeToResetReconnectDelayMs : 30000,
-        connackTimeoutMs : 10000,
+        connectTimeoutMs : 10000,
         connectProperties: {
             keepAliveIntervalSeconds : 120,
             clientId : "MyClientId",
@@ -469,6 +473,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, maximal will'
     expectedOptions["connectTimeout"] = 10000;
     expectedOptions["reconnectPeriod"] = compute_mqtt_js_reconnect_delay_from_crt_max_delay(60000);
     expectedOptions["username"] = "Larry";
+    // @ts-ignore
     expectedOptions["password"] = myPassword;
     expectedOptions["will"] = {
         topic : "Ohno",

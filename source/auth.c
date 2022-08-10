@@ -296,7 +296,8 @@ static int s_get_config_from_js_config(
 
     napi_value current_value = NULL;
     /* Get algorithm */
-    if (aws_napi_get_named_property(env, js_config, "algorithm", napi_number, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "algorithm", napi_number, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         int32_t algorithm_int = 0;
         napi_get_value_int32(env, current_value, &algorithm_int);
         if (algorithm_int < 0) {
@@ -309,7 +310,8 @@ static int s_get_config_from_js_config(
     }
 
     /* Get signature type */
-    if (aws_napi_get_named_property(env, js_config, "signature_type", napi_number, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "signature_type", napi_number, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         int32_t signature_type_int = 0;
         napi_get_value_int32(env, current_value, &signature_type_int);
         if (signature_type_int < 0) {
@@ -322,7 +324,7 @@ static int s_get_config_from_js_config(
     }
 
     /* Get provider */
-    if (!aws_napi_get_named_property(env, js_config, "provider", napi_object, &current_value) ||
+    if (aws_napi_get_named_property(env, js_config, "provider", napi_object, &current_value) != AWS_NGNPR_VALID_VALUE ||
         NULL == (config->credentials_provider = aws_napi_credentials_provider_unwrap(env, current_value))) {
 
         napi_throw_type_error(env, NULL, "Credentials Provider is required");
@@ -331,7 +333,7 @@ static int s_get_config_from_js_config(
     }
 
     /* Get region */
-    if (!aws_napi_get_named_property(env, js_config, "region", napi_string, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "region", napi_string, &current_value) != AWS_NGNPR_VALID_VALUE) {
         napi_throw_type_error(env, NULL, "Region string is required");
         result = AWS_OP_ERR;
         goto done;
@@ -344,7 +346,7 @@ static int s_get_config_from_js_config(
     config->region = aws_byte_cursor_from_buf(region_buf);
 
     /* Get service */
-    if (aws_napi_get_named_property(env, js_config, "service", napi_string, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "service", napi_string, &current_value) == AWS_NGNPR_VALID_VALUE) {
         if (aws_byte_buf_init_from_napi(service_buf, env, current_value)) {
             napi_throw_error(env, NULL, "Failed to build service buffer");
             result = AWS_OP_ERR;
@@ -356,7 +358,7 @@ static int s_get_config_from_js_config(
 
     /* Get date */
     /* #TODO eventually check for napi_date type (node v11) */
-    if (aws_napi_get_named_property(env, js_config, "date", napi_object, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "date", napi_object, &current_value) == AWS_NGNPR_VALID_VALUE) {
         napi_value prototype = NULL;
         AWS_NAPI_CALL(env, napi_get_prototype(env, current_value, &prototype), {
             napi_throw_type_error(env, NULL, "Date param must be a Date object");
@@ -391,7 +393,8 @@ static int s_get_config_from_js_config(
     }
 
     /* Get param blacklist */
-    if (aws_napi_get_named_property(env, js_config, "header_blacklist", napi_object, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "header_blacklist", napi_object, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         bool is_array = false;
         AWS_NAPI_CALL(env, napi_is_array(env, current_value, &is_array), {
             napi_throw_error(env, NULL, "Failed to check if header blacklist is an array");
@@ -450,7 +453,8 @@ static int s_get_config_from_js_config(
     }
 
     /* Get bools */
-    if (aws_napi_get_named_property(env, js_config, "use_double_uri_encode", napi_boolean, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "use_double_uri_encode", napi_boolean, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         bool property_value = true;
         napi_get_value_bool(env, current_value, &property_value);
         config->flags.use_double_uri_encode = property_value;
@@ -458,7 +462,8 @@ static int s_get_config_from_js_config(
         config->flags.use_double_uri_encode = true;
     }
 
-    if (aws_napi_get_named_property(env, js_config, "should_normalize_uri_path", napi_boolean, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "should_normalize_uri_path", napi_boolean, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         bool property_value = true;
         napi_get_value_bool(env, current_value, &property_value);
         config->flags.should_normalize_uri_path = property_value;
@@ -466,7 +471,8 @@ static int s_get_config_from_js_config(
         config->flags.should_normalize_uri_path = true;
     }
 
-    if (aws_napi_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "omit_session_token", napi_boolean, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         bool property_value = true;
         napi_get_value_bool(env, current_value, &property_value);
         config->flags.omit_session_token = property_value;
@@ -475,7 +481,8 @@ static int s_get_config_from_js_config(
     }
 
     /* Get signed body value */
-    if (aws_napi_get_named_property(env, js_config, "signed_body_value", napi_string, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "signed_body_value", napi_string, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         if (aws_byte_buf_init_from_napi(signed_body_value_buf, env, current_value)) {
             napi_throw_error(env, NULL, "Failed to build signed_body_value buffer");
             result = AWS_OP_ERR;
@@ -485,7 +492,8 @@ static int s_get_config_from_js_config(
     }
 
     /* Get signed body header */
-    if (aws_napi_get_named_property(env, js_config, "signed_body_header", napi_number, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "signed_body_header", napi_number, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         int32_t signed_body_header = 0;
         napi_get_value_int32(env, current_value, &signed_body_header);
         config->signed_body_header = (enum aws_signed_body_header_type)signed_body_header;
@@ -494,7 +502,8 @@ static int s_get_config_from_js_config(
     }
 
     /* Get expiration time */
-    if (aws_napi_get_named_property(env, js_config, "expiration_in_seconds", napi_number, &current_value)) {
+    if (aws_napi_get_named_property(env, js_config, "expiration_in_seconds", napi_number, &current_value) ==
+        AWS_NGNPR_VALID_VALUE) {
         int64_t expiration_in_seconds = 0;
         napi_get_value_int64(env, current_value, &expiration_in_seconds);
         if (expiration_in_seconds < 0) {
