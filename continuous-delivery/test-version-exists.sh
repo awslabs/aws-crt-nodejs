@@ -15,6 +15,7 @@ if [ "$CURRENT_TAG" != "$CURRENT_TAG_VERSION" ]; then
 fi
 
 PUBLISHED_TAG_VERSION=`npm show aws-crt version`
+# split the version by "."
 PUBLISHED_NUMS=(${PUBLISHED_TAG_VERSION//./ })
 TAG_NUMS=(${CURRENT_TAG_VERSION//./ })
 
