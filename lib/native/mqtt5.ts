@@ -261,6 +261,9 @@ export interface Mqtt5ClientConfig {
 /**
  * Node.js specific MQTT5 client.
  *
+ * This client is based on native resources.  When finished with the client, you must call close() to dispose of
+ * them or they will leak.
+ *
  * <TODO> Long-form client documentation
  */
 export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) implements mqtt5.IMqtt5Client {
@@ -384,7 +387,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      * Send a message to subscribing clients by queuing a PUBLISH packet to be sent to the server.
      *
      * @param packet PUBLISH packet to send to the server
-     * @returns a promise that will be rejected with an error or resolved with the PUBACK response
+     * @returns a promise that will be rejected with an error or resolved with the PUBACK response (QoS 1) or
+     * undefined (QoS 0)
      */
     async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5.PublishCompletionResult> {
         return new Promise<mqtt5.PublishCompletionResult>((resolve, reject) => {
