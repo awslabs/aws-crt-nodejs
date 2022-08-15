@@ -2,6 +2,7 @@
     "entryPoints": [
         "../lib/native/auth.ts",
         "../lib/native/aws_iot.ts",
+        "../lib/native/aws_iot_mqtt5.ts",
         "../lib/native/checksums.ts",
         "../lib/native/crt.ts",
         "../lib/native/crypto.ts",
@@ -12,6 +13,7 @@
         "../lib/native/mqtt5.ts",
         "../lib/native/binding.d.ts",
         "../lib/common/auth.ts",
+        "../lib/common/aws_iot_shared.ts",
         "../lib/common/crypto.ts",
         "../lib/common/error.ts",
         "../lib/common/event.ts",

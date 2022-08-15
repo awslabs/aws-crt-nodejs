@@ -2,6 +2,7 @@
     "entryPoints": [
         "../lib/browser/auth.ts",
         "../lib/browser/aws_iot.ts",
+        "../lib/browser/aws_iot_mqtt5.ts",
         "../lib/browser/crypto.ts",
         "../lib/browser/error.ts",
         "../lib/browser/http.ts",
@@ -10,6 +11,7 @@
         "../lib/browser/mqtt5.ts",
         "../lib/browser/ws.ts",
         "../lib/common/auth.ts",
+        "../lib/common/aws_iot_shared.ts",
         "../lib/common/crypto.ts",
         "../lib/common/error.ts",
         "../lib/common/event.ts",
