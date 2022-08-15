@@ -28,6 +28,14 @@ test('Aws IoT Mqtt5 Username Construction - Simple username', async () => {
     expect(finalUsername).toEqual(expect.stringContaining("Derp?SDK=NodeJSv2&Version="));
 });
 
+test('Aws IoT Mqtt5 Username Construction - Query param username', async () => {
+    let finalUsername : string = iot_shared.buildMqtt5FinalUsername({
+        username: "Derp?Param1=Value1"
+    });
+
+    expect(finalUsername).toEqual(expect.stringContaining("Derp?Param1=Value1&SDK=NodeJSv2&Version="));
+});
+
 test('Aws IoT Mqtt5 Username Construction - Authorizer Name', async () => {
     let finalUsername : string = iot_shared.buildMqtt5FinalUsername({
         username: "Hello",
@@ -77,6 +85,14 @@ test('Aws IoT Mqtt5 Username Construction Failure - Missing token signature', as
         authorizerName: "MyAuthorizer",
         tokenKeyName: "MyToken",
         tokenValue: "TheToken"
+    };
+
+    expect(() => { return iot_shared.buildMqtt5FinalUsername(customAuthConfig); }).toThrow();
+});
+
+test('Aws IoT Mqtt5 Username Construction Failure - bad query username', async () => {
+    let customAuthConfig : iot_shared.MqttConnectCustomAuthConfig = {
+        username: "Derp?Param1=Value1?What"
     };
 
     expect(() => { return iot_shared.buildMqtt5FinalUsername(customAuthConfig); }).toThrow();

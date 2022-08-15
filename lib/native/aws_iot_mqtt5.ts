@@ -4,7 +4,7 @@
  */
 
 /**
- * Module for AWS IoT configuration and connection establishment
+ * Module for the configuration of MQTT5 clients to connect to AWS IoT
  *
  * @packageDocumentation
  * @module aws_iot_mqtt5

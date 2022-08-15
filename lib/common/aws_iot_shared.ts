@@ -87,7 +87,7 @@ export function populate_username_string_with_custom_authorizer(
 /**
  * Configuration options specific to
  * [AWS IoT Core custom authentication](https://docs.aws.amazon.com/iot/latest/developerguide/custom-authentication.html)
- * features.  For clients constructed by an {@link AwsIotMqtt5ConnectionConfigBuilder}, all parameters associated
+ * features.  For clients constructed by an {@link AwsIotMqtt5ClientConfigBuilder}, all parameters associated
  * with AWS IoT custom authentication are passed via the username and password properties in the CONNECT packet.
  */
 export interface MqttConnectCustomAuthConfig {
@@ -110,7 +110,7 @@ export interface MqttConnectCustomAuthConfig {
      *
      * and use {@link authorizerName} to specify the authorizer, the final username would look like:
      *
-     * `MyUsername?someKey=someValue&x-amz-customauthorizer-name=<your authorizer's name>&<AWS IoT metrics query param>
+     * `MyUsername?someKey=someValue&x-amz-customauthorizer-name=<your authorizer's name>&...`
      */
     username?: string;
 
@@ -184,7 +184,7 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
         if (params.length > 1) {
             throw new Error("Custom auth username property value is invalid");
         } else if (params.length == 1) {
-            params[1].split("&").forEach((keyValue, index, array) => {
+            params[0].split("&").forEach((keyValue, index, array) => {
                 let kvPair = keyValue.split("=");
                 paramList.push([kvPair[0], kvPair[1] ?? ""]);
             });
