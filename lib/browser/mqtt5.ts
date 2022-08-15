@@ -91,12 +91,12 @@ export interface Mqtt5WebsocketUrlFactorySigv4Options {
     /**
      * AWS Region to sign against.
      */
-    region: string;
+    region?: string;
 
     /**
      * Provider to source AWS credentials from
      */
-    credentials_provider: auth.CredentialsProvider;
+    credentialsProvider: auth.CredentialsProvider;
 }
 
 /**
@@ -124,7 +124,7 @@ export interface Mqtt5WebsocketConfig {
     urlFactoryOptions : Mqtt5WebsocketUrlFactoryOptions;
 
     /**
-     * Unchecked options set passed through to the underlying websocket implementation regardless of url factory.
+     * Opaque options set passed through to the underlying websocket implementation regardless of url factory.
      * Use this to control proxy settings amongst other things.
      */
     wsOptions?: any;

@@ -16,7 +16,10 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as io from "./io";
 import * as auth from "./auth";
 import {CrtError} from "./error";
-import {HttpRequest} from "@awscrt/http";
+import * as iot_shared from "../common/aws_iot_shared";
+import * as http from "./http";
+
+export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
 /**
  * Websocket-specific MQTT5 connection AWS IoT configuration options
@@ -40,74 +43,12 @@ export interface WebsocketSigv4Config {
 }
 
 /**
- * Configuration options specific to
- * [AWS IoT Core custom authentication](https://docs.aws.amazon.com/iot/latest/developerguide/custom-authentication.html)
- * features.  For clients constructed by an {@link AwsIotMqtt5ConnectionConfigBuilder}, all parameters associated
- * with AWS IoT custom authentication are passed via the username and password properties in the CONNECT packet.
- */
-export interface MqttConnectCustomAuthConfig {
-
-    /**
-     * Name of the custom authorizer to use.
-     *
-     * Required if the endpoint does not have a default custom authorizer associated with it.  It is strongly suggested
-     * to URL-encode this value; the SDK will not do so for you.
-     */
-    authorizerName?: string;
-
-    /**
-     * The username to use with the custom authorizer.  Query-string elements of this property value will be unioned
-     * with the query-string elements implied by other properties in this object.
-     *
-     * For example, if you set this to:
-     *
-     * 'MyUsername?someKey=someValue'
-     *
-     * and use {@link authorizerName} to specify the authorizer, the final username would look like:
-     *
-     * `MyUsername?someKey=someValue&x-amz-customauthorizer-name=<your authorizer's name>&<AWS IoT metrics query param>
-     */
-    username?: string;
-
-    /**
-     * The password to use with the custom authorizer.  Becomes the MQTT5 CONNECT packet's password property.
-     * AWS IoT Core will base64 encode this binary data before passing it to the authorizer's lambda function.
-     */
-    password?: mqtt5_packet.BinaryData;
-
-    /**
-     * Key used to extract the custom authorizer token from MQTT username query-string properties.
-     *
-     * Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode this value; the
-     * SDK will not do so for you.
-     */
-    tokenKeyName?: string;
-
-    /**
-     * An opaque token value. This value must be signed by the private key associated with the custom authorizer and
-     * the result placed in the {@link tokenSignature} property.
-     *
-     * Required if the custom authorizer has signing enabled.
-     */
-    tokenValue?: string;
-
-    /**
-     * The digital signature of the token value in the {@link tokenValue} property.  The signature must be based on
-     * the private key associated with the custom authorizer.  The signature must be base64 encoded.
-     *
-     * Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode this value; the
-     * SDK will not do so for you.
-     */
-    tokenSignature?: string;
-};
-
-/**
  * Builder pattern class to create an {@link Mqtt5ClientConfig} which can then be used to create
  * an {@link Mqtt5Client}, configured for use with AWS IoT.
  *
  * @category IoT
  */
-export class AwsIotMqtt5ConnectionConfigBuilder {
+export class AwsIotMqtt5ClientConfigBuilder {
 
     private static DEFAULT_WEBSOCKET_MQTT_PORT : number = 443;
     private static DEFAULT_DIRECT_MQTT_PORT : number = 8883;
@@ -115,14 +56,14 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
 
     private config: mqtt5.Mqtt5ClientConfig;
 
-    private customAuthConfig?: MqttConnectCustomAuthConfig;
+    private customAuthConfig?: iot_shared.MqttConnectCustomAuthConfig;
 
     private constructor(hostName : string, port: number, private tlsContextOptions: io.TlsContextOptions) {
         this.config = {
             hostName: hostName,
             port: port,
             connectProperties: {
-                keepAliveIntervalSeconds: AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_KEEP_ALIVE
+                keepAliveIntervalSeconds: AwsIotMqtt5ClientConfigBuilder.DEFAULT_KEEP_ALIVE
             }
         };
     }
@@ -136,10 +77,10 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
      * @param certPath - Path to certificate, in PEM format
      * @param keyPath - Path to private key, in PEM format
      */
-    static newDirectMqttBuilderWithMtlsFromPath(hostName : string, certPath: string, keyPath: string) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+    static newDirectMqttBuilderWithMtlsFromPath(hostName : string, certPath: string, keyPath: string) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
             io.TlsContextOptions.create_client_with_mtls_from_path(certPath, keyPath));
 
         if (io.is_alpn_available()) {
@@ -156,10 +97,10 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
      * @param cert - Certificate, in PEM format
      * @param privateKey - Private key, in PEM format
      */
-    static newDirectMqttBuilderWithMtlsFromMemory(hostName : string, cert: string, privateKey: string) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+    static newDirectMqttBuilderWithMtlsFromMemory(hostName : string, cert: string, privateKey: string) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
             io.TlsContextOptions.create_client_with_mtls(cert, privateKey));
 
         if (io.is_alpn_available()) {
@@ -177,10 +118,10 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
      * @param hostName - AWS IoT endpoint to connect to
      * @param pkcs11Options - PKCS#11 options.
      */
-    static newDirectMqttBuilderWithMtlsFromPkcs11(hostName : string, pkcs11Options: io.TlsContextOptions.Pkcs11Options) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+    static newDirectMqttBuilderWithMtlsFromPkcs11(hostName : string, pkcs11Options: io.TlsContextOptions.Pkcs11Options) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
             io.TlsContextOptions.create_client_with_mtls_pkcs11(pkcs11Options));
 
         if (io.is_alpn_available()) {
@@ -200,10 +141,10 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
      *      The path must use backslashes and end with the certificate's thumbprint.
      *      Example: `CurrentUser\MY\A11F8A9B5DF5B98BA3508FBCA575D09570E0D2C6`
      */
-    static newDirectMqttBuilderWithMtlsFromWindowsCertStorePath(hostName : string, certificatePath: string) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+    static newDirectMqttBuilderWithMtlsFromWindowsCertStorePath(hostName : string, certificatePath: string) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
             io.TlsContextOptions.create_client_with_mtls_windows_cert_store_path(certificatePath));
 
         if (io.is_alpn_available()) {
@@ -220,10 +161,10 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
      * @param hostName - AWS IoT endpoint to connect to
      * @param customAuthConfig - AWS IoT custom auth configuration
      */
-    static newDirectMqttBuilderWithCustomAuth(hostName : string, customAuthConfig: MqttConnectCustomAuthConfig) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+    static newDirectMqttBuilderWithCustomAuth(hostName : string, customAuthConfig: iot_shared.MqttConnectCustomAuthConfig) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
             new io.TlsContextOptions());
 
         builder.customAuthConfig = customAuthConfig;
@@ -239,13 +180,13 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
      * @param hostName - AWS IoT endpoint to connect to
      * @param options - additional sigv4-oriented options to use
      */
-    static newWebsocketMqttBuilderWithSigv4Auth(hostName : string, options?: WebsocketSigv4Config) : AwsIotMqtt5ConnectionConfigBuilder {
+    static newWebsocketMqttBuilderWithSigv4Auth(hostName : string, options?: WebsocketSigv4Config) : AwsIotMqtt5ClientConfigBuilder {
         let tlsContextOptions = new io.TlsContextOptions();
         tlsContextOptions.alpn_list = [];
 
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
             tlsContextOptions);
 
         let credentialsProvider = options?.credentialsProvider;
@@ -254,17 +195,17 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
         }
 
         builder.config.websocketHandshakeTransform = async (request, done) => {
-            const signingConfig : auth.AwsSigningConfig = {
-                algorithm: auth.AwsSigningAlgorithm.SigV4,
-                signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
-                provider: credentialsProvider as auth.AwsCredentialsProvider,
-                region: options?.region ?? AwsIotMqtt5ConnectionConfigBuilder.extractRegionFromEndpoint(hostName),
-                service: "iotdevicegateway",
-                signed_body_value: auth.AwsSignedBodyValue.EmptySha256,
-                omit_session_token: true,
-            };
-
             try {
+                const signingConfig : auth.AwsSigningConfig = {
+                    algorithm: auth.AwsSigningAlgorithm.SigV4,
+                    signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
+                    provider: credentialsProvider as auth.AwsCredentialsProvider,
+                    region: options?.region ?? iot_shared.extractRegionFromEndpoint(hostName),
+                    service: "iotdevicegateway",
+                    signed_body_value: auth.AwsSignedBodyValue.EmptySha256,
+                    omit_session_token: true,
+                };
+
                 await auth.aws_sign_request(request, signingConfig);
                 done();
             } catch (error) {
@@ -279,41 +220,14 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
         return builder;
     }
 
-    /*
-     * TODO: should this be eliminated or discouraged?
-     *
-     * Rationale: we pass all custom auth parameters by the MQTT CONNECT packet anyways and we must use 443 with ALPN,
-     * so why add a pointless extra layer of protocol unless it's necessary (like in the browser)?
-     */
-    /**
-     * Create a new MQTT5 client builder that will use mqtt over websockets and a custom authenticator controlled by
-     * the username and password values.
-     *
-     * @param hostName - AWS IoT endpoint to connect to
-     * @param customAuthConfig - AWS IoT custom auth configuration
-     */
-    static newWebsocketMqttBuilderWithCustomAuth(hostName : string, customAuthConfig: MqttConnectCustomAuthConfig) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
-            hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
-            new io.TlsContextOptions());
-
-        /* Pass in all custom auth configuration parameters via the CONNECT packet rather than the upgrade handshake */
-        builder.config.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => { done(0); };
-        builder.customAuthConfig = customAuthConfig;
-        builder.tlsContextOptions.alpn_list = ["mqtt"];
-
-        return builder;
-    }
-
     /**
      * Creates a new MQTT5 client builder with default Tls options. This requires setting all connection details manually.
      * Defaults port to direct mqtt.
      */
-    static newMqttBuilder(hostName : string) : AwsIotMqtt5ConnectionConfigBuilder {
-        let builder = new AwsIotMqtt5ConnectionConfigBuilder(
+    static newMqttBuilder(hostName : string) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
-            AwsIotMqtt5ConnectionConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
             new io.TlsContextOptions());
 
         return builder;
@@ -323,32 +237,213 @@ export class AwsIotMqtt5ConnectionConfigBuilder {
 
     /**
      * Overrides the default system trust store.
+     *
      * @param caDirpath - Only used on Unix-style systems where all trust anchors are
      * stored in a directory (e.g. /etc/ssl/certs).
      * @param caFilepath - Single file containing all trust CAs, in PEM format
      */
-    withCertificateAuthorityFromPath(caDirpath?: string, caFilepath?: string) {
+    withCertificateAuthorityFromPath(caDirpath?: string, caFilepath?: string) : AwsIotMqtt5ClientConfigBuilder {
         this.tlsContextOptions.override_default_trust_store_from_path(caDirpath, caFilepath);
         return this;
     }
 
     /**
      * Overrides the default system trust store.
+     *
      * @param ca - Buffer containing all trust CAs, in PEM format
      */
-    withCertificateAuthority(ca: string) {
+    withCertificateAuthority(ca: string) : AwsIotMqtt5ClientConfigBuilder {
         this.tlsContextOptions.override_default_trust_store(ca);
         return this;
     }
 
+    /**
+     * Overrides the port to connect to on the IoT endpoint
+     *
+     * @param port The port to connect to on the IoT endpoint. Usually 8883 for MQTT, or 443 for websockets
+     */
+    withPort(port: number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.port = port;
+        return this;
+    }
 
-    private static extractRegionFromEndpoint(endpoint: string) : string {
-        const regexpRegion = /^[\w\-]+.[\w\-]+.(\w+)./;
-        const match = endpoint.match(regexpRegion);
-        if (match) {
-            return match[1];
+    /**
+     * Overrides all configurable options with respect to the CONNECT packet sent by the client, including the will.
+     * These connect properties will be used for every connection attempt made by the client.  Custom authentication
+     * configuration will override the username and password values in this configuration.
+     *
+     * @param connectPacket all configurable options with respect to the CONNECT packet sent by the client
+     */
+    withConnectProperties(connectPacket: mqtt5_packet.ConnectPacket) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.connectProperties = connectPacket;
+        return this;
+    }
+
+    /**
+     * Overrides how the MQTT5 client should behave with respect to MQTT sessions.
+     *
+     * @param sessionBehavior how the MQTT5 client should behave with respect to MQTT sessions.
+     */
+    withSessionBehavior(sessionBehavior: mqtt5.ClientSessionBehavior) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.sessionBehavior = sessionBehavior;
+        return this;
+    }
+
+    /**
+     * Overrides how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
+     * timepoints for a large set of reconnecting clients.
+     *
+     * @param retryJitterMode controls how the reconnect delay is modified in order to smooth out the distribution of
+     * econnection attempt timepoints for a large set of reconnecting clients.
+     */
+    withRetryJitterMode(retryJitterMode: mqtt5.RetryJitterType) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.retryJitterMode = retryJitterMode;
+        return this;
+    }
+
+    /**
+     * Overrides the minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed
+     * with controllable jitter after each connection failure.
+     *
+     * @param minReconnectDelayMs minimum amount of time to wait to reconnect after a disconnect.
+     */
+    withMinReconnectDelayMs(minReconnectDelayMs? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.minReconnectDelayMs = minReconnectDelayMs;
+        return this;
+    }
+
+    /**
+     * Overrides the maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed
+     * with controllable jitter after each connection failure.
+     *
+     * @param maxReconnectDelayMs maximum amount of time to wait to reconnect after a disconnect.
+     */
+    withMaxReconnectDelayMs(maxReconnectDelayMs? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.maxReconnectDelayMs = maxReconnectDelayMs;
+        return this;
+    }
+
+    /**
+     * Overrides the amount of time that must elapse with an established connection before the reconnect delay is
+     * reset to the minimum.  This helps alleviate bandwidth-waste in fast reconnect cycles due to permission
+     * failures on operations.
+     *
+     * @param minConnectedTimeToResetReconnectDelayMs the amount of time that must elapse with an established
+     * connection before the reconnect delay is reset to the minimum
+     */
+    withMinConnectedTimeToResetReconnectDelayMs(minConnectedTimeToResetReconnectDelayMs? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.minConnectedTimeToResetReconnectDelayMs = minConnectedTimeToResetReconnectDelayMs;
+        return this;
+    }
+
+    /**
+     * Overrides the time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not
+     * arrive, the connection will be shut down.
+     *
+     * @param connackTimeoutMs time interval to wait after sending a CONNECT request for a CONNACK to arrive
+     */
+    withConnackTimeoutMs(connackTimeoutMs? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.connackTimeoutMs = connackTimeoutMs;
+        return this;
+    }
+
+    /**
+     * Overrides how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
+     * how new operations are handled while the client is not connected.  In particular, if the client is not connected,
+     * then any operation that would be failed on disconnect (according to these rules) will also be rejected.
+     *
+     * @param offlineQueueBehavior how disconnects affect the queued and in-progress operations tracked by the client
+     *
+     * @group Node-only
+     */
+    withOfflineQueueBehavior(offlineQueueBehavior: mqtt5.ClientOperationQueueBehavior) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.offlineQueueBehavior = offlineQueueBehavior;
+        return this;
+    }
+
+    /**
+     * Overrides the time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive,
+     * the client will close the current connection.
+     *
+     * @param pingTimeoutMs time interval to wait after sending a PINGREQ for a PINGRESP to arrive
+     *
+     * @group Node-only
+     */
+    withPingTimeoutMs(pingTimeoutMs? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.pingTimeoutMs = pingTimeoutMs;
+        return this;
+    }
+
+    /**
+     * Overrides the time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
+     * failing the operation.  Defaults to no timeout.
+     *
+     * @param operationTimeoutSeconds the time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE,
+     * or UNSUBSCRIBE before failing the operation
+     *
+     * @group Node-only
+     */
+    withOperationTimeoutSeconds(operationTimeoutSeconds? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.operationTimeoutSeconds = operationTimeoutSeconds;
+        return this;
+    }
+
+    /**
+     * Overrides the socket properties of the underlying MQTT connections made by the client.  Leave undefined to use
+     * defaults (no TCP keep alive, 10 second socket timeout).
+     *
+     * @param socketOptions socket properties of the underlying MQTT connections made by the client
+     *
+     * @group Node-only
+     */
+    withSocketOptions(socketOptions: io.SocketOptions) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.socketOptions = socketOptions;
+        return this;
+    }
+
+    /**
+     * Overrides (tunneling) HTTP proxy usage when establishing MQTT connections.
+     *
+     * @param httpProxyOptions HTTP proxy options to use when establishing MQTT connections
+     *
+     * @group Node-only
+     */
+    withHttpProxyOptions(httpProxyOptions: http.HttpProxyOptions) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.httpProxyOptions = httpProxyOptions;
+        return this;
+    }
+
+    /**
+     * Overrides additional controls for client behavior with respect to operation validation and flow control; these
+     * checks go beyond the base MQTT5 spec to respect limits of specific MQTT brokers.
+     *
+     * @param extendedValidationAndFlowControlOptions additional controls for client behavior with respect to operation
+     * validation and flow control
+     *
+     * @group Node-only
+     */
+    withExtendedValidationAndFlowControlOptions(extendedValidationAndFlowControlOptions: mqtt5.ClientExtendedValidationAndFlowControl) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.extendedValidationAndFlowControlOptions = extendedValidationAndFlowControlOptions;
+        return this;
+    }
+
+
+    /**
+     * Constructs an MQTT5 Client configuration object for creating mqtt5 clients.
+     */
+    build() : mqtt5.Mqtt5ClientConfig {
+        if (this.config.tlsCtx === undefined) {
+            this.config.tlsCtx = new io.ClientTlsContext(this.tlsContextOptions);
         }
 
-        throw new CrtError("AWS region could not be extracted from endpoint.  Use 'region' property on WebsocketConfig to set manually.");
+        // this is always set by the constructor, but check it to make typescript happy
+        if (this.config.connectProperties) {
+            this.config.connectProperties.username = iot_shared.buildMqtt5FinalUsername(this.customAuthConfig);
+            if (this.customAuthConfig?.password) {
+                this.config.connectProperties.password = this.customAuthConfig?.password;
+            }
+        }
+
+        return this.config;
     }
 }

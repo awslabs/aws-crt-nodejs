@@ -18,6 +18,7 @@ import * as mqtt5 from './browser/mqtt5';
 import * as http from './browser/http';
 import * as crypto from './browser/crypto';
 import * as iot from './browser/aws_iot';
+import * as aws_iot_mqtt5 from './browser/aws_iot_mqtt5';
 import * as auth from './browser/auth';
 import { CrtError } from './browser/error';
 
@@ -30,6 +31,7 @@ export {
     crypto,
     auth,
     iot,
+    aws_iot_mqtt5,
     platform,
     resource_safety,
     ICrtError,

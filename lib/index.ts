@@ -20,6 +20,7 @@ import * as http from './native/http';
 import * as crypto from './native/crypto';
 import * as auth from './native/auth';
 import * as iot from './native/aws_iot';
+import * as aws_iot_mqtt5 from './native/aws_iot_mqtt5';
 import * as checksums from './native/checksums';
 import { CrtError } from './native/error';
 
@@ -33,6 +34,7 @@ export {
     crypto,
     auth,
     iot,
+    aws_iot_mqtt5,
     platform,
     resource_safety,
     checksums,

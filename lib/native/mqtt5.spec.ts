@@ -49,7 +49,7 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
         hostName: "unknown",
         port: 0,
         tlsCtx: tlsCtx,
-        proxyOptions: proxyOptions,
+        httpProxyOptions: proxyOptions,
         websocketHandshakeTransform: wsTransform
     };
 }
@@ -102,7 +102,7 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
         clientBootstrap: new ClientBootstrap(),
         socketOptions: new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 10000, true, 60, 60, 3),
         tlsCtx: new ClientTlsContext(tls_ctx_opt),
-        proxyOptions: new mqtt5.HttpProxyOptions(
+        httpProxyOptions: new mqtt5.HttpProxyOptions(
             test_utils.ClientEnvironmentalConfig.PROXY_HOST,
             test_utils.ClientEnvironmentalConfig.PROXY_PORT,
             HttpProxyAuthenticationType.None,
@@ -493,7 +493,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     let receivedCount : number = 0;
     client.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
         expect(packet.qos).toEqual(qos);
-        expect(new Buffer(packet.payload as ArrayBuffer)).toEqual(testPayload);
+        expect(Buffer.from(packet.payload as ArrayBuffer)).toEqual(testPayload);
         expect(packet.topicName).toEqual(topic);
         receivedCount++;
     });
@@ -522,7 +522,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     let receivedCount : number = 0;
     client.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
         expect(packet.qos).toEqual(qos);
-        expect(new Buffer(packet.payload as ArrayBuffer)).toEqual(testPayload);
+        expect(Buffer.from(packet.payload as ArrayBuffer)).toEqual(testPayload);
         expect(packet.topicName).toEqual(topic);
         receivedCount++;
     });
@@ -567,7 +567,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     let willReceived : boolean = false;
     subscriber.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
         expect(packet.qos).toEqual(QoS.AtLeastOnce);
-        expect(new Buffer(packet.payload as ArrayBuffer)).toEqual(willPayload);
+        expect(Buffer.from(packet.payload as ArrayBuffer)).toEqual(willPayload);
         expect(packet.topicName).toEqual(willTopic);
         willReceived = true;
     });

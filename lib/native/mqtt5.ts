@@ -247,7 +247,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Node-only
      */
-    proxyOptions?: http.HttpProxyOptions;
+    httpProxyOptions?: http.HttpProxyOptions;
 
     /**
      * Additional controls for client behavior with respect to operation validation and flow control; these checks
@@ -288,7 +288,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             config.clientBootstrap ? config.clientBootstrap.native_handle() : null,
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
-            config.proxyOptions ? config.proxyOptions.create_native_handle() : null
+            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null
         ));
     }
 

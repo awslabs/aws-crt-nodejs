@@ -18,6 +18,7 @@ import { WebsocketOptionsBase } from "../common/auth";
 import { CrtError } from "./error";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
+import * as iot_shared from "../common/aws_iot_shared";
 
 /**
  * Options for websocket based connections in browser
@@ -134,14 +135,14 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
 
         case mqtt5.Mqtt5WebsocketUrlFactoryType.Sigv4:
             const sigv4Options : mqtt5.Mqtt5WebsocketUrlFactorySigv4Options = websocketConfig.urlFactoryOptions as mqtt5.Mqtt5WebsocketUrlFactorySigv4Options;
-            const credentials = sigv4Options.credentials_provider.getCredentials();
+            const credentials = sigv4Options.credentialsProvider.getCredentials();
             if (credentials === undefined) {
                 throw new CrtError("Websockets with sigv4 requires valid AWS credentials");
             }
 
             const signingConfig : AwsSigningConfig = {
                 service: "iotdevicegateway",
-                region: sigv4Options.region,
+                region: sigv4Options.region ?? iot_shared.extractRegionFromEndpoint(config.hostName),
                 credentials: credentials,
                 date: new Date()
             };

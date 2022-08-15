@@ -452,7 +452,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     let willReceived : boolean = false;
     subscriber.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
         expect(packet.qos).toEqual(QoS.AtLeastOnce);
-        expect(new Buffer(packet.payload as ArrayBuffer)).toEqual(willPayload);
+        expect(Buffer.from(packet.payload as ArrayBuffer)).toEqual(willPayload);
         expect(packet.topicName).toEqual(willTopic);
         willReceived = true;
     });
