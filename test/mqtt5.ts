@@ -41,6 +41,27 @@ export type CreateBaseMqtt5ClientConfig = (testType: SuccessfulConnectionTestTyp
 
 export class ClientEnvironmentalConfig {
 
+    public static AWS_IOT_HOST = process.env.AWS_TEST_MQTT5_IOT_CORE_HOST ?? "";
+
+    public static AWS_IOT_CERTIFICATE_PATH = process.env.AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH ?? "";
+    public static AWS_IOT_KEY_PATH = process.env.AWS_TEST_MQTT5_IOT_CORE_KEY_PATH ?? "";
+
+    public static AWS_IOT_ACCESS_KEY_ID = process.env.AWS_TEST_MQTT5_IOT_CORE_ACCESS_KEY_ID ?? "";
+    public static AWS_IOT_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT5_IOT_CORE_SECRET_ACCESS_KEY ?? "";
+
+    public static AWS_IOT_AUTHORIZER_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_NAME ?? "";
+    public static AWS_IOT_AUTHORIZER_USERNAME = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_USERNAME ?? "";
+    public static AWS_IOT_AUTHORIZER_PASSWORD = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_PASSWORD ?? "";
+    public static AWS_IOT_AUTHORIZER_TOKEN = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_TOKEN ?? "";
+    public static AWS_IOT_AUTHORIZER_TOKEN_SIGNATURE = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_TOKEN_SIGNATURE ?? "";
+    public static AWS_IOT_AUTHORIZER_TOKEN_KEY_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_TOKEN_KEY_NAME ?? "";
+
+    public static hasIotCoreEnvironment() {
+        return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
+            ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH !== "" &&
+            ClientEnvironmentalConfig.AWS_IOT_KEY_PATH !== "";
+    }
+
     public static DIRECT_MQTT_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_HOST ?? "";
     public static DIRECT_MQTT_PORT = parseInt(process.env.AWS_TEST_MQTT5_DIRECT_MQTT_PORT ?? "0");
     public static DIRECT_MQTT_BASIC_AUTH_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_BASIC_AUTH_HOST ?? "";

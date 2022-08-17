@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {ICrtError, mqtt5, mqtt5_packet, crt} from "aws-crt";
+import {ICrtError, mqtt5, mqtt5_packet} from "aws-crt";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
+var weightedRandom = require('weighted-random');
 
 type Args = { [index: string]: any };
 
@@ -121,9 +122,6 @@ async function doPublish(context : CanaryContext, qos: mqtt5_packet.QoS) {
     }
 }
 
-var weightedRandom = require('weighted-random');
-
-
 async function runCanaryIteration(endTime: Date, mqttStats : CanaryMqttStatistics) {
 
     let context : CanaryContext = {
@@ -186,33 +184,15 @@ async function runCanary(durationInSeconds: number, mqttStats : CanaryMqttStatis
         let iterationEnd = new Date(currentTime.getTime() + iterationTime * 1000);
         await runCanaryIteration(iterationEnd, mqttStats);
 
-        console.log('In Iteration Stressing GC');
-        for (let i = 0; i < 100; i++) {
-            let data : Int32Array = new Int32Array(10000000);
-            data[0] = 0;
-        }
-
-        global.gc();
-
         iteration++;
         console.log(`Iteration ${iteration} stats: ${JSON.stringify(mqttStats)}`);
-
-        console.log(`current native memory:${crt.native_memory()}`);
 
         currentTime = new Date();
         secondsElapsed = (currentTime.getTime() - startTime.getTime()) / 1000;
     }
-
-    console.log('Stressing GC');
-    for (let i = 0; i < 100; i++) {
-        let data : Int32Array = new Int32Array(10000000);
-        data[0] = 0;
-    }
 }
 
 async function main(args : Args){
-    //io.enable_logging(io.LogLevel.TRACE);
-
     let mqttStats : CanaryMqttStatistics = {
         clientsUsed : 0,
         publishesReceived: 0,
@@ -229,23 +209,9 @@ async function main(args : Args){
 
     await runCanary(args.duration, mqttStats);
 
-    console.log('Leaving');
     console.log(`Final Stats: ${JSON.stringify(mqttStats)}`)
 
-    let now = new Date();
-    let wait = new Date(now.getTime() + 30 * 1000);
-    while (now.getTime() < wait.getTime()) {
-        now = new Date();
-    }
+    process.exit(0);
 
-    console.log('Stressing GC pt 2');
-    for (let i = 0; i < 500; i++) {
-        let data : Int32Array = new Int32Array(10000000);
-        data[0] = 0;
-    }
-
-    global.gc();
-
-    console.log(`final native memory:${crt.native_memory()}`);
 }
 

@@ -3,24 +3,77 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {mqtt5, mqtt5_packet} from "aws-crt";
+import {mqtt5, mqtt5_packet, ICrtError, aws_iot_mqtt5} from "aws-crt";
 import {once} from "events";
-import {ICrtError} from "../../../dist.browser/common/error";
+import {v4 as uuid} from "uuid";
 
 type Args = { [index: string]: any };
 
 const yargs = require('yargs');
 
 yargs.command('*', false, (yargs: any) => {
+    yargs.option('endpoint', {
+        alias: 'e',
+        description: 'Your AWS IoT custom endpoint, not including a port.',
+        type: 'string',
+        required: true
+    })
+    .option('cert', {
+        alias: 'c',
+        description: '<path>: File path to a PEM encoded certificate to use with mTLS.',
+        type: 'string',
+        required: false
+    })
+    .option('key', {
+        alias: 'k',
+        description: '<path>: File path to a PEM encoded private key that matches cert.',
+        type: 'string',
+        required: false
+    })
+    .option('region', {
+        alias: 'r',
+        description: 'AWS region to establish a websocket connection to.  Only required if using websockets and a non-standard endpoint.',
+        type: 'string',
+        required: false
+    })
 }, main).parse();
 
-function createClient() : mqtt5.Mqtt5Client {
-    const client_config : mqtt5.Mqtt5ClientConfig = {
-        hostName : "127.0.0.1",
-        port : 1883
-    };
+function creatClientConfig(args : any) : mqtt5.Mqtt5ClientConfig {
+    let builder : aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder | undefined = undefined;
 
-    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(client_config);
+    if (args.key && args.cert) {
+        builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
+            args.endpoint,
+            args.cert,
+            args.key
+        );
+    } else {
+        let wsOptions : aws_iot_mqtt5.WebsocketSigv4Config | undefined = undefined;
+        if (args.region) {
+            wsOptions = { region: args.region };
+        }
+
+        builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
+            args.endpoint,
+            // the region extraction logic does not work for gamma endpoint formats so pass in region manually
+            wsOptions
+        );
+    }
+
+    builder.withConnectProperties({
+        keepAliveIntervalSeconds: 1200,
+        clientId: `client-${uuid()}`,
+    });
+
+    return builder.build();
+}
+
+function createClient(args: any) : mqtt5.Mqtt5Client {
+
+    let config : mqtt5.Mqtt5ClientConfig = creatClientConfig(args);
+
+    console.log("Creating client for " + config.hostName);
+    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
 
     client.on('error', (error: ICrtError) => {
         console.log("Error event: " + error.toString());
@@ -40,8 +93,11 @@ function createClient() : mqtt5.Mqtt5Client {
         console.log ("Settings: " + JSON.stringify(settings));
     });
 
-    client.on('connectionFailure', (error: ICrtError) => {
+    client.on('connectionFailure', (error: ICrtError, connack?: mqtt5_packet.ConnackPacket) => {
         console.log("Connection failure event: " + error.toString());
+        if (connack) {
+            console.log ("Connack: " + JSON.stringify(connack));
+        }
     });
 
     client.on('disconnection', (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => {
@@ -58,16 +114,14 @@ function createClient() : mqtt5.Mqtt5Client {
     return client;
 }
 
-async function testSuccessfulConnection() {
+async function runSample(args : any) {
 
-    let client : mqtt5.Mqtt5Client = createClient();
+    let client : mqtt5.Mqtt5Client = createClient(args);
 
-    const attemptingConnect = once(client, "attemptingConnect");
     const connectionSuccess = once(client, "connectionSuccess");
 
     client.start();
 
-    await attemptingConnect;
     await connectionSuccess;
 
     const suback = await client.subscribe({
@@ -81,7 +135,10 @@ async function testSuccessfulConnection() {
     const qos0PublishResult = await client.publish({
         qos: mqtt5_packet.QoS.AtMostOnce,
         topicName: "hello/world/qos0",
-        payload: "This is a qos 0 payload"
+        payload: "This is a qos 0 payload",
+        userProperties: [
+            {name: "test", value: "userproperty"}
+        ]
     });
     console.log('QoS 0 Publish result: ' + JSON.stringify(qos0PublishResult));
 
@@ -99,32 +156,23 @@ async function testSuccessfulConnection() {
     });
     console.log('Unsuback result: ' + JSON.stringify(unsuback));
 
-    const disconnection = once(client, "disconnection");
     const stopped = once(client, "stopped");
 
     client.stop();
 
-    await disconnection;
     await stopped;
 
     client.close();
 }
 
 async function main(args : Args){
-    //io.enable_logging(io.LogLevel.TRACE);
-
     // make it wait as long as possible once the promise completes we'll turn it off.
     const timer = setTimeout(() => {}, 2147483647);
 
-    await testSuccessfulConnection();
-
-    for (let i = 0; i < 100; i++) {
-        let data : Int32Array = new Int32Array(10000000);
-        data[0] = 0;
-    }
-
-    console.log('Leaving');
+    await runSample(args);
 
     clearTimeout(timer);
+
+    process.exit(0);
 }
 
