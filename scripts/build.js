@@ -99,7 +99,7 @@ async function fetchNativeCode(url, version, path) {
     await tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
 }
 
-function buildLocally() {
+async function buildLocally() {
     const platform = os.platform();
     let arch = os.arch();
 
@@ -147,7 +147,7 @@ function buildLocally() {
 
     // Run the build
     var buildSystem = new cmake.BuildSystem(options);
-    return buildSystem.build();
+    await buildSystem.build();
 }
 
 async function buildFromRemoteSource(tmpPath) {
@@ -181,23 +181,28 @@ function checkDoDownload() {
     return false;
 }
 
-// Makes sure the work directory is what we need
-const workDir = path.join(__dirname, "../")
-process.chdir(workDir);
-const nativeSourceDir = "crt/"
+(async function main() {
+    // Makes sure the work directory is what we need
+    const workDir = path.join(__dirname, "../")
+    process.chdir(workDir);
+    const nativeSourceDir = "crt/"
 
-if (checkDoDownload()) {
-    const tmpPath = path.join(__dirname, `temp${crypto.randomBytes(16).toString("hex")}/`);
-    try {
-        buildFromRemoteSource(tmpPath);
+    if (checkDoDownload()) {
+        const tmpPath = path.join(__dirname, `temp${crypto.randomBytes(16).toString("hex")}/`);
+        try {
+            buildFromRemoteSource(tmpPath);
+        }
+        catch (err) {
+            // teardown tmpPath and source directory on failure
+            rmRecursive(tmpPath);
+            rmRecursive(nativeSourceDir);
+            throw err;
+        }
+    } else {
+        // kick off local build
+        await buildLocally();
     }
-    catch (err) {
-        // teardown tmpPath and source directory on failure
-        rmRecursive(tmpPath);
-        rmRecursive(nativeSourceDir);
-        throw err;
-    }
-} else {
-    // kick off local build
-    buildLocally();
-}
+})().catch((reason) => {
+    console.error(reason)
+    process.exitCode = 1
+})
