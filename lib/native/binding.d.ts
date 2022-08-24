@@ -379,6 +379,7 @@ export class AwsCredentialsProvider {
 
     static newDefault(bootstrap?: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
+    static newAnonymous(): AwsCredentialsProvider;
 }
 
 /** @internal */

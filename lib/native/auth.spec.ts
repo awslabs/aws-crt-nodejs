@@ -183,6 +183,11 @@ test('Default credentials provider create', async () => {
     expect(credentials_provider);
 });
 
+test('Anonymous credentials provider create', async () => {
+    const credentials_provider: native.AwsCredentialsProvider = native.AwsCredentialsProvider.newAnonymous();
+    expect(credentials_provider);
+});
+
 test('Default credentials provider create no bootstrap', async () => {
     const credentials_provider = native.AwsCredentialsProvider.newDefault();
 

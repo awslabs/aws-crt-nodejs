@@ -22,6 +22,7 @@ static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
 static aws_napi_method_fn s_creds_provider_new_default;
 static aws_napi_method_fn s_creds_provider_new_static;
+static aws_napi_method_fn s_creds_provider_new_anonymous;
 
 static aws_napi_method_fn s_aws_sign_request;
 static aws_napi_method_fn s_aws_verify_sigv4a_signing;
@@ -47,6 +48,12 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .method = s_creds_provider_new_static,
             .num_arguments = 2,
             .arg_types = {napi_string, napi_string, napi_string},
+            .attributes = napi_static,
+        },
+        {
+            .name = "newAnonymous",
+            .method = s_creds_provider_new_anonymous,
+            .num_arguments = 0,
             .attributes = napi_static,
         },
     };
@@ -174,6 +181,31 @@ static napi_value s_creds_provider_new_static(napi_env env, const struct aws_nap
     }
 
     struct aws_credentials_provider *provider = aws_credentials_provider_new_static(allocator, &options);
+
+    napi_value node_this = NULL;
+    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
+        napi_throw_error(env, NULL, "Failed to wrap CredentialsProvider");
+        return NULL;
+    });
+
+    /* Reference is now held by the node object */
+    aws_credentials_provider_release(provider);
+
+    return node_this;
+}
+
+/**
+ *  Creates anonymous credentials provider which wraps anonymous credentials.
+ *  Use anonymous credentials when you want to skip signing.
+ */
+static napi_value s_creds_provider_new_anonymous(napi_env env, const struct aws_napi_callback_info *cb_info) {
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    const struct aws_napi_argument *arg = NULL;
+
+    struct aws_credentials_provider_shutdown_options options;
+    AWS_ZERO_STRUCT(options);
+
+    struct aws_credentials_provider *provider = aws_credentials_provider_new_anonymous(allocator, &options);
 
     napi_value node_this = NULL;
     AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_this), {
