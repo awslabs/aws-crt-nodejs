@@ -22,7 +22,7 @@
     "test:browser": "npx jest --runInBand --verbose --config test/browser/jest.config.js --forceExit",
     "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
     "install:puppeteer": "npm install --save-dev jest-puppeteer puppeteer @types/puppeteer",
-    "prepare": "node ./scripts/tsc.js && node ./scripts/install.js",
+    "prepare": "node ./scripts/tsc.js",
     "install": "node ./scripts/install.js"
   },
   "devDependencies": {
