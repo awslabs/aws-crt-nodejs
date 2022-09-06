@@ -12,6 +12,8 @@ const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require("tar");
 
+const nativeSourceDir = "crt/";
+
 function rmRecursive(rmPath) {
     let rmBasePath = path.basename(rmPath);
     if (rmBasePath == "." || rmBasePath == "..") {
@@ -185,7 +187,6 @@ function checkDoDownload() {
     // Makes sure the work directory is what we need
     const workDir = path.join(__dirname, "../")
     process.chdir(workDir);
-    const nativeSourceDir = "crt/"
 
     if (checkDoDownload()) {
         const tmpPath = path.join(__dirname, `temp${crypto.randomBytes(16).toString("hex")}/`);
