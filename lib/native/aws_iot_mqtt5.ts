@@ -18,6 +18,7 @@ import * as auth from "./auth";
 import {CrtError} from "./error";
 import * as iot_shared from "../common/aws_iot_shared";
 import * as http from "./http";
+import * as mqtt_shared from "../common/mqtt_shared";
 
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
@@ -52,7 +53,6 @@ export class AwsIotMqtt5ClientConfigBuilder {
 
     private static DEFAULT_WEBSOCKET_MQTT_PORT : number = 443;
     private static DEFAULT_DIRECT_MQTT_PORT : number = 8883;
-    private static DEFAULT_KEEP_ALIVE : 1200;
 
     private config: mqtt5.Mqtt5ClientConfig;
 
@@ -63,7 +63,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
             hostName: hostName,
             port: port,
             connectProperties: {
-                keepAliveIntervalSeconds: AwsIotMqtt5ClientConfigBuilder.DEFAULT_KEEP_ALIVE
+                keepAliveIntervalSeconds: mqtt_shared.DEFAULT_KEEP_ALIVE
             }
         };
     }
@@ -216,19 +216,6 @@ export class AwsIotMqtt5ClientConfigBuilder {
                 }
             }
         };
-
-        return builder;
-    }
-
-    /**
-     * Creates a new MQTT5 client builder with default Tls options. This requires setting all connection details manually.
-     * Defaults port to direct mqtt.
-     */
-    static newMqttBuilder(hostName : string) : AwsIotMqtt5ClientConfigBuilder {
-        let builder = new AwsIotMqtt5ClientConfigBuilder(
-            hostName,
-            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
-            new io.TlsContextOptions());
 
         return builder;
     }

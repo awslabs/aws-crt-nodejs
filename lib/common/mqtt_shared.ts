@@ -42,3 +42,6 @@ export function normalize_payload(payload: any): Buffer | string {
 
     throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
+
+/** @internal */
+export const DEFAULT_KEEP_ALIVE : number = 1200;

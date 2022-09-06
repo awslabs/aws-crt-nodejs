@@ -16,7 +16,9 @@ jest.setTimeout(10000);
 
 function createBrowserSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
-    let wsOptions : any = {}
+    let wsOptions : any = {
+        perMessageDeflate: false
+    }
 
     if (test_utils.ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
         let urlOptions: url.UrlWithStringQuery = url.parse(`http://${test_utils.ClientEnvironmentalConfig.PROXY_HOST}:${test_utils.ClientEnvironmentalConfig.PROXY_PORT}`);
@@ -99,7 +101,7 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
     };
 }
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Connection Success - Websocket Mqtt', async () => {
+test('Connection Success - Websocket Mqtt', async () => {
     await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT, createBrowserSpecificTestConfig);
 });
 
@@ -487,4 +489,14 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Operation failure - null publish', async () => {
     // @ts-ignore
     await test_utils.nullPublishTest(createNullOperationClient());
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Retain test', async () => {
+    let config : mqtt5.Mqtt5ClientConfig = {
+        hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_HOST,
+        port: test_utils.ClientEnvironmentalConfig.WS_MQTT_PORT
+    };
+
+    // @ts-ignore
+    await test_utils.doRetainTest(new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config));
 });

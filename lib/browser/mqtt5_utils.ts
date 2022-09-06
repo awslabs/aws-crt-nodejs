@@ -6,6 +6,7 @@
 
 import * as mqtt from "mqtt";
 import * as mqtt5_packet from "../common/mqtt5_packet";
+import * as mqtt_shared from "../common/mqtt_shared";
 import { ClientSessionBehavior, NegotiatedSettings } from "../common/mqtt5";
 import { Mqtt5ClientConfig } from "./mqtt5";
 import { CrtError } from "./error";
@@ -13,7 +14,6 @@ import { CrtError } from "./error";
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
 export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
 export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
-export const DEFAULT_KEEP_ALIVE : number = 1200;
 export const DEFAULT_CONNECT_TIMEOUT_MS : number = 30000;
 export const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
 export const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
@@ -64,7 +64,7 @@ export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: 
         sessionExpiryInterval: connack.sessionExpiryInterval ?? config.connectProperties?.sessionExpiryIntervalSeconds ?? 0,
         receiveMaximumFromServer: connack.receiveMaximum ?? DEFAULT_RECEIVE_MAXIMUM,
         maximumPacketSizeToServer: connack.maximumPacketSize ?? MAXIMUM_PACKET_SIZE,
-        serverKeepAlive: connack.serverKeepAlive ?? config.connectProperties?.keepAliveIntervalSeconds ?? DEFAULT_KEEP_ALIVE,
+        serverKeepAlive: connack.serverKeepAlive ?? config.connectProperties?.keepAliveIntervalSeconds ?? mqtt_shared.DEFAULT_KEEP_ALIVE,
         retainAvailable: connack.retainAvailable ?? true,
         wildcardSubscriptionsAvailable: connack.wildcardSubscriptionsAvailable ?? true,
         subscriptionIdentifiersAvailable: connack.subscriptionIdentifiersAvailable ?? true,
@@ -188,7 +188,7 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
 
     let mqttJsClientConfig : mqtt.IClientOptions = {
         protocolVersion: 5,
-        keepalive: crtConfig.connectProperties?.keepAliveIntervalSeconds ?? DEFAULT_KEEP_ALIVE,
+        keepalive: crtConfig.connectProperties?.keepAliveIntervalSeconds ?? mqtt_shared.DEFAULT_KEEP_ALIVE,
         connectTimeout: crtConfig.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
         clean: should_mqtt_js_use_clean_start(crtConfig.sessionBehavior),
         reconnectPeriod: maxDelay,

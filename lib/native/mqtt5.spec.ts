@@ -600,3 +600,12 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Operation failure - null publish', async () => {
     await test_utils.nullPublishTest(createNullOperationClient());
 });
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT))('Retain test', async () => {
+    let config : mqtt5.Mqtt5ClientConfig = {
+        hostName: test_utils.ClientEnvironmentalConfig.DIRECT_MQTT_HOST,
+        port: test_utils.ClientEnvironmentalConfig.DIRECT_MQTT_PORT
+    };
+
+    await test_utils.doRetainTest(new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config));
+});

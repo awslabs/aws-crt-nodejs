@@ -8,6 +8,7 @@ import * as mqtt5_common from "../lib/common/mqtt5";
 import * as mqtt5_packet from "../lib/common/mqtt5_packet";
 import {DisconnectReasonCode, QoS} from "../lib/common/mqtt5_packet";
 import {once} from "events";
+import {v4 as uuid} from "uuid";
 
 export enum SuccessfulConnectionTestType {
     DIRECT_MQTT = 0,
@@ -49,12 +50,16 @@ export class ClientEnvironmentalConfig {
     public static AWS_IOT_ACCESS_KEY_ID = process.env.AWS_TEST_MQTT5_IOT_CORE_ACCESS_KEY_ID ?? "";
     public static AWS_IOT_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT5_IOT_CORE_SECRET_ACCESS_KEY ?? "";
 
-    public static AWS_IOT_AUTHORIZER_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_NAME ?? "";
-    public static AWS_IOT_AUTHORIZER_USERNAME = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_USERNAME ?? "";
-    public static AWS_IOT_AUTHORIZER_PASSWORD = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_PASSWORD ?? "";
-    public static AWS_IOT_AUTHORIZER_TOKEN = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_TOKEN ?? "";
-    public static AWS_IOT_AUTHORIZER_TOKEN_SIGNATURE = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_TOKEN_SIGNATURE ?? "";
-    public static AWS_IOT_AUTHORIZER_TOKEN_KEY_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_AUTHORIZER_TOKEN_KEY_NAME ?? "";
+    public static AWS_IOT_NO_SIGNING_AUTHORIZER_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_NAME ?? "";
+    public static AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_USERNAME ?? "";
+    public static AWS_IOT_NO_SIGNING_AUTHORIZER_PASSWORD = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_PASSWORD ?? "";
+
+    public static AWS_IOT_SIGNING_AUTHORIZER_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_NAME ?? "";
+    public static AWS_IOT_SIGNING_AUTHORIZER_USERNAME = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_USERNAME ?? "";
+    public static AWS_IOT_SIGNING_AUTHORIZER_PASSWORD = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_PASSWORD ?? "";
+    public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN ?? "";
+    public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN_SIGNATURE = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN_SIGNATURE ?? "";
+    public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN_KEY_NAME ?? "";
 
     public static hasIotCoreEnvironment() {
         return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
@@ -465,4 +470,84 @@ export async function nullPublishTest(client: Mqtt5Client) {
     await stopped;
 
     client.close();
+}
+
+export async function doRetainTest(client1: Mqtt5Client, client2: Mqtt5Client, client3: Mqtt5Client) {
+
+    let retainTopic : string = `retain/topic-${uuid()}`;
+    let retainedPayload : Buffer = Buffer.from("RetainedPayload", "utf-8");
+
+    let connected1 = once(client1, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped1 = once(client1, Mqtt5Client.STOPPED);
+
+    let connected2 = once(client2, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped2 = once(client2, Mqtt5Client.STOPPED);
+
+    let connected3 = once(client3, Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped3 = once(client3, Mqtt5Client.STOPPED);
+
+    // Connect with client1 and set the retained message
+    client1.start();
+    await connected1;
+
+    await client1.publish({
+        topicName: retainTopic,
+        qos: QoS.AtLeastOnce,
+        payload: retainedPayload,
+        retain: true
+    });
+
+    // Connect with client2, subscribe to the retained topic and expect the appropriate retained message to be
+    // delivered after subscription
+    let messageReceived2 = once(client2, Mqtt5Client.MESSAGE_RECEIVED);
+
+    client2.start();
+
+    await connected2;
+    await client2.subscribe({
+        subscriptions: [
+            {topicFilter: retainTopic, qos: QoS.AtLeastOnce}
+        ]
+    });
+
+    let publish: mqtt5_packet.PublishPacket = (await messageReceived2)[0];
+
+    expect(publish.topicName).toEqual(retainTopic);
+    expect(publish.qos).toEqual(QoS.AtLeastOnce);
+    expect(Buffer.from(publish.payload as ArrayBuffer)).toEqual(retainedPayload);
+
+    client2.stop();
+    await stopped2;
+    client2.close();
+
+    // Clear the retained message
+    await client1.publish({
+        topicName: retainTopic,
+        qos: QoS.AtLeastOnce,
+        retain: true
+    });
+
+    // Connect with client 3, subscribe to the retained topic, wait a few seconds to ensure no message received
+    client3.start();
+
+    client3.on('messageReceived', (publish: mqtt5_packet.PublishPacket) => {
+        throw new Error("This shouldn't happen!");
+    });
+
+    await connected3;
+    await client3.subscribe({
+        subscriptions: [
+            {topicFilter: retainTopic, qos: QoS.AtLeastOnce}
+        ]
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    client3.stop();
+    await stopped3;
+    client3.close();
+
+    client1.stop();
+    await stopped1;
+    client1.close();
 }

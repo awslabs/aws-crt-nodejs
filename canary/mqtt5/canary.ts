@@ -61,9 +61,10 @@ function createCanaryClient(mqttStats : CanaryMqttStatistics) : mqtt5.Mqtt5Clien
 }
 
 async function doSubscribe(context : CanaryContext) {
+    let topicFilter: string = `Mqtt5/Canary/RandomSubscribe${uuid()}`;
+
     try {
         context.mqttStats.subscribesAttempted++;
-        let topicFilter: string = `Mqtt5/Canary/RandomSubscribe${uuid()}`;
 
         await context.client.subscribe({
             subscriptions: [
@@ -75,6 +76,7 @@ async function doSubscribe(context : CanaryContext) {
         context.mqttStats.subscribesSucceeded++;
     } catch (err) {
         context.mqttStats.subscribesFailed++;
+        context.subscriptions.filter(entry => entry !== topicFilter);
     }
 }
 
@@ -83,9 +85,10 @@ async function doUnsubscribe(context : CanaryContext) {
         return;
     }
 
+    let topicFilter: string = context.subscriptions.pop() ?? "canthappen";
+
     try {
         context.mqttStats.unsubscribesAttempted++;
-        let topicFilter: string = context.subscriptions.pop() ?? "canthappen";
 
         await context.client.unsubscribe({
             topicFilters: [ topicFilter ]
@@ -94,6 +97,7 @@ async function doUnsubscribe(context : CanaryContext) {
         context.mqttStats.unsubscribesSucceeded++;
     } catch (err) {
         context.mqttStats.unsubscribesFailed++;
+        context.subscriptions.push(topicFilter);
     }
 }
 

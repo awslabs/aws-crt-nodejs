@@ -71,7 +71,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
      * mutually-authenticated connections.
      *
      * @param hostName - AWS IoT endpoint to connect to
-     * @param options - additional sigv4-oriented options to use
+     * @param sigv4Config - additional sigv4-oriented options to use
      */
     static newWebsocketMqttBuilderWithSigv4Auth(hostName : string, sigv4Config: WebsocketSigv4Config) : AwsIotMqtt5ClientConfigBuilder {
 
@@ -98,7 +98,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
      * @param hostName - AWS IoT endpoint to connect to
      * @param customAuthConfig - AWS IoT custom auth configuration
      */
-    static newDirectMqttBuilderWithCustomAuth(hostName : string, customAuthConfig: iot_shared.MqttConnectCustomAuthConfig) : AwsIotMqtt5ClientConfigBuilder {
+    static newWebsocketMqttBuilderWithCustomAuth(hostName : string, customAuthConfig: iot_shared.MqttConnectCustomAuthConfig) : AwsIotMqtt5ClientConfigBuilder {
 
         let websocketConfig: mqtt5.Mqtt5WebsocketConfig = {
             urlFactoryOptions: {
@@ -112,19 +112,6 @@ export class AwsIotMqtt5ClientConfigBuilder {
             websocketConfig);
 
         builder.customAuthConfig = customAuthConfig;
-
-        return builder;
-    }
-
-    /**
-     * Creates a new MQTT5 client builder with default Tls options. This requires setting all connection details manually.
-     * Defaults port to direct mqtt.
-     */
-    static newMqttBuilder(hostName : string, websocketConfig: mqtt5.Mqtt5WebsocketConfig) : AwsIotMqtt5ClientConfigBuilder {
-        let builder = new AwsIotMqtt5ClientConfigBuilder(
-            hostName,
-            AwsIotMqtt5ClientConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
-            websocketConfig);
 
         return builder;
     }

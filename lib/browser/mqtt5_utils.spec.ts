@@ -7,6 +7,7 @@ import * as mqtt from "mqtt";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import {PayloadFormatIndicator} from "../common/mqtt5_packet";
 import * as mqtt_utils from "./mqtt5_utils";
+import * as mqtt_shared from "../common/mqtt_shared";
 import {Mqtt5ClientConfig} from "./mqtt5";
 import {ClientSessionBehavior, RetryJitterType} from "../common/mqtt5";
 import {compute_mqtt_js_reconnect_delay_from_crt_max_delay} from "./mqtt5_utils";
@@ -327,7 +328,7 @@ test('create_negotiated_settings full connack, full connect', async() => {
 
 function create_base_expected_mqtt_js_config() : mqtt.IClientOptions {
     return {
-        keepalive: mqtt_utils.DEFAULT_KEEP_ALIVE,
+        keepalive: mqtt_shared.DEFAULT_KEEP_ALIVE,
         connectTimeout: mqtt_utils.DEFAULT_CONNECT_TIMEOUT_MS,
         clean: true,
         protocolVersion : 5,
