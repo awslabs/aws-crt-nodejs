@@ -15,12 +15,121 @@ import * as auth from '../common/auth';
 import crt_native from './binding';
 import { CrtError } from './error';
 import { HttpRequest } from './http';
-import { ClientBootstrap } from './io';
+import {ClientBootstrap, ClientTlsContext} from './io';
+
+type StringLike = string | ArrayBuffer | DataView;
 
 /**
- * @internal
+ * A pair defining an identity provider and a valid login token sourced from it.
+ *
+ * @category Auth
  */
-type StringLike = string | ArrayBuffer | DataView;
+export interface CognitoLoginTokenPair {
+    /**
+     * Name of an identity provider
+     */
+    identityProviderName: string;
+
+    /**
+     * Valid login token source from the identity provider
+     */
+    identityProviderToken: string;
+}
+
+/**
+ * Definition for the configuration needed to create a Cognito-based Credentials Provider
+ *
+ * @category Auth
+ */
+export interface CognitoCredentialsProviderConfig {
+
+    /**
+     * Cognito service regional endpoint to source credentials from.
+     */
+    endpoint: string;
+
+    /**
+     * Cognito identity to fetch credentials relative to.
+     */
+    identity: string;
+
+    /**
+     * Optional set of identity provider token pairs to allow for authenticated identity access.
+     */
+    logins?: Array<CognitoLoginTokenPair>;
+
+    /**
+     * Optional ARN of the role to be assumed when multiple roles were received in the token from the identity provider.
+     */
+    customRoleArn?: string;
+
+    /**
+     * TLS context for secure socket connections.
+     * If undefined, then a default tls context will be created and used.
+     */
+    tlsContext?: ClientTlsContext;
+
+    /**
+     * Client bootstrap to use.  In almost all cases, this can be left undefined.
+     */
+    bootstrap?: ClientBootstrap;
+}
+
+/**
+ * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
+ *
+ * We don't currently expose an interface for fetching credentials from Javascript.
+ *
+ * @category Auth
+ */
+/* Subclass for the purpose of exposing a non-NativeHandle based API */
+export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
+
+    /**
+     * Creates a new default credentials provider to be used internally for AWS credentials resolution:
+     *
+     *   The CRT's default provider chain currently sources in this order:
+     *
+     *     1. Environment
+     *     2. Profile
+     *     3. (conditional, off by default) ECS
+     *     4. (conditional, on by default) EC2 Instance Metadata
+     *
+     * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
+     *
+     * @returns a new credentials provider using default credentials resolution rules
+     */
+    static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
+        return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
+    }
+
+    /**
+     * Creates a new credentials provider that returns a fixed set of credentials.
+     *
+     * @param access_key access key to use in the static credentials
+     * @param secret_key secret key to use in the static credentials
+     * @param session_token (optional) session token to use in the static credentials
+     *
+     * @returns a new credentials provider that will return a fixed set of AWS credentials
+     */
+    static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider {
+        return super.newStatic(access_key, secret_key, session_token);
+    }
+
+    /**
+     * Creates a new credentials provider that sources credentials from the AWS Cognito Identity service via the
+     * GetCredentialsForIdentity http API.
+     *
+     * @param config provider configuration necessary to make GetCredentialsForIdentity web requests
+     *
+     * @returns a new credentials provider that returns credentials sourced from the AWS Cognito Identity service
+     */
+    static newCognito(config: CognitoCredentialsProviderConfig): AwsCredentialsProvider {
+        return super.newCognito(config,
+            config.tlsContext != null ? config.tlsContext.native_handle() : new ClientTlsContext().native_handle(),
+            config.bootstrap != null ? config.bootstrap.native_handle() : null);
+    }
+}
 
 /**
  * AWS signing algorithm enumeration.
@@ -87,35 +196,6 @@ export enum AwsSignedBodyHeaderType {
 
     /** Add the X-Amz-Content-Sha256 header with the canonical request payload value */
     XAmzContentSha256
-}
-
-/**
- * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
- *
- * We don't currently expose an interface for fetching credentials from Javascript.
- *
- * @category Auth
- */
-/* Subclass for the purpose of exposing a non-NativeHandle based API */
-export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
-
-    /**
-     * Creates a new default credentials provider to be used internally for AWS credentials resolution:
-     *
-     *   The CRT's default provider chain currently sources in this order:
-     *
-     *     1. Environment
-     *     2. Profile
-     *     3. (conditional, off by default) ECS
-     *     4. (conditional, on by default) EC2 Instance Metadata
-     *
-     * @param bootstrap (optional) client bootstrap to be used to establish any required network connections
-     *
-     * @returns a new credentials provider using default credentials resolution rules
-     */
-    static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
-        return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
-    }
 }
 
 /**

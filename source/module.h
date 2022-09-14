@@ -21,6 +21,7 @@ struct aws_event_loop_group;
 
 enum aws_crt_nodejs_errors {
     AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV = AWS_ERROR_ENUM_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
+    AWS_CRT_NODEJS_ERROR_NAPI_FAILURE,
 
     AWS_CRT_NODEJS_ERROR_END_RANGE = AWS_ERROR_ENUM_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID)
 };
@@ -30,6 +31,121 @@ enum aws_napi_log_subject {
 
     AWS_LS_NODEJS_CRT_LAST = AWS_LOG_SUBJECT_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
 };
+
+/*
+ * Helper functions for constructing JS objects.
+ *
+ * These create and attach properties of the associated JS type to an object.  For each type, two versions
+ * exist - one version taking the parameter value directly, another taking a pointer making it optional.  In this
+ * case, if the pointer is NULL, nothing is done.
+ */
+int aws_napi_attach_object_property_boolean(napi_value object, napi_env env, const char *key_name, bool value);
+
+int aws_napi_attach_object_property_optional_boolean(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const bool *value);
+
+int aws_napi_attach_object_property_u64(napi_value object, napi_env env, const char *key_name, uint64_t value);
+
+int aws_napi_attach_object_property_optional_u64(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint64_t *value);
+
+int aws_napi_attach_object_property_u32(napi_value object, napi_env env, const char *key_name, uint32_t value);
+
+int aws_napi_attach_object_property_optional_u32(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint32_t *value);
+
+int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value);
+
+int aws_napi_attach_object_property_optional_u16(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const uint16_t *value);
+
+int aws_napi_attach_object_property_string(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    struct aws_byte_cursor value);
+
+int aws_napi_attach_object_property_optional_string(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    const struct aws_byte_cursor *value);
+
+int aws_napi_attach_object_property_binary_as_finalizable_external(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    struct aws_byte_buf *data_buffer);
+
+/*
+ * Helper functions for deconstructing JS objects into native data.
+ */
+
+enum aws_napi_get_named_property_result {
+    AWS_NGNPR_VALID_VALUE,
+    AWS_NGNPR_INVALID_VALUE,
+    AWS_NGNPR_NO_VALUE,
+};
+
+/*
+ * Gets the property on an object, if it exists, with the supplied name.  If 'type' is not napi_undefined, then
+ * the type of the property must match the passed in value.
+ */
+enum aws_napi_get_named_property_result aws_napi_get_named_property(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    napi_value *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint16_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint32_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint64_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    bool *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_u8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    struct aws_byte_buf *result);
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
