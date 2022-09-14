@@ -375,7 +375,7 @@ done:
 
 static napi_value s_creds_provider_new_cognito(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(cb_info->num_args == 2);
+    AWS_FATAL_ASSERT(cb_info->num_args == 3);
 
     napi_value node_provider = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();

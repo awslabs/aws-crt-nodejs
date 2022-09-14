@@ -6,7 +6,7 @@
 import { auth as native, http as native_http } from '../index';
 import { io as native_io } from '../index';
 
-import { InputStream } from './io';
+import { InputStream} from './io';
 import { PassThrough } from "stream";
 import { aws_sign_request, aws_verify_sigv4a_signing } from './auth';
 
@@ -185,6 +185,37 @@ test('Default credentials provider create', async () => {
 
 test('Default credentials provider create no bootstrap', async () => {
     const credentials_provider = native.AwsCredentialsProvider.newDefault();
+
+    expect(credentials_provider);
+});
+
+test('Cognito credentials provider create success - minimal config', async () => {
+    let config : native.CognitoCredentialsProviderConfig = {
+        endpoint: "sample.com",
+        identity: "MyIdentity"
+    };
+
+    const credentials_provider = native.AwsCredentialsProvider.newCognito(config);
+
+    expect(credentials_provider);
+});
+
+test('Cognito credentials provider create success - maximal config', async () => {
+    let tlsCtx : native_io.ClientTlsContext = new native_io.ClientTlsContext();
+
+    let config : native.CognitoCredentialsProviderConfig = {
+        endpoint: "sample.com",
+        identity: "MyIdentity",
+        logins: [
+            { identityProviderName: "SecureProvider", identityProviderToken: "RootAccess" },
+            { identityProviderName: "SketchyProvider", identityProviderToken: "ImIn" },
+        ],
+        customRoleArn: "arn:us-east-1:totally4real",
+        tlsContext: tlsCtx,
+        bootstrap: new native_io.ClientBootstrap(),
+    };
+
+    const credentials_provider = native.AwsCredentialsProvider.newCognito(config);
 
     expect(credentials_provider);
 });
