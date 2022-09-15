@@ -219,3 +219,52 @@ test('Cognito credentials provider create success - maximal config', async () =>
 
     expect(credentials_provider);
 });
+
+const AWS_TESTING_COGNITO_IDENTITY : string = process.env.AWS_TESTING_COGNITO_IDENTITY ?? "";
+
+function hasCognitoTestEnvironment() {
+    return AWS_TESTING_COGNITO_IDENTITY !== "";
+}
+
+const conditional_test = (condition : boolean) => condition ? it : it.skip;
+
+async function do_body_request_signing(provider: native.AwsCredentialsProvider) {
+    const signing_config: native.AwsSigningConfig = {
+        algorithm: native.AwsSigningAlgorithm.SigV4,
+        signature_type: native.AwsSignatureType.HttpRequestViaHeaders,
+        provider: provider,
+        region: SIGV4TEST_REGION,
+        service: SIGV4TEST_SERVICE,
+        date: new Date(DATE_STR),
+        signed_body_header: native.AwsSignedBodyHeaderType.None,
+    };
+    let stream = new PassThrough();
+    let body_stream;
+    stream.write("test");
+    stream.end(() => {
+        body_stream = new InputStream(stream);
+    });
+    let http_request = new native_http.HttpRequest(
+        SIGV4TEST_METHOD,
+        SIGV4TEST_PATH,
+        new native_http.HttpHeaders(SIGV4TEST_UNSIGNED_HEADERS),
+        body_stream);
+
+    return await aws_sign_request(http_request, signing_config);
+}
+
+conditional_test(hasCognitoTestEnvironment())('Cognito credentials provider usage success - signing', async () => {
+    let config : native.CognitoCredentialsProviderConfig = {
+        endpoint: "cognito-identity.us-east-1.amazonaws.com",
+        identity: AWS_TESTING_COGNITO_IDENTITY
+    };
+
+    const credentials_provider = native.AwsCredentialsProvider.newCognito(config);
+
+    expect(credentials_provider);
+
+    const signing_result = await do_body_request_signing(credentials_provider);
+
+    expect(signing_result.method).toBe(SIGV4TEST_METHOD);
+    expect(signing_result.path).toBe(SIGV4TEST_PATH);
+});
