@@ -5,6 +5,7 @@
 
 import { auth as native, http as native_http } from '../index';
 import { io as native_io } from '../index';
+import { ProxyConfig, ProxyTestType } from "@test/proxy";
 
 import { InputStream} from './io';
 import { PassThrough } from "stream";
@@ -257,6 +258,26 @@ conditional_test(hasCognitoTestEnvironment())('Cognito credentials provider usag
     let config : native.CognitoCredentialsProviderConfig = {
         endpoint: "cognito-identity.us-east-1.amazonaws.com",
         identity: AWS_TESTING_COGNITO_IDENTITY
+    };
+
+    const credentials_provider = native.AwsCredentialsProvider.newCognito(config);
+
+    expect(credentials_provider);
+
+    const signing_result = await do_body_request_signing(credentials_provider);
+
+    expect(signing_result.method).toBe(SIGV4TEST_METHOD);
+    expect(signing_result.path).toBe(SIGV4TEST_PATH);
+});
+
+conditional_test(hasCognitoTestEnvironment() && ProxyConfig.is_valid())('Cognito credentials provider through http proxy usage success - signing', async () => {
+    let proxyOptions: native_http.HttpProxyOptions = ProxyConfig.create_http_proxy_options_from_environment(
+        ProxyTestType.TUNNELING_HTTPS, native_http.HttpProxyAuthenticationType.None);
+
+    let config : native.CognitoCredentialsProviderConfig = {
+        endpoint: "cognito-identity.us-east-1.amazonaws.com",
+        identity: AWS_TESTING_COGNITO_IDENTITY,
+        httpProxyOptions: proxyOptions
     };
 
     const credentials_provider = native.AwsCredentialsProvider.newCognito(config);
