@@ -6,6 +6,7 @@
 #include "auth.h"
 
 #include "class_binder.h"
+#include "http_connection.h"
 #include "http_message.h"
 #include "io.h"
 
@@ -60,8 +61,8 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
         {
             .name = "newCognito",
             .method = s_creds_provider_new_cognito,
-            .num_arguments = 3,
-            .arg_types = {napi_undefined, napi_undefined, napi_undefined},
+            .num_arguments = 4,
+            .arg_types = {napi_undefined, napi_undefined, napi_undefined, napi_undefined},
             .attributes = napi_static,
         },
     };
@@ -375,7 +376,7 @@ done:
 
 static napi_value s_creds_provider_new_cognito(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(cb_info->num_args == 3);
+    AWS_FATAL_ASSERT(cb_info->num_args == 4);
 
     napi_value node_provider = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -419,6 +420,11 @@ static napi_value s_creds_provider_new_cognito(napi_env env, const struct aws_na
         options.bootstrap = aws_napi_get_client_bootstrap(arg->native.external);
     } else {
         options.bootstrap = aws_napi_get_default_client_bootstrap();
+    }
+
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
+    if (arg->native.external != NULL) {
+        options.http_proxy_options = aws_napi_get_http_proxy_options(arg->native.external);
     }
 
     provider = aws_credentials_provider_new_cognito_caching(allocator, &options);

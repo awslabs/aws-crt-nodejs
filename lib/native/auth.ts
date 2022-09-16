@@ -14,7 +14,7 @@
 import * as auth from '../common/auth';
 import crt_native from './binding';
 import { CrtError } from './error';
-import { HttpRequest } from './http';
+import { HttpRequest, HttpProxyOptions } from './http';
 import {ClientBootstrap, ClientTlsContext} from './io';
 
 type StringLike = string | ArrayBuffer | DataView;
@@ -73,6 +73,11 @@ export interface CognitoCredentialsProviderConfig {
      * Client bootstrap to use.  In almost all cases, this can be left undefined.
      */
     bootstrap?: ClientBootstrap;
+
+    /**
+     * Proxy configuration if connecting through an HTTP proxy is desired
+     */
+    httpProxyOptions?: HttpProxyOptions;
 }
 
 /**
@@ -127,7 +132,8 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
     static newCognito(config: CognitoCredentialsProviderConfig): AwsCredentialsProvider {
         return super.newCognito(config,
             config.tlsContext != null ? config.tlsContext.native_handle() : new ClientTlsContext().native_handle(),
-            config.bootstrap != null ? config.bootstrap.native_handle() : null);
+            config.bootstrap != null ? config.bootstrap.native_handle() : null,
+            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null);
     }
 }
 

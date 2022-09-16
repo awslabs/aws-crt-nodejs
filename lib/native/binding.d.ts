@@ -378,7 +378,7 @@ export class AwsCredentialsProvider {
 
     static newDefault(bootstrap?: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
-    static newCognito(config: CognitoCredentialsProviderConfig, tlsContext : NativeHandle, bootstrap?: NativeHandle): AwsCredentialsProvider;
+    static newCognito(config: CognitoCredentialsProviderConfig, tlsContext : NativeHandle, bootstrap?: NativeHandle, httpProxyOptions?: NativeHandle): AwsCredentialsProvider;
 }
 
 /** @internal */
