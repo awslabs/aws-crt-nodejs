@@ -21,7 +21,10 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
  */
 type NativeHandle = any;
 
-type StringLike = string | ArrayBuffer | ArrayBufferView;
+/**
+ * Polymorphic union of types that we convert to byte sequences in native.
+ */
+export type StringLike = string | ArrayBuffer | ArrayBufferView;
 
 /* common */
 /** @internal */

@@ -17,8 +17,6 @@ import { CrtError } from './error';
 import { HttpRequest, HttpProxyOptions } from './http';
 import {ClientBootstrap, ClientTlsContext} from './io';
 
-type StringLike = string | ArrayBuffer | DataView;
-
 /**
  * A pair defining an identity provider and a valid login token sourced from it.
  *
@@ -117,7 +115,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
      *
      * @returns a new credentials provider that will return a fixed set of AWS credentials
      */
-    static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider {
+    static newStatic(access_key: crt_native.StringLike, secret_key: crt_native.StringLike, session_token?: crt_native.StringLike): AwsCredentialsProvider {
         return super.newStatic(access_key, secret_key, session_token);
     }
 
@@ -333,7 +331,7 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
  * @param ecc_key_pub_y the y coordinate of the public part of the ecc key to verify the signature
  * @returns True, if the verification succeed. Otherwise, false.
  */
-export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request: StringLike,
-    signature: StringLike, ecc_key_pub_x: StringLike, ecc_key_pub_y: StringLike): boolean {
+export function aws_verify_sigv4a_signing(request: HttpRequest, config: AwsSigningConfig, expected_canonical_request: crt_native.StringLike,
+    signature: crt_native.StringLike, ecc_key_pub_x: crt_native.StringLike, ecc_key_pub_y: crt_native.StringLike): boolean {
     return crt_native.aws_verify_sigv4a_signing(request, config, expected_canonical_request, signature, ecc_key_pub_x, ecc_key_pub_y);
 }
