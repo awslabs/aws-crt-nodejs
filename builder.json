@@ -71,7 +71,12 @@
         "AWS_CRT_MEMORY_TRACING": "2"
     },
     "test_steps": [
-        "aws-crt-nodejs-test",
+        "crt-ci-prep",
+        [
+            "npm",
+            "run",
+            "test:native"
+        ],
         [
             "npm",
             "--prefix",
