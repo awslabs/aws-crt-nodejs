@@ -7,7 +7,7 @@ import { auth as native, http as native_http } from '../index';
 import { io as native_io } from '../index';
 import { ProxyConfig, ProxyTestType } from "@test/proxy";
 
-import { InputStream} from './io';
+import { InputStream } from './io';
 import { PassThrough } from "stream";
 import { aws_sign_request, aws_verify_sigv4a_signing } from './auth';
 
