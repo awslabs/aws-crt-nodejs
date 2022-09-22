@@ -357,7 +357,8 @@ static int s_aws_cognito_credentials_provider_config_init(
             env, node_config, AWS_NAPI_KEY_CUSTOM_ROLE_ARN, napi_string, &config->custom_role_arn)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
-            "s_aws_cognito_credentials_provider_config_init - required property 'identity' could not be extracted from "
+            "s_aws_cognito_credentials_provider_config_init - optional property 'customRoleArn' could not be extracted "
+            "from "
             "config");
         aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
         goto done;
