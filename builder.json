@@ -71,6 +71,7 @@
         "AWS_CRT_MEMORY_TRACING": "2"
     },
     "test_steps": [
+        "crt-ci-prep",
         [
             "npm",
             "run",

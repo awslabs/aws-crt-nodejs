@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-// The only exported types are http-related.  If this changes, we'll need to rework the pseudo-module configuration
-// for documentation
-
 /**
+ * This module is internal-only and not exported.
+ *
  * @packageDocumentation
- * @module http
+ * @module binding
  */
 
 import { InputStream, TlsContextOptions } from "./io";
-import { AwsSigningConfig } from "./auth";
+import {AwsSigningConfig, CognitoCredentialsProviderConfig} from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
 
@@ -22,7 +21,10 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
  */
 type NativeHandle = any;
 
-type StringLike = string | ArrayBuffer | ArrayBufferView;
+/**
+ * Polymorphic union of types that we convert to byte sequences in native.
+ */
+export type StringLike = string | ArrayBuffer | ArrayBufferView;
 
 /* common */
 /** @internal */
@@ -379,6 +381,7 @@ export class AwsCredentialsProvider {
 
     static newDefault(bootstrap?: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
+    static newCognito(config: CognitoCredentialsProviderConfig, tlsContext : NativeHandle, bootstrap?: NativeHandle, httpProxyOptions?: NativeHandle): AwsCredentialsProvider;
 }
 
 /** @internal */
