@@ -2,6 +2,13 @@
 #run build script in manylinux2014 docker image
 set -ex
 
+# Pry the builder version this CRT is using out of ci.yml
+BUILDER_VERSION=$(cat .github/workflows/ci.yml | grep 'BUILDER_VERSION:' | sed 's/\s*BUILDER_VERSION:\s*\(.*\)/\1/')
+echo "Using builder version ${BUILDER_VERSION}"
+
+aws s3 cp s3://aws-crt-builder/releases/${BUILDER_VERSION}/builder.pyz ./builder
+
+# Setup docker image for raspberry
 DOCKER_IMAGE=123124136734.dkr.ecr.us-east-1.amazonaws.com/raspbian-bullseye-armv7l:latest
 
 $(aws --region us-east-1 ecr get-login --no-include-email)
