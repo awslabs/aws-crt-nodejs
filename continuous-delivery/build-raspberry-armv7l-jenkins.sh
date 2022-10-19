@@ -18,3 +18,9 @@ docker run --rm \
     --platform linux/arm/v7 \
     $DOCKER_IMAGE \
     continuous-delivery/build-raspberry-armv7l.sh
+
+
+# Upload the lib to S3
+LIB_PATH=dist/bin
+GIT_TAG=$(git describe --tags)
+aws s3 cp --recursive $LIB_PATH s3://aws-crt-nodejs-pipeline/${GIT_TAG}/lib/

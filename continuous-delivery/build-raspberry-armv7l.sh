@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-sudo chmod -R 777 .
+chmod -R a+w .
 # allow npm to install to access /root/
-sudo chmod -R 777 /root/
-sudo npm install --unsafe-perm --allow-root=true .
+chmod -R a+w /root/
+npm install --unsafe-perm --allow-root=true .
