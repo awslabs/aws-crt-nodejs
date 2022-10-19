@@ -15,6 +15,7 @@ phases:
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_osx_x64_arm64/* $DIST_BIN
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_win_x64/* $DIST_BIN
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_aarch64/* $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_armv7l/* $DIST_BIN
       - ls $DIST_BIN
   post_build:
     commands:
