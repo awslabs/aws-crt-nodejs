@@ -23,6 +23,10 @@ class Pkcs11TestSetup(Builder.Action):
             print(f"PKCS#11 on '{sys.platform}' is not currently supported. " +
                   "PKCS#11 tests are disabled")
             return
+        # run on arm for Raspberry Pi
+        elif 'linux' in sys.platform and os.uname()[4][:3] == 'arm':
+            print(f"PKCS#11 on 'ARM' is not currently supported. PKCS#11 tests are disabled")
+            return
 
         # try to install SoftHSM2, so we can run PKCS#11 tests
         try:
