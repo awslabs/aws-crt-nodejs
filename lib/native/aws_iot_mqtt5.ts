@@ -12,6 +12,7 @@
  */
 
 import * as mqtt5 from "./mqtt5";
+import {ClientExtendedValidationAndFlowControl} from "./mqtt5";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as io from "./io";
 import * as auth from "./auth";
@@ -64,7 +65,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
             port: port,
             connectProperties: {
                 keepAliveIntervalSeconds: mqtt_shared.DEFAULT_KEEP_ALIVE
-            }
+            },
+            extendedValidationAndFlowControlOptions: ClientExtendedValidationAndFlowControl.AwsIotCoreDefaults
         };
     }
 
