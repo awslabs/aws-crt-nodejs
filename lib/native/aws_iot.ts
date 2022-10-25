@@ -444,9 +444,6 @@ export class AwsIotMqttConnectionConfigBuilder {
             if (this.params.port != 443) {
                 console.log("Warning: Attempting to connect to authorizer with unsupported port. Port is not 443...");
             }
-            // if (this.tls_ctx_options.alpn_list != ["mqtt"]) {
-            //     this.tls_ctx_options.alpn_list = ["mqtt"]
-            // }
         }
 
         /*
