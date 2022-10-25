@@ -189,6 +189,7 @@ static void s_aws_mqtt5_client_binding_on_client_terminate(void *user_data) {
  */
 static void s_aws_mqtt5_client_extern_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
+    (void)env;
 
     struct aws_mqtt5_client_binding *binding = finalize_data;
 
@@ -1872,11 +1873,11 @@ static int s_init_client_configuration_from_js_client_configuration(
 
     uint32_t retry_jitter_mode = 0;
     PARSE_OPTIONAL_NAPI_PROPERTY(
-        AWS_NAPI_KEY_OFFLINE_QUEUE_BEHAVIOR,
+        AWS_NAPI_KEY_RETRY_JITTER_MODE,
         "s_init_client_configuration_from_js_client_configuration",
         aws_napi_get_named_property_as_uint32(
             env, node_client_config, AWS_NAPI_KEY_RETRY_JITTER_MODE, (uint32_t *)&retry_jitter_mode),
-        { client_options->retry_jitter_mode = (enum aws_mqtt5_client_session_behavior_type)retry_jitter_mode; });
+        { client_options->retry_jitter_mode = (enum aws_exponential_backoff_jitter_mode)retry_jitter_mode; });
 
     PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_MIN_RECONNECT_DELAY_MS,
