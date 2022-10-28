@@ -8,8 +8,10 @@ $(aws --region us-east-1 ecr get-login --no-include-email)
 
 docker pull $DOCKER_IMAGE
 
+# NOTE: set --user to avoid "dubious ownership" errors from git in the bind mounted directory
 docker run --rm \
     --mount type=bind,source=`pwd`,target=/aws-crt-nodejs \
+    --user "$(id -u):$(id -g)" \
     --workdir /aws-crt-nodejs \
     --entrypoint /bin/bash \
     $DOCKER_IMAGE \
