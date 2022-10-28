@@ -51,7 +51,10 @@
     "axios": "^0.24.0",
     "crypto-js": "^4.0.0",
     "mqtt": "^4.3.7",
-    "cmake-js": "^6.3.2",
+    "cmake-js": "^7.0.0",
     "tar": "^6.1.11"
+  },
+  "bin": {
+    "napi_versions": [4]
   }
 }
