@@ -12,8 +12,8 @@
  */
 
 import * as Crypto from "crypto-js";
+import { fromUtf8 } from "@aws-sdk/util-utf8-browser";
 import { Hashable } from "../common/crypto";
-import { TextEncoder } from "./polyfills";
 
 /**
  * Object that allows for continuous MD5 hashing of data.
@@ -41,8 +41,7 @@ export class Md5Hash {
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(truncated);
+        const bytes = fromUtf8(truncated);
         return new DataView(bytes.buffer);
     }
 }
@@ -91,8 +90,7 @@ export class Sha256Hash {
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(truncated);
+        const bytes = fromUtf8(truncated);
         return new DataView(bytes.buffer);
     }
 }
@@ -111,8 +109,7 @@ export class Sha256Hash {
 export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
     const digest = Crypto.SHA256(data.toString()).toString();
     const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(truncated);
+    const bytes = fromUtf8(truncated);
     return new DataView(bytes.buffer);
 }
 
@@ -142,8 +139,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
     finalize(truncate_to?: number): DataView {
         const digest = this.hash ? this.hash.toString() : '';
         const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(truncated);
+        const bytes = fromUtf8(truncated);
         return new DataView(bytes.buffer);
     }
 }
@@ -162,8 +158,7 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
 export function hash_sha1(data: Hashable, truncate_to?: number): DataView {
     const digest = Crypto.SHA1(data.toString()).toString();
     const truncated = digest.substring(0, truncate_to ? truncate_to : digest.length);
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(truncated);
+    const bytes = fromUtf8(truncated);
     return new DataView(bytes.buffer);
 }
 
@@ -202,8 +197,7 @@ export class Sha256Hmac {
     finalize(truncate_to?: number): DataView {
         const digest = this.hmac.finalize();
         const truncated = digest.toString().substring(0, truncate_to ? truncate_to : digest.length);
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(truncated);
+        const bytes = fromUtf8(truncated);
         return new DataView(bytes.buffer);
     }
 }

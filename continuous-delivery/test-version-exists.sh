@@ -15,10 +15,31 @@ if [ "$CURRENT_TAG" != "$CURRENT_TAG_VERSION" ]; then
 fi
 
 PUBLISHED_TAG_VERSION=`npm show aws-crt version`
-if [ "$PUBLISHED_TAG_VERSION" == "$CURRENT_TAG_VERSION" ]; then
-    echo "$CURRENT_TAG_VERSION is already in npm, cut a new tag if you want to upload another version."
-    exit 1
-fi
+# split the version by "."
+PUBLISHED_NUMS=(${PUBLISHED_TAG_VERSION//./ })
+TAG_NUMS=(${CURRENT_TAG_VERSION//./ })
 
-echo "$CURRENT_TAG_VERSION currently does not exist in npm, allowing pipeline to continue."
-exit 0
+check_version_num(){
+   TAG_NUMS=$1
+   PUBLISHED_NUMS=$2
+   if [ $TAG_NUMS -gt $PUBLISHED_NUMS ] ;
+    then
+        # The first larger number means it's not published before
+        echo "$CURRENT_TAG_VERSION currently does not exist in npm, allowing pipeline to continue."
+        exit 0
+    elif [ $TAG_NUMS -lt $PUBLISHED_NUMS ] ;
+        then
+            # Don't accept smaller number
+            echo "Tag version $CURRENT_TAG_VERSION is wrong. The published version is $PUBLISHED_TAG_VERSION, cut a new tag if you want to upload another version."
+            exit 1
+    fi
+}
+
+check_version_num ${TAG_NUMS[0]} ${PUBLISHED_NUMS[0]}
+# If not exit yet, means the previous number is equal, check the next number
+check_version_num ${TAG_NUMS[1]} ${PUBLISHED_NUMS[1]}
+check_version_num ${TAG_NUMS[2]} ${PUBLISHED_NUMS[2]}
+
+# all three number are equal
+echo "Tag version $CURRENT_TAG_VERSION is wrong. The published version is $PUBLISHED_TAG_VERSION, cut a new tag if you want to upload another version."
+exit 1

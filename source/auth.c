@@ -6,6 +6,7 @@
 #include "auth.h"
 
 #include "class_binder.h"
+#include "http_connection.h"
 #include "http_message.h"
 #include "io.h"
 
@@ -18,10 +19,18 @@
 #include <aws/common/condition_variable.h>
 #include <aws/common/mutex.h>
 
+static const char *AWS_NAPI_KEY_ENDPOINT = "endpoint";
+static const char *AWS_NAPI_KEY_IDENTITY = "identity";
+static const char *AWS_NAPI_KEY_LOGINS = "logins";
+static const char *AWS_NAPI_KEY_CUSTOM_ROLE_ARN = "customRoleArn";
+static const char *AWS_NAPI_KEY_IDENTITY_PROVIDER_NAME = "identityProviderName";
+static const char *AWS_NAPI_KEY_IDENTITY_PROVIDER_TOKEN = "identityProviderToken";
+
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
 static aws_napi_method_fn s_creds_provider_new_default;
 static aws_napi_method_fn s_creds_provider_new_static;
+static aws_napi_method_fn s_creds_provider_new_cognito;
 
 static aws_napi_method_fn s_aws_sign_request;
 static aws_napi_method_fn s_aws_verify_sigv4a_signing;
@@ -47,6 +56,13 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .method = s_creds_provider_new_static,
             .num_arguments = 2,
             .arg_types = {napi_string, napi_string, napi_string},
+            .attributes = napi_static,
+        },
+        {
+            .name = "newCognito",
+            .method = s_creds_provider_new_cognito,
+            .num_arguments = 4,
+            .arg_types = {napi_undefined, napi_undefined, napi_undefined, napi_undefined},
             .attributes = napi_static,
         },
     };
@@ -185,6 +201,251 @@ static napi_value s_creds_provider_new_static(napi_env env, const struct aws_nap
     aws_credentials_provider_release(provider);
 
     return node_this;
+}
+
+struct aws_cognito_credentials_provider_config {
+    struct aws_byte_buf endpoint;
+    struct aws_byte_buf identity;
+
+    struct aws_array_list logins;
+    struct aws_array_list login_buffers;
+
+    struct aws_byte_buf custom_role_arn;
+};
+
+static void s_aws_cognito_credentials_provider_config_clean_up(struct aws_cognito_credentials_provider_config *config) {
+    aws_byte_buf_clean_up(&config->endpoint);
+    aws_byte_buf_clean_up(&config->identity);
+
+    aws_array_list_clean_up(&config->logins);
+
+    for (size_t i = 0; i < aws_array_list_length(&config->login_buffers); ++i) {
+        struct aws_byte_buf buffer;
+        AWS_ZERO_STRUCT(buffer);
+
+        aws_array_list_get_at(&config->login_buffers, &buffer, i);
+
+        aws_byte_buf_clean_up(&buffer);
+    }
+    aws_array_list_clean_up(&config->login_buffers);
+
+    aws_byte_buf_clean_up(&config->custom_role_arn);
+}
+
+static int s_aws_cognito_credentials_provider_config_init(
+    struct aws_cognito_credentials_provider_config *config,
+    napi_env env,
+    napi_value node_config) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    int result = AWS_OP_ERR;
+    struct aws_byte_buf identity_provider_name_buf;
+    AWS_ZERO_STRUCT(identity_provider_name_buf);
+    struct aws_byte_buf identity_provider_token_buf;
+    AWS_ZERO_STRUCT(identity_provider_token_buf);
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    if (aws_array_list_init_dynamic(
+            &config->logins, allocator, 0, sizeof(struct aws_cognito_identity_provider_token_pair)) ||
+        aws_array_list_init_dynamic(&config->login_buffers, allocator, 0, sizeof(struct aws_byte_buf))) {
+        return AWS_OP_ERR;
+    }
+
+    if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                     env, node_config, AWS_NAPI_KEY_ENDPOINT, napi_string, &config->endpoint)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_cognito_credentials_provider_config_init - required property 'endpoint' could not be extracted from "
+            "config");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                     env, node_config, AWS_NAPI_KEY_IDENTITY, napi_string, &config->identity)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_cognito_credentials_provider_config_init - required property 'identity' could not be extracted from "
+            "config");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value napi_logins = NULL;
+    if (AWS_NGNPR_VALID_VALUE ==
+        aws_napi_get_named_property(env, node_config, AWS_NAPI_KEY_LOGINS, napi_object, &napi_logins)) {
+
+        /* how many login entries */
+        uint32_t login_count = 0;
+        AWS_NAPI_CALL(env, napi_get_array_length(env, napi_logins, &login_count), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_aws_cognito_credentials_provider_config_init - property 'logins' must be an array");
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        });
+
+        for (size_t i = 0; i < login_count; ++i) {
+
+            napi_value napi_token_pair = NULL;
+            AWS_NAPI_CALL(env, napi_get_element(env, napi_logins, i, &napi_token_pair), {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "s_aws_cognito_credentials_provider_config_init - could not access property 'logins' array "
+                    "element");
+                aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+                goto done;
+            });
+
+            if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                             env,
+                                             napi_token_pair,
+                                             AWS_NAPI_KEY_IDENTITY_PROVIDER_NAME,
+                                             napi_string,
+                                             &identity_provider_name_buf)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "s_aws_cognito_credentials_provider_config_init - required property 'identityProviderName' missing "
+                    "from login token pair");
+                aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+                goto done;
+            }
+
+            if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                             env,
+                                             napi_token_pair,
+                                             AWS_NAPI_KEY_IDENTITY_PROVIDER_TOKEN,
+                                             napi_string,
+                                             &identity_provider_token_buf)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "s_aws_cognito_credentials_provider_config_init - required property 'identityProviderToken' "
+                    "missing from login token pair");
+                aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+                goto done;
+            }
+
+            struct aws_byte_cursor identity_provider_name_cursor =
+                aws_byte_cursor_from_buf(&identity_provider_name_buf);
+            if (aws_array_list_push_back(&config->login_buffers, &identity_provider_name_buf)) {
+                goto done;
+            }
+
+            AWS_ZERO_STRUCT(identity_provider_name_buf);
+
+            struct aws_byte_cursor identity_provider_token_cursor =
+                aws_byte_cursor_from_buf(&identity_provider_token_buf);
+            if (aws_array_list_push_back(&config->login_buffers, &identity_provider_token_buf)) {
+                goto done;
+            }
+
+            AWS_ZERO_STRUCT(identity_provider_token_buf);
+
+            struct aws_cognito_identity_provider_token_pair config_token_pair = {
+                .identity_provider_name = identity_provider_name_cursor,
+                .identity_provider_token = identity_provider_token_cursor,
+            };
+
+            if (aws_array_list_push_back(&config->logins, &config_token_pair)) {
+                goto done;
+            }
+        }
+    }
+
+    if (AWS_NGNPR_INVALID_VALUE ==
+        aws_napi_get_named_property_as_bytebuf(
+            env, node_config, AWS_NAPI_KEY_CUSTOM_ROLE_ARN, napi_string, &config->custom_role_arn)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_cognito_credentials_provider_config_init - optional property 'customRoleArn' could not be extracted "
+            "from "
+            "config");
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        goto done;
+    }
+
+    result = AWS_OP_SUCCESS;
+
+done:
+
+    /* we carefully ensure that we only hit here with buffers that failed to be added to the login_buffers array */
+    aws_byte_buf_clean_up(&identity_provider_name_buf);
+    aws_byte_buf_clean_up(&identity_provider_token_buf);
+
+    return result;
+}
+
+static napi_value s_creds_provider_new_cognito(napi_env env, const struct aws_napi_callback_info *cb_info) {
+
+    AWS_FATAL_ASSERT(cb_info->num_args == 4);
+
+    napi_value node_provider = NULL;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_credentials_provider *provider = NULL;
+    struct aws_cognito_credentials_provider_config provider_config;
+    AWS_ZERO_STRUCT(provider_config);
+
+    struct aws_credentials_provider_cognito_options options;
+    AWS_ZERO_STRUCT(options);
+
+    const struct aws_napi_argument *arg = NULL;
+
+    aws_napi_method_next_argument(napi_undefined, cb_info, &arg);
+    napi_value first_argument = arg->node;
+
+    if (s_aws_cognito_credentials_provider_config_init(&provider_config, env, first_argument)) {
+        napi_throw_error(env, NULL, "Failed to initialize cognito provider configuration from node config");
+        goto done;
+    }
+
+    options.endpoint = aws_byte_cursor_from_buf(&provider_config.endpoint);
+    options.identity = aws_byte_cursor_from_buf(&provider_config.identity);
+    options.login_count = aws_array_list_length(&provider_config.logins);
+    options.logins = provider_config.logins.data;
+
+    struct aws_byte_cursor custom_role_arn_cursor;
+    AWS_ZERO_STRUCT(custom_role_arn_cursor);
+    if (provider_config.custom_role_arn.len > 0) {
+        custom_role_arn_cursor = aws_byte_cursor_from_buf(&provider_config.custom_role_arn);
+        options.custom_role_arn = &custom_role_arn_cursor;
+    }
+
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
+    AWS_NAPI_CALL(env, napi_get_value_external(env, arg->node, (void **)&options.tls_ctx), {
+        napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
+        goto done;
+    });
+
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
+    if (arg->native.external != NULL) {
+        options.bootstrap = aws_napi_get_client_bootstrap(arg->native.external);
+    } else {
+        options.bootstrap = aws_napi_get_default_client_bootstrap();
+    }
+
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
+    if (arg->native.external != NULL) {
+        options.http_proxy_options = aws_napi_get_http_proxy_options(arg->native.external);
+    }
+
+    provider = aws_credentials_provider_new_cognito_caching(allocator, &options);
+    if (provider == NULL) {
+        napi_throw_error(env, NULL, "Failed to create native Cognito Credentials Provider");
+        goto done;
+    }
+
+    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_provider), {
+        napi_throw_error(env, NULL, "Failed to wrap CognitoCredentialsProvider");
+        goto done;
+    });
+
+done:
+
+    s_aws_cognito_credentials_provider_config_clean_up(&provider_config);
+
+    aws_credentials_provider_release(provider);
+
+    return node_provider;
 }
 
 /***********************************************************************************************************************

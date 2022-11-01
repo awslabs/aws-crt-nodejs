@@ -7,7 +7,7 @@ on:
       - 'docs'
 
 env:
-  BUILDER_VERSION: v0.9.15
+  BUILDER_VERSION: v0.9.21
   BUILDER_SOURCE: releases
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
@@ -33,6 +33,7 @@ jobs:
           - fedora-34-x64
           - opensuse-leap
           - rhel8-x64
+          - raspbian-bullseye
     steps:
         # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
     - name: Build ${{ env.PACKAGE_NAME }}
