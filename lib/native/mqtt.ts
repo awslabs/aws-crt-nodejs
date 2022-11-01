@@ -12,9 +12,10 @@
  * @mergeTarget
  */
 
-import crt_native, { StringLike } from './binding';
+import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
+import * as crt from "../common/mqtt_shared";
 import { CrtError } from './error';
 import * as io from "./io";
 import { HttpProxyOptions, HttpRequest } from './http';
@@ -183,28 +184,6 @@ export interface MqttConnectionConfig {
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
 }
 
-/** @internal */
-function normalize_payload(payload: Payload): StringLike {
-    if (ArrayBuffer.isView(payload)) {
-        // native can use ArrayBufferView bytes directly
-        return payload as ArrayBufferView;
-    }
-    if (payload instanceof ArrayBuffer) {
-        // native can use ArrayBuffer bytes directly
-        return payload;
-    }
-    if (typeof payload === 'string') {
-        // native will convert string to utf-8
-        return payload;
-    }
-    if (typeof payload === 'object') {
-        // convert object to JSON string (which will be converted to utf-8 in native)
-        return JSON.stringify(payload);
-    }
-
-    throw new TypeError("payload parameter must be a string, object, or DataView.");
-}
-
 /**
  * MQTT client connection
  *
@@ -224,7 +203,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             {
                 topic: config.will.topic,
                 qos: config.will.qos,
-                payload: normalize_payload(config.will.payload),
+                payload: crt.normalize_payload(config.will.payload),
                 retain: config.will.retain
             }
             : undefined;
@@ -232,13 +211,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         /** clamp reconnection time out values */
         var min_sec = DEFAULT_RECONNECT_MIN_SEC;
         var max_sec = DEFAULT_RECONNECT_MAX_SEC;
-        if (config.reconnect_min_sec !== undefined) {
+        if (config.reconnect_min_sec) {
             min_sec = config.reconnect_min_sec;
             // clamp max, in case they only passed in min
             max_sec = Math.max(min_sec, max_sec);
         }
 
-        if (config.reconnect_max_sec !== undefined) {
+        if (config.reconnect_max_sec) {
             max_sec = config.reconnect_max_sec;
             // clamp min, in case they only passed in max (or passed in min > max)
             min_sec = Math.min(min_sec, max_sec);
@@ -408,7 +387,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
             try {
-                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, normalize_payload(payload), qos, retain, this._on_puback_callback.bind(this, resolve, reject));
+                crt_native.mqtt_client_connection_publish(this.native_handle(), topic, crt.normalize_payload(payload), qos, retain, this._on_puback_callback.bind(this, resolve, reject));
             } catch (e) {
                 reject(e);
             }

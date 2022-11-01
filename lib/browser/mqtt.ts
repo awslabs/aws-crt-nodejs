@@ -33,6 +33,8 @@ import {
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC
 } from "../common/mqtt";
+import {normalize_payload} from "../common/mqtt_shared";
+
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
 
 /**
@@ -224,36 +226,6 @@ class TopicTrie extends Trie<OnMessageCallback | undefined> {
         }
         return current;
     }
-}
-
-/**
- * Converts payload to Buffer or string regardless of the supplied type
- * @param payload The payload to convert
- * @internal
- */
-function normalize_payload(payload: Payload): Buffer | string {
-    if (payload instanceof Buffer) {
-        // pass Buffer through
-        return payload;
-    }
-    if (typeof payload === 'string') {
-        // pass string through
-        return payload;
-    }
-    if (ArrayBuffer.isView(payload)) {
-        // return Buffer with view upon the same bytes (no copy)
-        const view = payload as ArrayBufferView;
-        return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
-    }
-    if (payload instanceof ArrayBuffer) {
-        // return Buffer with view upon the same bytes (no copy)
-        return Buffer.from(payload);
-    }
-    if (typeof payload === 'object') {
-        // Convert Object to JSON string
-        return JSON.stringify(payload);
-    }
-    throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
 /**

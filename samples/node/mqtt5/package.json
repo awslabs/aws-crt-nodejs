@@ -1,0 +1,33 @@
+{
+  "name": "mqtt5",
+  "version": "1.0.0",
+  "description": "test",
+  "main": "./dist/mqtt5.js",
+  "scripts": {
+    "test": "tsc && node ./dist/mqtt5.js",
+    "install": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awslabs/aws-crt-nodejs.git"
+  },
+  "keywords": [
+    "aws",
+    "native",
+    "http"
+  ],
+  "author": "AWS Common Runtime Team <aws-sdk-common-runtime@amazon.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/awslabs/aws-crt-nodejs/issues"
+  },
+  "homepage": "https://github.com/awslabs/aws-crt-nodejs#readme",
+  "devDependencies": {
+    "@types/node": "^10.17.17",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "aws-crt": "file:../../../",
+    "yargs": "^17.2.1"
+  }
+}

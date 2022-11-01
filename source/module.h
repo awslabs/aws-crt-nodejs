@@ -158,6 +158,7 @@ napi_status aws_napi_create_dataview_from_byte_cursor(
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
 
 void aws_napi_throw_last_error(napi_env env);
+void aws_napi_throw_last_error_with_context(napi_env env, const char *context);
 
 struct uv_loop_s *aws_napi_get_node_uv_loop(void);
 struct aws_event_loop *aws_napi_get_node_event_loop(void);

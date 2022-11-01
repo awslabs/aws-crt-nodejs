@@ -12,10 +12,13 @@
  */
 
 import { MqttConnectionConfig } from "./mqtt";
+import * as mqtt5 from "./mqtt5";
 import { AWSCredentials, AwsSigningConfig} from "./auth";
 import { WebsocketOptionsBase } from "../common/auth";
+import { CrtError } from "./error";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
+import * as iot_shared from "../common/aws_iot_shared";
 
 /**
  * Options for websocket based connections in browser
@@ -112,4 +115,57 @@ export function create_websocket_url(config: MqttConnectionConfig) {
 export function create_websocket_stream(config: MqttConnectionConfig) {
     const url = create_websocket_url(config);
     return websocket(url, ['mqttv3.1'], config.websocket);
+}
+
+
+/** @internal */
+export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
+    const path = '/mqtt';
+    const websocketConfig : mqtt5.Mqtt5WebsocketConfig = config.websocketOptions ?? { urlFactoryOptions: { urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws} };
+    const urlFactory : mqtt5.Mqtt5WebsocketUrlFactoryType = websocketConfig.urlFactoryOptions.urlFactory;
+
+    switch(urlFactory) {
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Ws:
+            return `ws://${config.hostName}:${config.port}${path}`;
+            break;
+
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Wss:
+            return `wss://${config.hostName}:${config.port}${path}`;
+            break;
+
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Sigv4:
+            const sigv4Options : mqtt5.Mqtt5WebsocketUrlFactorySigv4Options = websocketConfig.urlFactoryOptions as mqtt5.Mqtt5WebsocketUrlFactorySigv4Options;
+            const credentials = sigv4Options.credentialsProvider.getCredentials();
+            if (credentials === undefined) {
+                throw new CrtError("Websockets with sigv4 requires valid AWS credentials");
+            }
+
+            const signingConfig : AwsSigningConfig = {
+                service: "iotdevicegateway",
+                region: sigv4Options.region ?? iot_shared.extractRegionFromEndpoint(config.hostName),
+                credentials: credentials,
+                date: new Date()
+            };
+
+            const time = canonical_time(signingConfig.date);
+            const day = canonical_day(time);
+            const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signingConfig.credentials.aws_access_id}` +
+                `%2F${day}%2F${signingConfig.credentials.aws_region}%2F${signingConfig.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
+            const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
+            return sign_url('GET', url, signingConfig, time, day);
+
+        case mqtt5.Mqtt5WebsocketUrlFactoryType.Custom:
+            const customOptions : mqtt5.Mqtt5WebsocketUrlFactoryCustomOptions = websocketConfig.urlFactoryOptions as mqtt5.Mqtt5WebsocketUrlFactoryCustomOptions;
+            return customOptions.customUrlFactory();
+    }
+
+    throw new URIError(`Invalid url factory requested: ${urlFactory}`);
+}
+
+/** @internal */
+export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) {
+    const url = create_mqtt5_websocket_url(config);
+    let ws = websocket(url, ['mqtt'], config.websocketOptions?.wsOptions);
+
+    return ws;
 }

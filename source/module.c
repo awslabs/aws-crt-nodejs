@@ -13,6 +13,7 @@
 #include "http_stream.h"
 #include "io.h"
 #include "logger.h"
+#include "mqtt5_client.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
 
@@ -565,6 +566,20 @@ void aws_napi_throw_last_error(napi_env env) {
     napi_throw_error(env, aws_error_str(error_code), aws_error_debug_str(error_code));
 }
 
+void aws_napi_throw_last_error_with_context(napi_env env, const char *context) {
+    const int error_code = aws_last_error();
+
+    char full_msg[1024];
+    snprintf(
+        full_msg,
+        AWS_ARRAY_SIZE(full_msg),
+        "%s : (%s - %s)",
+        context,
+        aws_error_str(error_code),
+        aws_error_debug_str(error_code));
+    napi_throw_error(env, aws_error_str(error_code), full_msg);
+}
+
 struct uv_loop_s *aws_napi_get_node_uv_loop(void) {
     return s_node_uv_loop;
 }
@@ -963,6 +978,12 @@ static bool s_module_initialized = false;
         return NULL;
     }
 
+    /*
+            bool done = false;
+            while (!done) {
+                ;
+            }
+    */
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -1037,6 +1058,16 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(io_input_stream_append)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_new)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_close)
+
+    /* MQTT5 Client */
+    CREATE_AND_REGISTER_FN(mqtt5_client_new)
+    CREATE_AND_REGISTER_FN(mqtt5_client_start)
+    CREATE_AND_REGISTER_FN(mqtt5_client_stop)
+    CREATE_AND_REGISTER_FN(mqtt5_client_subscribe)
+    CREATE_AND_REGISTER_FN(mqtt5_client_unsubscribe)
+    CREATE_AND_REGISTER_FN(mqtt5_client_publish)
+    CREATE_AND_REGISTER_FN(mqtt5_client_get_queue_statistics)
+    CREATE_AND_REGISTER_FN(mqtt5_client_close)
 
     /* MQTT Client */
     CREATE_AND_REGISTER_FN(mqtt_client_new)
