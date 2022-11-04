@@ -389,14 +389,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
-            const on_connect_error = (error: Error) => {
-                reject(new CrtError(error));
+            const on_connect_error = (error?: Error) => {
+                reject(new CrtError(error || new Error("Failed to connect. Credentials might have expired.")));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
+                this.connection.removeListener('end', on_connect_error);
                 resolve(connack.sessionPresent);
             });
             this.connection.once('error', on_connect_error);
+            this.connection.once('end', on_connect_error);
         });
     }
 
