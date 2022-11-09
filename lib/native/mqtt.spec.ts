@@ -120,3 +120,11 @@ conditional_test(Pkcs11Config.is_valid())('MQTT Native PKCS#11 Connect/Disconnec
 
     await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
 });
+
+
+conditional_test(Pkcs11Config.is_valid())('MQTT Native ECC key Connect/Disconnect', async () => {
+    const aws_opts: Config = await fetch_credentials();
+    const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.ecc_certificate, aws_opts.ecc_private_key);
+
+    await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
+});
