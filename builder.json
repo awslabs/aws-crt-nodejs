@@ -35,11 +35,17 @@
         "linux": {
             "architectures":
             {
-                "architectures": {
-                    "armv6": {
-                        "!pre_build_steps": [],
-                        "!test_steps": []
-                    }
+                "armv6": {
+                    "!pre_build_steps": [
+                        [
+                            "git",
+                            "submodule",
+                            "update",
+                            "--init",
+                            "--recursive"
+                        ]
+                    ],
+                    "!test_steps": []
                 }
             }
         }
