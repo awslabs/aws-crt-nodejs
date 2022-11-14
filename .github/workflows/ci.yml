@@ -7,7 +7,7 @@ on:
       - 'docs'
 
 env:
-  BUILDER_VERSION: ci_gap
+  BUILDER_VERSION: v0.9.21 # TODO: NEED UPDATE AFTER BUILDER GET MERGED
   BUILDER_SOURCE: releases
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
@@ -39,7 +39,7 @@ jobs:
         # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
     - name: Build ${{ env.PACKAGE_NAME }}
       run: |
-        aws s3 cp s3://aws-crt-test-stuff/ci/v0.9.21/linux-container-ci.sh ./linux-container-ci.sh && chmod a+x ./linux-container-ci.sh
+        aws s3 cp s3://aws-crt-test-stuff/ci/${{ env.BUILDER_VERSION }}/linux-container-ci.sh ./linux-container-ci.sh && chmod a+x ./linux-container-ci.sh
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
 
