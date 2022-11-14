@@ -33,8 +33,14 @@
             "enabled": false
         },
         "linux": {
-            "x86": {
-                "enabled": false
+            "architectures":
+            {
+                "architectures": {
+                    "armv6": {
+                        "!pre_build_steps": [],
+                        "!test_steps": []
+                    }
+                }
             }
         }
     },
