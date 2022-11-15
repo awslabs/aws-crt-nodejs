@@ -31,28 +31,6 @@
     "targets": {
         "android": {
             "enabled": false
-        },
-        "linux": {
-            "architectures":
-            {
-                "armv6": {
-                    "!pre_build_steps": [
-                        [
-                            "git",
-                            "submodule",
-                            "update",
-                            "--init",
-                            "--recursive"
-                        ]
-                    ],
-                    "!test_steps": [],
-                    "!cmake_args": [
-                        "-DCMAKE_BUILD_TYPE=Release",
-                        "-DBUILD_DEPS=ON",
-                        "-DBUILD_TESTING=OFF"
-                    ]
-                }
-            }
         }
     },
     "upstream": [],
@@ -68,14 +46,6 @@
         "pkcs11-test-setup"
     ],
     "build_steps": [
-        [
-            "where",
-            "node"
-        ],
-        [
-            "npm",
-            "version"
-        ],
         [
             "npm",
             "install",
