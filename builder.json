@@ -46,7 +46,15 @@
                         ]
                     ],
                     "!build_steps": [
-                        "build"
+                        [
+                            "node",
+                            "--version"
+                        ],
+                        [
+                            "node",
+                            "scripts/build.js",
+                            "-DAWS_WARNINGS_ARE_ERRORS=ON"
+                        ]
                     ],
                     "!test_steps": [],
                     "!cmake_args": [
