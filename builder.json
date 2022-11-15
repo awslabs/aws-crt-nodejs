@@ -45,17 +45,6 @@
                             "--recursive"
                         ]
                     ],
-                    "!build_steps": [
-                        [
-                            "node",
-                            "--version"
-                        ],
-                        [
-                            "node",
-                            "scripts/build.js",
-                            "-DAWS_WARNINGS_ARE_ERRORS=ON"
-                        ]
-                    ],
                     "!test_steps": [],
                     "!cmake_args": [
                         "-DCMAKE_BUILD_TYPE=Release",
@@ -80,8 +69,12 @@
     ],
     "build_steps": [
         [
+            "where",
+            "node"
+        ],
+        [
             "npm",
-            "--version"
+            "version"
         ],
         [
             "npm",
