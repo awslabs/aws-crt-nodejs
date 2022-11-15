@@ -45,6 +45,9 @@
                             "--recursive"
                         ]
                     ],
+                    "!build_steps": [
+                        "build"
+                    ],
                     "!test_steps": [],
                     "!cmake_args": [
                         "-DCMAKE_BUILD_TYPE=Release",
