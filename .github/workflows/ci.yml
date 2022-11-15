@@ -104,7 +104,7 @@ jobs:
           AWS_CMAKE_TOOLSET: v140
         run: |
           python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
-          python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-${{ matrix.arch }} --spec=downstream
+          python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-${{ matrix.arch }} --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-A${{ matrix.arch }}
 
   osx:
     runs-on: macos-11 # latest

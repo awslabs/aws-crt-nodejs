@@ -70,6 +70,10 @@
     "build_steps": [
         [
             "npm",
+            "--version"
+        ],
+        [
+            "npm",
             "install",
             "--unsafe-perm"
         ],
