@@ -7,8 +7,8 @@ on:
       - 'docs'
 
 env:
-  BUILDER_VERSION: ci_gap
-  BUILDER_SOURCE: channels
+  BUILDER_VERSION: v0.9.27
+  BUILDER_SOURCE: releases
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
   LINUX_BASE_IMAGE: ubuntu-18-x64
@@ -43,19 +43,6 @@ jobs:
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
 
-  linux-arm:
-    name: ARM (${{ matrix.arch }})
-    runs-on: ubuntu-20.04 # latest
-    strategy:
-      matrix:
-        arch: [armv6, armv7, arm64]
-    steps:
-      - name: Build ${{ env.PACKAGE_NAME }}
-        run: |
-          python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
-          chmod a+x builder
-          ./builder build -p ${{ env.PACKAGE_NAME }} --target=linux-${{ matrix.arch }} --spec=downstream
-
   linux-compiler-compat:
     runs-on: ubuntu-20.04 # latest
     strategy:
@@ -88,23 +75,6 @@ jobs:
       run: |
         python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
         python builder.pyz build -p ${{ env.PACKAGE_NAME }} --spec=downstream
-
-  windows-vc14:
-    runs-on: windows-2019 # windows-2019 is last env with Visual Studio 2015 (v14.0)
-    strategy:
-      matrix:
-        arch: [x86, x64]
-    steps:
-      - name: Checkout Sources
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-      - name: Build ${{ env.PACKAGE_NAME }} + consumers
-        env:
-          AWS_CMAKE_TOOLSET: v140
-        run: |
-          python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
-          python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-${{ matrix.arch }} --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-A${{ matrix.arch }}
 
   osx:
     runs-on: macos-11 # latest
