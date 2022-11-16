@@ -31,11 +31,6 @@
     "targets": {
         "android": {
             "enabled": false
-        },
-        "linux": {
-            "x86": {
-                "enabled": false
-            }
         }
     },
     "upstream": [],
