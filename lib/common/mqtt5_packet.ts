@@ -144,6 +144,15 @@ export enum ConnectReasonCode {
 }
 
 /**
+ * Determines if a reason code represents a successful connect operation
+ *
+ * @param reasonCode reason code to check success for
+ */
+export function isSuccessfulConnectReasonCode(reasonCode: ConnectReasonCode): boolean {
+    return reasonCode < 128;
+}
+
+/**
  * Reason code inside DISCONNECT packets.  Helps determine why a connection was terminated.
  *
  * Enum values match [MQTT5 spec](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901208) encoding values.
@@ -369,6 +378,15 @@ export enum DisconnectReasonCode {
 }
 
 /**
+ * Determines if a reason code represents a successful disconnect operation
+ *
+ * @param reasonCode reason code to check success for
+ */
+export function isSuccessfulDisconnectReasonCode(reasonCode: DisconnectReasonCode): boolean {
+    return reasonCode < 128;
+}
+
+/**
  * Reason codes inside SUBACK packet payloads that specify the results for each subscription in the associated
  * SUBSCRIBE packet.
  *
@@ -443,6 +461,15 @@ export enum SubackReasonCode {
 }
 
 /**
+ * Determines if a reason code represents a successful subscribe operation
+ *
+ * @param reasonCode reason code to check success for
+ */
+export function isSuccessfulSubackReasonCode(reasonCode: SubackReasonCode): boolean {
+    return reasonCode < 128;
+}
+
+/**
  * Reason codes inside UNSUBACK packet payloads that specify the results for each topic filter in the associated
  * UNSUBSCRIBE packet.
  *
@@ -485,6 +512,15 @@ export enum UnsubackReasonCode {
      * Returned when the packet identifier was already in use on the server.
      */
     PacketIdentifierInUse = 145,
+}
+
+/**
+ * Determines if a reason code represents a successful unsubscribe operation
+ *
+ * @param reasonCode reason code to check success for
+ */
+export function isSuccessfulUnsubackReasonCode(reasonCode: UnsubackReasonCode): boolean {
+    return reasonCode < 128;
 }
 
 /**
@@ -558,6 +594,15 @@ export enum PubackReasonCode {
      * May be sent by the client or the server.
      */
     PayloadFormatInvalid = 153,
+}
+
+/**
+ * Determines if a reason code represents a successful QoS 1 publish operation
+ *
+ * @param reasonCode reason code to check success for
+ */
+export function isSuccessfulPubackReasonCode(reasonCode: PubackReasonCode): boolean {
+    return reasonCode < 128;
 }
 
 /**

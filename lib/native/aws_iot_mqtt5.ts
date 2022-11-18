@@ -367,13 +367,13 @@ export class AwsIotMqtt5ClientConfigBuilder {
      * Overrides the time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE, or UNSUBSCRIBE before
      * failing the operation.  Defaults to no timeout.
      *
-     * @param operationTimeoutSeconds the time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE,
+     * @param ackTimeoutSeconds the time interval to wait for an ack after sending a QoS 1+ PUBLISH, SUBSCRIBE,
      * or UNSUBSCRIBE before failing the operation
      *
      * @group Node-only
      */
-    withOperationTimeoutSeconds(operationTimeoutSeconds? : number) : AwsIotMqtt5ClientConfigBuilder {
-        this.config.operationTimeoutSeconds = operationTimeoutSeconds;
+    withAckTimeoutSeconds(ackTimeoutSeconds? : number) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.ackTimeoutSeconds = ackTimeoutSeconds;
         return this;
     }
 

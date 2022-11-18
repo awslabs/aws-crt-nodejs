@@ -31,7 +31,8 @@ export {
     MessageReceivedEventListener,
     IMqtt5Client,
     ClientSessionBehavior,
-    RetryJitterType
+    RetryJitterType,
+    PublishCompletionResult
 } from "../common/mqtt5";
 
 /**
@@ -207,7 +208,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Node-only
      */
-    operationTimeoutSeconds? : number;
+    ackTimeoutSeconds? : number;
 
     /**
      * Client bootstrap to use.  In almost all cases, this can be left undefined.

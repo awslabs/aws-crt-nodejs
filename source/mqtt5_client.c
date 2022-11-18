@@ -71,7 +71,7 @@ static const char *AWS_NAPI_KEY_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS =
     "minConnectedTimeToResetReconnectDelayMs";
 static const char *AWS_NAPI_KEY_PING_TIMEOUT_MS = "pingTimeoutMs";
 static const char *AWS_NAPI_KEY_CONNACK_TIMEOUT_MS = "connackTimeoutMs";
-static const char *AWS_NAPI_KEY_OPERATION_TIMEOUT_SECONDS = "operationTimeoutSeconds";
+static const char *AWS_NAPI_KEY_ACK_TIMEOUT_SECONDS = "ackTimeoutSeconds";
 static const char *AWS_NAPI_KEY_CONNECT_PROPERTIES = "connectProperties";
 static const char *AWS_NAPI_KEY_WEBSOCKET_HANDSHAKE_TRANSFORM = "websocketHandshakeTransform";
 static const char *AWS_NAPI_KEY_SUBSCRIPTIONS = "subscriptions";
@@ -1921,10 +1921,7 @@ static int s_init_client_configuration_from_js_client_configuration(
         AWS_NAPI_KEY_CONNACK_TIMEOUT_MS,
         "s_init_client_configuration_from_js_client_configuration",
         aws_napi_get_named_property_as_uint32(
-            env,
-            node_client_config,
-            AWS_NAPI_KEY_OPERATION_TIMEOUT_SECONDS,
-            &client_options->operation_timeout_seconds),
+            env, node_client_config, AWS_NAPI_KEY_ACK_TIMEOUT_SECONDS, &client_options->ack_timeout_seconds),
         {});
 
     napi_value napi_value_connect = NULL;

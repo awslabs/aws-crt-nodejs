@@ -98,7 +98,7 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
         },
         offlineQueueBehavior: mqtt5.ClientOperationQueueBehavior.FailQos0PublishOnDisconnect,
         pingTimeoutMs: 30000,
-        operationTimeoutSeconds: 90,
+        ackTimeoutSeconds: 90,
         clientBootstrap: new ClientBootstrap(),
         socketOptions: new SocketOptions(SocketType.STREAM, SocketDomain.IPV4, 10000, true, 60, 60, 3),
         tlsCtx: new ClientTlsContext(tls_ctx_opt),
