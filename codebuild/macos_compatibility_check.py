@@ -6,7 +6,8 @@ import re
 def main():
     if sys.platform != 'darwin':
         print("WARNING: Not running on macos. Skip the compatibility validation.")
-        sys.exit(-1)
+        # Exit quietly if run on a non-darwin machine.
+        sys.exit(0)
 
     # Default target macos version setup in script/build.js, set by CMAKE_OSX_DEPLOYMENT_TARGET
     supported_version = "10.9"
