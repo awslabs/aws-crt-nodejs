@@ -91,7 +91,9 @@ jobs:
         node ./scripts/build --target-arch arm64 -DAWS_WARNINGS_ARE_ERRORS=ON
         test `lipo dist/bin/darwin-arm64/aws-crt-nodejs.node -archs` = "arm64"
         test `lipo dist/bin/darwin-x64/aws-crt-nodejs.node -archs` = "x86_64"
-
+      # check backward compatibility for macos
+        python3 codebuild/macos_compatibility_check.py arm64
+        python3 codebuild/macos_compatibility_check.py x64
 
   # check that docs can still build
   check-docs:
