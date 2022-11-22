@@ -1,0 +1,54 @@
+import sys
+import subprocess
+import os
+import re
+
+def main():
+    if sys.platform != 'darwin':
+        print("WARNING: Not running on macos. Skip the compatibility validation.")
+        # Exit quietly if run on a non-darwin machine.
+        sys.exit(0)
+
+    # Default target macos version setup in script/build.js, set by CMAKE_OSX_DEPLOYMENT_TARGET
+    supported_version = "10.9"
+    arch = "x64"
+
+    if len(sys.argv) > 1:
+        # Parsing the macos archtecture
+        arch = sys.argv[1]
+    else:
+        # If the archtecture is not set, set from "uname"
+        arch = os.uname().machine
+        print("uname result {}".format(arch))
+
+    lib_path = "dist/bin/darwin-{}/aws-crt-nodejs.node".format(arch)
+
+    if re.match(r'^(aarch64|armv[6-8]|arm64)', arch): # on arm
+        # The oldest version we can target on arm64 is 11.0
+        supported_version = "11.0"
+        # The script used "otool" to grab the version of the library. "otool" provides different formats on arm and x64
+        # on arm: we search for "minos"
+        # on x64: The format will be:
+        #   Load command 8
+        #   cmd LC_VERSION_MIN_MACOSX
+        #       cmdsize 16
+        #       version 10.9
+        #       sdk 12.1
+        #   Load command 9
+        otool_cmd = "otool -l {} | grep -E minos | tr -s ' ' | cut -f3 -d' ' | tr -d ' ' | tr -d '[:space:]'".format(lib_path)
+    else: # on x86_64
+        otool_cmd = "otool -l {} | grep -A3 \'LC_VERSION_MIN_MACOSX\' | grep -E version | tr -s ' ' | cut -f3 -d' ' | tr -d '[:space:]'".format(lib_path)
+
+    print("Start to validate the build binary for MacOS with architecture {}, expected min os version: {}".format(arch,supported_version))
+    result = subprocess.check_output(otool_cmd, shell=True).decode("utf-8")
+
+    if result != supported_version:
+        # Failed
+        print("Failed the compatibility validation on MacOS architecture {}, expected '{}' and built '{}'".format(arch, supported_version, result))
+        sys.exit(1)
+
+    print("Pass the compatibility validation on MacOS architecture {} with min supported os version '{}'".format(arch,result))
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
