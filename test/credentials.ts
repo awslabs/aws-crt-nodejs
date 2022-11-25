@@ -22,6 +22,9 @@ export class Config {
     public certificate = "";
     public private_key = "";
 
+    public ecc_certificate = "";
+    public ecc_private_key = "";
+
     public access_key = "";
     public secret_key = "";
     public session_token = "";
@@ -32,7 +35,9 @@ export class Config {
             && this.endpoint
             && this.access_key
             && this.secret_key
-            && this.session_token;
+            && this.session_token
+            && this.ecc_certificate
+            && this.ecc_private_key;
     }
 
     static _cached: Config;
@@ -96,6 +101,34 @@ export async function fetch_credentials(): Promise<Config> {
 
                 try {
                     config.private_key = data.SecretString as string;
+                } catch (err) {
+                    reject(err);
+                }
+
+                resolve_if_done();
+            });
+
+            client.getSecretValue({ SecretId: 'ecc-test/certificate' }, (error, data) => {
+                if (error) {
+                    reject(error);
+                }
+
+                try {
+                    config.ecc_certificate = data.SecretString as string;
+                } catch (err) {
+                    reject(err);
+                }
+
+                resolve_if_done();
+            });
+
+            client.getSecretValue({ SecretId: 'ecc-test/privatekey' }, (error, data) => {
+                if (error) {
+                    reject(error);
+                }
+
+                try {
+                    config.ecc_private_key = data.SecretString as string;
                 } catch (err) {
                     reject(err);
                 }
