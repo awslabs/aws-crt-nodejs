@@ -21,7 +21,7 @@
 	url = https://github.com/awslabs/s2n.git
 [submodule "aws-common-runtime/aws-c-mqtt"]
 	path = crt/aws-c-mqtt
-	url = git@github.com:awslabs/aws-c-mqtt-staging.git
+	url = https://github.com/awslabs/aws-c-mqtt.git
 [submodule "crt/aws-lc"]
 	path = crt/aws-lc
 	url = https://github.com/awslabs/aws-lc
