@@ -5,10 +5,8 @@
  */
 
 import * as mqtt from "mqtt";
-import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as mqtt_shared from "../common/mqtt_shared";
-import { ClientSessionBehavior, NegotiatedSettings } from "../common/mqtt5";
-import { Mqtt5ClientConfig } from "./mqtt5";
+import * as mqtt5 from "./mqtt5";
 import { CrtError } from "./error";
 
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
@@ -31,11 +29,11 @@ function set_defined_property(object: any, propertyName: string, value: any) : b
 }
 
 /** @internal */
-export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.IConnackPacket) : mqtt5_packet.ConnackPacket {
-    let connack : mqtt5_packet.ConnackPacket =  {
-        type: mqtt5_packet.PacketType.Connack,
+export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.IConnackPacket) : mqtt5.ConnackPacket {
+    let connack : mqtt5.ConnackPacket =  {
+        type: mqtt5.PacketType.Connack,
         sessionPresent: mqtt_js_connack.sessionPresent,
-        reasonCode : mqtt_js_connack.reasonCode ?? mqtt5_packet.ConnectReasonCode.Success
+        reasonCode : mqtt_js_connack.reasonCode ?? mqtt5.ConnectReasonCode.Success
     };
 
     set_defined_property(connack, "sessionExpiryInterval", mqtt_js_connack.properties?.sessionExpiryInterval);
@@ -58,9 +56,9 @@ export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.I
 }
 
 /** @internal */
-export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: mqtt5_packet.ConnackPacket) : NegotiatedSettings {
+export function create_negotiated_settings(config : mqtt5.Mqtt5ClientConfig, connack: mqtt5.ConnackPacket) : mqtt5.NegotiatedSettings {
     return {
-        maximumQos: Math.min(connack.maximumQos ?? mqtt5_packet.QoS.ExactlyOnce, mqtt5_packet.QoS.AtLeastOnce),
+        maximumQos: Math.min(connack.maximumQos ?? mqtt5.QoS.ExactlyOnce, mqtt5.QoS.AtLeastOnce),
         sessionExpiryInterval: connack.sessionExpiryInterval ?? config.connectProperties?.sessionExpiryIntervalSeconds ?? 0,
         receiveMaximumFromServer: connack.receiveMaximum ?? DEFAULT_RECEIVE_MAXIMUM,
         maximumPacketSizeToServer: connack.maximumPacketSize ?? MAXIMUM_PACKET_SIZE,
@@ -75,18 +73,18 @@ export function create_negotiated_settings(config : Mqtt5ClientConfig, connack: 
 }
 
 /** @internal */
-function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5_packet.ConnectPacket) : any {
+function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5.ConnectPacket) : any {
     if (!connectProperties || !connectProperties.will) {
         return undefined;
     }
 
-    let crtWill : mqtt5_packet.PublishPacket = connectProperties.will;
+    let crtWill : mqtt5.PublishPacket = connectProperties.will;
 
     let hasWillProperties : boolean = false;
     let willProperties : any = {};
     hasWillProperties = set_defined_property(willProperties, "willDelayInterval", connectProperties.willDelayIntervalSeconds) || hasWillProperties;
     if (crtWill.payloadFormat !== undefined) {
-        hasWillProperties = set_defined_property(willProperties, "payloadFormatIndicator", crtWill.payloadFormat == mqtt5_packet.PayloadFormatIndicator.Utf8) || hasWillProperties;
+        hasWillProperties = set_defined_property(willProperties, "payloadFormatIndicator", crtWill.payloadFormat == mqtt5.PayloadFormatIndicator.Utf8) || hasWillProperties;
     }
     hasWillProperties = set_defined_property(willProperties, "messageExpiryInterval", crtWill.messageExpiryIntervalSeconds) || hasWillProperties;
     hasWillProperties = set_defined_property(willProperties, "contentType", crtWill.contentType) || hasWillProperties;
@@ -120,8 +118,8 @@ export function getOrderedReconnectDelayBounds(configMin?: number, configMax?: n
 }
 
 /** @internal */
-function should_mqtt_js_use_clean_start(session_behavior? : ClientSessionBehavior) : boolean {
-    return session_behavior !== ClientSessionBehavior.RejoinPostSuccess;
+function should_mqtt_js_use_clean_start(session_behavior? : mqtt5.ClientSessionBehavior) : boolean {
+    return session_behavior !== mqtt5.ClientSessionBehavior.RejoinPostSuccess;
 }
 
 /** @internal */
@@ -169,7 +167,7 @@ function validate_optional_nonnegative_uint32(propertyName : string, value?: num
     }
 }
 
-function validate_mqtt5_client_config(crtConfig : Mqtt5ClientConfig) {
+function validate_mqtt5_client_config(crtConfig : mqtt5.Mqtt5ClientConfig) {
     validate_required_uint16("keepAliveIntervalSeconds", crtConfig.connectProperties?.keepAliveIntervalSeconds ?? 0);
     validate_optional_uint32("sessionExpiryIntervalSeconds", crtConfig.connectProperties?.sessionExpiryIntervalSeconds);
     validate_optional_uint16("receiveMaximum", crtConfig.connectProperties?.receiveMaximum);
@@ -178,7 +176,7 @@ function validate_mqtt5_client_config(crtConfig : Mqtt5ClientConfig) {
 }
 
 /** @internal */
-export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : Mqtt5ClientConfig) : mqtt.IClientOptions {
+export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : mqtt5.Mqtt5ClientConfig) : mqtt.IClientOptions {
 
     validate_mqtt5_client_config(crtConfig);
 
@@ -227,7 +225,7 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
 }
 
 /** @internal */
-export function transform_crt_user_properties_to_mqtt_js_user_properties(userProperties?: mqtt5_packet.UserProperty[]) : mqtt.UserProperties | undefined {
+export function transform_crt_user_properties_to_mqtt_js_user_properties(userProperties?: mqtt5.UserProperty[]) : mqtt.UserProperties | undefined {
     if (!userProperties) {
         return undefined;
     }
@@ -250,12 +248,12 @@ export function transform_crt_user_properties_to_mqtt_js_user_properties(userPro
 }
 
 /** @internal */
-export function transform_mqtt_js_user_properties_to_crt_user_properties(userProperties?: mqtt.UserProperties) : mqtt5_packet.UserProperty[] | undefined {
+export function transform_mqtt_js_user_properties_to_crt_user_properties(userProperties?: mqtt.UserProperties) : mqtt5.UserProperty[] | undefined {
     if (!userProperties) {
         return undefined;
     }
 
-    let crtProperties : mqtt5_packet.UserProperty[] | undefined = undefined;
+    let crtProperties : mqtt5.UserProperty[] | undefined = undefined;
 
     for (const [propName, propValue] of Object.entries(userProperties)) {
 
@@ -273,12 +271,12 @@ export function transform_mqtt_js_user_properties_to_crt_user_properties(userPro
     return crtProperties;
 }
 
-function validate_crt_disconnect(disconnect: mqtt5_packet.DisconnectPacket) {
+function validate_crt_disconnect(disconnect: mqtt5.DisconnectPacket) {
     validate_optional_uint32("sessionExpiryIntervalSeconds", disconnect.sessionExpiryIntervalSeconds);
 }
 
 /** @internal */
-export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5_packet.DisconnectPacket) : mqtt.IDisconnectPacket {
+export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5.DisconnectPacket) : mqtt.IDisconnectPacket {
 
     validate_crt_disconnect(disconnect);
 
@@ -303,11 +301,11 @@ export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5
 }
 
 /** @internal **/
-export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.IDisconnectPacket) : mqtt5_packet.DisconnectPacket {
+export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.IDisconnectPacket) : mqtt5.DisconnectPacket {
 
-    let crtDisconnect : mqtt5_packet.DisconnectPacket = {
-        type: mqtt5_packet.PacketType.Disconnect,
-        reasonCode : disconnect.reasonCode ?? mqtt5_packet.DisconnectReasonCode.NormalDisconnection
+    let crtDisconnect : mqtt5.DisconnectPacket = {
+        type: mqtt5.PacketType.Disconnect,
+        reasonCode : disconnect.reasonCode ?? mqtt5.DisconnectReasonCode.NormalDisconnection
     };
 
     set_defined_property(crtDisconnect, "sessionExpiryIntervalSeconds", disconnect.properties?.sessionExpiryInterval);
@@ -318,12 +316,12 @@ export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.
     return crtDisconnect;
 }
 
-function validate_crt_subscribe(subscribe: mqtt5_packet.SubscribePacket) {
+function validate_crt_subscribe(subscribe: mqtt5.SubscribePacket) {
     validate_optional_uint32("subscriptionIdentifier", subscribe.subscriptionIdentifier);
 }
 
 /** @internal **/
-export function transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe: mqtt5_packet.SubscribePacket) : mqtt.ISubscriptionMap {
+export function transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe: mqtt5.SubscribePacket) : mqtt.ISubscriptionMap {
 
     validate_crt_subscribe(subscribe);
 
@@ -334,7 +332,7 @@ export function transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe: m
             qos: subscription.qos,
             nl : subscription.noLocal ?? false,
             rap: subscription.retainAsPublished ?? false,
-            rh: subscription.retainHandlingType ?? mqtt5_packet.RetainHandlingType.SendOnSubscribe
+            rh: subscription.retainHandlingType ?? mqtt5.RetainHandlingType.SendOnSubscribe
         };
 
         subscriptionMap[subscription.topicFilter] = mqttJsSub;
@@ -344,7 +342,7 @@ export function transform_crt_subscribe_to_mqtt_js_subscription_map(subscribe: m
 }
 
 /** @internal **/
-export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: mqtt5_packet.SubscribePacket) : mqtt.IClientSubscribeOptions {
+export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: mqtt5.SubscribePacket) : mqtt.IClientSubscribeOptions {
 
     let properties = {};
     let propertiesValid : boolean = false;
@@ -364,11 +362,11 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
 }
 
 /** @internal **/
-export function transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted: mqtt.ISubscriptionGrant[]) : mqtt5_packet.SubackPacket {
+export function transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted: mqtt.ISubscriptionGrant[]) : mqtt5.SubackPacket {
 
-    let crtSuback : mqtt5_packet.SubackPacket = {
-        type: mqtt5_packet.PacketType.Suback,
-        reasonCodes : subscriptionsGranted.map((subscription: mqtt.ISubscriptionGrant, index: number, array : mqtt.ISubscriptionGrant[]) : mqtt5_packet.SubackReasonCode => { return subscription.qos; })
+    let crtSuback : mqtt5.SubackPacket = {
+        type: mqtt5.PacketType.Suback,
+        reasonCodes : subscriptionsGranted.map((subscription: mqtt.ISubscriptionGrant, index: number, array : mqtt.ISubscriptionGrant[]) : mqtt5.SubackReasonCode => { return subscription.qos; })
     }
 
     /*
@@ -382,12 +380,12 @@ export function transform_mqtt_js_subscription_grants_to_crt_suback(subscription
     return crtSuback;
 }
 
-function validate_crt_publish(publish: mqtt5_packet.PublishPacket) {
+function validate_crt_publish(publish: mqtt5.PublishPacket) {
     validate_optional_uint32("messageExpiryIntervalSeconds", publish.messageExpiryIntervalSeconds);
 }
 
 /** @internal */
-export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5_packet.PublishPacket) : mqtt.IClientPublishOptions {
+export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5.PublishPacket) : mqtt.IClientPublishOptions {
 
     validate_crt_publish(publish);
 
@@ -395,7 +393,7 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5_
     let propertiesValid : boolean = false;
 
     if (publish.payloadFormat !== undefined) {
-        propertiesValid = set_defined_property(properties, "payloadFormatIndicator", publish.payloadFormat == mqtt5_packet.PayloadFormatIndicator.Utf8) || propertiesValid;
+        propertiesValid = set_defined_property(properties, "payloadFormatIndicator", publish.payloadFormat == mqtt5.PayloadFormatIndicator.Utf8) || propertiesValid;
     }
     propertiesValid = set_defined_property(properties, "messageExpiryInterval", publish.messageExpiryIntervalSeconds) || propertiesValid;
     propertiesValid = set_defined_property(properties, "responseTopic", publish.responseTopic) || propertiesValid;
@@ -416,10 +414,10 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5_
 }
 
 /** @internal **/
-export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishPacket) : mqtt5_packet.PublishPacket {
+export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishPacket) : mqtt5.PublishPacket {
 
-    let crtPublish : mqtt5_packet.PublishPacket = {
-        type: mqtt5_packet.PacketType.Publish,
+    let crtPublish : mqtt5.PublishPacket = {
+        type: mqtt5.PacketType.Publish,
         qos: publish.qos,
         retain: publish.retain,
         topicName: publish.topic,
@@ -428,7 +426,7 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 
     if (publish.properties) {
         if (publish.properties.payloadFormatIndicator !== undefined) {
-            set_defined_property(crtPublish, "payloadFormat", publish.properties.payloadFormatIndicator ? mqtt5_packet.PayloadFormatIndicator.Utf8 : mqtt5_packet.PayloadFormatIndicator.Bytes);
+            set_defined_property(crtPublish, "payloadFormat", publish.properties.payloadFormatIndicator ? mqtt5.PayloadFormatIndicator.Utf8 : mqtt5.PayloadFormatIndicator.Bytes);
         }
         set_defined_property(crtPublish, "messageExpiryIntervalSeconds", publish.properties?.messageExpiryInterval);
         set_defined_property(crtPublish, "responseTopic", publish.properties?.responseTopic);
@@ -451,11 +449,11 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 }
 
 /** @internal **/
-export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacket) : mqtt5_packet.PubackPacket {
+export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacket) : mqtt5.PubackPacket {
 
-    let crtPuback : mqtt5_packet.PubackPacket = {
-        type: mqtt5_packet.PacketType.Puback,
-        reasonCode: puback.reasonCode ?? mqtt5_packet.PubackReasonCode.Success,
+    let crtPuback : mqtt5.PubackPacket = {
+        type: mqtt5.PacketType.Puback,
+        reasonCode: puback.reasonCode ?? mqtt5.PubackReasonCode.Success,
     };
 
     if (puback.properties) {
@@ -467,7 +465,7 @@ export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacke
 }
 
 /** @internal **/
-export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubscribe: mqtt5_packet.UnsubscribePacket) : Object {
+export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubscribe: mqtt5.UnsubscribePacket) : Object {
 
     let properties = {};
     let propertiesValid : boolean = false;
@@ -484,7 +482,7 @@ export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubsc
 }
 
 /** @internal **/
-export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubackPacket) : mqtt5_packet.UnsubackPacket {
+export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubackPacket) : mqtt5.UnsubackPacket {
 
     let reasonCodes : number | number[] | undefined = packet.reasonCode;
 
@@ -497,8 +495,8 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
         codes = [];
     }
 
-    let crtUnsuback : mqtt5_packet.UnsubackPacket = {
-        type: mqtt5_packet.PacketType.Unsuback,
+    let crtUnsuback : mqtt5.UnsubackPacket = {
+        type: mqtt5.PacketType.Unsuback,
         reasonCodes : codes
     }
 

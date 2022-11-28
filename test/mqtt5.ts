@@ -3,10 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {Mqtt5Client, Mqtt5ClientConfig} from "@awscrt/mqtt5";
-import * as mqtt5_common from "../lib/common/mqtt5";
-import * as mqtt5_packet from "../lib/common/mqtt5_packet";
-import {DisconnectReasonCode, QoS} from "../lib/common/mqtt5_packet";
+import * as mqtt5 from "@awscrt/mqtt5";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
 
@@ -38,7 +35,7 @@ export enum ConnectionFailureTestType {
     WS_MQTT_HANDSHAKE_TRANSFORM_FAILURE
 }
 
-export type CreateBaseMqtt5ClientConfig = (testType: SuccessfulConnectionTestType) => Mqtt5ClientConfig;
+export type CreateBaseMqtt5ClientConfig = (testType: SuccessfulConnectionTestType) => mqtt5.Mqtt5ClientConfig;
 
 export class ClientEnvironmentalConfig {
 
@@ -171,8 +168,8 @@ export class ClientEnvironmentalConfig {
             ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType) != 0;
     }
 
-    public static getSuccessfulConnectionTestConfig(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) : Mqtt5ClientConfig {
-        let config : Mqtt5ClientConfig = createConfigCallback(testType);
+    public static getSuccessfulConnectionTestConfig(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) : mqtt5.Mqtt5ClientConfig {
+        let config : mqtt5.Mqtt5ClientConfig = createConfigCallback(testType);
 
         config.hostName = ClientEnvironmentalConfig.getSuccessfulConnectionTestHost(testType);
         config.port = ClientEnvironmentalConfig.getSuccessfulConnectionTestPort(testType);
@@ -191,7 +188,7 @@ export class ClientEnvironmentalConfig {
 
 export const conditional_test = (condition : boolean) => condition ? it : it.skip;
 
-export async function testConnect(client : Mqtt5Client) {
+export async function testConnect(client : mqtt5.Mqtt5Client) {
 
     const attemptingConnect = once(client, "attemptingConnect");
     const connectionSuccess = once(client, "connectionSuccess");
@@ -199,10 +196,10 @@ export async function testConnect(client : Mqtt5Client) {
     client.start();
 
     await attemptingConnect;
-    let connectionResults = await connectionSuccess;
+    let connectionSuccessEvent: mqtt5.ConnectionSuccessEvent = (await connectionSuccess)[0];
 
-    expect(connectionResults[0]).toBeDefined();
-    expect(connectionResults[1]).toBeDefined();
+    expect(connectionSuccessEvent.settings).toBeDefined();
+    expect(connectionSuccessEvent.connack).toBeDefined();
 
     const disconnection = once(client, "disconnection");
     const stopped = once(client, "stopped");
@@ -217,23 +214,23 @@ export async function testConnect(client : Mqtt5Client) {
 
 export async function testSuccessfulConnection(testType : SuccessfulConnectionTestType, createConfigCallback: CreateBaseMqtt5ClientConfig) {
 
-    const client_config : Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, createConfigCallback);
+    const client_config : mqtt5.Mqtt5ClientConfig = ClientEnvironmentalConfig.getSuccessfulConnectionTestConfig(testType, createConfigCallback);
 
-    await testConnect(new Mqtt5Client(client_config));
+    await testConnect(new mqtt5.Mqtt5Client(client_config));
 }
 
-export async function testFailedConnection(client : Mqtt5Client) {
+export async function testFailedConnection(client : mqtt5.Mqtt5Client) {
     const attemptingConnect = once(client, "attemptingConnect");
     const connectionFailure = once(client, "connectionFailure");
 
     client.start();
 
     await attemptingConnect;
-    let [error, connack] = await connectionFailure;
+    let connectionFailureEvent: mqtt5.ConnectionFailureEvent = (await connectionFailure)[0];
 
-    expect(error).toBeDefined();
-    if (connack !== null) {
-        expect(connack?.reasonCode).toBeGreaterThanOrEqual(128);
+    expect(connectionFailureEvent.error).toBeDefined();
+    if (connectionFailureEvent.connack !== undefined) {
+        expect(connectionFailureEvent.connack?.reasonCode).toBeGreaterThanOrEqual(128);
     }
 
     const stopped = once(client, "stopped");
@@ -245,8 +242,8 @@ export async function testFailedConnection(client : Mqtt5Client) {
     client.close();
 }
 
-export async function testDisconnectValidationFailure(client : Mqtt5Client, sessionExpiry: number) {
-    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+export async function testDisconnectValidationFailure(client : mqtt5.Mqtt5Client, sessionExpiry: number) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
 
     client.start();
 
@@ -254,12 +251,12 @@ export async function testDisconnectValidationFailure(client : Mqtt5Client, sess
 
     expect(() => {
         client.stop({
-            reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
+            reasonCode: mqtt5.DisconnectReasonCode.NormalDisconnection,
             sessionExpiryIntervalSeconds: sessionExpiry
         });
     }).toThrow();
 
-    let stopped = once(client, Mqtt5Client.STOPPED);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.stop();
     await stopped;
@@ -267,8 +264,8 @@ export async function testDisconnectValidationFailure(client : Mqtt5Client, sess
     client.close();
 }
 
-export async function testPublishValidationFailure(client : Mqtt5Client, messageExpiry: number) {
-    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+export async function testPublishValidationFailure(client : mqtt5.Mqtt5Client, messageExpiry: number) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
 
     client.start();
 
@@ -276,11 +273,11 @@ export async function testPublishValidationFailure(client : Mqtt5Client, message
 
     await expect(client.publish({
         topicName: "a/topic",
-        qos: mqtt5_packet.QoS.AtMostOnce,
+        qos: mqtt5.QoS.AtMostOnce,
         messageExpiryIntervalSeconds: messageExpiry
     })).rejects.toThrow();
 
-    let stopped = once(client, Mqtt5Client.STOPPED);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.stop();
     await stopped;
@@ -288,8 +285,8 @@ export async function testPublishValidationFailure(client : Mqtt5Client, message
     client.close();
 }
 
-export async function testSubscribeValidationFailure(client : Mqtt5Client, subscriptionIdentifier: number) {
-    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
+export async function testSubscribeValidationFailure(client : mqtt5.Mqtt5Client, subscriptionIdentifier: number) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
 
     client.start();
 
@@ -297,12 +294,12 @@ export async function testSubscribeValidationFailure(client : Mqtt5Client, subsc
 
     await expect(client.subscribe({
         subscriptions: [
-            { topicFilter: "hello/there", qos: QoS.AtLeastOnce }
+            { topicFilter: "hello/there", qos: mqtt5.QoS.AtLeastOnce }
         ],
         subscriptionIdentifier: subscriptionIdentifier
     })).rejects.toThrow();
 
-    let stopped = once(client, Mqtt5Client.STOPPED);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.stop();
     await stopped;
@@ -310,8 +307,8 @@ export async function testSubscribeValidationFailure(client : Mqtt5Client, subsc
     client.close();
 }
 
-export function verifyCommonNegotiatedSettings(settings: mqtt5_common.NegotiatedSettings) {
-    expect(settings.maximumQos).toEqual(mqtt5_packet.QoS.AtLeastOnce);
+export function verifyCommonNegotiatedSettings(settings: mqtt5.NegotiatedSettings) {
+    expect(settings.maximumQos).toEqual(mqtt5.QoS.AtLeastOnce);
     expect(settings.sessionExpiryInterval).toBeDefined();
     expect(settings.receiveMaximumFromServer).toBeDefined();
     expect(settings.maximumPacketSizeToServer).toEqual(268435460);
@@ -325,34 +322,34 @@ export function verifyCommonNegotiatedSettings(settings: mqtt5_common.Negotiated
     expect(settings.sessionExpiryInterval).toBeDefined();
 }
 
-export async function testNegotiatedSettings(client: Mqtt5Client) : Promise<mqtt5_common.NegotiatedSettings> {
-    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped = once(client, Mqtt5Client.STOPPED)
+export async function testNegotiatedSettings(client: mqtt5.Mqtt5Client) : Promise<mqtt5.NegotiatedSettings> {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED)
 
-    return new Promise<mqtt5_common.NegotiatedSettings>(async (resolve, reject) => {
+    return new Promise<mqtt5.NegotiatedSettings>(async (resolve, reject) => {
         try {
             client.start();
 
-            let [_, settings] = await connectionSuccess;
+            let connectionSuccessEvent : mqtt5.ConnectionSuccessEvent = (await connectionSuccess)[0];
 
             client.stop();
             await stopped;
 
             client.close();
 
-            verifyCommonNegotiatedSettings(settings);
+            verifyCommonNegotiatedSettings(connectionSuccessEvent.settings);
 
-            resolve(settings);
+            resolve(connectionSuccessEvent.settings);
         } catch (err) {
             reject(err);
         }
     });
 }
 
-export async function subPubUnsubTest(client: Mqtt5Client, qos: mqtt5_packet.QoS, topic: string, testPayload: mqtt5_packet.Payload) {
-    let connectionSuccess = once(client, Mqtt5Client.CONNECTION_SUCCESS);
-    let messageReceived = once(client, Mqtt5Client.MESSAGE_RECEIVED);
-    let stopped = once(client, Mqtt5Client.STOPPED);
+export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let messageReceived = once(client, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.start();
 
@@ -360,7 +357,7 @@ export async function subPubUnsubTest(client: Mqtt5Client, qos: mqtt5_packet.QoS
 
     await client.subscribe({
         subscriptions: [
-            { qos : QoS.AtLeastOnce, topicFilter: topic }
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
 
@@ -378,7 +375,7 @@ export async function subPubUnsubTest(client: Mqtt5Client, qos: mqtt5_packet.QoS
 
     await client.publish({
         topicName: topic,
-        qos: QoS.AtLeastOnce,
+        qos: mqtt5.QoS.AtLeastOnce,
         payload: testPayload
     });
 
@@ -390,13 +387,13 @@ export async function subPubUnsubTest(client: Mqtt5Client, qos: mqtt5_packet.QoS
     client.close();
 }
 
-export async function willTest(publisher: Mqtt5Client, subscriber: Mqtt5Client, willTopic: string) {
-    let publisherConnected = once(publisher, Mqtt5Client.CONNECTION_SUCCESS);
-    let publisherStopped = once(publisher, Mqtt5Client.STOPPED);
-    let subscriberConnected = once(subscriber, Mqtt5Client.CONNECTION_SUCCESS);
-    let subscriberStopped = once(subscriber, Mqtt5Client.STOPPED);
+export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.Mqtt5Client, willTopic: string) {
+    let publisherConnected = once(publisher, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let publisherStopped = once(publisher, mqtt5.Mqtt5Client.STOPPED);
+    let subscriberConnected = once(subscriber, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let subscriberStopped = once(subscriber, mqtt5.Mqtt5Client.STOPPED);
 
-    let willReceived = once(subscriber, Mqtt5Client.MESSAGE_RECEIVED);
+    let willReceived = once(subscriber, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
 
     publisher.start();
     await publisherConnected;
@@ -406,12 +403,12 @@ export async function willTest(publisher: Mqtt5Client, subscriber: Mqtt5Client, 
 
     await subscriber.subscribe({
         subscriptions: [
-            { qos : QoS.AtLeastOnce, topicFilter: willTopic }
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: willTopic }
         ]
     });
 
     publisher.stop({
-        reasonCode: DisconnectReasonCode.DisconnectWithWillMessage
+        reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
     });
 
     await willReceived;
@@ -424,9 +421,9 @@ export async function willTest(publisher: Mqtt5Client, subscriber: Mqtt5Client, 
     subscriber.close();
 }
 
-export async function nullSubscribeTest(client: Mqtt5Client) {
-    let connected = once(client, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped = once(client, Mqtt5Client.STOPPED);
+export async function nullSubscribeTest(client: mqtt5.Mqtt5Client) {
+    let connected = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.start();
     await connected;
@@ -440,9 +437,9 @@ export async function nullSubscribeTest(client: Mqtt5Client) {
     client.close();
 }
 
-export async function nullUnsubscribeTest(client: Mqtt5Client) {
-    let connected = once(client, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped = once(client, Mqtt5Client.STOPPED);
+export async function nullUnsubscribeTest(client: mqtt5.Mqtt5Client) {
+    let connected = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.start();
     await connected;
@@ -456,9 +453,9 @@ export async function nullUnsubscribeTest(client: Mqtt5Client) {
     client.close();
 }
 
-export async function nullPublishTest(client: Mqtt5Client) {
-    let connected = once(client, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped = once(client, Mqtt5Client.STOPPED);
+export async function nullPublishTest(client: mqtt5.Mqtt5Client) {
+    let connected = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
 
     client.start();
     await connected;
@@ -472,19 +469,19 @@ export async function nullPublishTest(client: Mqtt5Client) {
     client.close();
 }
 
-export async function doRetainTest(client1: Mqtt5Client, client2: Mqtt5Client, client3: Mqtt5Client) {
+export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mqtt5Client, client3: mqtt5.Mqtt5Client) {
 
     let retainTopic : string = `retain/topic-${uuid()}`;
     let retainedPayload : Buffer = Buffer.from("RetainedPayload", "utf-8");
 
-    let connected1 = once(client1, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped1 = once(client1, Mqtt5Client.STOPPED);
+    let connected1 = once(client1, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped1 = once(client1, mqtt5.Mqtt5Client.STOPPED);
 
-    let connected2 = once(client2, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped2 = once(client2, Mqtt5Client.STOPPED);
+    let connected2 = once(client2, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped2 = once(client2, mqtt5.Mqtt5Client.STOPPED);
 
-    let connected3 = once(client3, Mqtt5Client.CONNECTION_SUCCESS);
-    let stopped3 = once(client3, Mqtt5Client.STOPPED);
+    let connected3 = once(client3, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped3 = once(client3, mqtt5.Mqtt5Client.STOPPED);
 
     // Connect with client1 and set the retained message
     client1.start();
@@ -492,28 +489,29 @@ export async function doRetainTest(client1: Mqtt5Client, client2: Mqtt5Client, c
 
     await client1.publish({
         topicName: retainTopic,
-        qos: QoS.AtLeastOnce,
+        qos: mqtt5.QoS.AtLeastOnce,
         payload: retainedPayload,
         retain: true
     });
 
     // Connect with client2, subscribe to the retained topic and expect the appropriate retained message to be
     // delivered after subscription
-    let messageReceived2 = once(client2, Mqtt5Client.MESSAGE_RECEIVED);
+    let messageReceived2 = once(client2, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
 
     client2.start();
 
     await connected2;
     await client2.subscribe({
         subscriptions: [
-            {topicFilter: retainTopic, qos: QoS.AtLeastOnce}
+            {topicFilter: retainTopic, qos: mqtt5.QoS.AtLeastOnce}
         ]
     });
 
-    let publish: mqtt5_packet.PublishPacket = (await messageReceived2)[0];
+    let messageReceivedEvent : mqtt5.MessageReceivedEvent = (await messageReceived2)[0];
+    let publish: mqtt5.PublishPacket = messageReceivedEvent.message;
 
     expect(publish.topicName).toEqual(retainTopic);
-    expect(publish.qos).toEqual(QoS.AtLeastOnce);
+    expect(publish.qos).toEqual(mqtt5.QoS.AtLeastOnce);
     expect(Buffer.from(publish.payload as ArrayBuffer)).toEqual(retainedPayload);
 
     client2.stop();
@@ -523,21 +521,21 @@ export async function doRetainTest(client1: Mqtt5Client, client2: Mqtt5Client, c
     // Clear the retained message
     await client1.publish({
         topicName: retainTopic,
-        qos: QoS.AtLeastOnce,
+        qos: mqtt5.QoS.AtLeastOnce,
         retain: true
     });
 
     // Connect with client 3, subscribe to the retained topic, wait a few seconds to ensure no message received
     client3.start();
 
-    client3.on('messageReceived', (publish: mqtt5_packet.PublishPacket) => {
+    client3.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
         throw new Error("This shouldn't happen!");
     });
 
     await connected3;
     await client3.subscribe({
         subscriptions: [
-            {topicFilter: retainTopic, qos: QoS.AtLeastOnce}
+            {topicFilter: retainTopic, qos: mqtt5.QoS.AtLeastOnce}
         ]
     });
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {mqtt5, mqtt5_packet, ICrtError, aws_iot_mqtt5} from "aws-crt";
+import {mqtt5, ICrtError, iot} from "aws-crt";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
 
@@ -39,21 +39,21 @@ yargs.command('*', false, (yargs: any) => {
 }, main).parse();
 
 function creatClientConfig(args : any) : mqtt5.Mqtt5ClientConfig {
-    let builder : aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder | undefined = undefined;
+    let builder : iot.AwsIotMqtt5ClientConfigBuilder | undefined = undefined;
 
     if (args.key && args.cert) {
-        builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
+        builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
             args.endpoint,
             args.cert,
             args.key
         );
     } else {
-        let wsOptions : aws_iot_mqtt5.WebsocketSigv4Config | undefined = undefined;
+        let wsOptions : iot.WebsocketSigv4Config | undefined = undefined;
         if (args.region) {
             wsOptions = { region: args.region };
         }
 
-        builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
+        builder = iot.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
             args.endpoint,
             // the region extraction logic does not work for gamma endpoint formats so pass in region manually
             wsOptions
@@ -79,35 +79,35 @@ function createClient(args: any) : mqtt5.Mqtt5Client {
         console.log("Error event: " + error.toString());
     });
 
-    client.on("messageReceived",(message: mqtt5_packet.PublishPacket) : void => {
-        console.log("Message Received event: " + JSON.stringify(message));
+    client.on("messageReceived",(eventData: mqtt5.MessageReceivedEvent) : void => {
+        console.log("Message Received event: " + JSON.stringify(eventData.message));
     } );
 
-    client.on('attemptingConnect', () => {
+    client.on('attemptingConnect', (eventData: mqtt5.AttemptingConnectEvent) => {
         console.log("Attempting Connect event");
     });
 
-    client.on('connectionSuccess', (connack: mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) => {
+    client.on('connectionSuccess', (eventData: mqtt5.ConnectionSuccessEvent) => {
         console.log("Connection Success event");
-        console.log ("Connack: " + JSON.stringify(connack));
-        console.log ("Settings: " + JSON.stringify(settings));
+        console.log ("Connack: " + JSON.stringify(eventData.connack));
+        console.log ("Settings: " + JSON.stringify(eventData.settings));
     });
 
-    client.on('connectionFailure', (error: ICrtError, connack?: mqtt5_packet.ConnackPacket) => {
-        console.log("Connection failure event: " + error.toString());
-        if (connack) {
-            console.log ("Connack: " + JSON.stringify(connack));
+    client.on('connectionFailure', (eventData: mqtt5.ConnectionFailureEvent) => {
+        console.log("Connection failure event: " + eventData.error.toString());
+        if (eventData.connack) {
+            console.log ("Connack: " + JSON.stringify(eventData.connack));
         }
     });
 
-    client.on('disconnection', (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => {
-        console.log("Disconnection event: " + error.toString());
-        if (disconnect !== undefined) {
-            console.log('Disconnect packet: ' + JSON.stringify(disconnect));
+    client.on('disconnection', (eventData: mqtt5.DisconnectionEvent) => {
+        console.log("Disconnection event: " + eventData.error.toString());
+        if (eventData.disconnect !== undefined) {
+            console.log('Disconnect packet: ' + JSON.stringify(eventData.disconnect));
         }
     });
 
-    client.on('stopped', () => {
+    client.on('stopped', (eventData: mqtt5.StoppedEvent) => {
         console.log("Stopped event");
     });
 
@@ -126,14 +126,14 @@ async function runSample(args : any) {
 
     const suback = await client.subscribe({
         subscriptions: [
-            { qos: mqtt5_packet.QoS.AtLeastOnce, topicFilter: "hello/world/qos1" },
-            { qos: mqtt5_packet.QoS.AtMostOnce, topicFilter: "hello/world/qos0" }
+            { qos: mqtt5.QoS.AtLeastOnce, topicFilter: "hello/world/qos1" },
+            { qos: mqtt5.QoS.AtMostOnce, topicFilter: "hello/world/qos0" }
         ]
     });
     console.log('Suback result: ' + JSON.stringify(suback));
 
     const qos0PublishResult = await client.publish({
-        qos: mqtt5_packet.QoS.AtMostOnce,
+        qos: mqtt5.QoS.AtMostOnce,
         topicName: "hello/world/qos0",
         payload: "This is a qos 0 payload",
         userProperties: [
@@ -143,7 +143,7 @@ async function runSample(args : any) {
     console.log('QoS 0 Publish result: ' + JSON.stringify(qos0PublishResult));
 
     const qos1PublishResult = await client.publish({
-        qos: mqtt5_packet.QoS.AtLeastOnce,
+        qos: mqtt5.QoS.AtLeastOnce,
         topicName: "hello/world/qos1",
         payload: "This is a qos 1 payload"
     });

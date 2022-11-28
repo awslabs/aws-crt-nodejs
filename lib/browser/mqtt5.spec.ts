@@ -5,9 +5,6 @@
 
 import * as mqtt5 from "./mqtt5";
 import * as test_utils from "@test/mqtt5";
-import * as mqtt5_packet from "../common/mqtt5_packet";
-import {PayloadFormatIndicator, QoS} from "../common/mqtt5_packet";
-import * as mqtt5_common from "../common/mqtt5";
 import {v4 as uuid} from "uuid";
 import url from "url";
 import {HttpsProxyAgent} from "https-proxy-agent";
@@ -54,8 +51,8 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
     return {
         hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_HOST,
         port: test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_PORT,
-        sessionBehavior: mqtt5_common.ClientSessionBehavior.RejoinPostSuccess,
-        retryJitterMode: mqtt5_common.RetryJitterType.Decorrelated,
+        sessionBehavior: mqtt5.ClientSessionBehavior.RejoinPostSuccess,
+        retryJitterMode: mqtt5.RetryJitterType.Decorrelated,
         minReconnectDelayMs: 2000,
         maxReconnectDelayMs: 180000,
         minConnectedTimeToResetReconnectDelayMs: 60000,
@@ -73,9 +70,9 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
             will: {
                 topicName: `will/topic${uuid()}`,
                 payload: Buffer.from("WillPayload", "utf-8"),
-                qos: QoS.AtLeastOnce,
+                qos: mqtt5.QoS.AtLeastOnce,
                 retain: false,
-                payloadFormat: PayloadFormatIndicator.Utf8,
+                payloadFormat: mqtt5.PayloadFormatIndicator.Utf8,
                 messageExpiryIntervalSeconds: 60,
                 responseTopic: "talk/to/me",
                 correlationData: Buffer.from("Sekrits", "utf-8"),
@@ -101,7 +98,7 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
     };
 }
 
-test('Connection Success - Websocket Mqtt', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Connection Success - Websocket Mqtt', async () => {
     await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT, createBrowserSpecificTestConfig);
 });
 
@@ -271,7 +268,7 @@ test('Client construction failure - bad config, will delay interval underflow', 
     // @ts-ignore
     config.connectProperties.will = {
         topicName: "derp",
-        qos: mqtt5_packet.QoS.AtLeastOnce
+        qos: mqtt5.QoS.AtLeastOnce
     }
     testFailedClientConstruction(config);
 });
@@ -283,13 +280,13 @@ test('Client construction failure - bad config, will delay interval overflow', a
     // @ts-ignore
     config.connectProperties.will = {
         topicName: "derp",
-        qos: mqtt5_packet.QoS.AtLeastOnce
+        qos: mqtt5.QoS.AtLeastOnce
     }
     testFailedClientConstruction(config);
 });
 
 
-function createOperationFailureClient() : mqtt5.Mqtt5Client {
+function createOperationFailureClient() : mqtt5.IMqtt5Client {
     let config : mqtt5.Mqtt5ClientConfig = {
         hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_HOST,
         port: test_utils.ClientEnvironmentalConfig.WS_MQTT_PORT
@@ -377,9 +374,11 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
         }
     });
 
-    let qos : mqtt5_packet.QoS = QoS.AtMostOnce;
+    let qos : mqtt5.QoS = mqtt5.QoS.AtMostOnce;
     let receivedCount : number = 0;
-    client.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
+    client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        let packet: mqtt5.PublishPacket = eventData.message;
+
         expect(packet.qos).toEqual(qos);
         expect(packet.payload).toEqual(testPayload);
         expect(packet.topicName).toEqual(topic);
@@ -406,9 +405,11 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
         }
     });
 
-    let qos : mqtt5_packet.QoS = QoS.AtLeastOnce;
+    let qos : mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
     let receivedCount : number = 0;
-    client.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
+    client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        let packet: mqtt5.PublishPacket = eventData.message;
+
         expect(packet.qos).toEqual(qos);
         expect(packet.payload).toEqual(testPayload);
         expect(packet.topicName).toEqual(topic);
@@ -436,7 +437,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
             willDelayIntervalSeconds : 0,
             will : {
                 topicName: willTopic,
-                qos: QoS.AtLeastOnce,
+                qos: mqtt5.QoS.AtLeastOnce,
                 payload: willPayload
             }
         }
@@ -452,8 +453,10 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     });
 
     let willReceived : boolean = false;
-    subscriber.on('messageReceived', (packet: mqtt5_packet.PublishPacket) => {
-        expect(packet.qos).toEqual(QoS.AtLeastOnce);
+    subscriber.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        let packet: mqtt5.PublishPacket = eventData.message;
+
+        expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
         expect(Buffer.from(packet.payload as ArrayBuffer)).toEqual(willPayload);
         expect(packet.topicName).toEqual(willTopic);
         willReceived = true;

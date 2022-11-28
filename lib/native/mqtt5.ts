@@ -16,24 +16,12 @@ import * as io from "./io";
 import * as http from './http';
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as mqtt5 from "../common/mqtt5";
+import * as mqtt_shared from "../common/mqtt_shared";
 import {CrtError} from "./error";
-import {normalize_payload} from "../common/mqtt_shared";
 
 export { HttpProxyOptions } from './http';
-
-export {
-    NegotiatedSettings,
-    StoppedEventListener,
-    AttemptingConnectEventListener,
-    ConnectionSuccessEventListener,
-    ConnectionFailureEventListener,
-    DisconnectionEventListener,
-    MessageReceivedEventListener,
-    IMqtt5Client,
-    ClientSessionBehavior,
-    RetryJitterType,
-    PublishCompletionResult
-} from "../common/mqtt5";
+export * from "../common/mqtt5";
+export * from '../common/mqtt5_packet';
 
 /**
  * Websocket handshake http request transformation function signature
@@ -395,7 +383,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         return new Promise<mqtt5.PublishCompletionResult>((resolve, reject) => {
 
             if (packet && packet.payload) {
-                packet.payload = normalize_payload(packet.payload);
+                packet.payload = mqtt_shared.normalize_payload(packet.payload);
             }
 
             function curriedPromiseCallback(client: Mqtt5Client, errorCode: number, result: mqtt5.PublishCompletionResult){
@@ -569,31 +557,56 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
 
     private static _s_on_stopped(client: Mqtt5Client) {
         process.nextTick(() => {
-            client.emit(Mqtt5Client.STOPPED);
+            let stoppedEvent: mqtt5.StoppedEvent = {};
+
+            client.emit(Mqtt5Client.STOPPED, stoppedEvent);
         });
     }
 
     private static _s_on_attempting_connect(client: Mqtt5Client) {
         process.nextTick(() => {
-            client.emit(Mqtt5Client.ATTEMPTING_CONNECT);
+            let attemptingConnectEvent: mqtt5.AttemptingConnectEvent = {};
+
+            client.emit(Mqtt5Client.ATTEMPTING_CONNECT, attemptingConnectEvent);
         });
     }
 
     private static _s_on_connection_success(client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) {
+        let connectionSuccessEvent: mqtt5.ConnectionSuccessEvent = {
+            connack: connack,
+            settings: settings
+        };
+
         process.nextTick(() => {
-            client.emit(Mqtt5Client.CONNECTION_SUCCESS, connack, settings);
+            client.emit(Mqtt5Client.CONNECTION_SUCCESS, connectionSuccessEvent);
         });
     }
 
     private static _s_on_connection_failure(client: Mqtt5Client, error: CrtError, connack?: mqtt5_packet.ConnackPacket) {
+        let connectionFailureEvent: mqtt5.ConnectionFailureEvent = {
+            error: error
+        };
+
+        if (connack !== null && connack !== undefined) {
+            connectionFailureEvent.connack = connack;
+        }
+
         process.nextTick(() => {
-            client.emit(Mqtt5Client.CONNECTION_FAILURE, error, connack);
+            client.emit(Mqtt5Client.CONNECTION_FAILURE, connectionFailureEvent);
         });
     }
 
     private static _s_on_disconnection(client: Mqtt5Client, error: CrtError, disconnect?: mqtt5_packet.DisconnectPacket) {
+        let disconnectionEvent: mqtt5.DisconnectionEvent = {
+            error: error
+        };
+
+        if (disconnect !== null && disconnect !== undefined) {
+            disconnectionEvent.disconnect = disconnect;
+        }
+
         process.nextTick(() => {
-            client.emit(Mqtt5Client.DISCONNECTION, error, disconnect);
+            client.emit(Mqtt5Client.DISCONNECTION, disconnectionEvent);
         });
     }
 
@@ -622,8 +635,12 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
     }
 
     private static _s_on_message_received(client: Mqtt5Client, message : mqtt5_packet.PublishPacket) {
+        let messageReceivedEvent: mqtt5.MessageReceivedEvent = {
+            message: message
+        };
+
         process.nextTick(() => {
-            client.emit(Mqtt5Client.MESSAGE_RECEIVED, message);
+            client.emit(Mqtt5Client.MESSAGE_RECEIVED, messageReceivedEvent);
         });
     }
 }

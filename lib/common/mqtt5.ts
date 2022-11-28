@@ -138,6 +138,81 @@ export enum RetryJitterType {
     Decorrelated = 3,
 }
 
+/* MQTT5 Event types */
+
+/**
+ * Payload of the Stopped event for the MQTT5 client.
+ */
+export interface StoppedEvent {
+}
+
+/**
+ * Payload of the AttemptingConnect event for the MQTT5 client.
+ */
+export interface AttemptingConnectEvent {
+}
+
+/**
+ * Payload of the ConnectionSuccess event for the MQTT5 client.
+ */
+export interface ConnectionSuccessEvent {
+
+    /**
+     * CONNACK packet received from the server.
+     */
+    connack: mqtt5_packet.ConnackPacket;
+
+    /**
+     * Final MQTT5 connection settings negotiated with the server.
+     */
+    settings: NegotiatedSettings;
+}
+
+/**
+ * Payload of the ConnectionFailure event for the MQTT5 client.
+ */
+export interface ConnectionFailureEvent {
+
+    /**
+     * Description of why the connection attempt failed.
+     */
+    error: ICrtError;
+
+    /**
+     * If the connection failure was indicated by the server's CONNACK response, the CONNACK packet received from
+     * the server.
+     */
+    connack?: mqtt5_packet.ConnackPacket;
+}
+
+/**
+ * Payload of the Disconnection event for the MQTT5 client.
+ */
+export interface DisconnectionEvent {
+
+    /**
+     * Best-guess description of why the disconnection occurred.
+     */
+    error: ICrtError;
+
+    /**
+     * If the disconnection event was due to a server-side DISCONNECT packet, the DISCONNECT packet received from
+     * the server.
+     */
+    disconnect?: mqtt5_packet.DisconnectPacket;
+}
+
+/**
+ * Payload of the MessageReceived event for the MQTT5 client.
+ */
+export interface MessageReceivedEvent {
+
+    /**
+     * PUBLISH packet received from the server
+     */
+    message: mqtt5_packet.PublishPacket;
+}
+
 /**
  * Client Error event listener signature
  */
@@ -146,44 +221,47 @@ export type ErrorEventListener = (error: ICrtError) => void;
 /**
  * Client Stopped lifecycle event listener signature
  */
-export type StoppedEventListener = () => void;
+export type StoppedEventListener = (eventData:StoppedEvent) => void;
 
 /**
  * Client AttemptingConnect lifecycle event listener signature
  */
-export type AttemptingConnectEventListener = () => void;
+export type AttemptingConnectEventListener = (eventData: AttemptingConnectEvent) => void;
 
 /**
  * Client ConnectionSuccess lifecycle event listener signature
  */
-export type ConnectionSuccessEventListener = (connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void;
+export type ConnectionSuccessEventListener = (eventData: ConnectionSuccessEvent) => void;
 
 /**
  * Client ConnectionFailure lifecycle event listener signature
  */
-export type ConnectionFailureEventListener = (error: ICrtError, connack?: mqtt5_packet.ConnackPacket) => void;
+export type ConnectionFailureEventListener = (eventData: ConnectionFailureEvent) => void;
 
 /**
  * Client Disconnection lifecycle event listener signature
  */
-export type DisconnectionEventListener = (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => void;
+export type DisconnectionEventListener = (eventData: DisconnectionEvent) => void;
 
 /**
  * Message received event listener signature
  */
-export type MessageReceivedEventListener = (message: mqtt5_packet.PublishPacket) => void;
+export type MessageReceivedEventListener = (eventData: MessageReceivedEvent) => void;
 
 /**
  * Polymorphic success result for publish actions:
  *
  * * QoS 0 - resolves to undefined
  * * QoS 1 - resolves to a {@link PubackPacket}
- * * QoS 2 - (not yet supported) would resolve to a Pubcomp
+ * * QoS 2 - (not yet supported) would resolve to a Pubcomp or a Pubrec
  */
 export type PublishCompletionResult = mqtt5_packet.PubackPacket | undefined;
 
 /**
  * Shared MQTT5 client interface across browser and node.
+ *
+ * Common event manipulation patterns have explicit functions separate from the EventListener interface because
+ * creating an abstract event listening interface in typescript eludes me.
  */
 export interface IMqtt5Client {
 
@@ -252,4 +330,5 @@ export interface IMqtt5Client {
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response
      */
     publish(packet: mqtt5_packet.PublishPacket) : Promise<PublishCompletionResult>;
+
 }

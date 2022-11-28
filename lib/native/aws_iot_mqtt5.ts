@@ -12,8 +12,6 @@
  */
 
 import * as mqtt5 from "./mqtt5";
-import {ClientExtendedValidationAndFlowControl} from "./mqtt5";
-import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as io from "./io";
 import * as auth from "./auth";
 import {CrtError} from "./error";
@@ -66,7 +64,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
             connectProperties: {
                 keepAliveIntervalSeconds: mqtt_shared.DEFAULT_KEEP_ALIVE
             },
-            extendedValidationAndFlowControlOptions: ClientExtendedValidationAndFlowControl.AwsIotCoreDefaults
+            extendedValidationAndFlowControlOptions: mqtt5.ClientExtendedValidationAndFlowControl.AwsIotCoreDefaults
         };
     }
 
@@ -263,7 +261,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
      *
      * @param connectPacket all configurable options with respect to the CONNECT packet sent by the client
      */
-    withConnectProperties(connectPacket: mqtt5_packet.ConnectPacket) : AwsIotMqtt5ClientConfigBuilder {
+    withConnectProperties(connectPacket: mqtt5.ConnectPacket) : AwsIotMqtt5ClientConfigBuilder {
         this.config.connectProperties = connectPacket;
         return this;
     }

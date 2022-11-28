@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {ICrtError, mqtt5, mqtt5_packet} from "aws-crt";
+import {ICrtError, mqtt5} from "aws-crt";
 import {once} from "events";
 import jquery = require("jquery");
 
@@ -26,32 +26,32 @@ function createClient() : mqtt5.Mqtt5Client {
         log("Error event: " + error.toString());
     });
 
-    client.on("messageReceived",(message: mqtt5_packet.PublishPacket) : void => {
-        log("Message Received event: " + JSON.stringify(message));
+    client.on("messageReceived",(eventData: mqtt5.MessageReceivedEvent) : void => {
+        log("Message Received event: " + JSON.stringify(eventData.message));
     } );
 
-    client.on('attemptingConnect', () => {
+    client.on('attemptingConnect', (eventData: mqtt5.AttemptingConnectEvent) => {
         log("Attempting Connect event");
     });
 
-    client.on('connectionSuccess', (connack: mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) => {
+    client.on('connectionSuccess', (eventData: mqtt5.ConnectionSuccessEvent) => {
         log("Connection Success event");
-        log ("Connack: " + JSON.stringify(connack));
-        log ("Settings: " + JSON.stringify(settings));
+        log ("Connack: " + JSON.stringify(eventData.connack));
+        log ("Settings: " + JSON.stringify(eventData.settings));
     });
 
-    client.on('connectionFailure', (error: ICrtError) => {
-        log("Connection failure event: " + error.toString());
+    client.on('connectionFailure', (eventData: mqtt5.ConnectionFailureEvent) => {
+        log("Connection failure event: " + eventData.error.toString());
     });
 
-    client.on('disconnection', (error: ICrtError, disconnect?: mqtt5_packet.DisconnectPacket) => {
-        log("Disconnection event: " + error.toString());
-        if (disconnect !== undefined) {
-            log('Disconnect packet: ' + JSON.stringify(disconnect));
+    client.on('disconnection', (eventData: mqtt5.DisconnectionEvent) => {
+        log("Disconnection event: " + eventData.error.toString());
+        if (eventData.disconnect !== undefined) {
+            log('Disconnect packet: ' + JSON.stringify(eventData.disconnect));
         }
     });
 
-    client.on('stopped', () => {
+    client.on('stopped', (eventData: mqtt5.StoppedEvent) => {
         log("Stopped event");
     });
 
@@ -72,21 +72,21 @@ async function testSuccessfulConnection() {
 
     const suback = await client.subscribe({
         subscriptions: [
-            { qos: mqtt5_packet.QoS.AtLeastOnce, topicFilter: "hello/world/qos1" },
-            { qos: mqtt5_packet.QoS.AtMostOnce, topicFilter: "hello/world/qos0" }
+            { qos: mqtt5.QoS.AtLeastOnce, topicFilter: "hello/world/qos1" },
+            { qos: mqtt5.QoS.AtMostOnce, topicFilter: "hello/world/qos0" }
         ]
     });
     log('Suback result: ' + JSON.stringify(suback));
 
     const qos0PublishResult = await client.publish({
-        qos: mqtt5_packet.QoS.AtMostOnce,
+        qos: mqtt5.QoS.AtMostOnce,
         topicName: "hello/world/qos0",
         payload: "This is a qos 0 payload"
     });
     log('QoS 0 Publish result: ' + JSON.stringify(qos0PublishResult));
 
     const qos1PublishResult = await client.publish({
-        qos: mqtt5_packet.QoS.AtLeastOnce,
+        qos: mqtt5.QoS.AtLeastOnce,
         topicName: "hello/world/qos1",
         payload: "This is a qos 1 payload"
     });
