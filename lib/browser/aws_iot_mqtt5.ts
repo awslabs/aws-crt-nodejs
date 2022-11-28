@@ -7,8 +7,6 @@
  * Module for the configuration of MQTT5 clients to connect to AWS IoT
  *
  * @packageDocumentation
- * @module aws_iot_mqtt5
- * @mergeTarget
  */
 
 import * as mqtt5 from "./mqtt5";
@@ -67,8 +65,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     /* Builders for difference connection methods to AWS IoT Core */
 
     /**
-     * Create a new MQTT5 client builder that will use websockets and AWS Sigv4 signing to establish
-     * mutually-authenticated connections.
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via websockets,
+     * using AWS Sigv4 signing to establish authenticate.
      *
      * @param hostName - AWS IoT endpoint to connect to
      * @param sigv4Config - additional sigv4-oriented options to use
@@ -92,8 +90,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Create a new MQTT5 client builder that will use mqtt over websockets and a custom authenticator controlled by
-     * the username and password values.
+     * Create a new MQTT5 client builder  that will create MQTT5 clients that connect to AWS IoT Core via websockets,
+     * authenticating via a custom authenticator.
      *
      * @param hostName - AWS IoT endpoint to connect to
      * @param customAuthConfig - AWS IoT custom auth configuration

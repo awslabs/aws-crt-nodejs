@@ -7,8 +7,6 @@
  * Module for the configuration of MQTT5 clients to connect to AWS IoT
  *
  * @packageDocumentation
- * @module aws_iot_mqtt5
- * @mergeTarget
  */
 
 import * as mqtt5 from "./mqtt5";
@@ -22,7 +20,7 @@ import * as mqtt_shared from "../common/mqtt_shared";
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
 /**
- * Websocket-specific MQTT5 connection AWS IoT configuration options
+ * Websocket-specific MQTT5 client AWS IoT configuration options
  *
  * @category IoT
  */
@@ -68,10 +66,11 @@ export class AwsIotMqtt5ClientConfigBuilder {
         };
     }
 
-    /* Builders for difference connection methods to AWS IoT Core */
+    /* Builders for different connection methods to AWS IoT Core */
 
     /**
-     * Create a new MQTT5 client builder with mTLS file paths
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
+     * using X509 certificate and key at the supplied file paths.
      *
      * @param hostName - AWS IoT endpoint to connect to
      * @param certPath - Path to certificate, in PEM format
@@ -91,7 +90,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Create a new MQTT5 client builder with mTLS cert pair in memory
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
+     * using in-memory X509 certificate and key.
      *
      * @param hostName - AWS IoT endpoint to connect to
      * @param cert - Certificate, in PEM format
@@ -111,7 +111,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Create a new MQTT5 client builder with mTLS using a PKCS#11 library for private key operations.
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
+     * using a PKCS11 library for certificate and private key operations.
      *
      * NOTE: This configuration only works on Unix devices.
      *
@@ -132,7 +133,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Create a new MQTT5 client builder with mTLS using a certificate in a Windows certificate store.
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
+     * using a certificate entry in a Windows certificate store.
      *
      * NOTE: This configuration only works on Windows devices.
      *
@@ -155,8 +157,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Create a new MQTT5 client builder that will use direct mqtt and a custom authenticator controlled by
-     * the username and password values.
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via TLS,
+     * authenticating via a custom authenticator.
      *
      * @param hostName - AWS IoT endpoint to connect to
      * @param customAuthConfig - AWS IoT custom auth configuration
@@ -174,8 +176,8 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Create a new MQTT5 client builder that will use websockets and AWS Sigv4 signing to establish
-     * mutually-authenticated connections.
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via websockets,
+     * using AWS Sigv4 signing to establish authenticate.
      *
      * @param hostName - AWS IoT endpoint to connect to
      * @param options - additional sigv4-oriented options to use
@@ -245,9 +247,9 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Overrides the port to connect to on the IoT endpoint
+     * Overrides the IoT endpoint port to connect to.
      *
-     * @param port The port to connect to on the IoT endpoint. Usually 8883 for MQTT, or 443 for websockets
+     * @param port The IoT endpoint port to connect to. Usually 8883 for MQTT, or 443 for websockets
      */
     withPort(port: number) : AwsIotMqtt5ClientConfigBuilder {
         this.config.port = port;

@@ -4,8 +4,7 @@
  */
 
 /**
- * Module for AWS IoT configuration and connection establishment. Unifies the MQTT-311 client module (aws_iot.ts) and
- * the MQTT-5 module (aws_iot_mqtt5.ts)
+ * Module for AWS IoT MQTT client configuration and connection establishment.
  *
  * @packageDocumentation
  * @module iot
