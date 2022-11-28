@@ -8,32 +8,31 @@
 /* common libs */
 import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
-import { ICrtError } from './common/error';
 
 /* node specific libs */
+import * as auth from './native/auth';
+import * as checksums from './native/checksums';
 import * as crt from './native/crt';
+import * as crypto from './native/crypto';
+import * as http from './native/http';
 import * as io from './native/io';
+import * as iot from './native/iot';
 import * as mqtt from './native/mqtt';
 import * as mqtt5 from './native/mqtt5';
-import * as http from './native/http';
-import * as crypto from './native/crypto';
-import * as auth from './native/auth';
-import * as iot from './native/iot';
-import * as checksums from './native/checksums';
-import { CrtError } from './native/error';
+import { ICrtError, CrtError } from './native/error';
 
 export {
+    auth,
+    checksums,
+    crypto,
     crt,
+    http,
     io,
+    iot,
     mqtt,
     mqtt5,
-    http,
-    crypto,
-    auth,
-    iot,
     platform,
     resource_safety,
-    checksums,
     ICrtError,
     CrtError
 };

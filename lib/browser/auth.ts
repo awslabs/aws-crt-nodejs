@@ -13,6 +13,7 @@
 
 import { AwsSigningConfigBase } from '../common/auth';
 
+export { AwsSigningConfigBase } from '../common/auth';
  
 /**
  * Standard AWS Credentials

@@ -13,6 +13,8 @@
 
 import {ICrtError} from "../common/error";
 
+export {ICrtError} from "../common/error";
+
 /**
  * Represents an error thrown by the CRT browser shim
  *

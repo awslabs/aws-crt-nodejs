@@ -8,7 +8,6 @@
 /* common libs */
 import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
-import { ICrtError } from './common/error';
 
 /* browser specific libs */
 import * as io from './browser/io';
@@ -18,16 +17,16 @@ import * as http from './browser/http';
 import * as crypto from './browser/crypto';
 import * as iot from './browser/iot';
 import * as auth from './browser/auth';
-import { CrtError } from './browser/error';
+import { ICrtError, CrtError } from './browser/error';
 
 export {
+    auth,
+    crypto,
+    http,
     io,
+    iot,
     mqtt,
     mqtt5,
-    http,
-    crypto,
-    auth,
-    iot,
     platform,
     resource_safety,
     ICrtError,

@@ -14,6 +14,8 @@
 import crt_native from './binding';
 import {ICrtError} from "../common/error";
 
+export {ICrtError} from "../common/error";
+
 /**
  * Represents an error encountered in native code. Can also be used to convert a numeric error code into
  * a human-readable string.

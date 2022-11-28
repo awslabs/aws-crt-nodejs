@@ -33,7 +33,7 @@ import {
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC,
 } from "../common/mqtt";
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs

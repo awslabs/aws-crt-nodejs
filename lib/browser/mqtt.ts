@@ -35,7 +35,7 @@ import {
 } from "../common/mqtt";
 import {normalize_payload} from "../common/mqtt_shared";
 
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill } from "../common/mqtt";
+export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
