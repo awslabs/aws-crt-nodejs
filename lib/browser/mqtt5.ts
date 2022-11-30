@@ -4,9 +4,20 @@
  */
 
 /**
+ * Browser specific MQTT5 client implementation
+ *
+ * DEVELOPER PREVIEW DISCLAIMER
+ *
+ * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
+ * preview window is especially valuable in shaping the final product.  During the preview period we may make
+ * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
+ *
+ * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
+ *
  * @packageDocumentation
  * @module mqtt5
  * @mergeTarget
+ *
  */
 
 import { BufferedEventEmitter } from "../common/event";
@@ -306,9 +317,15 @@ enum Mqtt5ClientLifecycleEventState {
 }
 
 /**
- * Browser-specific MQTT5 client.
+ * Browser specific MQTT5 client implementation
  *
- * <TODO> Long-form client documentation
+ * DEVELOPER PREVIEW DISCLAIMER
+ *
+ * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
+ * preview window is especially valuable in shaping the final product.  During the preview period we may make
+ * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
+ *
+ * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
  */
 export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Client {
     private browserClient?: mqtt.MqttClient;

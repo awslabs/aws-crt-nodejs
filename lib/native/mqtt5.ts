@@ -4,9 +4,20 @@
  */
 
 /**
+ * Node.js specific MQTT5 client implementation
+ *
+ * DEVELOPER PREVIEW DISCLAIMER
+ *
+ * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
+ * preview window is especially valuable in shaping the final product.  During the preview period we may make
+ * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
+ *
+ * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
+ *
  * @packageDocumentation
  * @module mqtt5
  * @mergeTarget
+ *
  */
 
 import crt_native from './binding';
@@ -248,12 +259,24 @@ export interface Mqtt5ClientConfig {
 }
 
 /**
- * Node.js specific MQTT5 client.
+ * Node.js specific MQTT5 client implementation
+ *
+ * DEVELOPER PREVIEW DISCLAIMER
+ *
+ * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
+ * preview window is especially valuable in shaping the final product.  During the preview period we may make
+ * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
+ *
+ * Not all parts of the MQTT5 spec are supported. We currently do not support:
+ *
+ * * AUTH packets and the authentication fields in the CONNECT packet
+ * * QoS 2
+ *
+ * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
  *
  * This client is based on native resources.  When finished with the client, you must call close() to dispose of
  * them or they will leak.
  *
- * <TODO> Long-form client documentation
  */
 export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) implements mqtt5.IMqtt5Client {
 
