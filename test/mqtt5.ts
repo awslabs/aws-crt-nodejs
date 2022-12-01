@@ -6,6 +6,7 @@
 import * as mqtt5 from "@awscrt/mqtt5";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
+import {CrtError} from "@awscrt";
 
 export enum SuccessfulConnectionTestType {
     DIRECT_MQTT = 0,
@@ -311,12 +312,12 @@ export function verifyCommonNegotiatedSettings(settings: mqtt5.NegotiatedSetting
     expect(settings.maximumQos).toEqual(mqtt5.QoS.AtLeastOnce);
     expect(settings.sessionExpiryInterval).toBeDefined();
     expect(settings.receiveMaximumFromServer).toBeDefined();
-    expect(settings.maximumPacketSizeToServer).toEqual(268435460);
+    expect(settings.maximumPacketSizeToServer).toBeLessThanOrEqual(268435460);
     expect(settings.serverKeepAlive).toBeDefined();
-    expect(settings.retainAvailable).toBeTruthy();
-    expect(settings.wildcardSubscriptionsAvailable).toBeTruthy();
-    expect(settings.subscriptionIdentifiersAvailable).toBeTruthy();
-    expect(settings.sharedSubscriptionsAvailable).toBeTruthy();
+    expect(typeof settings.retainAvailable === 'boolean').toBeTruthy();
+    expect(typeof settings.wildcardSubscriptionsAvailable === 'boolean').toBeTruthy();
+    expect(typeof settings.subscriptionIdentifiersAvailable === 'boolean').toBeTruthy();
+    expect(typeof settings.sharedSubscriptionsAvailable === 'boolean').toBeTruthy();
     expect(settings.rejoinedSession).toBeFalsy();
     expect(settings.clientId).toBeDefined();
     expect(settings.sessionExpiryInterval).toBeDefined();
@@ -401,15 +402,22 @@ export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.M
     subscriber.start();
     await subscriberConnected;
 
-    await subscriber.subscribe({
+    let suback: mqtt5.SubackPacket = await subscriber.subscribe({
         subscriptions: [
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: willTopic }
         ]
     });
 
+    if (!mqtt5.isSuccessfulSubackReasonCode(suback.reasonCodes[0])) {
+        throw new CrtError("doh");
+    }
+
+    /* TODO: switch back to DisconnectWithWill when it's fixed in IoT Core
     publisher.stop({
         reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
     });
+*/
+    publisher.stop();
 
     await willReceived;
     await publisherStopped;

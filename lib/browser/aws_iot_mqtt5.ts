@@ -48,7 +48,7 @@ export interface WebsocketSigv4Config {
  * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
  *
  * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
- * 
+ *
  * @category IoT
  */
 export class AwsIotMqtt5ClientConfigBuilder {
