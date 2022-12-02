@@ -4,15 +4,15 @@ import os
 import re
 import subprocess
 import sys
-
+import tempfile
 
 class CrtCiTest(Builder.Action):
 
     def _write_environment_script_secret_to_env(self, env, secret_name):
-        environment_script = env.shell.get_secret(secret_name)
+        mqtt5_ci_environment_script = env.shell.get_secret(secret_name)
         env_line = re.compile('^export\s+(\w+)=(.+)')
 
-        lines = mqtt5_ci_environment_script.split_lines()
+        lines = mqtt5_ci_environment_script.splitlines()
         for line in lines:
             env_pair_match = env_line.match(line)
             if match.group(1) and match.group(2):
