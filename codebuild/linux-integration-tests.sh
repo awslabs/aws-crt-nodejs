@@ -2,8 +2,8 @@
 
 set -ex
 
-if test -f "/tmp/setup_proxy_test_env.sh"; then
-    source /tmp/setup_proxy_test_env.sh
+if test -f "/tmp/setup_integration_test_env.sh"; then
+    source /tmp/setup_integration_test_env.sh
 fi
 
 env

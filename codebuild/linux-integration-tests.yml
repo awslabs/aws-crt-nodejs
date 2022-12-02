@@ -11,8 +11,8 @@ phases:
   build:
     commands:
       - echo Build started on `date`
-      - aws s3 cp s3://aws-crt-test-stuff/setup_proxy_test_env.sh /tmp/setup_proxy_test_env.sh
-      - chmod a+xr /tmp/setup_proxy_test_env.sh
+      - aws s3 cp s3://aws-crt-test-stuff/setup_integration_test_env.sh /tmp/setup_integration_test_env.sh
+      - chmod a+xr /tmp/setup_integration_test_env.sh
       - $CODEBUILD_SRC_DIR/codebuild/linux-integration-tests.sh
   post_build:
     commands:
