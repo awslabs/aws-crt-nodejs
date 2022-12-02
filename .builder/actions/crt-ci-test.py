@@ -37,12 +37,9 @@ class CrtCiTest(Builder.Action):
             env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH", cert_file.name)
             env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_KEY_PATH", key_file.name)
 
-            node_result = os.system("npm run test:native")
-            browser_result = os.system("npm run test:browser")
-
-        if node_result or browser_result:
-            # Failed
-            actions.append("exit 1")
+            if os.system("npm run test:native"):
+                # Failed
+                actions.append("exit 1")
 
         actions = []
 
