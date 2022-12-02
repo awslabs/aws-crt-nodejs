@@ -530,7 +530,6 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     expect(receivedCount).toEqual(1);
 });
 
-//test('Will test', async () => {
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
     let willPayload : Buffer = Buffer.from("ToMyChildrenIBequeathNothing", "utf-8");
     let willTopic : string = `will/test${uuid()}`;

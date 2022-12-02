@@ -416,7 +416,8 @@ export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.M
     publisher.stop({
         reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
     });
-*/
+    */
+
     publisher.stop();
 
     await willReceived;
