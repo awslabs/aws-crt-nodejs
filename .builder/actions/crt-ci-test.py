@@ -15,7 +15,7 @@ class CrtCiTest(Builder.Action):
         lines = mqtt5_ci_environment_script.splitlines()
         for line in lines:
             env_pair_match = env_line.match(line)
-            if match.group(1) and match.group(2):
+            if env_pair_match.group(1) and env_pair_match.group(2):
                 env.shell.setenv(env_pair_match.group(1), env_pair_match.group(2))
 
     def _write_secret_to_temp_file(self, env, secret_name):
