@@ -170,7 +170,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT))('Connection Failure - Direct MQTT Bad port', async () => {
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client({
         hostName: test_utils.ClientEnvironmentalConfig.DIRECT_MQTT_HOST,
-        port: 1
+        port: 9999
     }));
 });
 
@@ -229,7 +229,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Connection Failure - Websocket MQTT Bad port', async () => {
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client({
         hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_HOST,
-        port: 1
+        port: 9999
     }));
 });
 

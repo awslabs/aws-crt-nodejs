@@ -135,7 +135,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     // @ts-ignore
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client({
         hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_HOST,
-        port: 1
+        port: 9999
     }));
 });
 
