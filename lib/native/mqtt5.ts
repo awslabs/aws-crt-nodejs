@@ -12,7 +12,7 @@
  * preview window is especially valuable in shaping the final product.  During the preview period we may make
  * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
+ * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5-UserGuide.md)
  *
  * @packageDocumentation
  * @module mqtt5
@@ -272,7 +272,7 @@ export interface Mqtt5ClientConfig {
  * * AUTH packets and the authentication fields in the CONNECT packet
  * * QoS 2
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5.md)
+ * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/MQTT5-UserGuide.md)
  *
  * This client is based on native resources.  When finished with the client, you must call close() to dispose of
  * them or they will leak.

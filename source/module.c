@@ -978,12 +978,6 @@ static bool s_module_initialized = false;
         return NULL;
     }
 
-    /*
-            bool done = false;
-            while (!done) {
-                ;
-            }
-    */
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
