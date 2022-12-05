@@ -13,6 +13,7 @@
 
 import { AwsSigningConfigBase } from '../common/auth';
 
+export { AwsSigningConfigBase } from '../common/auth';
  
 /**
  * Standard AWS Credentials
@@ -35,7 +36,7 @@ export interface AWSCredentials{
  *
  * @category Auth
  */
-export class CredentialsProvider{
+export class CredentialsProvider {
     /** Return a valid credentials. Please note mqtt.js does not support promises, meaning that credentials 
      * provider implementation should handle application-level authentication refreshing so that the websocket 
      * connection could simply grab the latest valid tokens when getCredentials() get called. 

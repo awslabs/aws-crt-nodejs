@@ -38,8 +38,6 @@ export class ProxyConfig {
     public static is_valid() {
         return ProxyConfig.HTTP_PROXY_HOST !== "" &&
             ProxyConfig.HTTP_PROXY_PORT != 0 &&
-            ProxyConfig.HTTPS_PROXY_HOST !== "" &&
-            ProxyConfig.HTTPS_PROXY_PORT != 0 &&
             ProxyConfig.HTTP_PROXY_BASIC_HOST !== "" &&
             ProxyConfig.HTTP_PROXY_BASIC_PORT != 0 &&
             ProxyConfig.HTTP_PROXY_BASIC_AUTH_USERNAME !== "" &&
@@ -49,6 +47,10 @@ export class ProxyConfig {
             ProxyConfig.HTTP_PROXY_TLS_ROOT_CA_PATH !== "" &&
             ProxyConfig.HTTP_PROXY_WS_SIGNING_REGION !== "" &&
             ProxyConfig.HTTP_PROXY_MQTT_ENDPOINT !== ""
+    }
+
+    public static is_tls_to_proxy_valid() {
+        return ProxyConfig.HTTPS_PROXY_HOST !== "" && ProxyConfig.HTTPS_PROXY_PORT != 0;
     }
 
     public static get_proxy_host_for_test(test_type : ProxyTestType, auth_type : HttpProxyAuthenticationType) {

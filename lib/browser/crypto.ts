@@ -15,6 +15,8 @@ import * as Crypto from "crypto-js";
 import { fromUtf8 } from "@aws-sdk/util-utf8-browser";
 import { Hashable } from "../common/crypto";
 
+export { Hashable } from "../common/crypto";
+
 /**
  * Object that allows for continuous MD5 hashing of data.
  *

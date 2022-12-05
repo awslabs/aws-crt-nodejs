@@ -17,6 +17,8 @@ import { CrtError } from './error';
 import { HttpRequest, HttpProxyOptions } from './http';
 import {ClientBootstrap, ClientTlsContext} from './io';
 
+export {AwsSigningConfigBase} from "../common/auth";
+
 /**
  * A pair defining an identity provider and a valid login token sourced from it.
  *
