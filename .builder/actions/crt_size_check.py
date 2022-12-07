@@ -9,7 +9,7 @@ import os
 class CrtSizeCheck(Builder.Action):
     def run(self, env):
         # Maximum package size in bytes
-        max_size = 5_000_000
+        max_size = 6_000_000
         # size of current folder
         folder_size = 0
         # total size in bytes
@@ -21,7 +21,7 @@ class CrtSizeCheck(Builder.Action):
                 if 'aws-crt-nodejs.node' == f:
                     fp = os.path.join(root, f)
                     print(
-                        f"{fp} file size: {str(os.stat(fp).st_size)}")
+                        f"{fp} file size: {os.stat(fp).st_size}")
 
                 fp = os.path.join(root, f)
                 folder_size += os.path.getsize(fp)
@@ -59,6 +59,6 @@ class CrtSizeCheck(Builder.Action):
         print(f"dist/native files size: {folder_size} bytes")
         total_size += folder_size
 
-        print(f"Total NPM package file size: {str(total_size)} bytes")
+        print(f"Total NPM package file size: {total_size} bytes")
         if total_size > max_size:
-            raise Exception('NPM package exceeds size limit')
+            raise Exception(f'NPM package exceeds size limit of {max_size} bytes.')
