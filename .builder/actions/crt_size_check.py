@@ -8,7 +8,9 @@ import os
 
 class CrtSizeCheck(Builder.Action):
     def run(self, env):
-        # Maximum package size in bytes
+        # Maximum package size (for current platform) in bytes
+        # NOTE: if you increase this, you might also need to increase the
+        # limit in continuous-delivery/pack.sh
         max_size = 6_000_000
         # size of current folder
         folder_size = 0
