@@ -140,9 +140,11 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
                 throw new CrtError("Websockets with sigv4 requires valid AWS credentials");
             }
 
+            let region : string = sigv4Options.region ?? iot_shared.extractRegionFromEndpoint(config.hostName);
+
             const signingConfig : AwsSigningConfig = {
                 service: "iotdevicegateway",
-                region: sigv4Options.region ?? iot_shared.extractRegionFromEndpoint(config.hostName),
+                region: region,
                 credentials: credentials,
                 date: new Date()
             };
@@ -150,7 +152,7 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
             const time = canonical_time(signingConfig.date);
             const day = canonical_day(time);
             const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signingConfig.credentials.aws_access_id}` +
-                `%2F${day}%2F${signingConfig.credentials.aws_region}%2F${signingConfig.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
+                `%2F${day}%2F${region}%2F${signingConfig.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
             const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
             return sign_url('GET', url, signingConfig, time, day);
 
