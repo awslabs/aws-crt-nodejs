@@ -66,6 +66,10 @@ function sign_url(method: string,
     time: string = canonical_time(),
     day: string = canonical_day(time),
     payload: string = '') {
+
+    // region should not have been put in credentials, but we have to live with it
+    let region: string = signing_config.credentials.aws_region ?? signing_config.region;
+
     const signed_headers = 'host';
     const service = signing_config.service!;
     const canonical_headers = `host:${url.hostname.toLowerCase()}\n`;
@@ -73,7 +77,7 @@ function sign_url(method: string,
     const canonical_params = url.search.replace(new RegExp('^\\?'), '');
     const canonical_request = `${method}\n${url.pathname}\n${canonical_params}\n${canonical_headers}\n${signed_headers}\n${payload_hash}`;
     const canonical_request_hash = Crypto.SHA256(canonical_request, { asBytes: true });
-    const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${signing_config.credentials.aws_region}/${service}/aws4_request\n${canonical_request_hash}`;
+    const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${region}/${service}/aws4_request\n${canonical_request_hash}`;
     const signing_key = make_signing_key(signing_config.credentials, day, service);
     const signature = Crypto.HmacSHA256(signature_raw, signing_key, { asBytes: true });
     let query_params = `${url.search}&X-Amz-Signature=${signature}`;
