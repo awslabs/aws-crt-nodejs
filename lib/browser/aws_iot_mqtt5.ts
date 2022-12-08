@@ -81,10 +81,12 @@ export class AwsIotMqtt5ClientConfigBuilder {
      */
     static newWebsocketMqttBuilderWithSigv4Auth(hostName : string, sigv4Config: WebsocketSigv4Config) : AwsIotMqtt5ClientConfigBuilder {
 
+        let region : string = sigv4Config.region ?? iot_shared.extractRegionFromEndpoint(hostName);
+
         let websocketConfig: mqtt5.Mqtt5WebsocketConfig = {
             urlFactoryOptions: {
                 urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Sigv4,
-                region: sigv4Config.region,
+                region: region,
                 credentialsProvider: sigv4Config.credentialsProvider
             }
         };
