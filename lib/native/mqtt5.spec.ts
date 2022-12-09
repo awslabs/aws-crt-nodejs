@@ -9,6 +9,7 @@ import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketTy
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
+import {once} from "events";
 
 
 jest.setTimeout(10000);
@@ -581,4 +582,81 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     let config : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
 
     await test_utils.doRetainTest(new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config));
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Subscribe Interrupted', async () => {
+    let topic : string = `test-${uuid()}`;
+
+    let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig());
+
+    let connected = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+
+    await connected;
+
+    let operationPromise = expect(client.subscribe({
+        subscriptions: [
+            { topicFilter : topic, qos : mqtt5.QoS.AtLeastOnce }
+        ]
+    })).rejects.toEqual("libaws-c-mqtt: AWS_ERROR_MQTT5_USER_REQUESTED_STOP, Mqtt5 client connection interrupted by user request.");
+
+    client.stop();
+
+    await stopped;
+    client.close();
+
+    await operationPromise;
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('QoS 1 Publish Interrupted', async () => {
+    let topic : string = `test-${uuid()}`;
+
+    let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig());
+
+    let connected = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+
+    await connected;
+
+    let operationPromise = expect(client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce
+    })).rejects.toEqual("libaws-c-mqtt: AWS_ERROR_MQTT5_USER_REQUESTED_STOP, Mqtt5 client connection interrupted by user request.");
+
+    client.stop();
+
+    await stopped;
+    client.close();
+
+    await operationPromise;
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Unsubscribe Interrupted', async () => {
+    let topic : string = `test-${uuid()}`;
+
+    let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig());
+
+    let connected = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+
+    await connected;
+
+    let operationPromise = expect(client.unsubscribe({
+        topicFilters: [
+            topic
+        ]
+    })).rejects.toEqual("libaws-c-mqtt: AWS_ERROR_MQTT5_USER_REQUESTED_STOP, Mqtt5 client connection interrupted by user request.");
+
+    client.stop();
+
+    await stopped;
+    client.close();
+
+    await operationPromise;
 });
