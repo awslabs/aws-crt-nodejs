@@ -9,8 +9,6 @@ import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketTy
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
-import {once} from "events";
-
 
 jest.setTimeout(10000);
 
