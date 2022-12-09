@@ -15,6 +15,8 @@ import crt_native from './binding';
 import { NativeResource } from "./native_resource";
 import { Hashable } from "../common/crypto";
 
+export { Hashable } from "../common/crypto";
+
 /**
  * Object that allows for continuous hashing of data.
  *

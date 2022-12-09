@@ -31,11 +31,6 @@
     "targets": {
         "android": {
             "enabled": false
-        },
-        "linux": {
-            "x86": {
-                "enabled": false
-            }
         }
     },
     "upstream": [],
@@ -71,12 +66,7 @@
         "AWS_CRT_MEMORY_TRACING": "2"
     },
     "test_steps": [
-        "crt-ci-prep",
-        [
-            "npm",
-            "run",
-            "test:native"
-        ],
+        "crt-ci-test",
         [
             "npm",
             "--prefix",

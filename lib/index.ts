@@ -10,26 +10,29 @@ import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
 
 /* node specific libs */
-import * as crt from './native/crt';
-import * as io from './native/io';
-import * as mqtt from './native/mqtt';
-import * as http from './native/http';
-import * as crypto from './native/crypto';
 import * as auth from './native/auth';
-import * as iot from './native/aws_iot';
 import * as checksums from './native/checksums';
-import { CrtError } from './native/error';
+import * as crt from './native/crt';
+import * as crypto from './native/crypto';
+import * as http from './native/http';
+import * as io from './native/io';
+import * as iot from './native/iot';
+import * as mqtt from './native/mqtt';
+import * as mqtt5 from './native/mqtt5';
+import { ICrtError, CrtError } from './native/error';
 
 export {
-    crt,
-    io,
-    mqtt,
-    http,
-    crypto,
     auth,
+    checksums,
+    crypto,
+    crt,
+    http,
+    io,
     iot,
+    mqtt,
+    mqtt5,
     platform,
     resource_safety,
-    checksums,
+    ICrtError,
     CrtError
 };

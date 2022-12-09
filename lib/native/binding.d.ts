@@ -14,6 +14,10 @@ import { InputStream, TlsContextOptions } from "./io";
 import {AwsSigningConfig, CognitoCredentialsProviderConfig} from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
+import { Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings } from "./mqtt5";
+import * as mqtt5_packet from "../common/mqtt5_packet";
+import { PublishCompletionResult } from "../common/mqtt5";
+
 
 /**
  * Type used to store pointers to CRT native resources
@@ -134,6 +138,45 @@ export function hmac_sha256_compute(secret: StringLike, data: StringLike, trunca
 export function checksums_crc32(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc32c(data: StringLike, previous?: number): number;
+
+/* MQTT5 Client */
+
+/** @internal */
+export function mqtt5_client_new(
+    client: Mqtt5Client,
+    config: Mqtt5ClientConfig,
+    on_stopped_event_handler: (client: Mqtt5Client) => void,
+    on_attempt_connect_handler: (client: Mqtt5Client) => void,
+    on_connection_success_handler: (client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void,
+    on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: mqtt5_packet.ConnackPacket) => void,
+    on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: mqtt5_packet.DisconnectPacket) => void,
+    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket) => void,
+    client_bootstrap?: NativeHandle,
+    socket_options?: NativeHandle,
+    tls_ctx?: NativeHandle,
+    proxy_options?: NativeHandle,
+): NativeHandle;
+
+/** @internal */
+export function mqtt5_client_start(client: NativeHandle) : void;
+
+/** @internal */
+export function mqtt5_client_stop(client: NativeHandle, disconnect_packet?: mqtt5_packet.DisconnectPacket) : void;
+
+/** @internal */
+export function mqtt5_client_subscribe(client: NativeHandle, subscribe_packet: mqtt5_packet.SubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, suback?: mqtt5_packet.SubackPacket) => void) : void;
+
+/** @internal */
+export function mqtt5_client_unsubscribe(client: NativeHandle, unsubscribe_packet: mqtt5_packet.UnsubscribePacket, on_resolution: (client: Mqtt5Client, errorCode: number, unsuback?: mqtt5_packet.UnsubackPacket) => void) : void;
+
+/** @internal */
+export function mqtt5_client_publish(client: NativeHandle, publish_packet: mqtt5_packet.PublishPacket, on_resolution: (client: Mqtt5Client, errorCode: number, result: PublishCompletionResult) => void) : void;
+
+/** @internal */
+export function mqtt5_client_get_queue_statistics(client: NativeHandle) : ClientStatistics;
+
+/** @internal */
+export function mqtt5_client_close(client: NativeHandle) : void;
 
 /* MQTT Client */
 /** @internal */

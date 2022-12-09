@@ -7,8 +7,6 @@
  * Module for AWS IoT configuration and connection establishment
  *
  * @packageDocumentation
- * @module aws_iot
- * @mergeTarget
  */
 
 import { MqttConnectionConfig, MqttWill} from "./mqtt";
