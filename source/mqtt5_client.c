@@ -2554,9 +2554,18 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto done; });
 
-        if (binding->valid_storage == AWS_MQTT5_PT_SUBACK &&
-            s_create_napi_suback_packet(env, &binding->packet_storage.suback.storage_view, &params[2])) {
-            goto done;
+        if (binding->valid_storage == AWS_MQTT5_PT_SUBACK) {
+            if (s_create_napi_suback_packet(env, &binding->packet_storage.suback.storage_view, &params[2])) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_subscribe_complete - could not build suback napi value");
+                goto done;
+            }
+        } else {
+            if (napi_get_undefined(env, &params[2]) != napi_ok) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_subscribe_complete - could not get undefined napi value");
+                goto done;
+            }
         }
 
         AWS_NAPI_ENSURE(
@@ -2579,7 +2588,8 @@ static void s_on_subscribe_complete(
     struct aws_napi_mqtt5_operation_binding *binding = complete_ctx;
 
     binding->error_code = error_code;
-    if (aws_mqtt5_packet_suback_storage_init(&binding->packet_storage.suback, allocator, suback) == AWS_OP_SUCCESS) {
+    if (suback != NULL &&
+        aws_mqtt5_packet_suback_storage_init(&binding->packet_storage.suback, allocator, suback) == AWS_OP_SUCCESS) {
         binding->valid_storage = AWS_MQTT5_PT_SUBACK;
     } else if (binding->error_code == AWS_ERROR_SUCCESS) {
         binding->error_code = aws_last_error();
@@ -2940,8 +2950,15 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[1]), { goto done; });
 
-        if (binding->valid_storage == AWS_MQTT5_PT_UNSUBACK &&
-            s_create_napi_unsuback_packet(env, &binding->packet_storage.unsuback.storage_view, &params[2])) {
+        if (binding->valid_storage == AWS_MQTT5_PT_UNSUBACK) {
+            if (s_create_napi_unsuback_packet(env, &binding->packet_storage.unsuback.storage_view, &params[2])) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_unsubscribe_complete - could not build suback napi value");
+                goto done;
+            }
+        } else if (napi_get_undefined(env, &params[2]) != napi_ok) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_unsubscribe_complete - could not get undefined napi_value");
             goto done;
         }
 
@@ -2965,8 +2982,8 @@ static void s_on_unsubscribe_complete(
     struct aws_napi_mqtt5_operation_binding *binding = complete_ctx;
 
     binding->error_code = error_code;
-    if (aws_mqtt5_packet_unsuback_storage_init(&binding->packet_storage.unsuback, allocator, unsuback) ==
-        AWS_OP_SUCCESS) {
+    if (unsuback != NULL && aws_mqtt5_packet_unsuback_storage_init(
+                                &binding->packet_storage.unsuback, allocator, unsuback) == AWS_OP_SUCCESS) {
         binding->valid_storage = AWS_MQTT5_PT_UNSUBACK;
     } else if (binding->error_code == AWS_ERROR_SUCCESS) {
         binding->error_code = aws_last_error();
@@ -3249,10 +3266,14 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
 
         if (binding->valid_storage == AWS_MQTT5_PT_PUBACK) {
             if (s_create_napi_puback_packet(env, &binding->packet_storage.puback.storage_view, &params[2])) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_publish_complete - could not build puback napi_value");
                 goto done;
             }
         } else {
-            if (napi_get_undefined(env, &params[2])) {
+            if (napi_get_undefined(env, &params[2]) != napi_ok) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_publish_complete - could not get undefined napi_value");
                 goto done;
             }
         }

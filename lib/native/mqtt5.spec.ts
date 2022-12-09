@@ -10,7 +10,6 @@ import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from 
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
 
-
 jest.setTimeout(10000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
