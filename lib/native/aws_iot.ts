@@ -368,13 +368,10 @@ export class AwsIotMqttConnectionConfigBuilder {
             "", username, authorizer_name, authorizer_signature, this.params.username);
         this.params.username = username_string;
         this.params.password = password;
-        if (this.params.use_websocket) {
-            // Do nothing - we can leave the port and alpn list as-is
-        }
-        else {
+        if (!this.params.use_websocket) {
             this.tls_ctx_options.alpn_list = ["mqtt"];
-            this.params.port = 443;
         }
+        this.params.port = 443;
         return this;
     }
 
