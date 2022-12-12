@@ -7,6 +7,7 @@ import * as test_utils from "@test/mqtt5";
 import * as mqtt5 from "./mqtt5";
 import * as iot from "./iot";
 import * as fs from 'fs';
+import * as auth from "./auth";
 
 jest.setTimeout(10000);
 
@@ -69,13 +70,18 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 // requires correct credentials to be sourced from the default credentials provider chain
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Websocket by default credentials provider - Connection Success', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Websocket by Sigv4 - Connection Success', async () => {
+
+    let provider: auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newStatic(
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY
+    );
 
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
-        // the region extraction logic does not work for gamma endpoint formats so pass in region manually
-        // TODO: remove this when we switch to live target
-        { region: "us-east-1" }
+        {
+            credentialsProvider: provider
+        }
     );
 
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
