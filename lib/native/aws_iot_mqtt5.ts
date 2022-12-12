@@ -230,6 +230,27 @@ export class AwsIotMqtt5ClientConfigBuilder {
         return builder;
     }
 
+    /**
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via websockets,
+     * authenticating via a custom authenticator.
+     *
+     * @param hostName - AWS IoT endpoint to connect to
+     * @param customAuthConfig - AWS IoT custom auth configuration
+     */
+     static newWebsocketMqttBuilderWithCustomAuth(hostName : string, customAuthConfig: iot_shared.MqttConnectCustomAuthConfig) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
+            hostName,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
+            new io.TlsContextOptions());
+        builder.customAuthConfig = customAuthConfig;
+
+        builder.config.websocketHandshakeTransform = async (request, done) => {
+            done(0);
+        };
+
+        return builder;
+    }
+
     /* Instance Methods for various config overrides */
 
     /**
