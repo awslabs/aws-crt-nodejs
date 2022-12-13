@@ -155,3 +155,36 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client(builder.build()));
 });
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Websocket Mqtt Non-Signing Custom Auth - Connection Success', async () => {
+    let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
+        authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_NAME,
+        username: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME,
+        password: Buffer.from(test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_PASSWORD, "utf-8")
+    };
+
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithCustomAuth(
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
+        customAuthConfig
+    );
+
+    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Websocket Mqtt Signing Custom Auth - Connection Success', async () => {
+    let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
+        authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
+        username: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
+        password: Buffer.from(test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_PASSWORD, "utf-8"),
+        tokenKeyName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME,
+        tokenValue: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN,
+        tokenSignature: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_SIGNATURE
+    };
+
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithCustomAuth(
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
+        customAuthConfig
+    );
+
+    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+});
