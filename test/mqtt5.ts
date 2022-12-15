@@ -308,7 +308,7 @@ export async function testSubscribeValidationFailure(client : mqtt5.Mqtt5Client,
     client.close();
 }
 
-export function verifyCommonNegotiatedSettings(settings: mqtt5.NegotiatedSettings) {
+export function verifyCommonNegotiatedSettings(settings: mqtt5.NegotiatedSettings, expectedRejoinedSession: boolean) {
     expect(settings.maximumQos).toEqual(mqtt5.QoS.AtLeastOnce);
     expect(settings.sessionExpiryInterval).toBeDefined();
     expect(settings.receiveMaximumFromServer).toBeDefined();
@@ -318,12 +318,12 @@ export function verifyCommonNegotiatedSettings(settings: mqtt5.NegotiatedSetting
     expect(typeof settings.wildcardSubscriptionsAvailable === 'boolean').toBeTruthy();
     expect(typeof settings.subscriptionIdentifiersAvailable === 'boolean').toBeTruthy();
     expect(typeof settings.sharedSubscriptionsAvailable === 'boolean').toBeTruthy();
-    expect(settings.rejoinedSession).toBeFalsy();
+    expect(settings.rejoinedSession).toEqual(expectedRejoinedSession);
     expect(settings.clientId).toBeDefined();
     expect(settings.sessionExpiryInterval).toBeDefined();
 }
 
-export async function testNegotiatedSettings(client: mqtt5.Mqtt5Client) : Promise<mqtt5.NegotiatedSettings> {
+export async function testNegotiatedSettings(client: mqtt5.Mqtt5Client, expectedRejoinedSession?: boolean) : Promise<mqtt5.NegotiatedSettings> {
     let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
     let stopped = once(client, mqtt5.Mqtt5Client.STOPPED)
 
@@ -338,7 +338,7 @@ export async function testNegotiatedSettings(client: mqtt5.Mqtt5Client) : Promis
 
             client.close();
 
-            verifyCommonNegotiatedSettings(connectionSuccessEvent.settings);
+            verifyCommonNegotiatedSettings(connectionSuccessEvent.settings, expectedRejoinedSession ?? false);
 
             resolve(connectionSuccessEvent.settings);
         } catch (err) {
