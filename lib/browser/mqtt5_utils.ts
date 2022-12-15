@@ -119,7 +119,7 @@ export function getOrderedReconnectDelayBounds(configMin?: number, configMax?: n
 
 /** @internal */
 function should_mqtt_js_use_clean_start(session_behavior? : mqtt5.ClientSessionBehavior) : boolean {
-    return session_behavior !== mqtt5.ClientSessionBehavior.RejoinPostSuccess;
+    return session_behavior !== mqtt5.ClientSessionBehavior.RejoinPostSuccess && session_behavior !== mqtt5.ClientSessionBehavior.RejoinAlways;
 }
 
 /** @internal */

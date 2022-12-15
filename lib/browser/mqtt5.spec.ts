@@ -383,6 +383,27 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     expect(settings.clientId).toEqual(clientId);
 });
 
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Negotiated settings - always rejoin session', async () => {
+    let clientId : string = `test-${uuid()}`;
+    let config : mqtt5.Mqtt5ClientConfig = createWsIotCoreClientConfig();
+    config.connectProperties = {
+        clientId: clientId,
+        keepAliveIntervalSeconds: 600,
+        sessionExpiryIntervalSeconds: 3600,
+    };
+
+    let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+    // @ts-ignore
+    await test_utils.testNegotiatedSettings(client, false);
+
+    config.sessionBehavior = mqtt5.ClientSessionBehavior.RejoinAlways;
+    let forcedRejoinClient : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+    // @ts-ignore
+    await test_utils.testNegotiatedSettings(forcedRejoinClient, true);
+});
+
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 0 - Unsub', async () => {
     let topic : string = `test-${uuid()}`;
     let testPayload : Buffer = Buffer.from("Derp", "utf-8");

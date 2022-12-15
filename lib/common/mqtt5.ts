@@ -105,6 +105,14 @@ export enum ClientSessionBehavior {
      * Session rejoin requires an appropriate non-zero session expiry interval in the client's CONNECT options.
      */
     RejoinPostSuccess = 2,
+
+    /**
+     * Always attempt to rejoin an existing session.  Since the client does not yet support durable session persistence,
+     * this option is not guaranteed to be spec compliant because any unacknowledged qos1 publishes (which are
+     * part of the client session state) will not be present on the initial connection.  Until we support
+     * durable session resumption, this option is technically spec-breaking, but useful.
+     */
+    RejoinAlways = 3,
 }
 
 /**
