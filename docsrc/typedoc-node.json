@@ -1,20 +1,19 @@
 {
     "entryPoints": [
         "../lib/native/auth.ts",
-        "../lib/native/aws_iot.ts",
         "../lib/native/checksums.ts",
         "../lib/native/crt.ts",
         "../lib/native/crypto.ts",
         "../lib/native/error.ts",
         "../lib/native/http.ts",
         "../lib/native/io.ts",
+        "../lib/native/iot.ts",
         "../lib/native/mqtt.ts",
+        "../lib/native/mqtt5.ts",
         "../lib/native/binding.d.ts",
-        "../lib/common/auth.ts",
-        "../lib/common/crypto.ts",
         "../lib/common/event.ts",
         "../lib/common/http.ts",
-        "../lib/common/mqtt.ts",
+        "../lib/common/platform.ts",
         "../lib/common/resource_safety.ts"
     ],
     "out": "../docs/node",

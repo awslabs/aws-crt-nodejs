@@ -77,6 +77,10 @@ function is_proxy_environment_enabled() {
     return ProxyConfig.is_valid()
 }
 
+function is_tls_to_proxy_enabled() {
+    return ProxyConfig.is_tls_to_proxy_valid()
+}
+
 conditional_test(is_proxy_environment_enabled())('Proxied Http Connection Forwarding NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.FORWARDING, HttpProxyAuthenticationType.None);
 });
@@ -97,7 +101,7 @@ conditional_test(is_proxy_environment_enabled())('Proxied Https Connection Tunne
     await test_proxied_connection(ProxyTestType.TUNNELING_HTTPS, HttpProxyAuthenticationType.None);
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Https Connection DoubleTls NoAuth', async () => {
+conditional_test(is_proxy_environment_enabled() && is_tls_to_proxy_enabled())('Proxied Https Connection DoubleTls NoAuth', async () => {
     await test_proxied_connection(ProxyTestType.TUNNELING_DOUBLE_TLS, HttpProxyAuthenticationType.None);
 });
 
@@ -160,6 +164,6 @@ conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection Tunnel
     await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_HTTP, HttpProxyAuthenticationType.Basic);
 });
 
-conditional_test(is_proxy_environment_enabled())('Proxied Mqtt Connection DoubleTls NoAuth', async () => {
+conditional_test(is_proxy_environment_enabled() && is_tls_to_proxy_enabled())('Proxied Mqtt Connection DoubleTls NoAuth', async () => {
     await test_proxied_mqtt_connection(ProxyTestType.TUNNELING_DOUBLE_TLS, HttpProxyAuthenticationType.None);
 });

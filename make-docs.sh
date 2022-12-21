@@ -7,8 +7,8 @@ pushd `dirname $0` > /dev/null
 rm -rf docs/
 
 # build
-npx typedoc --options ./docsrc/typedoc-node.json
-npx typedoc --options ./docsrc/typedoc-browser.json
+npx typedoc --options ./docsrc/typedoc-node.json --sort enum-value-ascending
+npx typedoc --options ./docsrc/typedoc-browser.json --sort enum-value-ascending
 cp docsrc/index.html docs/index.html
 
 popd > /dev/null

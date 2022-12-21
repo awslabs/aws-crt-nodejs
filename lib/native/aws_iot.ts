@@ -7,8 +7,6 @@
  * Module for AWS IoT configuration and connection establishment
  *
  * @packageDocumentation
- * @module aws_iot
- * @mergeTarget
  */
 
 import { MqttConnectionConfig, MqttWill} from "./mqtt";
@@ -370,7 +368,9 @@ export class AwsIotMqttConnectionConfigBuilder {
             "", username, authorizer_name, authorizer_signature, this.params.username);
         this.params.username = username_string;
         this.params.password = password;
-        this.tls_ctx_options.alpn_list = ["mqtt"];
+        if (!this.params.use_websocket) {
+            this.tls_ctx_options.alpn_list = ["mqtt"];
+        }
         this.params.port = 443;
         return this;
     }
@@ -397,8 +397,8 @@ export class AwsIotMqttConnectionConfigBuilder {
 
     /**
      * Configure the max reconnection period (in second). The reonnection period will
-     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
-     * @param reconnect_max_sec max reconnection period 
+     * be set in range of [reconnect_min_sec,reconnect_max_sec].
+     * @param reconnect_max_sec max reconnection period
      */
     with_reconnect_max_sec(max_sec: number) {
         this.params.reconnect_max_sec = max_sec;
@@ -407,8 +407,8 @@ export class AwsIotMqttConnectionConfigBuilder {
 
     /**
      * Configure the min reconnection period (in second). The reonnection period will
-     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
-     * @param reconnect_min_sec min reconnection period 
+     * be set in range of [reconnect_min_sec,reconnect_max_sec].
+     * @param reconnect_min_sec min reconnection period
      */
     with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
@@ -438,9 +438,6 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.is_using_custom_authorizer == true) {
             if (this.params.port != 443) {
                 console.log("Warning: Attempting to connect to authorizer with unsupported port. Port is not 443...");
-            }
-            if (this.tls_ctx_options.alpn_list != ["mqtt"]) {
-                this.tls_ctx_options.alpn_list = ["mqtt"]
             }
         }
 
