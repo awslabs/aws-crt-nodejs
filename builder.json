@@ -35,7 +35,9 @@
             "windows": {
                 "architectures": {
                     "x86": {
-                        "!build_steps": [[
+                        "!build_steps": [
+                        ["npm","set","npm_config_arch","ia32"],
+                            [
                             "npm",
                             "install",
                             "--unsafe-perm",
