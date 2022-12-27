@@ -111,7 +111,7 @@ jobs:
           python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-${{ matrix.arch }} --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-A${{ matrix.arch }}
       - name: Test with arch
         run: |
-          file ./build/win32-x64/Release/aws-crt-nodejs.node
+          file ./build/win32-ia32/Release/aws-crt-nodejs.node
 
   windows:
     runs-on: windows-2022 # latest
