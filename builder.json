@@ -37,23 +37,21 @@
                     "x86": {
                         "!build_steps": [
                         ["npm","set","npm_config_arch","ia32"],
-                            [
+                        [
                             "npm",
                             "install",
-                            "--unsafe-perm",
-                            "--arch=ia32"
+                            "--unsafe-perm"
                         ],
                         [
                             "node",
                             "scripts/build.js",
                             "-DAWS_WARNINGS_ARE_ERRORS=ON",
-                            "--arch=ia32"
+                            "--target-arch","ia32"
                         ],
                         [
                             "npm",
                             "run-script",
-                            "tsc",
-                            "--arch=ia32"
+                            "tsc"
                         ]]
                     }
                 }
