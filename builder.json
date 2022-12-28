@@ -31,31 +31,7 @@
     "targets": {
         "android": {
             "enabled": false
-        },
-            "windows": {
-                "architectures": {
-                    "x86": {
-                        "!build_steps": [
-                        ["npm","set","npm_config_arch","ia32"],
-                        [
-                            "npm",
-                            "install",
-                            "--unsafe-perm"
-                        ],
-                        [
-                            "node",
-                            "scripts/build.js",
-                            "-DAWS_WARNINGS_ARE_ERRORS=ON",
-                            "--target-arch","ia32"
-                        ],
-                        [
-                            "npm",
-                            "run-script",
-                            "tsc"
-                        ]]
-                    }
-                }
-            }
+        }
     },
     "upstream": [],
     "downstream": [],

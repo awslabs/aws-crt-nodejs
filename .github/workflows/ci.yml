@@ -97,7 +97,7 @@ jobs:
     runs-on: windows-2019 # windows-2019 is last env with Visual Studio 2015 (v14.0)
     strategy:
       matrix:
-        arch: [x86, x64]
+        arch: [x86]
     steps:
       - name: Checkout Sources
         uses: actions/checkout@v2
@@ -109,8 +109,10 @@ jobs:
         run: |
           python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
           python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-${{ matrix.arch }} --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-A${{ matrix.arch }}
-      - name: Test with arch
+      - name: Cross-compile win32
         run: |
+          node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
+        # verify the binary architecture
           file ./build/win32-ia32/Release/aws-crt-nodejs.node
 
   windows:
