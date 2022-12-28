@@ -79,21 +79,17 @@ jobs:
   windows-vc14-x86:
     runs-on: windows-2019 # windows-2019 is last env with Visual Studio 2015 (v14.0)
     steps:
-      - name: Checkout Sources
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-      - name: Build ${{ env.PACKAGE_NAME }} + consumers
-        env:
-          AWS_CMAKE_TOOLSET: v140
-        run: |
-          python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
-          python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-x86 --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-Ax86
-      - name: Cross-compile win32
-        run: |
-          node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
-        # verify the binary architecture
-          file ./build/win32-ia32/Release/aws-crt-nodejs.node
+    - name: Build ${{ env.PACKAGE_NAME }} + consumers
+      env:
+        AWS_CMAKE_TOOLSET: v140
+      run: |
+        python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
+        python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-x86 --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-Ax86
+    - name: Cross-compile win32
+      run: |
+        node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
+      # verify the binary architecture
+        file ./build/win32-ia32/Release/aws-crt-nodejs.node
 
   osx:
     runs-on: macos-11 # latest
