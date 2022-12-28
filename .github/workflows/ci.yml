@@ -85,6 +85,10 @@ jobs:
       run: |
         python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
         python builder.pyz build -p ${{ env.PACKAGE_NAME }} --spec=downstream
+    # cross-compile win32
+    - name: Cross-compile win32
+      run: |
+        node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
 
   osx:
     runs-on: macos-11 # latest
