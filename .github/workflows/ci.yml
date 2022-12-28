@@ -88,6 +88,7 @@ jobs:
     # cross-compile win32
     - name: Cross-compile win32
       run: |
+        cd aws-crt-nodejs
         node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
 
   osx:
