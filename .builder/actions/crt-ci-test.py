@@ -30,7 +30,7 @@ class CrtCiTest(Builder.Action):
     def run(self, env):
         env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
 
-        self._write_environment_script_secret_to_env(env, "mqtt5-testing/github-ci-environment", quiet=True)
+        self._write_environment_script_secret_to_env(env, "mqtt5-testing/github-ci-environment")
 
         # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
         # on Windows.
