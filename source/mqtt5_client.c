@@ -1986,7 +1986,7 @@ static int s_init_event_handler_threadsafe_function(
  * Shared configuration defaults.  These are required parameters at the C level, but we make them optional and give
  * them sensible defaults at the binding level.
  */
-static const uint32_t s_default_mqtt_keep_alive_interval_seconds = 1200;
+static const uint16_t s_default_mqtt_keep_alive_interval_seconds = 1200;
 
 static void s_init_default_mqtt5_client_options(
     struct aws_mqtt5_client_options *client_options,
