@@ -16,7 +16,7 @@ class CrtCiTest(Builder.Action):
         for line in lines:
             env_pair_match = env_line.match(line)
             if env_pair_match.group(1) and env_pair_match.group(2):
-                env.shell.setenv(env_pair_match.group(1), env_pair_match.group(2))
+                env.shell.setenv(env_pair_match.group(1), env_pair_match.group(2), quiet=True)
 
     def _write_secret_to_temp_file(self, env, secret_name):
         secret_value = env.shell.get_secret(secret_name)
@@ -28,7 +28,7 @@ class CrtCiTest(Builder.Action):
         return filename
 
     def run(self, env):
-        env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"))
+        env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
 
         self._write_environment_script_secret_to_env(env, "mqtt5-testing/github-ci-environment")
 
@@ -38,8 +38,8 @@ class CrtCiTest(Builder.Action):
             cert_file_name = self._write_secret_to_temp_file(env, "unit-test/certificate")
             key_file_name = self._write_secret_to_temp_file(env, "unit-test/privatekey")
 
-            env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH", cert_file_name)
-            env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_KEY_PATH", key_file_name)
+            env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH", cert_file_name, quiet=True)
+            env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_KEY_PATH", key_file_name, quiet=True)
 
             if os.system("npm run test:native"):
                 # Failed
