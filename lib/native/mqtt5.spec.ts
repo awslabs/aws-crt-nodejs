@@ -49,7 +49,7 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
         if (io.is_alpn_available()) {
             tlsContextOptions.alpn_list.unshift('x-amzn-mqtt-ca');
         }
-        let tlsContext : io.ClientTlsContext = new io.ClientTlsContext(tlsContextOptions);
+        tlsCtx = new io.ClientTlsContext(tlsContextOptions);
     }
 
     return {
