@@ -174,7 +174,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     }
 
     // Setup websocket config
-    let websocket_handshake_transform = async (request, done) => {
+    let websocket_handshake_transform = async (request: HttpRequest, done: (error_code?: number) => void) => {
         const signing_config : auth.AwsSigningConfig = {
             algorithm: auth.AwsSigningAlgorithm.SigV4,
             signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
@@ -220,10 +220,9 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
     maximalConfig.hostName = test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST;
     maximalConfig.port = 443;
-    // maximalConfig.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => { done(0); };
 
     // Setup websocket config
-    let websocket_handshake_transform = async (request, done) => {
+    let websocket_handshake_transform = async (request: HttpRequest, done: (error_code?: number) => void) => {
         const signing_config : auth.AwsSigningConfig = {
             algorithm: auth.AwsSigningAlgorithm.SigV4,
             signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
