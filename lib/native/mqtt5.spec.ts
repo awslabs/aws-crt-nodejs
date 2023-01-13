@@ -169,9 +169,8 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
         test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
         test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
     );
-    if (io.is_alpn_available()) {
-        tls_ctx_opt.alpn_list.unshift('x-amzn-mqtt-ca');
-    }
+    // Empty the alpn list
+    tls_ctx_opt.alpn_list = new Array<string>();
 
     // Setup websocket config
     let websocket_handshake_transform = async (request: HttpRequest, done: (error_code?: number) => void) => {
