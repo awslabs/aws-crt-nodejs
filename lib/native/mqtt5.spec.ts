@@ -33,15 +33,6 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
 
     let proxyOptions = undefined;
     if (test_utils.ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
-        proxyOptions = new mqtt5.HttpProxyOptions(
-            test_utils.ClientEnvironmentalConfig.PROXY_HOST,
-            test_utils.ClientEnvironmentalConfig.PROXY_PORT,
-            HttpProxyAuthenticationType.None,
-            undefined,
-            undefined,
-            undefined,
-            HttpProxyConnectionType.Tunneling);
-
         let tlsContextOptions: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
             test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
             test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
@@ -50,6 +41,26 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
             tlsContextOptions.alpn_list.unshift('x-amzn-mqtt-ca');
         }
         tlsCtx = new io.ClientTlsContext(tlsContextOptions);
+
+        if (wsTransform === undefined) {
+            proxyOptions = new mqtt5.HttpProxyOptions(
+                test_utils.ClientEnvironmentalConfig.PROXY_HOST,
+                test_utils.ClientEnvironmentalConfig.PROXY_PORT,
+                HttpProxyAuthenticationType.None,
+                undefined,
+                undefined,
+                undefined,
+                HttpProxyConnectionType.Tunneling);
+        } else {
+            proxyOptions = new mqtt5.HttpProxyOptions(
+                test_utils.ClientEnvironmentalConfig.PROXY_HOST,
+                test_utils.ClientEnvironmentalConfig.PROXY_PORT,
+                HttpProxyAuthenticationType.None,
+                undefined,
+                undefined,
+                new io.TlsConnectionOptions(new ClientTlsContext(tlsCtx), test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST),
+                HttpProxyConnectionType.Tunneling);
+        }
     }
 
     return {
@@ -136,7 +147,7 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
             HttpProxyAuthenticationType.None,
             undefined,
             undefined,
-            undefined,
+            new io.TlsConnectionOptions(new ClientTlsContext(tls_ctx_opt), test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST),
             HttpProxyConnectionType.Tunneling),
         extendedValidationAndFlowControlOptions: mqtt5.ClientExtendedValidationAndFlowControl.AwsIotCoreDefaults
     };
