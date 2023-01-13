@@ -82,8 +82,8 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
     tls_ctx_opt.verify_peer = false;
 
     return {
-        hostName: test_utils.ClientEnvironmentalConfig.DIRECT_MQTT_TLS_HOST,
-        port: test_utils.ClientEnvironmentalConfig.DIRECT_MQTT_TLS_PORT,
+        hostName: test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST,
+        port: test_utils.ClientEnvironmentalConfig.PROXY_MQTT_PORT,
         sessionBehavior: mqtt5.ClientSessionBehavior.RejoinPostSuccess,
         retryJitterMode: mqtt5.RetryJitterType.Decorrelated,
         minReconnectDelayMs: 2000,
