@@ -79,12 +79,12 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY, createNodeSpecificTestConfig);
 });
 
-function makeMaximalConfig(add_alpn_list : boolean) : mqtt5.Mqtt5ClientConfig {
+function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
     let tls_ctx_opt: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
         test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
     );
-    if (io.is_alpn_available() && add_alpn_list === true) {
+    if (io.is_alpn_available()) {
         tls_ctx_opt.alpn_list.unshift('x-amzn-mqtt-ca');
     }
 
@@ -145,7 +145,7 @@ function makeMaximalConfig(add_alpn_list : boolean) : mqtt5.Mqtt5ClientConfig {
 }
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Direct Mqtt with everything set', async () => {
-    let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig(true);
+    let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
 
     await test_utils.testConnect(new mqtt5.Mqtt5Client(maximalConfig));
 });
@@ -163,85 +163,13 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with tls through an http proxy', async () => {
-    // await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY, createNodeSpecificTestConfig);
-
-    let tls_ctx_opt: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
-        test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
-        test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
-    );
-
-    // Setup websocket config
-    let websocket_handshake_transform = async (request: HttpRequest, done: (error_code?: number) => void) => {
-        const signing_config : auth.AwsSigningConfig = {
-            algorithm: auth.AwsSigningAlgorithm.SigV4,
-            signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
-            provider: auth.AwsCredentialsProvider.newDefault(),
-            region: "us-east-1",
-            service: "iotdevicegateway",
-            signed_body_value: auth.AwsSignedBodyValue.EmptySha256,
-            omit_session_token: true,
-        };
-
-        try {
-            await auth.aws_sign_request(request, signing_config as auth.AwsSigningConfig);
-            done();
-        } catch (error) {
-            if (error instanceof CrtError) {
-                done(error.error_code);
-            } else {
-                done(3); /* TODO: AWS_ERROR_UNKNOWN */
-            }
-        }
-    };
-
-    let clientConfig : mqtt5.Mqtt5ClientConfig = {
-        hostName: test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST,
-        port: 443,
-        tlsCtx: new ClientTlsContext(tls_ctx_opt),
-        httpProxyOptions: new mqtt5.HttpProxyOptions(
-            test_utils.ClientEnvironmentalConfig.PROXY_HOST,
-            test_utils.ClientEnvironmentalConfig.PROXY_PORT,
-            HttpProxyAuthenticationType.None,
-            undefined,
-            undefined,
-            undefined,
-            HttpProxyConnectionType.Tunneling),
-        websocketHandshakeTransform: websocket_handshake_transform
-    };
-
-    await test_utils.testConnect(new mqtt5.Mqtt5Client(clientConfig));
-
+    await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY, createNodeSpecificTestConfig);
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with everything set', async () => {
-    let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig(false);
+    let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
     maximalConfig.port = 443;
-
-    // Setup websocket config
-    let websocket_handshake_transform = async (request: HttpRequest, done: (error_code?: number) => void) => {
-        const signing_config : auth.AwsSigningConfig = {
-            algorithm: auth.AwsSigningAlgorithm.SigV4,
-            signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
-            provider: auth.AwsCredentialsProvider.newDefault(),
-            region: "us-east-1",
-            service: "iotdevicegateway",
-            signed_body_value: auth.AwsSignedBodyValue.EmptySha256,
-            omit_session_token: true,
-        };
-
-        try {
-            await auth.aws_sign_request(request, signing_config as auth.AwsSigningConfig);
-            done();
-        } catch (error) {
-            if (error instanceof CrtError) {
-                done(error.error_code);
-            } else {
-                done(3); /* TODO: AWS_ERROR_UNKNOWN */
-            }
-        }
-    };
-    maximalConfig.websocketHandshakeTransform = websocket_handshake_transform;
-
+    maximalConfig.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => { done(0); };
     await test_utils.testConnect(new mqtt5.Mqtt5Client(maximalConfig));
 });
 
