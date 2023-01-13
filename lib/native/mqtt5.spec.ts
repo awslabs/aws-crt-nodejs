@@ -9,10 +9,8 @@ import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketTy
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
-import * as auth from "./auth"
-import { CrtError } from "./error";
 
-jest.setTimeout(60000);
+jest.setTimeout(10000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
