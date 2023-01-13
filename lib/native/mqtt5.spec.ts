@@ -78,8 +78,13 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 });
 
 function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
-    let tls_ctx_opt = new TlsContextOptions();
-    tls_ctx_opt.verify_peer = false;
+    let tls_ctx_opt: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
+    );
+    if (io.is_alpn_available()) {
+        tls_ctx_opt.alpn_list.unshift('x-amzn-mqtt-ca');
+    }
 
     return {
         hostName: test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST,
@@ -161,8 +166,8 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with everything set', async () => {
     let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
-    maximalConfig.hostName = test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_HOST;
-    maximalConfig.port = test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_PORT;
+    maximalConfig.hostName = test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST;
+    maximalConfig.port = 443;
     maximalConfig.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => { done(0); };
 
     await test_utils.testConnect(new mqtt5.Mqtt5Client(maximalConfig));
