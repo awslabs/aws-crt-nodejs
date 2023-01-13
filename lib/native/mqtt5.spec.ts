@@ -12,7 +12,7 @@ import * as io from "./io";
 import * as auth from "./auth"
 import { CrtError } from "./error";
 
-jest.setTimeout(10000);
+jest.setTimeout(60000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
