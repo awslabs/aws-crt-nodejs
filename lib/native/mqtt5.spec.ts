@@ -165,6 +165,9 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with tls through an http proxy', async () => {
     // await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY, createNodeSpecificTestConfig);
 
+    // Increase timeout to a minute
+    jest.setTimeout(60000)
+
     let tls_ctx_opt: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
         test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
@@ -219,6 +222,9 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
     maximalConfig.hostName = test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST;
     maximalConfig.port = 443;
+
+    // Increase timeout to a minute
+    jest.setTimeout(60000)
 
     // Setup websocket config
     let websocket_handshake_transform = async (request: HttpRequest, done: (error_code?: number) => void) => {
