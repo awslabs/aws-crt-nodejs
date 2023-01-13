@@ -58,7 +58,7 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
                 HttpProxyAuthenticationType.None,
                 undefined,
                 undefined,
-                new io.TlsConnectionOptions(new ClientTlsContext(tlsCtx), test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST),
+                new io.TlsConnectionOptions(tlsCtx, test_utils.ClientEnvironmentalConfig.PROXY_MQTT_HOST),
                 HttpProxyConnectionType.Tunneling);
         }
     }
