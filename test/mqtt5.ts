@@ -83,22 +83,34 @@ export class ClientEnvironmentalConfig {
 
     public static PROXY_HOST = process.env.AWS_TEST_MQTT5_PROXY_HOST ?? "";
     public static PROXY_PORT = parseInt(process.env.AWS_TEST_MQTT5_PROXY_PORT ?? "0");
+    public static PROXY_MQTT_HOST = process.env.AWS_TEST_MQTT5_PROXY_MQTT_HOST ?? "";
+    public static PROXY_MQTT_PORT = parseInt(process.env.AWS_TEST_MQTT5_PROXY_MQTT_PORT ?? "0");
 
     private static getSuccessfulConnectionTestHost(testType : SuccessfulConnectionTestType) : string {
         if (testType == SuccessfulConnectionTestType.DIRECT_MQTT) {
             return ClientEnvironmentalConfig.DIRECT_MQTT_HOST;
         } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_BASIC_AUTH) {
             return ClientEnvironmentalConfig.DIRECT_MQTT_BASIC_AUTH_HOST;
-        } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS ||
-            testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY) {
+        } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS) {
             return ClientEnvironmentalConfig.DIRECT_MQTT_TLS_HOST;
+        } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY) {
+            // HTTP proxy tests are now against IoT Core, so we need a certificate and key
+            if (ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH !== "" &&
+                ClientEnvironmentalConfig.AWS_IOT_KEY_PATH !== "") {
+                return ClientEnvironmentalConfig.PROXY_MQTT_HOST;
+            }
         } else if (testType == SuccessfulConnectionTestType.WS_MQTT) {
             return ClientEnvironmentalConfig.WS_MQTT_HOST;
         } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH) {
             return ClientEnvironmentalConfig.WS_MQTT_BASIC_AUTH_HOST;
-        } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS ||
-            testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY) {
+        } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS) {
             return ClientEnvironmentalConfig.WS_MQTT_TLS_HOST;
+        } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY) {
+            // HTTP proxy tests are now against IoT Core, so we need a certificate and key
+            if (ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH !== "" &&
+                ClientEnvironmentalConfig.AWS_IOT_KEY_PATH !== "") {
+                return ClientEnvironmentalConfig.PROXY_MQTT_HOST;
+            }
         }
 
         return "";
@@ -109,16 +121,18 @@ export class ClientEnvironmentalConfig {
             return ClientEnvironmentalConfig.DIRECT_MQTT_PORT;
         } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_BASIC_AUTH) {
             return ClientEnvironmentalConfig.DIRECT_MQTT_BASIC_AUTH_PORT;
-        } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS ||
-            testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY) {
+        } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS) {
             return ClientEnvironmentalConfig.DIRECT_MQTT_TLS_PORT;
+        } else if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY) {
+            return ClientEnvironmentalConfig.PROXY_MQTT_PORT;
         } else if (testType == SuccessfulConnectionTestType.WS_MQTT) {
             return ClientEnvironmentalConfig.WS_MQTT_PORT;
         } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH) {
             return ClientEnvironmentalConfig.WS_MQTT_BASIC_AUTH_PORT;
-        } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS ||
-            testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY) {
+        } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS) {
             return ClientEnvironmentalConfig.WS_MQTT_TLS_PORT;
+        } else if (testType == SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY) {
+            return 443;
         }
 
         return 0;

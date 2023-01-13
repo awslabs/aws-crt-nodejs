@@ -41,6 +41,15 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
             undefined,
             undefined,
             HttpProxyConnectionType.Tunneling);
+
+        let tlsContextOptions: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
+            test_utils.ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH,
+            test_utils.ClientEnvironmentalConfig.AWS_IOT_KEY_PATH
+        );
+        if (io.is_alpn_available()) {
+            tlsContextOptions.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+        let tlsContext : io.ClientTlsContext = new io.ClientTlsContext(tlsContextOptions);
     }
 
     return {
