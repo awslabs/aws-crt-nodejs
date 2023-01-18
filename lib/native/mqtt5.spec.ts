@@ -32,6 +32,31 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
         {
             done(0);
         };
+
+        if (test_utils.ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
+            let credentialsProvider : auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newDefault();
+            wsTransform = async (request: HttpRequest, done: (error_code?: number) => void) => {
+                try {
+                    const signingConfig : auth.AwsSigningConfig = {
+                        algorithm: auth.AwsSigningAlgorithm.SigV4,
+                        signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
+                        provider: credentialsProvider as auth.AwsCredentialsProvider,
+                        region: "us-east-1",
+                        service: "iotdevicegateway",
+                        signed_body_value: auth.AwsSignedBodyValue.EmptySha256,
+                        omit_session_token: true,
+                    };
+                    await auth.aws_sign_request(request, signingConfig);
+                    done();
+                } catch (error) {
+                    if (error instanceof CrtError) {
+                        done(error.error_code);
+                    } else {
+                        done(3); /* TODO: AWS_ERROR_UNKNOWN */
+                    }
+                }
+            };
+        }
     }
 
     let proxyOptions = undefined;
