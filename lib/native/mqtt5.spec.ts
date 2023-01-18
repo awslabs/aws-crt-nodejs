@@ -10,6 +10,9 @@ import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from 
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
 
+import * as auth from "./auth";
+import {CrtError} from "./error";
+
 jest.setTimeout(10000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
@@ -167,7 +170,32 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with everything set', async () => {
     let maximalConfig : mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
     maximalConfig.port = 443;
-    maximalConfig.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => { done(0); };
+
+    // maximalConfig.websocketHandshakeTransform = (request: HttpRequest, done: (error_code?: number) => void) => { done(0); };
+
+    let credentialsProvider : auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newDefault();
+    maximalConfig.websocketHandshakeTransform = async (request: HttpRequest, done: (error_code?: number) => void) => {
+        try {
+            const signingConfig : auth.AwsSigningConfig = {
+                algorithm: auth.AwsSigningAlgorithm.SigV4,
+                signature_type: auth.AwsSignatureType.HttpRequestViaQueryParams,
+                provider: credentialsProvider as auth.AwsCredentialsProvider,
+                region: "us-east-1",
+                service: "iotdevicegateway",
+                signed_body_value: auth.AwsSignedBodyValue.EmptySha256,
+                omit_session_token: true,
+            };
+            await auth.aws_sign_request(request, signingConfig);
+            done();
+        } catch (error) {
+            if (error instanceof CrtError) {
+                done(error.error_code);
+            } else {
+                done(3); /* TODO: AWS_ERROR_UNKNOWN */
+            }
+        }
+    };
+
     await test_utils.testConnect(new mqtt5.Mqtt5Client(maximalConfig));
 });
 
