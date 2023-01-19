@@ -4,7 +4,7 @@
  */
 
 import { ClientBootstrap, Pkcs11Lib, TlsContextOptions } from '@awscrt/io';
-import { MqttClient } from '@awscrt/mqtt';
+import { MqttClient, QoS, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
@@ -127,4 +127,108 @@ test('MQTT Native ECC key Connect/Disconnect', async () => {
     const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.ecc_certificate, aws_opts.ecc_private_key);
 
     await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
+});
+
+test('MQTT Operation statistics simple', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
+
+        connection.on('connect', async (session_present) => {
+            expect(session_present).toBeFalsy();
+
+            let statistics = connection.getQueueStatistics();
+            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
+            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+
+            const test_topic = `/test/me/senpai/${uuid()}`;
+            const test_payload = 'NOTICE ME';
+
+            const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+            await expect(pub).resolves.toBeTruthy();
+
+            statistics = connection.getQueueStatistics();
+            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
+            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+
+        });
+        connection.on('error', (error) => {
+            reject(error);
+        })
+        const connected = connection.connect();
+        await expect(connected).resolves.toBeDefined();
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Operation statistics check publish', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            .with_clean_session(true)
+            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            .with_endpoint(aws_opts.endpoint)
+            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+            .with_ping_timeout_ms(5000)
+            .build()
+        const client = new MqttClient(new ClientBootstrap());
+        const connection = client.new_connection(config);
+
+        connection.on('connect', async (session_present) => {
+            expect(session_present).toBeFalsy();
+
+            const test_topic = `/test/me/senpai/${uuid()}`;
+            const test_payload = 'NOTICE ME';
+            // Per packet: (The size of the topic, the size of the payload, 2 for the header and 2 for the packet ID)
+            const expected_packet_size = test_topic.length + test_payload.length + 4;
+
+            const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+
+            let statistics = connection.getQueueStatistics();
+            expect(statistics.incompleteOperationCount).toBeGreaterThanOrEqual(1);
+            expect(statistics.incompleteOperationSize).toBeGreaterThanOrEqual(expected_packet_size);
+            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+
+            await expect(pub).resolves.toBeTruthy();
+
+            statistics = connection.getQueueStatistics();
+            expect(statistics.incompleteOperationCount).toBeGreaterThanOrEqual(0);
+            expect(statistics.incompleteOperationSize).toBeGreaterThanOrEqual(0);
+            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+        });
+        connection.on('error', (error) => {
+            reject(error);
+        })
+        const connected = connection.connect();
+        await expect(connected).resolves.toBeDefined();
+    });
+    await expect(promise).resolves.toBeTruthy();
 });

@@ -1806,3 +1806,86 @@ on_error:
 
     return NULL;
 }
+
+static int s_create_napi_mqtt_connection_statistics(
+    napi_env env,
+    const struct aws_mqtt_connection_operation_statistics *stats,
+    napi_value *stats_out) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_stats = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_stats), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_u64(
+            napi_stats, env, AWS_NAPI_KEY_INCOMPLETE_OPERATION_COUNT, stats->incomplete_operation_count)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u64(
+            napi_stats, env, AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE, stats->incomplete_operation_size)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u64(
+            napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_COUNT, stats->unacked_operation_count)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u64(
+            napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_SIZE, stats->unacked_operation_size)) {
+        return AWS_OP_ERR;
+    };
+
+    *stats_out = napi_stats;
+
+    return AWS_OP_SUCCESS;
+}
+
+napi_value aws_napi_mqtt_connection_get_queue_statistics(napi_env env, napi_callback_info info) {
+
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_connection_get_queue_statistics - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_connection_get_queue_statistics - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct mqtt_connection_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(env, NULL, "Failed to extract binding from external");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_connection_get_queue_statistics - binding was null");
+        return NULL;
+    }
+
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_connection_get_queue_statistics - connection was null");
+        return NULL;
+    }
+
+    struct aws_mqtt_connection_operation_statistics stats;
+    AWS_ZERO_STRUCT(stats);
+    aws_mqtt_client_connection_get_stats(binding->connection, &stats);
+
+    napi_value napi_stats = NULL;
+    if (s_create_napi_mqtt_connection_statistics(env, &stats, &napi_stats)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_connection_get_queue_statistics - failed to build statistics value");
+        return NULL;
+    }
+
+    return napi_stats;
+}

@@ -17,6 +17,7 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
 import { Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings } from "./mqtt5";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
+import { ConnectionStatistics } from "./mqtt";
 
 
 /**
@@ -256,6 +257,9 @@ export function mqtt_client_connection_disconnect(connection: NativeHandle, on_d
 
 /** @internal */
 export function mqtt_client_connection_close(connection: NativeHandle): void;
+
+/** @internal */
+export function mqtt_client_connection_get_queue_statistics(connection: NativeHandle): ConnectionStatistics;
 
 /* HTTP */
 /* wraps aws_http_proxy_options #TODO: Wrap with ClassBinder */
