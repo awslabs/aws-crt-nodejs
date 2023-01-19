@@ -161,10 +161,7 @@ test('MQTT Operation statistics simple', async () => {
             const test_topic = `/test/me/senpai/${uuid()}`;
             const test_payload = 'NOTICE ME';
 
-            // const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-            // await expect(pub).resolves.toBeTruthy();
-            connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-            await setTimeout(()=>{}, 2000);
+            await connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
 
             statistics = connection.getQueueStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
@@ -210,8 +207,7 @@ test('MQTT Operation statistics check publish', async () => {
             // Per packet: (The size of the topic, the size of the payload, 2 for the header and 2 for the packet ID)
             const expected_packet_size = test_topic.length + test_payload.length + 4;
 
-            // const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-            connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+            const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
 
             let statistics = connection.getQueueStatistics();
             expect(statistics.incompleteOperationCount).toBeGreaterThanOrEqual(1);
@@ -219,12 +215,11 @@ test('MQTT Operation statistics check publish', async () => {
             expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
 
-            // await expect(pub).resolves.toBeTruthy();
-            await setTimeout(()=>{}, 2000);
+            await pub;
 
             statistics = connection.getQueueStatistics();
-            expect(statistics.incompleteOperationCount).toBeGreaterThanOrEqual(0);
-            expect(statistics.incompleteOperationSize).toBeGreaterThanOrEqual(0);
+            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
             expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
         });
