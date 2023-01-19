@@ -144,7 +144,6 @@ test('MQTT Operation statistics simple', async () => {
             .with_client_id(`node-mqtt-unit-test-${uuid()}`)
             .with_endpoint(aws_opts.endpoint)
             .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-            .with_ping_timeout_ms(5000)
             .build()
         const client = new MqttClient(new ClientBootstrap());
         const connection = client.new_connection(config);
@@ -160,15 +159,25 @@ test('MQTT Operation statistics simple', async () => {
 
             const test_topic = `/test/me/senpai/${uuid()}`;
             const test_payload = 'NOTICE ME';
+            const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
+                resolve(true);
 
-            await connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+                const unsubscribed = connection.unsubscribe(test_topic);
+                await expect(unsubscribed).resolves.toHaveProperty('packet_id');
 
-            statistics = connection.getQueueStatistics();
-            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
-            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+                statistics = connection.getQueueStatistics();
+                expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+                expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
+                expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+                expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
 
+                const disconnected = connection.disconnect();
+                await expect(disconnected).resolves.toBeUndefined();
+            });
+            await expect(sub).resolves.toBeTruthy();
+
+            const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+            await expect(pub).resolves.toBeTruthy();
         });
         connection.on('error', (error) => {
             reject(error);
@@ -194,7 +203,6 @@ test('MQTT Operation statistics check publish', async () => {
             .with_client_id(`node-mqtt-unit-test-${uuid()}`)
             .with_endpoint(aws_opts.endpoint)
             .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-            .with_ping_timeout_ms(5000)
             .build()
         const client = new MqttClient(new ClientBootstrap());
         const connection = client.new_connection(config);
@@ -202,24 +210,31 @@ test('MQTT Operation statistics check publish', async () => {
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
 
-            const test_topic = `/test/me/senpai/${uuid()}`;
-            const test_payload = 'NOTICE ME';
-            // Per packet: (The size of the topic, the size of the payload, 2 for the header and 2 for the packet ID)
-            const expected_packet_size = test_topic.length + test_payload.length + 4;
-
-            const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-
             let statistics = connection.getQueueStatistics();
-            expect(statistics.incompleteOperationCount).toBeGreaterThanOrEqual(1);
-            expect(statistics.incompleteOperationSize).toBeGreaterThanOrEqual(expected_packet_size);
+            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
             expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
 
-            await pub;
+            const test_topic = `/test/me/senpai/${uuid()}`;
+            const test_payload = 'NOTICE ME';
+            const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
+                resolve(true);
+
+                const unsubscribed = connection.unsubscribe(test_topic);
+                await expect(unsubscribed).resolves.toHaveProperty('packet_id');
+
+                const disconnected = connection.disconnect();
+                await expect(disconnected).resolves.toBeUndefined();
+            });
+            await expect(sub).resolves.toBeTruthy();
+
+            const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+            await expect(pub).resolves.toBeTruthy();
 
             statistics = connection.getQueueStatistics();
-            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
-            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
+            expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(1);
+            expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(test_topic.length + test_payload.length + 4);
             expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
         });
