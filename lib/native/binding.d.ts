@@ -259,7 +259,7 @@ export function mqtt_client_connection_disconnect(connection: NativeHandle, on_d
 export function mqtt_client_connection_close(connection: NativeHandle): void;
 
 /** @internal */
-export function mqtt_client_connection_get_queue_statistics(connection: NativeHandle): ConnectionStatistics;
+export function mqtt_client_connection_get_queue_statistics(connection: NativeHandle) : ConnectionStatistics;
 
 /* HTTP */
 /* wraps aws_http_proxy_options #TODO: Wrap with ClassBinder */
