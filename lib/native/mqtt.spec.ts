@@ -4,7 +4,7 @@
  */
 
 import { ClientBootstrap, Pkcs11Lib, TlsContextOptions } from '@awscrt/io';
-import { MqttClient, QoS, Payload } from '@awscrt/mqtt';
+import { MqttClient, QoS } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_iot';
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
