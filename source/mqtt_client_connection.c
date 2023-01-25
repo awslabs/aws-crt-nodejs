@@ -19,6 +19,11 @@
 #include <aws/common/linked_list.h>
 #include <aws/common/mutex.h>
 
+static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_COUNT = "incompleteOperationCount";
+static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE = "incompleteOperationSize";
+static const char *AWS_NAPI_KEY_UNACKED_OPERATION_COUNT = "unackedOperationCount";
+static const char *AWS_NAPI_KEY_UNACKED_OPERATION_SIZE = "unackedOperationSize";
+
 static void s_transform_websocket_call(napi_env env, napi_value transform_websocket, void *context, void *user_data);
 void s_transform_websocket(
     struct aws_http_message *request,
@@ -1821,20 +1826,20 @@ static int s_create_napi_mqtt_connection_statistics(
         env, napi_create_object(env, &napi_stats), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
     if (aws_napi_attach_object_property_u64(
-            napi_stats, env, "incompleteOperationCount", stats->incomplete_operation_count)) {
+            napi_stats, env, AWS_NAPI_KEY_INCOMPLETE_OPERATION_COUNT, stats->incomplete_operation_count)) {
         return AWS_OP_ERR;
     }
 
     if (aws_napi_attach_object_property_u64(
-            napi_stats, env, "incompleteOperationSize", stats->incomplete_operation_size)) {
+            napi_stats, env, AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE, stats->incomplete_operation_size)) {
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_u64(napi_stats, env, "unackedOperationCount", stats->unacked_operation_count)) {
+    if (aws_napi_attach_object_property_u64(napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_COUNT, stats->unacked_operation_count)) {
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_u64(napi_stats, env, "unackedOperationSize", stats->unacked_operation_size)) {
+    if (aws_napi_attach_object_property_u64(napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_SIZE, stats->unacked_operation_size)) {
         return AWS_OP_ERR;
     };
 
