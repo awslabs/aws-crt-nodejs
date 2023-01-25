@@ -1835,11 +1835,13 @@ static int s_create_napi_mqtt_connection_statistics(
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_u64(napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_COUNT, stats->unacked_operation_count)) {
+    if (aws_napi_attach_object_property_u64(
+            napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_COUNT, stats->unacked_operation_count)) {
         return AWS_OP_ERR;
     }
 
-    if (aws_napi_attach_object_property_u64(napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_SIZE, stats->unacked_operation_size)) {
+    if (aws_napi_attach_object_property_u64(
+            napi_stats, env, AWS_NAPI_KEY_UNACKED_OPERATION_SIZE, stats->unacked_operation_size)) {
         return AWS_OP_ERR;
     };
 
