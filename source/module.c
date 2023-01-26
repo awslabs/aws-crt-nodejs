@@ -1077,6 +1077,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_close)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_get_queue_statistics)
 
     /* Crypto */
     CREATE_AND_REGISTER_FN(hash_md5_new)
