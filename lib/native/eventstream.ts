@@ -24,33 +24,134 @@ import crt_native from "@awscrt/binding";
  *
  */
 
+/**
+ * Supported types for the value within a Header
+ */
 export enum HeaderType {
 
+    /** Value is True. No actual value is transmitted on the wire. */
+    BooleanTrue = 0,
+
+    /** Value is True. No actual value is transmitted on the wire. */
+    BooleanFalse = 1,
+
+    /** Value is signed 8-bit int. */
+    Byte = 2,
+
+    /** Value is signed 16-bit int. */
+    Int16 = 3,
+
+    /** Value is signed 32-bit int. */
+    Int32 = 4,
+
+    /** Value is signed 64-bit int. */
+    Int64 = 5,
+
+    /** Value is raw bytes. */
+    ByteBuffer = 6,
+
+    /** Value is a str.  Transmitted on the wire as utf-8. */
+    String = 7,
+
+    /** Value is a posix timestamp (seconds since Unix epoch).  Transmitted on the wire as a 64-bit int. */
+    Timestamp = 8,
+
+    /** Value is a UUID. Transmitted on the wire as 16 bytes. */
+    UUID = 9,
 }
 
 export interface Header {
+    name: string,
 
+    type: HeaderType,
+
+    value: any,
 }
 
+/**
+ * Flags for messages in the event-stream RPC protocol.
+ *
+ * Flags may be XORed together.
+ * Not all flags can be used with all message types, consult documentation.
+ */
 export enum MessageFlags {
 
+    /** Nothing */
+    None = 0,
+
+    /**
+     * Connection accepted
+     *
+     * If this flag is absent from a :attr:`MessageType.CONNECT_ACK`, the connection has been rejected.
+     */
+    ConnectionAccepted = 0x1,
+
+    /**
+     * Terminate stream
+     *
+     * This message may be used with any message type.
+     * The sender will close their connection after the message is written to the wire.
+     * The receiver will close their connection after delivering the message to the user.
+     */
+    TerminateStream = 0x2,
 }
 
+/**
+ *
+ * Types of messages in the event-stream RPC protocol.
+ * The :attr:`~MessageType.APPLICATION_MESSAGE` and :attr:`~MessageType.APPLICATION_ERROR` types may only be sent
+ * on streams, and will never arrive as a protocol message (stream-id 0).
+ *
+ * For all other message types, they may only be sent as protocol messages
+ * (stream-id 0), and will never arrive as a stream message.
+ *
+ * Different message types expect specific headers and flags, consult documentation.
+ */
 export enum MessageType {
+    /** Application message */
+    ApplicationMessage = 0,
 
+    /** Application error */
+    ApplicationError = 1,
+
+    /** Ping */
+    Ping = 2,
+
+    /** Ping response */
+    PingResponse = 3,
+
+    /** Connect */
+    Connect = 4,
+
+    /**
+     * Connect acknowledgement
+     *
+     * If the :attr:`MessageFlag.CONNECTION_ACCEPTED` flag is not present, the connection has been rejected.
+     */
+    ConnectAck = 5,
+
+    /**
+     * Protocol error
+     */
+    ProtocolError = 6,
+
+    /**
+     * Internal error
+     */
+    InternalError = 7,
 }
+
+export type MessagePayload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
 
 export interface Message {
+    
+    type: MessageType,
 
-}
+    flags: MessageFlags,
 
-enum ClientConnectionState {
-    None,
-    Connecting,
-    Connected,
-    Disconnecting,
-    Disconnected,
-    Closed,
+    headers: Array<Header>,
+
+    payload: MessagePayload,
 }
 
 export interface ClientConnectionOptions {
@@ -61,10 +162,6 @@ export interface ClientConnectionOptions {
     socketOptions?: io.SocketOptions;
 
     tlsCtx?: io.ClientTlsContext;
-}
-
-export interface ClientStreamOptions {
-
 }
 
 export interface ProtocolMessageOptions {
@@ -83,6 +180,15 @@ export type ProtocolMessageListener = (eventData: ProtocolMessageEvent) => void;
 
 export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
 
+enum ClientConnectionState {
+    None,
+    Connecting,
+    Connected,
+    Disconnecting,
+    Disconnected,
+    Closed,
+}
+
 export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     constructor(config: ClientConnectionOptions) {
         super();
@@ -92,7 +198,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         this._super(crt_native.event_stream_client_connection_new(
             this,
             config,
-            (connection: ClientConnection) => { ClientConnection._s_on_disconnect(connection); },
+            (connection: ClientConnection, errorCode: number) => { ClientConnection._s_on_disconnect(connection, errorCode); },
             (connection: ClientConnection, message: Message) => { ClientConnection._s_on_protocol_message(connection, message); },
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null
@@ -176,6 +282,5 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     }
 
     private state : ClientConnectionState;
-
 
 }
