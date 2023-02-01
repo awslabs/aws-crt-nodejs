@@ -60,13 +60,139 @@ export enum HeaderType {
     UUID = 9,
 }
 
-export interface Header {
-    name: string,
+export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
 
-    type: HeaderType,
+const MAX_INT8 : number = 127;
+const MIN_INT8 : number = -128;
+const MAX_INT16 : number = 65535;
+const MIN_INT16 : number = -65536;
+const MAX_INT32 : number = ((1 << 31) - 1);
+const MIN_INT32 : number = -(1 << 31);
+const MAX_INT64 : bigint = BigInt("9223372036854775807");
+const MIN_INT64 : bigint = BigInt("-9223372036854775808");
 
-    value: any,
+export class Header {
+
+    private constructor(public name: string, public type: HeaderType, public value?: any) {
+    }
+
+    static fromBoolean(name: string, value: boolean): Header {
+        if (value) {
+            return new Header(name, HeaderType.BooleanTrue);
+        } else {
+            return new Header(name, HeaderType.BooleanFalse);
+        }
+    }
+
+    static fromByte(name: string, value: number): Header {
+        if (value >= MIN_INT8 && value <= MAX_INT8 && Number.isSafeInteger(value)) {
+            return new Header(name, HeaderType.Byte, value);
+        }
+
+        throw new CrtError("Illegal value for eventstream byte-valued header");
+    }
+
+    static fromInt16(name: string, value: number): Header {
+        if (value >= MIN_INT16 && value <= MAX_INT16 && Number.isSafeInteger(value)) {
+            return new Header(name, HeaderType.Int16, value);
+        }
+
+        throw new CrtError("Illegal value for eventstream int16-valued header");
+    }
+
+    static fromInt32(name: string, value: number): Header {
+        if (value >= MIN_INT32 && value <= MAX_INT32 && Number.isSafeInteger(value)) {
+            return new Header(name, HeaderType.Int32, value);
+        }
+
+        throw new CrtError("Illegal value for eventstream int32-valued header");
+    }
+
+    static fromInt64(name: string, value: bigint): Header {
+        if (value >= MIN_INT64 && value <= MAX_INT64) {
+            return new Header(name, HeaderType.Int64, value);
+        }
+
+        throw new CrtError("Illegal value for eventstream int64-valued header");
+    }
+
+    static fromByteBuffer(name: string, value: Payload): Header {
+        return new Header(name, HeaderType.ByteBuffer, value);
+    }
+
+    static fromString(name: string, value: string): Header {
+        return new Header(name, HeaderType.String, value);
+    }
+
+    static fromTimeStamp(name: string, secondsSinceEpoch: number): Header {
+        if (Number.isSafeInteger(secondsSinceEpoch)) {
+            return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
+        }
+
+        throw new CrtError("Illegal value for eventstream timestamp-valued header");
+    }
+
+    static fromUUID(name: string, value: ArrayBuffer): Header {
+        if (value.byteLength == 16) {
+            return new Header(name, HeaderType.UUID, value);
+        }
+
+        throw new CrtError("Illegal value for eventstream uuid-valued header");
+    }
+
+    private toValue(type: HeaderType): any {
+        if (type != this.type) {
+            throw new CrtError("");
+        }
+
+        return this.value;
+    }
+
+    asBoolean(): boolean {
+        switch (this.type) {
+            case HeaderType.BooleanFalse:
+                return false;
+            case HeaderType.BooleanTrue:
+                return true;
+            default:
+                throw new CrtError("??");
+
+        }
+    }
+
+    asByte(): number {
+        return this.toValue(HeaderType.Byte) as number;
+    }
+
+    asInt16(): number {
+        return this.toValue(HeaderType.Int16) as number;
+    }
+
+    asInt32(): number {
+        return this.toValue(HeaderType.Int32) as number;
+    }
+
+    asInt64(): bigint {
+        return this.toValue(HeaderType.Int64) as bigint;
+    }
+
+    asByteBuffer(): ArrayBuffer {
+        return this.toValue(HeaderType.ByteBuffer) as ArrayBuffer;
+    }
+
+    asString(): string {
+        return this.toValue(HeaderType.String) as string;
+    }
+
+    asTimestamp(): number {
+        return this.toValue(HeaderType.Timestamp) as number;
+    }
+
+    asUUID(): ArrayBuffer {
+        return this.toValue(HeaderType.UUID) as ArrayBuffer;
+    }
 }
+
 
 /**
  * Flags for messages in the event-stream RPC protocol.
@@ -141,8 +267,6 @@ export enum MessageType {
     InternalError = 7,
 }
 
-export type MessagePayload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
-
 export interface Message {
     
     type: MessageType,
@@ -151,7 +275,7 @@ export interface Message {
 
     headers: Array<Header>,
 
-    payload: MessagePayload,
+    payload: Payload,
 }
 
 export interface ClientConnectionOptions {
@@ -168,23 +292,32 @@ export interface ProtocolMessageOptions {
     message: Message;
 }
 
+export interface ActivateStreamOptions {
+    message: Message;
+}
+
+export interface StreamMessageOptions {
+    message: Message;
+}
+
 export interface DisconnectionEvent {
     errorCode: number;
 }
 
-export interface ProtocolMessageEvent {
+export interface MessageEvent {
     message: Message;
 }
 
-export type ProtocolMessageListener = (eventData: ProtocolMessageEvent) => void;
+export type MessageListener = (eventData: MessageEvent) => void;
 
 export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
+
+
 
 enum ClientConnectionState {
     None,
     Connecting,
     Connected,
-    Disconnecting,
     Disconnected,
     Closed,
 }
@@ -229,7 +362,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
                 try {
                     crt_native.event_stream_client_connection_connect(this.native_handle(), curriedPromiseCallback);
                 } catch (e) {
-                    this.state = ClientConnectionState.None;
+                    this.state = ClientConnectionState.Disconnected;
                     reject(e);
                 }
             }
@@ -243,6 +376,16 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where sending protocol messages is not allowed.`));
             } else {
                 // invoke native binding send message;
+                function curriedPromiseCallback(errorCode: number) {
+                    return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
+                }
+
+                // invoke native binding send message;
+                try {
+                    crt_native.event_stream_client_connection_send_protocol_message(this.native_handle(), options, curriedPromiseCallback);
+                } catch (e) {
+                    reject(e);
+                }
             }
         });
     }
@@ -251,9 +394,17 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         return this.state == ClientConnectionState.Connected;
     }
 
+    newStream() : ClientStream {
+        if (this.state != ClientConnectionState.Connected) {
+            throw new CrtError(`Event stream connection in a state (${this.state}) where creating new streams is forbidden.`);
+        }
+
+        return new ClientStream(this);
+    }
+
     on(event: 'disconnection', listener: DisconnectionListener): this;
 
-    on(event: 'protocolMessage', listener: ProtocolMessageListener): this;
+    on(event: 'protocolMessage', listener: MessageListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -266,7 +417,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             resolve();
         } else {
             if (connection.state != ClientConnectionState.Closed) {
-                connection.state = ClientConnectionState.None;
+                connection.state = ClientConnectionState.Disconnected;
             }
 
             reject(io.error_code_to_string(errorCode));
@@ -274,6 +425,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     }
 
     private static _s_on_disconnect(connection: ClientConnection, errorCode: number) {
+        if (connection.state != ClientConnectionState.Closed) {
+            connection.state = ClientConnectionState.Disconnected;
+        }
+
         connection.emit('disconnection', {errorCode: errorCode});
     }
 
@@ -281,6 +436,133 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         connection.emit('protocolMessage', { message: message });
     }
 
+    private static _s_on_connection_send_protocol_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
+        if (errorCode == 0) {
+            resolve();
+        } else {
+            reject(io.error_code_to_string(errorCode));
+        }
+    }
+
     private state : ClientConnectionState;
 
+}
+
+export interface StreamClosedEvent {
+    errorCode: number;
+}
+
+export type StreamClosedListener = (eventData: StreamClosedEvent) => void;
+
+enum ClientStreamState {
+    None,
+    Activating,
+    Activated,
+    Terminated,
+    Closed,
+}
+
+export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
+
+    constructor(connection: ClientConnection) {
+        super();
+
+        this.state = ClientStreamState.None;
+
+        this._super(crt_native.event_stream_client_stream_new(
+            this,
+            connection.native_handle(),
+            (stream: ClientStream, errorCode: number) => { ClientStream._s_on_stream_terminated(stream, errorCode); },
+            (stream: ClientStream, message: Message) => { ClientStream._s_on_continuation_message(stream, message); },
+        ));
+    }
+
+    close() : void {
+        if (this.state != ClientStreamState.Closed) {
+            this.state = ClientStreamState.Closed;
+
+            crt_native.event_stream_client_stream_close(this.native_handle());
+        }
+    }
+
+    async activate(options: ActivateStreamOptions) : Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            if (this.state == ClientStreamState.None) {
+                this.state = ClientStreamState.Activating;
+
+                function curriedPromiseCallback(stream: ClientStream, errorCode: number){
+                    return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
+                }
+
+                try {
+                    crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
+                } catch (e) {
+                    this.state = ClientStreamState.Terminated;
+                    reject(e);
+                }
+            } else {
+                reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
+            }
+        });
+    }
+
+    async sendMessage(options: StreamMessageOptions) : Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            if (this.state != ClientStreamState.Activated) {
+                reject(new CrtError(`Event stream in a state (${this.state}) where sending messages is not allowed.`));
+                return;
+            }
+
+            function curriedPromiseCallback(errorCode: number) {
+                return ClientStream._s_on_stream_send_message_completion(resolve, reject, errorCode);
+            }
+
+            // invoke native binding send message;
+            try {
+                crt_native.event_stream_client_stream_send_message(this.native_handle(), options, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    on(event: 'terminated', listener: StreamClosedListener): this;
+
+    on(event: 'message', listener: MessageListener): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
+    }
+
+    private static _s_on_stream_activated(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, stream: ClientStream, errorCode: number) {
+        if (errorCode == 0 && stream.state == ClientStreamState.Activating) {
+            stream.state = ClientStreamState.Activated;
+            resolve();
+        } else {
+            if (stream.state != ClientStreamState.Closed) {
+                stream.state = ClientStreamState.Terminated;
+            }
+
+            reject(io.error_code_to_string(errorCode));
+        }
+    }
+
+    private static _s_on_stream_send_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
+        if (errorCode == 0) {
+            resolve();
+        } else {
+            reject(io.error_code_to_string(errorCode));
+        }
+    }
+
+    private static _s_on_stream_terminated(stream: ClientStream, errorCode: number) {
+        stream.emit('terminated', {errorCode: errorCode});
+    }
+
+    private static _s_on_continuation_message(stream: ClientStream, message: Message) {
+        stream.emit('message', { message: message });
+    }
+
+    private state : ClientStreamState;
 }

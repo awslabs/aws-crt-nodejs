@@ -6,6 +6,7 @@
 #include "auth.h"
 #include "checksums.h"
 #include "crypto.h"
+#include "event_stream.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
 #include "http_headers.h"
@@ -1106,6 +1107,16 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(http_connection_manager_close)
     CREATE_AND_REGISTER_FN(http_connection_manager_acquire)
     CREATE_AND_REGISTER_FN(http_connection_manager_release)
+
+    /* Event stream */
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_new)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_connect)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_close)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_send_protocol_message)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_new)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_close)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_activate)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_send_message)
 
 #undef CREATE_AND_REGISTER_FN
 

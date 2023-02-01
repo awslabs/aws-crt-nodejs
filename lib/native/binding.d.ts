@@ -17,7 +17,7 @@ import { OnMessageCallback, QoS } from "../common/mqtt";
 import { Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings } from "./mqtt5";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
-
+import * as eventstream from "./eventstream";
 
 /**
  * Type used to store pointers to CRT native resources
@@ -443,3 +443,54 @@ export function aws_verify_sigv4a_signing(
     ecc_key_pub_x: StringLike,
     ecc_key_pub_y: StringLike
 ): boolean;
+
+/** @internal */
+export function event_stream_client_connection_new(
+    connection: eventstream.ClientConnection,
+    config: eventstream.ClientConnectionOptions,
+    on_disconnect_handler: (connection: eventstream.ClientConnection, errorCode: number) => void,
+    on_protocol_message_handler: (connection: eventstream.ClientConnection, message: eventstream.Message) => void,
+    socket_options?: NativeHandle,
+    tls_ctx?: NativeHandle,
+) : NativeHandle;
+
+/** @internal */
+export function event_stream_client_connection_close(connection: NativeHandle) : void;
+
+/** @internal */
+export function event_stream_client_connection_connect(
+    connection: NativeHandle,
+    completion_callback: (connection: eventstream.ClientConnection, errorCode: number) => void
+) : void;
+
+/** @internal */
+export function event_stream_client_connection_send_protocol_message(
+    connection: NativeHandle,
+    options: eventstream.ProtocolMessageOptions,
+    completion_callback: (errorCode: number) => void
+) : void;
+
+/** @internal */
+export function event_stream_client_stream_new(
+    stream: eventstream.ClientStream,
+    connection: NativeHandle,
+    on_terminated_handler: (stream: eventstream.ClientStream, errorCode: number) => void,
+    on_message_handler: (stream: eventstream.ClientStream, message: eventstream.Message) => void,
+) : NativeHandle;
+
+/** @internal */
+export function event_stream_client_stream_close(stream: NativeHandle) : void;
+
+/** @internal */
+export function event_stream_client_stream_activate(
+    stream: NativeHandle,
+    options: eventstream.ActivateStreamOptions,
+    completion_callback: (stream: eventstream.ClientStream, errorCode: number) => void
+) : void;
+
+/** @internal */
+export function event_stream_client_stream_send_message(
+    stream: NativeHandle,
+    options: eventstream.StreamMessageOptions,
+    completion_callback: (errorCode: number) => void
+) : void;
