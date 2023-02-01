@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {NativeResourceMixin} from "@awscrt/native_resource";
+import {NativeResourceMixin} from "./native_resource";
 import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
-import * as io from "@awscrt/io";
-import crt_native from "@awscrt/binding";
+import * as io from "./io";
+import crt_native from "./binding";
 
 /**
  * Node.js specific eventstream rpc native bindings
