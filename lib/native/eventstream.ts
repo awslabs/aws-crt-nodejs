@@ -124,7 +124,16 @@ export class Header {
         return new Header(name, HeaderType.String, value);
     }
 
-    static fromTimeStamp(name: string, secondsSinceEpoch: number): Header {
+    static fromTimeStampAsSecondsSinceEpoch(name: string, secondsSinceEpoch: number): Header {
+        if (Number.isSafeInteger(secondsSinceEpoch)) {
+            return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
+        }
+
+        throw new CrtError("Illegal value for eventstream timestamp-valued header");
+    }
+
+    static fromTimeStampAsDate(name: string, date: Date): Header {
+        const secondsSinceEpoch: number = date.getTime();
         if (Number.isSafeInteger(secondsSinceEpoch)) {
             return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
         }
