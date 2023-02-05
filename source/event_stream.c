@@ -213,13 +213,14 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         goto error;
     }
 
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_connection, 1, &binding->node_event_stream_client_connection_ref), {
-        napi_throw_error(
-            env,
-            NULL,
-            "event_stream_client_connection_new - Failed to create reference to node event stream connection");
-        goto error;
-    });
+    AWS_NAPI_CALL(
+        env, napi_create_reference(env, node_connection, 1, &binding->node_event_stream_client_connection_ref), {
+            napi_throw_error(
+                env,
+                NULL,
+                "event_stream_client_connection_new - Failed to create reference to node event stream connection");
+            goto error;
+        });
 
     /* Arg #2: the event stream connection options object */
     napi_value node_connection_options = *arg++;
@@ -329,7 +330,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
 
 error:
 
-    s_aws_event_stream_rpc_client_connection_binding_release(binding);
+    s_aws_event_stream_client_connection_binding_release(binding);
 
     return NULL;
 }

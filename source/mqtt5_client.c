@@ -2015,13 +2015,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
 
-    s_init_default_mqtt5_client_options(&client_options, &connect_options);
-
-    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_extern_finalize, NULL, &node_external), {
-        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
-        goto error;
-    });
-
     struct aws_mqtt5_client_options client_options;
     AWS_ZERO_STRUCT(client_options);
 
@@ -2030,6 +2023,13 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_mqtt5_packet_publish_view will_options;
     AWS_ZERO_STRUCT(will_options);
+
+    s_init_default_mqtt5_client_options(&client_options, &connect_options);
+
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_extern_finalize, NULL, &node_external), {
+        napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
+        goto error;
+    });
 
     /* Arg #1: the mqtt5 client */
     napi_value node_client = *arg++;
