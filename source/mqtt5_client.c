@@ -133,12 +133,6 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function transform_websocket;
 };
 
-#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
-    if (binding_name->function_name != NULL) {                                                                         \
-        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
-        binding_name->function_name = NULL;                                                                            \
-    }
-
 static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
     if (binding == NULL) {
         return;
@@ -2011,7 +2005,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    napi_value napi_client_wrapper = NULL;
     napi_value node_external = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
@@ -2019,9 +2012,14 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     binding->allocator = allocator;
     aws_ref_count_init(&binding->ref_count, binding, s_aws_mqtt5_client_binding_on_zero);
 
+    struct aws_napi_mqtt5_client_creation_storage options_storage;
+    AWS_ZERO_STRUCT(options_storage);
+
+    s_init_default_mqtt5_client_options(&client_options, &connect_options);
+
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_extern_finalize, NULL, &node_external), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
-        goto cleanup;
+        goto error;
     });
 
     struct aws_mqtt5_client_options client_options;
@@ -2033,28 +2031,23 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_mqtt5_packet_publish_view will_options;
     AWS_ZERO_STRUCT(will_options);
 
-    struct aws_napi_mqtt5_client_creation_storage options_storage;
-    AWS_ZERO_STRUCT(options_storage);
-
-    s_init_default_mqtt5_client_options(&client_options, &connect_options);
-
     /* Arg #1: the mqtt5 client */
     napi_value node_client = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_client)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - Required client parameter is null");
-        goto cleanup;
+        goto error;
     }
 
     AWS_NAPI_CALL(env, napi_create_reference(env, node_client, 1, &binding->node_mqtt5_client_ref), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create reference to node mqtt5 client");
-        goto cleanup;
+        goto error;
     });
 
     /* Arg #2: the mqtt5 client config object */
     napi_value node_client_config = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_client_config)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - Required configuration parameter is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_client_configuration_from_js_client_configuration(
@@ -2063,27 +2056,27 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             env,
             NULL,
             "mqtt5_client_new - failed to initialize native client configuration from js client configuration");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #3: on stopped event */
     napi_value on_stopped_event_handler = *arg++;
     if (aws_napi_is_null_or_undefined(env, on_stopped_event_handler)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - required on_stopped event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_event_handler_threadsafe_function(
             env, on_stopped_event_handler, "aws_mqtt5_client_on_stopped", s_napi_on_stopped, &binding->on_stopped)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_stopped event handler");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #4: on attempting connect event */
     napi_value on_attempting_connect_event_handler = *arg++;
     if (aws_napi_is_null_or_undefined(env, on_attempting_connect_event_handler)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - required on_attempting_connect event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_event_handler_threadsafe_function(
@@ -2093,14 +2086,14 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             s_napi_on_attempting_connect,
             &binding->on_attempting_connect)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_attempting_connect event handler");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #5: on connection success event */
     napi_value on_connection_success_event_handler = *arg++;
     if (aws_napi_is_null_or_undefined(env, on_connection_success_event_handler)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - required on_connection_success event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_event_handler_threadsafe_function(
@@ -2110,14 +2103,14 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             s_napi_on_connection_success,
             &binding->on_connection_success)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_connection_success event handler");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #6: on connection failure event */
     napi_value on_connection_failure_event_handler = *arg++;
     if (aws_napi_is_null_or_undefined(env, on_connection_failure_event_handler)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - required on_connection_failure event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_event_handler_threadsafe_function(
@@ -2127,14 +2120,14 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             s_napi_on_connection_failure,
             &binding->on_connection_failure)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_connection_failure event handler");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #7: on disconnection event */
     napi_value on_disconnection_event_handler = *arg++;
     if (aws_napi_is_null_or_undefined(env, on_disconnection_event_handler)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - required on_disconnection event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_event_handler_threadsafe_function(
@@ -2144,14 +2137,14 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             s_napi_on_disconnection,
             &binding->on_disconnection)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_disconnection event handler");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #8: on message received event */
     napi_value on_message_received_event_handler = *arg++;
     if (aws_napi_is_null_or_undefined(env, on_message_received_event_handler)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - required on_message_received event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     if (s_init_event_handler_threadsafe_function(
@@ -2161,7 +2154,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
             s_napi_on_message_received,
             &binding->on_message_received)) {
         napi_throw_error(env, NULL, "mqtt5_client_new - failed to initialize on_message_received event handler");
-        goto cleanup;
+        goto error;
     }
 
     /* Arg #9: client bootstrap */
@@ -2182,7 +2175,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     if (!aws_napi_is_null_or_undefined(env, node_socket_options)) {
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&client_options.socket_options), {
             napi_throw_error(env, NULL, "mqtt5_client_new - Unable to extract socket_options from external");
-            goto cleanup;
+            goto error;
         });
     }
 
@@ -2192,7 +2185,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         struct aws_tls_ctx *tls_ctx;
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls, (void **)&tls_ctx), {
             napi_throw_error(env, NULL, "mqtt5_client_new - Failed to extract tls_ctx from external");
-            goto cleanup;
+            goto error;
         });
 
         aws_tls_connection_options_init_from_ctx(&binding->tls_connection_options, tls_ctx);
@@ -2206,7 +2199,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         struct http_proxy_options_binding *proxy_binding = NULL;
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_proxy_options, (void **)&proxy_binding), {
             napi_throw_type_error(env, NULL, "mqtt5_client_new - failed to extract http proxy options from external");
-            goto cleanup;
+            goto error;
         });
         /* proxy_options are copied internally, no need to go nuts on copies */
         client_options.http_proxy_options = aws_napi_get_http_proxy_options(proxy_binding);
@@ -2224,21 +2217,24 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     binding->client = aws_mqtt5_client_new(allocator, &client_options);
     if (binding->client == NULL) {
         aws_napi_throw_last_error_with_context(env, "mqtt5_client_new - failed to create client");
-        goto cleanup;
+        goto error;
     }
 
     AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_client_external_ref), {
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create one count reference to napi external");
-        goto cleanup;
+        goto error;
     });
-
-    napi_client_wrapper = node_external;
-
-cleanup:
 
     s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
 
-    return napi_client_wrapper;
+    return node_external;
+
+error:
+
+    s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
+    s_aws_mqtt5_client_binding_release(binding);
+
+    return NULL;
 }
 
 napi_value aws_napi_mqtt5_client_start(napi_env env, napi_callback_info info) {

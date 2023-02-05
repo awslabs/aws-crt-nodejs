@@ -292,4 +292,10 @@ struct aws_napi_context {
         }                                                                                                              \
     } while (0)
 
+#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
+    if (binding_name->function_name != NULL) {                                                                         \
+        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
+        binding_name->function_name = NULL;                                                                            \
+    }
+
 #endif /* AWS_CRT_NODEJS_MODULE_H */

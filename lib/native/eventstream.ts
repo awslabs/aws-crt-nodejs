@@ -60,8 +60,17 @@ export enum HeaderType {
     UUID = 9,
 }
 
+/**
+ * Union type for message payloads.
+ *
+ * Payloads can be any of the unioned types in a message submitted from the user.
+ * Payloads will always be ArrayBuffers with received messages.
+ */
 export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
 
+/*
+ * Limits for header value validation
+ */
 const MAX_INT8 : number = 127;
 const MIN_INT8 : number = -128;
 const MAX_INT16 : number = 65535;
@@ -151,7 +160,7 @@ export class Header {
 
     private toValue(type: HeaderType): any {
         if (type != this.type) {
-            throw new CrtError("");
+            throw new CrtError(`Header of type (${this.type}) cannot be converted to type (${type})`);
         }
 
         return this.value;
@@ -164,7 +173,7 @@ export class Header {
             case HeaderType.BooleanTrue:
                 return true;
             default:
-                throw new CrtError("??");
+                throw new CrtError(`Header of type (${this.type}) cannot be converted to type (boolean)`);
 
         }
     }
@@ -217,7 +226,8 @@ export enum MessageFlags {
     /**
      * Connection accepted
      *
-     * If this flag is absent from a :attr:`MessageType.CONNECT_ACK`, the connection has been rejected.
+     * If this flag is absent from a {@link MessageType.ConnectAck ConnectAck} message, the connection has been
+     * rejected.
      */
     ConnectionAccepted = 0x1,
 
@@ -234,8 +244,8 @@ export enum MessageFlags {
 /**
  *
  * Types of messages in the event-stream RPC protocol.
- * The :attr:`~MessageType.APPLICATION_MESSAGE` and :attr:`~MessageType.APPLICATION_ERROR` types may only be sent
- * on streams, and will never arrive as a protocol message (stream-id 0).
+ * The {@link MessageType.ApplicationMessage Application} and {@link MessageType.ApplicationError Error} message types
+ * may only be sent on streams, and will never arrive as a protocol message (stream-id 0).
  *
  * For all other message types, they may only be sent as protocol messages
  * (stream-id 0), and will never arrive as a stream message.
@@ -261,7 +271,7 @@ export enum MessageType {
     /**
      * Connect acknowledgement
      *
-     * If the :attr:`MessageFlag.CONNECTION_ACCEPTED` flag is not present, the connection has been rejected.
+     * If the {@link MessageFlags.ConnectionAccepted ConnectionAccepted} flag is not present, the connection has been rejected.
      */
     ConnectAck = 5,
 
