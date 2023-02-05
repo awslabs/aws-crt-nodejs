@@ -336,8 +336,50 @@ error:
 }
 
 napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_callback_info info) {
-    (void)env;
-    (void)info;
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_close - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_close - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_event_stream_client_connection_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_close - Failed to extract connection binding from first argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_close - binding was null");
+        return NULL;
+    }
+
+    binding->is_closed = true;
+
+    napi_ref node_event_stream_client_connection_external_ref =
+        binding->node_event_stream_client_connection_external_ref;
+    binding->node_event_stream_client_connection_external_ref = NULL;
+
+    napi_ref node_event_stream_client_connection_ref = binding->node_event_stream_client_connection_ref;
+    binding->node_event_stream_client_connection_ref = NULL;
+
+    if (node_event_stream_client_connection_external_ref != NULL) {
+        napi_delete_reference(env, node_event_stream_client_connection_external_ref);
+    }
+
+    if (node_event_stream_client_connection_ref != NULL) {
+        napi_delete_reference(env, node_event_stream_client_connection_ref);
+    }
 
     return NULL;
 }
