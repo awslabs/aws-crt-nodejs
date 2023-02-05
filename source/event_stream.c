@@ -114,14 +114,14 @@ static void s_aws_event_stream_client_connection_extern_finalize(
         /* if connection is not null, then this is a successful connection which should shutdown normally */
         aws_event_stream_rpc_client_connection_release(binding->connection);
         binding->connection = NULL;
-    } else {
+    } else if (!binding->is_closed) {
         /*
          * no connection, just release the binding
          * If this was a failed construction, the binding will be immediately destroyed.
          * If this is mid-connection, then the closed flag will indicate to the connection callback that the
          * node object has gone away and it should close the connection and eventually destroy itself.
          */
-        binding->closed = true;
+        binding->is_closed = true;
         s_aws_event_stream_client_connection_binding_release(binding);
     }
 }
@@ -168,7 +168,7 @@ static int s_init_event_stream_connection_configuration_from_js_connection_confi
     }
 
     if (aws_napi_get_named_property_as_uint16(
-            env, node_connection_options, AWS_EVENT_STREAM_PROPERTY_NAME_PORT, napi_number, &binding->port) !=
+            env, node_connection_options, AWS_EVENT_STREAM_PROPERTY_NAME_PORT, &binding->port) !=
         AWS_NGNPR_VALID_VALUE) {
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
@@ -210,10 +210,10 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     napi_value node_connection = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_connection)) {
         napi_throw_error(env, NULL, "event_stream_client_connection_new - Required connection parameter is null");
-        goto cleanup;
+        goto error;
     }
 
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_connection, 1, &binding->node_connection_ref), {
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_connection, 1, &binding->node_event_stream_client_connection_ref), {
         napi_throw_error(
             env,
             NULL,
@@ -243,7 +243,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     if (aws_napi_is_null_or_undefined(env, on_disconnect_event_handler)) {
         napi_throw_error(
             env, NULL, "event_stream_client_connection_new - required on_disconnect event handler is null");
-        goto cleanup;
+        goto error;
     }
 
     AWS_NAPI_CALL(

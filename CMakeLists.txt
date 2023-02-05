@@ -100,6 +100,7 @@ aws_use_package(aws-c-http REQUIRED)
 aws_use_package(aws-c-mqtt REQUIRED)
 aws_use_package(aws-c-auth REQUIRED)
 aws_use_package(aws-checksums REQUIRED)
+aws_use_package(aws-c-event-stream REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
 set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
