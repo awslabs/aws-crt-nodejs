@@ -9,6 +9,7 @@ import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketTy
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
+import {once} from "events";
 
 jest.setTimeout(10000);
 
@@ -597,4 +598,45 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     let config : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
 
     await test_utils.doRetainTest(new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config));
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation statistics test simple', async () => {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    let statistics : mqtt5.ClientStatistics = client.getQueueStatistics();
+    expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+    expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
+    expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+    expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+
+    let topic : string = `test-${uuid()}`;
+    let testPayload : Buffer = Buffer.from("Derp", "utf-8");
+    let qos : mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload
+    });
+
+    await setTimeout(()=>{}, 2000);
+
+    statistics = client.getQueueStatistics();
+    expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
+    expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
+    expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
+    expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+
+    client.stop();
+    await stopped;
+
+    client.close();
 });

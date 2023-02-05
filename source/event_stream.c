@@ -48,7 +48,7 @@ struct aws_event_stream_client_connection_binding {
      *
      * Const post-creation.
      */
-    const struct aws_string *host;
+    struct aws_string *host;
     uint16_t port;
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_connection_options;

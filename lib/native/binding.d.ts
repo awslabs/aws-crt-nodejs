@@ -18,6 +18,8 @@ import { Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings } 
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
+import { ConnectionStatistics } from "./mqtt";
+
 
 /**
  * Type used to store pointers to CRT native resources
@@ -256,6 +258,9 @@ export function mqtt_client_connection_disconnect(connection: NativeHandle, on_d
 
 /** @internal */
 export function mqtt_client_connection_close(connection: NativeHandle): void;
+
+/** @internal */
+export function mqtt_client_connection_get_queue_statistics(connection: NativeHandle) : ConnectionStatistics;
 
 /* HTTP */
 /* wraps aws_http_proxy_options #TODO: Wrap with ClassBinder */

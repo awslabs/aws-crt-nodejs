@@ -912,13 +912,14 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
 
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
+    struct aws_allocator *ctx_allocator = ctx->allocator;
     aws_mem_release(ctx->allocator, ctx);
 
-    if (ctx->allocator != aws_default_allocator()) {
-        aws_mem_tracer_destroy(ctx->allocator);
-        if (s_allocator == ctx->allocator) {
+    if (ctx_allocator != aws_default_allocator()) {
+        if (s_allocator == ctx_allocator) {
             s_allocator = NULL;
         }
+        aws_mem_tracer_destroy(ctx_allocator);
     }
 }
 
@@ -1077,6 +1078,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_close)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_get_queue_statistics)
 
     /* Crypto */
     CREATE_AND_REGISTER_FN(hash_md5_new)
