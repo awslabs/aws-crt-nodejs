@@ -12,31 +12,43 @@
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
  * to this object to destroy the connection (and itself, afterwards).
+ *
+ * WARNING
+ * Data Access Rules:
+ *  (1) If in the libuv thread (called from JS or in the invocation of a thread-safe function), you may access anything
+ *      in the binding
+ *  (2) Otherwise, you may only access thread-safe functions or the binding's ref count APIs.  In particular,
+ *      'connection' and 'is_closed' are off-limits unless you're in the libuv thread.
  */
 struct aws_event_stream_client_connection_binding {
     struct aws_allocator *allocator;
 
     /*
      * We ref count the binding itself because there are anomalous situations where the binding must outlive even
-     * the native client.  In particular, if we have a native client being destroyed it may emit lifecycle events
-     * or completion callbacks for submitted operations as it does so.  Those events get marshalled across to the
-     * node/libuv thread and in the time it takes to do so, the native client may have completed destruction.  But
+     * the native connection.  In particular, if we have a native connection being (asynchronously )destroyed it may
+     * emit events as it is being destroyed.  Those events get marshalled across to the
+     * node/libuv thread and in the time it takes to do so, the native connection may have completed destruction.  But
      * we still need the binding when we're processing those events/callbacks in the libuv thread so the binding
-     * must not simply destroy itself as soon as the native client has destroyed itself.
+     * must not simply destroy itself as soon as the native connection has destroyed itself.
      *
      * We handle this by having all operations/events inc/dec this ref count as well as the base of one from
-     * creating the client.  In this way, the binding will only destroy itself when the native client is completely
-     * gone and all callbacks and events have been successfully emitted to node.
+     * creating the binding.  In this way, the binding will only destroy itself when the native connection is
+     * completely gone and all callbacks and events have been successfully emitted to node.
      */
     struct aws_ref_count ref_count;
 
+    /*
+     * May only be accessed from within the libuv thread.  This includes connection APIs like acquire and release.
+     */
     struct aws_event_stream_rpc_client_connection *connection;
     bool is_closed;
 
     /*
      * Cached config since connect is separate
+     *
+     * Const post-creation.
      */
-    struct aws_string *host;
+    const struct aws_string *host;
     uint16_t port;
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_connection_options;
