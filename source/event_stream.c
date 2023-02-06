@@ -202,6 +202,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         return NULL;
     }
 
+    napi_value node_connection_ref = NULL;
     napi_value node_external = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
@@ -214,15 +215,16 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         env,
         napi_create_external(env, binding, s_aws_event_stream_client_connection_extern_finalize, NULL, &node_external),
         {
+            aws_mem_release(allocator, binding);
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to create n-api external");
-            goto error;
+            goto done;
         });
 
     /* Arg #1: the js event stream connection */
     napi_value node_connection = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_connection)) {
         napi_throw_error(env, NULL, "event_stream_client_connection_new - Required connection parameter is null");
-        goto error;
+        goto done;
     }
 
     AWS_NAPI_CALL(
@@ -231,14 +233,14 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - Failed to create reference to node event stream connection");
-            goto error;
+            goto done;
         });
 
     /* Arg #2: the event stream connection options object */
     napi_value node_connection_options = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_connection_options)) {
         napi_throw_error(env, NULL, "event_stream_client_connection_new - Required options parameter is null");
-        goto error;
+        goto done;
     }
 
     if (s_init_event_stream_connection_configuration_from_js_connection_configuration(
@@ -248,7 +250,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
             NULL,
             "event_stream_client_connection_new - failed to initialize native connection configuration from js "
             "connection configuration");
-        goto error;
+        goto done;
     }
 
     /* Arg #3: on disconnect event handler */
@@ -256,7 +258,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     if (aws_napi_is_null_or_undefined(env, on_disconnect_event_handler)) {
         napi_throw_error(
             env, NULL, "event_stream_client_connection_new - required on_disconnect event handler is null");
-        goto error;
+        goto done;
     }
 
     AWS_NAPI_CALL(
@@ -271,7 +273,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         {
             napi_throw_error(
                 env, NULL, "event_stream_client_connection_new - failed to initialize on_disconnect event handler");
-            goto error;
+            goto done;
         });
 
     /* Arg #4: on protocol message event handler */
@@ -279,7 +281,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     if (aws_napi_is_null_or_undefined(env, on_protocol_message_event_handler)) {
         napi_throw_error(
             env, NULL, "event_stream_client_connection_new - required on_protocol_message event handler is null");
-        goto error;
+        goto done;
     }
 
     AWS_NAPI_CALL(
@@ -296,7 +298,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - failed to initialize on_protocol_message event handler");
-            goto error;
+            goto done;
         });
 
     /* Arg #5: socket options */
@@ -306,12 +308,12 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&socket_options_ptr), {
             napi_throw_error(
                 env, NULL, "event_stream_client_connection_new - Unable to extract socket_options from external");
-            goto error;
+            goto done;
         });
 
         if (socket_options_ptr == NULL) {
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Null socket options");
-            goto error;
+            goto done;
         }
 
         binding->socket_options = *socket_options_ptr;
@@ -323,7 +325,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         struct aws_tls_ctx *tls_ctx;
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls, (void **)&tls_ctx), {
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to extract tls_ctx from external");
-            goto error;
+            goto done;
         });
 
         aws_tls_connection_options_init_from_ctx(&binding->tls_connection_options, tls_ctx);
@@ -335,16 +337,14 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - Failed to create one count reference to napi external");
-            goto error;
+            goto done;
         });
 
-    return node_external;
+    node_connection_ref = node_external;
 
-error:
+done:
 
-    s_aws_event_stream_client_connection_binding_release(binding);
-
-    return NULL;
+    return node_connection_ref;
 }
 
 napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_callback_info info) {
