@@ -1931,8 +1931,8 @@ static void s_on_connection_closed(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_closed, NULL));
 }
 
-napi_value aws_napi_mqtt_client_connection_on_stopped(napi_env env, napi_callback_info cb_info) {
-    napi_value node_args[1];
+napi_value aws_napi_mqtt_client_connection_on_closed(napi_env env, napi_callback_info cb_info) {
+    napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -1940,7 +1940,7 @@ napi_value aws_napi_mqtt_client_connection_on_stopped(napi_env env, napi_callbac
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_on_stopped needs exactly 1 argument");
+        napi_throw_error(env, NULL, "mqtt_client_connection_on_closed needs exactly 2 arguments");
         return NULL;
     }
 
