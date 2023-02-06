@@ -610,6 +610,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
             this.emit('interrupt', -1);
 
             /* Did we intent to disconnect? If so, then emit the event */
+            console.log("Desired state: " + this.desiredState);
+            console.log("Current state: " + this.currentState);
             if (this.desiredState == MqttBrowserClientState.Stopped) {
                 this.emit("closed");
             }
@@ -629,7 +631,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_disconnected = () => {
         this.emit('disconnect');
-        this.emit("closed");
+
+        /**
+         * This shouldn't ever occur, but in THEORY it could be possible to have on_disconnected called with the intent
+         * to disconnect without on_close called first. This would properly emit 'closed' should that unlikely event occur.
+         */
+        if (this.currentState == MqttBrowserClientState.Connected && this.desiredState == MqttBrowserClientState.Stopped) {
+            this.emit("closed");
+        }
     }
 
     private on_error = (error: Error) => {

@@ -248,7 +248,7 @@ export function mqtt_client_connection_on_message(
 /** @internal */
 export function mqtt_client_connection_on_closed(
     connection: NativeHandle,
-    on_closed?: OnMessageCallback
+    on_closed?: () => void
 ): void;
 
 /** @internal */
