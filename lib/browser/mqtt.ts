@@ -397,9 +397,9 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
 
-    on(event: 'connection_success', listener: MqttConnectionSucess);
+    on(event: 'connection_success', listener: MqttConnectionSucess): this;
 
-    on(event: 'connection_failure', listener: MqttConnectionFailure);
+    on(event: 'connection_failure', listener: MqttConnectionFailure): this;
 
     on(event: 'closed', listener: MqttConnectionClosed): this;
 
