@@ -57,6 +57,34 @@ export type MqttConnectionError = (error: CrtError) => void;
 export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * @param session_present A boolean indicating if the connection resumed a session
+ *
+ * @category MQTT
+ */
+export type MqttConnectionSucess = (session_present: boolean) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * @param session_present A boolean indicating if the connection resumed a session
+ *
+ * @category MQTT
+ */
+export type MqttConnectionFailure = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * intentially disconnected successfully.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionClosed = () => void;
+
+/**
  * @category MQTT
  */
 export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
@@ -369,6 +397,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
 
+    on(event: 'connection_success', listener: MqttConnectionSucess);
+
+    on(event: 'connection_failure', listener: MqttConnectionFailure);
+
+    on(event: 'closed', listener: MqttConnectionClosed): this;
+
     on(event: 'resume', listener: MqttConnectionResumed): this;
 
     on(event: 'message', listener: OnMessageCallback): this;
@@ -538,6 +572,9 @@ export class MqttClientConnection extends BufferedEventEmitter {
             this.reset_reconnect_times();
             this.emit('resume', 0, session_present);
         }
+
+        // Call connection success every time we connect, whether it is a first connect or a reconnect
+        this.emit('connection_success', session_present);
     }
 
     private on_close = () => {
@@ -548,6 +585,11 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (this.currentState == MqttBrowserClientState.Connected) {
             this.currentState = MqttBrowserClientState.Stopped;
             this.emit('interrupt', -1);
+
+            /* Did we intent to disconnect? If so, then emit the event */
+            if (this.desiredState == MqttBrowserClientState.Stopped) {
+                this.emit("closed");
+            }
         }
 
         /* Only try and reconnect if our desired state is connected, ie no one has called disconnect() */
@@ -564,10 +606,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_disconnected = () => {
         this.emit('disconnect');
+        this.emit("closed");
     }
 
     private on_error = (error: Error) => {
         this.emit('error', new CrtError(error))
+
+        // If we were trying to connect but got an error, then it's a connection failure!
+        if (this.desiredState == MqttBrowserClientState.Connected) {
+            this.emit('connection_failure', new CrtError(error));
+        }
     }
 
     private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
