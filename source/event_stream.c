@@ -52,6 +52,7 @@ struct aws_event_stream_client_connection_binding {
     uint16_t port;
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_connection_options;
+    bool using_tls;
 
     /*
      * Single count ref to the JS connection object.
@@ -329,6 +330,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         });
 
         aws_tls_connection_options_init_from_ctx(&binding->tls_connection_options, tls_ctx);
+        binding->using_tls = true;
     }
 
     AWS_NAPI_CALL(
@@ -396,23 +398,126 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
     return NULL;
 }
 
-/*
-struct aws_event_stream_rpc_client_connection_options {
-    const char *host_name;
-    uint16_t port;
-    const struct aws_socket_options *socket_options;
-    const struct aws_tls_connection_options *tls_options;
-    struct aws_client_bootstrap *bootstrap;
-    aws_event_stream_rpc_client_on_connection_setup_fn *on_connection_setup;
-    aws_event_stream_rpc_client_connection_protocol_message_fn *on_connection_protocol_message;
-    aws_event_stream_rpc_client_on_connection_shutdown_fn *on_connection_shutdown;
-    void *user_data;
-};
-*/
+static void s_aws_event_stream_rpc_client_connection_protocol_message_fn(
+    struct aws_event_stream_rpc_client_connection *connection,
+    const struct aws_event_stream_rpc_message_args *message_args,
+    void *user_data) {
+
+    (void)connection;
+    (void)message_args;
+    (void)user_data;
+}
+
+static void s_aws_event_stream_rpc_client_on_connection_shutdown_fn(
+    struct aws_event_stream_rpc_client_connection *connection,
+    int error_code,
+    void *user_data) {
+    (void)connection;
+    (void)error_code;
+    (void)user_data;
+}
+
+static void s_napi_on_event_stream_client_connection_setup(
+    napi_env env,
+    napi_value function,
+    void *context,
+    void *user_data) {
+    (void)env;
+    (void)function;
+    (void)context;
+    (void)user_data;
+}
+
+static void s_aws_event_stream_rpc_client_on_connection_setup_fn(
+    struct aws_event_stream_rpc_client_connection *connection,
+    int error_code,
+    void *user_data) {
+    (void)connection;
+    (void)error_code;
+    (void)user_data;
+}
 
 napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_callback_info info) {
-    (void)env;
-    (void)info;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_connection_connect - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_connect - needs exactly 2 arguments");
+        return NULL;
+    }
+
+    struct aws_event_stream_client_connection_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_connect - Failed to extract connection binding from first "
+            "argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_connect - binding was null");
+        return NULL;
+    }
+
+    AWS_FATAL_ASSERT(binding->connection == NULL);
+    AWS_FATAL_ASSERT(binding->is_closed == false);
+
+    napi_value connection_setup_callback = *arg++;
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            connection_setup_callback,
+            "aws_event_stream_client_connection_on_connection_setup",
+            s_napi_on_event_stream_client_connection_setup,
+            binding,
+            &binding->on_connection_setup),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_event_stream_client_connection_connect - failed to create threadsafe callback function");
+            return NULL;
+        });
+
+    struct aws_tls_connection_options *tls_options = NULL;
+    if (binding->using_tls) {
+        tls_options = &binding->tls_connection_options;
+    }
+
+    struct aws_event_stream_rpc_client_connection_options connect_options = {
+        .host_name = aws_string_c_str(binding->host),
+        .port = binding->port,
+        .socket_options = &binding->socket_options,
+        .tls_options = tls_options,
+        .bootstrap = aws_napi_get_default_client_bootstrap(),
+        .on_connection_setup = s_aws_event_stream_rpc_client_on_connection_setup_fn,
+        .on_connection_protocol_message = s_aws_event_stream_rpc_client_connection_protocol_message_fn,
+        .on_connection_shutdown = s_aws_event_stream_rpc_client_on_connection_shutdown_fn,
+        .user_data = binding,
+    };
+
+    s_aws_event_stream_client_connection_binding_acquire(binding);
+
+    if (aws_event_stream_rpc_client_connection_connect(allocator, &connect_options)) {
+        s_aws_event_stream_client_connection_binding_release(binding);
+        aws_napi_throw_last_error_with_context(
+            env,
+            "aws_napi_event_stream_client_connection_connect - synchronous failure invoking "
+            "aws_event_stream_rpc_client_connection_connect");
+        return NULL;
+    }
 
     return NULL;
 }
