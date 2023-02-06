@@ -64,9 +64,9 @@ struct aws_event_stream_client_connection_binding {
      */
     napi_ref node_event_stream_client_connection_external_ref;
 
-    napi_threadsafe_function on_disconnect;
-    napi_threadsafe_function on_protocol_message;
     napi_threadsafe_function on_connection_setup;
+    napi_threadsafe_function on_connection_shutdown;
+    napi_threadsafe_function on_protocol_message;
 };
 
 static void s_aws_event_stream_client_connection_binding_on_zero(void *context) {
@@ -79,9 +79,9 @@ static void s_aws_event_stream_client_connection_binding_on_zero(void *context) 
     aws_string_destroy(binding->host);
     aws_tls_connection_options_clean_up(&binding->tls_connection_options);
 
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_disconnect);
-    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_protocol_message);
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_setup);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_connection_shutdown);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_protocol_message);
 
     aws_mem_release(binding->allocator, binding);
 }
@@ -105,8 +105,29 @@ static struct aws_event_stream_client_connection_binding *s_aws_event_stream_cli
     return NULL;
 }
 
+static void s_close_binding(napi_env env, struct aws_event_stream_client_connection_binding *binding) {
+    binding->is_closed = true;
+
+    napi_ref node_event_stream_client_connection_external_ref =
+        binding->node_event_stream_client_connection_external_ref;
+    binding->node_event_stream_client_connection_external_ref = NULL;
+
+    napi_ref node_event_stream_client_connection_ref = binding->node_event_stream_client_connection_ref;
+    binding->node_event_stream_client_connection_ref = NULL;
+
+    if (env != NULL) {
+        if (node_event_stream_client_connection_external_ref != NULL) {
+            napi_delete_reference(env, node_event_stream_client_connection_external_ref);
+        }
+
+        if (node_event_stream_client_connection_ref != NULL) {
+            napi_delete_reference(env, node_event_stream_client_connection_ref);
+        }
+    }
+}
+
 /*
- * Invoked when the node mqtt5 client is garbage collected or if fails construction partway through
+ * Invoked when the node connection object is garbage collected or if fails construction partway through
  */
 static void s_aws_event_stream_client_connection_extern_finalize(
     napi_env env,
@@ -132,22 +153,96 @@ static void s_aws_event_stream_client_connection_extern_finalize(
          * no connection, just release the binding
          * If this was a failed construction, the binding will be immediately destroyed.
          * If this is mid-connection, then the closed flag will indicate to the connection callback that the
-         * node object has gone away and it should close the connection and eventually destroy itself.
+         * node object has gone away and it should close the connection and asynchronously destroy itself.
          */
-        binding->is_closed = true;
+        s_close_binding(env, binding);
+
         s_aws_event_stream_client_connection_binding_release(binding);
     }
 }
 
-static void s_napi_event_stream_connection_on_disconnect(
+struct aws_event_stream_connection_event_data {
+    struct aws_allocator *allocator;
+
+    struct aws_event_stream_client_connection_binding *binding;
+    int error_code;
+    struct aws_event_stream_rpc_client_connection *connection;
+};
+
+static void s_napi_event_stream_connection_on_connection_shutdown(
     napi_env env,
     napi_value function,
     void *context,
     void *user_data) {
-    (void)env;
-    (void)function;
-    (void)context;
+
     (void)user_data;
+
+    struct aws_event_stream_connection_event_data *shutdown_data = context;
+    struct aws_event_stream_client_connection_binding *binding = shutdown_data->binding;
+
+    AWS_FATAL_ASSERT(binding->connection != NULL);
+
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "s_napi_event_stream_connection_on_connection_shutdown - event stream connection has completed shutdown");
+
+    if (env && !binding->is_closed) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the event stream connection, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_event_stream_client_connection_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_event_stream_connection_on_connection_shutdown - event_stream_client_connection node wrapper "
+                "no longer resolvable");
+            goto done;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, shutdown_data->error_code, &params[1]), { goto done; });
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_connection_shutdown, NULL, function, num_params, params));
+    }
+
+done:
+
+    /*
+     * Close the binding just to be sure.  User can call close too, it just won't do anything.
+     */
+    s_close_binding(env, binding);
+
+    /*
+     * Release our reference, which in this case, allows the connection to finally delete itself.
+     */
+    aws_event_stream_rpc_client_connection_release(binding->connection);
+    binding->connection = NULL;
+
+    /*
+     * Our invariant is that for the time interval between attempting to connect and either
+     *
+     *  (1) connection establishment failed, or
+     *  (2) connection establishment succeeded and some arbitrary time later, gets shutdown
+     *
+     * we maintain a ref on the binding itself, ie native event stream can safely invoke callbacks that are
+     * guaranteed to reach a valid binding.
+     *
+     * It's trickier than normal because, while we acquire in a single spot (the connect() call), we release in
+     * two very different spots:
+     *
+     *  (1) connection establishment failed: in s_napi_on_event_stream_client_connection_setup
+     *  (2) connection establishment succeeded: here
+     */
+    s_aws_event_stream_client_connection_binding_release(binding);
+
+    aws_mem_release(shutdown_data->allocator, shutdown_data);
 }
 
 static void s_napi_event_stream_connection_on_protocol_message(
@@ -158,6 +253,16 @@ static void s_napi_event_stream_connection_on_protocol_message(
     (void)env;
     (void)function;
     (void)context;
+    (void)user_data;
+}
+
+static void s_aws_event_stream_rpc_client_connection_protocol_message_fn(
+    struct aws_event_stream_rpc_client_connection *connection,
+    const struct aws_event_stream_rpc_message_args *message_args,
+    void *user_data) {
+
+    (void)connection;
+    (void)message_args;
     (void)user_data;
 }
 
@@ -255,10 +360,10 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     }
 
     /* Arg #3: on disconnect event handler */
-    napi_value on_disconnect_event_handler = *arg++;
-    if (aws_napi_is_null_or_undefined(env, on_disconnect_event_handler)) {
+    napi_value on_connection_shutdown_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_connection_shutdown_event_handler)) {
         napi_throw_error(
-            env, NULL, "event_stream_client_connection_new - required on_disconnect event handler is null");
+            env, NULL, "event_stream_client_connection_new - required on_connection_shutdown event handler is null");
         goto done;
     }
 
@@ -266,14 +371,16 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         env,
         aws_napi_create_threadsafe_function(
             env,
-            on_disconnect_event_handler,
-            "aws_event_stream_client_connection_on_disconnect",
-            s_napi_event_stream_connection_on_disconnect,
+            on_connection_shutdown_event_handler,
+            "aws_event_stream_client_connection_on_connection_shutdown",
+            s_napi_event_stream_connection_on_connection_shutdown,
             NULL,
-            &binding->on_disconnect),
+            &binding->on_connection_shutdown),
         {
             napi_throw_error(
-                env, NULL, "event_stream_client_connection_new - failed to initialize on_disconnect event handler");
+                env,
+                NULL,
+                "event_stream_client_connection_new - failed to initialize on_connection_shutdown event handler");
             goto done;
         });
 
@@ -378,43 +485,28 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
         return NULL;
     }
 
-    binding->is_closed = true;
-
-    napi_ref node_event_stream_client_connection_external_ref =
-        binding->node_event_stream_client_connection_external_ref;
-    binding->node_event_stream_client_connection_external_ref = NULL;
-
-    napi_ref node_event_stream_client_connection_ref = binding->node_event_stream_client_connection_ref;
-    binding->node_event_stream_client_connection_ref = NULL;
-
-    if (node_event_stream_client_connection_external_ref != NULL) {
-        napi_delete_reference(env, node_event_stream_client_connection_external_ref);
-    }
-
-    if (node_event_stream_client_connection_ref != NULL) {
-        napi_delete_reference(env, node_event_stream_client_connection_ref);
-    }
+    s_close_binding(env, binding);
 
     return NULL;
-}
-
-static void s_aws_event_stream_rpc_client_connection_protocol_message_fn(
-    struct aws_event_stream_rpc_client_connection *connection,
-    const struct aws_event_stream_rpc_message_args *message_args,
-    void *user_data) {
-
-    (void)connection;
-    (void)message_args;
-    (void)user_data;
 }
 
 static void s_aws_event_stream_rpc_client_on_connection_shutdown_fn(
     struct aws_event_stream_rpc_client_connection *connection,
     int error_code,
     void *user_data) {
-    (void)connection;
-    (void)error_code;
-    (void)user_data;
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_event_stream_client_connection_binding *binding = user_data;
+
+    struct aws_event_stream_connection_event_data *shutdown_data =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_connection_event_data));
+    shutdown_data->allocator = allocator;
+    shutdown_data->error_code = error_code;
+    shutdown_data->binding = binding;       /* we already have a ref from the original connect call */
+    shutdown_data->connection = connection; /* not really necessary with shutdown, but doesn't hurt */
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_shutdown, shutdown_data));
 }
 
 static void s_napi_on_event_stream_client_connection_setup(
@@ -422,19 +514,105 @@ static void s_napi_on_event_stream_client_connection_setup(
     napi_value function,
     void *context,
     void *user_data) {
-    (void)env;
-    (void)function;
-    (void)context;
+
     (void)user_data;
+
+    struct aws_event_stream_connection_event_data *setup_data = context;
+    struct aws_event_stream_client_connection_binding *binding = setup_data->binding;
+
+    binding->connection = setup_data->connection; /* we own the initial ref */
+
+    if (env && !binding->is_closed) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the event stream connection, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_event_stream_client_connection_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_on_event_stream_client_connection_setup - event_stream_client_connection node wrapper no "
+                "longer resolvable");
+            goto close;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, setup_data->error_code, &params[1]), { goto close; });
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_connection_setup, NULL, function, num_params, params));
+
+        goto done;
+    }
+
+close:
+
+    /*
+     * We hit here only if the JS object has been closed or there was a terminal failure in trying to invoke
+     * the setup callback.  In all cases, log it, and shutdown the connection.
+     */
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "s_napi_on_event_stream_client_connection_setup - node wrapper has been closed or hit a terminal failure, "
+        "halting connection setup");
+
+    /*
+     * The managed state machine will not necessarily know the binding has been closed.  But we check all entry
+     * points and early out just in case.
+     */
+    s_close_binding(env, binding);
+
+    if (binding->connection) {
+        aws_event_stream_rpc_client_connection_close(
+            binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_SETUP_ALREADY_CLOSED);
+    }
+
+done:
+
+    /*
+     * Our invariant is that for the time interval between attempting to connect and either
+     *
+     *  (1) connection establishment failed, or
+     *  (2) connection establishment succeeded and some arbitrary time later, gets shutdown
+     *
+     * we maintain a ref on the binding itself, ie native event stream can safely invoke callbacks that are
+     * guaranteed to reach a valid binding.
+     *
+     * It's trickier than normal because, while we acquire in a single spot (the connect() call), we release in
+     * two very different spots:
+     *
+     *  (1) connection establishment failed: here
+     *  (2) connection establishment succeeded: in s_napi_on_event_stream_client_connection_shutdown
+     */
+    if (!binding->connection) {
+        s_aws_event_stream_client_connection_binding_release(binding);
+    }
+
+    aws_mem_release(setup_data->allocator, setup_data);
 }
 
 static void s_aws_event_stream_rpc_client_on_connection_setup_fn(
     struct aws_event_stream_rpc_client_connection *connection,
     int error_code,
     void *user_data) {
-    (void)connection;
-    (void)error_code;
-    (void)user_data;
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_event_stream_client_connection_binding *binding = user_data;
+
+    struct aws_event_stream_connection_event_data *setup_data =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_connection_event_data));
+    setup_data->allocator = allocator;
+    setup_data->error_code = error_code;
+    setup_data->binding = binding; /* we already have a ref from the original connect call */
+    setup_data->connection = connection;
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_setup, setup_data));
 }
 
 napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_callback_info info) {
@@ -470,8 +648,12 @@ napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_ca
         return NULL;
     }
 
+    if (binding->is_closed) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_connect - connection already closed");
+        return NULL;
+    }
+
     AWS_FATAL_ASSERT(binding->connection == NULL);
-    AWS_FATAL_ASSERT(binding->is_closed == false);
 
     napi_value connection_setup_callback = *arg++;
     AWS_NAPI_CALL(

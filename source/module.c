@@ -54,6 +54,9 @@ static struct aws_error_info s_errors[] = {
     AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
         AWS_CRT_NODEJS_ERROR_NAPI_FAILURE,
         "A N-API API call failed"),
+    AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
+        AWS_CRT_NODEJS_ERROR_EVENT_STREAM_SETUP_ALREADY_CLOSED,
+        "Eventstream connection was closed before the native connection had a chance to complete.  On completion, the native connection is shut down with this error code."),
 };
 /* clang-format on */
 
