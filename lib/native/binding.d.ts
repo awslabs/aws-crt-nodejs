@@ -246,6 +246,12 @@ export function mqtt_client_connection_on_message(
 ): void;
 
 /** @internal */
+export function mqtt_client_connection_on_closed(
+    connection: NativeHandle,
+    on_closed?: OnMessageCallback
+): void;
+
+/** @internal */
 export function mqtt_client_connection_unsubscribe(
     connection: NativeHandle,
     topic: StringLike,

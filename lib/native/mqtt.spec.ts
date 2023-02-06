@@ -51,10 +51,13 @@ async function test_builder(aws_opts: Config, builder: AwsIotMqttConnectionConfi
         });
         connection.on('error', (error) => {
             reject(error);
-        })
+        });
         connection.on('disconnect', () => {
             resolve(true);
-        })
+        });
+        connection.on('closed', () => {
+            console.log("Connection disconnected successfully");
+        });
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
@@ -181,7 +184,10 @@ test('MQTT Operation statistics simple', async () => {
         });
         connection.on('error', (error) => {
             reject(error);
-        })
+        });
+        connection.on('closed', () => {
+            console.log("Connection disconnected successfully");
+        });
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
@@ -240,7 +246,10 @@ test('MQTT Operation statistics check publish', async () => {
         });
         connection.on('error', (error) => {
             reject(error);
-        })
+        });
+        connection.on('closed', () => {
+            console.log("Connection disconnected successfully");
+        });
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });

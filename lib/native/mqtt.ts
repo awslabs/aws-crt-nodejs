@@ -55,6 +55,14 @@ export type MqttConnectionError = (error: CrtError) => void;
 export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * disconnected successfully.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionClosed = () => void;
+
+/**
  * MQTT client
  *
  * @category MQTT
@@ -269,6 +277,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
+        crt_native.mqtt_client_connection_on_closed(this.native_handle(), this._on_connection_closed.bind(this));
 
         /*
          * Failed mqtt operations (which is normal) emit error events as well as rejecting the original promise.
@@ -338,6 +347,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     on(event: 'resume', listener: MqttConnectionResumed): this;
 
     on(event: 'message', listener: OnMessageCallback): this;
+
+    on(event: 'closed', listener: MqttConnectionClosed): this;
 
     // Overridden to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -524,6 +535,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
         this.emit('message', topic, payload, dup, qos, retain);
+    }
+
+    private _on_connection_closed() {
+        this.emit('closed');
     }
 
     private _on_connect_callback(resolve : (value: (boolean | PromiseLike<boolean>)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {

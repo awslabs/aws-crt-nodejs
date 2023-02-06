@@ -1074,6 +1074,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(mqtt_client_connection_publish)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_subscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_on_message)
+    CREATE_AND_REGISTER_FN(mqtt_client_connection_on_closed)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_disconnect)
     CREATE_AND_REGISTER_FN(mqtt_client_connection_close)
