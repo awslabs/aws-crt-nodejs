@@ -56,6 +56,26 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * @param session_present A boolean indicating if the connection resumed a session
+ *
+ * @category MQTT
+ */
+export type MqttConnectionSucess = (session_present: boolean) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * @param session_present A boolean indicating if the connection resumed a session
+ *
+ * @category MQTT
+ */
+export type MqttConnectionFailure = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * disconnected successfully.
  *
  * @category MQTT
@@ -336,6 +356,29 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     static MESSAGE = 'message';
 
+    /**
+     * Emitted on every successful connect.
+     * Will contain a boolean indicating whether the connection resumed a session.
+     *
+     * @event
+     */
+    static CONNECTION_SUCCCESS = 'connection_success';
+
+    /**
+     * Emitted on an unsuccessful connect.
+     * Will contain an error code indicating the reason for the unsuccessful connection.
+     *
+     * @event
+     */
+    static CONNECTION_FAILURE = 'connection_failure';
+
+    /**
+     * Emitted when the MQTT connection was disconnected successfully.
+     *
+     * @event
+     */
+    static CLOSED = 'closed'
+
     on(event: 'connect', listener: MqttConnectionConnected): this;
 
     on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
@@ -347,6 +390,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     on(event: 'resume', listener: MqttConnectionResumed): this;
 
     on(event: 'message', listener: OnMessageCallback): this;
+
+    on(event: 'connection_success', listener: MqttConnectionSucess): this;
+
+    on(event: 'connection_failure', listener: MqttConnectionFailure): this;
 
     on(event: 'closed', listener: MqttConnectionClosed): this;
 
@@ -531,6 +578,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
+        this.emit('connection_success', session_present);
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
@@ -545,10 +593,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
+            this.emit('connection_success', session_present);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
+            this.emit('connection_failure', new CrtError(error_code));
         } else {
             reject("Server rejected connection.");
+            this.emit('connection_failure', new CrtError(5134)); // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
         }
     }
 

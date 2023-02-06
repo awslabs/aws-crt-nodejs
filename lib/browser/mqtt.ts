@@ -389,6 +389,29 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     static MESSAGE = 'message';
 
+    /**
+     * Emitted on every successful connect.
+     * Will contain a boolean indicating whether the connection resumed a session.
+     *
+     * @event
+     */
+    static CONNECTION_SUCCCESS = 'connection_success';
+
+    /**
+     * Emitted on an unsuccessful connect.
+     * Will contain an error code indicating the reason for the unsuccessful connection.
+     *
+     * @event
+     */
+    static CONNECTION_FAILURE = 'connection_failure';
+
+    /**
+     * Emitted when the MQTT connection was disconnected successfully.
+     *
+     * @event
+     */
+    static CLOSED = 'closed'
+
     on(event: 'connect', listener: MqttConnectionConnected): this;
 
     on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
