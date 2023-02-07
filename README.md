@@ -36,6 +36,7 @@ Normally, you just declare `aws-crt` as a dependency in your package.json file.
 You can either add it to package.json (if using a tool like webpack), or just import the ```dist.browser/``` folder into your web project
 
 ### Installing from npm
+
 ```bash
 npm install aws-crt
 ```

@@ -16,5 +16,6 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
 napi_value aws_napi_mqtt_client_connection_on_message(napi_env env, napi_callback_info info);
 napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callback_info info);
 napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callback_info info);
+napi_value aws_napi_mqtt_client_connection_get_queue_statistics(napi_env env, napi_callback_info info);
 
 #endif /* AWS_CRT_NODEJS_MQTT_CLIENT_CONNECTION_H */

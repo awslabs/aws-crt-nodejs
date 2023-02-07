@@ -185,6 +185,36 @@ export interface MqttConnectionConfig {
 }
 
 /**
+ * Information about the connection's queue of operations
+ */
+ export interface ConnectionStatistics {
+
+    /**
+     * Total number of operations submitted to the connection that have not yet been completed.  Unacked operations
+     * are a subset of this.
+     */
+    incompleteOperationCount : number;
+
+    /**
+     * Total packet size of operations submitted to the connection that have not yet been completed.  Unacked operations
+     * are a subset of this.
+     */
+    incompleteOperationSize : number;
+
+    /**
+     * Total number of operations that have been sent to the server and are waiting for a corresponding ACK before
+     * they can be completed.
+     */
+    unackedOperationCount : number;
+
+    /**
+     * Total packet size of operations that have been sent to the server and are waiting for a corresponding ACK before
+     * they can be completed.
+     */
+    unackedOperationSize : number;
+};
+
+/**
  * MQTT client connection
  *
  * @category MQTT
@@ -462,6 +492,15 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                 reject(e);
             }
         });
+    }
+
+    /**
+     * Queries a small set of numerical statistics about the current state of the connection's operation queue
+     *
+     * @group Node-only
+     */
+     getQueueStatistics() : ConnectionStatistics {
+        return crt_native.mqtt_client_connection_get_queue_statistics(this.native_handle());
     }
 
     // Wrap a promise rejection with a function that will also emit the error as an event
