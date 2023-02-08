@@ -412,14 +412,10 @@ export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.M
         throw new CrtError("doh");
     }
 
-    /* TODO: switch back to DisconnectWithWill when it's fixed in IoT Core
     publisher.stop({
         reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
     });
-    */
-
-    publisher.stop();
-
+    
     await willReceived;
     await publisherStopped;
 
