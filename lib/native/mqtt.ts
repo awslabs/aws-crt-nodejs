@@ -58,17 +58,18 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * connected successfully.
  *
- * @param session_present A boolean indicating if the connection resumed a session
+ * @param return_code The connect return code received from the server.
+ * @param session_present A boolean indicating if the connection resumed a session.
  *
  * @category MQTT
  */
-export type MqttConnectionSucess = (session_present: boolean) => void;
+export type MqttConnectionSucess = (return_code: number, session_present: boolean) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * connected successfully.
  *
- * @param session_present A boolean indicating if the connection resumed a session
+ * @param session_present A boolean indicating if the connection resumed a session.
  *
  * @category MQTT
  */
@@ -578,7 +579,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
-        this.emit('connection_success', session_present);
+        this.emit('connection_success', return_code, session_present);
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
@@ -593,7 +594,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
-            this.emit('connection_success', session_present);
+            this.emit('connection_success', return_code, session_present);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
             this.emit('connection_failure', new CrtError(error_code));

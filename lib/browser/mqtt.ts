@@ -64,7 +64,7 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  *
  * @category MQTT
  */
-export type MqttConnectionSucess = (session_present: boolean) => void;
+export type MqttConnectionSuccess = (session_present: boolean) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
@@ -78,7 +78,7 @@ export type MqttConnectionFailure = (error: CrtError) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
- * intentially disconnected successfully.
+ * disconnected successfully.
  *
  * @category MQTT
  */
@@ -420,7 +420,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
 
-    on(event: 'connection_success', listener: MqttConnectionSucess): this;
+    on(event: 'connection_success', listener: MqttConnectionSuccess): this;
 
     on(event: 'connection_failure', listener: MqttConnectionFailure): this;
 
