@@ -32,6 +32,9 @@ import {
     MqttConnectionResumed,
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC,
+    OnConnectionSuccessResult,
+    OnConnectionFailedResult,
+    OnConnectionClosedResult
 } from "../common/mqtt";
 export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
 
@@ -58,30 +61,32 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * connected successfully.
  *
- * @param return_code The connect return code received from the server.
- * @param session_present A boolean indicating if the connection resumed a session.
+ * @param callback_data Data returned containing information about the successful connection.
  *
  * @category MQTT
  */
-export type MqttConnectionSucess = (return_code: number, session_present: boolean) => void;
+export type MqttConnectionSucess = (callback_data: OnConnectionSuccessResult) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * connected successfully.
  *
- * @param session_present A boolean indicating if the connection resumed a session.
+ * @param callback_data Data returned containing information about the failed connection.
  *
  * @category MQTT
  */
-export type MqttConnectionFailure = (error: CrtError) => void;
+export type MqttConnectionFailure = (callback_data: OnConnectionFailedResult) => void;
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * disconnected successfully.
  *
+ * @param callback_data Data returned containing information about the closed/disconnected connection.
+ *                      Currently empty, but may contain data in the future.
+ *
  * @category MQTT
  */
-export type MqttConnectionClosed = () => void;
+export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => void;
 
 /**
  * MQTT client
@@ -580,7 +585,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
-        this.emit('connection_success', return_code, session_present);
+        let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
+        this.emit('connection_success', successCallbackData);
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
@@ -588,20 +594,24 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     private _on_connection_closed() {
-        this.emit('closed');
+        let closedCallbackData = {} as OnConnectionClosedResult;
+        this.emit('closed', closedCallbackData);
     }
 
     private _on_connect_callback(resolve : (value: (boolean | PromiseLike<boolean>)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
-            this.emit('connection_success', return_code, session_present);
+            let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
+            this.emit('connection_success', successCallbackData);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
-            this.emit('connection_failure', new CrtError(error_code));
+            let failureCallbackData = {error: new CrtError(error_code)} as OnConnectionFailedResult;
+            this.emit('connection_failure', failureCallbackData);
         } else {
             reject("Server rejected connection.");
-            this.emit('connection_failure', new CrtError(5134)); // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
+            let failureCallbackData = {error: new CrtError(5134)} as OnConnectionFailedResult; // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
+            this.emit('connection_failure', failureCallbackData);
         }
     }
 
