@@ -359,7 +359,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     /**
      * Emitted on every successful connect.
-     * Will contain a boolean indicating whether the connection resumed a session.
+     * Will contain a number with the connection reason code and
+     * a boolean indicating whether the connection resumed a session.
      *
      * @event
      */
