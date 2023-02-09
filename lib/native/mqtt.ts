@@ -36,7 +36,10 @@ import {
     OnConnectionFailedResult,
     OnConnectionClosedResult
 } from "../common/mqtt";
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
+export {
+    QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
+    MqttConnectionResumed, OnConnectionSuccessResult, OnConnectionFailedResult, OnConnectionClosedResult
+} from "../common/mqtt";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
@@ -221,31 +224,31 @@ export interface MqttConnectionConfig {
 /**
  * Information about the connection's queue of operations
  */
- export interface ConnectionStatistics {
+export interface ConnectionStatistics {
 
     /**
      * Total number of operations submitted to the connection that have not yet been completed.  Unacked operations
      * are a subset of this.
      */
-    incompleteOperationCount : number;
+    incompleteOperationCount: number;
 
     /**
      * Total packet size of operations submitted to the connection that have not yet been completed.  Unacked operations
      * are a subset of this.
      */
-    incompleteOperationSize : number;
+    incompleteOperationSize: number;
 
     /**
      * Total number of operations that have been sent to the server and are waiting for a corresponding ACK before
      * they can be completed.
      */
-    unackedOperationCount : number;
+    unackedOperationCount: number;
 
     /**
      * Total packet size of operations that have been sent to the server and are waiting for a corresponding ACK before
      * they can be completed.
      */
-    unackedOperationSize : number;
+    unackedOperationSize: number;
 };
 
 /**
@@ -311,7 +314,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
          * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
          * will be unaffected.
          */
-        this.on('error', (error) => {});
+        this.on('error', (error) => { });
     }
 
     private close() {
@@ -564,7 +567,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *
      * @group Node-only
      */
-     getQueueStatistics() : ConnectionStatistics {
+    getQueueStatistics(): ConnectionStatistics {
         return crt_native.mqtt_client_connection_get_queue_statistics(this.native_handle());
     }
 
@@ -598,7 +601,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         this.emit('closed', closedCallbackData);
     }
 
-    private _on_connect_callback(resolve : (value: (boolean | PromiseLike<boolean>)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
+    private _on_connect_callback(resolve: (value: (boolean | PromiseLike<boolean>)) => void, reject: (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
@@ -606,16 +609,16 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             this.emit('connection_success', successCallbackData);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
-            let failureCallbackData = {error: new CrtError(error_code)} as OnConnectionFailedResult;
+            let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
             this.emit('connection_failure', failureCallbackData);
         } else {
             reject("Server rejected connection.");
-            let failureCallbackData = {error: new CrtError(5134)} as OnConnectionFailedResult; // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
+            let failureCallbackData = { error: new CrtError(5134) } as OnConnectionFailedResult; // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
             this.emit('connection_failure', failureCallbackData);
         }
     }
 
-    private _on_puback_callback(resolve : (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+    private _on_puback_callback(resolve: (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject: (reason?: any) => void, packet_id: number, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id });
         } else {
@@ -623,7 +626,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_suback_callback(resolve : (value: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest>)) => void, reject : (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
+    private _on_suback_callback(resolve: (value: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest>)) => void, reject: (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id, topic, qos, error_code });
         } else {
@@ -631,7 +634,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_unsuback_callback(resolve : (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+    private _on_unsuback_callback(resolve: (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject: (reason?: any) => void, packet_id: number, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id });
         } else {

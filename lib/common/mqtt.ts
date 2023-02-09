@@ -85,6 +85,8 @@ export interface MqttRequest {
 
 /**
  * The data returned from an on_connection_success callback
+ *
+ * @category MQTT
  */
 export interface OnConnectionSuccessResult {
     /**
@@ -99,6 +101,8 @@ export interface OnConnectionSuccessResult {
 
 /**
  * The data returned from an on_connection_failed callback
+ *
+ * @category MQTT
  */
 export interface OnConnectionFailedResult {
     /**
@@ -109,6 +113,8 @@ export interface OnConnectionFailedResult {
 
 /**
  * The data returned from the on_connection_closed callback
+ *
+ * @category MQTT
  */
 export interface OnConnectionClosedResult {}
 

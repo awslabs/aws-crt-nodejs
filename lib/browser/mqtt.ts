@@ -36,9 +36,12 @@ import {
     OnConnectionFailedResult,
     OnConnectionClosedResult
 } from "../common/mqtt";
-import {normalize_payload} from "../common/mqtt_shared";
+import { normalize_payload } from "../common/mqtt_shared";
 
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
+export {
+    QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
+    MqttConnectionResumed, OnConnectionSuccessResult, OnConnectionFailedResult, OnConnectionClosedResult
+} from "../common/mqtt";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
@@ -318,12 +321,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         // If the credentials are set but no the credentials_provider
         if (this.config.credentials_provider == undefined &&
-            this.config.credentials != undefined){
+            this.config.credentials != undefined) {
             const provider = new auth.StaticCredentialProvider(
-                { aws_region: this.config.credentials.aws_region,
+                {
+                    aws_region: this.config.credentials.aws_region,
                     aws_access_id: this.config.credentials.aws_access_id,
                     aws_secret_key: this.config.credentials.aws_secret_key,
-                    aws_sts_token: this.config.credentials.aws_sts_token});
+                    aws_sts_token: this.config.credentials.aws_sts_token
+                });
             this.config.credentials_provider = provider;
         }
 
@@ -501,7 +506,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 if (qos != QoS.AtMostOnce) {
                     id = (packet as mqtt.IPublishPacket).messageId;
                 }
-                resolve({packet_id: id} );
+                resolve({ packet_id: id });
             });
         });
     }
@@ -603,7 +608,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         // Call connection success every time we connect, whether it is a first connect or a reconnect
-        let successCallbackData = {session_present: session_present} as OnConnectionSuccessResult;
+        let successCallbackData = { session_present: session_present } as OnConnectionSuccessResult;
         this.emit('connection_success', successCallbackData);
     }
 
@@ -626,10 +631,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (this.desiredState == MqttBrowserClientState.Connected) {
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
-                    /** Emit reconnect after backoff time */
-                    this.reconnect_count++;
-                    this.connection.reconnect();
-                },
+                /** Emit reconnect after backoff time */
+                this.reconnect_count++;
+                this.connection.reconnect();
+            },
                 waitTime * 1000);
         }
     }
@@ -652,7 +657,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         // If we were trying to connect but got an error, then it's a connection failure!
         if (this.desiredState == MqttBrowserClientState.Connected) {
-            let failureCallbackData = {error:new CrtError(error)} as OnConnectionFailedResult;
+            let failureCallbackData = { error: new CrtError(error) } as OnConnectionFailedResult;
             this.emit('connection_failure', failureCallbackData);
         }
     }
@@ -668,8 +673,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }
 
-    private reset_reconnect_times()
-    {
+    private reset_reconnect_times() {
         this.reconnect_count = 0;
     }
 
