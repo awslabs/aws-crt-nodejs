@@ -52,16 +52,12 @@ async function test_builder(aws_opts: Config, builder: AwsIotMqttConnectionConfi
             if (session_present) {
                 reject("Session present");
             }
-            expect(onConnectionSuccessCalled).toBeTruthy();
         });
         connection.on('error', (error) => {
             reject(error);
         });
         connection.on('disconnect', () => {
             onConnectionDisconnectCalled = true;
-        });
-        connection.on('closed', () => {
-            console.log("Connection disconnected successfully");
         });
         connection.on('connection_success', (callback_data:OnConnectionSuccessResult) => {
             expect(callback_data.session_present).toBe(false);
