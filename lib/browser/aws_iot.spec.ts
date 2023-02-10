@@ -42,3 +42,28 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await disconnection;
     await closed;
 });
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Mqtt 311 over websockets with environmental credentials - Connection Failure', async () => {
+    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
+        aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
+        aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
+        aws_region: "us-east-1"
+    });
+
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
+    builder.with_endpoint(test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST);
+    builder.with_credential_provider(provider);
+    builder.with_keep_alive_seconds(1200);
+    builder.with_client_id(`client-${uuid()}`);
+    // Use the wrong port to make it fail
+    builder.with_port(123);
+
+    let client = new mqtt311.MqttClient();
+    let connection = client.new_connection(builder.build());
+
+    const connectionFailure = once(connection, "connection_failure")
+
+    connection.connect();
+    let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
+    expect(connectionFailedEvent.error).toBeDefined();
+});
