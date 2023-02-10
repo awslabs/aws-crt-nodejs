@@ -12,7 +12,7 @@ module.exports = {
         }
     },
     transform: {
-        "^.+spec.ts?$": ['ts-jest'],
+        "^.+\\.ts?$": ['ts-jest'],
     },
     testPathIgnorePatterns: [
         '/node_modules/'
