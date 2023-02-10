@@ -65,7 +65,13 @@ async function test_builder(aws_opts: Config, builder: AwsIotMqttConnectionConfi
             expect(callback_data.reason_code).toBe(0); // Success
             onConnectionSuccessCalled = true;
         })
-        connection.on('closed', (callback_data:OnConnectionClosedResult) => {
+        connection.on('closed', async (callback_data:OnConnectionClosedResult) => {
+            /**
+             * We want to wait *just* a little bit, as we might be still processing the disconnect callback
+             * at the exact same time as this callback is called (closed is called RIGHT after disconnect)
+             */
+            await new Promise(r => setTimeout(r, 500));
+
             // Make sure connection_success was called before us
             expect(onConnectionSuccessCalled).toBeTruthy();
             // Make sure disconnect was called before us
