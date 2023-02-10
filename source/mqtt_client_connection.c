@@ -1941,7 +1941,7 @@ static void s_on_closed(
     return;
 }
 
-napi_value aws_napi_mqtt_client_on_connection_closed(napi_env env, napi_callback_info cb_info) {
+napi_value aws_napi_mqtt_client_connection_on_closed(napi_env env, napi_callback_info cb_info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
