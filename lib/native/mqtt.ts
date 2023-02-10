@@ -599,6 +599,11 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _on_connection_closed() {
         let closedCallbackData = {} as OnConnectionClosedResult;
         this.emit('closed', closedCallbackData);
+        /**
+         * We call close() here instead of on disconnect because on_close is always called AFTER disconnect
+         * but if we call close() before, then we cannot emit the closed callback.
+         */
+        this.close();
     }
 
     private _on_connect_callback(resolve: (value: (boolean | PromiseLike<boolean>)) => void, reject: (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
@@ -645,6 +650,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void>)) => void) {
         resolve();
         this.emit('disconnect');
-        this.close();
+        /** NOTE: We are NOT calling close() here but instead calling it at
+         * on_closed because it is always called after disconnect */
     }
 }

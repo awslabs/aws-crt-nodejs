@@ -44,7 +44,7 @@ struct mqtt_connection_binding {
     napi_threadsafe_function on_connection_resumed;
     napi_threadsafe_function on_any_publish;
     napi_threadsafe_function transform_websocket;
-    napi_threadsafe_function on_connection_closed;
+    napi_threadsafe_function on_closed;
 };
 
 static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_connection_binding *binding) {
@@ -72,10 +72,9 @@ static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_con
         binding->transform_websocket = NULL;
     }
 
-    if (binding->on_connection_closed != NULL) {
-        AWS_NAPI_ENSURE(
-            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_closed, napi_tsfn_abort));
-        binding->on_connection_closed = NULL;
+    if (binding->on_closed != NULL) {
+        AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_closed, napi_tsfn_abort));
+        binding->on_closed = NULL;
     }
 }
 
@@ -1819,6 +1818,10 @@ on_error:
     return NULL;
 }
 
+/*******************************************************************************
+ * Operation Statistics
+ ******************************************************************************/
+
 static int s_create_napi_mqtt_connection_statistics(
     napi_env env,
     const struct aws_mqtt_connection_operation_statistics *stats,
@@ -1904,34 +1907,41 @@ napi_value aws_napi_mqtt_client_connection_get_queue_statistics(napi_env env, na
     return napi_stats;
 }
 
-static void s_on_connection_closed_call(napi_env env, napi_value on_stopped, void *context, void *user_data) {
+/*******************************************************************************
+ * On Closed
+ ******************************************************************************/
+
+static void s_on_closed_call(napi_env env, napi_value on_closed, void *context, void *user_data) {
+    (void)user_data;
     struct mqtt_connection_binding *binding = context;
-    struct connection_resumed_args *args = user_data;
 
-    if (env) {
-        AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_connection_closed, NULL, on_stopped, 0, NULL));
-    }
-
-    aws_mem_release(binding->allocator, args);
-}
-
-static void s_on_connection_closed(
-    struct aws_mqtt_client_connection *connection,
-    struct on_connection_closed_data *data,
-    void *userdata) {
-    (void)connection;
-    (void)data;
-
-    struct mqtt_connection_binding *binding = userdata;
-    if (!binding->on_connection_closed) {
+    if (binding->on_closed == NULL) {
         return;
     }
 
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_closed, NULL));
+    if (env) {
+        AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, binding->on_closed, NULL, on_closed, 0, NULL));
+    }
 }
 
-napi_value aws_napi_mqtt_client_connection_on_closed(napi_env env, napi_callback_info cb_info) {
+static void s_on_closed(
+    struct aws_mqtt_client_connection *connection,
+    struct on_connection_closed_data *data,
+    void *user_data) {
+
+    (void)data;
+    (void)connection;
+
+    struct mqtt_connection_binding *binding = user_data;
+    if (binding->on_closed == NULL) {
+        return;
+    }
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_closed, binding));
+    return;
+}
+
+napi_value aws_napi_mqtt_client_on_connection_closed(napi_env env, napi_callback_info cb_info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
@@ -1940,7 +1950,7 @@ napi_value aws_napi_mqtt_client_connection_on_closed(napi_env env, napi_callback
         return NULL;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt_client_connection_on_closed needs exactly 2 arguments");
+        napi_throw_error(env, NULL, "mqtt_client_on_closed needs exactly 2 arguments");
         return NULL;
     }
 
@@ -1961,26 +1971,21 @@ napi_value aws_napi_mqtt_client_connection_on_closed(napi_env env, napi_callback
      * There's no reasonable way of making this safe for multiple calls.  We have to assume this is pre-connect
      * otherwise the callback could be getting used in another thread as we try and change it here.
      */
-    if (binding->on_connection_closed != NULL) {
-        napi_throw_error(env, NULL, "on_connection_closed handler cannot be set more than once");
+    if (binding->on_closed != NULL) {
+        napi_throw_error(env, NULL, "on_closed handler cannot be set more than once");
         return NULL;
     }
 
     AWS_NAPI_CALL(
         env,
         aws_napi_create_threadsafe_function(
-            env,
-            node_handler,
-            "on_connection_closed",
-            s_on_connection_closed_call,
-            binding,
-            &binding->on_connection_closed),
+            env, node_handler, "on_closed", s_on_closed_call, binding, &binding->on_closed),
         { return NULL; });
 
-    if (aws_mqtt_client_connection_set_connection_closed_handler(
-            binding->connection, s_on_connection_closed, binding)) {
-        napi_throw_error(env, NULL, "Unable to set on_connection_closed handler");
+    if (aws_mqtt_client_connection_set_connection_closed_handler(binding->connection, s_on_closed, binding)) {
+        napi_throw_error(env, NULL, "Unable to set on_closed handler");
         return NULL;
     }
+
     return NULL;
 }

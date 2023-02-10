@@ -9,6 +9,7 @@ import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_
 import { AwsCredentialsProvider } from '@awscrt/auth';
 import { Config, fetch_credentials } from '@test/credentials';
 import { v4 as uuid } from 'uuid';
+import { OnConnectionSuccessResult, OnConnectionClosedResult } from '../common/mqtt';
 
 jest.setTimeout(10000);
 
@@ -41,6 +42,9 @@ async function test_builder(aws_opts: Config, builder: AwsIotMqttConnectionConfi
         .build();
     const connection = client.new_connection(config);
     const promise = new Promise(async (resolve, reject) => {
+        let onConnectionSuccessCalled = false;
+        let onConnectionDisconnectCalled = false;
+
         connection.on('connect', async (session_present) => {
             const disconnected = connection.disconnect();
             await expect(disconnected).resolves.toBeUndefined();
@@ -48,16 +52,30 @@ async function test_builder(aws_opts: Config, builder: AwsIotMqttConnectionConfi
             if (session_present) {
                 reject("Session present");
             }
+            expect(onConnectionSuccessCalled).toBeTruthy();
         });
         connection.on('error', (error) => {
             reject(error);
         });
         connection.on('disconnect', () => {
-            resolve(true);
+            onConnectionDisconnectCalled = true;
         });
         connection.on('closed', () => {
             console.log("Connection disconnected successfully");
         });
+        connection.on('connection_success', (callback_data:OnConnectionSuccessResult) => {
+            expect(callback_data.session_present).toBe(false);
+            expect(callback_data.reason_code).toBeDefined();
+            expect(callback_data.reason_code).toBe(0); // Success
+            onConnectionSuccessCalled = true;
+        })
+        connection.on('closed', (callback_data:OnConnectionClosedResult) => {
+            // Make sure connection_success was called before us
+            expect(onConnectionSuccessCalled).toBeTruthy();
+            // Make sure disconnect was called before us
+            expect(onConnectionDisconnectCalled).toBeTruthy();
+            resolve(true);
+        })
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
@@ -185,9 +203,6 @@ test('MQTT Operation statistics simple', async () => {
         connection.on('error', (error) => {
             reject(error);
         });
-        connection.on('closed', () => {
-            console.log("Connection disconnected successfully");
-        });
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
@@ -246,9 +261,6 @@ test('MQTT Operation statistics check publish', async () => {
         });
         connection.on('error', (error) => {
             reject(error);
-        });
-        connection.on('closed', () => {
-            console.log("Connection disconnected successfully");
         });
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
