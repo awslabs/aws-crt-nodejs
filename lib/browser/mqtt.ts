@@ -323,12 +323,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (this.config.credentials_provider == undefined &&
             this.config.credentials != undefined) {
             const provider = new auth.StaticCredentialProvider(
-                {
-                    aws_region: this.config.credentials.aws_region,
-                    aws_access_id: this.config.credentials.aws_access_id,
-                    aws_secret_key: this.config.credentials.aws_secret_key,
-                    aws_sts_token: this.config.credentials.aws_sts_token
-                });
+                { aws_region: this.config.credentials.aws_region,
+                  aws_access_id: this.config.credentials.aws_access_id,
+                  aws_secret_key: this.config.credentials.aws_secret_key,
+                  aws_sts_token: this.config.credentials.aws_sts_token});
             this.config.credentials_provider = provider;
         }
 
@@ -458,6 +456,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
+                let failureCallbackData = { error: new CrtError(error) } as OnConnectionFailedResult;
+                this.emit('connection_failure', failureCallbackData);
                 reject(new CrtError(error));
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
@@ -631,10 +631,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (this.desiredState == MqttBrowserClientState.Connected) {
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
-                /** Emit reconnect after backoff time */
-                this.reconnect_count++;
-                this.connection.reconnect();
-            },
+                    /** Emit reconnect after backoff time */
+                    this.reconnect_count++;
+                    this.connection.reconnect();
+                },
                 waitTime * 1000);
         }
     }
@@ -654,12 +654,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_error = (error: Error) => {
         this.emit('error', new CrtError(error))
-
-        // If we were trying to connect but got an error, then it's a connection failure!
-        if (this.desiredState == MqttBrowserClientState.Connected) {
-            let failureCallbackData = { error: new CrtError(error) } as OnConnectionFailedResult;
-            this.emit('connection_failure', failureCallbackData);
-        }
     }
 
     private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {

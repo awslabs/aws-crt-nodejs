@@ -44,6 +44,11 @@ class CrtCiTest(Builder.Action):
             if os.system("npm run test:native"):
                 # Failed
                 actions.append("exit 1")
+
+            if os.system("npm run test:browser"):
+                # Failed
+                actions.append("exit 1")
+
         finally:
             if cert_file_name:
                 os.remove(cert_file_name)
