@@ -3,7 +3,7 @@ import os
 import re
 import tempfile
 
-class CrtCiTest(Builder.Action):
+class CrtBrowserCiTest(Builder.Action):
 
     def _write_environment_script_secret_to_env(self, env, secret_name):
         mqtt5_ci_environment_script = env.shell.get_secret(secret_name)
