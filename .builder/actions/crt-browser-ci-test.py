@@ -1,9 +1,6 @@
 import Builder
-import json
 import os
 import re
-import subprocess
-import sys
 import tempfile
 
 class CrtCiTest(Builder.Action):
@@ -41,7 +38,7 @@ class CrtCiTest(Builder.Action):
             env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH", cert_file_name, quiet=True)
             env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_KEY_PATH", key_file_name, quiet=True)
 
-            if os.system("npm run test:native"):
+            if os.system("npm run test:browser:ci"):
                 # Failed
                 actions.append("exit 1")
 

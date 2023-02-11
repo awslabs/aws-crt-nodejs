@@ -20,11 +20,7 @@
                 "cups-libs"
             ],
             "+test_steps": [
-                [
-                    "npm",
-                    "run",
-                    "test:browser:ci"
-                ]
+                "crt-browser-ci-test"
             ]
         }
     },
