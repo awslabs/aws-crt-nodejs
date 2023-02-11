@@ -50,4 +50,4 @@ class CrtCiTest(Builder.Action):
 
         actions = []
 
-        return Builder.Script(actions, name='crt-ci-test')
+        return Builder.Script(actions, name='crt-browser-ci-test')
