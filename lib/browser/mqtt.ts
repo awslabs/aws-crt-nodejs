@@ -456,9 +456,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
             const on_connect_error = (error: Error) => {
-                let failureCallbackData = { error: new CrtError(error) } as OnConnectionFailedResult;
+                let crtError = new CrtError(error);
+                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
                 this.emit('connection_failure', failureCallbackData);
-                reject(new CrtError(error));
+                reject(crtError);
             };
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
