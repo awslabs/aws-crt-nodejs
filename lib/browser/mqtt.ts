@@ -287,6 +287,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     // The last error reported by MQTT.JS - or undefined if none has occurred or the error has been processed.
     private lastError? : Error;
+    private intendingToConnect : boolean = false;
 
     /**
      * @param client The client that owns this connection
@@ -458,10 +459,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         setTimeout(() => { this.uncork() }, 0);
         return new Promise<boolean>((resolve, reject) => {
+            this.intendingToConnect = true;
+
             const on_connect_error = (error: Error) => {
                 let crtError = new CrtError(error);
-                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
-                this.emit('connection_failure', failureCallbackData);
+                if (this.intendingToConnect == true) {
+                    let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                    this.emit('connection_failure', failureCallbackData);
+                    this.intendingToConnect = false;
+                }
                 reject(crtError);
             };
             this.connection.once('error', on_connect_error);
@@ -603,6 +609,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_online = (session_present: boolean) => {
         this.currentState = MqttBrowserClientState.Connected;
+        this.intendingToConnect = false;
 
         if (++this.connection_count == 1) {
             this.emit('connect', session_present);
@@ -631,14 +638,17 @@ export class MqttClientConnection extends BufferedEventEmitter {
             /* Did we intend to disconnect? If so, then emit the event */
             if (this.desiredState == MqttBrowserClientState.Stopped) {
                 this.emit("closed");
+
+                /* This is an intended disconnection, so we cannot be expecting to connect */
+                this.intendingToConnect = false;
             }
         }
 
         /* Only try and reconnect if our desired state is connected, ie no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
 
-            /* If we were not already connected, then this was a connection failure that needs to be emitted */
-            if (this.currentState == MqttBrowserClientState.Stopped) {
+            /* If the user is trying to connect via connect(), then emit a connection failure */
+            if (this.intendingToConnect == true) {
                 let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
                 let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
                 this.emit('connection_failure', failureCallbackData);
