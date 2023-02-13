@@ -285,6 +285,9 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private desiredState: MqttBrowserClientState = MqttBrowserClientState.Stopped;
     private reconnectTask?: ReturnType<typeof setTimeout>;
 
+    // The last error reported by MQTT.JS - or undefined if none has occurred or the error has been processed.
+    private lastError? : Error;
+
     /**
      * @param client The client that owns this connection
      * @param config The configuration for this connection
@@ -463,42 +466,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
             };
             this.connection.once('error', on_connect_error);
 
-            /**
-             * Annoyingly, MQTT.JS does NOT return socket errors or connection failures through websockets on the browser! This
-             * is because the 'error' result from the websocket 'stream' is not bubbled up and so we have no idea we failed to connect.
-             * This means we have to catch this error manually and send it up ourselves to catch the error.
-             */
-            const on_stream_connect_error = (error: Error) => {
-                /**
-                 * NOTE: The error returned by the stream, when converted to a string via toString(), is basically useless in terms of information,
-                 * having only a 'isTrusted' field, but it's all we got, so we send it...
-                 * The other fields contain the Websocket URL, but they are not converted and there isn't really anything else in the error.
-                 */
-                let crtError = new CrtError(error);
-                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
-                this.emit('connection_failure', failureCallbackData);
-
-                /**
-                 * For backwards compatibility, we do NOT want to reject the connection promise - as then existing code
-                 * bases could (and likely would) start having their connect promises fail if it does not connect successfully.
-                 * The connection will be automatically retried with back-off.
-                 */
-                // reject(crtError);
-            }
-            /* Make sure the 'stream' exists. Also, note that Typescript doesn't like you accessing private variables, so we have to add an ignore */
-            if (this.connection.hasOwnProperty('stream')) {
-                // @ts-ignore
-                this.connection['stream'].on('error', on_stream_connect_error);
-            }
-
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
-
-                /* Make sure the 'stream' exists. Also, note that Typescript doesn't like you accessing private variables, so we have to add an ignore */
-                if (this.connection.hasOwnProperty('stream')) {
-                    // @ts-ignore
-                    this.connection['stream'].removeListener('error', on_stream_connect_error);
-                }
                 resolve(connack.sessionPresent);
             });
         });
@@ -649,6 +618,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_close = () => {
+        let lastError : Error | undefined = this.lastError;
+
         /*
          * Only emit an interruption event if we were connected, otherwise we just failed to reconnect after
          * a disconnection.
@@ -665,6 +636,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         /* Only try and reconnect if our desired state is connected, ie no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
+
+            /* If we were not already connected, then this was a connection failure that needs to be emitted */
+            if (this.currentState == MqttBrowserClientState.Stopped) {
+                let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
+                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                this.emit('connection_failure', failureCallbackData);
+            }
+
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
                     /** Emit reconnect after backoff time */
@@ -673,6 +652,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 },
                 waitTime * 1000);
         }
+
+        this.lastError = undefined;
     }
 
     private on_disconnected = () => {
@@ -689,6 +670,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_error = (error: Error) => {
+        this.lastError = error;
         this.emit('error', new CrtError(error))
     }
 
