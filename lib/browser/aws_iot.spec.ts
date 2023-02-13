@@ -11,7 +11,8 @@ import {once} from "events";
 import {v4 as uuid} from "uuid";
 import * as auth from "./auth";
 
-jest.setTimeout(10000);
+/* Need a longer timeout for connection failure test */
+jest.setTimeout(50000);
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Mqtt 311 over websockets with environmental credentials - Connection Success', async () => {
     let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
@@ -51,11 +52,11 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     });
 
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
-    builder.with_endpoint(test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST);
     builder.with_keep_alive_seconds(1);
     builder.with_client_id(`client-${uuid()}`);
     builder.with_credential_provider(provider);
-    /* Use the wrong port ensure a fail */
+    /* Use the wrong port and endpoint ensure a fail */
+    builder.with_endpoint("testendpointhere");
     builder.with_port(321);
 
     let client = new mqtt311.MqttClient();
