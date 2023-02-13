@@ -63,8 +63,8 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     const connectionFailure = once(connection, "connection_failure")
 
-    let connectResult = connection.connect();
-    await expect(connectResult).rejects.toBeDefined();
+    // The connection will fail, but we're not rejecting the promise at this time.
+    connection.connect();
 
     let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
     expect(connectionFailedEvent).toBeDefined();

@@ -485,15 +485,20 @@ export class MqttClientConnection extends BufferedEventEmitter {
                  */
                 // reject(crtError);
             }
-            /* Typescript doesn't like you accessing private variables, so we have to tell it to ignore */
-            // @ts-ignore
-            this.connection['stream'].on('error', on_stream_connect_error);
+            /* Make sure the 'stream' exists. Also, note that Typescript doesn't like you accessing private variables, so we have to add an ignore */
+            if (this.connection.hasOwnProperty('stream')) {
+                // @ts-ignore
+                this.connection['stream'].on('error', on_stream_connect_error);
+            }
 
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
-                /* Typescript doesn't like you accessing private variables, so we have to tell it to ignore */
-                // @ts-ignore
-                this.connection['stream'].removeListener('error', on_stream_connect_error);
+
+                /* Make sure the 'stream' exists. Also, note that Typescript doesn't like you accessing private variables, so we have to add an ignore */
+                if (this.connection.hasOwnProperty('stream')) {
+                    // @ts-ignore
+                    this.connection['stream'].removeListener('error', on_stream_connect_error);
+                }
                 resolve(connack.sessionPresent);
             });
         });
