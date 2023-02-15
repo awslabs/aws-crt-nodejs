@@ -66,6 +66,8 @@ export type MqttConnectionInterrupted = (error: CrtError) => void;
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
  * connected successfully.
  *
+ * This listener is invoked for every successful connect and every successful reconnect.
+ *
  * @param callback_data Data returned containing information about the successful connection.
  *
  * @category MQTT
@@ -76,6 +78,8 @@ export type MqttConnectionSuccess = (callback_data: OnConnectionSuccessResult) =
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has failed
  * to connect.
  *
+ * This listener is invoked for every failed connect and every failed reconnect.
+ *
  * @param callback_data Data returned containing information about the failed connection.
  *
  * @category MQTT
@@ -84,7 +88,7 @@ export type MqttConnectionFailure = (callback_data: OnConnectionFailedResult) =>
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
- * disconnected successfully.
+ * disconnected and shutdown successfully.
  *
  * @param callback_data Data returned containing information about the closed/disconnected connection.
  *                      Currently empty, but may contain data in the future.
@@ -403,15 +407,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
     static MESSAGE = 'message';
 
     /**
-     * Emitted on every successful connect.
+     * Emitted on every successful connect and reconnect.
      * Will contain a boolean indicating whether the connection resumed a session.
      *
      * @event
      */
-    static CONNECTION_SUCCCESS = 'connection_success';
+    static CONNECTION_SUCCESS = 'connection_success';
 
     /**
-     * Emitted on an unsuccessful connect.
+     * Emitted on an unsuccessful connect and reconnect.
      * Will contain an error code indicating the reason for the unsuccessful connection.
      *
      * @event
@@ -419,7 +423,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     static CONNECTION_FAILURE = 'connection_failure';
 
     /**
-     * Emitted when the MQTT connection was disconnected successfully.
+     * Emitted when the MQTT connection was disconnected and shutdown successfully.
      *
      * @event
      */
