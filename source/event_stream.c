@@ -214,11 +214,6 @@ static void s_napi_event_stream_connection_on_connection_shutdown(
 done:
 
     /*
-     * Close the binding just to be sure.  It's idempotent.
-     */
-    s_close_binding(env, binding);
-
-    /*
      * Release our reference, which in this case, allows the connection to finally delete itself.
      */
     if (binding->connection != NULL) {
@@ -564,9 +559,11 @@ static void s_napi_on_event_stream_client_connection_setup(
     struct aws_event_stream_connection_event_data *setup_data = user_data;
     struct aws_event_stream_client_connection_binding *binding = setup_data->binding;
 
-    /* we don't own the initial ref (the channel does, sigh).  Also safe with null. */
-    aws_event_stream_rpc_client_connection_acquire(setup_data->connection);
-    binding->connection = setup_data->connection;
+    if (setup_data->connection != NULL) {
+        /* we don't own the initial ref (the channel does, sigh).  */
+        aws_event_stream_rpc_client_connection_acquire(setup_data->connection);
+        binding->connection = setup_data->connection;
+    }
 
     if (env && !binding->is_closed) {
         napi_value params[2];
@@ -608,13 +605,7 @@ close:
         "halting connection setup");
 
     /*
-     * The managed state machine will not necessarily know the binding has been closed.  But we check all entry
-     * points and early out just in case.
-     */
-    s_close_binding(env, binding);
-
-    /*
-     * Release our reference, which in this case, allows the connection to finally delete itself.
+     * Close the connection, starting the shutdown process
      */
     if (binding->connection != NULL) {
         aws_event_stream_rpc_client_connection_close(binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE);
