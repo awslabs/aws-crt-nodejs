@@ -421,6 +421,24 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         return new ClientStream(this);
     }
 
+    /**
+     * Event emitted when the connection is closed for any reason.
+     *
+     * Listener type: {@link DisconnectionListener}
+     *
+     * @event
+     */
+    static DISCONNECTION : string = 'disconnection';
+
+    /**
+     * Event emitted when a protocol message is received from the remote endpoint
+     *
+     * Listener type: {@link MessageListener}
+     *
+     * @event
+     */
+    static PROTOCOL_MESSAGE : string = 'protocolMessage';
+
     on(event: 'disconnection', listener: DisconnectionListener): this;
 
     on(event: 'protocolMessage', listener: MessageListener): this;

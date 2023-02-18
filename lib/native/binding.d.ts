@@ -463,6 +463,9 @@ export function event_stream_client_connection_new(
 export function event_stream_client_connection_close(connection: NativeHandle) : void;
 
 /** @internal */
+export function event_stream_client_connection_close_internal(connection: NativeHandle) : void;
+
+/** @internal */
 export function event_stream_client_connection_connect(
     connection: NativeHandle,
     completion_callback: (connection: eventstream.ClientConnection, errorCode: number) => void

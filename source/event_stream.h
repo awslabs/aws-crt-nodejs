@@ -12,6 +12,8 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
 
 napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_callback_info info);
 
+napi_value aws_napi_event_stream_client_connection_close_internal(napi_env env, napi_callback_info info);
+
 napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_callback_info info);
 
 napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_env env, napi_callback_info info);

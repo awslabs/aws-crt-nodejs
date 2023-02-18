@@ -144,21 +144,17 @@ static void s_aws_event_stream_client_connection_extern_finalize(
         "being finalized",
         (void *)binding->connection);
 
-    if (binding->connection != NULL) {
-        /* if connection is not null, then this is a successful connection which should shutdown normally */
-        aws_event_stream_rpc_client_connection_release(binding->connection);
-        binding->connection = NULL;
-    } else if (!binding->is_closed) {
-        /*
-         * no connection, just release the binding
-         * If this was a failed construction, the binding will be immediately destroyed.
-         * If this is mid-connection, then the closed flag will indicate to the connection callback that the
-         * node object has gone away and it should close the connection and asynchronously destroy itself.
-         */
-        s_close_binding(env, binding);
+    /*
+     * Only an explicit call to close() from JS will break the extern ref that keeps the finalizer from being called.
+     * If we're here, this must be true.
+     */
+    AWS_FATAL_ASSERT(binding->is_closed);
 
-        s_aws_event_stream_client_connection_binding_release(binding);
-    }
+    /*
+     * Release the allocation-ref on the binding.  If there is a connection in progress (or being shutdown) there
+     * is a second ref outstanding which is removed on connection shutdown or failed setup.
+     */
+    s_aws_event_stream_client_connection_binding_release(binding);
 }
 
 struct aws_event_stream_connection_event_data {
@@ -175,9 +171,9 @@ static void s_napi_event_stream_connection_on_connection_shutdown(
     void *context,
     void *user_data) {
 
-    (void)user_data;
+    (void)context;
 
-    struct aws_event_stream_connection_event_data *shutdown_data = context;
+    struct aws_event_stream_connection_event_data *shutdown_data = user_data;
     struct aws_event_stream_client_connection_binding *binding = shutdown_data->binding;
 
     AWS_FATAL_ASSERT(binding->connection != NULL);
@@ -206,6 +202,9 @@ static void s_napi_event_stream_connection_on_connection_shutdown(
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, shutdown_data->error_code, &params[1]), { goto done; });
 
+        /* Unsure if the destruction of node_event_stream_client_connection_ref will impact the dispatch call */
+        binding->is_closed = true;
+
         AWS_NAPI_ENSURE(
             env,
             aws_napi_dispatch_threadsafe_function(
@@ -215,15 +214,17 @@ static void s_napi_event_stream_connection_on_connection_shutdown(
 done:
 
     /*
-     * Close the binding just to be sure.  User can call close too, it just won't do anything.
+     * Close the binding just to be sure.  It's idempotent.
      */
     s_close_binding(env, binding);
 
     /*
      * Release our reference, which in this case, allows the connection to finally delete itself.
      */
-    aws_event_stream_rpc_client_connection_release(binding->connection);
-    binding->connection = NULL;
+    if (binding->connection != NULL) {
+        aws_event_stream_rpc_client_connection_release(binding->connection);
+        binding->connection = NULL;
+    }
 
     /*
      * Our invariant is that for the time interval between attempting to connect and either
@@ -487,6 +488,49 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
 
     s_close_binding(env, binding);
 
+    if (binding->connection != NULL) {
+        aws_event_stream_rpc_client_connection_close(binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE);
+    }
+
+    return NULL;
+}
+
+napi_value aws_napi_event_stream_client_connection_close_internal(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_connection_close_internal - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_connection_close_internal - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_event_stream_client_connection_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_close_internal - Failed to extract connection binding from first "
+            "argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_close_internal - binding was null");
+        return NULL;
+    }
+
+    if (binding->connection != NULL) {
+        aws_event_stream_rpc_client_connection_close(binding->connection, AWS_IO_SOCKET_CLOSED);
+    }
+
     return NULL;
 }
 
@@ -515,12 +559,14 @@ static void s_napi_on_event_stream_client_connection_setup(
     void *context,
     void *user_data) {
 
-    (void)user_data;
+    (void)context;
 
-    struct aws_event_stream_connection_event_data *setup_data = context;
+    struct aws_event_stream_connection_event_data *setup_data = user_data;
     struct aws_event_stream_client_connection_binding *binding = setup_data->binding;
 
-    binding->connection = setup_data->connection; /* we own the initial ref */
+    /* we don't own the initial ref (the channel does, sigh).  Also safe with null. */
+    aws_event_stream_rpc_client_connection_acquire(setup_data->connection);
+    binding->connection = setup_data->connection;
 
     if (env && !binding->is_closed) {
         napi_value params[2];
@@ -567,9 +613,11 @@ close:
      */
     s_close_binding(env, binding);
 
-    if (binding->connection) {
-        aws_event_stream_rpc_client_connection_close(
-            binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_SETUP_ALREADY_CLOSED);
+    /*
+     * Release our reference, which in this case, allows the connection to finally delete itself.
+     */
+    if (binding->connection != NULL) {
+        aws_event_stream_rpc_client_connection_close(binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE);
     }
 
 done:
@@ -588,8 +636,15 @@ done:
      *
      *  (1) connection establishment failed: here
      *  (2) connection establishment succeeded: in s_napi_on_event_stream_client_connection_shutdown
+     *
+     * Important: in the case that we successfully connected but close had already been called, we don't release
+     * the binding yet and instead let shutdown release it.  That's why we check setup_data's connection and not
+     * the binding's connection (which has already been zeroed from the call to s_close_binding in that case)
      */
-    if (!binding->connection) {
+    if (!setup_data->connection) {
+        /*
+         * Only release the binding if this was a failure to connect.
+         */
         s_aws_event_stream_client_connection_binding_release(binding);
     }
 
@@ -693,6 +748,7 @@ napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_ca
     s_aws_event_stream_client_connection_binding_acquire(binding);
 
     if (aws_event_stream_rpc_client_connection_connect(allocator, &connect_options)) {
+        /* Undo the acquire just above */
         s_aws_event_stream_client_connection_binding_release(binding);
         aws_napi_throw_last_error_with_context(
             env,

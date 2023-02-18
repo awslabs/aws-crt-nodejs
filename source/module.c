@@ -55,8 +55,8 @@ static struct aws_error_info s_errors[] = {
         AWS_CRT_NODEJS_ERROR_NAPI_FAILURE,
         "A N-API API call failed"),
     AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
-        AWS_CRT_NODEJS_ERROR_EVENT_STREAM_SETUP_ALREADY_CLOSED,
-        "Eventstream connection was closed before the native connection had a chance to complete.  On completion, the native connection is shut down with this error code."),
+        AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE,
+        "User invoked close on an eventstream connection."),
 };
 /* clang-format on */
 
@@ -983,6 +983,12 @@ static bool s_module_initialized = false;
         return NULL;
     }
 
+    /*
+        bool done = false;
+        while (!done) {
+            ;
+        }
+    */
     s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -1117,6 +1123,7 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(event_stream_client_connection_new)
     CREATE_AND_REGISTER_FN(event_stream_client_connection_connect)
     CREATE_AND_REGISTER_FN(event_stream_client_connection_close)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_close_internal)
     CREATE_AND_REGISTER_FN(event_stream_client_connection_send_protocol_message)
     CREATE_AND_REGISTER_FN(event_stream_client_stream_new)
     CREATE_AND_REGISTER_FN(event_stream_client_stream_close)
