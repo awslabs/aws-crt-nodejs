@@ -543,6 +543,12 @@ enum ClientConnectionState {
  * will be emitted and all public API invocations will trigger an exception.
  */
 export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
+
+    /**
+     * Configures and creates a new ClientConnection instance
+     *
+     * @param config configuration options for the event stream connection
+     */
     constructor(config: ClientConnectionOptions) {
         super();
 
@@ -717,6 +723,8 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
     private state : ClientConnectionState;
 }
+
+/* CR cutoff - everything below here is placeholder */
 
 export interface StreamClosedEvent {
     errorCode: number;

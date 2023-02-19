@@ -765,6 +765,8 @@ napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_ca
     return NULL;
 }
 
+/* CR cutoff - everything below here is placeholder */
+
 napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_env env, napi_callback_info info) {
     (void)info;
 
