@@ -9,6 +9,9 @@
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HOST = "hostName";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PORT = "port";
+
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
  * to this object to destroy the connection (and itself, afterwards).
@@ -24,16 +27,15 @@ struct aws_event_stream_client_connection_binding {
     struct aws_allocator *allocator;
 
     /*
-     * We ref count the binding itself because there are anomalous situations where the binding must outlive even
-     * the native connection.  In particular, if we have a native connection being (asynchronously )destroyed it may
-     * emit events as it is being destroyed.  Those events get marshalled across to the
-     * node/libuv thread and in the time it takes to do so, the native connection may have completed destruction.  But
-     * we still need the binding when we're processing those events/callbacks in the libuv thread so the binding
-     * must not simply destroy itself as soon as the native connection has destroyed itself.
+     * We ref count the binding itself because there's two independent time intervals that together create a union
+     * that we must honor.
      *
-     * We handle this by having all operations/events inc/dec this ref count as well as the base of one from
-     * creating the binding.  In this way, the binding will only destroy itself when the native connection is
-     * completely gone and all callbacks and events have been successfully emitted to node.
+     * Interval #1: The binding must live from new() to extern finalizer, which is only triggered by a call to close()
+     * Interval #2: The binding must live from connect() to {connection failure || connection shutdown} as processed
+     *    by the libuv thread.  It is incorrect to react to those events in the event loop callback; we must bundle
+     *    and ship them across to the libuv thread.  When the libuv thread is processing a connection failure or
+     *    a connection shutdown, we know that no other events can possibly be pending ()hey would have already been
+     *    processed in the libuv thread).
      */
     struct aws_ref_count ref_count;
 
@@ -106,6 +108,8 @@ static struct aws_event_stream_client_connection_binding *s_aws_event_stream_cli
 }
 
 static void s_close_binding(napi_env env, struct aws_event_stream_client_connection_binding *binding) {
+    AWS_FATAL_ASSERT(env != NULL);
+
     binding->is_closed = true;
 
     napi_ref node_event_stream_client_connection_external_ref =
@@ -115,14 +119,12 @@ static void s_close_binding(napi_env env, struct aws_event_stream_client_connect
     napi_ref node_event_stream_client_connection_ref = binding->node_event_stream_client_connection_ref;
     binding->node_event_stream_client_connection_ref = NULL;
 
-    if (env != NULL) {
-        if (node_event_stream_client_connection_external_ref != NULL) {
-            napi_delete_reference(env, node_event_stream_client_connection_external_ref);
-        }
+    if (node_event_stream_client_connection_external_ref != NULL) {
+        napi_delete_reference(env, node_event_stream_client_connection_external_ref);
+    }
 
-        if (node_event_stream_client_connection_ref != NULL) {
-            napi_delete_reference(env, node_event_stream_client_connection_ref);
-        }
+    if (node_event_stream_client_connection_ref != NULL) {
+        napi_delete_reference(env, node_event_stream_client_connection_ref);
     }
 }
 
@@ -157,6 +159,10 @@ static void s_aws_event_stream_client_connection_extern_finalize(
     s_aws_event_stream_client_connection_binding_release(binding);
 }
 
+/*
+ * Holds relevant information about a connection setup or shutdown callback from the event loop.  This is shipped
+ * over to a threadsafe function that runs on the libuv thread.
+ */
 struct aws_event_stream_connection_event_data {
     struct aws_allocator *allocator;
 
@@ -216,10 +222,8 @@ done:
     /*
      * Release our reference, which in this case, allows the connection to finally delete itself.
      */
-    if (binding->connection != NULL) {
-        aws_event_stream_rpc_client_connection_release(binding->connection);
-        binding->connection = NULL;
-    }
+    aws_event_stream_rpc_client_connection_release(binding->connection);
+    binding->connection = NULL;
 
     /*
      * Our invariant is that for the time interval between attempting to connect and either
@@ -235,6 +239,8 @@ done:
      *
      *  (1) connection establishment failed: in s_napi_on_event_stream_client_connection_setup
      *  (2) connection establishment succeeded: here
+     *
+     * Additionally, we can only release when we're in the libuv thread.
      */
     s_aws_event_stream_client_connection_binding_release(binding);
 
@@ -262,13 +268,11 @@ static void s_aws_event_stream_rpc_client_connection_protocol_message_fn(
     (void)user_data;
 }
 
-static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HOST = "hostName";
-static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PORT = "port";
-
 static int s_init_event_stream_connection_configuration_from_js_connection_configuration(
     napi_env env,
     napi_value node_connection_options,
     struct aws_event_stream_client_connection_binding *binding) {
+
     napi_value host_name_property;
     if (aws_napi_get_named_property(
             env, node_connection_options, AWS_EVENT_STREAM_PROPERTY_NAME_HOST, napi_string, &host_name_property) !=
@@ -481,6 +485,7 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
         return NULL;
     }
 
+    /* This severs the ability to call back into JS and makes the binding's extern available for garbage collection */
     s_close_binding(env, binding);
 
     if (binding->connection != NULL) {
@@ -490,6 +495,7 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
     return NULL;
 }
 
+/* An internal helper function that lets us fake socket closes (at least from the binding's perspective) */
 napi_value aws_napi_event_stream_client_connection_close_internal(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
@@ -559,11 +565,11 @@ static void s_napi_on_event_stream_client_connection_setup(
     struct aws_event_stream_connection_event_data *setup_data = user_data;
     struct aws_event_stream_client_connection_binding *binding = setup_data->binding;
 
-    if (setup_data->connection != NULL) {
-        /* we don't own the initial ref (the channel does, sigh).  */
-        aws_event_stream_rpc_client_connection_acquire(setup_data->connection);
-        binding->connection = setup_data->connection;
-    }
+    /*
+     * We took a reference to the connection when we initialized setup_data.  That is our reference; no need to take
+     * one here.
+     */
+    binding->connection = setup_data->connection;
 
     if (env && !binding->is_closed) {
         napi_value params[2];
@@ -590,6 +596,7 @@ static void s_napi_on_event_stream_client_connection_setup(
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_connection_setup, NULL, function, num_params, params));
 
+        /* Successful callback, skip ahead */
         goto done;
     }
 
@@ -629,8 +636,7 @@ done:
      *  (2) connection establishment succeeded: in s_napi_on_event_stream_client_connection_shutdown
      *
      * Important: in the case that we successfully connected but close had already been called, we don't release
-     * the binding yet and instead let shutdown release it.  That's why we check setup_data's connection and not
-     * the binding's connection (which has already been zeroed from the call to s_close_binding in that case)
+     * the binding yet and instead let shutdown release it.
      */
     if (!setup_data->connection) {
         /*
@@ -656,6 +662,14 @@ static void s_aws_event_stream_rpc_client_on_connection_setup_fn(
     setup_data->error_code = error_code;
     setup_data->binding = binding; /* we already have a ref from the original connect call */
     setup_data->connection = connection;
+
+    if (connection != NULL) {
+        /*
+         * We don't own the initial ref (the channel does, sigh).  While we are in setup data atm, this acquire
+         * represents the binding's reference.
+         */
+        aws_event_stream_rpc_client_connection_acquire(setup_data->connection);
+    }
 
     /* queue a callback in node's libuv thread */
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_setup, setup_data));
@@ -752,36 +766,41 @@ napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_ca
 }
 
 napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_env env, napi_callback_info info) {
-    (void)env;
     (void)info;
+
+    napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_send_protocol_message - NYI");
 
     return NULL;
 }
 
 napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_info info) {
-    (void)env;
     (void)info;
+
+    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - NYI");
 
     return NULL;
 }
 
 napi_value aws_napi_event_stream_client_stream_close(napi_env env, napi_callback_info info) {
-    (void)env;
     (void)info;
+
+    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_close - NYI");
 
     return NULL;
 }
 
 napi_value aws_napi_event_stream_client_stream_activate(napi_env env, napi_callback_info info) {
-    (void)env;
     (void)info;
+
+    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_activate - NYI");
 
     return NULL;
 }
 
 napi_value aws_napi_event_stream_client_stream_send_message(napi_env env, napi_callback_info info) {
-    (void)env;
     (void)info;
+
+    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_send_message - NYI");
 
     return NULL;
 }

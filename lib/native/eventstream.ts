@@ -25,7 +25,7 @@ import crt_native from "./binding";
  */
 
 /**
- * Supported types for the value within a Header
+ * Supported types for the value within an eventstream message header
  */
 export enum HeaderType {
 
@@ -63,8 +63,8 @@ export enum HeaderType {
 /**
  * Union type for message payloads.
  *
- * Payloads can be any of the unioned types in a message submitted from the user.
- * Payloads will always be ArrayBuffers with received messages.
+ * Payloads are allowed to be any of the these types in an outbound message.
+ * Payloads will always be ArrayBuffers when emitting received messages.
  */
 export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
 
@@ -80,12 +80,24 @@ const MIN_INT32 : number = -(1 << 31);
 const MAX_INT64 : bigint = BigInt("9223372036854775807");
 const MIN_INT64 : bigint = BigInt("-9223372036854775808");
 
+/**
+ * Wrapper class for event stream message headers.  Similar to HTTP, a header is a name-value pair.  Unlike HTTP, the
+ * value's wire format varies depending on a type annotation.  We provide static builder functions to help
+ * ensure correct type agreement (type annotation matches actual value) at construction time.  Getting the header
+ * value requires the use of a safe conversion function.
+ */
 export class Header {
 
-    private constructor(public name: string, public type: HeaderType, public value?: any) {
+    private constructor(public name: string, public type: HeaderType, private value?: any) {
     }
 
-    static fromBoolean(name: string, value: boolean): Header {
+    /**
+     * Create a new boolean-valued message header
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newBoolean(name: string, value: boolean): Header {
         if (value) {
             return new Header(name, HeaderType.BooleanTrue);
         } else {
@@ -93,69 +105,140 @@ export class Header {
         }
     }
 
-    static fromByte(name: string, value: number): Header {
+    /**
+     * Create a new byte-valued message header
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newByte(name: string, value: number): Header {
         if (value >= MIN_INT8 && value <= MAX_INT8 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Byte, value);
         }
 
-        throw new CrtError("Illegal value for eventstream byte-valued header");
+        throw new CrtError(`Illegal value for eventstream byte-valued header: ${value}`);
     }
 
-    static fromInt16(name: string, value: number): Header {
+    /**
+     * Create a new 16-bit-integer-valued message header
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newInt16(name: string, value: number): Header {
         if (value >= MIN_INT16 && value <= MAX_INT16 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int16, value);
         }
 
-        throw new CrtError("Illegal value for eventstream int16-valued header");
+        throw new CrtError(`Illegal value for eventstream int16-valued header: ${value}`);
     }
 
-    static fromInt32(name: string, value: number): Header {
+    /**
+     * Create a new 32-bit-integer-valued message header
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newInt32(name: string, value: number): Header {
         if (value >= MIN_INT32 && value <= MAX_INT32 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int32, value);
         }
 
-        throw new CrtError("Illegal value for eventstream int32-valued header");
+        throw new CrtError(`Illegal value for eventstream int32-valued header: ${value}`);
     }
 
-    static fromInt64(name: string, value: bigint): Header {
+    /**
+     * Create a new 64-bit-integer-valued message header.  number cannot represent a full 64-bit integer range but
+     * its usage is so common that this exists for convenience.  Internally, we always track 64 bit integers as
+     * bigints.
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newInt64FromNumber(name: string, value: number): Header {
+        if (Number.isSafeInteger(value)) {
+            return new Header(name, HeaderType.Int64, BigInt(value));
+        }
+
+        throw new CrtError(`Illegal value for eventstream int64-valued header: ${value}`);
+    }
+
+    /**
+     * Create a new 64-bit-integer-valued message header from a big integer.
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newInt64FromBigint(name: string, value: bigint): Header {
         if (value >= MIN_INT64 && value <= MAX_INT64) {
             return new Header(name, HeaderType.Int64, value);
         }
 
-        throw new CrtError("Illegal value for eventstream int64-valued header");
+        throw new CrtError(`Illegal value for eventstream int64-valued header: ${value}`);
     }
 
-    static fromByteBuffer(name: string, value: Payload): Header {
+    /**
+     * Create a new byte-buffer-valued message header
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newByteBuffer(name: string, value: Payload): Header {
         return new Header(name, HeaderType.ByteBuffer, value);
     }
 
-    static fromString(name: string, value: string): Header {
+    /**
+     * Create a new string-valued message header
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newString(name: string, value: string): Header {
         return new Header(name, HeaderType.String, value);
     }
 
-    static fromTimeStampAsSecondsSinceEpoch(name: string, secondsSinceEpoch: number): Header {
+    /**
+     * Create a new timestamp-valued message header from an integral value in seconds since epoch.
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newTimeStampFromSecondsSinceEpoch(name: string, secondsSinceEpoch: number): Header {
         if (Number.isSafeInteger(secondsSinceEpoch)) {
             return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
         }
 
-        throw new CrtError("Illegal value for eventstream timestamp-valued header");
+        throw new CrtError(`Illegal value for eventstream timestamp-valued header: ${secondsSinceEpoch}`);
     }
 
-    static fromTimeStampAsDate(name: string, date: Date): Header {
+    /**
+     * Create a new timestamp-valued message header from a date.
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newTimeStampFromDate(name: string, date: Date): Header {
         const secondsSinceEpoch: number = date.getTime();
         if (Number.isSafeInteger(secondsSinceEpoch)) {
             return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
         }
 
-        throw new CrtError("Illegal value for eventstream timestamp-valued header");
+        throw new CrtError(`Illegal value for eventstream timestamp-valued header: ${date}`);
     }
 
-    static fromUUID(name: string, value: ArrayBuffer): Header {
+    /**
+     * Create a new UUID-valued message header.
+     * WIP
+     *
+     * @param name name of the header
+     * @param value value of the header
+     */
+    static newUUID(name: string, value: ArrayBuffer): Header {
         if (value.byteLength == 16) {
             return new Header(name, HeaderType.UUID, value);
         }
 
-        throw new CrtError("Illegal value for eventstream uuid-valued header");
+        throw new CrtError(`Illegal value for eventstream uuid-valued header: ${value}`);
     }
 
     private toValue(type: HeaderType): any {
@@ -166,6 +249,14 @@ export class Header {
         return this.value;
     }
 
+    /**
+     * All conversion functions require the header's type to be appropriately matching.  There are no error-prone
+     * flexible conversion helpers.
+     */
+
+    /**
+     * Returns a boolean header's value.
+     */
     asBoolean(): boolean {
         switch (this.type) {
             case HeaderType.BooleanFalse:
@@ -178,34 +269,58 @@ export class Header {
         }
     }
 
+    /**
+     * Returns a byte header's value.
+     */
     asByte(): number {
         return this.toValue(HeaderType.Byte) as number;
     }
 
+    /**
+     * Returns a 16-bit integer header's value.
+     */
     asInt16(): number {
         return this.toValue(HeaderType.Int16) as number;
     }
 
+    /**
+     * Returns a 32-bit integer header's value.
+     */
     asInt32(): number {
         return this.toValue(HeaderType.Int32) as number;
     }
 
+    /**
+     * Returns a 64-bit integer header's value.
+     */
     asInt64(): bigint {
         return this.toValue(HeaderType.Int64) as bigint;
     }
 
-    asByteBuffer(): ArrayBuffer {
-        return this.toValue(HeaderType.ByteBuffer) as ArrayBuffer;
+    /**
+     * Returns a byte buffer header's value.
+     */
+    asByteBuffer(): Payload {
+        return this.toValue(HeaderType.ByteBuffer) as Payload;
     }
 
+    /**
+     * Returns a string header's value.
+     */
     asString(): string {
         return this.toValue(HeaderType.String) as string;
     }
 
+    /**
+     * Returns a timestamp header's value (as seconds since epoch).
+     */
     asTimestamp(): number {
         return this.toValue(HeaderType.Timestamp) as number;
     }
 
+    /**
+     * Returns a UUID header's value.
+     */
     asUUID(): ArrayBuffer {
         return this.toValue(HeaderType.UUID) as ArrayBuffer;
     }
@@ -253,6 +368,7 @@ export enum MessageFlags {
  * Different message types expect specific headers and flags, consult documentation.
  */
 export enum MessageType {
+
     /** Application message */
     ApplicationMessage = 0,
 
@@ -286,53 +402,132 @@ export enum MessageType {
     InternalError = 7,
 }
 
+/**
+ * Wrapper type for all event stream messages, whether they are protocol or application-level.
+ */
 export interface Message {
-    
+
+    /**
+     * Type of message this is
+     */
     type: MessageType,
 
-    flags: MessageFlags,
+    /**
+     * Flags indicating additional boolean message properties
+     */
+    flags?: MessageFlags,
 
-    headers: Array<Header>,
+    /**
+     * Message headers associated with this message
+     */
+    headers?: Array<Header>,
 
-    payload: Payload,
+    /**
+     * Actual message payload
+     */
+    payload?: Payload,
 }
 
+/**
+ * Eventstream client connection configuration options.
+ */
 export interface ClientConnectionOptions {
+
+    /**
+     * Name of the host to connect to
+     */
     hostName: string;
 
+    /**
+     * Port of the host to connect to
+     */
     port: number;
 
+    /**
+     * Optional, additional socket options for the desired connection
+     */
     socketOptions?: io.SocketOptions;
 
+    /**
+     * TLS context for the desired connection
+     */
     tlsCtx?: io.ClientTlsContext;
 }
 
+/**
+ * Options for sending a protocol message over the client connection.
+ */
 export interface ProtocolMessageOptions {
+
+    /**
+     * Protocol message to send
+     */
     message: Message;
 }
 
+/**
+ * Options for activating an event stream within the client connection.
+ */
 export interface ActivateStreamOptions {
+
+    /**
+     * Name of the operation that should be associated with this stream.
+     */
+    operation: string;
+
+    /**
+     * Application message to send as part of activating the stream.
+     */
     message: Message;
 }
 
+/**
+ * Options for sending an application message within an event stream
+ */
 export interface StreamMessageOptions {
+
+    /**
+     * Application message to send.
+     */
     message: Message;
 }
 
+/**
+ * Event emitted when an event stream connection has been fully shut down.  The connection is unusable afterwards, but
+ * close() must still be called in order to release the native resources.
+ */
 export interface DisconnectionEvent {
+
+    /**
+     * Native error code.  Convert to a descriptive string with error_code_to_string()
+     */
     errorCode: number;
 }
 
+/**
+ * Event emitted when a message is received on an event stream connection.  When emitted by the connection, this
+ * is a protocol message.  When emitted by a stream, it is an application message.
+ */
 export interface MessageEvent {
+
+    /**
+     * Event stream message received by the connection/stream.
+     */
     message: Message;
 }
 
+/**
+ * Signature for a handler that listens to event stream message events.
+ */
 export type MessageListener = (eventData: MessageEvent) => void;
 
+/**
+ * Signature for a handler that listens to event stream disconnection events.
+ */
 export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
 
 
-
+/** @internal */
 enum ClientConnectionState {
     None,
     Connecting,
@@ -341,6 +536,12 @@ enum ClientConnectionState {
     Closed,
 }
 
+/**
+ * Wrapper for a network connection that fulfills the client-side event stream RPC protocol contract.
+ *
+ * The use must call close() on a connection once finished with it.  Once close() has been called, no more events
+ * will be emitted and all public API invocations will trigger an exception.
+ */
 export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     constructor(config: ClientConnectionOptions) {
         super();
@@ -357,6 +558,19 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         ));
     }
 
+    /**
+     * Shuts down the connection (if active) and begins the process to release native resources associated with it by
+     * having the native binding release the only reference to the extern object representing the connection.
+     *
+     * Ultimately, the native resources will not be released until
+     *   (1) Node invokes the finalizer of that extern object, and
+     *   (2) The connection has fully shut down and that shutdown event has reached the libuv event loop.
+     *
+     * Condition (1) means that it may take GC pressure to cause complete memory release, but the network connection's
+     * OS resources will still be released as soon as the connection is shutdown.
+     *
+     * This function **must** be called for every ClientConnection instance or native resources will leak.
+     */
     close() : void {
         if (this.state != ClientConnectionState.Closed) {
             this.state = ClientConnectionState.Closed;
@@ -366,6 +580,12 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         }
     }
 
+    /**
+     * Attempts to open a network connection to the configured remote endpoint.  Returned promise will be fulfilled if
+     * the transport-level connection is successfully established, and rejected otherwise.
+     *
+     * connect() may only be called once.
+     */
     async connect() : Promise<void> {
         return new Promise<void>((resolve, reject) => {
 
@@ -389,9 +609,17 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
     }
 
+    /**
+     * Attempts to send an event stream protocol message over an open connection.
+     *
+     * @param options configuration -- including the message itself -- for sending a protocol message
+     *
+     * Returns a promise that will be fulfilled when the message is successfully flushed to the wire, and rejected if
+     * an error occurs prior to that point.
+     */
     async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (this.state != ClientConnectionState.Connected) {
+            if (!this.isConnected()) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where sending protocol messages is not allowed.`));
             } else {
                 // invoke native binding send message;
@@ -409,12 +637,18 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         });
     }
 
+    /**
+     * Returns true if the connection is currently open and ready-to-use, false otherwise.
+     */
     isConnected() : boolean {
         return this.state == ClientConnectionState.Connected;
     }
 
+    /**
+     * Creates a new stream within the connection.
+     */
     newStream() : ClientStream {
-        if (this.state != ClientConnectionState.Connected) {
+        if (!this.isConnected()) {
             throw new CrtError(`Event stream connection in a state (${this.state}) where creating new streams is forbidden.`);
         }
 
@@ -482,7 +716,6 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     }
 
     private state : ClientConnectionState;
-
 }
 
 export interface StreamClosedEvent {
