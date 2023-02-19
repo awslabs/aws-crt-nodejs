@@ -9,8 +9,19 @@ import crt_native from "./binding";
 
 jest.setTimeout(10000);
 
-//const conditional_test = (condition : boolean) => condition ? it : it.skip;
+function hasEchoServerEnvironment() : boolean {
+    if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
+        return false;
+    }
 
+    if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT === undefined) {
+        return false;
+    }
+
+    return true;
+}
+
+const conditional_test = (condition : boolean) => condition ? it : it.skip;
 
 function closeNativeConnectionInternal(connection: eventstream.ClientConnection) {
 
@@ -21,14 +32,15 @@ function closeNativeConnectionInternal(connection: eventstream.ClientConnection)
 
 function makeGoodConfig() : eventstream.ClientConnectionOptions {
     let config : eventstream.ClientConnectionOptions = {
-        hostName: "127.0.0.1",
-        port: 8033,
+        hostName: process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST ?? "",
+        port: parseInt(process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT ?? "0"),
     };
 
     return config;
 }
 
-async function doScopedTest1(config: eventstream.ClientConnectionOptions) {
+/* Success test where we connect, wait for success, and close */
+async function doConnectionSuccessTest1(config: eventstream.ClientConnectionOptions) {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
 
     await connection.connect();
@@ -36,7 +48,11 @@ async function doScopedTest1(config: eventstream.ClientConnectionOptions) {
     connection.close();
 }
 
-async function doScopedTest2(config: eventstream.ClientConnectionOptions) {
+/*
+ * Success test where we connect, wait for success, simulate a remote close by a backdoor function that closes the
+ * native event stream connection directly, wait for the disconnect event and close
+ */
+async function doConnectionSuccessTest2(config: eventstream.ClientConnectionOptions) {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
@@ -53,7 +69,14 @@ async function doScopedTest2(config: eventstream.ClientConnectionOptions) {
     connection.close();
 }
 
-async function doScopedTest3(config: eventstream.ClientConnectionOptions) {
+/*
+ * Quasi-success test where we kick off the connection (which will complete successfully) but immediately close it.
+ *
+ * TODO: because connect can only be called once, we could track the associated promise and reject it in this
+ *  case, which would make things safer since you wouldn't be able to accidentally wait forever for something that
+ *  would never happen.
+ */
+async function doConnectionSuccessTest3(config: eventstream.ClientConnectionOptions) {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
 
     // intentionally do not await to try and beat the native connection setup with a close call
@@ -66,23 +89,24 @@ async function doScopedTest3(config: eventstream.ClientConnectionOptions) {
 
 /*
  * successful connection setup/teardown tests include some short waits to try and shake out any native race conditions
- * that might occur due to JS object finalization after close
+ * that might occur due to JS object finalization after close.  For the same reason, we scope the connection object
+ * to a helper function, making finalization on the extern more likely.
  */
 
-test('Connection Success Echo Server - await connect, close, and forget', async () => {
-    await doScopedTest1(makeGoodConfig());
+conditional_test(hasEchoServerEnvironment())('Connection Success Echo Server - await connect, close, and forget', async () => {
+    await doConnectionSuccessTest1(makeGoodConfig());
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 });
 
-test('Connection Success Echo Server - await connect, simulate remote close', async () => {
-    await doScopedTest2(makeGoodConfig());
+conditional_test(hasEchoServerEnvironment())('Connection Success Echo Server - await connect, simulate remote close', async () => {
+    await doConnectionSuccessTest2(makeGoodConfig());
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 });
 
-test('Connection Success Echo Server - start connect, close, and forget', async () => {
-    await doScopedTest3(makeGoodConfig());
+conditional_test(hasEchoServerEnvironment())('Connection Success Echo Server - start connect, close, and forget', async () => {
+    await doConnectionSuccessTest3(makeGoodConfig());
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 });
@@ -95,14 +119,14 @@ async function doConnectionFailureTest(config : eventstream.ClientConnectionOpti
     connection.close();
 }
 
-test('Connection Failure Echo Server - bad host', async () => {
+conditional_test(hasEchoServerEnvironment())('Connection Failure Echo Server - bad host', async () => {
     let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
     badConfig.hostName = "derp.notarealdomainseriously.org";
 
     await doConnectionFailureTest(badConfig);
 });
 
-test('Connection Failure Echo Server - bad port', async () => {
+conditional_test(hasEchoServerEnvironment())('Connection Failure Echo Server - bad port', async () => {
     let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
     badConfig.port = 33333;
 
