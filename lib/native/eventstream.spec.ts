@@ -74,7 +74,7 @@ async function doConnectionSuccessTest2(config: eventstream.ClientConnectionOpti
  *
  * TODO: because connect can only be called once, we could track the associated promise and reject it in this
  *  case, which would make things safer since you wouldn't be able to accidentally wait forever for something that
- *  would never happen.
+ *  will never complete.
  */
 async function doConnectionSuccessTest3(config: eventstream.ClientConnectionOptions) {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);

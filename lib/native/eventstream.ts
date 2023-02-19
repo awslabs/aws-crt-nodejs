@@ -527,7 +527,15 @@ export type MessageListener = (eventData: MessageEvent) => void;
 export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
 
 
-/** @internal */
+/**
+ * @internal
+ *
+ * While not strictly necessary, the single-threaded nature of JS execution allows us to easily apply some
+ * rigid constraints to the public API calls of our event stream objects.  This in turn reduces the complexity of the
+ * binding cases we need to consider.
+ *
+ * This state value is the primary means by which we add and enforce these constraints.
+ */
 enum ClientConnectionState {
     None,
     Connecting,
