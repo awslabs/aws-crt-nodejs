@@ -156,7 +156,7 @@ For X509 based mutual TLS, you can create a client where the certificate and pri
     );
 
     // other builder configuration
-    ...
+    // ...
     let client : Mqtt5Client = new Mqtt5Client(builder.build()));
 ```
 
@@ -172,7 +172,7 @@ You can also create a client where the certificate and private key are in memory
     );
 
     // other builder configuration
-    ...
+    // ...
     let client : Mqtt5Client = new Mqtt5Client(builder.build());
 ```
 
@@ -203,8 +203,8 @@ need a specific credentials provider, you can specify advanced websocket configu
 ```typescript
     // sourcing credentials from the Cognito service in this example
     let cognitoConfig: CognitoCredentialsProviderConfig = {
-        endpoint: <cognito endpoint to query credentials from>,
-        identity: <cognito identity to query credentials relative to>
+        endpoint: "<cognito endpoint to query credentials from>",
+        identity: "<cognito identity to query credentials relative to>"
     };
 
     let overrideProvider: CredentialsProvider = AwsCredentialsProvider.newCognito(cognitoConfig);
@@ -215,7 +215,7 @@ need a specific credentials provider, you can specify advanced websocket configu
     };
 
     let builder = AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         wsConfig
     );
     // other builder configuration
