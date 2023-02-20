@@ -535,6 +535,14 @@ export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
  * binding cases we need to consider.
  *
  * This state value is the primary means by which we add and enforce these constraints.
+ *
+ * Constraints enforced in the managed binding:
+ *
+ *  (1) close() may only be called once.  Once it has been called, nothing else may be called.
+ *  (2) newStream() and sendMessage() may only be called after successful connection establishment and before the
+ *      connection has been closed.
+ *  (3) connect() may only be called once.  Combined with (1) and (2), this means that if connect() is called, it must
+ *      be the first thing called.
  */
 enum ClientConnectionState {
     None,
@@ -605,6 +613,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
             if (this.state != ClientConnectionState.None) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where connect() is not allowed.`));
+                return;
             } else {
                 this.state = ClientConnectionState.Connecting;
 
@@ -653,6 +662,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
     /**
      * Returns true if the connection is currently open and ready-to-use, false otherwise.
+     *
+     * Internal note: Our notion of "connected" is intentionally not an invocation of
+     * aws_event_stream_rpc_client_connection_is_open() (whose status is an out-of-sync race condition vs. our
+     * well-defined client state)
      */
     isConnected() : boolean {
         return this.state == ClientConnectionState.Connected;

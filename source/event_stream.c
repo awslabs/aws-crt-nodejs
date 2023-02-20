@@ -22,6 +22,14 @@ static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PORT = "port";
  *      in the binding
  *  (2) Otherwise, you may only access thread-safe functions or the binding's ref count APIs.  In particular,
  *      'connection' and 'is_closed' are off-limits unless you're in the libuv thread.
+ *
+ * TODO: The eventstream bindings are based loosely on the MQTT5 bindings.  We've been able to make at least one
+ * simplification that might be worth applying back to the MQTT5 bindings:
+ *
+ *  (1) By pushing handling the connection shutdown notification into the libuv thread, we don't need to ref count
+ *      operations until they're completed.  If we're processing the connection shutdown in the libuv thread, we will
+ *      not be receiving any further callbacks and nothing is pending execution (in the libuv thread).  We could
+ *      do something similar and push handling the client termination callback into libuv.
  */
 struct aws_event_stream_client_connection_binding {
     struct aws_allocator *allocator;
