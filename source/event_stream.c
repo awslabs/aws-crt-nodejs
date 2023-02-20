@@ -11,6 +11,10 @@
 
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HOST = "hostName";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PORT = "port";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_TYPE = "type";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_VALUE = "value";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS = "headers";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD = "payload";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -253,6 +257,215 @@ done:
     s_aws_event_stream_client_connection_binding_release(binding);
 
     aws_mem_release(shutdown_data->allocator, shutdown_data);
+}
+
+struct aws_event_stream_message_storage {
+
+    struct aws_array_list headers;
+    struct aws_byte_cursor payload;
+    enum aws_event_stream_rpc_message_type message_type;
+    uint32_t message_flags;
+
+    struct aws_byte_buf data;
+};
+
+static void s_aws_event_stream_message_storage_clean_up(struct aws_event_stream_message_storage *storage) {
+    aws_array_list_clean_up(&storage->headers);
+    aws_byte_buf_clean_up(&storage->data);
+}
+
+static size_t s_calculate_storage_size_from_native(const struct aws_event_stream_rpc_message_args *message) {
+    size_t required_storage_size = (message->payload != NULL) ? message->payload->len : 0;
+
+    for (size_t i = 0; i < message->headers_count; ++i) {
+        struct aws_event_stream_header_value_pair *header = &message->headers[i];
+
+        if (header->value_owned) {
+            required_storage_size += header->header_value_len;
+        }
+    }
+
+    return required_storage_size;
+}
+
+static int s_aws_event_stream_message_storage_init_from_native(
+    struct aws_event_stream_message_storage *storage,
+    struct aws_allocator *allocator,
+    struct aws_event_stream_rpc_message_args *message) {
+
+    size_t data_size = s_calculate_storage_size_from_native(message);
+
+    if (aws_byte_buf_init(&storage->data, allocator, data_size)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_array_list_init_dynamic(
+            &storage->headers, allocator, message->headers_count, sizeof(struct aws_event_stream_header_value_pair))) {
+        goto error;
+    }
+
+    for (size_t i = 0; i < message->headers_count; ++i) {
+        struct aws_event_stream_header_value_pair *source_header = &message->headers[i];
+
+        struct aws_event_stream_header_value_pair dest_header;
+        dest_header = *source_header;
+
+        /* If the value is a pointer to external memory, store it in data and update the pointer */
+        if (dest_header.value_owned) {
+            struct aws_byte_cursor value_cursor = {
+                .ptr = dest_header.header_value.variable_len_val,
+                .len = dest_header.header_value_len,
+            };
+
+            if (aws_byte_buf_append_and_update(&storage->data, &value_cursor)) {
+                goto error;
+            }
+
+            dest_header.header_value.variable_len_val = value_cursor.ptr;
+        }
+
+        aws_array_list_push_back(&storage->headers, &dest_header);
+    }
+
+    if (message->payload != NULL) {
+        storage->payload = aws_byte_cursor_from_buf(message->payload);
+        if (aws_byte_buf_append_and_update(&storage->data, &storage->payload)) {
+            goto error;
+        }
+    }
+
+    storage->message_type = message->message_type;
+    storage->message_flags = message->message_flags;
+
+    return AWS_OP_SUCCESS;
+
+error:
+
+    /* assumes AWS_ZERO_STRUCT was called first */
+    s_aws_event_stream_message_storage_clean_up(storage);
+
+    return AWS_OP_ERR;
+}
+
+static int s_calculate_header_storage_size_from_js(napi_env env, napi_value header, size_t *storage_size_out) {
+    int result = AWS_OP_ERR;
+    *storage_size_out = 0;
+
+    enum aws_event_stream_header_value_type value_type = 0;
+    uint32_t header_type = 0;
+    PARSE_REQUIRED_NAPI_PROPERTY(
+        AWS_EVENT_STREAM_PROPERTY_NAME_TYPE,
+        "s_calculate_header_storage_size_from_js",
+        aws_napi_get_named_property_as_uint32(env, header, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, &header_type),
+        { value_type = (enum aws_event_stream_header_value_type)header_type; },
+        NULL);
+
+    switch (value_type) {
+        case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
+        case AWS_EVENT_STREAM_HEADER_STRING: {
+            napi_valuetype napi_value_type =
+                (value_type == AWS_EVENT_STREAM_HEADER_STRING) ? napi_string : napi_undefined;
+            if (aws_napi_get_named_property_buffer_length(
+                    env, header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, napi_value_type, storage_size_out) !=
+                AWS_NGNPR_VALID_VALUE) {
+                aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+                goto done;
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    result = AWS_OP_SUCCESS;
+
+done:
+
+    return result;
+}
+
+static int s_calculate_storage_size_from_js(napi_env env, napi_value message, size_t *storage_size_out) {
+
+    size_t header_array_length = 0;
+    int result = AWS_OP_ERR;
+    *storage_size_out = 0;
+
+    if (aws_napi_get_property_array_size(env, message, AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS, &header_array_length)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL, "s_calculate_storage_size_from_js - headers property is not an array");
+        goto done;
+    }
+
+    if (header_array_length > 0) {
+        napi_value napi_headers_array = NULL;
+        aws_napi_get_named_property(
+            env, message, AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS, napi_object, &napi_headers_array);
+
+        for (size_t i = 0; i < header_array_length; ++i) {
+            napi_value napi_header = NULL;
+            AWS_NAPI_CALL(env, napi_get_element(env, napi_headers_array, i, &napi_header), { goto done; });
+
+            size_t header_storage_size = 0;
+            if (s_calculate_header_storage_size_from_js(env, napi_header, &header_storage_size)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "s_calculate_storage_size_from_js - header storage size could not be calculated");
+                goto done;
+            }
+
+            *storage_size_out += header_storage_size;
+        }
+    }
+
+    size_t payload_size = 0;
+    enum aws_napi_get_named_property_result get_result = aws_napi_get_named_property_buffer_length(
+        env, message, AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD, napi_undefined, &payload_size);
+    if (get_result == AWS_NGNPR_INVALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_calculate_storage_size_from_js - payload property could not be converted to a buffer");
+        goto done;
+    }
+
+    *storage_size_out += payload_size;
+    result = AWS_OP_SUCCESS;
+
+done:
+
+    return result;
+}
+
+static int s_aws_event_stream_message_storage_init_from_js(
+    struct aws_event_stream_message_storage *storage,
+    struct aws_allocator *allocator,
+    napi_env env,
+    napi_value message) {
+
+    size_t data_size = 0;
+    if (s_calculate_storage_size_from_js(env, message, &data_size)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_byte_buf_init(&storage->data, allocator, data_size)) {
+        return AWS_OP_ERR;
+    }
+
+    (void)env;
+    (void)message;
+    // ?? ;
+
+    return AWS_OP_ERR;
+}
+
+static napi_value s_aws_create_napi_value_from_event_stream_message_storage(
+    napi_env env,
+    const struct aws_event_stream_message_storage *message) {
+    napi_value napi_message = NULL;
+
+    // ?? ;
+
+    return napi_message;
 }
 
 static void s_napi_event_stream_connection_on_protocol_message(

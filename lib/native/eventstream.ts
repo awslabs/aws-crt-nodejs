@@ -80,6 +80,8 @@ const MIN_INT32 : number = -(1 << 31);
 const MAX_INT64 : bigint = BigInt("9223372036854775807");
 const MIN_INT64 : bigint = BigInt("-9223372036854775808");
 
+const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
+
 /**
  * Wrapper class for event stream message headers.  Similar to HTTP, a header is a name-value pair.  Unlike HTTP, the
  * value's wire format varies depending on a type annotation.  We provide static builder functions to help
@@ -91,6 +93,10 @@ export class Header {
     private constructor(public name: string, public type: HeaderType, private value?: any) {
     }
 
+    private static isHeaderNameValid(name: string) {
+        return name.length <= AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH;
+    }
+
     /**
      * Create a new boolean-valued message header
      *
@@ -98,6 +104,10 @@ export class Header {
      * @param value value of the header
      */
     static newBoolean(name: string, value: boolean): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (value) {
             return new Header(name, HeaderType.BooleanTrue);
         } else {
@@ -112,6 +122,10 @@ export class Header {
      * @param value value of the header
      */
     static newByte(name: string, value: number): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (value >= MIN_INT8 && value <= MAX_INT8 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Byte, value);
         }
@@ -126,6 +140,10 @@ export class Header {
      * @param value value of the header
      */
     static newInt16(name: string, value: number): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (value >= MIN_INT16 && value <= MAX_INT16 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int16, value);
         }
@@ -140,6 +158,10 @@ export class Header {
      * @param value value of the header
      */
     static newInt32(name: string, value: number): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (value >= MIN_INT32 && value <= MAX_INT32 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int32, value);
         }
@@ -156,6 +178,10 @@ export class Header {
      * @param value value of the header
      */
     static newInt64FromNumber(name: string, value: number): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int64, BigInt(value));
         }
@@ -170,6 +196,10 @@ export class Header {
      * @param value value of the header
      */
     static newInt64FromBigint(name: string, value: bigint): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (value >= MIN_INT64 && value <= MAX_INT64) {
             return new Header(name, HeaderType.Int64, value);
         }
@@ -184,6 +214,10 @@ export class Header {
      * @param value value of the header
      */
     static newByteBuffer(name: string, value: Payload): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         return new Header(name, HeaderType.ByteBuffer, value);
     }
 
@@ -194,6 +228,10 @@ export class Header {
      * @param value value of the header
      */
     static newString(name: string, value: string): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         return new Header(name, HeaderType.String, value);
     }
 
@@ -204,6 +242,10 @@ export class Header {
      * @param value value of the header
      */
     static newTimeStampFromSecondsSinceEpoch(name: string, secondsSinceEpoch: number): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (Number.isSafeInteger(secondsSinceEpoch)) {
             return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
         }
@@ -218,6 +260,10 @@ export class Header {
      * @param value value of the header
      */
     static newTimeStampFromDate(name: string, date: Date): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         const secondsSinceEpoch: number = date.getTime();
         if (Number.isSafeInteger(secondsSinceEpoch)) {
             return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
@@ -234,6 +280,10 @@ export class Header {
      * @param value value of the header
      */
     static newUUID(name: string, value: ArrayBuffer): Header {
+        if (!Header.isHeaderNameValid(name)) {
+            throw new CrtError(`Event stream header name (${name}) is not valid`);
+        }
+
         if (value.byteLength == 16) {
             return new Header(name, HeaderType.UUID, value);
         }

@@ -432,6 +432,27 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
     return AWS_NGNPR_VALID_VALUE;
 }
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_length(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    size_t *length_out) {
+
+    struct aws_byte_buf buffer;
+    AWS_ZERO_STRUCT(buffer);
+
+    enum aws_napi_get_named_property_result result =
+        aws_napi_get_named_property_as_bytebuf(env, object, name, type, &buffer);
+    if (result == AWS_NGNPR_VALID_VALUE) {
+        *length_out = buffer.len;
+    }
+
+    aws_byte_buf_clean_up(&buffer);
+
+    return result;
+}
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
     AWS_ASSERT(buf);
@@ -563,6 +584,39 @@ bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
     }
 
     return type == napi_null || type == napi_undefined;
+}
+
+int aws_napi_get_property_array_size(
+    napi_env env,
+    napi_value object,
+    const char *property_name,
+    size_t *array_size_out) {
+    napi_value napi_array = NULL;
+    enum aws_napi_get_named_property_result get_result =
+        aws_napi_get_named_property(env, object, property_name, napi_object, &napi_array);
+    if (get_result == AWS_NGNPR_NO_VALUE) {
+        *array_size_out = 0;
+        return AWS_OP_SUCCESS;
+    } else if (get_result == AWS_NGNPR_INVALID_VALUE) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    uint32_t array_size = 0;
+    AWS_NAPI_CALL(env, napi_get_array_length(env, napi_array, &array_size), {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    });
+
+    *array_size_out = (size_t)array_size;
+
+    return AWS_OP_SUCCESS;
+}
+
+void aws_napi_log_get_property_error(
+    void *context,
+    const char *function_name,
+    const char *message,
+    const char *property_name) {
+    AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "id=%p %s - %s: %s", context, function_name, message, property_name);
 }
 
 void aws_napi_throw_last_error(napi_env env) {

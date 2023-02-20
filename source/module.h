@@ -148,6 +148,19 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
     napi_valuetype type,
     struct aws_byte_buf *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_length(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    size_t *length_out);
+
+int aws_napi_get_property_array_size(
+    napi_env env,
+    napi_value object,
+    const char *property_name,
+    size_t *array_size_out);
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
 /** Copies data from cur into a new ArrayBuffer, then returns a DataView to the buffer. */
@@ -155,6 +168,12 @@ napi_status aws_napi_create_dataview_from_byte_cursor(
     napi_env env,
     const struct aws_byte_cursor *cur,
     napi_value *result);
+
+void aws_napi_log_get_property_error(
+    void *context,
+    const char *function_name,
+    const char *message,
+    const char *property_name);
 
 bool aws_napi_is_null_or_undefined(napi_env env, napi_value value);
 
@@ -297,6 +316,34 @@ struct aws_napi_context {
     if (binding_name->function_name != NULL) {                                                                         \
         AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
         binding_name->function_name = NULL;                                                                            \
+    }
+
+#define PARSE_REQUIRED_NAPI_PROPERTY(property_name, function_name, call_expression, success_block, context)            \
+    {                                                                                                                  \
+        enum aws_napi_get_named_property_result gpr = call_expression;                                                 \
+        if (gpr == AWS_NGNPR_VALID_VALUE) {                                                                            \
+            success_block;                                                                                             \
+        } else if (gpr == AWS_NGNPR_INVALID_VALUE) {                                                                   \
+            aws_napi_log_get_property_error(                                                                           \
+                (void *)(context), function_name, "invalid value for property", property_name);                        \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        } else {                                                                                                       \
+            aws_napi_log_get_property_error(                                                                           \
+                (void *)(context), function_name, "failed to extract required property", property_name);               \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        }                                                                                                              \
+    }
+
+#define PARSE_OPTIONAL_NAPI_PROPERTY(property_name, function_name, call_expression, success_block, context)            \
+    {                                                                                                                  \
+        enum aws_napi_get_named_property_result gpr = call_expression;                                                 \
+        if (gpr == AWS_NGNPR_VALID_VALUE) {                                                                            \
+            success_block;                                                                                             \
+        } else if (gpr == AWS_NGNPR_INVALID_VALUE) {                                                                   \
+            aws_napi_log_get_property_error(                                                                           \
+                (void *)(context), function_name, "invalid value for property", property_name);                        \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        }                                                                                                              \
     }
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */
