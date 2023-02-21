@@ -40,9 +40,9 @@
  * This is a multi-line comment to ensure that the static assert does not collide with the static asserts in
  * aws/common/macro.h.
  *
- * aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API
+ * aws-crt-nodejs requires N-API version 6 or above for bigint APIs
  */
-AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
+AWS_STATIC_ASSERT(NAPI_VERSION >= 6);
 
 #define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
 
@@ -609,14 +609,6 @@ int aws_napi_get_property_array_size(
     *array_size_out = (size_t)array_size;
 
     return AWS_OP_SUCCESS;
-}
-
-void aws_napi_log_get_property_error(
-    void *context,
-    const char *function_name,
-    const char *message,
-    const char *property_name) {
-    AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "id=%p %s - %s: %s", context, function_name, message, property_name);
 }
 
 void aws_napi_throw_last_error(napi_env env) {
