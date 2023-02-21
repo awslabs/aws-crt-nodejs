@@ -4,9 +4,9 @@
  */
 
 import * as mqtt5 from "@awscrt/mqtt5";
+import {CrtError} from "@awscrt";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
-import {CrtError} from "@awscrt";
 
 export enum SuccessfulConnectionTestType {
     DIRECT_MQTT = 0,
