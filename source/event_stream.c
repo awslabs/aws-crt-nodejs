@@ -314,43 +314,46 @@ error:
     return AWS_OP_ERR;
 }
 
-#define ADD_INTEGRAL_HEADER(type_name, napi_extraction_fn_name, add_header_fn_name) \
-    type_name value = 0; \
-    if (napi_extraction_fn_name(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, &value) != AWS_NGNPR_VALID_VALUE) { \
-        AWS_LOGF_ERROR( \
-            AWS_LS_NODEJS_CRT_GENERAL, \
-            "id=%p s_add_event_stream_header_from_js - invalid integer property value", \
-            log_context); \
-        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); \
-        goto done; \
-    } \
- \
-    if (add_header_fn_name(headers, aws_byte_cursor_from_buf(&name_buffer), value)) { \
-        AWS_LOGF_ERROR( \
-            AWS_LS_NODEJS_CRT_GENERAL, \
-            "id=%p s_add_event_stream_header_from_js - failed to add integer-valued header to header list", \
-            log_context); \
-        goto done; \
+#define ADD_INTEGRAL_HEADER(type_name, napi_extraction_fn_name, add_header_fn_name)                                    \
+    type_name value = 0;                                                                                               \
+    if (napi_extraction_fn_name(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, &value) !=                     \
+        AWS_NGNPR_VALID_VALUE) {                                                                                       \
+        AWS_LOGF_ERROR(                                                                                                \
+            AWS_LS_NODEJS_CRT_GENERAL,                                                                                 \
+            "id=%p s_add_event_stream_header_from_js - invalid integer property value",                                \
+            log_context);                                                                                              \
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                                   \
+        goto done;                                                                                                     \
+    }                                                                                                                  \
+                                                                                                                       \
+    if (add_header_fn_name(headers, aws_byte_cursor_from_buf(&name_buffer), value)) {                                  \
+        AWS_LOGF_ERROR(                                                                                                \
+            AWS_LS_NODEJS_CRT_GENERAL,                                                                                 \
+            "id=%p s_add_event_stream_header_from_js - failed to add integer-valued header to header list",            \
+            log_context);                                                                                              \
+        goto done;                                                                                                     \
     }
 
-#define ADD_BUFFERED_HEADER(napi_query_type, add_header_fn_name) \
-    if (aws_napi_get_named_property_as_bytebuf(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, napi_query_type, &value_buffer) != AWS_NGNPR_VALID_VALUE) { \
-        AWS_LOGF_ERROR( \
-            AWS_LS_NODEJS_CRT_GENERAL, \
-            "id=%p s_add_event_stream_header_from_js - failed to parse 'value' property as a byte sequence", \
-            log_context); \
-        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); \
-        goto done; \
-    } \
-    if (add_header_fn_name(headers, aws_byte_cursor_from_buf(&name_buffer), aws_byte_cursor_from_buf(&value_buffer))) { \
-        AWS_LOGF_ERROR( \
-            AWS_LS_NODEJS_CRT_GENERAL, \
-            "id=%p s_add_event_stream_header_from_js - failed to byte sequence valued header to header list", \
-            log_context); \
-        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); \
-        goto done; \
+#define ADD_BUFFERED_HEADER(napi_query_type, add_header_fn_name)                                                       \
+    if (aws_napi_get_named_property_as_bytebuf(                                                                        \
+            env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, napi_query_type, &value_buffer) !=                 \
+        AWS_NGNPR_VALID_VALUE) {                                                                                       \
+        AWS_LOGF_ERROR(                                                                                                \
+            AWS_LS_NODEJS_CRT_GENERAL,                                                                                 \
+            "id=%p s_add_event_stream_header_from_js - failed to parse 'value' property as a byte sequence",           \
+            log_context);                                                                                              \
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                                   \
+        goto done;                                                                                                     \
+    }                                                                                                                  \
+    if (add_header_fn_name(                                                                                            \
+            headers, aws_byte_cursor_from_buf(&name_buffer), aws_byte_cursor_from_buf(&value_buffer))) {               \
+        AWS_LOGF_ERROR(                                                                                                \
+            AWS_LS_NODEJS_CRT_GENERAL,                                                                                 \
+            "id=%p s_add_event_stream_header_from_js - failed to byte sequence valued header to header list",          \
+            log_context);                                                                                              \
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                                   \
+        goto done;                                                                                                     \
     }
-
 
 static int s_add_event_stream_header_from_js(
     struct aws_array_list *headers,
@@ -366,7 +369,9 @@ static int s_add_event_stream_header_from_js(
     struct aws_byte_buf value_buffer;
     AWS_ZERO_STRUCT(value_buffer);
 
-    if (aws_napi_get_named_property_as_bytebuf(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_NAME, napi_string, &name_buffer) != AWS_NGNPR_VALID_VALUE) {
+    if (aws_napi_get_named_property_as_bytebuf(
+            env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_NAME, napi_string, &name_buffer) !=
+        AWS_NGNPR_VALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_add_event_stream_header_from_js - failed to parse required 'name' property",
@@ -377,7 +382,8 @@ static int s_add_event_stream_header_from_js(
 
     uint32_t value_type_u32 = 0;
     enum aws_event_stream_header_value_type value_type = 0;
-    if (aws_napi_get_named_property_as_uint32(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, &value_type_u32) != AWS_NGNPR_VALID_VALUE) {
+    if (aws_napi_get_named_property_as_uint32(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, &value_type_u32) !=
+        AWS_NGNPR_VALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_add_event_stream_header_from_js - failed to parse required 'type' property",
@@ -396,10 +402,11 @@ static int s_add_event_stream_header_from_js(
         goto done;
     }
 
-    switch(value_type) {
+    switch (value_type) {
         case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
         case AWS_EVENT_STREAM_HEADER_BOOL_FALSE:
-            if (aws_event_stream_add_bool_header_by_cursor(headers, aws_byte_cursor_from_buf(&name_buffer), value_type == AWS_EVENT_STREAM_HEADER_BOOL_TRUE)) {
+            if (aws_event_stream_add_bool_header_by_cursor(
+                    headers, aws_byte_cursor_from_buf(&name_buffer), value_type == AWS_EVENT_STREAM_HEADER_BOOL_TRUE)) {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "id=%p s_add_event_stream_header_from_js - failed to add boolean-valued header",
@@ -414,17 +421,20 @@ static int s_add_event_stream_header_from_js(
         }
 
         case AWS_EVENT_STREAM_HEADER_INT16: {
-            ADD_INTEGRAL_HEADER(int16_t, aws_napi_get_named_property_as_int16, aws_event_stream_add_int16_header_by_cursor)
+            ADD_INTEGRAL_HEADER(
+                int16_t, aws_napi_get_named_property_as_int16, aws_event_stream_add_int16_header_by_cursor)
             break;
         }
 
         case AWS_EVENT_STREAM_HEADER_INT32: {
-            ADD_INTEGRAL_HEADER(int32_t, aws_napi_get_named_property_as_int32, aws_event_stream_add_int32_header_by_cursor)
+            ADD_INTEGRAL_HEADER(
+                int32_t, aws_napi_get_named_property_as_int32, aws_event_stream_add_int32_header_by_cursor)
             break;
         }
 
         case AWS_EVENT_STREAM_HEADER_INT64: {
-            ADD_INTEGRAL_HEADER(int64_t, aws_napi_get_named_property_bigint_as_int64, aws_event_stream_add_int64_header_by_cursor)
+            ADD_INTEGRAL_HEADER(
+                int64_t, aws_napi_get_named_property_bigint_as_int64, aws_event_stream_add_int64_header_by_cursor)
             break;
         }
 
@@ -439,7 +449,8 @@ static int s_add_event_stream_header_from_js(
         }
 
         case AWS_EVENT_STREAM_HEADER_TIMESTAMP: {
-            ADD_INTEGRAL_HEADER(int64_t, aws_napi_get_named_property_as_int64, aws_event_stream_add_timestamp_header_by_cursor)
+            ADD_INTEGRAL_HEADER(
+                int64_t, aws_napi_get_named_property_as_int64, aws_event_stream_add_timestamp_header_by_cursor)
             break;
         }
 

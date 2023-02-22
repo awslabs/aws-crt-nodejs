@@ -376,7 +376,6 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     return AWS_NGNPR_VALID_VALUE;
 }
 
-
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint8(
     napi_env env,
     napi_value object,
@@ -505,7 +504,8 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_bigint_as_in
     }
 
     bool lossless = true;
-    AWS_NAPI_CALL(env, napi_get_value_bigint_int64(env, node_result, result, &lossless), { return AWS_NGNPR_INVALID_VALUE; });
+    AWS_NAPI_CALL(
+        env, napi_get_value_bigint_int64(env, node_result, result, &lossless), { return AWS_NGNPR_INVALID_VALUE; });
     if (!lossless) {
         return AWS_NGNPR_INVALID_VALUE;
     }
