@@ -376,6 +376,143 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     return AWS_NGNPR_VALID_VALUE;
 }
 
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < 0 || int_value > UINT8_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (uint8_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int8_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < INT8_MIN || int_value > INT8_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (int8_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int16_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < INT16_MIN || int_value > INT16_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (int16_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int32_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < INT32_MIN || int_value > INT32_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (int32_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, result), { return AWS_NGNPR_INVALID_VALUE; });
+
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_bigint_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_bigint, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    bool lossless = true;
+    AWS_NAPI_CALL(env, napi_get_value_bigint_int64(env, node_result, result, &lossless), { return AWS_NGNPR_INVALID_VALUE; });
+    if (!lossless) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    return AWS_NGNPR_VALID_VALUE;
+}
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     napi_env env,
     napi_value object,
@@ -393,7 +530,7 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     return AWS_NGNPR_VALID_VALUE;
 }
 
-enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_u8(
+enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_uint8(
     napi_env env,
     napi_value object,
     const char *name,

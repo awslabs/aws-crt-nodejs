@@ -111,11 +111,35 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property(
     napi_valuetype type,
     napi_value *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int8_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint16(
     napi_env env,
     napi_value object,
     const char *name,
     uint16_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int16_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
     napi_env env,
@@ -123,23 +147,35 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
     const char *name,
     uint32_t *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int32_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     napi_env env,
     napi_value object,
     const char *name,
     uint64_t *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_bigint_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     napi_env env,
     napi_value object,
     const char *name,
     bool *result);
-
-enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_u8(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    uint8_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
     napi_env env,

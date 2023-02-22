@@ -11,6 +11,7 @@
 
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HOST = "hostName";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PORT = "port";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_NAME = "name";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_TYPE = "type";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_VALUE = "value";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS = "headers";
@@ -313,17 +314,152 @@ error:
     return AWS_OP_ERR;
 }
 
-static int s_init_event_stream_header_from_js(
-    struct aws_event_stream_header_value_pair *header,
-    struct aws_allocator *allocator,
-    napi_env env,
-    napi_value napi_header) {
-    (void)header;
-    (void)allocator;
-    (void)env;
-    (void)napi_header;
+#define ADD_INTEGRAL_HEADER(type_name, napi_extraction_fn_name, add_header_fn_name) \
+    type_name value = 0; \
+    if (napi_extraction_fn_name(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, &value) != AWS_NGNPR_VALID_VALUE) { \
+        AWS_LOGF_ERROR( \
+            AWS_LS_NODEJS_CRT_GENERAL, \
+            "id=%p s_add_event_stream_header_from_js - invalid integer property value", \
+            log_context); \
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); \
+        goto done; \
+    } \
+ \
+    if (add_header_fn_name(headers, aws_byte_cursor_from_buf(&name_buffer), value)) { \
+        AWS_LOGF_ERROR( \
+            AWS_LS_NODEJS_CRT_GENERAL, \
+            "id=%p s_add_event_stream_header_from_js - failed to add integer-valued header to header list", \
+            log_context); \
+        goto done; \
+    }
 
-    return aws_raise_error(AWS_ERROR_UNIMPLEMENTED);
+#define ADD_BUFFERED_HEADER(napi_query_type, add_header_fn_name) \
+    if (aws_napi_get_named_property_as_bytebuf(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, napi_query_type, &value_buffer) != AWS_NGNPR_VALID_VALUE) { \
+        AWS_LOGF_ERROR( \
+            AWS_LS_NODEJS_CRT_GENERAL, \
+            "id=%p s_add_event_stream_header_from_js - failed to parse 'value' property as a byte sequence", \
+            log_context); \
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); \
+        goto done; \
+    } \
+    if (add_header_fn_name(headers, aws_byte_cursor_from_buf(&name_buffer), aws_byte_cursor_from_buf(&value_buffer))) { \
+        AWS_LOGF_ERROR( \
+            AWS_LS_NODEJS_CRT_GENERAL, \
+            "id=%p s_add_event_stream_header_from_js - failed to byte sequence valued header to header list", \
+            log_context); \
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); \
+        goto done; \
+    }
+
+
+static int s_add_event_stream_header_from_js(
+    struct aws_array_list *headers,
+    napi_env env,
+    napi_value napi_header,
+    void *log_context) {
+
+    int result = AWS_OP_ERR;
+
+    struct aws_byte_buf name_buffer;
+    AWS_ZERO_STRUCT(name_buffer);
+
+    struct aws_byte_buf value_buffer;
+    AWS_ZERO_STRUCT(value_buffer);
+
+    if (aws_napi_get_named_property_as_bytebuf(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_NAME, napi_string, &name_buffer) != AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_add_event_stream_header_from_js - failed to parse required 'name' property",
+            log_context);
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        goto done;
+    }
+
+    uint32_t value_type_u32 = 0;
+    enum aws_event_stream_header_value_type value_type = 0;
+    if (aws_napi_get_named_property_as_uint32(env, napi_header, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, &value_type_u32) != AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_add_event_stream_header_from_js - failed to parse required 'type' property",
+            log_context);
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        goto done;
+    }
+
+    value_type = (enum aws_event_stream_header_value_type)value_type_u32;
+    if (value_type < 0 || value_type > AWS_EVENT_STREAM_HEADER_UUID) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_add_event_stream_header_from_js - 'type' property has invalid value",
+            log_context);
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        goto done;
+    }
+
+    switch(value_type) {
+        case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
+        case AWS_EVENT_STREAM_HEADER_BOOL_FALSE:
+            if (aws_event_stream_add_bool_header_by_cursor(headers, aws_byte_cursor_from_buf(&name_buffer), value_type == AWS_EVENT_STREAM_HEADER_BOOL_TRUE)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "id=%p s_add_event_stream_header_from_js - failed to add boolean-valued header",
+                    log_context);
+                goto done;
+            }
+            break;
+
+        case AWS_EVENT_STREAM_HEADER_BYTE: {
+            ADD_INTEGRAL_HEADER(int8_t, aws_napi_get_named_property_as_int8, aws_event_stream_add_byte_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_INT16: {
+            ADD_INTEGRAL_HEADER(int16_t, aws_napi_get_named_property_as_int16, aws_event_stream_add_int16_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_INT32: {
+            ADD_INTEGRAL_HEADER(int32_t, aws_napi_get_named_property_as_int32, aws_event_stream_add_int32_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_INT64: {
+            ADD_INTEGRAL_HEADER(int64_t, aws_napi_get_named_property_bigint_as_int64, aws_event_stream_add_int64_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_BYTE_BUF: {
+            ADD_BUFFERED_HEADER(napi_undefined, aws_event_stream_add_byte_buf_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_STRING: {
+            ADD_BUFFERED_HEADER(napi_string, aws_event_stream_add_string_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_TIMESTAMP: {
+            ADD_INTEGRAL_HEADER(int64_t, aws_napi_get_named_property_as_int64, aws_event_stream_add_timestamp_header_by_cursor)
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_UUID: {
+            ADD_BUFFERED_HEADER(napi_undefined, aws_event_stream_add_uuid_header_by_cursor)
+            break;
+        }
+
+        default:
+            goto done;
+    }
+
+    result = AWS_OP_SUCCESS;
+
+done:
+
+    aws_byte_buf_clean_up(&name_buffer);
+    aws_byte_buf_clean_up(&value_buffer);
+
+    return result;
 }
 
 static int s_aws_event_stream_message_storage_init_from_js(
@@ -365,25 +501,21 @@ static int s_aws_event_stream_message_storage_init_from_js(
             &storage->headers, allocator, header_array_length, sizeof(struct aws_event_stream_header_value_pair));
 
         for (size_t i = 0; i < header_array_length; ++i) {
-            struct aws_event_stream_header_value_pair header;
-            AWS_ZERO_STRUCT(header);
 
             napi_value napi_header = NULL;
             AWS_NAPI_CALL(env, napi_get_element(env, napi_headers, i, &napi_header), { goto error; });
 
-            if (s_init_event_stream_header_from_js(&header, allocator, env, napi_header)) {
+            if (s_add_event_stream_header_from_js(&storage->headers, env, napi_header, log_context)) {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "id=%p s_aws_event_stream_message_storage_init_from_js - could not extract eventstream header",
                     log_context);
                 goto error;
             }
-
-            aws_array_list_push_back(&storage->headers, &header);
         }
     }
 
-    enum aws_napi_get_named_property_result get_payload_result = aws_napi_get_named_property_as_byte_buf(
+    enum aws_napi_get_named_property_result get_payload_result = aws_napi_get_named_property_as_bytebuf(
         env, message, AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD, napi_undefined, &storage->payload);
     if (get_payload_result == AWS_NGNPR_INVALID_VALUE) {
         AWS_LOGF_ERROR(
