@@ -16,6 +16,7 @@ static const char *AWS_EVENT_STREAM_PROPERTY_NAME_TYPE = "type";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_VALUE = "value";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS = "headers";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD = "payload";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_FLAGS = "flags";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -263,14 +264,18 @@ done:
 struct aws_event_stream_message_storage {
     struct aws_allocator *allocator;
     struct aws_array_list headers;
-    struct aws_byte_buf payload;
+    struct aws_byte_buf *payload;
     enum aws_event_stream_rpc_message_type message_type;
     uint32_t message_flags;
 };
 
 static void s_aws_event_stream_message_storage_clean_up(struct aws_event_stream_message_storage *storage) {
     aws_event_stream_headers_list_cleanup(&storage->headers);
-    aws_byte_buf_clean_up(&storage->payload);
+
+    if (storage->payload != NULL) {
+        aws_byte_buf_clean_up(storage->payload);
+        aws_mem_release(storage->allocator, storage->payload);
+    }
 }
 
 static int s_aws_event_stream_message_storage_init_from_native(
@@ -295,8 +300,9 @@ static int s_aws_event_stream_message_storage_init_from_native(
     }
 
     if (message->payload != NULL) {
+        storage->payload = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
         if (aws_byte_buf_init_copy_from_cursor(
-                &storage->payload, allocator, aws_byte_cursor_from_buf(message->payload))) {
+                storage->payload, allocator, aws_byte_cursor_from_buf(message->payload))) {
             goto error;
         }
     }
@@ -526,8 +532,11 @@ static int s_aws_event_stream_message_storage_init_from_js(
         }
     }
 
+    struct aws_byte_buf payload_buffer;
+    AWS_ZERO_STRUCT(payload_buffer);
+
     enum aws_napi_get_named_property_result get_payload_result = aws_napi_get_named_property_as_bytebuf(
-        env, message, AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD, napi_undefined, &storage->payload);
+        env, message, AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD, napi_undefined, &payload_buffer);
     if (get_payload_result == AWS_NGNPR_INVALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
@@ -535,6 +544,9 @@ static int s_aws_event_stream_message_storage_init_from_js(
             log_context);
         aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
         goto error;
+    } else if (get_payload_result == AWS_NGNPR_VALID_VALUE) {
+        storage->payload = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
+        *storage->payload = payload_buffer;
     }
 
     result = AWS_OP_SUCCESS;
@@ -549,14 +561,192 @@ done:
     return result;
 }
 
-static napi_value s_aws_create_napi_value_from_event_stream_message_storage(
+#define AWS_ATTACH_BUFFER_VALUE_TO_HEADER(get_buffer_fn)                                                               \
+    struct aws_byte_buf non_heap_buffer = get_buffer_fn(header);                                                       \
+    struct aws_byte_buf *heap_buffer = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));                      \
+    aws_byte_buf_init_copy_from_cursor(heap_buffer, allocator, aws_byte_cursor_from_buf(&non_heap_buffer));            \
+    if (aws_napi_attach_object_property_binary_as_finalizable_external(                                                \
+            napi_header, env, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, heap_buffer)) {                                    \
+        aws_byte_buf_clean_up(heap_buffer);                                                                            \
+        aws_mem_release(allocator, heap_buffer);                                                                       \
+        return AWS_OP_ERR;                                                                                             \
+    }
+
+static int s_aws_create_napi_header_value(
     napi_env env,
-    const struct aws_event_stream_message_storage *message) {
+    struct aws_event_stream_header_value_pair *header,
+    napi_value *napi_header_out) {
+
+    napi_value napi_header = NULL;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_header), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    struct aws_byte_cursor name_cursor = aws_byte_cursor_from_array(header->header_name, header->header_name_len);
+    if (aws_napi_attach_object_property_string(napi_header, env, AWS_EVENT_STREAM_PROPERTY_NAME_NAME, name_cursor)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u32(
+            napi_header, env, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, (uint32_t)header->header_value_type)) {
+        return AWS_OP_ERR;
+    }
+
+    switch (header->header_value_type) {
+        case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
+        case AWS_EVENT_STREAM_HEADER_BOOL_FALSE:
+            if (aws_napi_attach_object_property_boolean(
+                    napi_header,
+                    env,
+                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
+                    header->header_value_type == AWS_EVENT_STREAM_HEADER_BOOL_TRUE)) {
+                return AWS_OP_ERR;
+            }
+            break;
+
+        case AWS_EVENT_STREAM_HEADER_BYTE:
+            if (aws_napi_attach_object_property_i32(
+                    napi_header,
+                    env,
+                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
+                    aws_event_stream_header_value_as_byte(header))) {
+                return AWS_OP_ERR;
+            }
+            break;
+
+        case AWS_EVENT_STREAM_HEADER_INT16:
+            if (aws_napi_attach_object_property_i32(
+                    napi_header,
+                    env,
+                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
+                    aws_event_stream_header_value_as_int16(header))) {
+                return AWS_OP_ERR;
+            }
+            break;
+
+        case AWS_EVENT_STREAM_HEADER_INT32:
+            if (aws_napi_attach_object_property_i32(
+                    napi_header,
+                    env,
+                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
+                    aws_event_stream_header_value_as_int32(header))) {
+                return AWS_OP_ERR;
+            }
+            break;
+
+        case AWS_EVENT_STREAM_HEADER_INT64:
+            if (aws_napi_attach_object_property_bigint_from_i64(
+                    napi_header,
+                    env,
+                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
+                    aws_event_stream_header_value_as_int64(header))) {
+                return AWS_OP_ERR;
+            }
+            break;
+
+        case AWS_EVENT_STREAM_HEADER_BYTE_BUF: {
+            AWS_ATTACH_BUFFER_VALUE_TO_HEADER(aws_event_stream_header_value_as_bytebuf);
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_UUID: {
+            AWS_ATTACH_BUFFER_VALUE_TO_HEADER(aws_event_stream_header_value_as_uuid);
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_STRING: {
+            struct aws_byte_buf value_buffer = aws_event_stream_header_value_as_string(header);
+            if (aws_napi_attach_object_property_string(
+                    napi_header, env, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, aws_byte_cursor_from_buf(&value_buffer))) {
+                return AWS_OP_ERR;
+            }
+            break;
+        }
+
+        case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
+            if (aws_napi_attach_object_property_u64(
+                    napi_header,
+                    env,
+                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
+                    (uint64_t)aws_event_stream_header_value_as_timestamp(header))) {
+                return AWS_OP_ERR;
+            }
+            break;
+
+        default:
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    *napi_header_out = napi_header;
+
+    return AWS_OP_SUCCESS;
+}
+
+static int s_aws_create_napi_value_from_event_stream_message_storage(
+    napi_env env,
+    struct aws_event_stream_message_storage *message,
+    napi_value *napi_message_out) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
     napi_value napi_message = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_message), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
 
-    // ?? ;
+    if (aws_napi_attach_object_property_u32(
+            napi_message, env, AWS_EVENT_STREAM_PROPERTY_NAME_FLAGS, (uint32_t)message->message_flags)) {
+        return AWS_OP_ERR;
+    }
 
-    return napi_message;
+    if (aws_napi_attach_object_property_u32(
+            napi_message, env, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, (uint32_t)message->message_type)) {
+        return AWS_OP_ERR;
+    }
+
+    if (message->payload->len > 0) {
+        if (aws_napi_attach_object_property_binary_as_finalizable_external(
+                napi_message, env, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, message->payload)) {
+            return AWS_OP_ERR;
+        }
+
+        /* the extern's finalizer is now responsible for cleaning up the buffer */
+        message->payload = NULL;
+    }
+
+    size_t header_count = aws_array_list_length(&message->headers);
+    if (header_count > 0) {
+        napi_value headers_array = NULL;
+        AWS_NAPI_CALL(env, napi_create_array_with_length(env, header_count, &headers_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        for (size_t i = 0; i < header_count; ++i) {
+            napi_value napi_header = NULL;
+
+            struct aws_event_stream_header_value_pair *header = NULL;
+            aws_array_list_get_at_ptr(&message->headers, (void **)&header, i);
+
+            if (s_aws_create_napi_header_value(env, header, &napi_header)) {
+                return AWS_OP_ERR;
+            }
+
+            AWS_NAPI_CALL(env, napi_set_element(env, headers_array, (uint32_t)i, napi_header), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+        }
+
+        AWS_NAPI_CALL(
+            env, napi_set_named_property(env, napi_message, AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS, headers_array), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+    }
+
+    *napi_message_out = napi_message;
+
+    return AWS_OP_SUCCESS;
 }
 
 static void s_napi_event_stream_connection_on_protocol_message(

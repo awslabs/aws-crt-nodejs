@@ -48,6 +48,12 @@ int aws_napi_attach_object_property_optional_boolean(
     const char *key_name,
     const bool *value);
 
+int aws_napi_attach_object_property_bigint_from_i64(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    int64_t value);
+
 int aws_napi_attach_object_property_u64(napi_value object, napi_env env, const char *key_name, uint64_t value);
 
 int aws_napi_attach_object_property_optional_u64(
@@ -63,6 +69,8 @@ int aws_napi_attach_object_property_optional_u32(
     napi_env env,
     const char *key_name,
     const uint32_t *value);
+
+int aws_napi_attach_object_property_i32(napi_value object, napi_env env, const char *key_name, int32_t value);
 
 int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value);
 

@@ -109,6 +109,27 @@ int aws_napi_attach_object_property_optional_boolean(
     return aws_napi_attach_object_property_boolean(object, env, key_name, *value);
 }
 
+int aws_napi_attach_object_property_bigint_from_i64(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    int64_t value) {
+    if (key_name == NULL) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value napi_bigint = NULL;
+
+    AWS_NAPI_CALL(env, napi_create_bigint_int64(env, value, &napi_bigint), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_bigint), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    return AWS_OP_SUCCESS;
+}
+
 /*
  * IEEE fp double analysis says 2 ^ 53 is the maximum sequential value we could support, but the napi docs for
  * napi_create_int64() say (2 ^ 53 - 1) so we'll use their more conservative bound.
@@ -174,6 +195,22 @@ int aws_napi_attach_object_property_optional_u32(
     }
 
     return aws_napi_attach_object_property_u32(object, env, key_name, *value);
+}
+
+int aws_napi_attach_object_property_i32(napi_value object, napi_env env, const char *key_name, int32_t value) {
+    if (key_name == NULL) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value napi_i32 = NULL;
+
+    AWS_NAPI_CALL(
+        env, napi_create_int32(env, value, &napi_i32), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_i32), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    return AWS_OP_SUCCESS;
 }
 
 int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value) {
