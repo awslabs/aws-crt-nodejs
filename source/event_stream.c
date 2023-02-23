@@ -281,7 +281,7 @@ static void s_aws_event_stream_message_storage_clean_up(struct aws_event_stream_
 static int s_aws_event_stream_message_storage_init_from_native(
     struct aws_event_stream_message_storage *storage,
     struct aws_allocator *allocator,
-    struct aws_event_stream_rpc_message_args *message) {
+    const struct aws_event_stream_rpc_message_args *message) {
 
     storage->allocator = allocator;
 
@@ -749,25 +749,90 @@ static int s_aws_create_napi_value_from_event_stream_message_storage(
     return AWS_OP_SUCCESS;
 }
 
+struct aws_event_stream_protocol_message_event {
+    struct aws_allocator *allocator;
+    struct aws_event_stream_message_storage storage;
+    struct aws_event_stream_client_connection_binding *binding;
+};
+
+static void s_aws_event_stream_protocol_message_event_destroy(struct aws_event_stream_protocol_message_event *event) {
+    s_aws_event_stream_message_storage_clean_up(&event->storage);
+
+    aws_mem_release(event->allocator, event);
+}
+
 static void s_napi_event_stream_connection_on_protocol_message(
     napi_env env,
     napi_value function,
     void *context,
     void *user_data) {
-    (void)env;
-    (void)function;
+
     (void)context;
-    (void)user_data;
+
+    struct aws_event_stream_protocol_message_event *message_event = user_data;
+    struct aws_event_stream_client_connection_binding *binding = message_event->binding;
+
+    if (env && !binding->is_closed) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the event stream connection, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_event_stream_client_connection_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_event_stream_connection_on_protocol_message - event_stream_client_connection node wrapper no "
+                "longer resolvable");
+            goto done;
+        }
+
+        if (s_aws_create_napi_value_from_event_stream_message_storage(env, &message_event->storage, &params[1])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_event_stream_connection_on_protocol_message - failed to create JS representation of incoming "
+                "message");
+            goto done;
+        }
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_protocol_message, NULL, function, num_params, params));
+    }
+
+done:
+
+    s_aws_event_stream_protocol_message_event_destroy(message_event);
 }
 
 static void s_aws_event_stream_rpc_client_connection_protocol_message_fn(
     struct aws_event_stream_rpc_client_connection *connection,
     const struct aws_event_stream_rpc_message_args *message_args,
     void *user_data) {
-
     (void)connection;
-    (void)message_args;
-    (void)user_data;
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_event_stream_protocol_message_event *event =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_protocol_message_event));
+
+    event->allocator = allocator;
+    event->binding = user_data;
+
+    if (s_aws_event_stream_message_storage_init_from_native(&event->storage, allocator, message_args)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_event_stream_rpc_client_connection_protocol_message_fn - unable to initialize message storage",
+            (void *)event->binding);
+        s_aws_event_stream_protocol_message_event_destroy(event);
+        return;
+    }
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(event->binding->on_protocol_message, event));
 }
 
 static int s_init_event_stream_connection_configuration_from_js_connection_configuration(
