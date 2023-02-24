@@ -228,6 +228,11 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
         super();
+
+        if (config == null || config == undefined) {
+            throw new CrtError("MqttClientConnection constructor: config not defined");
+        }
+
         // If there is a will, ensure that its payload is normalized to a DataView
         const will = config.will ?
             {
@@ -298,7 +303,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     static CONNECT = 'connect';
 
     /**
-     * Emitted when connection has disconnected sucessfully.
+     * Emitted when connection has disconnected successfully.
      *
      * @event
      */

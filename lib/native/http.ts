@@ -545,6 +545,9 @@ export class HttpClientConnectionManager extends NativeResource {
      * @param connection - The connection to return
     */
     release(connection: HttpClientConnection) {
+        if (connection == null || connection == undefined) {
+            throw new CrtError("HttpClientConnectionManager release: connection not defined");
+        }
         crt_native.http_connection_manager_release(this.native_handle(), connection.native_handle());
     }
 

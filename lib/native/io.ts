@@ -413,6 +413,9 @@ export namespace TlsContextOptions {
  */
 export abstract class TlsContext extends NativeResource {
     constructor(ctx_opt: TlsContextOptions) {
+        if (ctx_opt == null || ctx_opt == undefined) {
+            throw new CrtError("TlsContext constructor: ctx_opt not defined");
+        }
         super(crt_native.io_tls_ctx_new(
             ctx_opt.min_tls_version,
             ctx_opt.ca_filepath,

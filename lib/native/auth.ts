@@ -130,6 +130,10 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
      * @returns a new credentials provider that returns credentials sourced from the AWS Cognito Identity service
      */
     static newCognito(config: CognitoCredentialsProviderConfig): AwsCredentialsProvider {
+        if (config == null || config == undefined) {
+            throw new CrtError("AwsCredentialsProvider newCognito: Cognito config not defined");
+        }
+
         return super.newCognito(config,
             config.tlsContext != null ? config.tlsContext.native_handle() : new ClientTlsContext().native_handle(),
             config.bootstrap != null ? config.bootstrap.native_handle() : null,
@@ -300,7 +304,7 @@ export interface AwsSigningConfig extends auth.AwsSigningConfigBase {
 export async function aws_sign_request(request: HttpRequest, config: AwsSigningConfig): Promise<HttpRequest> {
     return new Promise((resolve, reject) => {
         try {
-            /* Note: if the body of request has not fully loaded, it will lead to an endless loop. 
+            /* Note: if the body of request has not fully loaded, it will lead to an endless loop.
              * User should set the signed_body_value of config to prevent this endless loop in this case */
             crt_native.aws_sign_request(request, config, (error_code) => {
                 if (error_code == 0) {
@@ -324,7 +328,7 @@ export async function aws_sign_request(request: HttpRequest, config: AwsSigningC
  *  (1) The canonical request generated during sigv4a signing of the request matches what is passed in
  *  (2) The signature passed in is a valid ECDSA signature of the hashed string-to-sign derived from the
  *  canonical request
- * 
+ *
  * @param request The HTTP request to sign.
  * @param config Configuration for signing.
  * @param expected_canonical_request String type of expected canonical request. Refer to XXX(link to doc?)
