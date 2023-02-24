@@ -97,7 +97,7 @@ export interface MqttConnectionConfig {
     /** Server port to connect to */
     port: number;
 
-    /** Optional socket options */
+    /** Socket options */
     socket_options: io.SocketOptions;
 
     /** If true, connect to MQTT over websockets */
@@ -253,6 +253,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             min_sec = Math.min(min_sec, max_sec);
         }
 
+        if (client == undefined || client == null) {
+            throw new CrtError("MqttClientConnection constructor: client not defined");
+        }
+        if (config.socket_options == undefined || config.socket_options == null) {
+            throw new CrtError("MqttClientConnection constructor: socket_options in configuration not defined");
+        }
+
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
@@ -360,6 +367,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     async connect() {
         return new Promise<boolean>((resolve, reject) => {
             reject = this._reject(reject);
+
+            if (this.config.socket_options == null || this.config.socket_options == undefined) {
+                throw new CrtError("MqttClientConnection connect: socket_options in configuration not defined");
+            }
 
             try {
                 crt_native.mqtt_client_connection_connect(

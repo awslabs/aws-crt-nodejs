@@ -699,7 +699,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         goto cleanup;
     });
     if (num_args != AWS_ARRAY_SIZE(node_args)) {

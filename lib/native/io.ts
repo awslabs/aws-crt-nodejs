@@ -24,6 +24,7 @@ import { NativeResource } from "./native_resource";
 import { TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
 export { TlsVersion, SocketType, SocketDomain } from '../common/io';
+import { CrtError } from './error';
 
 /**
  * Convert a native error code into a human-readable string
@@ -474,6 +475,9 @@ export class ServerTlsContext extends TlsContext {
  */
 export class TlsConnectionOptions extends NativeResource {
     constructor(readonly tls_ctx: TlsContext, readonly server_name?: string, readonly alpn_list: string[] = []) {
+        if (tls_ctx == null || tls_ctx == undefined) {
+            throw new CrtError("TlsConnectionOptions constructor: tls_ctx not defined");
+        }
         super(crt_native.io_tls_connection_options_new(
             tls_ctx.native_handle(),
             server_name,

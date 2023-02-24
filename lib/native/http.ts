@@ -233,6 +233,10 @@ export class HttpClientConnection extends HttpConnection {
         proxy_options?: HttpProxyOptions,
         handle?: any) {
 
+        if (socket_options == null || socket_options == undefined) {
+            throw new CrtError("HttpClientConnection constructor: socket_options not defined");
+        }
+
         super(handle
             ? handle
             : crt_native.http_connection_new(
@@ -483,6 +487,11 @@ export class HttpClientConnectionManager extends NativeResource {
         readonly tls_opts?: TlsConnectionOptions,
         readonly proxy_options?: HttpProxyOptions,
     ) {
+
+        if (socket_options == null || socket_options == undefined) {
+            throw new CrtError("HttpClientConnectionManager constructor: socket_options not defined");
+        }
+
         super(crt_native.http_connection_manager_new(
             bootstrap != null ? bootstrap.native_handle() : null,
             host,
