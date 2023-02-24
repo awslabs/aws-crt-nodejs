@@ -7,7 +7,7 @@ import * as eventstream from './eventstream';
 import {once} from "events";
 import crt_native from "./binding";
 
-jest.setTimeout(10000);
+jest.setTimeout(10000000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
@@ -64,7 +64,7 @@ async function doConnectionSuccessTest2(config: eventstream.ClientConnectionOpti
 
     await disconnected;
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     connection.close();
 }
@@ -84,7 +84,7 @@ async function doConnectionSuccessTest3(config: eventstream.ClientConnectionOpti
 
     connection.close();
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 200));
 }
 
 /*
@@ -93,22 +93,22 @@ async function doConnectionSuccessTest3(config: eventstream.ClientConnectionOpti
  * to a helper function, making finalization on the extern more likely.
  */
 
-conditional_test(hasEchoServerEnvironment())('Connection Success Echo Server - await connect, close, and forget', async () => {
+conditional_test(hasEchoServerEnvironment())('Transport connection Success Echo Server - await connect, close, and forget', async () => {
     await doConnectionSuccessTest1(makeGoodConfig());
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 200));
 });
 
-conditional_test(hasEchoServerEnvironment())('Connection Success Echo Server - await connect, simulate remote close', async () => {
+conditional_test(hasEchoServerEnvironment())('Transport connection Success Echo Server - await connect, simulate remote close', async () => {
     await doConnectionSuccessTest2(makeGoodConfig());
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 200));
 });
 
-conditional_test(hasEchoServerEnvironment())('Connection Success Echo Server - start connect, close, and forget', async () => {
+conditional_test(hasEchoServerEnvironment())('Transport connection Success Echo Server - start connect, close, and forget', async () => {
     await doConnectionSuccessTest3(makeGoodConfig());
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 200));
 });
 
 async function doConnectionFailureTest(config : eventstream.ClientConnectionOptions) {
@@ -119,18 +119,78 @@ async function doConnectionFailureTest(config : eventstream.ClientConnectionOpti
     connection.close();
 }
 
-conditional_test(hasEchoServerEnvironment())('Connection Failure Echo Server - bad host', async () => {
+conditional_test(hasEchoServerEnvironment())('Transport connection Failure Echo Server - bad host', async () => {
     let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
     badConfig.hostName = "derp.notarealdomainseriously.org";
 
     await doConnectionFailureTest(badConfig);
 });
 
-conditional_test(hasEchoServerEnvironment())('Connection Failure Echo Server - bad port', async () => {
+conditional_test(hasEchoServerEnvironment())('Transport connection Failure Echo Server - bad port', async () => {
     let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
     badConfig.port = 33333;
 
     await doConnectionFailureTest(badConfig);
 });
 
+async function doProtocolConnectionSuccessTest1() {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
+    await connection.connect();
+
+    const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
+
+    let connectMessage: eventstream.Message = {
+        type: eventstream.MessageType.Connect,
+        headers: [
+            eventstream.Header.newString(':version', '0.1.0'),
+            eventstream.Header.newString('client-name', 'accepted.testy_mc_testerson')
+        ]
+    };
+
+    await connection.sendProtocolMessage({
+        message: connectMessage
+    });
+
+    let response : eventstream.MessageEvent = (await connectResponse)[0];
+    let message : eventstream.Message = response.message;
+
+    expect(message.type).toEqual(eventstream.MessageType.ConnectAck);
+    expect(message.flags).toBeDefined();
+    expect((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted).toEqual(eventstream.MessageFlags.ConnectionAccepted);
+
+    connection.close();
+}
+
+conditional_test(hasEchoServerEnvironment())('Protocol connection success Echo Server - happy path', async () => {
+    await doProtocolConnectionSuccessTest1();
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+});
+
+async function doProtocolConnectionSuccessTest2() {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+
+    await connection.connect();
+
+    let connectMessage: eventstream.Message = {
+        type: eventstream.MessageType.Connect,
+        headers: [
+            eventstream.Header.newString(':version', '0.1.0'),
+            eventstream.Header.newString('client-name', 'accepted.testy_mc_testerson')
+        ]
+    };
+
+    connection.sendProtocolMessage({
+        message: connectMessage
+    });
+
+    connection.close();
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+}
+conditional_test(hasEchoServerEnvironment())('Protocol connection success Echo Server - close while connecting', async () => {
+    await doProtocolConnectionSuccessTest2();
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+});

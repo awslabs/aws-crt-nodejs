@@ -497,7 +497,7 @@ static int s_aws_event_stream_message_storage_init_from_js(
     if (get_headers_result == AWS_NGNPR_INVALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
-            "id=%p s_aws_event_stream_message_storage_init_from_js - invalid headers parameter",
+            "id=%p s_aws_event_stream_message_storage_init_from_js - invalid headers property",
             log_context);
         aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
         goto error;
@@ -541,13 +541,36 @@ static int s_aws_event_stream_message_storage_init_from_js(
     if (get_payload_result == AWS_NGNPR_INVALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
-            "id=%p s_aws_event_stream_message_storage_init_from_js - invalid headers parameter",
+            "id=%p s_aws_event_stream_message_storage_init_from_js - invalid headers property",
             log_context);
         aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
         goto error;
     } else if (get_payload_result == AWS_NGNPR_VALID_VALUE) {
         storage->payload = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
         *storage->payload = payload_buffer;
+    }
+
+    uint32_t message_type_uint32 = 0;
+    if (aws_napi_get_named_property_as_uint32(
+            env, message, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, &message_type_uint32) != AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_event_stream_message_storage_init_from_js - invalid message type property",
+            log_context);
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        goto error;
+    }
+
+    storage->message_type = (enum aws_event_stream_rpc_message_type)message_type_uint32;
+
+    if (aws_napi_get_named_property_as_uint32(
+            env, message, AWS_EVENT_STREAM_PROPERTY_NAME_FLAGS, &storage->message_flags) == AWS_NGNPR_INVALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_event_stream_message_storage_init_from_js - invalid message flags property",
+            log_context);
+        aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        goto error;
     }
 
     result = AWS_OP_SUCCESS;
@@ -1363,25 +1386,10 @@ static void s_napi_on_event_stream_client_connection_message_flushed(
     struct aws_event_stream_client_connection_binding *binding = callback_data->binding;
 
     if (env && !binding->is_closed) {
-        napi_value params[2];
+        napi_value params[1];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        /*
-         * If we can't resolve the weak ref to the event stream connection, then it's been garbage collected and we
-         * should not do anything.
-         */
-        params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_event_stream_client_connection_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
-            AWS_LOGF_INFO(
-                AWS_LS_NODEJS_CRT_GENERAL,
-                "s_napi_on_event_stream_client_connection_message_flushed - event_stream_client_connection node "
-                "wrapper no "
-                "longer resolvable");
-            goto done;
-        }
-
-        AWS_NAPI_CALL(env, napi_create_uint32(env, callback_data->error_code, &params[1]), { goto done; });
+        AWS_NAPI_CALL(env, napi_create_uint32(env, callback_data->error_code, &params[0]), { goto done; });
 
         AWS_NAPI_ENSURE(
             env,
@@ -1455,7 +1463,7 @@ napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_en
     napi_value napi_message = NULL;
     if (aws_napi_get_named_property(
             env, napi_message_options, AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE, napi_object, &napi_message) !=
-        AWS_NGNPR_INVALID_VALUE) {
+        AWS_NGNPR_VALID_VALUE) {
         napi_throw_error(
             env,
             NULL,
