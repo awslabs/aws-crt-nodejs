@@ -17,6 +17,7 @@ static const char *AWS_EVENT_STREAM_PROPERTY_NAME_VALUE = "value";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS = "headers";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD = "payload";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_FLAGS = "flags";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE = "message";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -1332,15 +1333,202 @@ napi_value aws_napi_event_stream_client_connection_connect(napi_env env, napi_ca
     return NULL;
 }
 
-/* CR cutoff - everything below here is placeholder */
+struct aws_event_stream_protocol_message_flushed_callback {
+    struct aws_allocator *allocator;
+    struct aws_event_stream_client_connection_binding *binding;
+    napi_threadsafe_function on_message_flushed;
+    int error_code;
+};
+
+static void s_aws_event_stream_protocol_message_flushed_callback_destroy(
+    struct aws_event_stream_protocol_message_flushed_callback *callback_data) {
+    if (callback_data == NULL) {
+        return;
+    }
+
+    AWS_CLEAN_THREADSAFE_FUNCTION(callback_data, on_message_flushed);
+
+    aws_mem_release(callback_data->allocator, callback_data);
+}
+
+static void s_napi_on_event_stream_client_connection_message_flushed(
+    napi_env env,
+    napi_value function,
+    void *context,
+    void *user_data) {
+
+    (void)context;
+
+    struct aws_event_stream_protocol_message_flushed_callback *callback_data = user_data;
+    struct aws_event_stream_client_connection_binding *binding = callback_data->binding;
+
+    if (env && !binding->is_closed) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the event stream connection, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_event_stream_client_connection_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_on_event_stream_client_connection_message_flushed - event_stream_client_connection node "
+                "wrapper no "
+                "longer resolvable");
+            goto done;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, callback_data->error_code, &params[1]), { goto done; });
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, callback_data->on_message_flushed, NULL, function, num_params, params));
+    }
+
+done:
+
+    s_aws_event_stream_protocol_message_flushed_callback_destroy(callback_data);
+}
+
+static void s_aws_event_stream_on_protocol_message_flushed(int error_code, void *user_data) {
+    struct aws_event_stream_protocol_message_flushed_callback *callback_data = user_data;
+
+    callback_data->error_code = error_code;
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(callback_data->on_message_flushed, callback_data));
+}
 
 napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_env env, napi_callback_info info) {
-    (void)info;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_send_protocol_message - NYI");
+    struct aws_event_stream_message_storage message_storage;
+    AWS_ZERO_STRUCT(message_storage);
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_send_protocol_message - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_connection_send_protocol_message - needs exactly 3 arguments");
+        return NULL;
+    }
+
+    struct aws_event_stream_client_connection_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_send_protocol_message - Failed to extract connection binding from "
+            "first "
+            "argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_connection_send_protocol_message - binding was null");
+        return NULL;
+    }
+
+    if (binding->is_closed) {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_connection_send_protocol_message - connection already closed");
+        return NULL;
+    }
+
+    AWS_FATAL_ASSERT(binding->connection != NULL);
+
+    napi_value napi_message_options = *arg++;
+    napi_value napi_message = NULL;
+    if (aws_napi_get_named_property(
+            env, napi_message_options, AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE, napi_object, &napi_message) !=
+        AWS_NGNPR_INVALID_VALUE) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_send_protocol_message - message options with invalid message "
+            "parameter");
+        return NULL;
+    }
+
+    struct aws_event_stream_protocol_message_flushed_callback *callback_data =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_protocol_message_flushed_callback));
+    callback_data->allocator = allocator;
+    callback_data->binding = binding;
+
+    if (s_aws_event_stream_message_storage_init_from_js(&message_storage, allocator, env, napi_message, binding)) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_send_protocol_message - failed to read message properties from JS "
+            "object");
+        goto error;
+    }
+
+    napi_value message_flushed_callback = *arg++;
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            message_flushed_callback,
+            "aws_event_stream_client_connection_on_message_flushed",
+            s_napi_on_event_stream_client_connection_message_flushed,
+            callback_data,
+            &callback_data->on_message_flushed),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_event_stream_client_connection_send_protocol_message - failed to create threadsafe callback "
+                "function");
+            goto error;
+        });
+
+    struct aws_event_stream_rpc_message_args message_args = {
+        .headers = (struct aws_event_stream_header_value_pair *)message_storage.headers.data,
+        .headers_count = aws_array_list_length(&message_storage.headers),
+        .payload = message_storage.payload,
+        .message_type = message_storage.message_type,
+        .message_flags = message_storage.message_flags,
+    };
+
+    if (aws_event_stream_rpc_client_connection_send_protocol_message(
+            binding->connection, &message_args, s_aws_event_stream_on_protocol_message_flushed, callback_data)) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_connection_send_protocol_message - synchronous error invoking native "
+            "send_protocol_message");
+        goto error;
+    }
+
+    goto done;
+
+error:
+
+    s_aws_event_stream_protocol_message_flushed_callback_destroy(callback_data);
+
+done:
+
+    s_aws_event_stream_message_storage_clean_up(&message_storage);
 
     return NULL;
 }
+
+/* CR cutoff - everything below here is placeholder */
 
 napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_info info) {
     (void)info;
