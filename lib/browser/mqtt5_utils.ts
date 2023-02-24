@@ -85,10 +85,6 @@ export function create_negotiated_settings(config : mqtt5.Mqtt5ClientConfig, con
 
 /** @internal */
 function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5.ConnectPacket) : any {
-    if (connectProperties == null || connectProperties == undefined) {
-        throw new CrtError("create_mqtt_js_will_from_crt_config: connectProperties not defined");
-    }
-
     if (!connectProperties || !connectProperties.will) {
         return undefined;
     }
