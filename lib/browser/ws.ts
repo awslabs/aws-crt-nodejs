@@ -51,6 +51,9 @@ function canonical_day(time: string = canonical_time()) {
 
 /** @internal */
 function make_signing_key(credentials: AWSCredentials, day: string, service_name: string) {
+    if (credentials == null || credentials == undefined) {
+        throw new CrtError("make_signing_key: credentials not defined");
+    }
     const hash_opts = { asBytes: true };
     let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key, hash_opts);
     hash = Crypto.HmacSHA256(credentials.aws_region || '', hash, hash_opts);
@@ -66,6 +69,10 @@ function sign_url(method: string,
     time: string = canonical_time(),
     day: string = canonical_day(time),
     payload: string = '') {
+
+    if (signing_config == null || signing_config == undefined) {
+        throw new CrtError("sign_url: signing_config not defined");
+    }
 
     // region should not have been put in credentials, but we have to live with it
     let region: string = signing_config.credentials.aws_region ?? signing_config.region;
@@ -90,6 +97,9 @@ function sign_url(method: string,
 
 /** @internal */
 export function create_websocket_url(config: MqttConnectionConfig) {
+    if (config == null || config == undefined) {
+        throw new CrtError("create_websocket_url: config not defined");
+    }
     const path = '/mqtt';
     const protocol = (config.websocket || {}).protocol || 'wss';
     if (protocol === 'wss') {
@@ -124,6 +134,9 @@ export function create_websocket_stream(config: MqttConnectionConfig) {
 
 /** @internal */
 export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
+    if (config == null || config == undefined) {
+        throw new CrtError("create_mqtt5_websocket_url: config not defined");
+    }
     const path = '/mqtt';
     const websocketConfig : mqtt5.Mqtt5WebsocketConfig = config.websocketOptions ?? { urlFactoryOptions: { urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws} };
     const urlFactory : mqtt5.Mqtt5WebsocketUrlFactoryType = websocketConfig.urlFactoryOptions.urlFactory;

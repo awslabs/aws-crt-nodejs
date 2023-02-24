@@ -13,6 +13,7 @@ import * as mqtt5 from "./mqtt5";
 import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as auth from "./auth";
 import * as iot_shared from "../common/aws_iot_shared";
+import { CrtError } from "./error";
 
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
@@ -80,6 +81,10 @@ export class AwsIotMqtt5ClientConfigBuilder {
      * @param sigv4Config - additional sigv4-oriented options to use
      */
     static newWebsocketMqttBuilderWithSigv4Auth(hostName : string, sigv4Config: WebsocketSigv4Config) : AwsIotMqtt5ClientConfigBuilder {
+
+        if (sigv4Config == null || sigv4Config == undefined) {
+            throw new CrtError("AwsIotMqtt5ClientConfigBuilder newWebsocketMqttBuilderWithSigv4Auth: sigv4Config not defined");
+        }
 
         let region : string = sigv4Config.region ?? iot_shared.extractRegionFromEndpoint(hostName);
 
