@@ -29,20 +29,12 @@ static const char *AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE = "message";
  *      in the binding
  *  (2) Otherwise, you may only access thread-safe functions or the binding's ref count APIs.  In particular,
  *      'connection' and 'is_closed' are off-limits unless you're in the libuv thread.
- *
- * TODO: The eventstream bindings are based loosely on the MQTT5 bindings.  We've been able to make at least one
- * simplification that might be worth applying back to the MQTT5 bindings:
- *
- *  (1) By pushing handling the connection shutdown notification into the libuv thread, we don't need to ref count
- *      operations until they're completed.  If we're processing the connection shutdown in the libuv thread, we will
- *      not be receiving any further callbacks and nothing is pending execution (in the libuv thread).  We could
- *      do something similar and push handling the client termination callback into libuv.
  */
 struct aws_event_stream_client_connection_binding {
     struct aws_allocator *allocator;
 
     /*
-     * We ref count the binding itself because there's two independent time intervals that together create a union
+     * We ref count the binding itself because there are two primary time intervals that together create a union
      * that we must honor.
      *
      * Interval #1: The binding must live from new() to extern finalizer, which is only triggered by a call to close()
@@ -51,6 +43,12 @@ struct aws_event_stream_client_connection_binding {
      *    and ship them across to the libuv thread.  When the libuv thread is processing a connection failure or
      *    a connection shutdown, we know that no other events can possibly be pending ()hey would have already been
      *    processed in the libuv thread).
+     *
+     * The union of those two intervals is "probably" enough, but its correctness would rest on an internal property
+     * of the node implementation itself: "are calls to napi_call_threadsafe_function() well-ordered with respect to
+     * a single producer (we only call it from the libuv thread itself)?"  This is almost certainly true, but I don't
+     * see it guaranteed within the n-api documentation.  For that reason, we also add the intervals of all
+     * completable connection events: incoming protocol messages and outbound message flushes
      */
     struct aws_ref_count ref_count;
 
@@ -780,7 +778,12 @@ struct aws_event_stream_protocol_message_event {
 };
 
 static void s_aws_event_stream_protocol_message_event_destroy(struct aws_event_stream_protocol_message_event *event) {
+    if (event == NULL) {
+        return;
+    }
+
     s_aws_event_stream_message_storage_clean_up(&event->storage);
+    s_aws_event_stream_client_connection_binding_release(event->binding);
 
     aws_mem_release(event->allocator, event);
 }
@@ -844,7 +847,8 @@ static void s_aws_event_stream_rpc_client_connection_protocol_message_fn(
         aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_protocol_message_event));
 
     event->allocator = allocator;
-    event->binding = user_data;
+    event->binding = s_aws_event_stream_client_connection_binding_acquire(
+        (struct aws_event_stream_client_connection_binding *)user_data);
 
     if (s_aws_event_stream_message_storage_init_from_native(&event->storage, allocator, message_args)) {
         AWS_LOGF_ERROR(
@@ -1370,6 +1374,7 @@ static void s_aws_event_stream_protocol_message_flushed_callback_destroy(
     }
 
     AWS_CLEAN_THREADSAFE_FUNCTION(callback_data, on_message_flushed);
+    s_aws_event_stream_client_connection_binding_release(callback_data->binding);
 
     aws_mem_release(callback_data->allocator, callback_data);
 }
@@ -1475,7 +1480,7 @@ napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_en
     struct aws_event_stream_protocol_message_flushed_callback *callback_data =
         aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_protocol_message_flushed_callback));
     callback_data->allocator = allocator;
-    callback_data->binding = binding;
+    callback_data->binding = s_aws_event_stream_client_connection_binding_acquire(binding);
 
     if (s_aws_event_stream_message_storage_init_from_js(&message_storage, allocator, env, napi_message, binding)) {
         napi_throw_error(
