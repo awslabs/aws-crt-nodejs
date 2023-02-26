@@ -72,9 +72,6 @@ async function doConnectionSuccessTest2(config: eventstream.ClientConnectionOpti
 /*
  * Quasi-success test where we kick off the connection (which will complete successfully) but immediately close it.
  *
- * TODO: because connect can only be called once, we could track the associated promise and reject it in this
- *  case, which would make things safer since you wouldn't be able to accidentally wait forever for something that
- *  will never complete.
  */
 async function doConnectionSuccessTest3(config: eventstream.ClientConnectionOptions) {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
@@ -162,7 +159,7 @@ async function doProtocolConnectionSuccessTest1() {
     connection.close();
 }
 
-test('Eventstream protocol connection success Echo Server - happy path', async () => {
+conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection success Echo Server - happy path', async () => {
     await doProtocolConnectionSuccessTest1();
 
     await new Promise(resolve => setTimeout(resolve, 200));
