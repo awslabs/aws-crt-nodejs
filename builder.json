@@ -1,8 +1,7 @@
 {
     "name": "aws-crt-nodejs",
     "+imports": [
-        "node-12",
-        "JDK8"
+        "node-12"
     ],
     "deps_dir": "deps",
     "hosts": {
@@ -26,18 +25,6 @@
                     "run",
                     "test:browser:ci"
                 ]
-            ]
-        },
-        "ubuntu": {
-            "_comment": "We pull in a Java environment in order to build and run the eventstream Echo RPC server for eventstream tests",
-            "packages": [
-                "openjdk-8-jdk-headless"
-            ]
-        },
-        "debian": {
-            "_comment": "We pull in a Java environment in order to build and run the eventstream Echo RPC server for eventstream tests",
-            "packages": [
-                "openjdk-8-jdk-headless"
             ]
         }
     },
