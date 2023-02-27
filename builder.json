@@ -4,8 +4,7 @@
         "maven"
     ],
     "+imports": [
-        "node-12",
-        "JDK8"
+        "node-12"
     ],
     "deps_dir": "deps",
     "hosts": {
