@@ -201,19 +201,19 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configures Static AWS credentials for this connection. 
+     * Configures Static AWS credentials for this connection.
      * Please note that the static credential will fail when the web session expired.
      * @param aws_region The service region to connect to
      * @param aws_access_id IAM Access ID
      * @param aws_secret_key IAM Secret Key
      * @param aws_sts_token session credentials token (optional)
-     * 
+     *
      * @returns this builder object
      */
      with_credentials(aws_region: string, aws_access_id: string, aws_secret_key: string, aws_sts_token?: string) {
         const provider = new StaticCredentialProvider(
-            { aws_region: aws_region, 
-              aws_access_id: aws_access_id, 
+            { aws_region: aws_region,
+              aws_access_id: aws_access_id,
               aws_secret_key: aws_secret_key,
               aws_sts_token: aws_sts_token});
         this.params.credentials_provider = provider;
@@ -223,7 +223,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * Configures credentials provider (currently support for AWS Cognito Credential Provider) for this connection
      * @param customer_provider credential provider used to update credential when session expired (optional)
-     * 
+     *
      * @returns this builder object
      */
     with_credential_provider( customer_provider : CredentialsProvider) {
@@ -277,9 +277,9 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configure the max reconnection period (in second). The reonnection period will
-     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
-     * @param reconnect_max_sec max reconnection period 
+     * Configure the max reconnection period (in second). The reconnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec].
+     * @param reconnect_max_sec max reconnection period
      */
     with_reconnect_max_sec(max_sec: number) {
         this.params.reconnect_max_sec = max_sec;
@@ -287,9 +287,9 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Configure the min reconnection period (in second). The reonnection period will
-     * be set in range of [reconnect_min_sec,reconnect_max_sec]. 
-     * @param reconnect_min_sec min reconnection period 
+     * Configure the min reconnection period (in second). The reconnection period will
+     * be set in range of [reconnect_min_sec,reconnect_max_sec].
+     * @param reconnect_min_sec min reconnection period
      */
     with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
