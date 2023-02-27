@@ -73,10 +73,10 @@ export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBuff
  */
 const MAX_INT8 : number = 127;
 const MIN_INT8 : number = -128;
-const MAX_INT16 : number = 65535;
-const MIN_INT16 : number = -65536;
-const MAX_INT32 : number = ((1 << 31) - 1);
-const MIN_INT32 : number = -(1 << 31);
+const MAX_INT16 : number = 32767;
+const MIN_INT16 : number = -32768;
+const MAX_INT32 : number = 2147483647;
+const MIN_INT32 : number = -2147483648;
 const MAX_INT64 : bigint = BigInt("9223372036854775807");
 const MIN_INT64 : bigint = BigInt("-9223372036854775808");
 
@@ -94,7 +94,7 @@ export class Header {
     }
 
     private static isHeaderNameValid(name: string) {
-        return name.length <= AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH;
+        return name.length > 0 && name.length <= AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH;
     }
 
     /**
@@ -246,7 +246,7 @@ export class Header {
             throw new CrtError(`Event stream header name (${name}) is not valid`);
         }
 
-        if (Number.isSafeInteger(secondsSinceEpoch)) {
+        if (Number.isSafeInteger(secondsSinceEpoch) && secondsSinceEpoch >= 0) {
             return new Header(name, HeaderType.Timestamp, secondsSinceEpoch);
         }
 
