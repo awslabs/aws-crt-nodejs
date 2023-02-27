@@ -1,8 +1,5 @@
 {
     "name": "aws-crt-nodejs",
-    "+packages": [
-        "maven"
-    ],
     "+imports": [
         "node-14",
         "JDK8"
