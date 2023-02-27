@@ -120,7 +120,7 @@ static struct aws_event_stream_client_connection_binding *s_aws_event_stream_cli
     return NULL;
 }
 
-static void s_close_binding(napi_env env, struct aws_event_stream_client_connection_binding *binding) {
+static void s_close_connection_binding(napi_env env, struct aws_event_stream_client_connection_binding *binding) {
     AWS_FATAL_ASSERT(env != NULL);
 
     binding->is_closed = true;
@@ -918,6 +918,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         {
             aws_mem_release(allocator, binding);
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to create n-api external");
+            s_aws_event_stream_client_connection_binding_release(binding);
             goto done;
         });
 
@@ -925,7 +926,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     napi_value node_connection = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_connection)) {
         napi_throw_error(env, NULL, "event_stream_client_connection_new - Required connection parameter is null");
-        goto done;
+        goto error;
     }
 
     AWS_NAPI_CALL(
@@ -934,14 +935,14 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - Failed to create reference to node event stream connection");
-            goto done;
+            goto error;
         });
 
     /* Arg #2: the event stream connection options object */
     napi_value node_connection_options = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_connection_options)) {
         napi_throw_error(env, NULL, "event_stream_client_connection_new - Required options parameter is null");
-        goto done;
+        goto error;
     }
 
     if (s_init_event_stream_connection_configuration_from_js_connection_configuration(
@@ -951,7 +952,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
             NULL,
             "event_stream_client_connection_new - failed to initialize native connection configuration from js "
             "connection configuration");
-        goto done;
+        goto error;
     }
 
     /* Arg #3: on disconnect event handler */
@@ -959,7 +960,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     if (aws_napi_is_null_or_undefined(env, on_connection_shutdown_event_handler)) {
         napi_throw_error(
             env, NULL, "event_stream_client_connection_new - required on_connection_shutdown event handler is null");
-        goto done;
+        goto error;
     }
 
     AWS_NAPI_CALL(
@@ -976,7 +977,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - failed to initialize on_connection_shutdown event handler");
-            goto done;
+            goto error;
         });
 
     /* Arg #4: on protocol message event handler */
@@ -984,7 +985,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     if (aws_napi_is_null_or_undefined(env, on_protocol_message_event_handler)) {
         napi_throw_error(
             env, NULL, "event_stream_client_connection_new - required on_protocol_message event handler is null");
-        goto done;
+        goto error;
     }
 
     AWS_NAPI_CALL(
@@ -1001,7 +1002,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - failed to initialize on_protocol_message event handler");
-            goto done;
+            goto error;
         });
 
     /* Arg #5: socket options */
@@ -1011,12 +1012,12 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&socket_options_ptr), {
             napi_throw_error(
                 env, NULL, "event_stream_client_connection_new - Unable to extract socket_options from external");
-            goto done;
+            goto error;
         });
 
         if (socket_options_ptr == NULL) {
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Null socket options");
-            goto done;
+            goto error;
         }
 
         binding->socket_options = *socket_options_ptr;
@@ -1028,7 +1029,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         struct aws_tls_ctx *tls_ctx;
         AWS_NAPI_CALL(env, napi_get_value_external(env, node_tls, (void **)&tls_ctx), {
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to extract tls_ctx from external");
-            goto done;
+            goto error;
         });
 
         aws_tls_connection_options_init_from_ctx(&binding->tls_connection_options, tls_ctx);
@@ -1041,10 +1042,15 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
                 env,
                 NULL,
                 "event_stream_client_connection_new - Failed to create one count reference to napi external");
-            goto done;
+            goto error;
         });
 
     node_connection_ref = node_external;
+    goto done;
+
+error:
+
+    s_close_connection_binding(env, binding);
 
 done:
 
@@ -1081,7 +1087,7 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
     }
 
     /* This severs the ability to call back into JS and makes the binding's extern available for garbage collection */
-    s_close_binding(env, binding);
+    s_close_connection_binding(env, binding);
 
     if (binding->connection != NULL) {
         aws_event_stream_rpc_client_connection_close(binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE);
@@ -1541,20 +1547,376 @@ done:
     return NULL;
 }
 
-/* CR cutoff - everything below here is placeholder */
+/*********************************************************************************************************************/
 
-napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_info info) {
-    (void)info;
+/*
+ * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
+ * to this object to destroy the stream (and itself, afterwards).
+ *
+ * WARNING
+ * Data Access Rules:
+ *  (1) If in the libuv thread (called from JS or in the invocation of a thread-safe function), you may access anything
+ *      in the binding
+ *  (2) Otherwise, you may only access thread-safe functions or the binding's ref count APIs.  In particular,
+ *      'stream' and 'is_closed' are off-limits unless you're in the libuv thread.
+ */
+struct aws_event_stream_client_stream_binding {
+    struct aws_allocator *allocator;
 
-    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - NYI");
+    /*
+     * We ref count the binding itself because there are two primary time intervals that together create a union
+     * that we must honor.
+     *
+     * Interval #1: The binding must live from new() to extern finalizer, which is only triggered by a call to close()
+     * Interval #2: The binding must live from activate() to {stream failure || stream shutdown} as processed
+     *    by the libuv thread.  It is incorrect to react to those events in the event loop callback; we must bundle
+     *    and ship them across to the libuv thread.  When the libuv thread is processing a stream failure or
+     *    shutdown, we know that no other events can possibly be pending ()hey would have already been
+     *    processed in the libuv thread).
+     *
+     * The union of those two intervals is "probably" enough, but its correctness would rest on an internal property
+     * of the node implementation itself: "are calls to napi_call_threadsafe_function() well-ordered with respect to
+     * a single producer (we only call it from the libuv thread itself)?"  This is almost certainly true, but I don't
+     * see it guaranteed within the n-api documentation.  For that reason, we also add the intervals of all
+     * completable stream events: incoming stream messages and outbound message flushes
+     */
+    struct aws_ref_count ref_count;
+
+    /*
+     * May only be accessed from within the libuv thread.  This includes stream APIs like acquire and release.
+     */
+    struct aws_event_stream_rpc_client_continuation_token *stream;
+    bool is_closed;
+
+    /*
+     * Single count ref to the JS stream object.
+     */
+    napi_ref node_event_stream_client_stream_ref;
+
+    /*
+     * Single count ref to the node external managed by the binding.
+     */
+    napi_ref node_event_stream_client_stream_external_ref;
+
+    napi_threadsafe_function on_stream_activated;
+    napi_threadsafe_function on_stream_ended;
+    napi_threadsafe_function on_stream_message;
+};
+
+static void s_aws_event_stream_client_stream_binding_on_zero(void *context) {
+    if (context == NULL) {
+        return;
+    }
+
+    struct aws_event_stream_client_stream_binding *binding = context;
+
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stream_activated);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stream_ended);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stream_message);
+
+    aws_mem_release(binding->allocator, binding);
+}
+
+static struct aws_event_stream_client_stream_binding *s_aws_event_stream_client_stream_binding_acquire(
+    struct aws_event_stream_client_stream_binding *binding) {
+    if (binding == NULL) {
+        return NULL;
+    }
+
+    aws_ref_count_acquire(&binding->ref_count);
+    return binding;
+}
+
+static struct aws_event_stream_client_stream_binding *s_aws_event_stream_client_stream_binding_release(
+    struct aws_event_stream_client_stream_binding *binding) {
+    if (binding != NULL) {
+        aws_ref_count_release(&binding->ref_count);
+    }
 
     return NULL;
 }
 
-napi_value aws_napi_event_stream_client_stream_close(napi_env env, napi_callback_info info) {
-    (void)info;
+static void s_close_stream_binding(napi_env env, struct aws_event_stream_client_stream_binding *binding) {
+    AWS_FATAL_ASSERT(env != NULL);
 
-    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_close - NYI");
+    binding->is_closed = true;
+
+    napi_ref node_event_stream_client_stream_external_ref = binding->node_event_stream_client_stream_external_ref;
+    binding->node_event_stream_client_stream_external_ref = NULL;
+
+    napi_ref node_event_stream_client_stream_ref = binding->node_event_stream_client_stream_ref;
+    binding->node_event_stream_client_stream_ref = NULL;
+
+    if (node_event_stream_client_stream_external_ref != NULL) {
+        napi_delete_reference(env, node_event_stream_client_stream_external_ref);
+    }
+
+    if (node_event_stream_client_stream_ref != NULL) {
+        napi_delete_reference(env, node_event_stream_client_stream_ref);
+    }
+}
+
+/*
+ * Invoked when the node stream object is garbage collected or if fails construction partway through
+ */
+static void s_aws_event_stream_client_stream_extern_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)finalize_hint;
+    (void)env;
+
+    struct aws_event_stream_client_stream_binding *binding = finalize_data;
+
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_event_tream_client_stream_extern_finalize - event stream client stream node wrapper is "
+        "being finalized",
+        (void *)binding->stream);
+
+    /*
+     * Only an explicit call to close() from JS will break the extern ref that keeps the finalizer from being called.
+     * If we're here, this must be true.
+     */
+    AWS_FATAL_ASSERT(binding->is_closed);
+
+    /*
+     * Release the allocation-ref on the binding.  If there is a stream activation in progress (or being shutdown) there
+     * is a second ref outstanding which is removed on stream shutdown or failed activation.
+     */
+    s_aws_event_stream_client_stream_binding_release(binding);
+}
+
+static void s_napi_event_stream_on_stream_ended(napi_env env, napi_value function, void *context, void *user_data) {
+
+    (void)env;
+    (void)function;
+    (void)context;
+    (void)user_data;
+}
+
+static void s_napi_event_stream_on_stream_message(napi_env env, napi_value function, void *context, void *user_data) {
+
+    (void)env;
+    (void)function;
+    (void)context;
+    (void)user_data;
+}
+
+static void s_event_stream_on_stream_message(
+    struct aws_event_stream_rpc_client_continuation_token *stream,
+    const struct aws_event_stream_rpc_message_args *message_args,
+    void *user_data) {
+    (void)stream;
+    (void)message_args;
+    (void)user_data;
+}
+
+static void s_event_stream_on_stream_ended(
+    struct aws_event_stream_rpc_client_continuation_token *stream,
+    void *user_data) {
+    (void)stream;
+    (void)user_data;
+}
+
+napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[4];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - needs exactly 6 arguments");
+        return NULL;
+    }
+
+    napi_value node_stream_ref = NULL;
+    napi_value node_external = NULL;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    struct aws_event_stream_client_stream_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_client_stream_binding));
+    binding->allocator = allocator;
+    aws_ref_count_init(&binding->ref_count, binding, s_aws_event_stream_client_stream_binding_on_zero);
+
+    AWS_NAPI_CALL(
+        env,
+        napi_create_external(env, binding, s_aws_event_stream_client_stream_extern_finalize, NULL, &node_external),
+        {
+            aws_mem_release(allocator, binding);
+            napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to create n-api external");
+            s_aws_event_stream_client_stream_binding_release(binding);
+            goto done;
+        });
+
+    /*
+     * From here on out, a failure will lead the external to getting finalized by node, which in turn will lead the
+     * binding to getting cleaned up.
+     */
+
+    /* Arg #1: the js stream */
+    napi_value node_stream = *arg++;
+    if (aws_napi_is_null_or_undefined(env, node_stream)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Required stream parameter is null");
+        goto error;
+    }
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_stream, 1, &binding->node_event_stream_client_stream_ref), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_stream_new - Failed to create reference to node event stream client stream");
+        goto error;
+    });
+
+    /* Arg #2: the event stream connection to create a stream on */
+    struct aws_event_stream_client_connection_binding *connection_binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_stream_new - Failed to extract connection binding from "
+            "first "
+            "argument");
+        goto error;
+    });
+
+    if (connection_binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - binding was null");
+        goto error;
+    }
+
+    if (connection_binding->is_closed) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - connection already closed");
+        goto error;
+    }
+
+    if (connection_binding->connection == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - connection is null");
+        goto error;
+    }
+
+    /* Arg #3: on stream ended event handler */
+    napi_value on_stream_ended_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_stream_ended_event_handler)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_stream_new - required on_stream_ended event handler is null");
+        goto error;
+    }
+
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            on_stream_ended_event_handler,
+            "aws_event_stream_client_connection_on_stream_ended",
+            s_napi_event_stream_on_stream_ended,
+            NULL,
+            &binding->on_stream_ended),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_event_stream_client_stream_new - failed to initialize on_stream_ended threadsafe function");
+            goto error;
+        });
+
+    /* Arg #4: on stream message event handler */
+    napi_value on_stream_message_event_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_stream_message_event_handler)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_event_stream_client_stream_new - required on_stream_message event handler is null");
+        goto error;
+    }
+
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            on_stream_message_event_handler,
+            "aws_event_stream_on_stream_message",
+            s_napi_event_stream_on_stream_message,
+            NULL,
+            &binding->on_stream_message),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_event_stream_client_stream_new - failed to initialize on_stream_message threadsafe function");
+            goto error;
+        });
+
+    struct aws_event_stream_rpc_client_stream_continuation_options stream_options = {
+        .on_continuation = s_event_stream_on_stream_message,
+        .on_continuation_closed = s_event_stream_on_stream_ended,
+        .user_data = binding,
+    };
+
+    binding->stream =
+        aws_event_stream_rpc_client_connection_new_stream(connection_binding->connection, &stream_options);
+    if (binding->stream == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to create native stream");
+        goto error;
+    }
+
+    AWS_NAPI_CALL(
+        env, napi_create_reference(env, node_external, 1, &binding->node_event_stream_client_stream_external_ref), {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_event_stream_client_stream_new - Failed to create one count reference to napi external");
+            goto error;
+        });
+
+    node_stream_ref = node_external;
+    goto done;
+
+error:
+
+    s_close_stream_binding(env, binding);
+
+done:
+
+    return node_stream_ref;
+}
+
+napi_value aws_napi_event_stream_client_stream_close(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_close - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_close - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_event_stream_client_stream_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_stream_close - Failed to extract stream binding from first argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_close - binding was null");
+        return NULL;
+    }
+
+    /* This severs the ability to call back into JS and makes the binding's extern available for garbage collection */
+    s_close_stream_binding(env, binding);
+
+    if (binding->stream != NULL) {
+        aws_event_stream_rpc_client_continuation_release(binding->stream);
+        binding->stream = NULL;
+    }
 
     return NULL;
 }

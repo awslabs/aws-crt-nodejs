@@ -482,8 +482,8 @@ export function event_stream_client_connection_send_protocol_message(
 export function event_stream_client_stream_new(
     stream: eventstream.ClientStream,
     connection: NativeHandle,
-    on_terminated_handler: (stream: eventstream.ClientStream, errorCode: number) => void,
-    on_message_handler: (stream: eventstream.ClientStream, message: eventstream.Message) => void,
+    on_stream_ended_handler: (stream: eventstream.ClientStream, errorCode: number) => void,
+    on_stream_message_handler: (stream: eventstream.ClientStream, message: eventstream.Message) => void,
 ) : NativeHandle;
 
 /** @internal */

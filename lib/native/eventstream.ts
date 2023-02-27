@@ -795,13 +795,11 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     private state : ClientConnectionState;
 }
 
-/* CR cutoff - everything below here is placeholder */
-
-export interface StreamClosedEvent {
+export interface StreamEndedEvent {
     errorCode: number;
 }
 
-export type StreamClosedListener = (eventData: StreamClosedEvent) => void;
+export type StreamEndedListener = (eventData: StreamEndedEvent) => void;
 
 enum ClientStreamState {
     None,
@@ -821,8 +819,8 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         this._super(crt_native.event_stream_client_stream_new(
             this,
             connection.native_handle(),
-            (stream: ClientStream, errorCode: number) => { ClientStream._s_on_stream_terminated(stream, errorCode); },
-            (stream: ClientStream, message: Message) => { ClientStream._s_on_continuation_message(stream, message); },
+            (stream: ClientStream, errorCode: number) => { ClientStream._s_on_stream_ended(stream, errorCode); },
+            (stream: ClientStream, message: Message) => { ClientStream._s_on_stream_message(stream, message); },
         ));
     }
 
@@ -875,9 +873,27 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         });
     }
 
-    on(event: 'terminated', listener: StreamClosedListener): this;
+    /**
+     * Event emitted when the stream is shut down for any reason.
+     *
+     * Listener type: {@link StreamEndedListener}
+     *
+     * @event
+     */
+    static STREAM_ENDED : string = 'streamEnded';
 
-    on(event: 'message', listener: MessageListener): this;
+    /**
+     * Event emitted when a stream message is received from the remote endpoint
+     *
+     * Listener type: {@link MessageListener}
+     *
+     * @event
+     */
+    static STREAM_MESSAGE : string = 'streamMessage';
+
+    on(event: 'streamEnded', listener: StreamEndedListener): this;
+
+    on(event: 'streamMessage', listener: MessageListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -905,12 +921,12 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         }
     }
 
-    private static _s_on_stream_terminated(stream: ClientStream, errorCode: number) {
-        stream.emit('terminated', {errorCode: errorCode});
+    private static _s_on_stream_ended(stream: ClientStream, errorCode: number) {
+        stream.emit(ClientStream.STREAM_ENDED, { errorCode: errorCode });
     }
 
-    private static _s_on_continuation_message(stream: ClientStream, message: Message) {
-        stream.emit('message', { message: message });
+    private static _s_on_stream_message(stream: ClientStream, message: Message) {
+        stream.emit(ClientStream.STREAM_MESSAGE, { message: message });
     }
 
     private state : ClientStreamState;
