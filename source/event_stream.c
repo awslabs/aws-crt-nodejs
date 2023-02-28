@@ -18,6 +18,7 @@ static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HEADERS = "headers";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD = "payload";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_FLAGS = "flags";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE = "message";
+static const char *AWS_EVENT_STREAM_PROPERTY_NAME_OPERATION = "operation";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -1921,10 +1922,205 @@ napi_value aws_napi_event_stream_client_stream_close(napi_env env, napi_callback
     return NULL;
 }
 
-napi_value aws_napi_event_stream_client_stream_activate(napi_env env, napi_callback_info info) {
-    (void)info;
+struct aws_event_stream_activation_event_data {
+    struct aws_allocator *allocator;
+    int error_code;
+    struct aws_event_stream_client_stream_binding *binding;
+};
 
-    napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_activate - NYI");
+static void s_napi_on_event_stream_client_stream_activation(
+    napi_env env,
+    napi_value function,
+    void *context,
+    void *user_data) {
+    (void)context;
+
+    struct aws_event_stream_activation_event_data *activation_data = user_data;
+    struct aws_event_stream_client_stream_binding *binding = activation_data->binding;
+
+    if (env && !binding->is_closed) {
+        napi_value params[1];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, activation_data->error_code, &params[0]), { goto done; });
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(
+                env, binding->on_stream_activated, NULL, function, num_params, params));
+    }
+
+done:
+
+    /* A failed activation must release the binding ref acquired in the call to activate() */
+    if (activation_data->error_code != 0) {
+        s_aws_event_stream_client_stream_binding_release(binding);
+    }
+
+    aws_mem_release(activation_data->allocator, activation_data);
+}
+
+static void s_aws_event_stream_on_stream_activation_flush(int error_code, void *user_data) {
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_event_stream_client_stream_binding *binding = user_data;
+
+    struct aws_event_stream_activation_event_data *activation_data =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_activation_event_data));
+    activation_data->allocator = allocator;
+    activation_data->error_code = error_code;
+    activation_data->binding = binding; /* we already have a ref from the original activate call */
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_stream_activated, activation_data));
+}
+
+static int s_aws_extract_activation_options_from_js(
+    napi_env env,
+    napi_value napi_activation_options,
+    struct aws_event_stream_client_stream_binding *binding,
+    struct aws_byte_buf *operation_name_buffer,
+    struct aws_event_stream_message_storage *activation_message) {
+
+    if (aws_napi_get_named_property_as_bytebuf(
+            env,
+            napi_activation_options,
+            AWS_EVENT_STREAM_PROPERTY_NAME_OPERATION,
+            napi_string,
+            operation_name_buffer) != AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_extract_activation_options_from_js - failed to get required `operation` property from "
+            "activation options",
+            (void *)binding);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value napi_activation_message;
+    if (aws_napi_get_named_property(
+            env,
+            napi_activation_options,
+            AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE,
+            napi_object,
+            &napi_activation_message)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_extract_activation_options_from_js - failed to get required `message` property from "
+            "activation options",
+            (void *)binding);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    if (s_aws_event_stream_message_storage_init_from_js(
+            activation_message, allocator, env, napi_activation_message, binding)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_aws_extract_activation_options_from_js - failed to unpack activation message from JS",
+            (void *)binding);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    return AWS_OP_SUCCESS;
+}
+
+napi_value aws_napi_event_stream_client_stream_activate(napi_env env, napi_callback_info info) {
+
+    struct aws_byte_buf operation_name_buffer;
+    AWS_ZERO_STRUCT(operation_name_buffer);
+    struct aws_event_stream_message_storage activation_message;
+    AWS_ZERO_STRUCT(activation_message);
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_activate - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_activate - needs exactly 3 arguments");
+        return NULL;
+    }
+
+    struct aws_event_stream_client_stream_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_stream_activate - Failed to extract stream binding from first "
+            "argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_activate - binding was null");
+        return NULL;
+    }
+
+    if (binding->is_closed || binding->stream == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_activate - stream already closed");
+        return NULL;
+    }
+
+    napi_value napi_activation_options = *arg++;
+    if (s_aws_extract_activation_options_from_js(
+            env, napi_activation_options, binding, &operation_name_buffer, &activation_message)) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_event_stream_client_stream_activate - unable to unpack activation options from JS object");
+        goto done;
+    }
+
+    napi_value stream_activation_callback = *arg++;
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            stream_activation_callback,
+            "aws_event_stream_client_stream_on_activation",
+            s_napi_on_event_stream_client_stream_activation,
+            binding,
+            &binding->on_stream_activated),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_event_stream_client_stream_activate - failed to create threadsafe callback function");
+            goto done;
+        });
+
+    s_aws_event_stream_client_stream_binding_acquire(binding);
+
+    struct aws_event_stream_rpc_message_args message_args = {
+        .headers = (struct aws_event_stream_header_value_pair *)activation_message.headers.data,
+        .headers_count = aws_array_list_length(&activation_message.headers),
+        .payload = activation_message.payload,
+        .message_type = activation_message.message_type,
+        .message_flags = activation_message.message_flags,
+    };
+
+    if (aws_event_stream_rpc_client_continuation_activate(
+            binding->stream,
+            aws_byte_cursor_from_buf(&operation_name_buffer),
+            &message_args,
+            s_aws_event_stream_on_stream_activation_flush,
+            binding)) {
+        /* Undo the acquire just above */
+        s_aws_event_stream_client_stream_binding_release(binding);
+        aws_napi_throw_last_error_with_context(
+            env,
+            "aws_napi_event_stream_client_stream_activate - synchronous failure invoking "
+            "aws_event_stream_rpc_client_continuation_activate");
+        goto done;
+    }
+
+done:
+
+    aws_byte_buf_clean_up(&operation_name_buffer);
+    s_aws_event_stream_message_storage_clean_up(&activation_message);
 
     return NULL;
 }
