@@ -796,7 +796,6 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 }
 
 export interface StreamEndedEvent {
-    errorCode: number;
 }
 
 export type StreamEndedListener = (eventData: StreamEndedEvent) => void;
@@ -819,7 +818,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         this._super(crt_native.event_stream_client_stream_new(
             this,
             connection.native_handle(),
-            (stream: ClientStream, errorCode: number) => { ClientStream._s_on_stream_ended(stream, errorCode); },
+            (stream: ClientStream) => { ClientStream._s_on_stream_ended(stream); },
             (stream: ClientStream, message: Message) => { ClientStream._s_on_stream_message(stream, message); },
         ));
     }
@@ -921,8 +920,8 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         }
     }
 
-    private static _s_on_stream_ended(stream: ClientStream, errorCode: number) {
-        stream.emit(ClientStream.STREAM_ENDED, { errorCode: errorCode });
+    private static _s_on_stream_ended(stream: ClientStream) {
+        stream.emit(ClientStream.STREAM_ENDED, {});
     }
 
     private static _s_on_stream_message(stream: ClientStream, message: Message) {
