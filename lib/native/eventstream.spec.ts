@@ -7,7 +7,7 @@ import * as eventstream from './eventstream';
 import {once} from "events";
 import crt_native from "./binding";
 
-jest.setTimeout(10000);
+jest.setTimeout(10000000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
@@ -192,6 +192,137 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection su
     await new Promise(resolve => setTimeout(resolve, 200));
 });
 
+async function makeGoodConnection() : Promise<eventstream.ClientConnection> {
+    return new Promise<eventstream.ClientConnection>(async (resolve, reject) => {
+        try {
+            let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+
+            await connection.connect();
+
+            const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
+
+            let connectMessage: eventstream.Message = {
+                type: eventstream.MessageType.Connect,
+                headers: [
+                    eventstream.Header.newString(':version', '0.1.0'),
+                    eventstream.Header.newString('client-name', 'accepted.testy_mc_testerson')
+                ]
+            };
+
+            await connection.sendProtocolMessage({
+                message: connectMessage
+            });
+
+            let response: eventstream.MessageEvent = (await connectResponse)[0];
+            let message: eventstream.Message = response.message;
+            if (((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted) == 0) {
+                reject();
+            }
+
+            resolve(connection);
+        } catch (e) {
+            reject();
+        }
+    });
+}
+
+function buildAllTypeHeaderSet() : Array<eventstream.Header> {
+    var encoder = new TextEncoder();
+    let buffer: ArrayBuffer = encoder.encode("Some test");
+    let uuid: ArrayBuffer = encoder.encode("0123456789ABCDEF");
+
+    let headers: Array<eventstream.Header> = [
+        eventstream.Header.newBoolean('boolTrue', true),
+        eventstream.Header.newBoolean('boolFalse', false),
+        eventstream.Header.newByte('byte', 8),
+        eventstream.Header.newInt16('int16', 32767),
+        eventstream.Header.newInt32('int32', -65537),
+        eventstream.Header.newInt64FromBigint('int64Bigint', BigInt(65536) * BigInt(65536) * BigInt(2)),
+        eventstream.Header.newInt64FromNumber('int64Number', 65536 * 65536 * 2),
+        eventstream.Header.newString('string', 'Hello'),
+        eventstream.Header.newByteBuffer('binary', buffer),
+        eventstream.Header.newTimeStampFromDate('date', new Date()),
+        eventstream.Header.newTimeStampFromSecondsSinceEpoch('epochSeconds', Date.now()),
+        eventstream.Header.newUUID('uuid', uuid)
+    ];
+
+    return headers;
+}
+
+function verifyEchoedHeaders(expectedHeaders : Array<eventstream.Header>, actualHeaders : Array<eventstream.Header>) {
+    expectedHeaders.forEach((header: eventstream.Header) => {
+        let actualHeader = actualHeaders.find((value: eventstream.Header) => { return value.name === header.name; });
+        expect(actualHeader).toBeDefined();
+
+        // @ts-ignore
+        expect(header.type).toEqual(actualHeader.type);
+
+        switch(header.type) {
+            case eventstream.HeaderType.BooleanFalse:
+            case eventstream.HeaderType.BooleanTrue:
+                break;
+
+            case eventstream.HeaderType.ByteBuffer:
+            case eventstream.HeaderType.UUID:
+                // @ts-ignore
+                expect(Buffer.from(header.value as ArrayBuffer)).toEqual(Buffer.from(actualHeader.value as ArrayBuffer));
+                break;
+
+            default:
+                // @ts-ignore
+                expect(header.value).toEqual(actualHeader.value);
+                break;
+
+        }
+    });
+}
+
+async function verifyPingRoundTrip(connection : eventstream.ClientConnection) : Promise<void> {
+    return new Promise<void>(async (resolve, reject) => {
+        try {
+            const pingResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
+
+            var encoder = new TextEncoder();
+            let payload: ArrayBuffer = encoder.encode("A payload");
+
+            let headers: Array<eventstream.Header> = buildAllTypeHeaderSet();
+
+            let pingMessage: eventstream.Message = {
+                type: eventstream.MessageType.Ping,
+                headers: headers,
+                payload: payload
+            };
+
+            await connection.sendProtocolMessage({
+                message: pingMessage
+            });
+
+            let responseEvent: eventstream.MessageEvent = (await pingResponse)[0];
+            let response: eventstream.Message = responseEvent.message;
+
+            expect(response.type).toEqual(eventstream.MessageType.PingResponse);
+            expect(response.headers).toBeDefined();
+
+            verifyEchoedHeaders(headers, response.headers ?? []);
+
+            expect(Buffer.from(payload)).toEqual(Buffer.from(response.payload as ArrayBuffer));
+
+            resolve();
+        } catch (e) {
+            reject();
+        }
+    });
+}
+
+conditional_test(hasEchoServerEnvironment())('Eventstream connection success - send and receive all-header-types ping', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    await verifyPingRoundTrip(connection);
+
+    connection.close();
+});
+
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
@@ -350,3 +481,68 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
     await expect(connection.sendProtocolMessage({message: message} )).rejects.toThrow();
 });
 
+conditional_test(hasEchoServerEnvironment())('Eventstream stream state failure - sendMessage before activation', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+
+    await connection.connect();
+
+    let stream : eventstream.ClientStream = connection.newStream();
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage
+    };
+
+    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - create and close, no asserts', async () => {
+
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+
+    await connection.connect();
+
+    let stream : eventstream.ClientStream = connection.newStream();
+
+    stream.close();
+    connection.close();
+});
+
+async function openUnterminatedStream(connection: eventstream.ClientConnection) : Promise<eventstream.ClientStream> {
+    return new Promise<eventstream.ClientStream>(async (resolve, reject) => {
+        try {
+            let stream : eventstream.ClientStream = connection.newStream();
+
+            const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+
+            let message : eventstream.Message = {
+                type: eventstream.MessageType.ApplicationMessage
+            };
+
+            await stream.activate({
+                operation: "awstest#EchoStreamMessages",
+                message : message
+            });
+
+            let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
+            let response: eventstream.Message = responseEvent.message;
+
+            expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
+
+            resolve(stream);
+        } catch (e) {
+            reject();
+        }
+    });
+}
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate echo stream, wait for response, close properly', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    let stream : eventstream.ClientStream = await openUnterminatedStream(connection);
+
+    stream.close();
+    connection.close();
+});

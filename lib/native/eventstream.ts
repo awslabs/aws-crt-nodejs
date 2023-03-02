@@ -82,6 +82,13 @@ const MIN_INT64 : bigint = BigInt("-9223372036854775808");
 
 const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
 
+type HeaderValue =
+    undefined |  /* BooleanTrue, BooleanFalse */
+    number |  /* byte, int16, int32, timestamp */
+    BigInt |  /* int64 */
+    string |  /* string */
+    Payload;  /* ByteBuffer, UUID (via ArrayBuffer) */
+
 /**
  * Wrapper class for event stream message headers.  Similar to HTTP, a header is a name-value pair.  Unlike HTTP, the
  * value's wire format varies depending on a type annotation.  We provide static builder functions to help
@@ -90,8 +97,8 @@ const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
  */
 export class Header {
 
-    private constructor(public name: string, public type: HeaderType, private value?: any) {
-    }
+    /** @internal */
+    constructor(public name: string, public type: HeaderType, public value?: HeaderValue) {}
 
     private static isHeaderNameValid(name: string) {
         return name.length > 0 && name.length <= AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH;
@@ -376,7 +383,6 @@ export class Header {
     }
 }
 
-
 /**
  * Flags for messages in the event-stream RPC protocol.
  *
@@ -476,6 +482,28 @@ export interface Message {
      * Actual message payload
      */
     payload?: Payload,
+}
+
+/** @internal */
+function mapPodHeadersToJSHeaders(headers: Array<Header>) : Array<Header> {
+    return Array.from(headers, (header) => {
+        return new Header(header.name, header.type, header.value);
+    });
+}
+
+/** @internal */
+function mapPodMessageToJSMessage(message: Message) : Message {
+    let jsMessage : Message = {
+        type: message.type,
+        flags: message.flags,
+        payload: message.payload
+    }
+
+    if (message.headers) {
+        jsMessage.headers = mapPodHeadersToJSHeaders(message.headers);
+    }
+
+    return jsMessage;
 }
 
 /**
@@ -781,7 +809,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     }
 
     private static _s_on_protocol_message(connection: ClientConnection, message: Message) {
-        connection.emit('protocolMessage', { message: message });
+        connection.emit('protocolMessage', { message: mapPodMessageToJSMessage(message) });
     }
 
     private static _s_on_connection_send_protocol_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
@@ -925,7 +953,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     }
 
     private static _s_on_stream_message(stream: ClientStream, message: Message) {
-        stream.emit(ClientStream.STREAM_MESSAGE, { message: message });
+        stream.emit(ClientStream.STREAM_MESSAGE, { message: mapPodMessageToJSMessage(message) });
     }
 
     private state : ClientStreamState;

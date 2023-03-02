@@ -21,6 +21,22 @@ static const char *AWS_EVENT_STREAM_PROPERTY_NAME_MESSAGE = "message";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_OPERATION = "operation";
 
 /*
+ * The fact that a zeroed array list crashes in aws_array_list_length drives me crazy.  Since CBMC proofs are
+ * entangled with the implementation, I don't want to change it.
+ */
+static size_t s_aws_array_list_length(struct aws_array_list *array_list) {
+    if (array_list == NULL) {
+        return 0;
+    }
+
+    if (!aws_array_list_is_valid(array_list)) {
+        return 0;
+    }
+
+    return aws_array_list_length(array_list);
+}
+
+/*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
  * to this object to destroy the connection (and itself, afterwards).
  *
@@ -731,7 +747,7 @@ static int s_aws_create_napi_value_from_event_stream_message_storage(
 
     if (message->payload->len > 0) {
         if (aws_napi_attach_object_property_binary_as_finalizable_external(
-                napi_message, env, AWS_EVENT_STREAM_PROPERTY_NAME_TYPE, message->payload)) {
+                napi_message, env, AWS_EVENT_STREAM_PROPERTY_NAME_PAYLOAD, message->payload)) {
             return AWS_OP_ERR;
         }
 
@@ -739,7 +755,7 @@ static int s_aws_create_napi_value_from_event_stream_message_storage(
         message->payload = NULL;
     }
 
-    size_t header_count = aws_array_list_length(&message->headers);
+    size_t header_count = s_aws_array_list_length(&message->headers);
     if (header_count > 0) {
         napi_value headers_array = NULL;
         AWS_NAPI_CALL(env, napi_create_array_with_length(env, header_count, &headers_array), {
@@ -1519,7 +1535,7 @@ napi_value aws_napi_event_stream_client_connection_send_protocol_message(napi_en
 
     struct aws_event_stream_rpc_message_args message_args = {
         .headers = (struct aws_event_stream_header_value_pair *)message_storage.headers.data,
-        .headers_count = aws_array_list_length(&message_storage.headers),
+        .headers_count = s_aws_array_list_length(&message_storage.headers),
         .payload = message_storage.payload,
         .message_type = message_storage.message_type,
         .message_flags = message_storage.message_flags,
@@ -1716,58 +1732,6 @@ static void s_event_stream_on_stream_ended(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_stream_ended, binding));
 }
 
-#ifdef NEVER
-
-static void s_napi_event_stream_connection_on_protocol_message(
-    napi_env env,
-    napi_value function,
-    void *context,
-    void *user_data) {
-
-    (void)context;
-
-    struct aws_event_stream_protocol_message_event *message_event = user_data;
-    struct aws_event_stream_client_connection_binding *binding = message_event->binding;
-
-    if (env && !binding->is_closed) {
-        napi_value params[2];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
-
-        /*
-         * If we can't resolve the weak ref to the event stream connection, then it's been garbage collected and we
-         * should not do anything.
-         */
-        params[0] = NULL;
-        if (napi_get_reference_value(env, binding->node_event_stream_client_connection_ref, &params[0]) != napi_ok ||
-            params[0] == NULL) {
-            AWS_LOGF_INFO(
-                AWS_LS_NODEJS_CRT_GENERAL,
-                "s_napi_event_stream_connection_on_protocol_message - event_stream_client_connection node wrapper no "
-                "longer resolvable");
-            goto done;
-        }
-
-        if (s_aws_create_napi_value_from_event_stream_message_storage(env, &message_event->storage, &params[1])) {
-            AWS_LOGF_ERROR(
-                AWS_LS_NODEJS_CRT_GENERAL,
-                "s_napi_event_stream_connection_on_protocol_message - failed to create JS representation of incoming "
-                "message");
-            goto done;
-        }
-
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_protocol_message, NULL, function, num_params, params));
-    }
-
-done:
-
-    s_aws_event_stream_protocol_message_event_destroy(message_event);
-}
-
-#endif
-
 struct aws_event_stream_stream_message_event {
     struct aws_allocator *allocator;
     struct aws_event_stream_message_storage storage;
@@ -1866,7 +1830,7 @@ napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_i
     });
 
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - needs exactly 6 arguments");
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - needs exactly 4 arguments");
         return NULL;
     }
 
@@ -1912,7 +1876,7 @@ napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_i
     /* Arg #2: the event stream connection to create a stream on */
     struct aws_event_stream_client_connection_binding *connection_binding = NULL;
     napi_value node_binding = *arg++;
-    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&connection_binding), {
         napi_throw_error(
             env,
             NULL,
@@ -2078,10 +2042,24 @@ static void s_napi_on_event_stream_client_stream_activation(
     struct aws_event_stream_client_stream_binding *binding = activation_data->binding;
 
     if (env && !binding->is_closed) {
-        napi_value params[1];
+        napi_value params[2];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_CALL(env, napi_create_uint32(env, activation_data->error_code, &params[0]), { goto done; });
+        /*
+         * If we can't resolve the weak ref to the event stream, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_event_stream_client_stream_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_on_event_stream_client_stream_activation - event_stream_client_stream node wrapper no "
+                "longer resolvable");
+            goto done;
+        }
+
+        AWS_NAPI_CALL(env, napi_create_uint32(env, activation_data->error_code, &params[1]), { goto done; });
 
         AWS_NAPI_ENSURE(
             env,
@@ -2235,7 +2213,7 @@ napi_value aws_napi_event_stream_client_stream_activate(napi_env env, napi_callb
 
     struct aws_event_stream_rpc_message_args message_args = {
         .headers = (struct aws_event_stream_header_value_pair *)activation_message.headers.data,
-        .headers_count = aws_array_list_length(&activation_message.headers),
+        .headers_count = s_aws_array_list_length(&activation_message.headers),
         .payload = activation_message.payload,
         .message_type = activation_message.message_type,
         .message_flags = activation_message.message_flags,
@@ -2410,7 +2388,7 @@ napi_value aws_napi_event_stream_client_stream_send_message(napi_env env, napi_c
 
     struct aws_event_stream_rpc_message_args message_args = {
         .headers = (struct aws_event_stream_header_value_pair *)message_storage.headers.data,
-        .headers_count = aws_array_list_length(&message_storage.headers),
+        .headers_count = s_aws_array_list_length(&message_storage.headers),
         .payload = message_storage.payload,
         .message_type = message_storage.message_type,
         .message_flags = message_storage.message_flags,

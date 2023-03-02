@@ -207,7 +207,7 @@ test('Eventstream header - new timestamp from epoch seconds success', async () =
     expect(header.asTimestamp()).toEqual(Number.MAX_SAFE_INTEGER);
 });
 
-test('Eventstream header - new timestamp from epoch seconds success', async () => {
+test('Eventstream header - new timestamp from date success', async () => {
     let someDate = new Date();
     let header : eventstream.Header = eventstream.Header.newTimeStampFromDate(DEFAULT_HEADER_NAME, someDate);
     expect(header.name).toEqual(DEFAULT_HEADER_NAME);
