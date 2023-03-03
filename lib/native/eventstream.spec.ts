@@ -7,7 +7,7 @@ import * as eventstream from './eventstream';
 import {once} from "events";
 import crt_native from "./binding";
 
-jest.setTimeout(10000000);
+jest.setTimeout(10000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
@@ -481,23 +481,6 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
     await expect(connection.sendProtocolMessage({message: message} )).rejects.toThrow();
 });
 
-conditional_test(hasEchoServerEnvironment())('Eventstream stream state failure - sendMessage before activation', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
-
-    await connection.connect();
-
-    let stream : eventstream.ClientStream = connection.newStream();
-
-    let message : eventstream.Message = {
-        type: eventstream.MessageType.ApplicationMessage
-    };
-
-    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
-
-    stream.close();
-    connection.close();
-});
-
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - create and close, no asserts', async () => {
 
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
@@ -661,7 +644,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - clien
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate invalid operation', async () => {
 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = new eventstream.ClientStream(connection);
+    let stream : eventstream.ClientStream = connection.newStream();
 
     const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
     const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
@@ -715,8 +698,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on unactivated stream', async () => {
 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
-
-    let stream : eventstream.ClientStream = new eventstream.ClientStream(connection);
+    let stream : eventstream.ClientStream = connection.newStream();
 
     let message : eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage
@@ -768,7 +750,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate a closed stream', async () => {
 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = new eventstream.ClientStream(connection);
+    let stream : eventstream.ClientStream = connection.newStream();
 
     stream.close();
 
