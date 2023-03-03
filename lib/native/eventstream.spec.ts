@@ -510,7 +510,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - creat
     connection.close();
 });
 
-async function openUnterminatedStream(connection: eventstream.ClientConnection) : Promise<eventstream.ClientStream> {
+async function openPersistentEchoStream(connection: eventstream.ClientConnection) : Promise<eventstream.ClientStream> {
     return new Promise<eventstream.ClientStream>(async (resolve, reject) => {
         try {
             let stream : eventstream.ClientStream = connection.newStream();
@@ -537,12 +537,262 @@ async function openUnterminatedStream(connection: eventstream.ClientConnection) 
         }
     });
 }
-conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate echo stream, wait for response, close properly', async () => {
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, wait for response, close properly', async () => {
 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
 
-    let stream : eventstream.ClientStream = await openUnterminatedStream(connection);
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, wait for response, close unexpectedly, verify stream ended event', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    let streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+
+    crt_native.event_stream_client_connection_close_internal(connection.native_handle());
+
+    await streamEnded;
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate one-time echo stream, verify response, verify stream ended', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    let stream : eventstream.ClientStream = connection.newStream();
+
+    const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+
+    const payloadAsString = "{}";
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        payload: payloadAsString
+    };
+
+    await stream.activate({
+        operation: "awstest#EchoMessage",
+        message : message
+    });
+
+    let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
+    let response: eventstream.Message = responseEvent.message;
+
+    expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
+    expect(response.flags).toBeDefined();
+    expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(eventstream.MessageFlags.TerminateStream);
+
+    let payload : string = "";
+    if (response.payload !== undefined) {
+        var decoder = new TextDecoder();
+        payload = decoder.decode(Buffer.from(response.payload));
+    }
+    expect(payload).toEqual(payloadAsString);
+
+    await streamEnded;
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, send message, verify echo response', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    const echoResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+
+    const payloadAsString = "{}";
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        payload: payloadAsString
+    };
+
+    await stream.sendMessage({ message : message });
+
+    let responseEvent: eventstream.MessageEvent = (await echoResponse)[0];
+    let response: eventstream.Message = responseEvent.message;
+
+    expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
+    expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(0);
+
+    let payload : string = "";
+    if (response.payload !== undefined) {
+        var decoder = new TextDecoder();
+        payload = decoder.decode(Buffer.from(response.payload));
+    }
+    expect(payload).toEqual(payloadAsString);
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - client-side terminate a persistent echo stream', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        flags: eventstream.MessageFlags.TerminateStream
+    };
+
+    await stream.sendMessage({ message : message });
+
+    await streamEnded;
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate invalid operation', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = new eventstream.ClientStream(connection);
+
+    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+    const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+
+    const payloadAsString = "{}";
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        payload: payloadAsString
+    };
+
+    await stream.activate({ operation: "awstest#NotAValidOperation", message : message });
+
+    let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
+    let response: eventstream.Message = responseEvent.message;
+
+    expect(response.type).toEqual(eventstream.MessageType.ApplicationError);
+
+    await streamEnded;
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send invalid payload', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+    const echoResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        payload: "}"
+    };
+
+    await stream.sendMessage({ message : message });
+
+    let responseEvent: eventstream.MessageEvent = (await echoResponse)[0];
+    let response: eventstream.Message = responseEvent.message;
+
+    expect(response.type).toEqual(eventstream.MessageType.ApplicationError);
+
+    await streamEnded;
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on unactivated stream', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    let stream : eventstream.ClientStream = new eventstream.ClientStream(connection);
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage
+    };
+
+    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - double activate stream', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage
+    };
+
+    await expect(stream.activate({operation: "awstest#EchoStreamMessages", message: message} )).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on ended stream', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        flags: eventstream.MessageFlags.TerminateStream
+    };
+
+    await stream.sendMessage({ message : message });
+
+    await streamEnded;
+
+    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate a closed stream', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = new eventstream.ClientStream(connection);
+
+    stream.close();
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage
+    };
+
+    await expect(stream.activate({operation: "awstest#EchoStreamMessages", message: message} )).rejects.toThrow();
+
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on a closed stream', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    stream.close();
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage
+    };
+
+    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+
     connection.close();
 });

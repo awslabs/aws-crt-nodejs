@@ -1707,9 +1707,28 @@ static void s_napi_event_stream_on_stream_ended(napi_env env, napi_value functio
     struct aws_event_stream_client_stream_binding *binding = user_data;
 
     if (env && !binding->is_closed) {
+        napi_value params[1];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the event stream, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_event_stream_client_stream_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_event_stream_on_stream_ended - event_stream_client_stream node wrapper no "
+                "longer resolvable");
+            goto done;
+        }
+
         AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_stream_ended, NULL, function, 0, NULL));
+            env, aws_napi_dispatch_threadsafe_function(env, binding->on_stream_ended, NULL, function, num_params, params));
     }
+
+done:
 
     if (binding->stream != NULL) {
         aws_event_stream_rpc_client_continuation_release(binding->stream);
