@@ -1725,7 +1725,8 @@ static void s_napi_event_stream_on_stream_ended(napi_env env, napi_value functio
         }
 
         AWS_NAPI_ENSURE(
-            env, aws_napi_dispatch_threadsafe_function(env, binding->on_stream_ended, NULL, function, num_params, params));
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_stream_ended, NULL, function, num_params, params));
     }
 
 done:
