@@ -26,6 +26,10 @@
                     "test:browser:ci"
                 ]
             ]
+        },
+        "ubuntu": {
+            "+packages": [ "openjdk-8-jdk-headless", "maven"],
+            "+imports": [ "JDK8" ]
         }
     },
     "targets": {
