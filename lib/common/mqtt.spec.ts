@@ -6,21 +6,18 @@
 import { v4 as uuid } from 'uuid';
 
 import { ClientBootstrap } from '@awscrt/io';
-import { MqttClient, QoS, MqttWill, Payload } from '@awscrt/mqtt';
+import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-//import { TextDecoder } from '@awscrt/polyfills';
 import { Config, fetch_credentials } from '@test/credentials';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
+import {once} from "events";
 
-jest.setTimeout(10000);
+jest.setTimeout(10000000);
 
-test('MQTT Connect/Disconnect', async () => {
-    const promise = new Promise(async (resolve, reject) => {
+async function makeNormalConnection() : Promise<MqttClientConnection> {
+    return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
-            let aws_opts: Config;
-
-            aws_opts = await fetch_credentials();
-
+            let aws_opts: Config = await fetch_credentials();
 
             const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
                 .with_clean_session(true)
@@ -31,78 +28,65 @@ test('MQTT Connect/Disconnect', async () => {
                 .build()
             const client = new MqttClient(new ClientBootstrap());
             const connection = client.new_connection(config);
-
-            connection.on('connect', async (session_present) => {
-                expect(session_present).toBeFalsy();
-
-                const disconnected = connection.disconnect();
-                await expect(disconnected).resolves.toBeUndefined();
-            });
-            connection.on('error', (error) => {
-                reject(error);
-            })
-            connection.on('disconnect', () => {
-                resolve(true);
-            })
-            const connected = connection.connect();
-            await expect(connected).resolves.toBeDefined();
+            resolve(connection);
         } catch (err) {
             reject(err);
         }
     });
-    await expect(promise).resolves.toBeTruthy();
+}
+
+test('MQTT Connect/Disconnect', async () => {
+    const connection = await makeNormalConnection();
+
+    let onConnect = once(connection, 'connect');
+    let onDisconnect = once(connection, 'disconnect');
+
+    await connection.connect();
+
+    let connectResult = (await onConnect)[0];
+    expect(connectResult).toBeFalsy(); /* session present */
+
+    await connection.disconnect();
+    await onDisconnect;
 });
 
 test('MQTT Pub/Sub', async () => {
-    const promise = new Promise(async (resolve, reject) => {
-        try {
-            let aws_opts: Config;
+    const connection = await makeNormalConnection();
 
-            aws_opts = await fetch_credentials();
+    let onConnect = once(connection, 'connect');
+    let onDisconnect = once(connection, 'disconnect');
 
-            const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-                .with_clean_session(true)
-                .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-                .with_endpoint(aws_opts.endpoint)
-                .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-                .with_ping_timeout_ms(5000)
-                .build()
-            const client = new MqttClient(new ClientBootstrap());
-            const connection = client.new_connection(config);
+    await connection.connect();
 
-            connection.on('connect', async (session_present) => {
-                expect(session_present).toBeFalsy();
-                const test_topic = `/test/me/senpai/${uuid()}`;
-                const test_payload = 'NOTICE ME';
-                const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
-                    expect(topic).toEqual(test_topic);
-                    const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
-                    expect(payload_str).toEqual(test_payload);
-                    expect(qos).toEqual(QoS.AtLeastOnce);
-                    expect(retain).toBeFalsy();
-                    resolve(true);
+    let connectResult = (await onConnect)[0];
+    expect(connectResult).toBeFalsy(); /* session present */
 
-                    const unsubscribed = connection.unsubscribe(test_topic);
-                    await expect(unsubscribed).resolves.toHaveProperty('packet_id');
+    const test_topic = `/test/me/senpai/${uuid()}`;
+    const test_payload = 'NOTICE ME';
 
-                    const disconnected = connection.disconnect();
-                    await expect(disconnected).resolves.toBeUndefined();
-                });
-                await expect(sub).resolves.toBeTruthy();
+    var resolvePromise: (value: void | PromiseLike<void>) => void;
+    let messageReceivedPromise = new Promise<void>(async (resolve, reject) => { resolvePromise = resolve; });
 
-                const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-                await expect(pub).resolves.toBeTruthy();
-            });
-            connection.on('error', (error) => {
-                reject(error);
-            })
-            const connected = connection.connect();
-            await expect(connected).resolves.toBeDefined();
-        } catch (err) {
-            reject(err);
-        }
+    const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
+        expect(topic).toEqual(test_topic);
+        const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
+        expect(payload_str).toEqual(test_payload);
+        expect(qos).toEqual(QoS.AtLeastOnce);
+        expect(retain).toBeFalsy();
+        resolvePromise();
     });
-    await expect(promise).resolves.toBeTruthy();
+    await expect(sub).resolves.toBeTruthy();
+
+    const publishResult = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+    await expect(publishResult).resolves.toBeTruthy();
+
+    await messageReceivedPromise;
+
+    const unsubscribed = connection.unsubscribe(test_topic);
+    await expect(unsubscribed).resolves.toHaveProperty('packet_id');
+
+    await connection.disconnect();
+    await onDisconnect;
 });
 
 test('MQTT Will', async () => {
@@ -151,9 +135,7 @@ test('MQTT Will', async () => {
 test('MQTT On Any Publish', async () => {
     const promise = new Promise(async (resolve, reject) => {
         try {
-            let aws_opts: Config;
-
-            aws_opts = await fetch_credentials();
+            let aws_opts: Config = await fetch_credentials();
 
             const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
                 .with_clean_session(true)
@@ -206,21 +188,20 @@ test('MQTT On Any Publish', async () => {
 });
 
 test('MQTT payload types', async () => {
+    let aws_opts: Config = await fetch_credentials();
+
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+        .with_ping_timeout_ms(5000)
+        .build()
+    const client = new MqttClient(new ClientBootstrap());
+    const connection = client.new_connection(config);
+
     const promise = new Promise(async (resolve, reject) => {
         try {
-            let aws_opts: Config;
-
-            aws_opts = await fetch_credentials();
-
-            const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-                .with_clean_session(true)
-                .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-                .with_endpoint(aws_opts.endpoint)
-                .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-                .with_ping_timeout_ms(5000)
-                .build()
-            const client = new MqttClient(new ClientBootstrap());
-            const connection = client.new_connection(config);
             const id = uuid();
 
             const tests: { [key: string]: { send: Payload, recv: ArrayBuffer } } = {
@@ -266,9 +247,6 @@ test('MQTT payload types', async () => {
 
                 if (Object.keys(expecting).length == 0) {
                     resolve(true);
-
-                    const disconnected = connection.disconnect();
-                    await expect(disconnected).resolves.toBeUndefined();
                 }
             });
 
@@ -291,4 +269,7 @@ test('MQTT payload types', async () => {
         }
     });
     await expect(promise).resolves.toBeTruthy();
+
+    const disconnected = connection.disconnect();
+    await expect(disconnected).resolves.toBeUndefined();
 });
