@@ -60,15 +60,14 @@ class CrtCiTest(Builder.Action):
             finally:
                 env.shell.popd()
 
-        return (proc, java_sdk_dir)
+        return proc, java_sdk_dir
 
     def run(self, env):
 
         # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
         # on Windows.
         try:
-
-            (proc, java_sdk_dir) = self._build_and_run_eventstream_echo_server(env)
+            proc, java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
 
             env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
 
