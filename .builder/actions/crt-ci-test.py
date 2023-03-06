@@ -32,29 +32,25 @@ class CrtCiTest(Builder.Action):
         proc = None
 
         try:
-            env.shell.exec(["mvn", "--version"])
+            env.shell.exec(["mvn", "--version"], check=true)
 
             # maven is installed, so this is a configuration we can start an event stream echo server
             java_sdk_dir = env.shell.mktemp()
 
-            env.shell.exec(["git", "clone", "https://github.com/aws/aws-iot-device-sdk-java-v2"], working_dir=java_sdk_dir)
+            env.shell.exec(["git", "clone", "https://github.com/aws/aws-iot-device-sdk-java-v2"], working_dir=java_sdk_dir, check=true)
 
             sdk_dir = os.path.join(java_sdk_dir, "aws-iot-device-sdk-java-v2", "sdk")
             env.shell.pushd(sdk_dir)
 
             try:
-                env.shell.exec(["mvn", "compile"])
-                env.shell.exec(["mvn", "test", "-DskipTests=true"])
-                env.shell.exec(["mvn", "dependency:build-classpath", "-Dmdep.outputFile=classpath.txt"])
+                env.shell.exec(["mvn", "compile"], check=true)
+                env.shell.exec(["mvn", "test", "-DskipTests=true"], check=true)
+                env.shell.exec(["mvn", "dependency:build-classpath", "-Dmdep.outputFile=classpath.txt"], check=true)
 
                 with open('classpath.txt', 'r') as file:
                     classpath = file.read()
 
-                print(f'Classpath: {classpath}')
-
                 echo_server_command = ["java", "-classpath", f"{sdk_dir}/target/test-classes:{sdk_dir}/target/classes:{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
-
-                print(f'Echo server command: {echo_server_command}')
 
                 # bypass builder's exec wrapper since it doesn't allow for background execution
                 proc = subprocess.Popen(echo_server_command)
@@ -65,7 +61,7 @@ class CrtCiTest(Builder.Action):
                 env.shell.popd()
 
         finally:
-            print('Test')
+            print('Failed to set up event stream server.  Eventstream CI tests will not be run.')
 
         return proc, java_sdk_dir
 
