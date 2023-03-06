@@ -96,7 +96,7 @@ class CrtCiTest(Builder.Action):
             env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH", cert_file_name, quiet=True)
             env.shell.setenv("AWS_TEST_MQTT5_IOT_CORE_KEY_PATH", key_file_name, quiet=True)
 
-            env.shell.exec(["npm", "run", "test:native"])
+            env.shell.exec(["npm", "run", "test:native"], check=True)
         except:
             print(f'Failure while running tests')
             actions.append("exit 1")
