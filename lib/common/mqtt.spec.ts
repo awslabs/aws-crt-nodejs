@@ -71,7 +71,7 @@ test('MQTT Pub/Sub', async () => {
     const test_payload = 'NOTICE ME';
 
     var resolvePromise: (value: void | PromiseLike<void>) => void;
-    let messageReceivedPromise = new Promise<void>(async (resolve, reject) => { resolvePromise = resolve; });
+    let messageReceivedPromise = new Promise<void>( (resolve, reject) => { resolvePromise = resolve; });
 
     const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
         expect(topic).toEqual(test_topic);
@@ -197,7 +197,7 @@ test('MQTT payload types', async () => {
     }
 
     var resolveMessagesReceivedPromise: (value: void | PromiseLike<void>) => void;
-    let messagesReceivedPromise = new Promise<void>(async (resolve, reject) => {
+    let messagesReceivedPromise = new Promise<void>( (resolve, reject) => {
         resolveMessagesReceivedPromise = resolve;
     });
 
