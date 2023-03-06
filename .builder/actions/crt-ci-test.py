@@ -50,7 +50,11 @@ class CrtCiTest(Builder.Action):
                 with open('classpath.txt', 'r') as file:
                     classpath = file.read()
 
-                echo_server_command = ["java", "-classpath", f"{sdk_dir}/target/test-classes:$CURRENT_DIR/target/classes:{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
+                print(f'Classpath: {classpath}')
+
+                echo_server_command = ["java", "-classpath", f"{sdk_dir}/target/test-classes:{sdk_dir}/target/classes:{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
+
+                print(f'Echo server command: {echo_server_command}')
 
                 # bypass builder's exec wrapper since it doesn't allow for background execution
                 proc = subprocess.Popen(echo_server_command)
@@ -59,6 +63,9 @@ class CrtCiTest(Builder.Action):
                 env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT", "8033", quiet=False)
             finally:
                 env.shell.popd()
+
+        finally:
+            print('Test')
 
         return proc, java_sdk_dir
 
