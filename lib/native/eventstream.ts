@@ -805,11 +805,15 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             connection.state = ClientConnectionState.Disconnected;
         }
 
-        connection.emit('disconnection', {errorCode: errorCode});
+        process.nextTick(() => {
+            connection.emit('disconnection', {errorCode: errorCode});
+        });
     }
 
     private static _s_on_protocol_message(connection: ClientConnection, message: Message) {
-        connection.emit('protocolMessage', { message: mapPodMessageToJSMessage(message) });
+        process.nextTick(() => {
+            connection.emit('protocolMessage', {message: mapPodMessageToJSMessage(message)});
+        });
     }
 
     private static _s_on_connection_send_protocol_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
@@ -949,11 +953,15 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     }
 
     private static _s_on_stream_ended(stream: ClientStream) {
-        stream.emit(ClientStream.STREAM_ENDED, {});
+        process.nextTick(() => {
+            stream.emit(ClientStream.STREAM_ENDED, {});
+        });
     }
 
     private static _s_on_stream_message(stream: ClientStream, message: Message) {
-        stream.emit(ClientStream.STREAM_MESSAGE, { message: mapPodMessageToJSMessage(message) });
+        process.nextTick(() => {
+            stream.emit(ClientStream.STREAM_MESSAGE, {message: mapPodMessageToJSMessage(message)});
+        });
     }
 
     private state : ClientStreamState;
