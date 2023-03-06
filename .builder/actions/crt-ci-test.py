@@ -64,7 +64,7 @@ class CrtCiTest(Builder.Action):
                 env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT", "8033", quiet=False)
             except:
                 raise
-                
+
             finally:
                 env.shell.popd()
 
@@ -78,6 +78,8 @@ class CrtCiTest(Builder.Action):
         actions = []
         proc = None
         java_sdk_dir = None
+        cert_file_name = None
+        key_file_name = None
 
         # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
         # on Windows.
@@ -88,7 +90,6 @@ class CrtCiTest(Builder.Action):
 
             self._write_environment_script_secret_to_env(env, "mqtt5-testing/github-ci-environment")
 
-
             cert_file_name = self._write_secret_to_temp_file(env, "unit-test/certificate")
             key_file_name = self._write_secret_to_temp_file(env, "unit-test/privatekey")
 
@@ -97,8 +98,8 @@ class CrtCiTest(Builder.Action):
 
             env.shell.exec(["npm", "run", "test:native"])
         except:
-            print(f'Exception while running tests')
-            raise
+            print(f'Failure while running tests')
+            actions.append("exit 1")
         finally:
             if proc:
                 proc.terminate()
