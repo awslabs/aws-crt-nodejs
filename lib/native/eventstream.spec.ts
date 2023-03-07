@@ -40,21 +40,22 @@ function makeGoodConfig() : eventstream.ClientConnectionOptions {
     return config;
 }
 
-/* Success test where we connect, wait for success, and close */
-async function doConnectionSuccessTest1(config: eventstream.ClientConnectionOptions) {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
+/*
+ * successful connection setup/teardown tests include some short waits to try and shake out any native race conditions
+ * that might occur due to JS object finalization after close.  For the same reason, we scope the connection object
+ * to a helper function, making finalization on the extern more likely.
+ */
+
+conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, close, and forget', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect();
 
     connection.close();
-}
+});
 
-/*
- * Success test where we connect, wait for success, simulate a remote close by a backdoor function that closes the
- * native event stream connection directly, wait for the disconnect event and close
- */
-async function doConnectionSuccessTest2(config: eventstream.ClientConnectionOptions) {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
+conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, simulate remote close', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
@@ -68,43 +69,15 @@ async function doConnectionSuccessTest2(config: eventstream.ClientConnectionOpti
     await new Promise(resolve => setTimeout(resolve, 200));
 
     connection.close();
-}
+});
 
-/*
- * Quasi-success test where we kick off the connection (which will complete successfully) but immediately close it.
- *
- */
-async function doConnectionSuccessTest3(config: eventstream.ClientConnectionOptions) {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
+conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - start connect, close, and forget', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     // intentionally do not await to try and beat the native connection setup with a close call
     connection.connect();
 
     connection.close();
-
-    await new Promise(resolve => setTimeout(resolve, 200));
-}
-
-/*
- * successful connection setup/teardown tests include some short waits to try and shake out any native race conditions
- * that might occur due to JS object finalization after close.  For the same reason, we scope the connection object
- * to a helper function, making finalization on the extern more likely.
- */
-
-conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, close, and forget', async () => {
-    await doConnectionSuccessTest1(makeGoodConfig());
-
-    await new Promise(resolve => setTimeout(resolve, 200));
-});
-
-conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, simulate remote close', async () => {
-    await doConnectionSuccessTest2(makeGoodConfig());
-
-    await new Promise(resolve => setTimeout(resolve, 200));
-});
-
-conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - start connect, close, and forget', async () => {
-    await doConnectionSuccessTest3(makeGoodConfig());
 
     await new Promise(resolve => setTimeout(resolve, 200));
 });
@@ -324,7 +297,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
     connection.close();
 });
 
-test('Eventstream protocol connection failure Echo Server - bad version', async () => {
+conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect();
@@ -349,7 +322,8 @@ test('Eventstream protocol connection failure Echo Server - bad version', async 
      * On Windows, our EchoTest server closes the connection in this case with an RST rather than a FIN.  Searching
      * the web hints at a possible timing issue (that affects Windows far more than other platforms) when closing
      * server-side (listener-spawned) sockets that leads to an RST over a FIN:
-     * https://github.com/libuv/libuv/issues/3034 shows a similar problem, for example.
+     *
+     *   https://github.com/libuv/libuv/issues/3034 shows a similar problem, for example.
      *
      * A socket that is closed with an RST is not readable, despite the fact that there was previously received data.
      * So we'll never be able to get the failed ConnAck because the attempt to read from the socket fails immediately.
