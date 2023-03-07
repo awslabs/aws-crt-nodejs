@@ -81,13 +81,13 @@ class CrtCiTest(Builder.Action):
         cert_file_name = None
         key_file_name = None
 
-        # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
-        # on Windows.
         try:
             proc, java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
 
             env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
 
+            # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
+            # on Windows.
             self._write_environment_script_secret_to_env(env, "mqtt5-testing/github-ci-environment")
 
             cert_file_name = self._write_secret_to_temp_file(env, "unit-test/certificate")
