@@ -53,7 +53,12 @@ class CrtCiTest(Builder.Action):
                 test_class_path = os.path.join(sdk_dir, "target", "test-classes")
                 target_class_path = os.path.join(sdk_dir, "target", "classes")
 
-                echo_server_command = ["java", "-classpath", f"{test_class_path}:{target_class_path}:{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
+                # Windows needs ';' as a separator.  There's gotta be a Python built-in that does this somewhere.
+                directory_separator = ":"
+                if os.name == 'nt':
+                    directory_separator = ";"
+
+                echo_server_command = ["java", "-classpath", f"{test_class_path}{directory_separator}{target_class_path}{directory_separator}{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
 
                 print(f'Echo server command: {echo_server_command}')
 
