@@ -538,7 +538,7 @@ static int s_aws_event_stream_message_storage_init_from_js(
         for (size_t i = 0; i < header_array_length; ++i) {
 
             napi_value napi_header = NULL;
-            AWS_NAPI_CALL(env, napi_get_element(env, napi_headers, i, &napi_header), { goto error; });
+            AWS_NAPI_CALL(env, napi_get_element(env, napi_headers, (uint32_t)i, &napi_header), { goto error; });
 
             if (s_add_event_stream_header_from_js(&storage->headers, env, napi_header, log_context)) {
                 AWS_LOGF_ERROR(
