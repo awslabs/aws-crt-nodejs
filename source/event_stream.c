@@ -56,11 +56,11 @@ struct aws_event_stream_client_connection_binding {
      * We ref count the binding itself because there are two primary time intervals that together create a union
      * that we must honor.
      *
-     * Interval #1: The binding must live from new() to extern finalizer, which is only triggered by a call to close()
+     * Interval #1: The binding must live from new() to close()
      * Interval #2: The binding must live from connect() to {connection failure || connection shutdown} as processed
      *    by the libuv thread.  It is incorrect to react to those events in the event loop callback; we must bundle
      *    and ship them across to the libuv thread.  When the libuv thread is processing a connection failure or
-     *    a connection shutdown, we know that no other events can possibly be pending ()hey would have already been
+     *    a connection shutdown, we know that no other events can possibly be pending (they would have already been
      *    processed in the libuv thread).
      *
      * The union of those two intervals is "probably" enough, but its correctness would rest on an internal property
@@ -1084,6 +1084,9 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
     /*
      * Release the allocation-ref on the binding.  If there is a connection in progress (or being shutdown) there
      * is a second ref outstanding which is removed on connection shutdown or failed setup.
+     *
+     * This is safe to do here because the internal state of the JS connection object blocks all future native
+     * invocations.
      */
     s_aws_event_stream_client_connection_binding_release(binding);
 
@@ -1561,11 +1564,11 @@ struct aws_event_stream_client_stream_binding {
      * We ref count the binding itself because there are two primary time intervals that together create a union
      * that we must honor.
      *
-     * Interval #1: The binding must live from new() to extern finalizer, which is only triggered by a call to close()
+     * Interval #1: The binding must live from new() to close()
      * Interval #2: The binding must live from activate() to {stream failure || stream shutdown} as processed
      *    by the libuv thread.  It is incorrect to react to those events in the event loop callback; we must bundle
      *    and ship them across to the libuv thread.  When the libuv thread is processing a stream failure or
-     *    shutdown, we know that no other events can possibly be pending they would have already been
+     *    shutdown, we know that no other events can possibly be pending (they would have already been
      *    processed in the libuv thread).
      *
      * The union of those two intervals is "probably" enough, but its correctness would rest on an internal property
@@ -1992,6 +1995,9 @@ napi_value aws_napi_event_stream_client_stream_close(napi_env env, napi_callback
     /*
      * Release the allocation-ref on the binding.  If there is a stream activation in progress (or being shutdown) there
      * is a second ref outstanding which is removed on stream shutdown or failed activation.
+     *
+     * This is safe to do here because the internal state of the JS stream object blocks all future native
+     * invocations.
      */
     s_aws_event_stream_client_stream_binding_release(binding);
 

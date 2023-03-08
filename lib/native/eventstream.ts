@@ -642,12 +642,8 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * Shuts down the connection (if active) and begins the process to release native resources associated with it by
      * having the native binding release the only reference to the extern object representing the connection.
      *
-     * Ultimately, the native resources will not be released until
-     *   (1) Node invokes the finalizer of that extern object, and
-     *   (2) The connection has fully shut down and that shutdown event has reached the libuv event loop.
-     *
-     * Condition (1) means that it may take GC pressure to cause complete memory release, but the network connection's
-     * OS resources will still be released as soon as the connection is shutdown.
+     * Ultimately, the native resources will not be released until the connection has fully shut down and that
+     * shutdown event has reached the libuv event loop.
      *
      * This function **must** be called for every ClientConnection instance or native resources will leak.
      */
@@ -869,11 +865,8 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * Shuts down the stream (if active) and begins the process to release native resources associated with it by
      * having the native binding release the only reference to the extern object representing the stream.
      *
-     * Ultimately, the native resources will not be released until
-     *   (1) Node invokes the finalizer of that extern object, and
-     *   (2) The native stream has fully shut down and that shutdown event has reached the libuv event loop.
-     *
-     * Condition (1) means that it may take GC pressure to cause complete memory release.
+     * Ultimately, the native resources will not be released until the native stream has fully shut down and that
+     * shutdown event has reached the libuv event loop.
      *
      * This function **must** be called for every ClientStream instance or native resources will leak.
      */
