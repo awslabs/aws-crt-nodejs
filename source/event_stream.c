@@ -900,15 +900,12 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
     binding->allocator = allocator;
     aws_ref_count_init(&binding->ref_count, binding, s_aws_event_stream_client_connection_binding_on_zero);
 
-    AWS_NAPI_CALL(
-        env,
-        napi_create_external(env, binding, NULL, NULL, &node_external),
-        {
-            aws_mem_release(allocator, binding);
-            napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to create n-api external");
-            s_aws_event_stream_client_connection_binding_release(binding);
-            goto done;
-        });
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, NULL, NULL, &node_external), {
+        aws_mem_release(allocator, binding);
+        napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to create n-api external");
+        s_aws_event_stream_client_connection_binding_release(binding);
+        goto done;
+    });
 
     /* Arg #1: the js event stream connection */
     napi_value node_connection = *arg++;
@@ -1815,15 +1812,12 @@ napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_i
     binding->allocator = allocator;
     aws_ref_count_init(&binding->ref_count, binding, s_aws_event_stream_client_stream_binding_on_zero);
 
-    AWS_NAPI_CALL(
-        env,
-        napi_create_external(env, binding, NULL, NULL, &node_external),
-        {
-            aws_mem_release(allocator, binding);
-            napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to create n-api external");
-            s_aws_event_stream_client_stream_binding_release(binding);
-            goto done;
-        });
+    AWS_NAPI_CALL(env, napi_create_external(env, binding, NULL, NULL, &node_external), {
+        aws_mem_release(allocator, binding);
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to create n-api external");
+        s_aws_event_stream_client_stream_binding_release(binding);
+        goto done;
+    });
 
     /*
      * From here on out, a failure will lead the external to getting finalized by node, which in turn will lead the
