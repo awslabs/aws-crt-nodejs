@@ -1593,7 +1593,7 @@ struct aws_event_stream_client_stream_binding {
      * Interval #2: The binding must live from activate() to {stream failure || stream shutdown} as processed
      *    by the libuv thread.  It is incorrect to react to those events in the event loop callback; we must bundle
      *    and ship them across to the libuv thread.  When the libuv thread is processing a stream failure or
-     *    shutdown, we know that no other events can possibly be pending ()hey would have already been
+     *    shutdown, we know that no other events can possibly be pending they would have already been
      *    processed in the libuv thread).
      *
      * The union of those two intervals is "probably" enough, but its correctness would rest on an internal property
