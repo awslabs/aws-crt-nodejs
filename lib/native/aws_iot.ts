@@ -161,6 +161,10 @@ export class AwsIotMqttConnectionConfigBuilder {
 
     private static configure_websocket_handshake(builder: AwsIotMqttConnectionConfigBuilder, options?: WebsocketConfig) {
         if (options) {
+            if (builder == null || builder == undefined) {
+                throw new CrtError("AwsIotMqttConnectionConfigBuilder configure_websocket_handshake: builder not defined");
+            }
+
             builder.params.websocket_handshake_transform = async (request, done) => {
                 const signing_config = options.create_signing_config?.()
                     ?? {

@@ -106,7 +106,7 @@ export class HttpHeaders implements CommonHttpHeaders {
      * @param default_value - Value returned if no values are found for the given name
      * @return The first header value, or default if no values exist
      */
-    get(name: string, default_value = "") {
+    get(name: string, default_value: string = "") {
         const values = this.headers[name.toLowerCase()];
         if (!values) {
             return default_value;
@@ -325,6 +325,10 @@ export class HttpClientConnection extends BufferedEventEmitter {
 }
 
 function stream_request(connection: HttpClientConnection, request: HttpRequest) {
+    if (request == null || request == undefined) {
+        throw new CrtError("HttpClientConnection stream_request: request not defined");
+    }
+
     const _to_object = (headers: HttpHeaders) => {
         // browsers refuse to let users configure host or user-agent
         const forbidden_headers = ['host', 'user-agent'];
