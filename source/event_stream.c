@@ -9,6 +9,8 @@
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
 
+static const uint32_t AWS_EVENT_STREAM_CONNECT_TIMEOUT_DEFAULT_MS = 10000;
+
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_HOST = "hostName";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_PORT = "port";
 static const char *AWS_EVENT_STREAM_PROPERTY_NAME_NAME = "name";
@@ -536,7 +538,7 @@ static int s_aws_event_stream_message_storage_init_from_js(
         for (size_t i = 0; i < header_array_length; ++i) {
 
             napi_value napi_header = NULL;
-            AWS_NAPI_CALL(env, napi_get_element(env, napi_headers, i, &napi_header), { goto error; });
+            AWS_NAPI_CALL(env, napi_get_element(env, napi_headers, (uint32_t)i, &napi_header), { goto error; });
 
             if (s_add_event_stream_header_from_js(&storage->headers, env, napi_header, log_context)) {
                 AWS_LOGF_ERROR(
@@ -1038,6 +1040,9 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
         }
 
         binding->socket_options = *socket_options_ptr;
+    } else {
+        /* Default is stream, ipv4, and a basic timeout */
+        binding->socket_options.connect_timeout_ms = AWS_EVENT_STREAM_CONNECT_TIMEOUT_DEFAULT_MS;
     }
 
     /* Arg #6: tls options */
