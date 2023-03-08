@@ -592,7 +592,7 @@ export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
  * rigid constraints to the public API calls of our event stream objects.  This in turn reduces the complexity of the
  * binding cases we need to consider.
  *
- * This state value is the primary means by which we add and enforce these constraints.
+ * This state value is the primary means by which we add and enforce these constraints to connection objects.
  *
  * Constraints enforced in the managed binding:
  *
@@ -613,7 +613,7 @@ enum ClientConnectionState {
 /**
  * Wrapper for a network connection that fulfills the client-side event stream RPC protocol contract.
  *
- * The use must call close() on a connection once finished with it.  Once close() has been called, no more events
+ * The user **must** call close() on a connection once finished with it.  Once close() has been called, no more events
  * will be emitted and all public API invocations will trigger an exception.
  */
 export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
@@ -624,6 +624,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * @param config configuration options for the event stream connection
      */
     constructor(config: ClientConnectionOptions) {
+        if (config === undefined) {
+            throw new CrtError("Invalid configuration passed to eventstream ClientConnection constructor");
+        }
+
         super();
 
         this.state = ClientConnectionState.None;
@@ -640,14 +644,11 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
     /**
      * Shuts down the connection (if active) and begins the process to release native resources associated with it by
-     * having the native binding release the only reference to the extern object representing the connection.
+     * having the native binding release the only reference to the extern object representing the connection.  Once
+     * close() has been called, no more events will be emitted and all public API invocations will trigger an exception.
      *
-     * Ultimately, the native resources will not be released until
-     *   (1) Node invokes the finalizer of that extern object, and
-     *   (2) The connection has fully shut down and that shutdown event has reached the libuv event loop.
-     *
-     * Condition (1) means that it may take GC pressure to cause complete memory release, but the network connection's
-     * OS resources will still be released as soon as the connection is shutdown.
+     * Ultimately, the native resources will not be released until the connection has fully shut down and that
+     * shutdown event has reached the libuv event loop.
      *
      * This function **must** be called for every ClientConnection instance or native resources will leak.
      */
@@ -672,19 +673,19 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             if (this.state != ClientConnectionState.None) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where connect() is not allowed.`));
                 return;
-            } else {
-                this.state = ClientConnectionState.Connecting;
+            }
 
-                function curriedPromiseCallback(connection: ClientConnection, errorCode: number){
-                    return ClientConnection._s_on_connection_setup(resolve, reject, connection, errorCode);
-                }
+            this.state = ClientConnectionState.Connecting;
 
-                try {
-                    crt_native.event_stream_client_connection_connect(this.native_handle(), curriedPromiseCallback);
-                } catch (e) {
-                    this.state = ClientConnectionState.Disconnected;
-                    reject(e);
-                }
+            function curriedPromiseCallback(connection: ClientConnection, errorCode: number){
+                return ClientConnection._s_on_connection_setup(resolve, reject, connection, errorCode);
+            }
+
+            try {
+                crt_native.event_stream_client_connection_connect(this.native_handle(), curriedPromiseCallback);
+            } catch (e) {
+                this.state = ClientConnectionState.Disconnected;
+                reject(e);
             }
         });
 
@@ -700,20 +701,26 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      */
     async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
+            if (options === undefined) {
+                reject(new CrtError("Invalid options passed to event stream ClientConnection.sendProtocolMessage"));
+                return;
+            }
+
             if (!this.isConnected()) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where sending protocol messages is not allowed.`));
-            } else {
-                // invoke native binding send message;
-                function curriedPromiseCallback(errorCode: number) {
-                    return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
-                }
+                return;
+            }
 
-                // invoke native binding send message;
-                try {
-                    crt_native.event_stream_client_connection_send_protocol_message(this.native_handle(), options, curriedPromiseCallback);
-                } catch (e) {
-                    reject(e);
-                }
+            // invoke native binding send message;
+            function curriedPromiseCallback(errorCode: number) {
+                return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
+            }
+
+            // invoke native binding send message;
+            try {
+                crt_native.event_stream_client_connection_send_protocol_message(this.native_handle(), options, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
             }
         });
     }
@@ -807,11 +814,35 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     private state : ClientConnectionState;
 }
 
+/**
+ * Event emitted when the stream has ended.  At most one stream ended event will ever be emitted by a single
+ * stream.
+ */
 export interface StreamEndedEvent {
 }
 
+/**
+ * Signature for a handler that listens to stream ended events.
+ */
 export type StreamEndedListener = (eventData: StreamEndedEvent) => void;
 
+/**
+ * @internal
+ *
+ * While not strictly necessary, the single-threaded nature of JS execution allows us to easily apply some
+ * rigid constraints to the public API calls of our event stream objects.  This in turn reduces the complexity of the
+ * binding cases we need to consider.
+ *
+ * This state value is the primary means by which we add and enforce these constraints to stream objects.
+ *
+ * Constraints enforced in the managed binding:
+ *
+ *  (1) close() may only be called once.  Once it has been called, nothing else may be called.
+ *  (2) sendMessage() may only be called after successful stream activation and before the
+ *      stream has been closed.
+ *  (3) activate() may only be called once.  Combined with (1) and (2), this means that if activate() is called, it must
+ *      be the first thing called.
+ */
 enum ClientStreamState {
     None,
     Activating,
@@ -820,6 +851,12 @@ enum ClientStreamState {
     Closed,
 }
 
+/**
+ * Wrapper for an individual stream within an eventstream connection.
+ *
+ * The user **must** call close() on a stream once finished with it.  Once close() has been called, no more events
+ * will be emitted and all public API invocations will trigger an exception.
+ */
 export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     constructor(connection: ClientConnection) {
@@ -835,6 +872,16 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         ));
     }
 
+    /**
+     * Shuts down the stream (if active) and begins the process to release native resources associated with it by
+     * having the native binding release the only reference to the extern object representing the stream.  Once
+     * close() has been called, no more events will be emitted and all public API invocations will trigger an exception.
+     *
+     * Ultimately, the native resources will not be released until the native stream has fully shut down and that
+     * shutdown event has reached the libuv event loop.
+     *
+     * This function **must** be called for every ClientStream instance or native resources will leak.
+     */
     close() : void {
         if (this.state != ClientStreamState.Closed) {
             this.state = ClientStreamState.Closed;
@@ -843,29 +890,61 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         }
     }
 
+    /**
+     * Activates the stream, allowing it to start sending and receiving messages.  The promise completes when
+     * the activation message has been written to the wire.
+     *
+     * activate() may only be called once.
+     *
+     * @param options -- configuration data for stream activation, including operation name and initial message
+     */
     async activate(options: ActivateStreamOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (this.state == ClientStreamState.None) {
-                this.state = ClientStreamState.Activating;
-
-                function curriedPromiseCallback(stream: ClientStream, errorCode: number){
-                    return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
-                }
-
-                try {
-                    crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
-                } catch (e) {
-                    this.state = ClientStreamState.Terminated;
-                    reject(e);
-                }
-            } else {
+            if (this.state != ClientStreamState.None) {
                 reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
+                return;
+            }
+
+            /*
+             * Intentionally check this after the state check (so closed streams do not reach here).
+             * Intentionally mutate state the same way a failed synchronous call to native activate does.
+             */
+            if (options === undefined) {
+                this.state = ClientStreamState.Terminated;
+                reject(new CrtError("Invalid options passed to ClientStream.activate"));
+                return;
+            }
+
+            this.state = ClientStreamState.Activating;
+
+            function curriedPromiseCallback(stream: ClientStream, errorCode: number){
+                return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
+            }
+
+            try {
+                crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
+            } catch (e) {
+                this.state = ClientStreamState.Terminated;
+                reject(e);
             }
         });
     }
 
+    /**
+     * Attempts to send an event stream message.
+     *
+     * @param options configuration -- including the message itself -- for sending a message
+     *
+     * Returns a promise that will be fulfilled when the message is successfully flushed to the wire, and rejected if
+     * an error occurs prior to that point.
+     */
     async sendMessage(options: StreamMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
+            if (options === undefined) {
+                reject(new CrtError("Invalid options passed to ClientStream.sendMessage"));
+                return;
+            }
+
             if (this.state != ClientStreamState.Activated) {
                 reject(new CrtError(`Event stream in a state (${this.state}) where sending messages is not allowed.`));
                 return;
@@ -882,6 +961,13 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                 reject(e);
             }
         });
+    }
+
+    /**
+     * Returns true if the stream is currently active and ready-to-use, false otherwise.
+     */
+    isActive() : boolean {
+        return this.state == ClientStreamState.Activated;
     }
 
     /**

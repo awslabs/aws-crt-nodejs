@@ -347,6 +347,42 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
     connection.close();
 });
 
+conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - create with undefined', async () => {
+    expect(() => {
+        // @ts-ignore
+        new eventstream.ClientConnection(undefined)
+    }).toThrow();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - create with missing required property', async () => {
+    let config : eventstream.ClientConnectionOptions = makeGoodConfig();
+
+    // @ts-ignore
+    config.hostName = undefined;
+
+    expect(() => {
+        new eventstream.ClientConnection(config)
+    }).toThrow();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - sendProtocolMessage with undefined', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+
+    // @ts-ignore
+    await expect(connection.sendProtocolMessage(undefined )).rejects.toThrow();
+
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - sendProtocolMessage with missing required property', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+
+    // @ts-ignore
+    await expect(connection.sendProtocolMessage({} )).rejects.toThrow();
+
+    connection.close();
+});
+
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - newStream while not connected', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
@@ -771,5 +807,54 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
 
     await expect(stream.sendMessage({message: message} )).rejects.toThrow();
 
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate with undefined', async () => {
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = connection.newStream();
+
+    // @ts-ignore
+    await expect(stream.activate(undefined)).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate with missing required property', async () => {
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = connection.newStream();
+
+    // @ts-ignore
+    let activateOptions : eventstream.ActivateStreamOptions = {
+        message: {
+            type: eventstream.MessageType.ApplicationMessage
+        }
+    }
+    await expect(stream.activate(activateOptions)).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendMessage with undefined', async () => {
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    // @ts-ignore
+    await expect(stream.sendMessage(undefined)).rejects.toThrow();
+
+    stream.close();
+    connection.close();
+});
+
+conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendMessage with missing required property', async () => {
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    // @ts-ignore
+    await expect(stream.sendMessage({})).rejects.toThrow();
+
+    stream.close();
     connection.close();
 });
