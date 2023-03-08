@@ -1,3 +1,4 @@
+import atexit
 import Builder
 import json
 import os
@@ -29,7 +30,6 @@ class CrtCiTest(Builder.Action):
 
     def _build_and_run_eventstream_echo_server(self, env):
         java_sdk_dir = None
-        proc = None
 
         try:
             env.shell.exec(["mvn", "--version"], check=True)
@@ -43,8 +43,9 @@ class CrtCiTest(Builder.Action):
             env.shell.pushd(sdk_dir)
 
             try:
-                env.shell.exec(["mvn", "compile"], check=True)
-                env.shell.exec(["mvn", "test", "-DskipTests=true"], check=True)
+                # The EchoTest server is in test-only code
+                env.shell.exec(["mvn", "test-compile"], check=True)
+
                 env.shell.exec(["mvn", "dependency:build-classpath", "-Dmdep.outputFile=classpath.txt"], check=True)
 
                 with open('classpath.txt', 'r') as file:
@@ -61,29 +62,30 @@ class CrtCiTest(Builder.Action):
                 # bypass builder's exec wrapper since it doesn't allow for background execution
                 proc = subprocess.Popen(echo_server_command)
 
+                @atexit.register
+                def _terminate_echo_server():
+                    proc.terminate()
+                    proc.wait()
+
                 env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST", "127.0.0.1", quiet=False)
                 env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT", "8033", quiet=False)
-            except:
-                raise
-
             finally:
                 env.shell.popd()
 
         except:
             print('Failed to set up event stream server.  Eventstream CI tests will not be run.')
 
-        return proc, java_sdk_dir
+        return java_sdk_dir
 
     def run(self, env):
 
         actions = []
-        proc = None
         java_sdk_dir = None
         cert_file_name = None
         key_file_name = None
 
         try:
-            proc, java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
+            java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
 
             env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
 
@@ -102,9 +104,6 @@ class CrtCiTest(Builder.Action):
             print(f'Failure while running tests')
             actions.append("exit 1")
         finally:
-            if proc:
-                proc.terminate()
-                proc.wait()
             if cert_file_name:
                 os.remove(cert_file_name)
             if key_file_name:
