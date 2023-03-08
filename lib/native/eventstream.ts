@@ -592,7 +592,7 @@ export type DisconnectionListener = (eventData: DisconnectionEvent) => void;
  * rigid constraints to the public API calls of our event stream objects.  This in turn reduces the complexity of the
  * binding cases we need to consider.
  *
- * This state value is the primary means by which we add and enforce these constraints.
+ * This state value is the primary means by which we add and enforce these constraints to connection objects.
  *
  * Constraints enforced in the managed binding:
  *
@@ -613,7 +613,7 @@ enum ClientConnectionState {
 /**
  * Wrapper for a network connection that fulfills the client-side event stream RPC protocol contract.
  *
- * The use must call close() on a connection once finished with it.  Once close() has been called, no more events
+ * The user must call close() on a connection once finished with it.  Once close() has been called, no more events
  * will be emitted and all public API invocations will trigger an exception.
  */
 export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
@@ -807,11 +807,35 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     private state : ClientConnectionState;
 }
 
+/**
+ * Event emitted when the stream has ended.  At most one stream ended event will ever be emitted by a single
+ * stream.
+ */
 export interface StreamEndedEvent {
 }
 
+/**
+ * Signature for a handler that listens to stream ended events.
+ */
 export type StreamEndedListener = (eventData: StreamEndedEvent) => void;
 
+/**
+ * @internal
+ *
+ * While not strictly necessary, the single-threaded nature of JS execution allows us to easily apply some
+ * rigid constraints to the public API calls of our event stream objects.  This in turn reduces the complexity of the
+ * binding cases we need to consider.
+ *
+ * This state value is the primary means by which we add and enforce these constraints to stream objects.
+ *
+ * Constraints enforced in the managed binding:
+ *
+ *  (1) close() may only be called once.  Once it has been called, nothing else may be called.
+ *  (2) sendMessage() may only be called after successful stream activation and before the
+ *      stream has been closed.
+ *  (3) activate() may only be called once.  Combined with (1) and (2), this means that if activate() is called, it must
+ *      be the first thing called.
+ */
 enum ClientStreamState {
     None,
     Activating,
@@ -820,6 +844,12 @@ enum ClientStreamState {
     Closed,
 }
 
+/**
+ * Wrapper for an individual stream within an eventstream connection.
+ *
+ * The user must call close() on a stream once finished with it.  Once close() has been called, no more events
+ * will be emitted and all public API invocations will trigger an exception.
+ */
 export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     constructor(connection: ClientConnection) {
@@ -835,6 +865,18 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         ));
     }
 
+    /**
+     * Shuts down the stream (if active) and begins the process to release native resources associated with it by
+     * having the native binding release the only reference to the extern object representing the stream.
+     *
+     * Ultimately, the native resources will not be released until
+     *   (1) Node invokes the finalizer of that extern object, and
+     *   (2) The native stream has fully shut down and that shutdown event has reached the libuv event loop.
+     *
+     * Condition (1) means that it may take GC pressure to cause complete memory release.
+     *
+     * This function **must** be called for every ClientStream instance or native resources will leak.
+     */
     close() : void {
         if (this.state != ClientStreamState.Closed) {
             this.state = ClientStreamState.Closed;
@@ -843,6 +885,12 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         }
     }
 
+    /**
+     * Activates the stream, allowing it to start sending and receiving messages.  The promise completes when
+     * the activation message has been written to the wire.
+     *
+     * activate() may only be called once.
+     */
     async activate(options: ActivateStreamOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this.state == ClientStreamState.None) {
@@ -864,6 +912,14 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         });
     }
 
+    /**
+     * Attempts to send an event stream message.
+     *
+     * @param options configuration -- including the message itself -- for sending a message
+     *
+     * Returns a promise that will be fulfilled when the message is successfully flushed to the wire, and rejected if
+     * an error occurs prior to that point.
+     */
     async sendMessage(options: StreamMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this.state != ClientStreamState.Activated) {
@@ -882,6 +938,13 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                 reject(e);
             }
         });
+    }
+
+    /**
+     * Returns true if the stream is currently active and ready-to-use, false otherwise.
+     */
+    isActive() : boolean {
+        return this.state == ClientStreamState.Activated;
     }
 
     /**
