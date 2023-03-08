@@ -30,6 +30,10 @@ function set_defined_property(object: any, propertyName: string, value: any) : b
 
 /** @internal */
 export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.IConnackPacket) : mqtt5.ConnackPacket {
+    if (mqtt_js_connack == null || mqtt_js_connack == undefined) {
+        throw new CrtError("transform_mqtt_js_connack_to_crt_connack: mqtt_js_connack not defined");
+    }
+
     let connack : mqtt5.ConnackPacket =  {
         type: mqtt5.PacketType.Connack,
         sessionPresent: mqtt_js_connack.sessionPresent,
@@ -57,6 +61,13 @@ export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.I
 
 /** @internal */
 export function create_negotiated_settings(config : mqtt5.Mqtt5ClientConfig, connack: mqtt5.ConnackPacket) : mqtt5.NegotiatedSettings {
+    if (config == null || config == undefined) {
+        throw new CrtError("create_negotiated_settings: config not defined");
+    }
+    if (connack == null || connack == undefined) {
+        throw new CrtError("create_negotiated_settings: connack not defined");
+    }
+
     return {
         maximumQos: Math.min(connack.maximumQos ?? mqtt5.QoS.ExactlyOnce, mqtt5.QoS.AtLeastOnce),
         sessionExpiryInterval: connack.sessionExpiryInterval ?? config.connectProperties?.sessionExpiryIntervalSeconds ?? 0,
@@ -168,6 +179,9 @@ function validate_optional_nonnegative_uint32(propertyName : string, value?: num
 }
 
 function validate_mqtt5_client_config(crtConfig : mqtt5.Mqtt5ClientConfig) {
+    if (crtConfig == null || crtConfig == undefined) {
+        throw new CrtError("validate_mqtt5_client_config: crtConfig not defined");
+    }
     validate_required_uint16("keepAliveIntervalSeconds", crtConfig.connectProperties?.keepAliveIntervalSeconds ?? 0);
     validate_optional_uint32("sessionExpiryIntervalSeconds", crtConfig.connectProperties?.sessionExpiryIntervalSeconds);
     validate_optional_uint16("receiveMaximum", crtConfig.connectProperties?.receiveMaximum);
@@ -272,6 +286,9 @@ export function transform_mqtt_js_user_properties_to_crt_user_properties(userPro
 }
 
 function validate_crt_disconnect(disconnect: mqtt5.DisconnectPacket) {
+    if (disconnect == null || disconnect == undefined) {
+        throw new CrtError("validate_crt_disconnect: disconnect not defined");
+    }
     validate_optional_uint32("sessionExpiryIntervalSeconds", disconnect.sessionExpiryIntervalSeconds);
 }
 
@@ -303,6 +320,10 @@ export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5
 /** @internal **/
 export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.IDisconnectPacket) : mqtt5.DisconnectPacket {
 
+    if (disconnect == null || disconnect == undefined) {
+        throw new CrtError("transform_mqtt_js_disconnect_to_crt_disconnect: disconnect not defined");
+    }
+
     let crtDisconnect : mqtt5.DisconnectPacket = {
         type: mqtt5.PacketType.Disconnect,
         reasonCode : disconnect.reasonCode ?? mqtt5.DisconnectReasonCode.NormalDisconnection
@@ -317,6 +338,9 @@ export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.
 }
 
 function validate_crt_subscribe(subscribe: mqtt5.SubscribePacket) {
+    if (subscribe == null || subscribe == undefined) {
+        throw new CrtError("validate_crt_subscribe: subscribe not defined");
+    }
     validate_optional_uint32("subscriptionIdentifier", subscribe.subscriptionIdentifier);
 }
 
@@ -347,6 +371,10 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
     let properties = {};
     let propertiesValid : boolean = false;
 
+    if (subscribe == null || subscribe == undefined) {
+        throw new CrtError("transform_crt_subscribe_to_mqtt_js_subscribe_options: subscribe not defined");
+    }
+
     propertiesValid = set_defined_property(properties, "subscriptionIdentifier", subscribe.subscriptionIdentifier) || propertiesValid;
     propertiesValid = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(subscribe.userProperties)) || propertiesValid;
 
@@ -363,6 +391,10 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
 
 /** @internal **/
 export function transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted: mqtt.ISubscriptionGrant[]) : mqtt5.SubackPacket {
+
+    if (subscriptionsGranted == null || subscriptionsGranted == undefined) {
+        throw new CrtError("transform_mqtt_js_subscription_grants_to_crt_suback: subscriptionsGranted not defined");
+    }
 
     let crtSuback : mqtt5.SubackPacket = {
         type: mqtt5.PacketType.Suback,
@@ -381,6 +413,9 @@ export function transform_mqtt_js_subscription_grants_to_crt_suback(subscription
 }
 
 function validate_crt_publish(publish: mqtt5.PublishPacket) {
+    if (publish == null || publish == undefined) {
+        throw new CrtError("validate_crt_publish: publish not defined");
+    }
     validate_optional_uint32("messageExpiryIntervalSeconds", publish.messageExpiryIntervalSeconds);
 }
 
@@ -415,6 +450,10 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5.
 
 /** @internal **/
 export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishPacket) : mqtt5.PublishPacket {
+
+    if (publish == null || publish == undefined) {
+        throw new CrtError("transform_mqtt_js_publish_to_crt_publish: publish not defined");
+    }
 
     let crtPublish : mqtt5.PublishPacket = {
         type: mqtt5.PacketType.Publish,
@@ -451,6 +490,10 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 /** @internal **/
 export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacket) : mqtt5.PubackPacket {
 
+    if (puback == null || puback == undefined) {
+        throw new CrtError("transform_mqtt_js_puback_to_crt_puback: puback not defined");
+    }
+
     let crtPuback : mqtt5.PubackPacket = {
         type: mqtt5.PacketType.Puback,
         reasonCode: puback.reasonCode ?? mqtt5.PubackReasonCode.Success,
@@ -466,6 +509,10 @@ export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacke
 
 /** @internal **/
 export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubscribe: mqtt5.UnsubscribePacket) : Object {
+
+    if (unsubscribe == null || unsubscribe == undefined) {
+        throw new CrtError("transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options: unsubscribe not defined");
+    }
 
     let properties = {};
     let propertiesValid : boolean = false;
@@ -483,6 +530,10 @@ export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubsc
 
 /** @internal **/
 export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubackPacket) : mqtt5.UnsubackPacket {
+
+    if (packet == null || packet == undefined) {
+        throw new CrtError("transform_mqtt_js_unsuback_to_crt_unsuback: packet not defined");
+    }
 
     let reasonCodes : number | number[] | undefined = packet.reasonCode;
 
