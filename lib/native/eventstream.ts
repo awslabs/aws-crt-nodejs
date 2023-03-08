@@ -624,6 +624,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * @param config configuration options for the event stream connection
      */
     constructor(config: ClientConnectionOptions) {
+        if (config === undefined) {
+            throw new CrtError("Invalid configuration passed to eventstream ClientConnection constructor");
+        }
+
         super();
 
         this.state = ClientConnectionState.None;
@@ -668,19 +672,19 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             if (this.state != ClientConnectionState.None) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where connect() is not allowed.`));
                 return;
-            } else {
-                this.state = ClientConnectionState.Connecting;
+            }
 
-                function curriedPromiseCallback(connection: ClientConnection, errorCode: number){
-                    return ClientConnection._s_on_connection_setup(resolve, reject, connection, errorCode);
-                }
+            this.state = ClientConnectionState.Connecting;
 
-                try {
-                    crt_native.event_stream_client_connection_connect(this.native_handle(), curriedPromiseCallback);
-                } catch (e) {
-                    this.state = ClientConnectionState.Disconnected;
-                    reject(e);
-                }
+            function curriedPromiseCallback(connection: ClientConnection, errorCode: number){
+                return ClientConnection._s_on_connection_setup(resolve, reject, connection, errorCode);
+            }
+
+            try {
+                crt_native.event_stream_client_connection_connect(this.native_handle(), curriedPromiseCallback);
+            } catch (e) {
+                this.state = ClientConnectionState.Disconnected;
+                reject(e);
             }
         });
 
@@ -696,20 +700,26 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      */
     async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
+            if (options === undefined) {
+                reject(new CrtError("Invalid options passed to event stream ClientConnection.sendProtocolMessage"));
+                return;
+            }
+
             if (!this.isConnected()) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where sending protocol messages is not allowed.`));
-            } else {
-                // invoke native binding send message;
-                function curriedPromiseCallback(errorCode: number) {
-                    return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
-                }
+                return;
+            }
 
-                // invoke native binding send message;
-                try {
-                    crt_native.event_stream_client_connection_send_protocol_message(this.native_handle(), options, curriedPromiseCallback);
-                } catch (e) {
-                    reject(e);
-                }
+            // invoke native binding send message;
+            function curriedPromiseCallback(errorCode: number) {
+                return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
+            }
+
+            // invoke native binding send message;
+            try {
+                crt_native.event_stream_client_connection_send_protocol_message(this.native_handle(), options, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
             }
         });
     }
@@ -886,21 +896,32 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      */
     async activate(options: ActivateStreamOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (this.state == ClientStreamState.None) {
-                this.state = ClientStreamState.Activating;
-
-                function curriedPromiseCallback(stream: ClientStream, errorCode: number){
-                    return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
-                }
-
-                try {
-                    crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
-                } catch (e) {
-                    this.state = ClientStreamState.Terminated;
-                    reject(e);
-                }
-            } else {
+            if (this.state != ClientStreamState.None) {
                 reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
+                return;
+            }
+
+            /*
+             * Intentionally check this after the state check (so closed streams do not reach here).
+             * Intentionally mutate state the same way a failed synchronous call to native activate does.
+             */
+            if (options === undefined) {
+                this.state = ClientStreamState.Terminated;
+                reject(new CrtError("Invalid options passed to ClientStream.activate"));
+                return;
+            }
+
+            this.state = ClientStreamState.Activating;
+
+            function curriedPromiseCallback(stream: ClientStream, errorCode: number){
+                return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
+            }
+
+            try {
+                crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
+            } catch (e) {
+                this.state = ClientStreamState.Terminated;
+                reject(e);
             }
         });
     }
@@ -915,6 +936,11 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      */
     async sendMessage(options: StreamMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
+            if (options === undefined) {
+                reject(new CrtError("Invalid options passed to ClientStream.sendMessage"));
+                return;
+            }
+
             if (this.state != ClientStreamState.Activated) {
                 reject(new CrtError(`Event stream in a state (${this.state}) where sending messages is not allowed.`));
                 return;
