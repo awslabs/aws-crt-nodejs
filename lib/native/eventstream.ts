@@ -82,6 +82,13 @@ const MIN_INT64 : bigint = BigInt("-9223372036854775808");
 
 const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
 
+type HeaderValue =
+    undefined |  /* BooleanTrue, BooleanFalse */
+    number |  /* byte, int16, int32, timestamp */
+    BigInt |  /* int64 */
+    string |  /* string */
+    Payload;  /* ByteBuffer, UUID (via ArrayBuffer) */
+
 /**
  * Wrapper class for event stream message headers.  Similar to HTTP, a header is a name-value pair.  Unlike HTTP, the
  * value's wire format varies depending on a type annotation.  We provide static builder functions to help
@@ -90,8 +97,8 @@ const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
  */
 export class Header {
 
-    private constructor(public name: string, public type: HeaderType, private value?: any) {
-    }
+    /** @internal */
+    constructor(public name: string, public type: HeaderType, public value?: HeaderValue) {}
 
     private static validateHeaderName(name: string) {
         if (name.length == 0 || name.length > AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH) {
@@ -356,7 +363,6 @@ export class Header {
     }
 }
 
-
 /**
  * Flags for messages in the event-stream RPC protocol.
  *
@@ -456,6 +462,28 @@ export interface Message {
      * Actual message payload
      */
     payload?: Payload,
+}
+
+/** @internal */
+function mapPodHeadersToJSHeaders(headers: Array<Header>) : Array<Header> {
+    return Array.from(headers, (header) => {
+        return new Header(header.name, header.type, header.value);
+    });
+}
+
+/** @internal */
+function mapPodMessageToJSMessage(message: Message) : Message {
+    let jsMessage : Message = {
+        type: message.type,
+        flags: message.flags,
+        payload: message.payload
+    }
+
+    if (message.headers) {
+        jsMessage.headers = mapPodHeadersToJSHeaders(message.headers);
+    }
+
+    return jsMessage;
 }
 
 /**
@@ -757,11 +785,15 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             connection.state = ClientConnectionState.Disconnected;
         }
 
-        connection.emit('disconnection', {errorCode: errorCode});
+        process.nextTick(() => {
+            connection.emit('disconnection', {errorCode: errorCode});
+        });
     }
 
     private static _s_on_protocol_message(connection: ClientConnection, message: Message) {
-        connection.emit('protocolMessage', { message: message });
+        process.nextTick(() => {
+            connection.emit('protocolMessage', {message: mapPodMessageToJSMessage(message)});
+        });
     }
 
     private static _s_on_connection_send_protocol_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
@@ -775,13 +807,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
     private state : ClientConnectionState;
 }
 
-/* CR cutoff - everything below here is placeholder */
-
-export interface StreamClosedEvent {
-    errorCode: number;
+export interface StreamEndedEvent {
 }
 
-export type StreamClosedListener = (eventData: StreamClosedEvent) => void;
+export type StreamEndedListener = (eventData: StreamEndedEvent) => void;
 
 enum ClientStreamState {
     None,
@@ -801,8 +830,8 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         this._super(crt_native.event_stream_client_stream_new(
             this,
             connection.native_handle(),
-            (stream: ClientStream, errorCode: number) => { ClientStream._s_on_stream_terminated(stream, errorCode); },
-            (stream: ClientStream, message: Message) => { ClientStream._s_on_continuation_message(stream, message); },
+            (stream: ClientStream) => { ClientStream._s_on_stream_ended(stream); },
+            (stream: ClientStream, message: Message) => { ClientStream._s_on_stream_message(stream, message); },
         ));
     }
 
@@ -855,9 +884,27 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         });
     }
 
-    on(event: 'terminated', listener: StreamClosedListener): this;
+    /**
+     * Event emitted when the stream is shut down for any reason.
+     *
+     * Listener type: {@link StreamEndedListener}
+     *
+     * @event
+     */
+    static STREAM_ENDED : string = 'streamEnded';
 
-    on(event: 'message', listener: MessageListener): this;
+    /**
+     * Event emitted when a stream message is received from the remote endpoint
+     *
+     * Listener type: {@link MessageListener}
+     *
+     * @event
+     */
+    static STREAM_MESSAGE : string = 'streamMessage';
+
+    on(event: 'streamEnded', listener: StreamEndedListener): this;
+
+    on(event: 'streamMessage', listener: MessageListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -885,12 +932,16 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         }
     }
 
-    private static _s_on_stream_terminated(stream: ClientStream, errorCode: number) {
-        stream.emit('terminated', {errorCode: errorCode});
+    private static _s_on_stream_ended(stream: ClientStream) {
+        process.nextTick(() => {
+            stream.emit(ClientStream.STREAM_ENDED, {});
+        });
     }
 
-    private static _s_on_continuation_message(stream: ClientStream, message: Message) {
-        stream.emit('message', { message: message });
+    private static _s_on_stream_message(stream: ClientStream, message: Message) {
+        process.nextTick(() => {
+            stream.emit(ClientStream.STREAM_MESSAGE, {message: mapPodMessageToJSMessage(message)});
+        });
     }
 
     private state : ClientStreamState;
