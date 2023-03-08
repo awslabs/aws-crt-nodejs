@@ -613,7 +613,7 @@ enum ClientConnectionState {
 /**
  * Wrapper for a network connection that fulfills the client-side event stream RPC protocol contract.
  *
- * The user must call close() on a connection once finished with it.  Once close() has been called, no more events
+ * The user **must** call close() on a connection once finished with it.  Once close() has been called, no more events
  * will be emitted and all public API invocations will trigger an exception.
  */
 export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
@@ -644,7 +644,8 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
     /**
      * Shuts down the connection (if active) and begins the process to release native resources associated with it by
-     * having the native binding release the only reference to the extern object representing the connection.
+     * having the native binding release the only reference to the extern object representing the connection.  Once
+     * close() has been called, no more events will be emitted and all public API invocations will trigger an exception.
      *
      * Ultimately, the native resources will not be released until the connection has fully shut down and that
      * shutdown event has reached the libuv event loop.
@@ -853,7 +854,7 @@ enum ClientStreamState {
 /**
  * Wrapper for an individual stream within an eventstream connection.
  *
- * The user must call close() on a stream once finished with it.  Once close() has been called, no more events
+ * The user **must** call close() on a stream once finished with it.  Once close() has been called, no more events
  * will be emitted and all public API invocations will trigger an exception.
  */
 export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
@@ -873,7 +874,8 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     /**
      * Shuts down the stream (if active) and begins the process to release native resources associated with it by
-     * having the native binding release the only reference to the extern object representing the stream.
+     * having the native binding release the only reference to the extern object representing the stream.  Once
+     * close() has been called, no more events will be emitted and all public API invocations will trigger an exception.
      *
      * Ultimately, the native resources will not be released until the native stream has fully shut down and that
      * shutdown event has reached the libuv event loop.
@@ -893,6 +895,8 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * the activation message has been written to the wire.
      *
      * activate() may only be called once.
+     *
+     * @param options -- configuration data for stream activation, including operation name and initial message
      */
     async activate(options: ActivateStreamOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
