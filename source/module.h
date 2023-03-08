@@ -10,7 +10,7 @@
 #include <aws/common/string.h>
 
 #define WIN32_LEAN_AND_MEAN
-#define NAPI_VERSION 4
+#define NAPI_VERSION 6
 #include <node_api.h>
 
 #define AWS_CRT_NODEJS_PACKAGE_ID 11
@@ -48,6 +48,12 @@ int aws_napi_attach_object_property_optional_boolean(
     const char *key_name,
     const bool *value);
 
+int aws_napi_attach_object_property_bigint_from_i64(
+    napi_value object,
+    napi_env env,
+    const char *key_name,
+    int64_t value);
+
 int aws_napi_attach_object_property_u64(napi_value object, napi_env env, const char *key_name, uint64_t value);
 
 int aws_napi_attach_object_property_optional_u64(
@@ -63,6 +69,8 @@ int aws_napi_attach_object_property_optional_u32(
     napi_env env,
     const char *key_name,
     const uint32_t *value);
+
+int aws_napi_attach_object_property_i32(napi_value object, napi_env env, const char *key_name, int32_t value);
 
 int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value);
 
@@ -111,11 +119,35 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property(
     napi_valuetype type,
     napi_value *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int8_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint16(
     napi_env env,
     napi_value object,
     const char *name,
     uint16_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int16_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
     napi_env env,
@@ -123,11 +155,29 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
     const char *name,
     uint32_t *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int32_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     napi_env env,
     napi_value object,
     const char *name,
     uint64_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_bigint_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     napi_env env,
@@ -135,18 +185,25 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     const char *name,
     bool *result);
 
-enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_u8(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    uint8_t *result);
-
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
     napi_env env,
     napi_value object,
     const char *name,
     napi_valuetype type,
     struct aws_byte_buf *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_length(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    size_t *length_out);
+
+int aws_napi_get_property_array_size(
+    napi_env env,
+    napi_value object,
+    const char *property_name,
+    size_t *array_size_out);
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);

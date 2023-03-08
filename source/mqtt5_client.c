@@ -1602,7 +1602,7 @@ static int s_init_connect_options_from_napi(
     PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_REQUEST_RESPONSE_INFORMATION,
         "s_init_connect_options_from_napi",
-        aws_napi_get_named_property_boolean_as_u8(
+        aws_napi_get_named_property_boolean_as_uint8(
             env,
             node_connect_config,
             AWS_NAPI_KEY_REQUEST_RESPONSE_INFORMATION,
@@ -1612,7 +1612,7 @@ static int s_init_connect_options_from_napi(
     PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_REQUEST_PROBLEM_INFORMATION,
         "s_init_connect_options_from_napi",
-        aws_napi_get_named_property_boolean_as_u8(
+        aws_napi_get_named_property_boolean_as_uint8(
             env,
             node_connect_config,
             AWS_NAPI_KEY_REQUEST_PROBLEM_INFORMATION,
