@@ -161,37 +161,6 @@ static void s_close_connection_binding(napi_env env, struct aws_event_stream_cli
 }
 
 /*
- * Invoked when the node connection object is garbage collected or if fails construction partway through
- */
-static void s_aws_event_stream_client_connection_extern_finalize(
-    napi_env env,
-    void *finalize_data,
-    void *finalize_hint) {
-    (void)finalize_hint;
-    (void)env;
-
-    struct aws_event_stream_client_connection_binding *binding = finalize_data;
-
-    AWS_LOGF_INFO(
-        AWS_LS_NODEJS_CRT_GENERAL,
-        "id=%p s_aws_event_tream_client_connection_extern_finalize - event stream client connection node wrapper is "
-        "being finalized",
-        (void *)binding->connection);
-
-    /*
-     * Only an explicit call to close() from JS will break the extern ref that keeps the finalizer from being called.
-     * If we're here, this must be true.
-     */
-    AWS_FATAL_ASSERT(binding->is_closed);
-
-    /*
-     * Release the allocation-ref on the binding.  If there is a connection in progress (or being shutdown) there
-     * is a second ref outstanding which is removed on connection shutdown or failed setup.
-     */
-    s_aws_event_stream_client_connection_binding_release(binding);
-}
-
-/*
  * Holds relevant information about a connection setup or shutdown callback from the event loop.  This is shipped
  * over to a threadsafe function that runs on the libuv thread.
  */
@@ -933,7 +902,7 @@ napi_value aws_napi_event_stream_client_connection_new(napi_env env, napi_callba
 
     AWS_NAPI_CALL(
         env,
-        napi_create_external(env, binding, s_aws_event_stream_client_connection_extern_finalize, NULL, &node_external),
+        napi_create_external(env, binding, NULL, NULL, &node_external),
         {
             aws_mem_release(allocator, binding);
             napi_throw_error(env, NULL, "event_stream_client_connection_new - Failed to create n-api external");
@@ -1114,6 +1083,12 @@ napi_value aws_napi_event_stream_client_connection_close(napi_env env, napi_call
     if (binding->connection != NULL) {
         aws_event_stream_rpc_client_connection_close(binding->connection, AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE);
     }
+
+    /*
+     * Release the allocation-ref on the binding.  If there is a connection in progress (or being shutdown) there
+     * is a second ref outstanding which is removed on connection shutdown or failed setup.
+     */
+    s_aws_event_stream_client_connection_binding_release(binding);
 
     return NULL;
 }
@@ -1678,34 +1653,6 @@ static void s_close_stream_binding(napi_env env, struct aws_event_stream_client_
     }
 }
 
-/*
- * Invoked when the node stream object is garbage collected or if fails construction partway through
- */
-static void s_aws_event_stream_client_stream_extern_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)finalize_hint;
-    (void)env;
-
-    struct aws_event_stream_client_stream_binding *binding = finalize_data;
-
-    AWS_LOGF_INFO(
-        AWS_LS_NODEJS_CRT_GENERAL,
-        "id=%p s_aws_event_tream_client_stream_extern_finalize - event stream client stream node wrapper is "
-        "being finalized",
-        (void *)binding->stream);
-
-    /*
-     * Only an explicit call to close() from JS will break the extern ref that keeps the finalizer from being called.
-     * If we're here, this must be true.
-     */
-    AWS_FATAL_ASSERT(binding->is_closed);
-
-    /*
-     * Release the allocation-ref on the binding.  If there is a stream activation in progress (or being shutdown) there
-     * is a second ref outstanding which is removed on stream shutdown or failed activation.
-     */
-    s_aws_event_stream_client_stream_binding_release(binding);
-}
-
 static void s_napi_event_stream_on_stream_ended(napi_env env, napi_value function, void *context, void *user_data) {
     (void)context;
 
@@ -1870,7 +1817,7 @@ napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_i
 
     AWS_NAPI_CALL(
         env,
-        napi_create_external(env, binding, s_aws_event_stream_client_stream_extern_finalize, NULL, &node_external),
+        napi_create_external(env, binding, NULL, NULL, &node_external),
         {
             aws_mem_release(allocator, binding);
             napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to create n-api external");
@@ -2042,10 +1989,17 @@ napi_value aws_napi_event_stream_client_stream_close(napi_env env, napi_callback
     /* This severs the ability to call back into JS and makes the binding's extern available for garbage collection */
     s_close_stream_binding(env, binding);
 
-    if (binding->stream != NULL) {
-        aws_event_stream_rpc_client_continuation_release(binding->stream);
+    struct aws_event_stream_rpc_client_continuation_token *stream = binding->stream;
+    if (stream != NULL) {
         binding->stream = NULL;
+        aws_event_stream_rpc_client_continuation_release(stream);
     }
+
+    /*
+     * Release the allocation-ref on the binding.  If there is a stream activation in progress (or being shutdown) there
+     * is a second ref outstanding which is removed on stream shutdown or failed activation.
+     */
+    s_aws_event_stream_client_stream_binding_release(binding);
 
     return NULL;
 }
