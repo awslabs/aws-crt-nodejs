@@ -12,7 +12,7 @@ import { Config, fetch_credentials } from '@test/credentials';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 import {once} from "events";
 
-jest.setTimeout(10000000);
+jest.setTimeout(10000);
 
 async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
