@@ -1,7 +1,38 @@
 # MQTT 5
 
-Complete API documentation for the CRT's MQTT5 client can be found for 
-* [NodeJS](https://awslabs.github.io/aws-crt-nodejs/node/modules/mqtt5.html) 
+# Table of contents
+
+* [Developer Preview Disclaimer](#developer-preview-disclaimer)
+* [What's Different? (relative to the MQTT311 implementation)](#whats-different-relative-to-the-mqtt311-implementation)
+  * [Major changes](#major-changes)
+  * [Minor changes](#minor-changes)
+  * [Not supported](#not-supported)
+* [Client connection management](#client-connection-management)
+  * [Client events](#client-events)
+    * [AttemptingConnect](#attemptingconnect)
+    * [ConnectionSuccess](#connectionsuccess)
+    * [ConnectionFailure](#connectionfailure)
+    * [Disconnect](#disconnect)
+    * [Stopped](#stopped)
+    * [MessageReceived](#messagereceived)
+* [Connecting To AWS IoT Core](#connecting-to-aws-iot-core)
+  * [NodeJS](#nodejs)
+    * [Direct MQTT with X509-based mutual TLS](#direct-mqtt-with-x509-based-mutual-tls)
+    * [MQTT over Websockets with Sigv4 authentication](#mqtt-over-websockets-with-sigv4-authentication)
+    * [Direct MQTT with Custom Authentication](#direct-mqtt-with-custom-authentication)
+    * [HTTP Proxy](#http-proxy)
+  * [Browser](#browser)
+    * [MQTT over Websockets with Sigv4 authentication](#mqtt-over-websockets-with-sigv4-authentication-1)
+    * [MQTT over Websockets with Custom Authentication](#mqtt-over-websockets-with-custom-authentication)
+    * [HTTP Proxy](#http-proxy-1)
+* [Client Operations](#client-operations)
+  * [Subscribe](#subscribe)
+  * [Unsubscribe](#unsubscribe)
+  * [Publish](#publish)
+  * [Disconnect](#disconnect-1)
+
+Complete API documentation for the CRT's MQTT5 client can be found for
+* [NodeJS](https://awslabs.github.io/aws-crt-nodejs/node/modules/mqtt5.html)
 * [Browser](https://awslabs.github.io/aws-crt-nodejs/browser/modules/mqtt5.html)
 
 ## Developer Preview Disclaimer
@@ -14,7 +45,7 @@ address this in the near future.
 
 ## What's Different? (relative to the MQTT311 implementation)
 SDK MQTT5 support comes from a separate client implementation.  By doing so, we took the opportunity to incorporate
-feedback about the MQTT311 implementation that we could not apply without making breaking changes.  If you're used to the MQTT311 
+feedback about the MQTT311 implementation that we could not apply without making breaking changes.  If you're used to the MQTT311
 implementation's API contract, there are a number of differences.
 
 ### Major changes
@@ -25,7 +56,7 @@ implementation's API contract, there are a number of differences.
 * * IoT Core specific validation - will validate and fail operations that break IoT Core specific restrictions
 * * IoT Core specific flow control - will apply flow control to honor IoT Core specific per-connection limits and quotas
 * * Flexible queue control - provides a number of options to control what happens to incomplete operations on a disconnection event
-* A new API has been added to query the internal state of the client's operation queue.  This API allows the user to make more informed flow control decisions before submitting operatons to the client.  Simple, let-the-client-handle-it backpressure mechanisms are planned for future development.
+* A new API has been added to query the internal state of the client's operation queue.  This API allows the user to make more informed flow control decisions before submitting operations to the client.  Simple, let-the-client-handle-it backpressure mechanisms are planned for future development.
 * Data can no longer back up on the socket.  At most one frame of data is ever pending-write on the socket.
 * The MQTT5 client has a single message-received callback.  Per-subscription callbacks are not supported.
 
@@ -33,45 +64,45 @@ implementation's API contract, there are a number of differences.
 * Public API terminology has changed.  You **start** or **stop** the MQTT5 client.  This removes the semantic confusion with connect/disconnect as client-level controls vs. internal recurrent networking events.
 * With the MQTT311 implementation, there were two separate objects, a client and a connection.  With MQTT5, there is only the client.
 
-### Not Supported
+### Not supported
 Not all parts of the MQTT5 spec are supported by the implementation.  We currently do not support:
 * AUTH packets and the authentication fields in the CONNECT packet
 * QoS 2
 
 ## Client connection management
 Once created, an MQTT5 client's configuration is immutable.  Invoking start() on the client will put it into an active state where it
-recurrently establishes a connection to the configured remote endpoint.  Reconnecting continues until you invoke stop().
+recurrently establishes a connection to the configured remote endpoint.  Reconnecting continues until you invoke `stop()`.
 
-```
+```typescript
     // Create the client
     let config : Mqtt5ClientConfig = {
         ...
     };
-        
+
     let client : Mqtt5Client = new Mqtt5Client(config);
-    
+
     // Attach event listeners
     client.on("messageReceived",(eventData: MessageReceivedEvent) : void => {
         console.log("Message Received event: " + JSON.stringify(eventData.message));
     });
-    etc...
-    
-    // Use the client    
+    // etc...
+
+    // Use the client
     client.start();
     ...
 ```
 
-Invoking stop() breaks the current connection (if any) and moves the client into an idle state. When finished with an MQTT5 client,
+Invoking `stop()` breaks the current connection (if any) and moves the client into an idle state. When finished with an MQTT5 client,
 you **must call close()** on it or any associated native resources may leak.
 
-```
+```js
     // Shutdown and clean up
     const stopped = once(client, Mqtt5Client.STOPPED);
-    client.stop();   
+    client.stop();
     await stopped;
-    
+
     // release any native resources associated with the client
-    client.close();     
+    client.close();
 ```
 
 ## Client Events
@@ -88,7 +119,7 @@ variable MQTT session settings (based on protocol defaults, client configuration
 
 #### ConnectionFailure
 Emitted when a connection attempt fails at any point between DNS resolution and CONNACK receipt.  In addition to an error code, additional
-data may be present in the ConnectionFailureEvent based on the context.  For example, if the remote endpoint sent a CONNACK with a failing 
+data may be present in the ConnectionFailureEvent based on the context.  For example, if the remote endpoint sent a CONNACK with a failing
 reason code, the CONNACK packet will be included in the event data.
 
 #### Disconnect
@@ -99,14 +130,14 @@ the packet will also be included with the event data.
 
 #### Stopped
 Emitted once the client has shutdown any associated network connection and entered an idle state where it will no longer attempt to
-reconnect.  A StoppedEvent contains no additional data.  Only emitted after an invocation of stop() on the client.  A stopped client 
+reconnect.  A StoppedEvent contains no additional data.  Only emitted after an invocation of `stop()` on the client.  A stopped client
 may always be started again.
 
 #### MessageReceived
 Emitted for each PUBLISH packet received by the client.  MessageReceivedEvent data contains the complete PublishPacket received.
 
 ## Connecting To AWS IoT Core
-We strongly recommend using the AwsIotMqtt5ClientConfigBuilder class to configure MQTT5 clients when connecting to AWS IoT Core.  The builder 
+We strongly recommend using the AwsIotMqtt5ClientConfigBuilder class to configure MQTT5 clients when connecting to AWS IoT Core.  The builder
 simplifies configuration for all authentication methods supported by AWS IoT Core.  This section shows samples for all authentication
 possibilities.  There are slight differences in the APIs for the browser implementation vs. the NodeJS implementation, so each environment
 is given separate samples.
@@ -116,21 +147,22 @@ The MQTT5 implementation for NodeJS supports both (direct) MQTT-over-TCP and MQT
 
 #### Direct MQTT with X509-based mutual TLS
 For X509 based mutual TLS, you can create a client where the certificate and private key are configured by path:
-```
+
+```typescript
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
         <account-specific endpoint>,
         <path-to-X509-certificate-pem-file>,
         <path-to-private-key-pem-file>
     );
-    
+
     // other builder configuration
-    ...
+    // ...
     let client : Mqtt5Client = new Mqtt5Client(builder.build()));
 ```
 
 You can also create a client where the certificate and private key are in memory:
 
-```
+```typescript
     let cert = fs.readFileSync(<path to certificate pem file>,'utf8');
     let key = fs.readFileSync(<path to private key pem file>,'utf8');
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromMemory(
@@ -138,10 +170,10 @@ You can also create a client where the certificate and private key are in memory
         cert,
         key
     );
-    
+
     // other builder configuration
-    ...
-    let client : Mqtt5Client = new Mqtt5Client(builder.build());    
+    // ...
+    let client : Mqtt5Client = new Mqtt5Client(builder.build());
 ```
 
 #### MQTT over Websockets with Sigv4 authentication
@@ -151,43 +183,43 @@ the SDK is capable of resolving credentials in a variety of environments accordi
 
 ```
     Environment -> Profile (local file system) -> STS Web Identity -> IMDS (ec2) or ECS
-``` 
+```
 
 If the default credentials provider chain and built-in AWS region extraction logic are sufficient, you do not need to specify
 any additional configuration:
 
-```
+```typescript
     let builder = AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
         <account-specific endpoint>
     );
     // other builder configuration
-    ...
+    // ...
     let client : Mqtt5Client = new Mqtt5Client(builder.build());
 ```
 
 Alternatively, if you're connecting to a special region for which standard pattern matching does not work, or if you
 need a specific credentials provider, you can specify advanced websocket configuration options.
 
-```
+```typescript
     // sourcing credentials from the Cognito service in this example
     let cognitoConfig: CognitoCredentialsProviderConfig = {
-        endpoint: <cognito endpoint to query credentials from>,
-        identity: <cognito identity to query credentials relative to>
+        endpoint: "<cognito endpoint to query credentials from>",
+        identity: "<cognito identity to query credentials relative to>"
     };
-    
+
     let overrideProvider: CredentialsProvider = AwsCredentialsProvider.newCognito(cognitoConfig);
-    
+
     let wsConfig : WebsocketSigv4Config = {
         credentialsProvider: overrideProvider,
         region: "<special case region>"
     };
-    
+
     let builder = AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         wsConfig
     );
     // other builder configuration
-    ...
+    // ...
     let client : Mqtt5Client = new Mqtt5Client(builder.build());
 ```
 
@@ -196,14 +228,15 @@ AWS IoT Core Custom Authentication allows you to use a lambda to gate access to 
 you must supply an additional configuration structure containing fields relevant to AWS IoT Core Custom Authentication.
 
 If your custom authenticator does not use signing, you don't specify anything related to the token signature:
-```
+
+```typescript
     let customAuthConfig : MqttConnectCustomAuthConfig = {
-        authorizerName: <Name of your custom authorizer>,
-        username: <Value of the username field that should be passed to the authorizer's lambda>,
-        password: <Binary data value of the password field that should be passed to the authorizer's lambda>
+        authorizerName: "<Name of your custom authorizer>",
+        username: "<Value of the username field that should be passed to the authorizer's lambda>",
+        password: <Binary data value of the password field to be passed to the authorizer lambda>
     };
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         customAuthConfig
     );
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
@@ -212,21 +245,23 @@ If your custom authenticator does not use signing, you don't specify anything re
 If your custom authorizer uses signing, you must specify the three signed token properties as well.  The token signature must be
 the URI-encoding of the base64 encoding of the digital signature of the token value via the private key associated with the public key
 that was registered with the custom authorizer.  It is your responsibility to URI-encode the token signature.
-```
+
+```typescript
     let customAuthConfig : MqttConnectCustomAuthConfig = {
-        authorizerName: <Name of your custom authorizer>,
-        username: <Value of the username field that should be passed to the authorizer's lambda>,
-        password: <Binary data value of the password field that should be passed to the authorizer's lambda>,
-        tokenKeyName: <Name of the username query param that will contain the token value>,
-        tokenValue: <Value of the username query param that holds the token value that has been signed>,
-        tokenSignature: <URI-encoded base64-encoded digital signature of tokenValue>
+        authorizerName: "<Name of your custom authorizer>",
+        username: "<Value of the username field that should be passed to the authorizer's lambda>",
+        password: <Binary data value of the password field to be passed to the authorizer lambda>,
+        tokenKeyName: "<Name of the username query param that will contain the token value>",
+        tokenValue: "<Value of the username query param that holds the token value that has been signed>",
+        tokenSignature: "<URI-encoded base64-encoded digital signature of tokenValue>"
     };
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         customAuthConfig
     );
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
 ```
+
 In both cases, the builder will construct a final CONNECT packet username field value for you based on the values configured.  Do not add the
 token-signing fields to the value of the username that you assign within the custom authentication config structure.  Similarly, do not
 add any custom authentication related values to the username in the CONNECT configuration optionally attached to the client configuration.
@@ -235,13 +270,15 @@ The builder will do everything for you.
 #### HTTP Proxy
 No matter what your connection transport or authentication method is, you may connect through an HTTP proxy
 by applying proxy configuration to the builder:
-```
+
+```typescript
     let builder = AwsIoTMqtt5ClientConfigBuilder.<authentication method>(...);
-    let proxyOptions : HttpProxyOptions = new HttpProxyOptions(<proxy host>, <proxy port>);         
+    let proxyOptions : HttpProxyOptions = new HttpProxyOptions("<proxy host>", <proxy port>);
     builder.withHttpProxyOptions(proxyOptions);
-    
+
     let client : Mqtt5Client = new Mqtt5Client(builder.build());
 ```
+
 SDK Proxy support also includes support for basic authentication and TLS-to-proxy.  SDK proxy support does not include any additional
 proxy authentication methods (kerberos, NTLM, etc...) nor does it include non-HTTP proxies (SOCKS5, for example).
 
@@ -253,18 +290,18 @@ All connections are protected by TLS.
 Within the SDK, there is very limited support for browser-based credentials providers.  By default, only static credential providers are
 supported:
 
-```
+```typescript
     let staticProvider: StaticCredentialProvider = new StaticCredentialProvider({
-        aws_access_id: <AWS Credentials Access Key>,
-        aws_secret_key: <AWS Credentials Secret Access Key>,
-        aws_region: <AWS Region>
+        aws_access_id: "<AWS Credentials Access Key>",
+        aws_secret_key: "<AWS Credentials Secret Access Key>",
+        aws_region: "<AWS Region>"
     });
     let wsConfig: WebsocketSigv4Config = {
         credentialsProvider: staticProvider
     };
-    
+
     let builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         wsConfig
     );
     let client : Mqtt5Client = new Mqtt5Client(builder.build());
@@ -278,14 +315,15 @@ In the browser, custom authentication works exactly the same as NodeJS.  The onl
 via MQTT-over-websockets, while in NodeJS, we always make the connection direct-over-TCP.
 
 If your custom authenticator does not use signing, you don't specify anything related to the token signature:
-```
+
+```typescript
     let customAuthConfig : MqttConnectCustomAuthConfig = {
-        authorizerName: <Name of your custom authorizer>,
-        username: <Value of the username field that should be passed to the authorizer's lambda>,
-        password: <Binary data value of the password field that should be passed to the authorizer's lambda>
+        authorizerName: "<Name of your custom authorizer>",
+        username: "<Value of the username field that should be passed to the authorizer's lambda>",
+        password: <Binary data value of the password field to be passed to the authorizer lambda>
     };
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         customAuthConfig
     );
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
@@ -295,17 +333,17 @@ If your custom authorizer uses signing, you must specify the three signed token 
 the URI-encoding of the base64 encoding of the digital signature of the token value via the private key associated with the public key
 that was registered with the custom authorizer.  It is your responsibility to URI-encode the token signature:
 
-```
+```typescript
     let customAuthConfig : MqttConnectCustomAuthConfig = {
-        authorizerName: <Name of your custom authorizer>,
-        username: <Value of the username field that should be passed to the authorizer's lambda>,
-        password: <Binary data value of the password field that should be passed to the authorizer's lambda>,
-        tokenKeyName: <Name of the username query param that will contain the token value>,
-        tokenValue: <Value of the username query param that holds the token value that has been signed>,
-        tokenSignature: <URI-encoded base64-encoded digital signature of tokenValue>
+        authorizerName: "<Name of your custom authorizer>",
+        username: "<Value of the username field that should be passed to the authorizer's lambda>",
+        password: <Binary data value of the password field to be passed to the authorizer lambda>,
+        tokenKeyName: "<Name of the username query param that will contain the token value>",
+        tokenValue: "<Value of the username query param that holds the token value that has been signed>",
+        tokenSignature: "<URI-encoded base64-encoded digital signature of tokenValue>"
     };
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
-        <account-specific endpoint>,
+        "<account-specific endpoint>",
         customAuthConfig
     );
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
@@ -320,7 +358,7 @@ The builder will do everything for you.
 Similar to NodeJS, you can specify http proxy options to enable connections that pass through an HTTP proxy.  Unlike NodeJS, these
 options are in a form expected by the underlying third-party transport library.
 
-```
+```typescript
     import url from "url";
     let builder = AwsIoTMqtt5ClientConfigBuilder.<authentication method>(...);
     let urlOptions: url.UrlWithStringQuery = url.parse(`<proxy url including domain and port>`);
@@ -329,7 +367,7 @@ options are in a form expected by the underlying third-party transport library.
         agent: agent
     }
     builder.withWebsocketTransportOptions(wsOptions);
-    
+
     let client : Mqtt5Client = new Mqtt5Client(builder.build());
 ```
 
@@ -341,7 +379,7 @@ The Subscribe operation takes a description of the SUBSCRIBE packet you wish to 
 the corresponding SUBACK returned by the broker; the promise is rejected with an error if anything goes wrong before the SUBACK is received.
 You should always check the reason codes of a SUBACK completion to determine if the subscribe operation actually succeeded.
 
-```
+```typescript
     const suback: SubackPacket = await client.subscribe({
         subscriptions: [
             { qos: mqtt5_packet.QoS.AtLeastOnce, topicFilter: "hello/world/qos1" }
@@ -356,7 +394,7 @@ The Unsubscribe operation takes a description of the UNSUBSCRIBE packet you wish
 the corresponding UNSUBACK returned by the broker; the promise is rejected with an error if anything goes wrong before the UNSUBACK is received.
 You should always check the reason codes of an UNSUBACK completion to determine if the unsubscribe operation actually succeeded.
 
-```
+```typescript
     let unsuback: UnsubackPacket = await client.unsubscribe({
         topicFilters: [
             "hello/world/qos1"
@@ -375,23 +413,23 @@ The Publish operation takes a description of the PUBLISH packet you wish to send
 If the operation fails for any reason before these respective completion events, the promise is rejected with a descriptive error.
 You should always check the reason code of a PUBACK completion to determine if a QoS 1 publish operation actually succeeded.
 
-```
+```typescript
     const publishResult = await client.publish({
         qos: mqtt5_packet.QoS.AtLeastOnce,
         topicName: "hello/world/qos1",
         payload: "This is the payload of a QoS 1 publish"
     });
-    
+
     // on successful broker response, publishResult will be a PubackPacket
 ```
 
 ### Disconnect
-The stop() API supports a DISCONNECT packet as an optional parameter.  If supplied, the DISCONNECT packet will be sent to the server
+The `stop()` API supports a DISCONNECT packet as an optional parameter.  If supplied, the DISCONNECT packet will be sent to the server
 prior to closing the socket.  The DISCONNECT packet will not be sent if there is no network connection currently active.
 
-There is no promise returned by a call to stop() but you may listen for the 'stopped' event on the client.
+There is no promise returned by a call to `stop()` but you may listen for the 'stopped' event on the client.
 
-```
+```typescript
 let disconnect: DisconnectPacket = {
     reasonCode: DisconnectReasonCode.DisconnectWithWillMessage,
     sessionExpiryIntervalSeconds: 3600
