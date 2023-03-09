@@ -23,7 +23,7 @@
     "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
     "install:puppeteer": "npm install --save-dev jest-puppeteer puppeteer @types/puppeteer",
     "prepare": "node ./scripts/tsc.js && node ./scripts/install.js",
-    "install": "node ./scripts/install.js"
+    "install": "./node_modules/.bin/babel node_modules/cmake-js --out-dir node_modules/cmake-js --plugins=@babel/plugin-proposal-optional-chaining && node ./scripts/install.js"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
@@ -39,22 +39,24 @@
     "jest-puppeteer": "^5.0.4",
     "jest-runtime": "^27.2.1",
     "puppeteer": "^3.3.0",
+    "tar": "^6.1.11",
     "ts-jest": "^27.0.5",
     "typedoc": "^0.22.18",
     "typedoc-plugin-merge-modules": "^3.1.0",
     "typescript": "^4.7.4",
     "uuid": "^8.3.2",
-    "yargs": "^17.2.1",
-    "cmake-js": "^6.3.2",
-    "tar": "^6.1.11"
+    "yargs": "^17.2.1"
   },
   "dependencies": {
     "@aws-sdk/util-utf8-browser": "^3.109.0",
+    "@babel/cli": "^7.21.0",
+    "@babel/core": "^7.21.0",
+    "@babel/plugin-proposal-optional-chaining": "^7.21.0",
     "@httptoolkit/websocket-stream": "^6.0.0",
     "axios": "^0.24.0",
+    "cmake-js": "^7.2.1",
     "crypto-js": "^4.0.0",
     "mqtt": "^4.3.7",
-    "cmake-js": "^6.3.2",
     "tar": "^6.1.11"
   }
 }
