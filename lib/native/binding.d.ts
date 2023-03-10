@@ -500,5 +500,5 @@ export function event_stream_client_stream_activate(
 export function event_stream_client_stream_send_message(
     stream: NativeHandle,
     options: eventstream.StreamMessageOptions,
-    completion_callback: (errorCode: number) => void
+    completion_callback?: (errorCode: number) => void
 ) : void;

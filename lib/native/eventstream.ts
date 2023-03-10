@@ -833,26 +833,36 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     }
 
     close() : void {
-        if (this.state != ClientStreamState.Closed) {
+        let previousState: ClientStreamState = this.state;
+        if (previousState != ClientStreamState.Closed) {
+
+            this.state = ClientStreamState.Closed;
+
             /*
-             * Semi-experimental resource cleanup helper.  If we're activated, send a client-side terminate to help
+             * Experimental resource cleanup helper.  If we're activated, send a client-side terminate to help
              * clean the stream up.  If we don't do this, then closing the stream doesn't contribute to native
              * resource cleanup.
              */
-            if (this.state == ClientStreamState.Activated) {
+            if (previousState == ClientStreamState.Activated) {
                 try {
-                    this.sendMessage({
+                    let terminateMessageOptions : StreamMessageOptions = {
                         message: {
                             type: MessageType.ApplicationMessage,
                             flags: MessageFlags.TerminateStream
                         }
-                    });
+                    };
+
+                    /*
+                     * Invoke native directly because we already changed state to Closed in order to prevent any
+                     * re-entrant callbacks from triggering something unwanted (because state wasn't closed).
+                     * Technically, this is impossible because any callbacks would have to cross thread boundaries
+                     * into the libuv thread.  But as a pattern, it feels better to not assume that when possible.
+                     */
+                    crt_native.event_stream_client_stream_send_message(this.native_handle(), terminateMessageOptions);
                 } catch (e) {
-                    ; // shouldn't ever happen, but if it does, we shouldn't propagate it
+                    ; // shouldn't happen, but if it does, we shouldn't propagate it
                 }
             }
-
-            this.state = ClientStreamState.Closed;
 
             crt_native.event_stream_client_stream_close(this.native_handle());
         }

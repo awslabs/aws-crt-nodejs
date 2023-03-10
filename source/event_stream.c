@@ -2348,6 +2348,9 @@ done:
 
 static void s_aws_event_stream_on_stream_message_flushed(int error_code, void *user_data) {
     struct aws_event_stream_stream_message_flushed_callback *callback_data = user_data;
+    if (callback_data == NULL) {
+        return;
+    }
 
     callback_data->error_code = error_code;
 
@@ -2358,6 +2361,7 @@ static void s_aws_event_stream_on_stream_message_flushed(int error_code, void *u
 napi_value aws_napi_event_stream_client_stream_send_message(napi_env env, napi_callback_info info) {
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
+    struct aws_event_stream_stream_message_flushed_callback *callback_data = NULL;
     struct aws_event_stream_message_storage message_storage;
     AWS_ZERO_STRUCT(message_storage);
 
@@ -2370,8 +2374,8 @@ napi_value aws_napi_event_stream_client_stream_send_message(napi_env env, napi_c
         return NULL;
     });
 
-    if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_send_message - needs exactly 3 arguments");
+    if (num_args < 2 || num_args > AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_send_message - needs 2 or 3 arguments");
         return NULL;
     }
 
@@ -2410,38 +2414,39 @@ napi_value aws_napi_event_stream_client_stream_send_message(napi_env env, napi_c
         return NULL;
     }
 
-    struct aws_event_stream_stream_message_flushed_callback *callback_data =
-        aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_stream_message_flushed_callback));
-    callback_data->allocator = allocator;
-    callback_data->binding = s_aws_event_stream_client_stream_binding_acquire(binding);
-
     if (s_aws_event_stream_message_storage_init_from_js(&message_storage, allocator, env, napi_message, binding)) {
         napi_throw_error(
             env,
             NULL,
             "aws_napi_event_stream_client_stream_send_message - failed to read message properties from JS "
             "object");
-        goto error;
+        goto done;
     }
 
-    napi_value message_flushed_callback = *arg++;
-    AWS_NAPI_CALL(
-        env,
-        aws_napi_create_threadsafe_function(
+    if (num_args > 2) {
+        callback_data = aws_mem_calloc(allocator, 1, sizeof(struct aws_event_stream_stream_message_flushed_callback));
+        callback_data->allocator = allocator;
+        callback_data->binding = s_aws_event_stream_client_stream_binding_acquire(binding);
+
+        napi_value message_flushed_callback = *arg++;
+        AWS_NAPI_CALL(
             env,
-            message_flushed_callback,
-            "aws_event_stream_client_stream_on_message_flushed",
-            s_napi_on_event_stream_client_stream_message_flushed,
-            callback_data,
-            &callback_data->on_message_flushed),
-        {
-            napi_throw_error(
+            aws_napi_create_threadsafe_function(
                 env,
-                NULL,
-                "aws_napi_event_stream_client_stream_send_message - failed to create threadsafe callback "
-                "function");
-            goto error;
-        });
+                message_flushed_callback,
+                "aws_event_stream_client_stream_on_message_flushed",
+                s_napi_on_event_stream_client_stream_message_flushed,
+                callback_data,
+                &callback_data->on_message_flushed),
+            {
+                napi_throw_error(
+                    env,
+                    NULL,
+                    "aws_napi_event_stream_client_stream_send_message - failed to create threadsafe callback "
+                    "function");
+                goto error;
+            });
+    }
 
     struct aws_event_stream_rpc_message_args message_args = {
         .headers = (struct aws_event_stream_header_value_pair *)message_storage.headers.data,
