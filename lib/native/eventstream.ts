@@ -775,6 +775,15 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
 
         process.nextTick(() => {
             connection.emit('disconnection', {errorCode: errorCode});
+
+            /*
+             * To help prevent *some* potential resource leaks, auto-close the connection on disconnect.
+             * Maps to no-op if the user calls close from their event handler.
+             *
+             * A callstack of uv-native to js to uv-native should be safe, but we push the close invocation
+             * to next tick anyways to simplify potential managed-native interactions.
+             */
+            connection.close();
         });
     }
 
@@ -825,6 +834,20 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     close() : void {
         if (this.state != ClientStreamState.Closed) {
+            /*
+             * Semi-experimental resource cleanup helper.  If we're activated, send a client-side terminate to help
+             * clean the stream up.  If we don't do this, then closing the stream doesn't contribute to native
+             * resource cleanup.
+             */
+            if (this.state == ClientStreamState.Activated) {
+                this.sendMessage({
+                    message: {
+                        type: MessageType.ApplicationMessage,
+                        flags: MessageFlags.TerminateStream
+                    }
+                });
+            }
+
             this.state = ClientStreamState.Closed;
 
             crt_native.event_stream_client_stream_close(this.native_handle());
@@ -921,8 +944,21 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     }
 
     private static _s_on_stream_ended(stream: ClientStream) {
+        if (stream.state != ClientStreamState.Closed) {
+            stream.state = ClientStreamState.Terminated;
+        }
+
         process.nextTick(() => {
             stream.emit(ClientStream.STREAM_ENDED, {});
+
+            /*
+             * To help prevent *some* potential resource leaks, auto-close the stream once ended.
+             * Maps to no-op if the user calls close from their event handler.
+             *
+             * A callstack of uv-native to js to uv-native should be safe, but we push the close invocation
+             * to next tick anyways to simplify potential managed-native interactions.
+             */
+            stream.close();
         });
     }
 

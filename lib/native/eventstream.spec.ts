@@ -639,6 +639,20 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - clien
     connection.close();
 });
 
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - client-side terminate a persistent echo stream via close', async () => {
+
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+
+    /*
+     * no expectations, just verifying nothing explodes.  When we make a canary, we should perform operations
+     * both the good way (explicit terminate via message) and the bad way (just close).
+     */
+
+    stream.close();
+    connection.close();
+});
+
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate invalid operation', async () => {
 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
