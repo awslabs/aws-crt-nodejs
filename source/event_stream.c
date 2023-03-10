@@ -385,6 +385,10 @@ static int s_aws_event_stream_add_int64_header_by_cursor(
     struct aws_byte_cursor value) {
     AWS_FATAL_ASSERT(value.len == 8);
 
+    /*
+     * We pass int64s encoded as a two's-complement byte sequence.  This lets us just build the 64-bit value
+     * directly and then cast it to an int64.
+     */
     uint64_t uint64_value = 0;
     for (size_t i = 0; i < value.len; ++i) {
         uint64_t byte_value = value.ptr[i];
@@ -696,6 +700,7 @@ static int s_aws_create_napi_header_value(
             int64_t value = aws_event_stream_header_value_as_int64(header);
             uint8_t buffer[8];
 
+            /* We can copy the bytes from low to high directly since we use a two's complement representation */
             for (size_t i = 0; i < 8; ++i) {
                 buffer[i] = (uint8_t)(value & 0xFF);
                 value >>= 8;
