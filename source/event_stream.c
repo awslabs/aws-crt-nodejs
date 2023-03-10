@@ -379,6 +379,23 @@ error:
         goto done;                                                                                                     \
     }
 
+static int s_aws_event_stream_add_int64_header_by_cursor(
+    struct aws_array_list *headers,
+    struct aws_byte_cursor name,
+    struct aws_byte_cursor value) {
+    AWS_FATAL_ASSERT(value.len == 8);
+
+    uint64_t uint64_value = 0;
+    for (size_t i = 0; i < value.len; ++i) {
+        uint64_t byte_value = value.ptr[i];
+        uint64_value |= (byte_value << (i * 8));
+    }
+
+    int64_t int64_value = uint64_value;
+
+    return aws_event_stream_add_int64_header_by_cursor(headers, name, int64_value);
+}
+
 static int s_add_event_stream_header_from_js(
     struct aws_array_list *headers,
     napi_env env,
@@ -457,8 +474,7 @@ static int s_add_event_stream_header_from_js(
         }
 
         case AWS_EVENT_STREAM_HEADER_INT64: {
-            ADD_INTEGRAL_HEADER(
-                int64_t, aws_napi_get_named_property_bigint_as_int64, aws_event_stream_add_int64_header_by_cursor)
+            ADD_BUFFERED_HEADER(napi_undefined, s_aws_event_stream_add_int64_header_by_cursor)
             break;
         }
 
@@ -676,15 +692,26 @@ static int s_aws_create_napi_header_value(
             }
             break;
 
-        case AWS_EVENT_STREAM_HEADER_INT64:
-            if (aws_napi_attach_object_property_bigint_from_i64(
-                    napi_header,
-                    env,
-                    AWS_EVENT_STREAM_PROPERTY_NAME_VALUE,
-                    aws_event_stream_header_value_as_int64(header))) {
+        case AWS_EVENT_STREAM_HEADER_INT64: {
+            int64_t value = aws_event_stream_header_value_as_int64(header);
+            uint8_t buffer[8];
+
+            for (size_t i = 0; i < 8; ++i) {
+                buffer[i] = (uint8_t)(value & 0xFF);
+                value >>= 8;
+            }
+
+            struct aws_byte_buf *heap_buffer = aws_mem_calloc(allocator, 1, sizeof(struct aws_byte_buf));
+            aws_byte_buf_init_copy_from_cursor(
+                heap_buffer, allocator, aws_byte_cursor_from_array(buffer, AWS_ARRAY_SIZE(buffer)));
+            if (aws_napi_attach_object_property_binary_as_finalizable_external(
+                    napi_header, env, AWS_EVENT_STREAM_PROPERTY_NAME_VALUE, heap_buffer)) {
+                aws_byte_buf_clean_up(heap_buffer);
+                aws_mem_release(allocator, heap_buffer);
                 return AWS_OP_ERR;
             }
             break;
+        }
 
         case AWS_EVENT_STREAM_HEADER_BYTE_BUF: {
             AWS_ATTACH_BUFFER_VALUE_TO_HEADER(aws_event_stream_header_value_as_bytebuf);

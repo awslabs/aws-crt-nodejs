@@ -79,15 +79,71 @@ const MAX_INT32 : number = 2147483647;
 const MIN_INT32 : number = -2147483648;
 const MAX_INT64 : bigint = BigInt("9223372036854775807");
 const MIN_INT64 : bigint = BigInt("-9223372036854775808");
+const MAX_UINT8_AS_BIGINT : bigint = BigInt("256");
+
+function marshalInt64BigintAsBuffer(value: bigint) : Uint8Array {
+    if (value < MIN_INT64 || value > MAX_INT64) {
+        throw new CrtError("??");
+    }
+
+    let buffer : Uint8Array = new Uint8Array(8);
+
+    if (value < 0) {
+        value = -value - BigInt(1);
+        for (let i = 0; i < 8; ++i) {
+            // @ts-ignore
+            buffer[i] = 255 - Number(value % MAX_UINT8_AS_BIGINT);
+            value /= MAX_UINT8_AS_BIGINT;
+        }
+    } else {
+        for (let i = 0; i < 8; ++i) {
+            // @ts-ignore
+            buffer[i] = Number(value % MAX_UINT8_AS_BIGINT);
+            value /= MAX_UINT8_AS_BIGINT;
+        }
+    }
+
+    return buffer;
+}
+
+function unmarshalInt64BigintFromBuffer(buffer: ArrayBuffer) : bigint {
+    let value : bigint = BigInt(0);
+
+    let byteView = new Uint8Array(buffer);
+    if (byteView.length != 8) {
+        throw new CrtError("??");
+    }
+
+    let shift: bigint = BigInt(1);
+    let isNegative = (byteView[7] & 0x80) != 0;
+
+    if (isNegative) {
+        for (let i = 0; i < byteView.length; ++i) {
+            let byteValue: bigint = BigInt(255 - byteView[i]);
+            value += (byteValue * shift);
+            shift *= MAX_UINT8_AS_BIGINT;
+        }
+
+        value += BigInt(1);
+        value = -value;
+    } else {
+        for (let i = 0; i < byteView.length; ++i) {
+            let byteValue: bigint = BigInt(byteView[i]);
+            value += (byteValue * shift);
+            shift *= MAX_UINT8_AS_BIGINT;
+        }
+    }
+
+    return value;
+}
 
 const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
 
 type HeaderValue =
     undefined |  /* BooleanTrue, BooleanFalse */
     number |  /* byte, int16, int32, timestamp */
-    BigInt |  /* int64 */
     string |  /* string */
-    Payload;  /* ByteBuffer, UUID (via ArrayBuffer) */
+    Payload;  /* ByteBuffer, UUID (via ArrayBuffer), int64 */
 
 /**
  * Wrapper class for event stream message headers.  Similar to HTTP, a header is a name-value pair.  Unlike HTTP, the
@@ -182,7 +238,7 @@ export class Header {
         Header.validateHeaderName(name);
 
         if (Number.isSafeInteger(value)) {
-            return new Header(name, HeaderType.Int64, BigInt(value));
+            return new Header(name, HeaderType.Int64, marshalInt64BigintAsBuffer(BigInt(value)));
         }
 
         throw new CrtError(`Illegal value for eventstream int64-valued header: ${value}`);
@@ -198,7 +254,7 @@ export class Header {
         Header.validateHeaderName(name);
 
         if (value >= MIN_INT64 && value <= MAX_INT64) {
-            return new Header(name, HeaderType.Int64, value);
+            return new Header(name, HeaderType.Int64, marshalInt64BigintAsBuffer(value));
         }
 
         throw new CrtError(`Illegal value for eventstream int64-valued header: ${value}`);
@@ -331,7 +387,7 @@ export class Header {
      * Returns a 64-bit integer header's value.
      */
     asInt64(): bigint {
-        return this.toValue(HeaderType.Int64) as bigint;
+        return unmarshalInt64BigintFromBuffer(this.toValue(HeaderType.Int64) as ArrayBuffer);
     }
 
     /**
