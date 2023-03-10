@@ -840,12 +840,16 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
              * resource cleanup.
              */
             if (this.state == ClientStreamState.Activated) {
-                this.sendMessage({
-                    message: {
-                        type: MessageType.ApplicationMessage,
-                        flags: MessageFlags.TerminateStream
-                    }
-                });
+                try {
+                    this.sendMessage({
+                        message: {
+                            type: MessageType.ApplicationMessage,
+                            flags: MessageFlags.TerminateStream
+                        }
+                    });
+                } catch (e) {
+                    ; // shouldn't ever happen, but if it does, we shouldn't propagate it
+                }
             }
 
             this.state = ClientStreamState.Closed;
