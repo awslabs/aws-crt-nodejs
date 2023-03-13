@@ -288,7 +288,7 @@ static int s_aws_cognito_credentials_provider_config_init(
         for (size_t i = 0; i < login_count; ++i) {
 
             napi_value napi_token_pair = NULL;
-            AWS_NAPI_CALL(env, napi_get_element(env, napi_logins, i, &napi_token_pair), {
+            AWS_NAPI_CALL(env, napi_get_element(env, napi_logins, (uint32_t)i, &napi_token_pair), {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "s_aws_cognito_credentials_provider_config_init - could not access property 'logins' array "
