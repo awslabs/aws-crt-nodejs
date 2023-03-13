@@ -152,7 +152,7 @@ test('Eventstream header - new int64 from bigint failure, out-of-bounds value', 
     expect(() => {eventstream.Header.newInt64FromBigint(DEFAULT_HEADER_NAME, too_big);}).toThrow();
 });
 
-test('Eventstream header - new int64 from bigint success', async () => {
+test('Eventstream header - new int64 from bigint(9223372036854775807) success', async () => {
     let large_int64 : bigint = BigInt("9223372036854775807");
     let header : eventstream.Header = eventstream.Header.newInt64FromBigint(DEFAULT_HEADER_NAME, large_int64);
     expect(header.name).toEqual(DEFAULT_HEADER_NAME);
@@ -162,17 +162,45 @@ test('Eventstream header - new int64 from bigint success', async () => {
     expect(header.asInt64()).toEqual(large_int64);
 });
 
+test('Eventstream header - new int64 from bigint(-1) success', async () => {
+    let int64 : bigint = BigInt("-1");
+    let header : eventstream.Header = eventstream.Header.newInt64FromBigint(DEFAULT_HEADER_NAME, int64);
+    expect(header.name).toEqual(DEFAULT_HEADER_NAME);
+
+    checkTypeCasts(header, eventstream.HeaderType.Int64);
+
+    expect(header.asInt64()).toEqual(int64);
+});
+
 test('Eventstream header - new int64 from number failure, fractional value', async () => {
     expect(() => {eventstream.Header.newInt64FromNumber(DEFAULT_HEADER_NAME, Number.MAX_VALUE);}).toThrow();
 });
 
-test('Eventstream header - new int64 from number success', async () => {
+test('Eventstream header - new int64 from number(MAX_SAFE_INTEGER) success', async () => {
     let header : eventstream.Header = eventstream.Header.newInt64FromNumber(DEFAULT_HEADER_NAME, Number.MAX_SAFE_INTEGER);
     expect(header.name).toEqual(DEFAULT_HEADER_NAME);
 
     checkTypeCasts(header, eventstream.HeaderType.Int64);
 
     expect(header.asInt64()).toEqual(BigInt(Number.MAX_SAFE_INTEGER));
+});
+
+test('Eventstream header - new int64 from number(-1) success', async () => {
+    let header : eventstream.Header = eventstream.Header.newInt64FromNumber(DEFAULT_HEADER_NAME, -1);
+    expect(header.name).toEqual(DEFAULT_HEADER_NAME);
+
+    checkTypeCasts(header, eventstream.HeaderType.Int64);
+
+    expect(header.asInt64()).toEqual(BigInt(-1));
+});
+
+test('Eventstream header - new int64 from number(-65537) success', async () => {
+    let header : eventstream.Header = eventstream.Header.newInt64FromNumber(DEFAULT_HEADER_NAME, -65537);
+    expect(header.name).toEqual(DEFAULT_HEADER_NAME);
+
+    checkTypeCasts(header, eventstream.HeaderType.Int64);
+
+    expect(header.asInt64()).toEqual(BigInt(-65537));
 });
 
 test('Eventstream header - new byte buffer success', async () => {

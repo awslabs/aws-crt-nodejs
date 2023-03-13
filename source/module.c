@@ -40,9 +40,8 @@
  * This is a multi-line comment to ensure that the static assert does not collide with the static asserts in
  * aws/common/macro.h.
  *
- * aws-crt-nodejs requires N-API version 6 or above for bigint APIs
  */
-AWS_STATIC_ASSERT(NAPI_VERSION >= 6);
+AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 #define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
 
@@ -107,27 +106,6 @@ int aws_napi_attach_object_property_optional_boolean(
     }
 
     return aws_napi_attach_object_property_boolean(object, env, key_name, *value);
-}
-
-int aws_napi_attach_object_property_bigint_from_i64(
-    napi_value object,
-    napi_env env,
-    const char *key_name,
-    int64_t value) {
-    if (key_name == NULL) {
-        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
-    }
-
-    napi_value napi_bigint = NULL;
-
-    AWS_NAPI_CALL(env, napi_create_bigint_int64(env, value, &napi_bigint), {
-        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-    });
-    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_bigint), {
-        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-    });
-
-    return AWS_OP_SUCCESS;
 }
 
 /*
@@ -523,29 +501,6 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
     }
 
     AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, result), { return AWS_NGNPR_INVALID_VALUE; });
-
-    return AWS_NGNPR_VALID_VALUE;
-}
-
-enum aws_napi_get_named_property_result aws_napi_get_named_property_bigint_as_int64(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    int64_t *result) {
-
-    napi_value node_result;
-    enum aws_napi_get_named_property_result get_property_result =
-        aws_napi_get_named_property(env, object, name, napi_bigint, &node_result);
-    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
-        return get_property_result;
-    }
-
-    bool lossless = true;
-    AWS_NAPI_CALL(
-        env, napi_get_value_bigint_int64(env, node_result, result, &lossless), { return AWS_NGNPR_INVALID_VALUE; });
-    if (!lossless) {
-        return AWS_NGNPR_INVALID_VALUE;
-    }
 
     return AWS_NGNPR_VALID_VALUE;
 }

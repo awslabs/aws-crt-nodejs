@@ -10,7 +10,7 @@
 #include <aws/common/string.h>
 
 #define WIN32_LEAN_AND_MEAN
-#define NAPI_VERSION 6
+#define NAPI_VERSION 4
 #include <node_api.h>
 
 #define AWS_CRT_NODEJS_PACKAGE_ID 11
@@ -47,12 +47,6 @@ int aws_napi_attach_object_property_optional_boolean(
     napi_env env,
     const char *key_name,
     const bool *value);
-
-int aws_napi_attach_object_property_bigint_from_i64(
-    napi_value object,
-    napi_env env,
-    const char *key_name,
-    int64_t value);
 
 int aws_napi_attach_object_property_u64(napi_value object, napi_env env, const char *key_name, uint64_t value);
 
@@ -168,12 +162,6 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     uint64_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    int64_t *result);
-
-enum aws_napi_get_named_property_result aws_napi_get_named_property_bigint_as_int64(
     napi_env env,
     napi_value object,
     const char *name,

@@ -7,6 +7,7 @@ import {NativeResourceMixin} from "./native_resource";
 import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
 import * as io from "./io";
+import * as eventstream_utils from "./eventstream_utils";
 import crt_native from "./binding";
 
 /**
@@ -68,26 +69,13 @@ export enum HeaderType {
  */
 export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
 
-/*
- * Limits for header value validation
- */
-const MAX_INT8 : number = 127;
-const MIN_INT8 : number = -128;
-const MAX_INT16 : number = 32767;
-const MIN_INT16 : number = -32768;
-const MAX_INT32 : number = 2147483647;
-const MIN_INT32 : number = -2147483648;
-const MAX_INT64 : bigint = BigInt("9223372036854775807");
-const MIN_INT64 : bigint = BigInt("-9223372036854775808");
-
 const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
 
 type HeaderValue =
     undefined |  /* BooleanTrue, BooleanFalse */
     number |  /* byte, int16, int32, timestamp */
-    BigInt |  /* int64 */
     string |  /* string */
-    Payload;  /* ByteBuffer, UUID (via ArrayBuffer) */
+    Payload;  /* ByteBuffer, UUID (via ArrayBuffer), int64 */
 
 /**
  * Wrapper class for event stream message headers.  Similar to HTTP, a header is a name-value pair.  Unlike HTTP, the
@@ -131,7 +119,7 @@ export class Header {
     static newByte(name: string, value: number): Header {
         Header.validateHeaderName(name);
 
-        if (value >= MIN_INT8 && value <= MAX_INT8 && Number.isSafeInteger(value)) {
+        if (value >= eventstream_utils.MIN_INT8 && value <= eventstream_utils.MAX_INT8 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Byte, value);
         }
 
@@ -147,7 +135,7 @@ export class Header {
     static newInt16(name: string, value: number): Header {
         Header.validateHeaderName(name);
 
-        if (value >= MIN_INT16 && value <= MAX_INT16 && Number.isSafeInteger(value)) {
+        if (value >= eventstream_utils.MIN_INT16 && value <= eventstream_utils.MAX_INT16 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int16, value);
         }
 
@@ -163,7 +151,7 @@ export class Header {
     static newInt32(name: string, value: number): Header {
         Header.validateHeaderName(name);
 
-        if (value >= MIN_INT32 && value <= MAX_INT32 && Number.isSafeInteger(value)) {
+        if (value >= eventstream_utils.MIN_INT32 && value <= eventstream_utils.MAX_INT32 && Number.isSafeInteger(value)) {
             return new Header(name, HeaderType.Int32, value);
         }
 
@@ -182,7 +170,7 @@ export class Header {
         Header.validateHeaderName(name);
 
         if (Number.isSafeInteger(value)) {
-            return new Header(name, HeaderType.Int64, BigInt(value));
+            return new Header(name, HeaderType.Int64, eventstream_utils.marshalInt64BigintAsBuffer(BigInt(value)));
         }
 
         throw new CrtError(`Illegal value for eventstream int64-valued header: ${value}`);
@@ -197,8 +185,8 @@ export class Header {
     static newInt64FromBigint(name: string, value: bigint): Header {
         Header.validateHeaderName(name);
 
-        if (value >= MIN_INT64 && value <= MAX_INT64) {
-            return new Header(name, HeaderType.Int64, value);
+        if (value >= eventstream_utils.MIN_INT64 && value <= eventstream_utils.MAX_INT64) {
+            return new Header(name, HeaderType.Int64, eventstream_utils.marshalInt64BigintAsBuffer(value));
         }
 
         throw new CrtError(`Illegal value for eventstream int64-valued header: ${value}`);
@@ -331,7 +319,7 @@ export class Header {
      * Returns a 64-bit integer header's value.
      */
     asInt64(): bigint {
-        return this.toValue(HeaderType.Int64) as bigint;
+        return eventstream_utils.unmarshalInt64BigintFromBuffer(this.toValue(HeaderType.Int64) as ArrayBuffer);
     }
 
     /**

@@ -213,6 +213,8 @@ function buildAllTypeHeaderSet() : Array<eventstream.Header> {
         eventstream.Header.newInt32('int32', -65537),
         eventstream.Header.newInt64FromBigint('int64Bigint', BigInt(65536) * BigInt(65536) * BigInt(2)),
         eventstream.Header.newInt64FromNumber('int64Number', 65536 * 65536 * 2),
+        eventstream.Header.newInt64FromNumber('int64NumberNegative1', -1),
+        eventstream.Header.newInt64FromNumber('int64NumberNegativeLarge', -123456789),
         eventstream.Header.newString('string', 'Hello'),
         eventstream.Header.newByteBuffer('binary', buffer),
         eventstream.Header.newTimeStampFromDate('date', new Date()),
@@ -238,6 +240,7 @@ function verifyEchoedHeaders(expectedHeaders : Array<eventstream.Header>, actual
 
             case eventstream.HeaderType.ByteBuffer:
             case eventstream.HeaderType.UUID:
+            case eventstream.HeaderType.Int64:
                 // @ts-ignore
                 expect(Buffer.from(header.value as ArrayBuffer)).toEqual(Buffer.from(actualHeader.value as ArrayBuffer));
                 break;
