@@ -133,12 +133,6 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function transform_websocket;
 };
 
-#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
-    if (binding_name->function_name != NULL) {                                                                         \
-        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
-        binding_name->function_name = NULL;                                                                            \
-    }
-
 static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
     if (binding == NULL) {
         return;
@@ -1608,7 +1602,7 @@ static int s_init_connect_options_from_napi(
     PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_REQUEST_RESPONSE_INFORMATION,
         "s_init_connect_options_from_napi",
-        aws_napi_get_named_property_boolean_as_u8(
+        aws_napi_get_named_property_boolean_as_uint8(
             env,
             node_connect_config,
             AWS_NAPI_KEY_REQUEST_RESPONSE_INFORMATION,
@@ -1618,7 +1612,7 @@ static int s_init_connect_options_from_napi(
     PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_REQUEST_PROBLEM_INFORMATION,
         "s_init_connect_options_from_napi",
-        aws_napi_get_named_property_boolean_as_u8(
+        aws_napi_get_named_property_boolean_as_uint8(
             env,
             node_connect_config,
             AWS_NAPI_KEY_REQUEST_PROBLEM_INFORMATION,
@@ -2020,6 +2014,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     aws_ref_count_init(&binding->ref_count, binding, s_aws_mqtt5_client_binding_on_zero);
 
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_extern_finalize, NULL, &node_external), {
+        aws_mem_release(allocator, binding);
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");
         goto cleanup;
     });

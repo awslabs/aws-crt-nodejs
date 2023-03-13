@@ -138,7 +138,7 @@ export interface MqttConnectionConfig {
     /** Server port to connect to */
     port: number;
 
-    /** Optional socket options */
+    /** Socket options */
     socket_options: io.SocketOptions;
 
     /** If true, connect to MQTT over websockets */
@@ -269,6 +269,11 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     constructor(readonly client: MqttClient, private config: MqttConnectionConfig) {
         super();
+
+        if (config == null || config == undefined) {
+            throw new CrtError("MqttClientConnection constructor: config not defined");
+        }
+
         // If there is a will, ensure that its payload is normalized to a DataView
         const will = config.will ?
             {
@@ -292,6 +297,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             max_sec = config.reconnect_max_sec;
             // clamp min, in case they only passed in max (or passed in min > max)
             min_sec = Math.min(min_sec, max_sec);
+        }
+
+        if (client == undefined || client == null) {
+            throw new CrtError("MqttClientConnection constructor: client not defined");
+        }
+        if (config.socket_options == undefined || config.socket_options == null) {
+            throw new CrtError("MqttClientConnection constructor: socket_options in configuration not defined");
         }
 
         this._super(crt_native.mqtt_client_connection_new(
@@ -333,7 +345,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     static CONNECT = 'connect';
 
     /**
-     * Emitted when connection has disconnected sucessfully.
+     * Emitted when connection has disconnected successfully.
      *
      * @event
      */
@@ -432,6 +444,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     async connect() {
         return new Promise<boolean>((resolve, reject) => {
             reject = this._reject(reject);
+
+            if (this.config.socket_options == null || this.config.socket_options == undefined) {
+                throw new CrtError("MqttClientConnection connect: socket_options in configuration not defined");
+            }
 
             try {
                 crt_native.mqtt_client_connection_connect(

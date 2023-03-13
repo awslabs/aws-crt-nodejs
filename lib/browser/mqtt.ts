@@ -136,7 +136,7 @@ export interface MqttConnectionConfig {
      * The `session_present` bool in the connection callback informs
      * whether an existing session was successfully resumed.
      * If an existing session is resumed, the server remembers previous subscriptions
-     * and sends mesages (with QoS1 or higher) that were published while the client was offline.
+     * and sends messages (with QoS1 or higher) that were published while the client was offline.
      */
     clean_session?: boolean;
 
@@ -198,7 +198,7 @@ export interface MqttConnectionConfig {
     /** AWS credentials, which will be used to sign the websocket request */
     credentials?: AWSCredentials;
 
-    /** Options for the underlying credentianls provider */
+    /** Options for the underlying credentials provider */
     credentials_provider?: auth.CredentialsProvider;
 }
 
@@ -304,6 +304,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const create_websocket_stream = (client: mqtt.MqttClient) => WebsocketUtils.create_websocket_stream(this.config);
         const transform_websocket_url = (url: string, options: mqtt.IClientOptions, client: mqtt.MqttClient) => WebsocketUtils.create_websocket_url(this.config);
+
+        if (config == null || config == undefined) {
+            throw new CrtError("MqttClientConnection constructor: config not defined");
+        }
 
         const will = this.config.will ? {
             topic: this.config.will.topic,
@@ -563,7 +567,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * Unsubscribe from a topic filter (async).
      * The client sends an UNSUBSCRIBE packet, and the server responds with an UNSUBACK.
      * @param topic The topic filter to unsubscribe from. May contain wildcards.
-     * @returns Promise wihch returns a {@link MqttRequest} which will contain the packet id
+     * @returns Promise which returns a {@link MqttRequest} which will contain the packet id
      *          of the UNSUBSCRIBE packet being acknowledged. Promise is resolved when an
      *          UNSUBACK is received from the server or is rejected when an exception occurs.
      */
