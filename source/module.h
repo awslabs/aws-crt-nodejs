@@ -22,6 +22,7 @@ struct aws_event_loop_group;
 enum aws_crt_nodejs_errors {
     AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV = AWS_ERROR_ENUM_BEGIN_RANGE(AWS_CRT_NODEJS_PACKAGE_ID),
     AWS_CRT_NODEJS_ERROR_NAPI_FAILURE,
+    AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE,
 
     AWS_CRT_NODEJS_ERROR_END_RANGE = AWS_ERROR_ENUM_END_RANGE(AWS_CRT_NODEJS_PACKAGE_ID)
 };
@@ -62,6 +63,8 @@ int aws_napi_attach_object_property_optional_u32(
     napi_env env,
     const char *key_name,
     const uint32_t *value);
+
+int aws_napi_attach_object_property_i32(napi_value object, napi_env env, const char *key_name, int32_t value);
 
 int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value);
 
@@ -110,11 +113,35 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property(
     napi_valuetype type,
     napi_value *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int8_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint16(
     napi_env env,
     napi_value object,
     const char *name,
     uint16_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int16_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
     napi_env env,
@@ -122,11 +149,23 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint32(
     const char *name,
     uint32_t *result);
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int32_t *result);
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     napi_env env,
     napi_value object,
     const char *name,
     uint64_t *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result);
 
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     napi_env env,
@@ -134,18 +173,25 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     const char *name,
     bool *result);
 
-enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_u8(
-    napi_env env,
-    napi_value object,
-    const char *name,
-    uint8_t *result);
-
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
     napi_env env,
     napi_value object,
     const char *name,
     napi_valuetype type,
     struct aws_byte_buf *result);
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_length(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    size_t *length_out);
+
+int aws_napi_get_property_array_size(
+    napi_env env,
+    napi_value object,
+    const char *property_name,
+    size_t *array_size_out);
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
@@ -291,5 +337,11 @@ struct aws_napi_context {
             aws_fatal_assert(#call, __FILE__, __LINE__);                                                               \
         }                                                                                                              \
     } while (0)
+
+#define AWS_CLEAN_THREADSAFE_FUNCTION(binding_name, function_name)                                                     \
+    if (binding_name->function_name != NULL) {                                                                         \
+        AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
+        binding_name->function_name = NULL;                                                                            \
+    }
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */

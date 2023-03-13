@@ -1,7 +1,11 @@
 {
     "name": "aws-crt-nodejs",
     "+imports": [
-        "node-12"
+        "node-12",
+        "JDK8"
+    ],
+    "+packages": [
+        "maven"
     ],
     "deps_dir": "deps",
     "hosts": {
@@ -26,6 +30,10 @@
                     "test:browser:ci"
                 ]
             ]
+        },
+        "al2012": {
+            "!packages": [],
+            "!imports": [ "node-12" ]
         }
     },
     "targets": {

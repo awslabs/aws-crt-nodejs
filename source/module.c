@@ -6,6 +6,7 @@
 #include "auth.h"
 #include "checksums.h"
 #include "crypto.h"
+#include "event_stream.h"
 #include "http_connection.h"
 #include "http_connection_manager.h"
 #include "http_headers.h"
@@ -39,7 +40,6 @@
  * This is a multi-line comment to ensure that the static assert does not collide with the static asserts in
  * aws/common/macro.h.
  *
- * aws-crt-nodejs requires N-API version 4 or above for the threadsafe function API
  */
 AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
@@ -53,6 +53,9 @@ static struct aws_error_info s_errors[] = {
     AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
         AWS_CRT_NODEJS_ERROR_NAPI_FAILURE,
         "A N-API API call failed"),
+    AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
+        AWS_CRT_NODEJS_ERROR_EVENT_STREAM_USER_CLOSE,
+        "User invoked close on an eventstream connection."),
 };
 /* clang-format on */
 
@@ -170,6 +173,22 @@ int aws_napi_attach_object_property_optional_u32(
     }
 
     return aws_napi_attach_object_property_u32(object, env, key_name, *value);
+}
+
+int aws_napi_attach_object_property_i32(napi_value object, napi_env env, const char *key_name, int32_t value) {
+    if (key_name == NULL) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    napi_value napi_i32 = NULL;
+
+    AWS_NAPI_CALL(
+        env, napi_create_int32(env, value, &napi_i32), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+    AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_i32), {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+    });
+
+    return AWS_OP_SUCCESS;
 }
 
 int aws_napi_attach_object_property_u16(napi_value object, napi_env env, const char *key_name, uint16_t value) {
@@ -372,6 +391,120 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint64(
     return AWS_NGNPR_VALID_VALUE;
 }
 
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_uint8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    uint8_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < 0 || int_value > UINT8_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (uint8_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int8(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int8_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < INT8_MIN || int_value > INT8_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (int8_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int16(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int16_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < INT16_MIN || int_value > INT16_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (int16_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int32(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int32_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    int64_t int_value = 0;
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, &int_value), { return AWS_NGNPR_INVALID_VALUE; });
+
+    if (int_value < INT32_MIN || int_value > INT32_MAX) {
+        return AWS_NGNPR_INVALID_VALUE;
+    }
+
+    *result = (int32_t)int_value;
+    return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_as_int64(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    int64_t *result) {
+
+    napi_value node_result;
+    enum aws_napi_get_named_property_result get_property_result =
+        aws_napi_get_named_property(env, object, name, napi_number, &node_result);
+    if (get_property_result != AWS_NGNPR_VALID_VALUE) {
+        return get_property_result;
+    }
+
+    AWS_NAPI_CALL(env, napi_get_value_int64(env, node_result, result), { return AWS_NGNPR_INVALID_VALUE; });
+
+    return AWS_NGNPR_VALID_VALUE;
+}
+
 enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     napi_env env,
     napi_value object,
@@ -389,7 +522,7 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_boolean(
     return AWS_NGNPR_VALID_VALUE;
 }
 
-enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_u8(
+enum aws_napi_get_named_property_result aws_napi_get_named_property_boolean_as_uint8(
     napi_env env,
     napi_value object,
     const char *name,
@@ -426,6 +559,27 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_as_bytebuf(
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(result, env, node_result), { return AWS_NGNPR_INVALID_VALUE; });
 
     return AWS_NGNPR_VALID_VALUE;
+}
+
+enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_length(
+    napi_env env,
+    napi_value object,
+    const char *name,
+    napi_valuetype type,
+    size_t *length_out) {
+
+    struct aws_byte_buf buffer;
+    AWS_ZERO_STRUCT(buffer);
+
+    enum aws_napi_get_named_property_result result =
+        aws_napi_get_named_property_as_bytebuf(env, object, name, type, &buffer);
+    if (result == AWS_NGNPR_VALID_VALUE) {
+        *length_out = buffer.len;
+    }
+
+    aws_byte_buf_clean_up(&buffer);
+
+    return result;
 }
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
@@ -559,6 +713,31 @@ bool aws_napi_is_null_or_undefined(napi_env env, napi_value value) {
     }
 
     return type == napi_null || type == napi_undefined;
+}
+
+int aws_napi_get_property_array_size(
+    napi_env env,
+    napi_value object,
+    const char *property_name,
+    size_t *array_size_out) {
+    napi_value napi_array = NULL;
+    enum aws_napi_get_named_property_result get_result =
+        aws_napi_get_named_property(env, object, property_name, napi_object, &napi_array);
+    if (get_result == AWS_NGNPR_NO_VALUE) {
+        *array_size_out = 0;
+        return AWS_OP_SUCCESS;
+    } else if (get_result == AWS_NGNPR_INVALID_VALUE) {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    uint32_t array_size = 0;
+    AWS_NAPI_CALL(env, napi_get_array_length(env, napi_array, &array_size), {
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    });
+
+    *array_size_out = (size_t)array_size;
+
+    return AWS_OP_SUCCESS;
 }
 
 void aws_napi_throw_last_error(napi_env env) {
@@ -1108,6 +1287,17 @@ static bool s_module_initialized = false;
     CREATE_AND_REGISTER_FN(http_connection_manager_close)
     CREATE_AND_REGISTER_FN(http_connection_manager_acquire)
     CREATE_AND_REGISTER_FN(http_connection_manager_release)
+
+    /* Event stream */
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_new)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_connect)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_close)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_close_internal)
+    CREATE_AND_REGISTER_FN(event_stream_client_connection_send_protocol_message)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_new)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_close)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_activate)
+    CREATE_AND_REGISTER_FN(event_stream_client_stream_send_message)
 
 #undef CREATE_AND_REGISTER_FN
 
