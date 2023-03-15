@@ -6,7 +6,7 @@
 import buffer from 'buffer';
 import process from 'process';
 
-// Hack to get mqtt package working with Webpack 5
+// Workaround to get mqtt-js working with Webpack 5
 if (window) {
     (window as any).Buffer = buffer.Buffer;
     (window as any).process = process;
