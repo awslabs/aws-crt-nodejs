@@ -81,6 +81,47 @@ export interface CognitoCredentialsProviderConfig {
 }
 
 /**
+ * Definition for the configuration needed to create a X509-based Credentials Provider
+ *
+ * @category Auth
+ */
+export interface X509CredentialsConfig {
+
+    /**
+     * X509 service regional endpoint to source credentials from.
+     * This is a per-account value that can be determined via the CLI:
+     * `aws iot describe-endpoint --endpoint-type iot:CredentialProvider`
+     */
+    endpoint: string;
+
+    /**
+     * The name of the IoT thing to use to fetch credentials.
+     */
+    thing_name: string;
+
+    /**
+     * The name of the role alias to fetch credentials through.
+     */
+    role_alias: string;
+
+    /**
+     * TLS context for secure socket connections.
+     * If undefined, then a default tls context will be created and used.
+     */
+    tlsContext?: ClientTlsContext;
+
+    /**
+     * Client bootstrap to use.  In almost all cases, this can be left undefined.
+     */
+    bootstrap?: ClientBootstrap;
+
+    /**
+     * Proxy configuration if connecting through an HTTP proxy is desired
+     */
+    httpProxyOptions?: HttpProxyOptions;
+}
+
+/**
  * Credentials providers source the AwsCredentials needed to sign an authenticated AWS request.
  *
  * We don't currently expose an interface for fetching credentials from Javascript.
@@ -135,6 +176,23 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
         }
 
         return super.newCognito(config,
+            config.tlsContext != null ? config.tlsContext.native_handle() : new ClientTlsContext().native_handle(),
+            config.bootstrap != null ? config.bootstrap.native_handle() : null,
+            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null);
+    }
+
+    /**
+     * Creates a new credentials provider that sources credentials from the the X509 service on AWS IoT Core.
+     *
+     * @param config provider configuration necessary to source credentials via X509
+     *
+     * @returns a new credentials provider that returns credentials sourced from the AWS X509 service
+     */
+    static newX509(config : X509CredentialsConfig): AwsCredentialsProvider {
+        if (config == null || config == undefined) {
+            throw new CrtError("AwsCredentialsProvider newX509: X509 config not defined")
+        }
+        return super.newX509(config,
             config.tlsContext != null ? config.tlsContext.native_handle() : new ClientTlsContext().native_handle(),
             config.bootstrap != null ? config.bootstrap.native_handle() : null,
             config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null);

@@ -11,7 +11,7 @@
  */
 
 import { InputStream, TlsContextOptions } from "./io";
-import {AwsSigningConfig, CognitoCredentialsProviderConfig} from "./auth";
+import {AwsSigningConfig, CognitoCredentialsProviderConfig, X509CredentialsConfig} from "./auth";
 import { HttpHeader, HttpHeaders as CommonHttpHeaders } from "../common/http";
 import { OnMessageCallback, QoS } from "../common/mqtt";
 import { Mqtt5ClientConfig, Mqtt5Client, ClientStatistics, NegotiatedSettings } from "./mqtt5";
@@ -430,6 +430,7 @@ export class AwsCredentialsProvider {
     static newDefault(bootstrap?: NativeHandle): AwsCredentialsProvider;
     static newStatic(access_key: StringLike, secret_key: StringLike, session_token?: StringLike): AwsCredentialsProvider;
     static newCognito(config: CognitoCredentialsProviderConfig, tlsContext : NativeHandle, bootstrap?: NativeHandle, httpProxyOptions?: NativeHandle): AwsCredentialsProvider;
+    static newX509(config: X509CredentialsConfig, tlsContext : NativeHandle, bootstrap?: NativeHandle, httpProxyOptions?: NativeHandle): AwsCredentialsProvider;
 }
 
 /** @internal */
