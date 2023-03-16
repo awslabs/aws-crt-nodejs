@@ -392,7 +392,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.desiredState = MqttBrowserClientState.Connected;
 
         setTimeout(() => { this.uncork() }, 0);
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>(async (resolve, reject) => {
+            let provider = this.config.credentials_provider;
+            if (provider) {
+                await provider.refreshCredentials();
+            }
+
             const on_connect_error = (error: Error) => {
                 reject(new CrtError(error));
             };

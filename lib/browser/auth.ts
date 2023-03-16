@@ -48,6 +48,12 @@ export class CredentialsProvider {
     { 
         return undefined;
     }
+
+    async refreshCredentials() : Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            resolve();
+        });
+    }
 }
 
 
