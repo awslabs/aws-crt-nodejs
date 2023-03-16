@@ -19,6 +19,8 @@
 #include <aws/common/condition_variable.h>
 #include <aws/common/mutex.h>
 
+#include <aws/io/tls_channel_handler.h>
+
 static const char *AWS_NAPI_KEY_ENDPOINT = "endpoint";
 static const char *AWS_NAPI_KEY_IDENTITY = "identity";
 static const char *AWS_NAPI_KEY_LOGINS = "logins";
@@ -74,8 +76,7 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .num_arguments = 4,
             .arg_types = {napi_undefined, napi_undefined, napi_undefined, napi_undefined},
             .attributes = napi_static,
-        }
-    };
+        }};
 
     AWS_NAPI_CALL(
         env,
@@ -479,8 +480,6 @@ static int s_aws_x509_credentials_provider_config_init(
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
     }
 
-    struct aws_allocator *allocator = aws_napi_get_allocator();
-
     if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
                                      env, node_config, AWS_NAPI_KEY_ENDPOINT, napi_string, &config->endpoint)) {
         AWS_LOGF_ERROR(
@@ -510,7 +509,6 @@ static int s_aws_x509_credentials_provider_config_init(
 
     return AWS_OP_SUCCESS;
 }
-
 
 static napi_value s_creds_provider_new_x509(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
