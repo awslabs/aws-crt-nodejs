@@ -35,6 +35,10 @@ export class ProxyConfig {
     public static HTTP_PROXY_WS_SIGNING_REGION = process.env.AWS_TEST_IOT_SIGNING_REGION ?? ""
     public static HTTP_PROXY_MQTT_ENDPOINT = process.env.AWS_TEST_IOT_MQTT_ENDPOINT ?? ""
 
+    public static X509_CREDENTIALS_ENDPOINT = process.env.AWS_TEST_X509_ENDPOINT ?? ""
+    public static X509_CREDENTIALS_THING_NAME = process.env.AWS_TEST_X509_THING_NAME ?? ""
+    public static X509_CREDENTIALS_ROLE_ALIAS = process.env.AWS_TEST_X509_ROLE_ALIAS ?? ""
+
     public static is_valid() {
         return ProxyConfig.HTTP_PROXY_HOST !== "" &&
             ProxyConfig.HTTP_PROXY_PORT != 0 &&
@@ -51,6 +55,11 @@ export class ProxyConfig {
 
     public static is_tls_to_proxy_valid() {
         return ProxyConfig.HTTPS_PROXY_HOST !== "" && ProxyConfig.HTTPS_PROXY_PORT != 0;
+    }
+
+    public static is_x509_valid() {
+        return this.is_valid() && ProxyConfig.X509_CREDENTIALS_ENDPOINT != "" &&
+                ProxyConfig.X509_CREDENTIALS_THING_NAME != "" && ProxyConfig.X509_CREDENTIALS_ROLE_ALIAS != "";
     }
 
     public static get_proxy_host_for_test(test_type : ProxyTestType, auth_type : HttpProxyAuthenticationType) {
