@@ -145,4 +145,4 @@ jobs:
           fetch-depth: 0
       - name: Check for edits to package-lock.json
         run: |
-          ./utils/lockfile_version_validation.py
+          test `jq -r '.lockfileVersion' package-lock.json` = 1
