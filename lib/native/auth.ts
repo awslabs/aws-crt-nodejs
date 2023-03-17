@@ -188,7 +188,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
         }
         return super.newX509(
             config,
-            config.tlsContext,
+            config.tlsContext.native_handle(),
             config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null);
     }
 }
