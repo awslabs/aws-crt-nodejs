@@ -18,13 +18,6 @@ As the library supports npm 6, please make sure we use version {LOCKFILE_VALID_V
 for {LOCK_FILE_NAME}
 """
 
-def parse(text):
-    try:
-        return
-    except ValueError as e:
-        print('invalid json: %s' % e)
-        return None # or: raise
-
 def get_packagelock_version():
     try:
         with open(LOCK_FILE_NAME) as f:
@@ -34,7 +27,6 @@ def get_packagelock_version():
     except ValueError as e:
         print('invalid json: %s' % e)
         return None # or: raise
-
 
 def main():
     any_invalid = False
@@ -59,10 +51,14 @@ def main():
     print('Checking files with diffs...')
     if LOCK_FILE_NAME in diff_files:
         version = get_packagelock_version()
-        print(f"Detected {LOCK_FILE_NAME} version: {version}")
-        if version != LOCKFILE_VALID_VERSION:
-            print(ERROR_MSG)
+        if version is None:
+            print("ERROR: Failed to process the {LOCK_FILE_NAME}. The file is invalid.")
             sys.exit(-1)
+        else:
+            print(f"Detected {LOCK_FILE_NAME} version: {version}")
+            if version != LOCKFILE_VALID_VERSION:
+                print(ERROR_MSG)
+                sys.exit(-1)
     else:
         print("No target files were changed.")
 
