@@ -7,6 +7,7 @@ import { mqtt, iot, CrtError, auth } from "aws-crt";
 import AWS from "aws-sdk"
 import Config = require('./config');
 import jquery = require("jquery");
+import {v4 as uuid} from "uuid";
 const $: JQueryStatic = jquery;
 
 function log(msg: string) {
@@ -29,51 +30,30 @@ interface AWSCognitoCredentialOptions
  */
 export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
     private options: AWSCognitoCredentialOptions;
-    private source_provider : AWS.CognitoIdentityCredentials;
-    private aws_credentials : auth.AWSCredentials;
-    constructor(options: AWSCognitoCredentialOptions, expire_interval_in_ms? : number)
+    private sourceProvider : AWS.CognitoIdentityCredentials;
+
+    constructor(options: AWSCognitoCredentialOptions)
     {
         super();
         this.options = options;
         AWS.config.region = options.Region;
-        this.source_provider = new AWS.CognitoIdentityCredentials({
+        this.sourceProvider = new AWS.CognitoIdentityCredentials({
             IdentityPoolId: options.IdentityPoolId
         });
-        this.aws_credentials = 
-        {
-            aws_region: options.Region,
-            aws_access_id : this.source_provider.accessKeyId,
-            aws_secret_key: this.source_provider.secretAccessKey,
-            aws_sts_token: this.source_provider.sessionToken
+    }
+
+    getCredentials() : auth.AWSCredentials | undefined {
+        return {
+            aws_region : this.options.Region,
+            aws_access_id : this.sourceProvider.accessKeyId,
+            aws_secret_key : this.sourceProvider.secretAccessKey,
+            aws_sts_token : this.sourceProvider.sessionToken
         }
-
-        setInterval(async ()=>{
-            await this.refreshCredentialAsync();
-        },expire_interval_in_ms?? 3600*1000);
     }
 
-    getCredentials(){
-        return this.aws_credentials;
-    }
-
-    async refreshCredentialAsync()
+    async refreshCredentials() : Promise<void>
     {
-        return new Promise<AWSCognitoCredentialsProvider>((resolve, reject) => {
-            this.source_provider.get((err)=>{
-                if(err)
-                {
-                    reject("Failed to get cognito credentials.")
-                }
-                else
-                {
-                    this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                    this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                    this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                    this.aws_credentials.aws_region = this.options.Region;
-                    resolve(this);
-                }
-            });
-        });
+        return this.sourceProvider.getPromise();
     }
 }
 
@@ -121,13 +101,14 @@ async function main() {
             IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID, 
             Region: Config.AWS_REGION});
     /** Make sure the credential provider fetched before setup the connection */
-    await provider.refreshCredentialAsync();
+    await provider.refreshCredentials();
 
+    let topic: string = `/test/me/${uuid()}`;
 
     connect_websocket(provider)
     .then((connection) => {
         log(`start subscribe`)
-        connection.subscribe('/test/me/senpai', mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {
+        connection.subscribe(topic, mqtt.QoS.AtLeastOnce, (topic, payload, dup, qos, retain) => {
             const decoder = new TextDecoder('utf8');
             let message = decoder.decode(new Uint8Array(payload));
             log(`Message received: topic=${topic} message=${message}`);
@@ -143,7 +124,7 @@ async function main() {
             setInterval( ()=>{
                 msg_count++;
                 const msg = `NOTICE ME {${msg_count}}`;
-                connection.publish(subscription.topic, msg, subscription.qos);
+                connection.publish(topic, msg, subscription.qos);
             }, 60000);
         });
     })

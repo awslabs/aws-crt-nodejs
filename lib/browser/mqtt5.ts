@@ -242,7 +242,14 @@ class ReconnectionScheduler {
         this.lastReconnectDelay = nextDelay;
         this.connectionFailureCount += 1;
 
-        this.reconnectionTask = setTimeout(() => {
+        this.reconnectionTask = setTimeout(async () => {
+            let wsOptions = this.clientConfig.websocketOptions;
+            if (wsOptions && wsOptions.urlFactoryOptions.urlFactory == Mqtt5WebsocketUrlFactoryType.Sigv4) {
+                let sigv4Options = wsOptions.urlFactoryOptions as Mqtt5WebsocketUrlFactorySigv4Options;
+                if (sigv4Options.credentialsProvider) {
+                    await sigv4Options.credentialsProvider.refreshCredentials();
+                }
+            }
             this.browserClient.reconnect();
         }, nextDelay);
     }

@@ -37,7 +37,8 @@ export interface AWSCredentials{
  * @category Auth
  */
 export class CredentialsProvider {
-    /** Return a valid credentials. Please note mqtt.js does not support promises, meaning that credentials 
+    /**
+     * Return a valid credentials. Please note mqtt.js does not support promises, meaning that credentials
      * provider implementation should handle application-level authentication refreshing so that the websocket 
      * connection could simply grab the latest valid tokens when getCredentials() get called. 
      * 
@@ -47,6 +48,21 @@ export class CredentialsProvider {
     getCredentials() : AWSCredentials | undefined
     { 
         return undefined;
+    }
+
+    /**
+     * Invoked by browser MQTT clients before a connection is attempted.  Sub-classes that source credentials
+     * asynchronously should override this API to perform asynchronous credentials resolution.
+     *
+     * Asynchronous providers that cache session-based credentials should resolve the returned promise if
+     * the cached credentials are still valid.
+     *
+     * @returns a promise that resolves if credentials were successfully refreshed, rejected otherwise.
+     */
+    async refreshCredentials() : Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            resolve();
+        });
     }
 }
 
