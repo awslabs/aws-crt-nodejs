@@ -53,6 +53,11 @@ export class CredentialsProvider {
     /**
      * Invoked by browser MQTT clients before a connection is attempted.  Sub-classes that source credentials
      * asynchronously should override this API to perform asynchronous credentials resolution.
+     *
+     * Asynchronous providers that cache session-based credentials should resolve the returned promise if
+     * the cached credentials are still valid.
+     *
+     * @returns a promise that resolves if credentials were successfully refreshed, rejected otherwise.
      */
     async refreshCredentials() : Promise<void> {
         return new Promise<void>((resolve, reject) => {
