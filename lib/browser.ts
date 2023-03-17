@@ -5,6 +5,8 @@
 
 // This is the entry point for the browser AWS CRT shim library
 
+import './browser/polyfills';
+
 /* common libs */
 import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
