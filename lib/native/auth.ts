@@ -97,23 +97,17 @@ export interface X509CredentialsConfig {
     /**
      * The name of the IoT thing to use to fetch credentials.
      */
-    thing_name: string;
+    thingName: string;
 
     /**
      * The name of the role alias to fetch credentials through.
      */
-    role_alias: string;
+    roleAlias: string;
 
     /**
      * TLS context for secure socket connections.
-     * If undefined, then a default tls context will be created and used.
      */
-    tlsContext?: ClientTlsContext;
-
-    /**
-     * Client bootstrap to use.  In almost all cases, this can be left undefined.
-     */
-    bootstrap?: ClientBootstrap;
+    tlsContext: ClientTlsContext;
 
     /**
      * Proxy configuration if connecting through an HTTP proxy is desired
@@ -192,9 +186,9 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
         if (config == null || config == undefined) {
             throw new CrtError("AwsCredentialsProvider newX509: X509 config not defined")
         }
-        return super.newX509(config,
-            config.tlsContext != null ? config.tlsContext.native_handle() : new ClientTlsContext().native_handle(),
-            config.bootstrap != null ? config.bootstrap.native_handle() : null,
+        return super.newX509(
+            config,
+            config.tlsContext,
             config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null);
     }
 }

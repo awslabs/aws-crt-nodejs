@@ -222,8 +222,8 @@ async function test_x509_credentials(test_type : ProxyTestType, auth_type : Http
 
     let x509_config : X509CredentialsConfig = {
         endpoint: ProxyConfig.X509_CREDENTIALS_ENDPOINT,
-        thing_name: ProxyConfig.X509_CREDENTIALS_THING_NAME,
-        role_alias: ProxyConfig.X509_CREDENTIALS_ROLE_ALIAS,
+        thingName: ProxyConfig.X509_CREDENTIALS_THING_NAME,
+        roleAlias: ProxyConfig.X509_CREDENTIALS_ROLE_ALIAS,
         tlsContext: client_tls_ctx,
         httpProxyOptions: proxy_config
     };

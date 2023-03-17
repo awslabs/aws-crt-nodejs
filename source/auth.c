@@ -27,8 +27,8 @@ static const char *AWS_NAPI_KEY_LOGINS = "logins";
 static const char *AWS_NAPI_KEY_CUSTOM_ROLE_ARN = "customRoleArn";
 static const char *AWS_NAPI_KEY_IDENTITY_PROVIDER_NAME = "identityProviderName";
 static const char *AWS_NAPI_KEY_IDENTITY_PROVIDER_TOKEN = "identityProviderToken";
-static const char *AWS_NAPI_KEY_THING_NAME = "thing_name";
-static const char *AWS_NAPI_KEY_ROLE_ALIAS = "role_alias";
+static const char *AWS_NAPI_KEY_THING_NAME = "thingName";
+static const char *AWS_NAPI_KEY_ROLE_ALIAS = "roleAlias";
 
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
@@ -73,8 +73,8 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
         {
             .name = "newX509",
             .method = s_creds_provider_new_x509,
-            .num_arguments = 4,
-            .arg_types = {napi_undefined, napi_undefined, napi_undefined, napi_undefined},
+            .num_arguments = 3,
+            .arg_types = {napi_undefined, napi_undefined, napi_undefined},
             .attributes = napi_static,
         }};
 
@@ -512,7 +512,7 @@ static int s_aws_x509_credentials_provider_config_init(
 
 static napi_value s_creds_provider_new_x509(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
-    AWS_FATAL_ASSERT(cb_info->num_args == 4);
+    AWS_FATAL_ASSERT(cb_info->num_args == 3);
 
     napi_value node_provider = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -553,12 +553,8 @@ static napi_value s_creds_provider_new_x509(napi_env env, const struct aws_napi_
         goto done;
     }
 
-    aws_napi_method_next_argument(napi_external, cb_info, &arg);
-    if (arg->native.external != NULL) {
-        options.bootstrap = aws_napi_get_client_bootstrap(arg->native.external);
-    } else {
-        options.bootstrap = aws_napi_get_default_client_bootstrap();
-    }
+    /* Always use the default bootstrap */
+    options.bootstrap = aws_napi_get_default_client_bootstrap();
 
     aws_napi_method_next_argument(napi_external, cb_info, &arg);
     if (arg->native.external != NULL) {
