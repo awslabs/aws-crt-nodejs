@@ -30,7 +30,10 @@ interface AWSCognitoCredentialOptions
 export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
     private options: AWSCognitoCredentialOptions;
     private source_provider : AWS.CognitoIdentityCredentials;
-    private aws_credentials : auth.AWSCredentials;
+    private aws_credentials? : auth.AWSCredentials;
+    private refresh_interval : number;
+    private expiration_timestamp_ms : number;
+
     constructor(options: AWSCognitoCredentialOptions, expire_interval_in_ms? : number)
     {
         super();
@@ -39,39 +42,38 @@ export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
         this.source_provider = new AWS.CognitoIdentityCredentials({
             IdentityPoolId: options.IdentityPoolId
         });
-        this.aws_credentials = 
-        {
-            aws_region: options.Region,
-            aws_access_id : this.source_provider.accessKeyId,
-            aws_secret_key: this.source_provider.secretAccessKey,
-            aws_sts_token: this.source_provider.sessionToken
-        }
 
-        setInterval(async ()=>{
-            await this.refreshCredentialAsync();
-        },expire_interval_in_ms?? 3600*1000);
+        this.refresh_interval = expire_interval_in_ms ?? 3600*1000;
+        this.expiration_timestamp_ms = 0;
     }
 
     getCredentials(){
         return this.aws_credentials;
     }
 
-    async refreshCredentialAsync()
+    async refreshCredentials() : Promise<void>
     {
-        return new Promise<AWSCognitoCredentialsProvider>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
+            let now : number = Date.now();
+            if (now < this.expiration_timestamp_ms) {
+                resolve();
+            }
+
             this.source_provider.get((err)=>{
-                if(err)
-                {
+                if (err) {
                     reject("Failed to get cognito credentials.")
+                    return;
                 }
-                else
-                {
-                    this.aws_credentials.aws_access_id = this.source_provider.accessKeyId;
-                    this.aws_credentials.aws_secret_key = this.source_provider.secretAccessKey;
-                    this.aws_credentials.aws_sts_token = this.source_provider.sessionToken;
-                    this.aws_credentials.aws_region = this.options.Region;
-                    resolve(this);
+
+                this.aws_credentials = {
+                    aws_region : this.options.Region,
+                    aws_access_id : this.source_provider.accessKeyId,
+                    aws_secret_key : this.source_provider.secretAccessKey,
+                    aws_sts_token : this.source_provider.sessionToken
                 }
+
+                this.expiration_timestamp_ms = Date.now() + this.refresh_interval;
+                resolve();
             });
         });
     }
@@ -121,7 +123,7 @@ async function main() {
             IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID, 
             Region: Config.AWS_REGION});
     /** Make sure the credential provider fetched before setup the connection */
-    await provider.refreshCredentialAsync();
+    await provider.refreshCredentials();
 
 
     connect_websocket(provider)
