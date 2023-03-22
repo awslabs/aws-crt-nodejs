@@ -19,18 +19,23 @@
 #include <aws/common/condition_variable.h>
 #include <aws/common/mutex.h>
 
+#include <aws/io/tls_channel_handler.h>
+
 static const char *AWS_NAPI_KEY_ENDPOINT = "endpoint";
 static const char *AWS_NAPI_KEY_IDENTITY = "identity";
 static const char *AWS_NAPI_KEY_LOGINS = "logins";
 static const char *AWS_NAPI_KEY_CUSTOM_ROLE_ARN = "customRoleArn";
 static const char *AWS_NAPI_KEY_IDENTITY_PROVIDER_NAME = "identityProviderName";
 static const char *AWS_NAPI_KEY_IDENTITY_PROVIDER_TOKEN = "identityProviderToken";
+static const char *AWS_NAPI_KEY_THING_NAME = "thingName";
+static const char *AWS_NAPI_KEY_ROLE_ALIAS = "roleAlias";
 
 static struct aws_napi_class_info s_creds_provider_class_info;
 static aws_napi_method_fn s_creds_provider_constructor;
 static aws_napi_method_fn s_creds_provider_new_default;
 static aws_napi_method_fn s_creds_provider_new_static;
 static aws_napi_method_fn s_creds_provider_new_cognito;
+static aws_napi_method_fn s_creds_provider_new_x509;
 
 static aws_napi_method_fn s_aws_sign_request;
 static aws_napi_method_fn s_aws_verify_sigv4a_signing;
@@ -65,7 +70,13 @@ napi_status aws_napi_auth_bind(napi_env env, napi_value exports) {
             .arg_types = {napi_undefined, napi_undefined, napi_undefined, napi_undefined},
             .attributes = napi_static,
         },
-    };
+        {
+            .name = "newX509",
+            .method = s_creds_provider_new_x509,
+            .num_arguments = 3,
+            .arg_types = {napi_undefined, napi_undefined, napi_undefined},
+            .attributes = napi_static,
+        }};
 
     AWS_NAPI_CALL(
         env,
@@ -288,7 +299,7 @@ static int s_aws_cognito_credentials_provider_config_init(
         for (size_t i = 0; i < login_count; ++i) {
 
             napi_value napi_token_pair = NULL;
-            AWS_NAPI_CALL(env, napi_get_element(env, napi_logins, i, &napi_token_pair), {
+            AWS_NAPI_CALL(env, napi_get_element(env, napi_logins, (uint32_t)i, &napi_token_pair), {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "s_aws_cognito_credentials_provider_config_init - could not access property 'logins' array "
@@ -445,6 +456,126 @@ done:
 
     aws_credentials_provider_release(provider);
 
+    return node_provider;
+}
+
+struct aws_x509_credentials_provider_config {
+    struct aws_byte_buf endpoint;
+    struct aws_byte_buf thing_name;
+    struct aws_byte_buf role_alias;
+};
+
+static void s_aws_x509_credentials_provider_config_clean_up(struct aws_x509_credentials_provider_config *config) {
+    aws_byte_buf_clean_up(&config->endpoint);
+    aws_byte_buf_clean_up(&config->thing_name);
+    aws_byte_buf_clean_up(&config->role_alias);
+}
+
+static int s_aws_x509_credentials_provider_config_init(
+    struct aws_x509_credentials_provider_config *config,
+    napi_env env,
+    napi_value node_config) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                     env, node_config, AWS_NAPI_KEY_ENDPOINT, napi_string, &config->endpoint)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_x509_credentials_provider_config_init - required property 'endpoint' could not be extracted from "
+            "config");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                     env, node_config, AWS_NAPI_KEY_THING_NAME, napi_string, &config->thing_name)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_x509_credentials_provider_config_init - required property 'thing_name' could not be extracted from "
+            "config");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (AWS_NGNPR_VALID_VALUE != aws_napi_get_named_property_as_bytebuf(
+                                     env, node_config, AWS_NAPI_KEY_ROLE_ALIAS, napi_string, &config->role_alias)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "s_aws_x509_credentials_provider_config_init - required property 'role_alias' could not be extracted from "
+            "config");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    return AWS_OP_SUCCESS;
+}
+
+static napi_value s_creds_provider_new_x509(napi_env env, const struct aws_napi_callback_info *cb_info) {
+
+    AWS_FATAL_ASSERT(cb_info->num_args == 3);
+
+    napi_value node_provider = NULL;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_credentials_provider *provider = NULL;
+    struct aws_x509_credentials_provider_config provider_config;
+    AWS_ZERO_STRUCT(provider_config);
+    struct aws_tls_connection_options tls_connection_options;
+    AWS_ZERO_STRUCT(tls_connection_options);
+
+    struct aws_credentials_provider_x509_options options;
+    AWS_ZERO_STRUCT(options);
+
+    const struct aws_napi_argument *arg = NULL;
+
+    aws_napi_method_next_argument(napi_undefined, cb_info, &arg);
+    napi_value first_argument = arg->node;
+
+    if (s_aws_x509_credentials_provider_config_init(&provider_config, env, first_argument)) {
+        napi_throw_error(env, NULL, "Failed to initialize x509 provider configuration from node config");
+        goto done;
+    }
+
+    options.endpoint = aws_byte_cursor_from_buf(&provider_config.endpoint);
+    options.thing_name = aws_byte_cursor_from_buf(&provider_config.thing_name);
+    options.role_alias = aws_byte_cursor_from_buf(&provider_config.role_alias);
+
+    struct aws_tls_ctx *tls_context = NULL;
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
+    AWS_NAPI_CALL(env, napi_get_value_external(env, arg->node, (void **)&tls_context), {
+        napi_throw_error(env, NULL, "Failed to extract tls_ctx from external");
+        goto done;
+    });
+    if (tls_context != NULL) {
+        aws_tls_connection_options_init_from_ctx(&tls_connection_options, tls_context);
+        options.tls_connection_options = &tls_connection_options;
+    } else {
+        napi_throw_error(env, NULL, "Failed to extract and set tls_ctx from external");
+        goto done;
+    }
+
+    /* Always use the default bootstrap */
+    options.bootstrap = aws_napi_get_default_client_bootstrap();
+
+    aws_napi_method_next_argument(napi_external, cb_info, &arg);
+    if (arg->native.external != NULL) {
+        options.proxy_options = aws_napi_get_http_proxy_options(arg->native.external);
+    }
+
+    provider = aws_credentials_provider_new_x509(allocator, &options);
+    if (provider == NULL) {
+        napi_throw_error(env, NULL, "Failed to create native X509 Credentials Provider");
+        goto done;
+    }
+
+    AWS_NAPI_CALL(env, aws_napi_credentials_provider_wrap(env, provider, &node_provider), {
+        napi_throw_error(env, NULL, "Failed to wrap X509CredentialsProvider");
+        goto done;
+    });
+
+done:
+    aws_tls_connection_options_clean_up(&tls_connection_options);
+    s_aws_x509_credentials_provider_config_clean_up(&provider_config);
+    aws_credentials_provider_release(provider);
     return node_provider;
 }
 

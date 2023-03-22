@@ -9,7 +9,8 @@ module.exports = {
     globals: {
         'ts-jest': {
             tsconfig: '<rootDir>/tsconfig.browser.json'
-        }
+        },
+        "window": {}
     },
     transform: {
         "^.+\\.ts?$": ['ts-jest'],

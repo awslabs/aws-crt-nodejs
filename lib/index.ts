@@ -14,6 +14,7 @@ import * as auth from './native/auth';
 import * as checksums from './native/checksums';
 import * as crt from './native/crt';
 import * as crypto from './native/crypto';
+import * as eventstream from './native/eventstream';
 import * as http from './native/http';
 import * as io from './native/io';
 import * as iot from './native/iot';
@@ -26,6 +27,7 @@ export {
     checksums,
     crypto,
     crt,
+    eventstream,
     http,
     io,
     iot,

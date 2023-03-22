@@ -110,7 +110,7 @@ export class InputStream extends NativeResource {
     constructor(private source: Readable) {
         super(crt_native.io_input_stream_new(16 * 1024));
         this.source.on('data', (data) => {
-            data = Buffer.isBuffer(data) ? data : new Buffer(data.toString(), 'utf8');
+            data = Buffer.isBuffer(data) ? data : Buffer.from(data.toString());
             crt_native.io_input_stream_append(this.native_handle(), data);
         });
         this.source.on('end', () => {
