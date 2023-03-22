@@ -60,6 +60,17 @@ class CrtSizeCheck(Builder.Action):
 
         print(f"dist/native files size: {folder_size} bytes")
         total_size += folder_size
+        folder_size = 0
+
+        # source too
+        for root, dirs, files in os.walk(os.path.join(env.project.path, 'lib')):
+
+            for f in files:
+                fp = os.path.join(root, f)
+                folder_size += os.path.getsize(fp)
+
+        print(f"lib files size: {folder_size} bytes")
+        total_size += folder_size
 
         print(f"Total NPM package file size: {total_size} bytes")
         if total_size > max_size:
