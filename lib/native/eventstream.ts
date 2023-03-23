@@ -835,7 +835,7 @@ enum ClientStreamState {
     None,
     Activating,
     Activated,
-    Terminated,
+    Ended,
     Closed,
 }
 
@@ -850,14 +850,14 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     constructor(connection: ClientConnection) {
         super();
 
-        this.state = ClientStreamState.None;
-
         this._super(crt_native.event_stream_client_stream_new(
             this,
             connection.native_handle(),
             (stream: ClientStream) => { ClientStream._s_on_stream_ended(stream); },
             (stream: ClientStream, message: Message) => { ClientStream._s_on_stream_message(stream, message); },
         ));
+
+        this.state = ClientStreamState.None;
     }
 
     /**
@@ -898,7 +898,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
              * Intentionally mutate state the same way a failed synchronous call to native activate does.
              */
             if (options === undefined) {
-                this.state = ClientStreamState.Terminated;
+                this.state = ClientStreamState.Ended;
                 reject(new CrtError("Invalid options passed to ClientStream.activate"));
                 return;
             }
@@ -912,7 +912,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
             try {
                 crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
             } catch (e) {
-                this.state = ClientStreamState.Terminated;
+                this.state = ClientStreamState.Ended;
                 reject(e);
             }
         });
@@ -965,7 +965,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static STREAM_ENDED : string = 'streamEnded';
+    static ENDED : string = 'ended';
 
     /**
      * Event emitted when a stream message is received from the remote endpoint
@@ -974,7 +974,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static STREAM_MESSAGE : string = 'streamMessage';
+    static MESSAGE : string = 'message';
 
     on(event: 'streamEnded', listener: StreamEndedListener): this;
 
@@ -991,7 +991,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
             resolve();
         } else {
             if (stream.state != ClientStreamState.Closed) {
-                stream.state = ClientStreamState.Terminated;
+                stream.state = ClientStreamState.Ended;
             }
 
             reject(io.error_code_to_string(errorCode));
@@ -1008,13 +1008,13 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     private static _s_on_stream_ended(stream: ClientStream) {
         process.nextTick(() => {
-            stream.emit(ClientStream.STREAM_ENDED, {});
+            stream.emit(ClientStream.ENDED, {});
         });
     }
 
     private static _s_on_stream_message(stream: ClientStream, message: Message) {
         process.nextTick(() => {
-            stream.emit(ClientStream.STREAM_MESSAGE, {message: mapPodMessageToJSMessage(message)});
+            stream.emit(ClientStream.MESSAGE, {message: mapPodMessageToJSMessage(message)});
         });
     }
 

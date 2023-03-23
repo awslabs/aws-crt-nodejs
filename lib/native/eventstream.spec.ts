@@ -532,7 +532,7 @@ async function openPersistentEchoStream(connection: eventstream.ClientConnection
         try {
             let stream : eventstream.ClientStream = connection.newStream();
 
-            const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+            const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
             let message : eventstream.Message = {
                 type: eventstream.MessageType.ApplicationMessage
@@ -570,7 +570,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
     let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
 
-    let streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+    let streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
     crt_native.event_stream_client_connection_close_internal(connection.native_handle());
 
@@ -586,8 +586,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
     let stream : eventstream.ClientStream = connection.newStream();
 
-    const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
-    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+    const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
+    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
     const payloadAsString = "{}";
 
@@ -627,7 +627,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
     let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
 
-    const echoResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+    const echoResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
     const payloadAsString = "{}";
 
@@ -660,7 +660,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - clien
     let connection : eventstream.ClientConnection = await makeGoodConnection();
     let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
 
-    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
     let message : eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
@@ -680,8 +680,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activ
     let connection : eventstream.ClientConnection = await makeGoodConnection();
     let stream : eventstream.ClientStream = connection.newStream();
 
-    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
-    const activateResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
+    const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
     const payloadAsString = "{}";
 
@@ -708,8 +708,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
     let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
 
-    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
-    const echoResponse = once(stream, eventstream.ClientStream.STREAM_MESSAGE);
+    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
+    const echoResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
     let message : eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
@@ -764,7 +764,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
     let connection : eventstream.ClientConnection = await makeGoodConnection();
     let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
 
-    const streamEnded = once(stream, eventstream.ClientStream.STREAM_ENDED);
+    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
     let message : eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
