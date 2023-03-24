@@ -162,3 +162,6 @@ docs/
 samples/browser/**/package-lock.json
 samples/node/**/package-lock.json
 canary/mqtt5/package-lock.json
+
+# angular
+.angular
