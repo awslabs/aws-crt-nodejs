@@ -976,9 +976,9 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      */
     static MESSAGE : string = 'message';
 
-    on(event: 'streamEnded', listener: StreamEndedListener): this;
+    on(event: 'ended', listener: StreamEndedListener): this;
 
-    on(event: 'streamMessage', listener: MessageListener): this;
+    on(event: 'message', listener: MessageListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
