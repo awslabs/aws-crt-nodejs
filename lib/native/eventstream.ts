@@ -67,7 +67,7 @@ export enum HeaderType {
  * Payloads are allowed to be any of the these types in an outbound message.
  * Payloads will always be ArrayBuffers when emitting received messages.
  */
-export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
+export type Payload = string | ArrayBuffer | ArrayBufferView;
 
 const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
 
