@@ -863,7 +863,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
     connection.close();
 });
 
-test('Eventstream connection cancel - example.com', async () => {
+test('Eventstream connection cancel - example.com, cancel after connect', async () => {
     // hangs atm
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
@@ -874,6 +874,21 @@ test('Eventstream connection cancel - example.com', async () => {
 
     setTimeout(() => { controller.cancel(); }, 1000);
 
+    await expect(connection.connect({
+        cancelController : controller
+    })).rejects.toThrow("cancelled");
+});
+
+test('Eventstream connection cancel - example.com, cancel before connect', async () => {
+    // hangs atm
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
+        hostName: "example.com",
+        port: 22
+    });
+
+    let controller : cancel.CancelController = new cancel.CancelController();
+    controller.cancel();
+    
     await expect(connection.connect({
         cancelController : controller
     })).rejects.toThrow("cancelled");

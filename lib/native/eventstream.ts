@@ -694,7 +694,6 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
                     setImmediate(() => { this.close(); });
                 };
                 if (!options.cancelController.registerListener(cancel)) {
-                    cancel();
                     return;
                 }
             }
@@ -741,7 +740,6 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
                     setImmediate(() => { this.close(); });
                 };
                 if (!options.cancelController.registerListener(cancel)) {
-                    cancel();
                     return;
                 }
             }
@@ -946,7 +944,6 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                     setImmediate(() => { this.close(); });
                 };
                 if (!options.cancelController.registerListener(cancel)) {
-                    cancel();
                     return;
                 }
             }
@@ -1002,7 +999,6 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                     setImmediate(() => { this.close(); });
                 };
                 if (!options.cancelController.registerListener(cancel)) {
-                    cancel();
                     return;
                 }
             }
