@@ -6,6 +6,7 @@
 // This is the entry point for the AWS CRT nodejs native libraries
 
 /* common libs */
+import * as cancel from './common/cancel';
 import * as platform from './common/platform';
 import * as resource_safety from './common/resource_safety';
 
@@ -24,6 +25,7 @@ import { ICrtError, CrtError } from './native/error';
 
 export {
     auth,
+    cancel,
     checksums,
     crypto,
     crt,

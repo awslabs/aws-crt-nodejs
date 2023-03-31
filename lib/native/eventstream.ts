@@ -8,6 +8,7 @@ import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
 import * as io from "./io";
 import * as eventstream_utils from "./eventstream_utils";
+import * as cancel from "../common/cancel";
 import crt_native from "./binding";
 
 /**
@@ -500,6 +501,10 @@ export interface ClientConnectionOptions {
     tlsCtx?: io.ClientTlsContext;
 }
 
+export interface ConnectOptions {
+    cancelController?: cancel.ICancelController;
+}
+
 /**
  * Options for sending a protocol message over the client connection.
  */
@@ -509,6 +514,8 @@ export interface ProtocolMessageOptions {
      * Protocol message to send
      */
     message: Message;
+
+    cancelController?: cancel.ICancelController;
 }
 
 /**
@@ -525,6 +532,11 @@ export interface ActivateStreamOptions {
      * Application message to send as part of activating the stream.
      */
     message: Message;
+
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
+    cancelController?: cancel.ICancelController;
 }
 
 /**
@@ -536,6 +548,8 @@ export interface StreamMessageOptions {
      * Application message to send.
      */
     message: Message;
+
+    cancelController?: cancel.ICancelController;
 }
 
 /**
@@ -655,8 +669,23 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * connect() may only be called once.
      */
-    async connect() : Promise<void> {
+    async connect(options: ConnectOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
+            if (!options) {
+                reject(new CrtError("Invalid options passed to event stream ClientConnection.connect"));
+                return;
+            }
+
+            if (options.cancelController) {
+                let cancel : () => void = () => {
+                    reject(new CrtError(`Event stream connection connect() cancelled by external request.`));
+                    setImmediate(() => { this.close(); });
+                };
+                if (!options.cancelController.registerListener(cancel)) {
+                    cancel();
+                    return;
+                }
+            }
 
             if (this.state != ClientConnectionState.None) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where connect() is not allowed.`));
@@ -689,9 +718,20 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      */
     async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (options === undefined) {
+            if (!options) {
                 reject(new CrtError("Invalid options passed to event stream ClientConnection.sendProtocolMessage"));
                 return;
+            }
+
+            if (options.cancelController) {
+                let cancel : () => void = () => {
+                    reject(new CrtError(`Event stream connection sendProtocolMessage() cancelled by external request.`));
+                    setImmediate(() => { this.close(); });
+                };
+                if (!options.cancelController.registerListener(cancel)) {
+                    cancel();
+                    return;
+                }
             }
 
             if (!this.isConnected()) {
@@ -888,6 +928,17 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      */
     async activate(options: ActivateStreamOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
+            if (options.cancelController) {
+                let cancel : () => void = () => {
+                    reject(new CrtError(`Event stream activate() cancelled by external request.`));
+                    setImmediate(() => { this.close(); });
+                };
+                if (!options.cancelController.registerListener(cancel)) {
+                    cancel();
+                    return;
+                }
+            }
+
             if (this.state != ClientStreamState.None) {
                 reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
                 return;
@@ -928,9 +979,20 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      */
     async sendMessage(options: StreamMessageOptions) : Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (options === undefined) {
+            if (!options) {
                 reject(new CrtError("Invalid options passed to ClientStream.sendMessage"));
                 return;
+            }
+
+            if (options.cancelController) {
+                let cancel : () => void = () => {
+                    reject(new CrtError(`Event stream sendMessage() cancelled by external request.`));
+                    setImmediate(() => { this.close(); });
+                };
+                if (!options.cancelController.registerListener(cancel)) {
+                    cancel();
+                    return;
+                }
             }
 
             if (this.state != ClientStreamState.Activated) {

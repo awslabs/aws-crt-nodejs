@@ -4,6 +4,7 @@
  */
 
 import * as eventstream from './eventstream';
+import * as cancel from '../common/cancel';
 import {once} from "events";
 import crt_native from "./binding";
 import * as os from "os";
@@ -49,7 +50,7 @@ function makeGoodConfig() : eventstream.ClientConnectionOptions {
 conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, close, and forget', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     connection.close();
 });
@@ -59,7 +60,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
-    await connection.connect();
+    await connection.connect({});
 
     // simulate a socket closed by the remote endpoint scenario
     closeNativeConnectionInternal(connection);
@@ -75,7 +76,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     // intentionally do not await to try and beat the native connection setup with a close call
-    connection.connect();
+    connection.connect({});
 
     connection.close();
 
@@ -85,7 +86,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
 async function doConnectionFailureTest(config : eventstream.ClientConnectionOptions) {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
 
-    await expect(connection.connect()).rejects;
+    await expect(connection.connect({})).rejects;
 
     connection.close();
 }
@@ -107,7 +108,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection f
 async function doProtocolConnectionSuccessTest1() {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
 
@@ -142,7 +143,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection su
 async function doProtocolConnectionSuccessTest2() {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     let connectMessage: eventstream.Message = {
         type: eventstream.MessageType.Connect,
@@ -171,7 +172,7 @@ async function makeGoodConnection() : Promise<eventstream.ClientConnection> {
         try {
             let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-            await connection.connect();
+            await connection.connect({});
 
             const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
 
@@ -303,7 +304,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
     const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
@@ -409,9 +410,9 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - connect while connecting', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    let connected : Promise<void> = connection.connect();
+    let connected : Promise<void> = connection.connect({});
 
-    await expect(connection.connect()).rejects.toThrow();
+    await expect(connection.connect({})).rejects.toThrow();
 
     await connected;
 
@@ -421,9 +422,9 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - connect while connected', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
-    await expect(connection.connect()).rejects.toThrow();
+    await expect(connection.connect({})).rejects.toThrow();
 
     connection.close();
 });
@@ -433,14 +434,14 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
-    await connection.connect();
+    await connection.connect({});
 
     // simulate a socket closed by the remote endpoint scenario
     closeNativeConnectionInternal(connection);
 
     await disconnected;
 
-    await expect(connection.connect()).rejects.toThrow();
+    await expect(connection.connect({})).rejects.toThrow();
 
     connection.close();
 });
@@ -450,7 +451,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
-    await connection.connect();
+    await connection.connect({});
 
     // simulate a socket closed by the remote endpoint scenario
     closeNativeConnectionInternal(connection);
@@ -467,7 +468,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
-    await connection.connect();
+    await connection.connect({});
 
     // simulate a socket closed by the remote endpoint scenario
     closeNativeConnectionInternal(connection);
@@ -488,13 +489,13 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 
     connection.close();
 
-    await expect(connection.connect()).rejects.toThrow();
+    await expect(connection.connect({})).rejects.toThrow();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - newStream while closed', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     connection.close();
 
@@ -504,7 +505,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - sendProtocolMessage while closed', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     connection.close();
 
@@ -519,7 +520,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - creat
 
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    await connection.connect();
+    await connection.connect({});
 
     let stream : eventstream.ClientStream = connection.newStream();
 
@@ -860,4 +861,20 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
 
     stream.close();
     connection.close();
+});
+
+test('Eventstream connection cancel - example.com', async () => {
+    // hangs atm
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
+        hostName: "example.com",
+        port: 22
+    });
+
+    let controller : cancel.CancelController = new cancel.CancelController();
+
+    setTimeout(() => { controller.cancel(); }, 1000);
+
+    await expect(connection.connect({
+        cancelController : controller
+    })).rejects.toThrow("cancelled");
 });
