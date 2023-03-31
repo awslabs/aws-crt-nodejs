@@ -501,7 +501,13 @@ export interface ClientConnectionOptions {
     tlsCtx?: io.ClientTlsContext;
 }
 
+/**
+ * Options for opening a connection to an eventstream server
+ */
 export interface ConnectOptions {
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
     cancelController?: cancel.ICancelController;
 }
 
@@ -515,6 +521,9 @@ export interface ProtocolMessageOptions {
      */
     message: Message;
 
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
     cancelController?: cancel.ICancelController;
 }
 
@@ -549,6 +558,9 @@ export interface StreamMessageOptions {
      */
     message: Message;
 
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
     cancelController?: cancel.ICancelController;
 }
 
