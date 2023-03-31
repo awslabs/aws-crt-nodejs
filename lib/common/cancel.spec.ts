@@ -11,12 +11,15 @@ test('Simple cancel test - after await', async () => {
     let controller : cancel.CancelController = new cancel.CancelController();
 
     let emptyPromise : Promise<void> = new Promise<void>((resolve, reject) => {
-       controller.registerListener(() => { resolve(); });
+       controller.addListener(() => { resolve(); });
     });
 
     setTimeout(() => {controller.cancel();}, 1000);
 
     await emptyPromise;
+
+    // @ts-ignore
+    expect(controller.emitter.listenerCount(cancel.EVENT_NAME)).toEqual(0);
 });
 
 test('Simple cancel test - before await', async () => {
@@ -24,8 +27,11 @@ test('Simple cancel test - before await', async () => {
     controller.cancel();
 
     let emptyPromise : Promise<void> = new Promise<void>((resolve, reject) => {
-        controller.registerListener(() => { resolve(); });
+        controller.addListener(() => { resolve(); });
     });
 
     await emptyPromise;
+
+    // @ts-ignore
+    expect(controller.emitter.listenerCount(cancel.EVENT_NAME)).toEqual(0);
 });
