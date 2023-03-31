@@ -51,18 +51,7 @@ export function makeSelfCleaningPromise<ResultType>(promise: Promise<ResultType>
         return promise;
     }
 
-    return promise.then(
-        (response) => {
-            cleaner();
-            return new Promise<ResultType>((resolve, reject) => {
-                resolve(response);
-            }); },
-        (err) => {
-            cleaner();
-            return new Promise<ResultType>((resolve,reject) => {
-                reject(err);
-            }); }
-    );
+    return promise.finally(() => { cleaner(); });
 }
 
 /**
