@@ -1,6 +1,6 @@
 {
-  "name": "angular-example",
-  "version": "0.0.0",
+  "name": "angular-pub-sub",
+  "version": "1.0.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -18,7 +18,7 @@
     "@angular/platform-browser": "^15.2.0",
     "@angular/platform-browser-dynamic": "^15.2.0",
     "@angular/router": "^15.2.0",
-    "aws-crt": "^1.15.13",
+    "aws-crt": "file:../../..",
     "aws-sdk": "^2.585.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
