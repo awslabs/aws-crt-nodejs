@@ -10,6 +10,8 @@ import process from 'process';
 if (window) {
     (window as any).Buffer = buffer.Buffer;
     (window as any).process = process;
+    // NodeJS global shim workaround for Angular
+    (window as any).global = window;
 }
 
 export {};
