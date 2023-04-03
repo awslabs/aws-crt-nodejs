@@ -145,7 +145,7 @@ export interface CancellableNextEventPromiseOptions<ResultType> {
     /**
      * Optional cancel controller that can cancel the created promise
      */
-    cancelController? : CancelController;
+    cancelController? : ICancelController;
 
     /**
      * Event emitter to listen to for potential promise completion
