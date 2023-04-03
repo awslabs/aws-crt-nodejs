@@ -9,6 +9,7 @@ import {CrtError} from "./error";
 import * as io from "./io";
 import * as eventstream_utils from "./eventstream_utils";
 import * as cancel from "../common/cancel";
+import * as promise from "../common/promise";
 import crt_native from "./binding";
 
 /**
@@ -682,7 +683,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * connect() may only be called once.
      */
     async connect(options: ConnectOptions) : Promise<void> {
-        let cleanupCancelListener : cancel.RemoveListenerFunctor | undefined = undefined;
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
         let connectPromise : Promise<void> = new Promise<void>((resolve, reject) => {
             if (!options) {
@@ -721,7 +722,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             }
         });
 
-        return cancel.makeSelfCleaningPromise(connectPromise, cleanupCancelListener);
+        return promise.makeSelfCleaningPromise(connectPromise, cleanupCancelListener);
     }
 
     /**
@@ -733,7 +734,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * an error occurs prior to that point.
      */
     async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
-        let cleanupCancelListener : cancel.RemoveListenerFunctor | undefined = undefined;
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
         let sendProtocolMessagePromise : Promise<void> = new Promise<void>((resolve, reject) => {
             try {
@@ -771,7 +772,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             }
         });
 
-        return cancel.makeSelfCleaningPromise(sendProtocolMessagePromise, cleanupCancelListener);
+        return promise.makeSelfCleaningPromise(sendProtocolMessagePromise, cleanupCancelListener);
     }
 
     /**
@@ -948,7 +949,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * @param options -- configuration data for stream activation, including operation name and initial message
      */
     async activate(options: ActivateStreamOptions) : Promise<void> {
-        let cleanupCancelListener : cancel.RemoveListenerFunctor | undefined = undefined;
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
         let activatePromise : Promise<void> = new Promise<void>((resolve, reject) => {
             try {
@@ -992,7 +993,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
             }
         });
 
-        return cancel.makeSelfCleaningPromise<void>(activatePromise, cleanupCancelListener);
+        return promise.makeSelfCleaningPromise<void>(activatePromise, cleanupCancelListener);
     }
 
     /**
@@ -1004,7 +1005,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * an error occurs prior to that point.
      */
     async sendMessage(options: StreamMessageOptions) : Promise<void> {
-        let cleanupCancelListener : cancel.RemoveListenerFunctor | undefined = undefined;
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
         let sendMessagePromise : Promise<void> = new Promise<void>((resolve, reject) => {
             try {
@@ -1041,7 +1042,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
             }
         });
 
-        return cancel.makeSelfCleaningPromise<void>(sendMessagePromise, cleanupCancelListener);
+        return promise.makeSelfCleaningPromise<void>(sendMessagePromise, cleanupCancelListener);
     }
 
     /**

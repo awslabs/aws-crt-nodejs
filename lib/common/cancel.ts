@@ -3,56 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+/**
+ *
+ * A module containing support for cancelling asynchronous operations
+ *
+ * @packageDocumentation
+ * @module cancel
+ */
+
+
 import {EventEmitter} from "events";
+import * as promise from "./promise";
 
 /**
  * Callback signature for when cancel() has been invoked on a CancelController
  */
 export type CancelListener = () => void;
-
-/**
- * Signature for a function that will remove a listener from a CancelController's event emiiter
- */
-export type RemoveListenerFunctor = () => void;
-
-/**
- * A helper function that takes a promise (presumably one that has been made cancellable by attaching a listener to
- * a CancelController) and creates a wrapper promise that removes the listener automatically when the inner promise
- * is completed for any reason.  This allows us to keep the number of listeners on a CancelController bounded by
- * the number of incomplete promises associated with it.  If we didn't clean up, the listener set would grow
- * without limit.
- *
- * This leads to an internal usage pattern that is strongly recommended:
- *
- * ```
- * async doSomethingCancellable(...) : Promise<...> {
- *    removeListenerFunctor = undefined;
- *
- *    innerPromise = new Promise(async (resolve, reject) => {
- *       ...
- *
- *       cancelListenerFunction = () => { clean up and reject innerPromise };
- *       removeListenerFunctor = cancelController.addListener(cancelListenerFunction);
- *
- *       ...
- *    }
- *
- *    return makeSelfCleaningPromise(innerPromise, removeListenerFunctor);
- * }
- * ```
- *
- * @param promise cancel-instrumented promise to automatically clean up for
- * @param cleaner cleaner function to invoke when the promise is completed
- *
- * @return a promise with matching result/err, that invokes the cleaner function on inner promise completion
- */
-export function makeSelfCleaningPromise<ResultType>(promise: Promise<ResultType>, cleaner? : RemoveListenerFunctor) : Promise<ResultType> {
-    if (!cleaner) {
-        return promise;
-    }
-
-    return promise.finally(() => { cleaner(); });
-}
 
 /**
  * Abstract interface for an object capable of cancelling asynchronous operations.
@@ -86,7 +52,7 @@ export interface ICancelController {
      * will remove the listener from the controller's event emitter.
      *
      */
-    addListener(listener: CancelListener) : RemoveListenerFunctor | undefined;
+    addListener(listener: CancelListener) : promise.PromiseCleanupFunctor | undefined;
 
 }
 
@@ -157,7 +123,7 @@ export class CancelController implements ICancelController {
      * will remove the listener from the controller's event emitter.
      *
      */
-    public addListener(listener: CancelListener) : RemoveListenerFunctor | undefined {
+    public addListener(listener: CancelListener) : promise.PromiseCleanupFunctor | undefined {
         if (this.cancelled) {
             listener();
             return undefined;
@@ -168,4 +134,79 @@ export class CancelController implements ICancelController {
         return () => { this.emitter.removeListener(EVENT_NAME, listener); };
     }
 
+}
+
+/**
+ * Configuration options for creating a promise that can be rejected by cancellation and resolved by the receipt
+ * of an event from an EventEmitter.
+ */
+export interface CancellableNextEventPromiseOptions<ResultType> {
+
+    /**
+     * Optional cancel controller that can cancel the created promise
+     */
+    cancelController? : CancelController;
+
+    /**
+     * Event emitter to listen to for potential promise completion
+     */
+    emitter : EventEmitter;
+
+    /**
+     * Name of the event to listen on for potential promise completion
+     */
+    eventName : string;
+
+    /**
+     * Optional transformation function for the event payload
+     */
+    eventDataTransformer? : (eventData : any) => ResultType;
+
+    /**
+     * Message to reject the promise with if cancellation is invoked
+     */
+    cancelMessage? : string;
+}
+
+/**
+ * Creates a promise that can be rejected by a CancelController and resolved by the receipt of an event from an
+ * EventEmitter.
+ *
+ * @param config promise creation options
+ */
+export function newCancellablePromiseFromNextEvent<ResultType>(config: CancellableNextEventPromiseOptions<ResultType>) : Promise<ResultType> {
+    let onEvent : ((eventData : any) => void) | undefined = undefined;
+    let cancelRemoveListener : promise.PromiseCleanupFunctor | undefined = undefined;
+
+    let liftedPromise : promise.LiftedPromise<ResultType> = promise.newLiftedPromise<ResultType>();
+
+    onEvent = (eventData : any) => {
+        try {
+            if (config.eventDataTransformer) {
+                liftedPromise.resolve(config.eventDataTransformer(eventData));
+            } else {
+                liftedPromise.resolve(eventData as ResultType);
+            }
+        } catch (err) {
+            liftedPromise.reject(err);
+        }
+    }
+
+    config.emitter.addListener(config.eventName, onEvent);
+
+    if (config.cancelController) {
+        cancelRemoveListener = config.cancelController.addListener(() => {
+            liftedPromise.reject(config.cancelMessage);
+        });
+    }
+
+    return promise.makeSelfCleaningPromise(liftedPromise.promise, () => {
+        if (onEvent) {
+            config.emitter.removeListener(config.eventName, onEvent);
+        }
+
+        if (cancelRemoveListener) {
+            cancelRemoveListener();
+        }
+    });
 }
