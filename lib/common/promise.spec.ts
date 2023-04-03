@@ -20,7 +20,7 @@ test('Lifted promise - reject', async () => {
 
     setImmediate(() => { liftedPromise.reject("Fail");});
 
-    await expect(liftedPromise.promise).rejects.toBeDefined();
+    await expect(liftedPromise.promise).rejects.toMatch("Fail");
 });
 
 test('Lifted promise - body function execution', async () => {
