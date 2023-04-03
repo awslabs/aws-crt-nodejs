@@ -8,6 +8,7 @@
 /* common libs */
 import * as cancel from './common/cancel';
 import * as platform from './common/platform';
+import * as promise from './common/promise';
 import * as resource_safety from './common/resource_safety';
 
 /* node specific libs */
@@ -36,6 +37,7 @@ export {
     mqtt,
     mqtt5,
     platform,
+    promise,
     resource_safety,
     ICrtError,
     CrtError
