@@ -8,6 +8,8 @@ import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
 import * as io from "./io";
 import * as eventstream_utils from "./eventstream_utils";
+import * as cancel from "../common/cancel";
+import * as promise from "../common/promise";
 import crt_native from "./binding";
 
 /**
@@ -67,7 +69,7 @@ export enum HeaderType {
  * Payloads are allowed to be any of the these types in an outbound message.
  * Payloads will always be ArrayBuffers when emitting received messages.
  */
-export type Payload = string | Record<string, unknown> | ArrayBuffer | ArrayBufferView;
+export type Payload = string | ArrayBuffer | ArrayBufferView;
 
 const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
 
@@ -501,6 +503,16 @@ export interface ClientConnectionOptions {
 }
 
 /**
+ * Options for opening a connection to an eventstream server
+ */
+export interface ConnectOptions {
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
+    cancelController?: cancel.ICancelController;
+}
+
+/**
  * Options for sending a protocol message over the client connection.
  */
 export interface ProtocolMessageOptions {
@@ -509,6 +521,11 @@ export interface ProtocolMessageOptions {
      * Protocol message to send
      */
     message: Message;
+
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
+    cancelController?: cancel.ICancelController;
 }
 
 /**
@@ -525,6 +542,11 @@ export interface ActivateStreamOptions {
      * Application message to send as part of activating the stream.
      */
     message: Message;
+
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
+    cancelController?: cancel.ICancelController;
 }
 
 /**
@@ -536,6 +558,11 @@ export interface StreamMessageOptions {
      * Application message to send.
      */
     message: Message;
+
+    /**
+     * Optional controller that allows the cancellation of asynchronous eventstream operations
+     */
+    cancelController?: cancel.ICancelController;
 }
 
 /**
@@ -655,8 +682,14 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * connect() may only be called once.
      */
-    async connect() : Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+    async connect(options: ConnectOptions) : Promise<void> {
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
+
+        let connectPromise : Promise<void> = new Promise<void>((resolve, reject) => {
+            if (!options) {
+                reject(new CrtError("Invalid options passed to event stream ClientConnection.connect"));
+                return;
+            }
 
             if (this.state != ClientConnectionState.None) {
                 reject(new CrtError(`Event stream connection in a state (${this.state}) where connect() is not allowed.`));
@@ -664,6 +697,18 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             }
 
             this.state = ClientConnectionState.Connecting;
+
+            if (options.cancelController) {
+                let cancel : () => void = () => {
+                    reject(new CrtError(`Event stream connection connect() cancelled by external request.`));
+                    setImmediate(() => { this.close(); });
+                };
+
+                cleanupCancelListener = options.cancelController.addListener(cancel);
+                if (!cleanupCancelListener) {
+                    return;
+                }
+            }
 
             function curriedPromiseCallback(connection: ClientConnection, errorCode: number){
                 return ClientConnection._s_on_connection_setup(resolve, reject, connection, errorCode);
@@ -677,6 +722,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             }
         });
 
+        return promise.makeSelfCleaningPromise(connectPromise, cleanupCancelListener);
     }
 
     /**
@@ -688,29 +734,45 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * an error occurs prior to that point.
      */
     async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            if (options === undefined) {
-                reject(new CrtError("Invalid options passed to event stream ClientConnection.sendProtocolMessage"));
-                return;
-            }
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
-            if (!this.isConnected()) {
-                reject(new CrtError(`Event stream connection in a state (${this.state}) where sending protocol messages is not allowed.`));
-                return;
-            }
-
-            // invoke native binding send message;
-            function curriedPromiseCallback(errorCode: number) {
-                return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
-            }
-
-            // invoke native binding send message;
+        let sendProtocolMessagePromise : Promise<void> = new Promise<void>((resolve, reject) => {
             try {
+                if (!options) {
+                    reject(new CrtError("Invalid options passed to event stream ClientConnection.sendProtocolMessage"));
+                    return;
+                }
+
+                if (!this.isConnected()) {
+                    reject(new CrtError(`Event stream connection in a state (${this.state}) where sending protocol messages is not allowed.`));
+                    return;
+                }
+
+                if (options.cancelController) {
+                    let cancel : () => void = () => {
+                        reject(new CrtError(`Event stream connection sendProtocolMessage() cancelled by external request.`));
+                        setImmediate(() => { this.close(); });
+                    };
+
+                    cleanupCancelListener = options.cancelController.addListener(cancel);
+                    if (!cleanupCancelListener) {
+                        return;
+                    }
+                }
+
+                // invoke native binding send message;
+                function curriedPromiseCallback(errorCode: number) {
+                    return ClientConnection._s_on_connection_send_protocol_message_completion(resolve, reject, errorCode);
+                }
+
+                // invoke native binding send message;
                 crt_native.event_stream_client_connection_send_protocol_message(this.native_handle(), options, curriedPromiseCallback);
             } catch (e) {
                 reject(e);
             }
         });
+
+        return promise.makeSelfCleaningPromise(sendProtocolMessagePromise, cleanupCancelListener);
     }
 
     /**
@@ -835,7 +897,7 @@ enum ClientStreamState {
     None,
     Activating,
     Activated,
-    Terminated,
+    Ended,
     Closed,
 }
 
@@ -850,14 +912,14 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     constructor(connection: ClientConnection) {
         super();
 
-        this.state = ClientStreamState.None;
-
         this._super(crt_native.event_stream_client_stream_new(
             this,
             connection.native_handle(),
             (stream: ClientStream) => { ClientStream._s_on_stream_ended(stream); },
             (stream: ClientStream, message: Message) => { ClientStream._s_on_stream_message(stream, message); },
         ));
+
+        this.state = ClientStreamState.None;
     }
 
     /**
@@ -887,35 +949,51 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * @param options -- configuration data for stream activation, including operation name and initial message
      */
     async activate(options: ActivateStreamOptions) : Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            if (this.state != ClientStreamState.None) {
-                reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
-                return;
-            }
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
-            /*
-             * Intentionally check this after the state check (so closed streams do not reach here).
-             * Intentionally mutate state the same way a failed synchronous call to native activate does.
-             */
-            if (options === undefined) {
-                this.state = ClientStreamState.Terminated;
-                reject(new CrtError("Invalid options passed to ClientStream.activate"));
-                return;
-            }
-
-            this.state = ClientStreamState.Activating;
-
-            function curriedPromiseCallback(stream: ClientStream, errorCode: number){
-                return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
-            }
-
+        let activatePromise : Promise<void> = new Promise<void>((resolve, reject) => {
             try {
+                if (this.state != ClientStreamState.None) {
+                    reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
+                    return;
+                }
+
+                /*
+                 * Intentionally check this after the state check (so closed streams do not reach here).
+                 * Intentionally mutate state the same way a failed synchronous call to native activate does.
+                 */
+                if (options === undefined) {
+                    this.state = ClientStreamState.Ended;
+                    reject(new CrtError("Invalid options passed to ClientStream.activate"));
+                    return;
+                }
+
+                this.state = ClientStreamState.Activating;
+
+                if (options.cancelController) {
+                    let cancel : () => void = () => {
+                        reject(new CrtError(`Event stream activate() cancelled by external request.`));
+                        setImmediate(() => { this.close(); });
+                    };
+
+                    cleanupCancelListener = options.cancelController.addListener(cancel);
+                    if (!cleanupCancelListener) {
+                        return;
+                    }
+                }
+
+                function curriedPromiseCallback(stream: ClientStream, errorCode: number){
+                    return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
+                }
+
                 crt_native.event_stream_client_stream_activate(this.native_handle(), options, curriedPromiseCallback);
             } catch (e) {
-                this.state = ClientStreamState.Terminated;
+                this.state = ClientStreamState.Ended;
                 reject(e);
             }
         });
+
+        return promise.makeSelfCleaningPromise<void>(activatePromise, cleanupCancelListener);
     }
 
     /**
@@ -927,28 +1005,44 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * an error occurs prior to that point.
      */
     async sendMessage(options: StreamMessageOptions) : Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            if (options === undefined) {
-                reject(new CrtError("Invalid options passed to ClientStream.sendMessage"));
-                return;
-            }
+        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
 
-            if (this.state != ClientStreamState.Activated) {
-                reject(new CrtError(`Event stream in a state (${this.state}) where sending messages is not allowed.`));
-                return;
-            }
-
-            function curriedPromiseCallback(errorCode: number) {
-                return ClientStream._s_on_stream_send_message_completion(resolve, reject, errorCode);
-            }
-
-            // invoke native binding send message;
+        let sendMessagePromise : Promise<void> = new Promise<void>((resolve, reject) => {
             try {
+                if (!options) {
+                    reject(new CrtError("Invalid options passed to ClientStream.sendMessage"));
+                    return;
+                }
+
+                if (this.state != ClientStreamState.Activated) {
+                    reject(new CrtError(`Event stream in a state (${this.state}) where sending messages is not allowed.`));
+                    return;
+                }
+
+                if (options.cancelController) {
+                    let cancel : cancel.CancelListener = () => {
+                        reject(new CrtError(`Event stream sendMessage() cancelled by external request.`));
+                        setImmediate(() => { this.close(); });
+                    };
+
+                    cleanupCancelListener = options.cancelController.addListener(cancel);
+                    if (!cleanupCancelListener) {
+                        return;
+                    }
+                }
+
+                function curriedPromiseCallback(errorCode: number) {
+                    return ClientStream._s_on_stream_send_message_completion(resolve, reject, errorCode);
+                }
+
+                // invoke native binding send message;
                 crt_native.event_stream_client_stream_send_message(this.native_handle(), options, curriedPromiseCallback);
             } catch (e) {
                 reject(e);
             }
         });
+
+        return promise.makeSelfCleaningPromise<void>(sendMessagePromise, cleanupCancelListener);
     }
 
     /**
@@ -965,7 +1059,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static STREAM_ENDED : string = 'streamEnded';
+    static ENDED : string = 'ended';
 
     /**
      * Event emitted when a stream message is received from the remote endpoint
@@ -974,11 +1068,11 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static STREAM_MESSAGE : string = 'streamMessage';
+    static MESSAGE : string = 'message';
 
-    on(event: 'streamEnded', listener: StreamEndedListener): this;
+    on(event: 'ended', listener: StreamEndedListener): this;
 
-    on(event: 'streamMessage', listener: MessageListener): this;
+    on(event: 'message', listener: MessageListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -991,7 +1085,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
             resolve();
         } else {
             if (stream.state != ClientStreamState.Closed) {
-                stream.state = ClientStreamState.Terminated;
+                stream.state = ClientStreamState.Ended;
             }
 
             reject(io.error_code_to_string(errorCode));
@@ -1008,13 +1102,13 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     private static _s_on_stream_ended(stream: ClientStream) {
         process.nextTick(() => {
-            stream.emit(ClientStream.STREAM_ENDED, {});
+            stream.emit(ClientStream.ENDED, {});
         });
     }
 
     private static _s_on_stream_message(stream: ClientStream, message: Message) {
         process.nextTick(() => {
-            stream.emit(ClientStream.STREAM_MESSAGE, {message: mapPodMessageToJSMessage(message)});
+            stream.emit(ClientStream.MESSAGE, {message: mapPodMessageToJSMessage(message)});
         });
     }
 
