@@ -219,6 +219,15 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * For API compatibility with the browser version. Alias for {@link new_with_websockets}.
+     *
+     * @returns a new websocket connection builder object with default TLS configuration
+     */
+    static new_builder_for_websocket() {
+        return this.new_with_websockets();
+    }
+
+    /**
      * Overrides the default system trust store.
      * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are
      * stored in a directory (e.g. /etc/ssl/certs).
