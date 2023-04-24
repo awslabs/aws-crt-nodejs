@@ -81,11 +81,15 @@ export function populate_username_string_with_custom_authorizer(
         username_string = add_to_username_parameter(username_string, input_authorizer, "x-amz-customauthorizer-name=");
     }
 
-    if (is_string_and_not_empty(input_token_value) || is_string_and_not_empty(input_token_key_name) || is_string_and_not_empty(input_signature)) {
-        if (!input_token_value || !input_token_key_name || !input_signature) {
+    if (is_string_and_not_empty(input_signature) && input_signature)
+    {
+        username_string = add_to_username_parameter(username_string, input_signature, "x-amz-customauthorizer-signature=");
+    }
+
+    if (is_string_and_not_empty(input_token_value) || is_string_and_not_empty(input_token_key_name)) {
+        if (!input_token_value || !input_token_key_name) {
             throw new Error("Token-based custom authentication requires all token-related properties to be set");
         }
-        username_string = add_to_username_parameter(username_string, input_signature, "x-amz-customauthorizer-signature=");
         username_string = add_to_username_parameter(username_string, input_token_value, input_token_key_name + "=");
     }
 
