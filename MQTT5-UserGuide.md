@@ -20,6 +20,8 @@
     * [Direct MQTT with X509-based mutual TLS](#direct-mqtt-with-x509-based-mutual-tls)
     * [MQTT over Websockets with Sigv4 authentication](#mqtt-over-websockets-with-sigv4-authentication)
     * [Direct MQTT with Custom Authentication](#direct-mqtt-with-custom-authentication)
+    * [Direct MQTT with PKCS11](#direct-mqtt-with-pkcs11-method)
+    * [Direct MQTT with PKCS12](#direct-mqtt-with-pkcs12-method)
     * [HTTP Proxy](#http-proxy)
   * [Browser](#browser)
     * [MQTT over Websockets with Sigv4 authentication](#mqtt-over-websockets-with-sigv4-authentication-1)
@@ -266,6 +268,44 @@ In both cases, the builder will construct a final CONNECT packet username field 
 token-signing fields to the value of the username that you assign within the custom authentication config structure.  Similarly, do not
 add any custom authentication related values to the username in the CONNECT configuration optionally attached to the client configuration.
 The builder will do everything for you.
+
+#### Direct MQTT with PKCS11 Method
+
+A MQTT5 direct connection can be made using a PKCS11 device rather than using a PEM encoded private key, the private key for mutual TLS is stored on a PKCS#11 compatible smart card or Hardware Security Module (HSM). To create a MQTT5 builder configured for this connection, see the following code:
+
+```typescript
+    let pkcs11Options : Pkcs11Options = {
+        pkcs11_lib: "<path to PKCS11 library>",
+        user_pin: "<Optional pin for PKCS11 device>",
+        slot_id: "<Optional slot ID containing PKCS11 token>",
+        token_label: "<Optional label of the PKCS11 token>",
+        private_key_object_label: "<Optional label of the private key object on the PKCS#11 token>",
+        cert_file_path: "<Path to certificate file. Not necessary if cert_file_contents is used>",
+        cert_file_contents: "<Contents of certificate file. Not necessary if cert_file_path is used>"
+    };
+    let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
+        "<account-specific endpoint>",
+        customAuthConfig
+    );
+    let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
+```
+
+Note: Currently, TLS integration with PKCS#11 is only available on Unix devices.
+
+#### Direct MQTT with PKCS12 Method
+
+A MQTT5 direct connection can be made using a PKCS12 file rather than using a PEM encoded private key. To create a MQTT5 builder configured for this connection, see the following code:
+
+```typescript
+    let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
+        "<account-specific endpoint>",
+        "<PKCS12 file>",
+        "<PKCS12 password>"
+    );
+    let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
+```
+
+Note: Currently, TLS integration with PKCS#12 is only available on MacOS devices.
 
 #### HTTP Proxy
 No matter what your connection transport or authentication method is, you may connect through an HTTP proxy
