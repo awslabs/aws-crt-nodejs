@@ -21,6 +21,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         "",
         test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_PASSWORD
     )
+    builder.with_endpoint(test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST);
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
@@ -38,6 +39,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME,
         test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN,
     )
+    builder.with_endpoint(test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST);
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
