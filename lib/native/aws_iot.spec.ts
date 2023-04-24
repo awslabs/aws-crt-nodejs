@@ -11,10 +11,11 @@
 import * as test_utils from "@test/mqtt5";
 import * as mqtt311 from "./mqtt";
 import * as aws_iot_mqtt311 from "./aws_iot";
+import { v4 as uuid } from 'uuid';
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
 
-    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     builder.with_custom_authorizer(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME,
         test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_NAME,
@@ -24,6 +25,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         undefined,
     )
     builder.with_endpoint(test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
@@ -32,7 +34,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Mqtt over websockets with Signing Custom Auth - Connection Success', async () => {
-    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     builder.with_custom_authorizer(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
         test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
@@ -42,6 +44,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN,
     )
     builder.with_endpoint(test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
