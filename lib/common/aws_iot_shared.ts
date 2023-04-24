@@ -52,8 +52,8 @@ import * as mqtt5_packet from "./mqtt5_packet";
  * @param input_authorizer the name of the authorizer to add - can be an empty string to skip
  * @param input_signature the name of the signature to add - can be an empty string to skip
  * @param input_builder_username the username from the MQTT builder
- * @param input_token_key_name the token key name - can be empty string to skip
- * @param input_token_value the token key value - can be empty string to skip
+ * @param input_token_key_name the token key name
+ * @param input_token_value the token key value
  * @returns The finished username with the additions added to it
  *
  * @internal
