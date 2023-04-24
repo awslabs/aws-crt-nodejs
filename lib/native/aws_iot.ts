@@ -128,6 +128,24 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Create a new builder with mTLS using a PKCS#12 file for private key operations.
+     *
+     * NOTE: This configuration only works on MacOS devices.
+     * @param pkcs12_filepath - Path to the PKCS#12 file.
+     * @param pkcs12_password - Password for the PKCS12 file.
+     */
+    static new_mtls_pkcs12_builder(pkcs12_filepath: string, pkcs12_password: string) {
+        let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_pkcs12_from_path(pkcs12_filepath, pkcs12_password));
+        builder.params.port = 8883;
+
+        if (io.is_alpn_available()) {
+            builder.tls_ctx_options.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
+    /**
      * Create a new builder with mTLS using a certificate in a Windows certificate store.
      *
      * NOTE: This configuration only works on Windows devices.

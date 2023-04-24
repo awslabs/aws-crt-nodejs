@@ -142,6 +142,29 @@ export class AwsIotMqtt5ClientConfigBuilder {
 
     /**
      * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
+     * using a PKCS12 file.
+     *
+     * NOTE: This configuration only works on MacOS devices.
+     *
+     * @param hostName - AWS IoT endpoint to connect to
+     * @param pkcs12_filepath - Path to the PKCS#12 file.
+     * @param pkcs12_password - Password for the PKCS12 file.
+     */
+    static newDirectMqttBuilderWithMtlsFromPkcs12(hostName : string, pkcs12_filepath: string, pkcs12_password: string) : AwsIotMqtt5ClientConfigBuilder {
+        let builder = new AwsIotMqtt5ClientConfigBuilder(
+            hostName,
+            AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
+            io.TlsContextOptions.create_client_with_mtls_pkcs12_from_path(pkcs12_filepath, pkcs12_password));
+
+        if (io.is_alpn_available()) {
+            builder.tlsContextOptions.alpn_list.unshift('x-amzn-mqtt-ca');
+        }
+
+        return builder;
+    }
+
+    /**
+     * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
      * using a certificate entry in a Windows certificate store.
      *
      * NOTE: This configuration only works on Windows devices.
