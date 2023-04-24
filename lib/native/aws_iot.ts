@@ -368,9 +368,9 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param username The username to use with the custom authorizer. If an empty string is passed, it will
      *                 check to see if a username has already been set (via WithUsername function). If no
      *                 username is set then no username will be passed with the MQTT connection.
-     * @param authorizerName The name of the custom authorizer. If an empty string is passed, then
+     * @param authorizer_name The name of the custom authorizer. If an empty string is passed, then
      *                       'x-amz-customauthorizer-name' will not be added with the MQTT connection.
-     * @param authorizerSignature The signature of the custom authorizer. If an empty string is passed, then
+     * @param authorizer_signature The signature of the custom authorizer. If an empty string is passed, then
      *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
      *                            The signature must be based on the private key associated with the custom authorizer.
      *                            The signature must be base64 encoded.
