@@ -41,6 +41,21 @@ export interface WebsocketSigv4Config {
 }
 
 /**
+ * Interface used to hold the options for creating a PKCS#12 connection in the builder.
+ *
+ * Note: Only supported on MacOS devices.
+ *
+ * @category IoT
+ */
+export interface Pkcs12Options {
+    /** Path to the PKCS#12 file */
+    pkcs12_file: string;
+
+    /** The password for the PKCS#12 file */
+    pkcs12_password : string;
+}
+
+/**
  * Builder pattern class to create an {@link Mqtt5ClientConfig} which can then be used to create
  * an {@link Mqtt5Client}, configured for use with AWS IoT.
  *
@@ -144,17 +159,16 @@ export class AwsIotMqtt5ClientConfigBuilder {
      * Create a new MQTT5 client builder that will create MQTT5 clients that connect to AWS IoT Core via mutual TLS
      * using a PKCS12 file.
      *
-     * NOTE: This configuration only works on MacOS devices.
+     * Note: This configuration only works on MacOS devices.
      *
      * @param hostName - AWS IoT endpoint to connect to
-     * @param pkcs12_filepath - Path to the PKCS#12 file.
-     * @param pkcs12_password - Password for the PKCS12 file.
+     * @param pkcs12_options - The PKCS#12 options to use in the builder.
      */
-    static newDirectMqttBuilderWithMtlsFromPkcs12(hostName : string, pkcs12_filepath: string, pkcs12_password: string) : AwsIotMqtt5ClientConfigBuilder {
+    static newDirectMqttBuilderWithMtlsFromPkcs12(hostName : string, pkcs12_options: Pkcs12Options) : AwsIotMqtt5ClientConfigBuilder {
         let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
             AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
-            io.TlsContextOptions.create_client_with_mtls_pkcs12_from_path(pkcs12_filepath, pkcs12_password));
+            io.TlsContextOptions.create_client_with_mtls_pkcs12_from_path(pkcs12_options.pkcs12_file, pkcs12_options.pkcs12_password));
 
         if (io.is_alpn_available()) {
             builder.tlsContextOptions.alpn_list.unshift('x-amzn-mqtt-ca');

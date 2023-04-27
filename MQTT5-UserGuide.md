@@ -283,9 +283,9 @@ A MQTT5 direct connection can be made using a PKCS11 device rather than using a 
         cert_file_path: "<Path to certificate file. Not necessary if cert_file_contents is used>",
         cert_file_contents: "<Contents of certificate file. Not necessary if cert_file_path is used>"
     };
-    let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
+    let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
         "<account-specific endpoint>",
-        customAuthConfig
+        pkcs11Options
     );
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
 ```

@@ -188,3 +188,15 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core PKCS12 - Connection Success', async () => {
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
+        {
+            pkcs12_file : test_utils.ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY,
+            pkcs12_password : test_utils.ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD
+        }
+    );
+    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+});
+
