@@ -97,16 +97,16 @@ class CrtCiTest(Builder.Action):
         cert_file_name = None
         key_file_name = None
 
-        # PKCS12 setup (MacOS only)
-        if (sys.platform == "darwin"):
-            pkcs12_file_name = self._write_s3_to_temp_file(env, "s3://aws-crt-test-stuff/unit-test-key-pkcs12.pem")
-            env.shell.setenv("AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY", pkcs12_file_name)
-            env.shell.setenv("AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD", "PKCS12_KEY_PASSWORD")
-
         try:
             java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
 
             env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
+
+            # PKCS12 setup (MacOS only)
+            if (sys.platform == "darwin"):
+                pkcs12_file_name = self._write_s3_to_temp_file(env, "s3://aws-crt-test-stuff/unit-test-key-pkcs12.pem")
+                env.shell.setenv("AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY", pkcs12_file_name)
+                env.shell.setenv("AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD", "PKCS12_KEY_PASSWORD")
 
             # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
             # on Windows.
