@@ -150,9 +150,8 @@ build-*/
 deps_build/
 .vscode/
 
-# Skip source-only files
+# Skip non-runtime source-only files
 /canary/
-/lib/
 /test/
 /samples/
 /tsconfig*.json

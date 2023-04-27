@@ -54,8 +54,17 @@ export class AwsIotMqttConnectionConfigBuilder {
      *
      * @returns a new websocket connection builder object with default TLS configuration
      */
-    static new_with_websockets(...args: any[]) {
+    static new_default_builder() {
         return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
+    }
+
+    /**
+     * For API compatibility with the native version. Alias for {@link new_with_websockets}.
+     *
+     * @returns a new websocket connection builder object with default TLS configuration
+     */
+    static new_websocket_builder(...args: any[]) {
+        return this.new_with_websockets(...args);
     }
 
     /**
@@ -63,9 +72,10 @@ export class AwsIotMqttConnectionConfigBuilder {
      *
      * @returns a new websocket connection builder object with default TLS configuration
      */
-     static new_default_builder() {
+    static new_with_websockets(...args: any[]) {
         return AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     }
+
 
     /**
      * Creates a new builder using MQTT over websockets (the only option in browser)
@@ -237,16 +247,26 @@ export class AwsIotMqttConnectionConfigBuilder {
      * @param username The username to use with the custom authorizer. If an empty string is passed, it will
      *                 check to see if a username has already been set (via WithUsername function). If no
      *                 username is set then no username will be passed with the MQTT connection.
-     * @param authorizerName The name of the custom authorizer. If an empty string is passed, then
+     * @param authorizer_name The name of the custom authorizer. If an empty string is passed, then
      *                       'x-amz-customauthorizer-name' will not be added with the MQTT connection.
-     * @param authorizerSignature The signature of the custom authorizer. If an empty string is passed, then
+     * @param authorizer_signature The signature of the custom authorizer. If an empty string is passed, then
      *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
+     *                            The signature must be based on the private key associated with the custom authorizer.
+     *                            The signature must be base64 encoded.
+     *                            Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode
+     *                            this value; the SDK will not do so for you.
      * @param password The password to use with the custom authorizer. If null is passed, then no password will
      *                 be set.
+     * @param token_key_name Key used to extract the custom authorizer token from MQTT username query-string properties.
+     *                       Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode
+     *                       this value; the SDK will not do so for you.
+     * @param token_value An opaque token value.
+     *                    Required if the custom authorizer has signing enabled. This value must be signed by the private
+     *                    key associated with the custom authorizer and the result placed in the authorizer_signature argument.
      */
-    with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string) {
+    with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string, token_key_name? : string, token_value? : string) {
         let username_string = iot_shared.populate_username_string_with_custom_authorizer(
-            "", username, authorizer_name, authorizer_signature, this.params.username);
+            "", username, authorizer_name, authorizer_signature, this.params.username, token_key_name, token_value);
         this.params.username = username_string;
         this.params.password = password;
         // Tells the websocket connection we are using a custom authorizer
