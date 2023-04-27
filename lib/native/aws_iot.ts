@@ -50,21 +50,6 @@ export interface WebsocketConfig extends WebsocketOptionsBase{
 }
 
 /**
- * Interface used to hold the options for creating a PKCS#12 connection in the builder.
- *
- * Note: Only supported on MacOS devices.
- *
- * @category IoT
- */
-export interface Pkcs12Options {
-    /** Path to the PKCS#12 file */
-    pkcs12_file: string;
-
-    /** The password for the PKCS#12 file */
-    pkcs12_password : string;
-}
-
-/**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
  *
@@ -149,7 +134,7 @@ export class AwsIotMqttConnectionConfigBuilder {
      *
      * @param pkcs12_options - The PKCS#12 options to use in the builder.
      */
-    static new_mtls_pkcs12_builder(pkcs12_options: Pkcs12Options) {
+    static new_mtls_pkcs12_builder(pkcs12_options: io.Pkcs12Options) {
         let builder = new AwsIotMqttConnectionConfigBuilder(TlsContextOptions.create_client_with_mtls_pkcs12_from_path(
             pkcs12_options.pkcs12_file, pkcs12_options.pkcs12_password));
         builder.params.port = 8883;

@@ -41,21 +41,6 @@ export interface WebsocketSigv4Config {
 }
 
 /**
- * Interface used to hold the options for creating a PKCS#12 connection in the builder.
- *
- * Note: Only supported on MacOS devices.
- *
- * @category IoT
- */
-export interface Pkcs12Options {
-    /** Path to the PKCS#12 file */
-    pkcs12_file: string;
-
-    /** The password for the PKCS#12 file */
-    pkcs12_password : string;
-}
-
-/**
  * Builder pattern class to create an {@link Mqtt5ClientConfig} which can then be used to create
  * an {@link Mqtt5Client}, configured for use with AWS IoT.
  *
@@ -164,7 +149,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
      * @param hostName - AWS IoT endpoint to connect to
      * @param pkcs12_options - The PKCS#12 options to use in the builder.
      */
-    static newDirectMqttBuilderWithMtlsFromPkcs12(hostName : string, pkcs12_options: Pkcs12Options) : AwsIotMqtt5ClientConfigBuilder {
+    static newDirectMqttBuilderWithMtlsFromPkcs12(hostName : string, pkcs12_options: io.Pkcs12Options) : AwsIotMqtt5ClientConfigBuilder {
         let builder = new AwsIotMqtt5ClientConfigBuilder(
             hostName,
             AwsIotMqtt5ClientConfigBuilder.DEFAULT_DIRECT_MQTT_PORT,
