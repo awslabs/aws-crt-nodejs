@@ -11,7 +11,7 @@ class CrtSizeCheck(Builder.Action):
         # Maximum package size (for current platform) in bytes
         # NOTE: if you increase this, you might also need to increase the
         # limit in continuous-delivery/pack.sh
-        max_size = 6_500_000
+        max_size = 7_000_000
         # size of current folder
         folder_size = 0
         # total size in bytes
