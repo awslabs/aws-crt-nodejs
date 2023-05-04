@@ -1074,31 +1074,66 @@ static void s_install_crash_handler(void) {
 #endif
 }
 
+static void s_uninstall_crash_handler(void) {
+#if defined(_WIN32)
+    SetUnhandledExceptionFilter(NULL);
+#elif defined(AWS_HAVE_EXECINFO)
+    sigaction(SIGSEGV, NULL, NULL);
+    sigaction(SIGABRT, NULL, NULL);
+    sigaction(SIGILL, NULL, NULL);
+    sigaction(SIGBUS, NULL, NULL);
+#endif
+}
+
+/*
+ * Temporary hack to detect multi-init so we can throw an exception because we haven't figured out the right way
+ * to support it yet.  Better than a hard crash in native code.
+ */
+static struct aws_mutex s_module_lock = AWS_MUTEX_INIT;
+static uint32_t s_module_initialize_count = 0;
+
 static void s_napi_context_finalize(napi_env env, void *user_data, void *finalize_hint) {
     (void)env;
     (void)finalize_hint;
-    aws_client_bootstrap_release(s_default_client_bootstrap);
-    aws_host_resolver_release(s_default_host_resolver);
-    aws_event_loop_group_release(s_node_uv_elg);
 
-    aws_thread_join_all_managed();
+    aws_mutex_lock(&s_module_lock);
+    --s_module_initialize_count;
 
-    aws_unregister_log_subject_info_list(&s_log_subject_list);
-    aws_unregister_error_info(&s_error_list);
-    aws_auth_library_clean_up();
-    aws_mqtt_library_clean_up();
+    if (s_module_initialize_count == 0) {
+        aws_client_bootstrap_release(s_default_client_bootstrap);
+        s_default_client_bootstrap = NULL;
+
+        aws_host_resolver_release(s_default_host_resolver);
+        s_default_host_resolver = NULL;
+
+        aws_event_loop_group_release(s_node_uv_elg);
+        s_node_uv_elg = NULL;
+
+        aws_thread_join_all_managed();
+
+        s_uninstall_crash_handler();
+
+        aws_unregister_log_subject_info_list(&s_log_subject_list);
+        aws_unregister_error_info(&s_error_list);
+        aws_auth_library_clean_up();
+        aws_mqtt_library_clean_up();
+    }
 
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
     struct aws_allocator *ctx_allocator = ctx->allocator;
     aws_mem_release(ctx->allocator, ctx);
 
-    if (ctx_allocator != aws_default_allocator()) {
-        if (s_allocator == ctx_allocator) {
-            s_allocator = NULL;
+    if (s_module_initialize_count == 0) {
+        if (ctx_allocator != aws_default_allocator()) {
+            if (s_allocator == ctx_allocator) {
+                s_allocator = NULL;
+            }
+            aws_mem_tracer_destroy(ctx_allocator);
         }
-        aws_mem_tracer_destroy(ctx_allocator);
     }
+
+    aws_mutex_unlock(&s_module_lock);
 }
 
 static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocator, napi_env env, napi_value exports) {
@@ -1136,76 +1171,65 @@ static bool s_create_and_register_function(
     return true;
 }
 
-/*
- * Temporary hack to detect multi-init so we can throw an exception because we haven't figured out the right way
- * to support it yet.  Better than a hard crash in native code.
- */
-static struct aws_mutex s_module_lock = AWS_MUTEX_INIT;
-static bool s_module_initialized = false;
-
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
 
-    bool already_initialized = false;
     aws_mutex_lock(&s_module_lock);
-    if (s_module_initialized) {
-        already_initialized = true;
-    }
-    s_module_initialized = true;
-    aws_mutex_unlock(&s_module_lock);
-
-    if (already_initialized) {
-        napi_throw_error(env, NULL, "Aws-crt-nodejs does not yet support multi-initialization.");
-        return NULL;
-    }
-
-    s_install_crash_handler();
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    if (s_module_initialize_count == 0) {
+        aws_cal_library_init(allocator);
+        aws_http_library_init(allocator);
+        aws_mqtt_library_init(allocator);
+        aws_auth_library_init(allocator);
+        aws_register_error_info(&s_error_list);
+        aws_register_log_subject_info_list(&s_log_subject_list);
+
+        s_install_crash_handler();
+
+        /* Initialize the event loop group */
+        /*
+         * We don't currently support multi-init of the module, but we should.
+         * Things that would need to be solved:
+         *    (1) global objects (event loop group, logger, allocator, more)
+         *    (2) multi-init/multi-cleanup of aws-c-*
+         *    (3) allocator cross-talk/lifetimes
+         */
+        AWS_FATAL_ASSERT(s_node_uv_elg == NULL);
+        s_node_uv_elg = aws_event_loop_group_new_default(allocator, 1, NULL);
+        AWS_FATAL_ASSERT(s_node_uv_elg != NULL);
+
+        /*
+         * Default host resolver and client bootstrap to use if none specific at the javascript level.  In most
+         * cases the user doesn't even need to know about these, so let's let them leave it out completely.
+         */
+        AWS_FATAL_ASSERT(s_default_host_resolver == NULL);
+
+        struct aws_host_resolver_default_options resolver_options = {
+            .max_entries = 64,
+            .el_group = s_node_uv_elg,
+        };
+        s_default_host_resolver = aws_host_resolver_new_default(allocator, &resolver_options);
+        AWS_FATAL_ASSERT(s_default_host_resolver != NULL);
+
+        AWS_FATAL_ASSERT(s_default_client_bootstrap == NULL);
+
+        struct aws_client_bootstrap_options bootstrap_options = {
+            .event_loop_group = s_node_uv_elg,
+            .host_resolver = s_default_host_resolver,
+        };
+
+        s_default_client_bootstrap = aws_client_bootstrap_new(allocator, &bootstrap_options);
+
+        AWS_FATAL_ASSERT(s_default_client_bootstrap != NULL);
+    }
+
+    ++s_module_initialize_count;
+
+    aws_mutex_unlock(&s_module_lock);
+
     /* context is bound to exports, will be cleaned up by finalizer */
     s_napi_context_new(allocator, env, exports);
-
-    aws_cal_library_init(allocator);
-    aws_http_library_init(allocator);
-    aws_mqtt_library_init(allocator);
-    aws_auth_library_init(allocator);
-    aws_register_error_info(&s_error_list);
-    aws_register_log_subject_info_list(&s_log_subject_list);
-
-    /* Initialize the event loop group */
-    /*
-     * We don't currently support multi-init of the module, but we should.
-     * Things that would need to be solved:
-     *    (1) global objects (event loop group, logger, allocator, more)
-     *    (2) multi-init/multi-cleanup of aws-c-*
-     *    (3) allocator cross-talk/lifetimes
-     */
-    AWS_FATAL_ASSERT(s_node_uv_elg == NULL);
-    s_node_uv_elg = aws_event_loop_group_new_default(allocator, 1, NULL);
-    AWS_FATAL_ASSERT(s_node_uv_elg != NULL);
-
-    /*
-     * Default host resolver and client bootstrap to use if none specific at the javascript level.  In most
-     * cases the user doesn't even need to know about these, so let's let them leave it out completely.
-     */
-    AWS_FATAL_ASSERT(s_default_host_resolver == NULL);
-
-    struct aws_host_resolver_default_options resolver_options = {
-        .max_entries = 64,
-        .el_group = s_node_uv_elg,
-    };
-    s_default_host_resolver = aws_host_resolver_new_default(allocator, &resolver_options);
-    AWS_FATAL_ASSERT(s_default_host_resolver != NULL);
-
-    AWS_FATAL_ASSERT(s_default_client_bootstrap == NULL);
-
-    struct aws_client_bootstrap_options bootstrap_options = {
-        .event_loop_group = s_node_uv_elg,
-        .host_resolver = s_default_host_resolver,
-    };
-
-    s_default_client_bootstrap = aws_client_bootstrap_new(allocator, &bootstrap_options);
-
-    AWS_FATAL_ASSERT(s_default_client_bootstrap != NULL);
 
     napi_value null;
     napi_get_null(env, &null);
