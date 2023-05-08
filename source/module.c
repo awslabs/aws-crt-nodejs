@@ -1177,8 +1177,6 @@ static bool s_create_and_register_function(
     if (s_module_initialize_count == 0) {
         s_install_crash_handler();
 
-        aws_cal_library_init(allocator);
-        aws_http_library_init(allocator);
         aws_mqtt_library_init(allocator);
         aws_auth_library_init(allocator);
         aws_register_error_info(&s_error_list);
