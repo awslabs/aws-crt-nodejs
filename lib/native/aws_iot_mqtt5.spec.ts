@@ -36,7 +36,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Direct Mqtt Non-Signing Custom Auth - Connection Success', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Direct Mqtt Non-Signing Custom Auth - Connection Success', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME,
@@ -51,7 +51,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Success', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Success', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
@@ -87,7 +87,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Direct Mqtt Non-Signing Custom Auth - Connection Failure Bad Password', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Direct Mqtt Non-Signing Custom Auth - Connection Failure Bad Password', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME,
@@ -102,7 +102,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Password', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Password', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
@@ -120,7 +120,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Token Value', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Token Value', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
@@ -138,7 +138,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Token Signature', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Token Signature', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
@@ -156,7 +156,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testFailedConnection(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Websocket Mqtt Non-Signing Custom Auth - Connection Success', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Websocket Mqtt Non-Signing Custom Auth - Connection Success', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME,
@@ -171,7 +171,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Aws Iot Core Websocket Mqtt Signing Custom Auth - Connection Success', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasCustomAuthEnvironment())('Aws Iot Core Websocket Mqtt Signing Custom Auth - Connection Success', async () => {
     let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
         authorizerName: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME,
         username: test_utils.ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME,
@@ -188,3 +188,15 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasPKCS12Environment())('Aws Iot Core PKCS12 - Connection Success', async () => {
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
+        test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
+        {
+            pkcs12_file : test_utils.ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY,
+            pkcs12_password : test_utils.ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD
+        }
+    );
+    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+});
+

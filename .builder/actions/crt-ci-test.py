@@ -28,6 +28,19 @@ class CrtCiTest(Builder.Action):
 
         return filename
 
+    def _write_s3_to_temp_file(self, env, s3_file):
+        try:
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.flush()
+            tmp_s3_filepath = tmp_file.name
+            cmd = ['aws', '--region', 'us-east-1', 's3', 'cp',
+                    s3_file, tmp_s3_filepath]
+            env.shell.exec(*cmd, check=True, quiet=True)
+            return tmp_s3_filepath
+        except:
+            print (f"ERROR: Could not get S3 file from URL {s3_file}!")
+            raise RuntimeError("Could not get S3 file from URL")
+
     def _build_and_run_eventstream_echo_server(self, env):
         java_sdk_dir = None
 
@@ -88,6 +101,12 @@ class CrtCiTest(Builder.Action):
             java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
 
             env.shell.setenv("AWS_TESTING_COGNITO_IDENTITY", env.shell.get_secret("aws-c-auth-testing/cognito-identity"), quiet=True)
+
+            # PKCS12 setup (MacOS only)
+            if (sys.platform == "darwin"):
+                pkcs12_file_name = self._write_s3_to_temp_file(env, "s3://aws-crt-test-stuff/unit-test-key-pkcs12.pem")
+                env.shell.setenv("AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY", pkcs12_file_name)
+                env.shell.setenv("AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD", "PKCS12_KEY_PASSWORD")
 
             # Unfortunately, we can't use NamedTemporaryFile and a with-block because NamedTemporaryFile is not readable
             # on Windows.

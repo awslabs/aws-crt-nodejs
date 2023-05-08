@@ -161,6 +161,22 @@ export class SocketOptions extends NativeResource {
 }
 
 /**
+ * Interface used to hold the options for creating a PKCS#12 connection in the builder.
+ *
+ * Note: Only supported on MacOS devices.
+ *
+ * NodeJS only
+ * @category TLS
+ */
+export interface Pkcs12Options {
+    /** Path to the PKCS#12 file */
+    pkcs12_file: string;
+
+    /** The password for the PKCS#12 file */
+    pkcs12_password : string;
+}
+
+/**
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.

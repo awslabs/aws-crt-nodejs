@@ -59,10 +59,32 @@ export class ClientEnvironmentalConfig {
     public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN_SIGNATURE = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN_SIGNATURE ?? "";
     public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN_KEY_NAME ?? "";
 
+    public static AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY ?? "";
+    public static AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD = process.env.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD ?? "";
+
     public static hasIotCoreEnvironment() {
         return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
             ClientEnvironmentalConfig.AWS_IOT_CERTIFICATE_PATH !== "" &&
             ClientEnvironmentalConfig.AWS_IOT_KEY_PATH !== "";
+    }
+
+    public static hasCustomAuthEnvironment() {
+        return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
+            ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_NAME != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_NO_SIGNING_AUTHORIZER_PASSWORD != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_NAME != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_USERNAME != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_PASSWORD != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_SIGNATURE != "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME != "";
+    }
+
+    public static hasPKCS12Environment() {
+        return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
+            ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY !== "" &&
+            ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD !== ""
     }
 
     public static DIRECT_MQTT_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_HOST ?? "";
@@ -415,7 +437,7 @@ export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.M
     publisher.stop({
         reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
     });
-    
+
     await willReceived;
     await publisherStopped;
 
