@@ -1085,10 +1085,6 @@ static void s_uninstall_crash_handler(void) {
 #endif
 }
 
-/*
- * Temporary hack to detect multi-init so we can throw an exception because we haven't figured out the right way
- * to support it yet.  Better than a hard crash in native code.
- */
 static struct aws_mutex s_module_lock = AWS_MUTEX_INIT;
 static uint32_t s_module_initialize_count = 0;
 
@@ -1097,6 +1093,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     (void)finalize_hint;
 
     aws_mutex_lock(&s_module_lock);
+    AWS_FATAL_ASSERT(s_module_initialize_count > 0);
     --s_module_initialize_count;
 
     if (s_module_initialize_count == 0) {
@@ -1111,12 +1108,12 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
 
         aws_thread_join_all_managed();
 
-        s_uninstall_crash_handler();
-
         aws_unregister_log_subject_info_list(&s_log_subject_list);
         aws_unregister_error_info(&s_error_list);
         aws_auth_library_clean_up();
         aws_mqtt_library_clean_up();
+
+        s_uninstall_crash_handler();
     }
 
     struct aws_napi_context *ctx = user_data;
@@ -1178,14 +1175,14 @@ static bool s_create_and_register_function(
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
     if (s_module_initialize_count == 0) {
+        s_install_crash_handler();
+
         aws_cal_library_init(allocator);
         aws_http_library_init(allocator);
         aws_mqtt_library_init(allocator);
         aws_auth_library_init(allocator);
         aws_register_error_info(&s_error_list);
         aws_register_log_subject_info_list(&s_log_subject_list);
-
-        s_install_crash_handler();
 
         /* Initialize the event loop group */
         /*
