@@ -28,16 +28,16 @@ export class ProxyConfig {
     public static HTTP_PROXY_BASIC_AUTH_USERNAME = process.env.AWS_TEST_BASIC_AUTH_USERNAME ?? ""
     public static HTTP_PROXY_BASIC_AUTH_PASSWORD = process.env.AWS_TEST_BASIC_AUTH_PASSWORD ?? ""
 
-    public static HTTP_PROXY_TLS_CERT_PATH = process.env.AWS_TEST_TLS_CERT_PATH ?? ""
-    public static HTTP_PROXY_TLS_KEY_PATH = process.env.AWS_TEST_TLS_KEY_PATH ?? ""
-    public static HTTP_PROXY_TLS_ROOT_CA_PATH = process.env.AWS_TEST_TLS_ROOT_CERT_PATH ?? ""
+    public static HTTP_PROXY_TLS_CERT_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_CERT ?? ""
+    public static HTTP_PROXY_TLS_KEY_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_KEY ?? ""
+    public static HTTP_PROXY_TLS_ROOT_CA_PATH = process.env.AWS_TEST_MQTT311_ROOT_CA ?? ""
 
-    public static HTTP_PROXY_WS_SIGNING_REGION = process.env.AWS_TEST_IOT_SIGNING_REGION ?? ""
-    public static HTTP_PROXY_MQTT_ENDPOINT = process.env.AWS_TEST_IOT_MQTT_ENDPOINT ?? ""
+    public static HTTP_PROXY_WS_SIGNING_REGION = process.env.AWS_TEST_MQTT311_IOT_CORE_REGION ?? ""
+    public static HTTP_PROXY_MQTT_ENDPOINT = process.env.AWS_TEST_MQTT311_IOT_CORE_HOST ?? ""
 
-    public static X509_CREDENTIALS_ENDPOINT = process.env.AWS_TEST_X509_ENDPOINT ?? ""
-    public static X509_CREDENTIALS_THING_NAME = process.env.AWS_TEST_X509_THING_NAME ?? ""
-    public static X509_CREDENTIALS_ROLE_ALIAS = process.env.AWS_TEST_X509_ROLE_ALIAS ?? ""
+    public static X509_CREDENTIALS_ENDPOINT = process.env.AWS_TEST_MQTT311_IOT_CORE_X509_ENDPOINT ?? ""
+    public static X509_CREDENTIALS_THING_NAME = process.env.AWS_TEST_MQTT311_IOT_CORE_X509_THING_NAME ?? ""
+    public static X509_CREDENTIALS_ROLE_ALIAS = process.env.AWS_TEST_MQTT311_IOT_CORE_X509_ROLE_ALIAS ?? ""
 
     public static is_valid() {
         return ProxyConfig.HTTP_PROXY_HOST !== "" &&

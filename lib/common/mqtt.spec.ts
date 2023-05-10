@@ -8,22 +8,33 @@ import { v4 as uuid } from 'uuid';
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-import { Config, fetch_credentials } from '@test/credentials';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 import {once} from "events";
 
 jest.setTimeout(10000);
 
+const conditional_test = (condition: boolean) => condition ? it : it.skip;
+
+class AWS_IOT_ENV {
+    public static HOST = process.env.AWS_TEST_MQTT311_IOT_CORE_HOST ?? "";
+    public static CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_CERT ?? "";
+    public static KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_KEY ?? "";
+
+    public static is_valid() {
+        return AWS_IOT_ENV.HOST !== "" &&
+            AWS_IOT_ENV.CERT !== "" &&
+            AWS_IOT_ENV.KEY !== ""
+    }
+}
+
 async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
-            let aws_opts: Config = await fetch_credentials();
 
-            const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(AWS_IOT_ENV.CERT, AWS_IOT_ENV.KEY)
                 .with_clean_session(true)
                 .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-                .with_endpoint(aws_opts.endpoint)
-                .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+                .with_endpoint(AWS_IOT_ENV.HOST)
                 .with_ping_timeout_ms(5000);
 
             if (will !== undefined) {
@@ -41,7 +52,7 @@ async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     });
 }
 
-test('MQTT Connect/Disconnect', async () => {
+conditional_test(AWS_IOT_ENV.is_valid())('MQTT Connect/Disconnect', async () => {
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -56,7 +67,7 @@ test('MQTT Connect/Disconnect', async () => {
     await onDisconnect;
 });
 
-test('MQTT Pub/Sub', async () => {
+conditional_test(AWS_IOT_ENV.is_valid())('MQTT Pub/Sub', async () => {
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -95,7 +106,7 @@ test('MQTT Pub/Sub', async () => {
     await onDisconnect;
 });
 
-test('MQTT Will', async () => {
+conditional_test(AWS_IOT_ENV.is_valid())('MQTT Will', async () => {
     /* TODO: this doesn't really test anything.  Unfortunately, there's no easy way to break the
     *   MQTT311 connection without it sending a client-side DISCONNECT packet which removes the will. It's not
     *   impossible but would require changes to the C API as well as the bindings to add a path that skips the
@@ -119,7 +130,7 @@ test('MQTT Will', async () => {
     await onDisconnect;
 });
 
-test('MQTT On Any Publish', async () => {
+conditional_test(AWS_IOT_ENV.is_valid())('MQTT On Any Publish', async () => {
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -156,7 +167,7 @@ test('MQTT On Any Publish', async () => {
     await onDisconnect;
 });
 
-test('MQTT payload types', async () => {
+conditional_test(AWS_IOT_ENV.is_valid())('MQTT payload types', async () => {
     const connection = await makeConnection();
 
     let onDisconnect = once(connection, 'disconnect');
