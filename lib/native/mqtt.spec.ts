@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions, TlsConnectionOptions } from './io';
+import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions } from './io';
 import { MqttClient, MqttConnectionConfig, QoS } from './mqtt';
 import { v4 as uuid } from 'uuid';
 import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} from "./http"
