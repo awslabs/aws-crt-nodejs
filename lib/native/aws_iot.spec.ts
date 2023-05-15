@@ -35,11 +35,14 @@ class AWS_IOT_ENV {
     public static PKCS12_FILE = process.env.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY ?? "";
     public static PKCS12_PASSWORD = process.env.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD ?? "";
 
-    public static WINDOWS_CERT = process.env.AWS_TEST_MQTT5_IOT_CORE_WINDOWS_CERT_STORE ?? "";
+    public static WINDOWS_CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_WINDOWS_CERT_STORE ?? "";
 
     public static CRED_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_ACCESS_KEY ?? "";
     public static CRED_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SECRET_ACCESS_KEY ?? "";
     public static CRED_SESSION_TOKEN = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SESSION_TOKEN ?? "";
+
+    public static AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID ?? "";
+    public static AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY ?? "";
 
     public static COGNITO_IDENTITY = process.env.AWS_TEST_MQTT311_COGNITO_IDENTITY ?? "";
     public static COGNITO_ENDPOINT = process.env.AWS_TEST_MQTT311_COGNITO_ENDPOINT ?? "";
@@ -90,7 +93,9 @@ class AWS_IOT_ENV {
 
     public static is_valid_websocket() {
         return AWS_IOT_ENV.HOST !== "" &&
-            AWS_IOT_ENV.REGION !== "";
+            AWS_IOT_ENV.REGION !== "" &&
+            AWS_IOT_ENV.AWS_ACCESS_KEY !== "" &&
+            AWS_IOT_ENV.AWS_SECRET_ACCESS_KEY !== ""
     }
 
     public static is_valid_cred() {
@@ -274,6 +279,7 @@ conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Dis
     await connection.disconnect();
 });
 
+// requires correct credentials to be sourced from the default credentials provider chain
 conditional_test(AWS_IOT_ENV.is_valid_websocket())('MQTT Native Websocket Default AWS Credentials', async () => {
     let websocket_config = {
         region: AWS_IOT_ENV.REGION,
