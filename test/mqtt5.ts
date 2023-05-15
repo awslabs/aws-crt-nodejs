@@ -42,11 +42,11 @@ export class ClientEnvironmentalConfig {
 
     public static AWS_IOT_HOST = process.env.AWS_TEST_MQTT5_IOT_CORE_HOST ?? "";
 
-    public static AWS_IOT_CERTIFICATE_PATH = process.env.AWS_TEST_MQTT5_IOT_CORE_CERTIFICATE_PATH ?? "";
-    public static AWS_IOT_KEY_PATH = process.env.AWS_TEST_MQTT5_IOT_CORE_KEY_PATH ?? "";
+    public static AWS_IOT_CERTIFICATE_PATH = process.env.AWS_TEST_MQTT5_IOT_CORE_RSA_CERT ?? "";
+    public static AWS_IOT_KEY_PATH = process.env.AWS_TEST_MQTT5_IOT_CORE_RSA_KEY ?? "";
 
-    public static AWS_IOT_ACCESS_KEY_ID = process.env.AWS_TEST_MQTT5_IOT_CORE_ACCESS_KEY_ID ?? "";
-    public static AWS_IOT_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT5_IOT_CORE_SECRET_ACCESS_KEY ?? "";
+    public static AWS_IOT_ACCESS_KEY_ID = process.env.AWS_TEST_MQTT5_ROLE_CREDENTIAL_ACCESS_KEY ?? "";
+    public static AWS_IOT_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT5_ROLE_CREDENTIAL_SECRET_ACCESS_KEY ?? "";
 
     public static AWS_IOT_NO_SIGNING_AUTHORIZER_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_NAME ?? "";
     public static AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_USERNAME ?? "";
@@ -58,9 +58,6 @@ export class ClientEnvironmentalConfig {
     public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN ?? "";
     public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN_SIGNATURE = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN_SIGNATURE ?? "";
     public static AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_SIGNING_AUTHORIZER_TOKEN_KEY_NAME ?? "";
-
-    public static AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY ?? "";
-    public static AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD = process.env.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD ?? "";
 
     public static hasIotCoreEnvironment() {
         return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
@@ -79,12 +76,6 @@ export class ClientEnvironmentalConfig {
             ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN != "" &&
             ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_SIGNATURE != "" &&
             ClientEnvironmentalConfig.AWS_IOT_SIGNING_AUTHORIZER_TOKEN_KEY_NAME != "";
-    }
-
-    public static hasPKCS12Environment() {
-        return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
-            ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY !== "" &&
-            ClientEnvironmentalConfig.AWS_TEST_MQTT311_IOT_CORE_PKCS12_KEY_PASSWORD !== ""
     }
 
     public static DIRECT_MQTT_HOST = process.env.AWS_TEST_MQTT5_DIRECT_MQTT_HOST ?? "";

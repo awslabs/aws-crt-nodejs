@@ -28,9 +28,9 @@ export class ProxyConfig {
     public static HTTP_PROXY_BASIC_AUTH_USERNAME = process.env.AWS_TEST_BASIC_AUTH_USERNAME ?? ""
     public static HTTP_PROXY_BASIC_AUTH_PASSWORD = process.env.AWS_TEST_BASIC_AUTH_PASSWORD ?? ""
 
-    public static HTTP_PROXY_TLS_CERT_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_CERT ?? ""
-    public static HTTP_PROXY_TLS_KEY_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_KEY ?? ""
-    public static HTTP_PROXY_TLS_ROOT_CA_PATH = process.env.AWS_TEST_MQTT311_ROOT_CA ?? ""
+    public static HTTP_PROXY_TLS_CERT_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_X509_CERT ?? ""
+    public static HTTP_PROXY_TLS_KEY_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_X509_KEY ?? ""
+    public static HTTP_PROXY_TLS_ROOT_CA_PATH = process.env.AWS_TEST_MQTT311_IOT_CORE_X509_CA ?? ""
 
     public static HTTP_PROXY_WS_SIGNING_REGION = process.env.AWS_TEST_MQTT311_IOT_CORE_REGION ?? ""
     public static HTTP_PROXY_MQTT_ENDPOINT = process.env.AWS_TEST_MQTT311_IOT_CORE_HOST ?? ""

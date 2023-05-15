@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions } from '@awscrt/io';
-import { MqttClient, MqttConnectionConfig, QoS } from '@awscrt/mqtt';
+import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions, TlsConnectionOptions } from './io';
+import { MqttClient, MqttConnectionConfig, QoS } from './mqtt';
 import { v4 as uuid } from 'uuid';
-import {HttpProxyOptions, HttpProxyAuthenticationType} from "@awscrt/http"
-import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
+import {HttpProxyOptions, HttpProxyAuthenticationType} from "./http"
+import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 
 jest.setTimeout(10000);
 
@@ -145,19 +145,25 @@ conditional_test(AWS_IOT_ENV.is_valid_direct_auth_mqtt())('MQTT311 Connection - 
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_direct_tls_mqtt())('MQTT311 Connection - TLS', async () => {
+    const tls_ctx_options = new TlsContextOptions();
+    tls_ctx_options.verify_peer = false;
     const config : MqttConnectionConfig = {
         client_id : `node-mqtt-unit-test-${uuid()}`,
         host_name: AWS_IOT_ENV.DIRECT_TLS_MQTT_HOST,
         port: parseInt(AWS_IOT_ENV.DIRECT_TLS_MQTT_PORT),
         clean_session: true,
-        socket_options: new SocketOptions()
-    }
-    const tls_ctx_options = new TlsContextOptions();
-    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+        socket_options: new SocketOptions(),
+        tls_ctx: new ClientTlsContext(tls_ctx_options)
+    };
     await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_direct_proxy())('MQTT311 Connection - Proxy', async () => {
+    const tls_ctx_options = new TlsContextOptions();
+    tls_ctx_options.verify_peer = false;
+    let tls_ctx = new ClientTlsContext(tls_ctx_options);
+    let tls_conn = new TlsConnectionOptions(tls_ctx);
+
     const config : MqttConnectionConfig = {
         client_id : `node-mqtt-unit-test-${uuid()}`,
         host_name: AWS_IOT_ENV.DIRECT_TLS_MQTT_HOST,
@@ -169,13 +175,12 @@ conditional_test(AWS_IOT_ENV.is_valid_direct_proxy())('MQTT311 Connection - Prox
             HttpProxyAuthenticationType.None,
             undefined,
             undefined,
-            undefined, // TLS
+            tls_conn,
             undefined
         ),
-        socket_options: new SocketOptions()
+        socket_options: new SocketOptions(),
+        tls_ctx: tls_ctx
     }
-    const tls_ctx_options = new TlsContextOptions();
-    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
     await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
@@ -244,23 +249,29 @@ conditional_test(AWS_IOT_ENV.is_valid_ws_auth_mqtt())('MQTT311 WS Connection - b
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_ws_tls_mqtt())('MQTT311 WS Connection - TLS', async () => {
+    const tls_ctx_options = new TlsContextOptions();
+    tls_ctx_options.verify_peer = false;
+    let tls_ctx = new ClientTlsContext(tls_ctx_options);
     const config : MqttConnectionConfig = {
         client_id : `node-mqtt-unit-test-${uuid()}`,
         host_name: AWS_IOT_ENV.WS_TLS_MQTT_HOST,
         port: parseInt(AWS_IOT_ENV.WS_TLS_MQTT_PORT),
         clean_session: true,
         use_websocket: true,
-        socket_options: new SocketOptions()
+        socket_options: new SocketOptions(),
+        tls_ctx: tls_ctx
     }
     config.websocket_handshake_transform = async (request, done) => {
         done();
     }
-    const tls_ctx_options = new TlsContextOptions();
-    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
     await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy', async () => {
+    const tls_ctx_options = new TlsContextOptions();
+    tls_ctx_options.verify_peer = false;
+    let tls_ctx = new ClientTlsContext(tls_ctx_options);
+    let tls_conn = new TlsConnectionOptions(tls_ctx);
     const config : MqttConnectionConfig = {
         client_id : `node-mqtt-unit-test-${uuid()}`,
         host_name: AWS_IOT_ENV.WS_TLS_MQTT_HOST,
@@ -273,16 +284,15 @@ conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy
             HttpProxyAuthenticationType.None,
             undefined,
             undefined,
-            undefined, // TLS
+            tls_conn,
             undefined
         ),
-        socket_options: new SocketOptions()
+        socket_options: new SocketOptions(),
+        tls_ctx: tls_ctx
     }
     config.websocket_handshake_transform = async (request, done) => {
         done();
     }
-    const tls_ctx_options = new TlsContextOptions();
-    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
     await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
