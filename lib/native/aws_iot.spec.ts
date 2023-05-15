@@ -205,7 +205,7 @@ conditional_test(AWS_IOT_ENV.is_valid_windows_cert())('Aws Iot Core Windows Cert
     await connection.disconnect();
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_windows_cert())('Aws Iot Core - Custom Auth unsigned', async () => {
+conditional_test(AWS_IOT_ENV.is_valid_custom_auth_unsigned())('Aws Iot Core - Direct MQTT Custom Auth unsigned', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
     builder.with_endpoint(AWS_IOT_ENV.HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -223,7 +223,7 @@ conditional_test(AWS_IOT_ENV.is_valid_windows_cert())('Aws Iot Core - Custom Aut
     await connection.disconnect();
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_windows_cert())('Aws Iot Core - Custom Auth signed', async () => {
+conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core - Direct MQTT Custom Auth signed', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
     builder.with_endpoint(AWS_IOT_ENV.HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
