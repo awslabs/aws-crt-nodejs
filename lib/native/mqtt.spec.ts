@@ -3,73 +3,101 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import { ClientBootstrap, Pkcs11Lib, TlsContextOptions } from '@awscrt/io';
-import { MqttClient, QoS } from '@awscrt/mqtt';
-import { AwsIotMqttConnectionConfigBuilder, WebsocketConfig } from '@awscrt/aws_iot';
-import { AwsCredentialsProvider } from '@awscrt/auth';
+import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions } from '@awscrt/io';
+import { MqttClient, MqttConnectionConfig, QoS } from '@awscrt/mqtt';
 import { v4 as uuid } from 'uuid';
+import {HttpProxyOptions, HttpProxyAuthenticationType} from "@awscrt/http"
+import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 
 jest.setTimeout(10000);
 
 const conditional_test = (condition: boolean) => condition ? it : it.skip;
 
 class AWS_IOT_ENV {
-    public static HOST = process.env.AWS_TEST_MQTT311_IOT_CORE_HOST ?? "";
-    public static CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_CERT ?? "";
-    public static KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_KEY ?? "";
-    public static REGION = process.env.AWS_TEST_MQTT311_IOT_CORE_REGION ?? "";
+    public static IOT_MQTT_HOST = process.env.AWS_TEST_MQTT311_IOT_CORE_HOST ?? "";
+    public static IOT_MQTT_RSA_CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_CERT ?? "";
+    public static IOT_MQTT_RSA_KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_KEY ?? "";
+    public static IOT_MQTT_ECC_CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_ECC_CERT ?? "";
+    public static IOT_MQTT_ECC_KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_ECC_KEY ?? "";
+    public static IOT_MQTT_REGION = process.env.AWS_TEST_MQTT311_IOT_CORE_REGION ?? "";
 
-    public static ECC_CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_ECC_CERT ?? "";
-    public static ECC_KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_ECC_KEY ?? "";
+    public static DIRECT_MQTT_HOST = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_HOST ?? "";
+    public static DIRECT_MQTT_PORT = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_PORT ?? "";
+    public static DIRECT_AUTH_MQTT_HOST = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_BASIC_AUTH_HOST ?? "";
+    public static DIRECT_AUTH_MQTT_PORT = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_BASIC_AUTH_PORT ?? "";
+    public static DIRECT_TLS_MQTT_HOST = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_TLS_HOST ?? "";
+    public static DIRECT_TLS_MQTT_PORT = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_TLS_PORT ?? "";
 
-    public static CRED_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_ACCESS_KEY ?? "";
-    public static CRED_SECRET_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SECRET_ACCESS_KEY ?? "";
-    public static CRED_SESSION_TOKEN = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SESSION_TOKEN ?? "";
+    public static WS_MQTT_HOST = process.env.AWS_TEST_MQTT311_WS_MQTT_HOST ?? "";
+    public static WS_MQTT_PORT = process.env.AWS_TEST_MQTT311_WS_MQTT_PORT ?? "";
+    public static WS_AUTH_MQTT_HOST = process.env.AWS_TEST_MQTT311_WS_MQTT_BASIC_AUTH_HOST ?? "";
+    public static WS_AUTH_MQTT_PORT = process.env.AWS_TEST_MQTT311_WS_MQTT_BASIC_AUTH_PORT ?? "";
+    public static WS_TLS_MQTT_HOST = process.env.AWS_TEST_MQTT311_WS_MQTT_TLS_HOST ?? "";
+    public static WS_TLS_MQTT_PORT = process.env.AWS_TEST_MQTT311_WS_MQTT_TLS_PORT ?? "";
 
-    public static PKCS11_LIB_PATH = process.env.AWS_TEST_PKCS11_LIB ?? ""
-    public static PKCS11_PIN = process.env.AWS_TEST_PKCS11_PIN ?? ""
-    public static PKCS11_TOKEN_LABEL = process.env.AWS_TEST_PKCS11_TOKEN_LABEL ?? ""
-    public static PKCS11_KEY_LABEL = process.env.AWS_TEST_PKCS11_KEY_LABEL ?? ""
-    public static PKCS11_CERT = process.env.AWS_TEST_PKCS11_CERT_FILE ?? "";
+    public static BASIC_AUTH_USERNAME = process.env.AWS_TEST_MQTT311_BASIC_AUTH_USERNAME ?? "";
+    public static BASIC_AUTH_PASSWORD = process.env.AWS_TEST_MQTT311_BASIC_AUTH_PASSWORD ?? "";
+    public static PROXY_HOST = process.env.AWS_TEST_MQTT311_PROXY_HOST ?? "";
+    public static PROXY_PORT = process.env.AWS_TEST_MQTT311_PROXY_PORT ?? "";
 
-    public static is_valid() {
-        return AWS_IOT_ENV.HOST !== "" &&
-            AWS_IOT_ENV.CERT !== "" &&
-            AWS_IOT_ENV.KEY !== ""
+    public static is_valid_direct_mqtt() {
+        return AWS_IOT_ENV.DIRECT_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.DIRECT_AUTH_MQTT_PORT !== "";
     }
-    public static is_valid_ecc() {
-        return AWS_IOT_ENV.HOST !== "" &&
-            AWS_IOT_ENV.ECC_CERT !== "" &&
-            AWS_IOT_ENV.ECC_KEY !== ""
+    public static is_valid_direct_auth_mqtt() {
+        return AWS_IOT_ENV.DIRECT_AUTH_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.DIRECT_AUTH_MQTT_PORT !== "" &&
+            AWS_IOT_ENV.BASIC_AUTH_USERNAME !== "" &&
+            AWS_IOT_ENV.BASIC_AUTH_PASSWORD !== "";
     }
-    public static is_valid_cred() {
-        return AWS_IOT_ENV.HOST !== "" &&
-            AWS_IOT_ENV.REGION !== "" &&
-            AWS_IOT_ENV.CRED_ACCESS_KEY !== "" &&
-            AWS_IOT_ENV.CRED_SECRET_KEY !== "" &&
-            AWS_IOT_ENV.CRED_SESSION_TOKEN !== ""
+    public static is_valid_direct_tls_mqtt() {
+        return AWS_IOT_ENV.DIRECT_TLS_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.DIRECT_TLS_MQTT_PORT !== "";
     }
-    public static is_valid_pkcs11() {
-        return AWS_IOT_ENV.HOST !== "" &&
-            AWS_IOT_ENV.PKCS11_LIB_PATH !== "" &&
-            AWS_IOT_ENV.PKCS11_PIN !== "" &&
-            AWS_IOT_ENV.PKCS11_TOKEN_LABEL !== "" &&
-            AWS_IOT_ENV.PKCS11_KEY_LABEL !== "" &&
-            AWS_IOT_ENV.PKCS11_CERT !== ""
+    public static is_valid_direct_proxy() {
+        return AWS_IOT_ENV.DIRECT_TLS_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.DIRECT_TLS_MQTT_PORT !== "" &&
+            AWS_IOT_ENV.PROXY_HOST !== "" &&
+            AWS_IOT_ENV.PROXY_PORT !== "";
+    }
+    public static is_valid_ws_mqtt() {
+        return AWS_IOT_ENV.WS_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.WS_MQTT_PORT !== "";
+    }
+    public static is_valid_ws_auth_mqtt() {
+        return AWS_IOT_ENV.WS_AUTH_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.WS_AUTH_MQTT_PORT !== "" &&
+            AWS_IOT_ENV.BASIC_AUTH_USERNAME !== "" &&
+            AWS_IOT_ENV.BASIC_AUTH_PASSWORD !== "";
+    }
+    public static is_valid_ws_tls_mqtt() {
+        return AWS_IOT_ENV.WS_TLS_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.WS_TLS_MQTT_PORT !== "";
+    }
+    public static is_valid_ws_proxy() {
+        return AWS_IOT_ENV.WS_TLS_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.WS_TLS_MQTT_PORT !== "" &&
+            AWS_IOT_ENV.PROXY_HOST !== "" &&
+            AWS_IOT_ENV.PROXY_PORT !== "";
+    }
+
+    public static is_valid_iot_rsa() {
+        return AWS_IOT_ENV.IOT_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_RSA_CERT !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_RSA_KEY !== "";
+    }
+    public static is_valid_iot_ecc() {
+        return AWS_IOT_ENV.IOT_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_ECC_CERT !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_ECC_KEY !== "";
+    }
+    public static is_valid_iot_websocket() {
+        return AWS_IOT_ENV.IOT_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_REGION !== "";
     }
 }
 
-async function test_websockets(websocket_config: WebsocketConfig, client: MqttClient) {
-    const builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config);
-    await test_builder(builder, client);
-}
-
-async function test_builder(builder: AwsIotMqttConnectionConfigBuilder, client: MqttClient) {
-    const config = builder
-        .with_clean_session(true)
-        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        .with_endpoint(AWS_IOT_ENV.HOST)
-        .build();
+async function test_connection(config: MqttConnectionConfig, client: MqttClient) {
     const connection = client.new_connection(config);
     const promise = new Promise(async (resolve, reject) => {
         connection.on('connect', async (session_present) => {
@@ -92,71 +120,180 @@ async function test_builder(builder: AwsIotMqttConnectionConfigBuilder, client: 
     await expect(promise).resolves.toBeTruthy();
 }
 
-conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Disconnect', async () => {
-    await test_websockets({
-        region: AWS_IOT_ENV.REGION,
-        credentials_provider: AwsCredentialsProvider.newStatic(
-            AWS_IOT_ENV.CRED_ACCESS_KEY,
-            AWS_IOT_ENV.CRED_SECRET_KEY,
-            AWS_IOT_ENV.CRED_SESSION_TOKEN
+conditional_test(AWS_IOT_ENV.is_valid_direct_mqtt())('MQTT311 Connection - no credentials', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.DIRECT_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.DIRECT_MQTT_PORT),
+        clean_session: true,
+        socket_options: new SocketOptions()
+    }
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_direct_auth_mqtt())('MQTT311 Connection - basic auth', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.DIRECT_AUTH_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.DIRECT_AUTH_MQTT_PORT),
+        clean_session: true,
+        username: AWS_IOT_ENV.BASIC_AUTH_USERNAME,
+        password: AWS_IOT_ENV.BASIC_AUTH_PASSWORD,
+        socket_options: new SocketOptions()
+    }
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_direct_tls_mqtt())('MQTT311 Connection - TLS', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.DIRECT_TLS_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.DIRECT_TLS_MQTT_PORT),
+        clean_session: true,
+        socket_options: new SocketOptions()
+    }
+    const tls_ctx_options = new TlsContextOptions();
+    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_direct_proxy())('MQTT311 Connection - Proxy', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.DIRECT_TLS_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.DIRECT_TLS_MQTT_PORT),
+        clean_session: true,
+        proxy_options: new HttpProxyOptions(
+            AWS_IOT_ENV.PROXY_HOST,
+            parseInt(AWS_IOT_ENV.PROXY_PORT),
+            HttpProxyAuthenticationType.None,
+            undefined,
+            undefined,
+            undefined, // TLS
+            undefined
         ),
-    }, new MqttClient(new ClientBootstrap()));
+        socket_options: new SocketOptions()
+    }
+    const tls_ctx_options = new TlsContextOptions();
+    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {
-    await test_websockets({
-        region: AWS_IOT_ENV.REGION,
-        credentials_provider: AwsCredentialsProvider.newStatic(
-            AWS_IOT_ENV.CRED_ACCESS_KEY,
-            AWS_IOT_ENV.CRED_SECRET_KEY,
-            AWS_IOT_ENV.CRED_SESSION_TOKEN
+conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT311 Connection - mTLS RSA', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.IOT_MQTT_HOST,
+        port: 8883,
+        clean_session: true,
+        socket_options: new SocketOptions()
+    }
+    let tls_ctx_options: TlsContextOptions = TlsContextOptions.create_client_with_mtls_from_path(
+        AWS_IOT_ENV.IOT_MQTT_RSA_CERT,
+        AWS_IOT_ENV.IOT_MQTT_RSA_KEY
+    );
+    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_iot_ecc())('MQTT311 Connection - mTLS ECC', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.IOT_MQTT_HOST,
+        port: 8883,
+        clean_session: true,
+        socket_options: new SocketOptions()
+    }
+    let tls_ctx_options: TlsContextOptions = TlsContextOptions.create_client_with_mtls_from_path(
+        AWS_IOT_ENV.IOT_MQTT_ECC_CERT,
+        AWS_IOT_ENV.IOT_MQTT_ECC_KEY
+    );
+    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_ws_mqtt())('MQTT311 WS Connection - no credentials', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.WS_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.WS_MQTT_PORT),
+        clean_session: true,
+        use_websocket: true,
+        socket_options: new SocketOptions()
+    }
+    config.websocket_handshake_transform = async (request, done) => {
+        done();
+    }
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_ws_auth_mqtt())('MQTT311 WS Connection - basic auth', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.WS_AUTH_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.WS_AUTH_MQTT_PORT),
+        clean_session: true,
+        use_websocket: true,
+        username: AWS_IOT_ENV.BASIC_AUTH_USERNAME,
+        password: AWS_IOT_ENV.BASIC_AUTH_PASSWORD,
+        socket_options: new SocketOptions()
+    }
+    config.websocket_handshake_transform = async (request, done) => {
+        done();
+    }
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_ws_tls_mqtt())('MQTT311 WS Connection - TLS', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.WS_TLS_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.WS_TLS_MQTT_PORT),
+        clean_session: true,
+        use_websocket: true,
+        socket_options: new SocketOptions()
+    }
+    config.websocket_handshake_transform = async (request, done) => {
+        done();
+    }
+    const tls_ctx_options = new TlsContextOptions();
+    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy', async () => {
+    const config : MqttConnectionConfig = {
+        client_id : `node-mqtt-unit-test-${uuid()}`,
+        host_name: AWS_IOT_ENV.WS_TLS_MQTT_HOST,
+        port: parseInt(AWS_IOT_ENV.WS_TLS_MQTT_PORT),
+        clean_session: true,
+        use_websocket: true,
+        proxy_options: new HttpProxyOptions(
+            AWS_IOT_ENV.PROXY_HOST,
+            parseInt(AWS_IOT_ENV.PROXY_PORT),
+            HttpProxyAuthenticationType.None,
+            undefined,
+            undefined,
+            undefined, // TLS
+            undefined
         ),
-    }, new MqttClient());
+        socket_options: new SocketOptions()
+    }
+    config.websocket_handshake_transform = async (request, done) => {
+        done();
+    }
+    const tls_ctx_options = new TlsContextOptions();
+    config.tls_ctx = new ClientTlsContext(tls_ctx_options);
+    await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Disconnect with TLS Context Options', async () => {
-    let tls_ctx_options = new TlsContextOptions();
-    tls_ctx_options.alpn_list = [];
-    tls_ctx_options.verify_peer = true;
-
-    await test_websockets({
-        region: AWS_IOT_ENV.REGION,
-        tls_ctx_options: tls_ctx_options,
-        credentials_provider: AwsCredentialsProvider.newStatic(
-            AWS_IOT_ENV.CRED_ACCESS_KEY,
-            AWS_IOT_ENV.CRED_SECRET_KEY,
-            AWS_IOT_ENV.CRED_SESSION_TOKEN
-        ),
-    }, new MqttClient(new ClientBootstrap()));
-});
-
-conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('MQTT Native PKCS#11 Connect/Disconnect', async () => {
-    const pkcs11_lib = new Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
-
-    const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
-        pkcs11_lib: pkcs11_lib,
-        user_pin: AWS_IOT_ENV.PKCS11_PIN,
-        token_label: AWS_IOT_ENV.PKCS11_TOKEN_LABEL,
-        private_key_object_label: AWS_IOT_ENV.PKCS11_KEY_LABEL,
-        cert_file_contents: AWS_IOT_ENV.PKCS11_CERT,
-    });
-
-    await test_builder(builder, new MqttClient(new ClientBootstrap()));
-});
-
-
-conditional_test(AWS_IOT_ENV.is_valid_ecc())('MQTT Native ECC key Connect/Disconnect', async () => {
-    const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(AWS_IOT_ENV.ECC_CERT, AWS_IOT_ENV.ECC_KEY);
-    await test_builder(builder, new MqttClient(new ClientBootstrap()));
-});
-
-conditional_test(AWS_IOT_ENV.is_valid())('MQTT Operation statistics simple', async () => {
+conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT Operation statistics simple', async () => {
     const promise = new Promise(async (resolve, reject) => {
 
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(AWS_IOT_ENV.CERT, AWS_IOT_ENV.KEY)
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
+            AWS_IOT_ENV.IOT_MQTT_RSA_CERT, AWS_IOT_ENV.IOT_MQTT_RSA_KEY)
             .with_clean_session(true)
             .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(AWS_IOT_ENV.HOST)
+            .with_endpoint(AWS_IOT_ENV.IOT_MQTT_HOST)
             .build()
         const client = new MqttClient(new ClientBootstrap());
         const connection = client.new_connection(config);
@@ -201,13 +338,14 @@ conditional_test(AWS_IOT_ENV.is_valid())('MQTT Operation statistics simple', asy
     await expect(promise).resolves.toBeTruthy();
 });
 
-conditional_test(AWS_IOT_ENV.is_valid())('MQTT Operation statistics check publish', async () => {
+conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT Operation statistics check publish', async () => {
     const promise = new Promise(async (resolve, reject) => {
 
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(AWS_IOT_ENV.CERT, AWS_IOT_ENV.KEY)
+        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
+            AWS_IOT_ENV.IOT_MQTT_RSA_CERT, AWS_IOT_ENV.IOT_MQTT_RSA_KEY)
             .with_clean_session(true)
             .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(AWS_IOT_ENV.HOST)
+            .with_endpoint(AWS_IOT_ENV.IOT_MQTT_HOST)
             .build()
         const client = new MqttClient(new ClientBootstrap());
         const connection = client.new_connection(config);
