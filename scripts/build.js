@@ -101,6 +101,62 @@ async function fetchNativeCode(url, version, path) {
     await tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
 }
 
+const { execSync, spawn } = require("child_process");
+
+async function buildOpenssl() {
+    execSync("mkdir -p build/openssl");
+
+    execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${process.cwd()}/build/openssl-install" no-shared no-weak-ssl-ciphers`, {
+        cwd: './build/openssl',
+    });
+
+    const buildProcess = spawn('make', ['-j'], {
+        cwd: './build/openssl'
+    });
+
+    for await (const chunk of buildProcess.stdout) {
+        console.log('' + chunk);
+    }
+    for await (const chunk of buildProcess.stderr) {
+        console.error('' + chunk);
+    }
+
+    await new Promise( (resolve, reject) => {
+        buildProcess.on('close', (code) => {
+            if (code != 0) {
+                reject(new Error(`Libcrypto build failed, exit code: ${code}`));
+            } else {
+                resolve();
+            }
+        });
+    });
+
+    await new Promise((resolve, reject) => {
+        setTimeout(() => {resolve();}, 1000);
+    });
+
+    const installProcess = spawn('make', ['install_sw'], {
+        cwd: './build/openssl'
+    });
+
+    for await (const chunk of installProcess.stdout) {
+        console.log('' + chunk);
+    }
+    for await (const chunk of installProcess.stderr) {
+        console.error('' +chunk);
+    }
+
+    await new Promise( (resolve, reject) => {
+        installProcess.on('close', (code) => {
+            if (code != 0) {
+                reject(new Error(`Libcrypto install failed, exit code: ${code}`));
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
 async function buildLocally() {
     const platform = os.platform();
     let arch = os.arch();
@@ -110,11 +166,19 @@ async function buildLocally() {
     if (process.argv.includes('--target-arch')) {
         arch = process.argv[process.argv.indexOf('--target-arch') + 1];
     }
+    
+    let cmake_prefix_path = "";
+
+    if (platform === 'linux') {
+        await buildOpenssl();
+
+        cmake_prefix_path=`${process.cwd()}/build/openssl-install`;
+    }
 
     // options for cmake.BuildSystem
     let options = {
         target: "install",
-        debug: process.argv.includes('--debug'),
+        debug: true,
         arch: arch,
         out: path.join('build', `${platform}-${arch}`),
         cMakeOptions: {
@@ -122,7 +186,7 @@ async function buildLocally() {
             CMAKE_JS_PLATFORM: platform,
             BUILD_TESTING: 'OFF',
             CMAKE_INSTALL_PREFIX: 'crt/install',
-            CMAKE_PREFIX_PATH: 'crt/install',
+            CMAKE_PREFIX_PATH: cmake_prefix_path,
         }
     }
 
