@@ -6,7 +6,7 @@
 import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions, TlsConnectionOptions } from './io';
 import { MqttClient, MqttConnectionConfig, QoS } from './mqtt';
 import { v4 as uuid } from 'uuid';
-import {HttpProxyOptions, HttpProxyAuthenticationType} from "./http"
+import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} from "./http"
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 
 jest.setTimeout(10000);
@@ -162,7 +162,6 @@ conditional_test(AWS_IOT_ENV.is_valid_direct_proxy())('MQTT311 Connection - Prox
     const tls_ctx_options = new TlsContextOptions();
     tls_ctx_options.verify_peer = false;
     let tls_ctx = new ClientTlsContext(tls_ctx_options);
-    let tls_conn = new TlsConnectionOptions(tls_ctx);
 
     const config : MqttConnectionConfig = {
         client_id : `node-mqtt-unit-test-${uuid()}`,
@@ -175,8 +174,8 @@ conditional_test(AWS_IOT_ENV.is_valid_direct_proxy())('MQTT311 Connection - Prox
             HttpProxyAuthenticationType.None,
             undefined,
             undefined,
-            tls_conn,
-            undefined
+            undefined,
+            HttpProxyConnectionType.Tunneling
         ),
         socket_options: new SocketOptions(),
         tls_ctx: tls_ctx
@@ -271,7 +270,6 @@ conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy
     const tls_ctx_options = new TlsContextOptions();
     tls_ctx_options.verify_peer = false;
     let tls_ctx = new ClientTlsContext(tls_ctx_options);
-    let tls_conn = new TlsConnectionOptions(tls_ctx);
     const config : MqttConnectionConfig = {
         client_id : `node-mqtt-unit-test-${uuid()}`,
         host_name: AWS_IOT_ENV.WS_TLS_MQTT_HOST,
@@ -284,8 +282,8 @@ conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy
             HttpProxyAuthenticationType.None,
             undefined,
             undefined,
-            tls_conn,
-            undefined
+            undefined,
+            HttpProxyConnectionType.Tunneling
         ),
         socket_options: new SocketOptions(),
         tls_ctx: tls_ctx

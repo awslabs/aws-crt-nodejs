@@ -129,7 +129,7 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt
         AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_USERNAME,
         AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_NAME,
         "",
-        Buffer.from(AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_PASSWORD, "utf-8"),
+        AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_PASSWORD,
         undefined,
         undefined,
     )
@@ -148,7 +148,7 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core Mqtt o
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_USERNAME,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_NAME,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_SIGNATURE,
-        Buffer.from(AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_PASSWORD, "utf-8"),
+        AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_PASSWORD,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_KEY_NAME,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_TOKEN,
     )
@@ -212,7 +212,7 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_unsigned())('Aws Iot Core - Di
         AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_USERNAME,
         AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_NAME,
         "",
-        Buffer.from(AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_PASSWORD, "utf-8"),
+        AWS_IOT_ENV.CUSTOM_AUTH_UNSIGNED_PASSWORD,
         undefined,
         undefined)
     let config = builder.build();
@@ -230,7 +230,7 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core - Dire
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_USERNAME,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_NAME,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_SIGNATURE,
-        Buffer.from(AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_PASSWORD, "utf-8"),
+        AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_PASSWORD,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_KEY_NAME,
         AWS_IOT_ENV.CUSTOM_AUTH_SIGNED_TOKEN)
     let config = builder.build();
