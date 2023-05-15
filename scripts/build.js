@@ -173,6 +173,8 @@ async function buildLocally() {
         await buildOpenssl();
 
         cmake_prefix_path=`${process.cwd()}/build/openssl-install`;
+
+        process.env.USE_OPENSSL='ON';
     }
 
     // options for cmake.BuildSystem
@@ -187,6 +189,7 @@ async function buildLocally() {
             BUILD_TESTING: 'OFF',
             CMAKE_INSTALL_PREFIX: 'crt/install',
             CMAKE_PREFIX_PATH: cmake_prefix_path,
+            USE_OPENSSL: 'ON'
         }
     }
 
