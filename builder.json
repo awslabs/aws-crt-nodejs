@@ -21,7 +21,8 @@
                 "gtk3",
                 "alsa-lib",
                 "atk",
-                "cups-libs"
+                "cups-libs",
+                "libdrm"
             ],
             "+test_steps": [
                 [
