@@ -131,10 +131,6 @@ async function buildOpenssl(opensslInstallDir) {
         });
     });
 
-    await new Promise((resolve, reject) => {
-        setTimeout(() => {resolve();}, 1000);
-    });
-
     const installProcess = spawn('make', ['install_sw'], {
         cwd: './build/openssl'
     });
@@ -185,7 +181,7 @@ async function buildLocally() {
     // options for cmake.BuildSystem
     let options = {
         target: "install",
-        debug: true,
+        debug: process.argv.includes('--debug'),
         arch: arch,
         out: path.join('build', `${platform}-${arch}`),
         cMakeOptions: cmakeOptions
