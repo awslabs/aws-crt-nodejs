@@ -167,14 +167,18 @@ async function buildLocally() {
         arch = process.argv[process.argv.indexOf('--target-arch') + 1];
     }
     
-    let cmake_prefix_path = "";
+    let cmakeOptions = {
+        CMAKE_EXPORT_COMPILE_COMMANDS: true,
+        CMAKE_JS_PLATFORM: platform,
+        BUILD_TESTING: 'OFF',
+        CMAKE_INSTALL_PREFIX: 'crt/install',
+    };
 
     if (platform === 'linux') {
         await buildOpenssl();
 
-        cmake_prefix_path=`${process.cwd()}/build/openssl-install`;
-
-        process.env.USE_OPENSSL='ON';
+        cmakeOptions.CMAKE_PREFIX_PATH = `${process.cwd()}/build/openssl-install`;
+        cmakeOptions.USE_OPENSSL = 'ON';
     }
 
     // options for cmake.BuildSystem
@@ -183,14 +187,7 @@ async function buildLocally() {
         debug: true,
         arch: arch,
         out: path.join('build', `${platform}-${arch}`),
-        cMakeOptions: {
-            CMAKE_EXPORT_COMPILE_COMMANDS: true,
-            CMAKE_JS_PLATFORM: platform,
-            BUILD_TESTING: 'OFF',
-            CMAKE_INSTALL_PREFIX: 'crt/install',
-            CMAKE_PREFIX_PATH: cmake_prefix_path,
-            USE_OPENSSL: 'ON'
-        }
+        cMakeOptions: cmakeOptions
     }
 
     // We need to pass some extra flags to pull off cross-compiling
