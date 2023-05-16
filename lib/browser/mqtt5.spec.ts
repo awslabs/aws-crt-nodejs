@@ -290,6 +290,7 @@ function createWsIotCoreClientConfig() : mqtt5.Mqtt5ClientConfig {
     let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
         aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
         aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
+        aws_sts_token: test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN,
         aws_region: "us-east-1"
     });
 
