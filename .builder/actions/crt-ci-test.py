@@ -68,7 +68,7 @@ class CrtCiTest(Builder.Action):
                 Builder.InstallPackages(['libnss']).run(env)
             except:
                 try:
-                    Builder.InstallPackages(['libnss3-dev'])
+                    Builder.InstallPackages(['nss'])
                 except:
                     print ("Cannot install libnss in any form. Assuming it is not needed...")
 
