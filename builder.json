@@ -23,7 +23,7 @@
                 "atk",
                 "cups-libs",
                 "libdrm",
-                "libgbm1"
+                "libgbm-dev"
             ],
             "+test_steps": [
                 [
