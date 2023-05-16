@@ -59,8 +59,12 @@ class CrtCiTest(Builder.Action):
 
         actions = []
         java_sdk_dir = None
-        cert_file_name = None
-        key_file_name = None
+
+        # AL2 needs libnss3 installed or CI will fail.
+        try:
+            Builder.InstallPackages(['libnss3']).run(env)
+        except:
+            print ("Cannot install libnss3. Assuming it is not needed...")
 
         try:
             java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
