@@ -5,7 +5,8 @@
         "JDK8"
     ],
     "+packages": [
-        "maven"
+        "maven",
+        "perl"
     ],
     "deps_dir": "deps",
     "hosts": {
