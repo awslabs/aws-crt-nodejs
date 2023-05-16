@@ -22,10 +22,16 @@
                 "alsa-lib",
                 "atk",
                 "cups-libs",
-                "libdrm",
-                "libgbm-dev"
+                "libdrm"
             ],
             "+test_steps": [
+                [
+                    "sudo",
+                    "amazon-linux-extras",
+                    "install",
+                    "epel",
+                    "-y"
+                ],
                 [
                     "sudo",
                     "yum",
