@@ -406,7 +406,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 0 - Unsub', async () => {
-    let topic : string = `test-${uuid()}`;
+    let topic : string = `test/${uuid()}`;
     let testPayload : Buffer = Buffer.from("Derp", "utf-8");
 
     let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createWsIotCoreClientConfig());
@@ -429,7 +429,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 1 - Unsub', async () => {
-    let topic : string = `test-${uuid()}`;
+    let topic : string = `test/${uuid()}`;
     let testPayload : Buffer = Buffer.from("Derp", "utf-8");
 
     let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createWsIotCoreClientConfig());
@@ -453,7 +453,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
     let willPayload : Buffer = Buffer.from("ToMyChildrenIBequeathNothing", "utf-8");
-    let willTopic : string = `will/test${uuid()}`;
+    let willTopic : string = `test/will/test${uuid()}`;
 
     let publisherConfig: mqtt5.Mqtt5ClientConfig = createWsIotCoreClientConfig();
 

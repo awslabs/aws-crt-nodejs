@@ -498,7 +498,7 @@ export async function nullPublishTest(client: mqtt5.Mqtt5Client) {
 
 export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mqtt5Client, client3: mqtt5.Mqtt5Client) {
 
-    let retainTopic : string = `retain/topic-${uuid()}`;
+    let retainTopic : string = `test/retain/topic-${uuid()}`;
     let retainedPayload : Buffer = Buffer.from("RetainedPayload", "utf-8");
 
     let connected1 = once(client1, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
