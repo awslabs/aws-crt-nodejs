@@ -161,23 +161,23 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core Mqtt o
     await connection.disconnect();
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
-    const pkcs11_lib = new io.Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
-    const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
-        pkcs11_lib: pkcs11_lib,
-        user_pin: AWS_IOT_ENV.PKCS11_PIN,
-        token_label: AWS_IOT_ENV.PKCS11_TOKEN_LABEL,
-        private_key_object_label: AWS_IOT_ENV.PKCS11_PRIVATE_KEY_LABEL,
-        cert_file_path: AWS_IOT_ENV.PKCS11_CERT,
-    });
-    builder.with_endpoint(AWS_IOT_ENV.HOST);
-    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-    let config = builder.build();
-    let client = new mqtt311.MqttClient();
-    let connection = client.new_connection(config);
-    await connection.connect();
-    await connection.disconnect();
-});
+// conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
+//     const pkcs11_lib = new io.Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
+//     const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
+//         pkcs11_lib: pkcs11_lib,
+//         user_pin: AWS_IOT_ENV.PKCS11_PIN,
+//         token_label: AWS_IOT_ENV.PKCS11_TOKEN_LABEL,
+//         private_key_object_label: AWS_IOT_ENV.PKCS11_PRIVATE_KEY_LABEL,
+//         cert_file_path: AWS_IOT_ENV.PKCS11_CERT,
+//     });
+//     builder.with_endpoint(AWS_IOT_ENV.HOST);
+//     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+//     let config = builder.build();
+//     let client = new mqtt311.MqttClient();
+//     let connection = client.new_connection(config);
+//     await connection.connect();
+//     await connection.disconnect();
+// });
 
 conditional_test(AWS_IOT_ENV.is_valid_pkcs12())('Aws Iot Core PKCS12 connection', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs12_builder({

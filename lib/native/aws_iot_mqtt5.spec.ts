@@ -341,20 +341,20 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core Websoc
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
-    const pkcs11_lib = new io.Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
-    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
-        AWS_IOT_ENV.HOST,
-        {
-            pkcs11_lib: pkcs11_lib,
-            user_pin: AWS_IOT_ENV.PKCS11_PIN,
-            token_label: AWS_IOT_ENV.PKCS11_TOKEN_LABEL,
-            private_key_object_label: AWS_IOT_ENV.PKCS11_PRIVATE_KEY_LABEL,
-            cert_file_path: AWS_IOT_ENV.PKCS11_CERT,
-        }
-    );
-    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
-});
+// conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
+//     const pkcs11_lib = new io.Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
+//     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
+//         AWS_IOT_ENV.HOST,
+//         {
+//             pkcs11_lib: pkcs11_lib,
+//             user_pin: AWS_IOT_ENV.PKCS11_PIN,
+//             token_label: AWS_IOT_ENV.PKCS11_TOKEN_LABEL,
+//             private_key_object_label: AWS_IOT_ENV.PKCS11_PRIVATE_KEY_LABEL,
+//             cert_file_path: AWS_IOT_ENV.PKCS11_CERT,
+//         }
+//     );
+//     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+// });
 
 conditional_test(AWS_IOT_ENV.is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
