@@ -162,9 +162,7 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core Mqtt o
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
-    const pkcs11_lib = new io.Pkcs11Lib(
-        AWS_IOT_ENV.PKCS11_LIB_PATH,
-        io.Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+    const pkcs11_lib = new io.Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
     const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
         pkcs11_lib: pkcs11_lib,
         user_pin: AWS_IOT_ENV.PKCS11_PIN,

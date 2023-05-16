@@ -342,9 +342,7 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core Websoc
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
-    const pkcs11_lib = new io.Pkcs11Lib(
-        AWS_IOT_ENV.PKCS11_LIB_PATH,
-        io.Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+    const pkcs11_lib = new io.Pkcs11Lib(AWS_IOT_ENV.PKCS11_LIB_PATH);
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
         AWS_IOT_ENV.HOST,
         {
