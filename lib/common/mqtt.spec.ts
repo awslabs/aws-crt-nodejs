@@ -6,7 +6,6 @@
 import { v4 as uuid } from 'uuid';
 
 import { ClientBootstrap } from '@awscrt/io';
-import { StaticCredentialProvider } from '@awscrt/auth';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
@@ -36,19 +35,15 @@ class AWS_IOT_ENV {
 async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
-            let provider = new StaticCredentialProvider({
-                aws_access_id: AWS_IOT_ENV.CRED_ACCESS_KEY,
-                aws_secret_key : AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
-                aws_sts_token : AWS_IOT_ENV.CRED_SESSION_TOKEN,
-                aws_region: AWS_IOT_ENV.REGION});
-            let websocket_config = {
-                region: AWS_IOT_ENV.REGION,
-                credentials_provider: provider
-            };
-            let builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
+            let builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets()
                 .with_clean_session(true)
                 .with_client_id(`node-mqtt-unit-test-${uuid()}`)
                 .with_endpoint(AWS_IOT_ENV.HOST)
+                .with_credentials(
+                    AWS_IOT_ENV.REGION,
+                    AWS_IOT_ENV.CRED_ACCESS_KEY,
+                    AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
+                    AWS_IOT_ENV.CRED_SESSION_TOKEN)
                 .with_ping_timeout_ms(5000);
 
             if (will !== undefined) {
