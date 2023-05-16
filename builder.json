@@ -25,7 +25,11 @@
             ],
             "+test_steps": [
                 [
-                    "yum update nss -y"
+                    "sudo",
+                    "yum",
+                    "update",
+                    "nss",
+                    "-y"
                 ],
                 [
                     "npm",
