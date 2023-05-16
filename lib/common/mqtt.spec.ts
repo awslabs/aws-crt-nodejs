@@ -9,7 +9,7 @@ import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { Config, fetch_credentials } from '@test/credentials';
-import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
+import { fromUtf8, toUtf8 } from '@aws-sdk/util-utf8-browser';
 import {once} from "events";
 
 jest.setTimeout(10000);
@@ -75,7 +75,8 @@ test('MQTT Pub/Sub', async () => {
 
     const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
         expect(topic).toEqual(test_topic);
-        const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
+        ;
+        const payload_str = toUtf8(new Uint8Array(payload as ArrayBuffer));
         expect(payload_str).toEqual(test_payload);
         expect(qos).toEqual(QoS.AtLeastOnce);
         expect(retain).toBeFalsy();
@@ -147,7 +148,8 @@ test('MQTT On Any Publish', async () => {
 
     expect(messageReceivedTopic).toEqual(test_topic);
     expect(messageReceivedPayload).toBeDefined();
-    const payload_str = (new TextDecoder()).decode(new Uint8Array(messageReceivedPayload));
+
+    const payload_str = toUtf8(new Uint8Array(messageReceivedPayload as ArrayBuffer));
     expect(payload_str).toEqual(test_payload);
     expect(messageReceivedQos).toEqual(QoS.AtLeastOnce);
     expect(messageReceivedRetain).toBeFalsy();

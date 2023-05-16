@@ -5,8 +5,7 @@
         "JDK8"
     ],
     "+packages": [
-        "maven",
-        "perl"
+        "maven"
     ],
     "deps_dir": "deps",
     "hosts": {
@@ -40,6 +39,11 @@
     "targets": {
         "android": {
             "enabled": false
+        },
+        "linux": {
+            "+packages": [
+                "perl"
+            ]
         }
     },
     "upstream": [],
