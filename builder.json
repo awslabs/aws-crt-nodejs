@@ -25,6 +25,9 @@
             ],
             "+test_steps": [
                 [
+                    "yum update nss -y"
+                ],
+                [
                     "npm",
                     "run",
                     "test:browser:ci"
