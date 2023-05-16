@@ -23,6 +23,7 @@
                 "atk",
                 "cups-libs",
                 "libdrm",
+                "mesa-libgbm",
 
                 "libXdamage",
                 "libXext",
