@@ -27,7 +27,7 @@
                 [
                     "sudo",
                     "yum",
-                    "update",
+                    "install",
                     "nss",
                     "-y"
                 ],
