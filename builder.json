@@ -22,7 +22,8 @@
                 "alsa-lib",
                 "atk",
                 "cups-libs",
-                "libdrm"
+                "libdrm",
+                "libgbm1"
             ],
             "+test_steps": [
                 [
