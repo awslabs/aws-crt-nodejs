@@ -6,6 +6,7 @@
 import { v4 as uuid } from 'uuid';
 
 import { ClientBootstrap } from '@awscrt/io';
+import { StaticCredentialProvider } from '@awscrt/auth';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
@@ -17,21 +18,34 @@ const conditional_test = (condition: boolean) => condition ? it : it.skip;
 
 class AWS_IOT_ENV {
     public static HOST = process.env.AWS_TEST_MQTT311_IOT_CORE_HOST ?? "";
-    public static CERT = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_CERT ?? "";
-    public static KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_RSA_KEY ?? "";
+    public static REGION = process.env.AWS_TEST_MQTT311_IOT_CORE_REGION ?? "";
+
+    public static CRED_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_ACCESS_KEY ?? "";
+    public static CRED_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SECRET_ACCESS_KEY ?? "";
+    public static CRED_SESSION_TOKEN = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SESSION_TOKEN ?? "";
 
     public static is_valid() {
         return AWS_IOT_ENV.HOST !== "" &&
-            AWS_IOT_ENV.CERT !== "" &&
-            AWS_IOT_ENV.KEY !== ""
+            AWS_IOT_ENV.REGION !== "" &&
+            AWS_IOT_ENV.CRED_ACCESS_KEY !== "" &&
+            AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY !== "" &&
+            AWS_IOT_ENV.CRED_SESSION_TOKEN !== ""
     }
 }
 
 async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
-
-            const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(AWS_IOT_ENV.CERT, AWS_IOT_ENV.KEY)
+            let provider = new StaticCredentialProvider({
+                aws_access_id: AWS_IOT_ENV.CRED_ACCESS_KEY,
+                aws_secret_key : AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
+                aws_sts_token : AWS_IOT_ENV.CRED_SESSION_TOKEN,
+                aws_region: AWS_IOT_ENV.REGION});
+            let websocket_config = {
+                region: AWS_IOT_ENV.REGION,
+                credentials_provider: provider
+            };
+            let builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config)
                 .with_clean_session(true)
                 .with_client_id(`node-mqtt-unit-test-${uuid()}`)
                 .with_endpoint(AWS_IOT_ENV.HOST)
@@ -78,7 +92,7 @@ conditional_test(AWS_IOT_ENV.is_valid())('MQTT Pub/Sub', async () => {
     let connectResult = (await onConnect)[0];
     expect(connectResult).toBeFalsy(); /* session present */
 
-    const test_topic = `/test/me/senpai/${uuid()}`;
+    const test_topic = `test/me/senpai/${uuid()}`;
     const test_payload = 'NOTICE ME';
 
     var resolvePromise: (value: void | PromiseLike<void>) => void;
@@ -113,7 +127,7 @@ conditional_test(AWS_IOT_ENV.is_valid())('MQTT Will', async () => {
     *   DISCONNECT packet, which is far beyond the scope of refactoring these tests to be more procedural and reliable.
     */
     const connection = await makeConnection(new MqttWill(
-        '/last/will/and/testament',
+        'test/last/will/and/testament',
         QoS.AtLeastOnce,
         'AVENGE ME'
     ));
@@ -141,7 +155,7 @@ conditional_test(AWS_IOT_ENV.is_valid())('MQTT On Any Publish', async () => {
     let connectResult = (await onConnect)[0];
     expect(connectResult).toBeFalsy(); /* session present */
 
-    const test_topic = `/test/me/senpai/${uuid()}`;
+    const test_topic = `test/me/senpai/${uuid()}`;
     const test_payload = 'NOTICE ME';
 
     let onMessage = once(connection, 'message');
@@ -177,24 +191,24 @@ conditional_test(AWS_IOT_ENV.is_valid())('MQTT payload types', async () => {
     const id = uuid();
 
     const tests: { [key: string]: { send: Payload, recv: ArrayBuffer } } = {
-        [`/test/types/${id}/string`]: {
+        [`test/types/${id}/string`]: {
             send: 'utf-8 👁👄👁 time',
             recv: fromUtf8('utf-8 👁👄👁 time').buffer,
         },
-        [`/test/types/${id}/dataview`]: {
+        [`test/types/${id}/dataview`]: {
             send: new DataView(fromUtf8('I was a DataView').buffer),
             recv: fromUtf8('I was a DataView').buffer,
         },
-        [`/test/types/${id}/uint8array`]: {
+        [`test/types/${id}/uint8array`]: {
             // note: sending partial view of a larger buffer
             send: new Uint8Array(new Uint8Array([0, 1, 2, 3, 4, 5, 6]).buffer, 2, 3),
             recv: new Uint8Array([2, 3, 4]).buffer,
         },
-        [`/test/types/${id}/arraybuffer`]: {
+        [`test/types/${id}/arraybuffer`]: {
             send: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
             recv: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
         },
-        [`/test/types/${id}/json`]: {
+        [`test/types/${id}/json`]: {
             send: { I: "was JSON" },
             recv: fromUtf8('{"I": "was JSON"}').buffer,
         },
@@ -227,7 +241,7 @@ conditional_test(AWS_IOT_ENV.is_valid())('MQTT payload types', async () => {
         }
     });
 
-    await connection.subscribe(`/test/types/${id}/#`, QoS.AtLeastOnce);
+    await connection.subscribe(`test/types/${id}/#`, QoS.AtLeastOnce);
 
     for (const topic in tests) {
         await connection.publish(topic, tests[topic].send, QoS.AtLeastOnce);
