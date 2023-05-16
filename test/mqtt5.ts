@@ -47,6 +47,7 @@ export class ClientEnvironmentalConfig {
 
     public static AWS_IOT_ACCESS_KEY_ID = process.env.AWS_TEST_MQTT5_ROLE_CREDENTIAL_ACCESS_KEY ?? "";
     public static AWS_IOT_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT5_ROLE_CREDENTIAL_SECRET_ACCESS_KEY ?? "";
+    public static AWS_IOT_SESSION_TOKEN = process.env.AWS_TEST_MQTT5_ROLE_CREDENTIAL_SESSION_TOKEN ?? "";
 
     public static AWS_IOT_NO_SIGNING_AUTHORIZER_NAME = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_NAME ?? "";
     public static AWS_IOT_NO_SIGNING_AUTHORIZER_USERNAME = process.env.AWS_TEST_MQTT5_IOT_CORE_NO_SIGNING_AUTHORIZER_USERNAME ?? "";
@@ -63,7 +64,8 @@ export class ClientEnvironmentalConfig {
     {
         return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
             ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID !== "" &&
-            ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY !== "";
+            ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY !== "" &&
+            ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN !== "";
     }
 
     public static hasIotCoreEnvironment() {

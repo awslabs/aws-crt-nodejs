@@ -6,7 +6,6 @@
 import * as mqtt311 from "./mqtt";
 import * as aws_iot_mqtt311 from "./aws_iot";
 import * as io from "./io"
-import * as auth from "./auth"
 import { v4 as uuid } from 'uuid';
 
 const conditional_test = (condition: boolean) => condition ? it : it.skip;
@@ -94,18 +93,15 @@ conditional_test(AWS_IOT_ENV.is_valid_custom_auth_signed())('Aws Iot Core Mqtt o
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Disconnect', async () => {
-    let provider = new auth.StaticCredentialProvider({
-        aws_access_id: AWS_IOT_ENV.CRED_ACCESS_KEY,
-        aws_secret_key : AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
-        aws_sts_token : AWS_IOT_ENV.CRED_SESSION_TOKEN,
-        aws_region: AWS_IOT_ENV.REGION});
-    let websocket_config = {
-        region: AWS_IOT_ENV.REGION,
-        credentials_provider: provider
-    };
-    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config);
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
     builder.with_endpoint(AWS_IOT_ENV.HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    builder.with_credentials(
+        AWS_IOT_ENV.REGION,
+        AWS_IOT_ENV.CRED_ACCESS_KEY,
+        AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
+        AWS_IOT_ENV.CRED_SESSION_TOKEN
+    );
     let config = builder.build();
     let client = new mqtt311.MqttClient(new io.ClientBootstrap());
     let connection = client.new_connection(config);
@@ -114,19 +110,15 @@ conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Dis
 });
 
 conditional_test(AWS_IOT_ENV.is_valid_cred())('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {
-    let provider = new auth.StaticCredentialProvider({
-        aws_access_id: AWS_IOT_ENV.CRED_ACCESS_KEY,
-        aws_secret_key : AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
-        aws_sts_token : AWS_IOT_ENV.CRED_SESSION_TOKEN,
-        aws_region: AWS_IOT_ENV.REGION});
-
-    let websocket_config = {
-        region: AWS_IOT_ENV.REGION,
-        credentials_provider: provider
-    };
-    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config);
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
     builder.with_endpoint(AWS_IOT_ENV.HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    builder.with_credentials(
+        AWS_IOT_ENV.REGION,
+        AWS_IOT_ENV.CRED_ACCESS_KEY,
+        AWS_IOT_ENV.CRED_SECRET_ACCESS_KEY,
+        AWS_IOT_ENV.CRED_SESSION_TOKEN
+    );
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
