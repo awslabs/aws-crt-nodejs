@@ -103,10 +103,10 @@ async function fetchNativeCode(url, version, path) {
 
 const { execSync, spawn } = require("child_process");
 
-async function buildOpenssl() {
+async function buildOpenssl(opensslInstallDir) {
     execSync("mkdir -p build/openssl");
 
-    execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${process.cwd()}/build/openssl-install" no-shared no-weak-ssl-ciphers`, {
+    execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers`, {
         cwd: './build/openssl',
     });
 
@@ -175,9 +175,10 @@ async function buildLocally() {
     };
 
     if (platform === 'linux') {
-        await buildOpenssl();
+        let opensslInstallDir = `${process.cwd()}/build/openssl-install`;
+        await buildOpenssl(opensslInstallDir);
 
-        cmakeOptions.CMAKE_PREFIX_PATH = `${process.cwd()}/build/openssl-install`;
+        cmakeOptions.CMAKE_PREFIX_PATH = opensslInstallDir;
         cmakeOptions.USE_OPENSSL = 'ON';
     }
 
