@@ -107,10 +107,17 @@ async function buildOpenssl(opensslInstallDir) {
     let mkdirResult = execSync("mkdir -p build/openssl");
     console.log('' + mkdirResult);
 
-    let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers`, {
-        cwd: './build/openssl',
-    });
-    console.log('' + configResult);
+    if (arch == 'x86') {
+        let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/Configure --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers -m32 linux-generic32`, {
+            cwd: './build/openssl',
+        });
+        console.log('' + configResult);
+    } else {
+        let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers`, {
+            cwd: './build/openssl',
+        });
+        console.log('' + configResult);
+    }
 
     const buildProcess = spawn('make', ['-j'], {
         cwd: './build/openssl'
