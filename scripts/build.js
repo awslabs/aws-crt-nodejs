@@ -107,6 +107,7 @@ async function buildOpenssl(arch, opensslInstallDir) {
     let mkdirResult = execSync("mkdir -p build/openssl");
     console.log('' + mkdirResult);
 
+    console.log('arch=' + arch);
     if (arch == 'x86') {
         let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/Configure --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers -m32 linux-generic32`, {
             cwd: './build/openssl',
