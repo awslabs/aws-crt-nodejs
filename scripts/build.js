@@ -104,11 +104,13 @@ async function fetchNativeCode(url, version, path) {
 const { execSync, spawn } = require("child_process");
 
 async function buildOpenssl(opensslInstallDir) {
-    execSync("mkdir -p build/openssl");
+    let mkdirResult = execSync("mkdir -p build/openssl");
+    console.log('' + mkdirResult);
 
-    execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers`, {
+    let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/config --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers`, {
         cwd: './build/openssl',
     });
+    console.log('' + configResult);
 
     const buildProcess = spawn('make', ['-j'], {
         cwd: './build/openssl'
