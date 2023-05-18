@@ -36,6 +36,25 @@
         "al2012": {
             "!packages": [],
             "!imports": [ "node-12" ]
+        },
+        "macos": {
+            "!build_steps": [
+                [
+                    "npm",
+                    "install",
+                    "--unsafe-perm"
+                ],
+                [
+                    "node",
+                    "scripts/build.js",
+                    "-DAWS_WARNINGS_ARE_ERRORS=ON"
+                ],
+                [
+                    "npm",
+                    "run-script",
+                    "tsc"
+                ]
+            ]
         }
     },
     "targets": {
@@ -65,11 +84,6 @@
             "npm",
             "install",
             "--unsafe-perm"
-        ],
-        [
-            "node",
-            "scripts/build.js",
-            "-DAWS_WARNINGS_ARE_ERRORS=ON"
         ],
         [
             "npm",
