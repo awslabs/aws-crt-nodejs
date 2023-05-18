@@ -108,8 +108,13 @@ async function buildOpenssl(arch, opensslInstallDir) {
     console.log('' + mkdirResult);
 
     console.log('arch=' + arch);
-    if (arch == 'ia32') {
+    if (arch === 'ia32') {
         let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/Configure --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers -m32 linux-generic32`, {
+            cwd: './build/openssl',
+        });
+        console.log('' + configResult);
+    } else if (arch === 'arm64') {
+        let configResult = execSync(`CFLAGS=-fPIC ../../crt/openssl/Configure --prefix="${opensslInstallDir}" no-shared no-weak-ssl-ciphers linux-aarch64`, {
             cwd: './build/openssl',
         });
         console.log('' + configResult);
@@ -120,7 +125,9 @@ async function buildOpenssl(arch, opensslInstallDir) {
         console.log('' + configResult);
     }
 
-    const buildProcess = spawn('make', ['-j'], {
+    const buildProcess = (arch === 'arm64' || arch === 'arm') ? spawn('make', ['-j2'], {
+        cwd: './build/openssl'
+    }) : spawn('make', ['-j'], {
         cwd: './build/openssl'
     });
 
