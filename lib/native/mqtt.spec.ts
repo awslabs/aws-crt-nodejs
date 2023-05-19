@@ -129,32 +129,38 @@ test('MQTT Native ECC key Connect/Disconnect', async () => {
     await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
 });
 
-async function make_test_iot_core_connection(close_on_disconnect? : boolean) {
-    let aws_opts: Config;
-    try {
-        aws_opts = await fetch_credentials();
-    } catch (err) {
-        return null;
-    }
+/**
+ * Helper function to make creating an IoT Core connection easier.
+ */
+function make_test_iot_core_connection(aws_opts: Config, clean_session?: boolean, close_on_disconnect?: boolean) {
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-        .with_clean_session(true)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
         .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token);
-    if (close_on_disconnect) {
+
+    if (clean_session != undefined) {
+        config.with_clean_session(clean_session);
+    } else {
+        config.with_clean_session(true)
+    }
+
+    if (close_on_disconnect != undefined) {
         config.with_close_on_disconnect(close_on_disconnect);
     }
-    config.build();
     const client = new MqttClient(new ClientBootstrap());
-    return client.new_connection(config);
+    return client.new_connection(config.build());
 }
 
 test('MQTT Operation statistics simple', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        const connection = make_test_iot_core_connection();
-        if (connection == null) {
-            reject("Was not able to make IoT Core connection");
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
         }
+        const connection = make_test_iot_core_connection(aws_opts);
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -198,10 +204,14 @@ test('MQTT Operation statistics simple', async () => {
 
 test('MQTT Operation statistics check publish', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        const connection = make_test_iot_core_connection();
-        if (connection == null) {
-            reject("Was not able to make IoT Core connection");
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
         }
+        const connection = make_test_iot_core_connection(aws_opts);
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -245,21 +255,25 @@ test('MQTT Operation statistics check publish', async () => {
 
 test('MQTT Disconnect behavior hard-disconnect - default functions like expected', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        const connection = make_test_iot_core_connection();
-        if (connection == null) {
-            reject("Was not able to make IoT Core connection");
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
         }
-
-        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        const connection = make_test_iot_core_connection(
+            aws_opts,
+            false /* clean start */,
+            true /* close on disconnect */);
         await connection.connect();
         await connection.disconnect();
 
+        // Native resources should have been cleaned on the disconnect, so the connect attempt should throw.
         let did_throw = false;
-        try {
-            connection.connect();
-        } catch (exception) {
+        await connection.connect().catch(err => {
             did_throw = true;
-        }
+        })
         expect(did_throw).toBeTruthy();
         resolve(true);
     });
@@ -268,23 +282,31 @@ test('MQTT Disconnect behavior hard-disconnect - default functions like expected
 
 test('MQTT Disconnect behavior soft-disconnect - ensure disabling automatic close on disconnect works', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        const connection = make_test_iot_core_connection(true);
-        if (connection == null) {
-            reject("Was not able to make IoT Core connection");
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
         }
-
-        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        const connection = make_test_iot_core_connection(
+            aws_opts,
+            false /* clean start */,
+            false /* close on disconnect */);
         await connection.connect();
         await connection.disconnect();
 
+        // We should be able to reconnect manually
         let did_throw = false;
-        try {
-            await connection.connect();
-            await connection.disconnect();
-        } catch (exception) {
+        await connection.connect().catch((err: any) => {
             did_throw = true;
-        }
+        })
+        await connection.disconnect().catch((err: any) => {
+            did_throw = true;
+        })
+
         expect(did_throw).toBeFalsy();
+        // We have to call closed to free native resources
         connection.close();
         resolve(true);
     });
@@ -293,21 +315,25 @@ test('MQTT Disconnect behavior soft-disconnect - ensure disabling automatic clos
 
 test('MQTT Disconnect behavior hard-disconnect - ensure operations do not work after disconnect', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        const connection = make_test_iot_core_connection();
-        if (connection == null) {
-            reject("Was not able to make IoT Core connection");
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
         }
-
-        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        const connection = make_test_iot_core_connection(
+            aws_opts,
+            false /* clean start */,
+            true /* close on disconnect */);
         await connection.connect();
         await connection.disconnect();
 
+        // Doing any operations after disconnect should throw because the client is cleaned up
         let did_throw = false;
-        try {
-            await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce);
-        } catch (exception) {
+        await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce).catch(err => {
             did_throw = true;
-        }
+        })
         expect(did_throw).toBeTruthy();
         resolve(true);
     });
@@ -316,22 +342,31 @@ test('MQTT Disconnect behavior hard-disconnect - ensure operations do not work a
 
 test('MQTT Disconnect behavior soft-disconnect - ensure operations work after disconnect', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        const connection = make_test_iot_core_connection(true);
-        if (connection == null) {
-            reject("Was not able to make IoT Core connection");
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
         }
-
-        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        const connection = make_test_iot_core_connection(
+            aws_opts,
+            false /* clean start */,
+            false /* close on disconnect */);
         await connection.connect();
         await connection.disconnect();
 
         let did_throw = false;
-        try {
-            await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce);
-        } catch (exception) {
+        // We have to just call the publish but not await it - as we want a successful publish
+        // not an unsuccessful one and success only happens when connected and the publish goes out.
+        let publish = connection.publish("test/example/topic", "payload", QoS.AtLeastOnce).catch(err => {
             did_throw = true;
-        }
+        })
+        await connection.connect();
+        await publish;
+        await connection.disconnect();
         expect(did_throw).toBeFalsy();
+        // We have to call closed to free native resources
         connection.close();
         resolve(true);
     });
