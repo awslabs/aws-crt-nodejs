@@ -397,8 +397,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     /**
-     * The connection will automatically reconnect. To cease reconnection attempts, call {@link disconnect}.
-     * To resume the connection, call {@link connect}.
+     * The connection will automatically reconnect when disconnected, removing the need for this function.
+     * To cease automatic reconnection attempts, call {@link disconnect}.
      * @deprecated
      */
     async reconnect() {
@@ -493,6 +493,9 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     /**
      * Close the connection (async).
+     *
+     * Will free all native resources, rendering the connection unusable after the disconnect() call.
+     *
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {

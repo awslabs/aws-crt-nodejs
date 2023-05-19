@@ -129,6 +129,25 @@ test('MQTT Native ECC key Connect/Disconnect', async () => {
     await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
 });
 
+/**
+ * Helper function to make creating an IoT Core connection easier.
+ */
+function make_test_iot_core_connection(aws_opts: Config, clean_session?: boolean) {
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token);
+
+    if (clean_session != undefined) {
+        config.with_clean_session(clean_session);
+    } else {
+        config.with_clean_session(true)
+    }
+
+    const client = new MqttClient(new ClientBootstrap());
+    return client.new_connection(config.build());
+}
+
 test('MQTT Operation statistics simple', async () => {
     const promise = new Promise(async (resolve, reject) => {
         let aws_opts: Config;
@@ -138,15 +157,7 @@ test('MQTT Operation statistics simple', async () => {
             reject(err);
             return;
         }
-
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-            .with_clean_session(true)
-            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(aws_opts.endpoint)
-            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-            .build()
-        const client = new MqttClient(new ClientBootstrap());
-        const connection = client.new_connection(config);
+        const connection = make_test_iot_core_connection(aws_opts);
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -197,15 +208,7 @@ test('MQTT Operation statistics check publish', async () => {
             reject(err);
             return;
         }
-
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-            .with_clean_session(true)
-            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(aws_opts.endpoint)
-            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-            .build()
-        const client = new MqttClient(new ClientBootstrap());
-        const connection = client.new_connection(config);
+        const connection = make_test_iot_core_connection(aws_opts);
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -243,6 +246,58 @@ test('MQTT Operation statistics check publish', async () => {
         })
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Disconnect behavior hard-disconnect - default functions like expected', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+        const connection = make_test_iot_core_connection(
+            aws_opts,
+            false /* clean start */);
+        await connection.connect();
+        await connection.disconnect();
+
+        // Native resources should have been cleaned on the disconnect, so the connect attempt should throw.
+        let did_throw = false;
+        await connection.connect().catch(err => {
+            did_throw = true;
+        })
+        expect(did_throw).toBeTruthy();
+        resolve(true);
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Disconnect behavior hard-disconnect - ensure operations do not work after disconnect', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        let aws_opts: Config;
+        try {
+            aws_opts = await fetch_credentials();
+        } catch (err) {
+            reject(err);
+            return;
+        }
+        const connection = make_test_iot_core_connection(
+            aws_opts,
+            false /* clean start */);
+        await connection.connect();
+        await connection.disconnect();
+
+        // Doing any operations after disconnect should throw because the client is cleaned up
+        let did_throw = false;
+        await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce).catch(err => {
+            did_throw = true;
+        })
+        expect(did_throw).toBeTruthy();
+        resolve(true);
     });
     await expect(promise).resolves.toBeTruthy();
 });
