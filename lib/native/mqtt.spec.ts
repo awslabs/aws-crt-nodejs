@@ -129,24 +129,32 @@ test('MQTT Native ECC key Connect/Disconnect', async () => {
     await test_builder(aws_opts, builder, new MqttClient(new ClientBootstrap()));
 });
 
+async function make_test_iot_core_connection(close_on_disconnect? : boolean) {
+    let aws_opts: Config;
+    try {
+        aws_opts = await fetch_credentials();
+    } catch (err) {
+        return null;
+    }
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+        .with_clean_session(true)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(aws_opts.endpoint)
+        .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token);
+    if (close_on_disconnect) {
+        config.with_close_on_disconnect(close_on_disconnect);
+    }
+    config.build();
+    const client = new MqttClient(new ClientBootstrap());
+    return client.new_connection(config);
+}
+
 test('MQTT Operation statistics simple', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        let aws_opts: Config;
-        try {
-            aws_opts = await fetch_credentials();
-        } catch (err) {
-            reject(err);
-            return;
+        const connection = make_test_iot_core_connection();
+        if (connection == null) {
+            reject("Was not able to make IoT Core connection");
         }
-
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-            .with_clean_session(true)
-            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(aws_opts.endpoint)
-            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-            .build()
-        const client = new MqttClient(new ClientBootstrap());
-        const connection = client.new_connection(config);
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -190,22 +198,10 @@ test('MQTT Operation statistics simple', async () => {
 
 test('MQTT Operation statistics check publish', async () => {
     const promise = new Promise(async (resolve, reject) => {
-        let aws_opts: Config;
-        try {
-            aws_opts = await fetch_credentials();
-        } catch (err) {
-            reject(err);
-            return;
+        const connection = make_test_iot_core_connection();
+        if (connection == null) {
+            reject("Was not able to make IoT Core connection");
         }
-
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
-            .with_clean_session(true)
-            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(aws_opts.endpoint)
-            .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
-            .build()
-        const client = new MqttClient(new ClientBootstrap());
-        const connection = client.new_connection(config);
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -243,6 +239,101 @@ test('MQTT Operation statistics check publish', async () => {
         })
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Disconnect behavior hard-disconnect - default functions like expected', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        const connection = make_test_iot_core_connection();
+        if (connection == null) {
+            reject("Was not able to make IoT Core connection");
+        }
+
+        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        await connection.connect();
+        await connection.disconnect();
+
+        let did_throw = false;
+        try {
+            connection.connect();
+        } catch (exception) {
+            did_throw = true;
+        }
+        expect(did_throw).toBeTruthy();
+        resolve(true);
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Disconnect behavior soft-disconnect - ensure disabling automatic close on disconnect works', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        const connection = make_test_iot_core_connection(true);
+        if (connection == null) {
+            reject("Was not able to make IoT Core connection");
+        }
+
+        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        await connection.connect();
+        await connection.disconnect();
+
+        let did_throw = false;
+        try {
+            await connection.connect();
+            await connection.disconnect();
+        } catch (exception) {
+            did_throw = true;
+        }
+        expect(did_throw).toBeFalsy();
+        connection.close();
+        resolve(true);
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Disconnect behavior hard-disconnect - ensure operations do not work after disconnect', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        const connection = make_test_iot_core_connection();
+        if (connection == null) {
+            reject("Was not able to make IoT Core connection");
+        }
+
+        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        await connection.connect();
+        await connection.disconnect();
+
+        let did_throw = false;
+        try {
+            await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce);
+        } catch (exception) {
+            did_throw = true;
+        }
+        expect(did_throw).toBeTruthy();
+        resolve(true);
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+test('MQTT Disconnect behavior soft-disconnect - ensure operations work after disconnect', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+        const connection = make_test_iot_core_connection(true);
+        if (connection == null) {
+            reject("Was not able to make IoT Core connection");
+        }
+
+        // Connect, disconnect, and try to connect again. The second attempt at connecting should throw.
+        await connection.connect();
+        await connection.disconnect();
+
+        let did_throw = false;
+        try {
+            await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce);
+        } catch (exception) {
+            did_throw = true;
+        }
+        expect(did_throw).toBeFalsy();
+        connection.close();
+        resolve(true);
     });
     await expect(promise).resolves.toBeTruthy();
 });

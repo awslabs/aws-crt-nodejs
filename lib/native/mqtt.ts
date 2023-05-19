@@ -177,6 +177,19 @@ export interface MqttConnectionConfig {
     proxy_options?: HttpProxyOptions;
 
     /**
+     * Triggers cleanup of native resources associated with the {@link MqttClientConnection} by automatically
+     * calling the {@link MqttClientConnection} close() function when the {@link MqttClientConnection} disconnect()
+     * function has been called and the disconnection was successful.
+     *
+     * Defaults to true. If set to false, you must manually call the {@link MqttClientConnection} close()
+     * function when you are done connection or native resources will leak.
+     *
+     * Note: **Once close() is called, whether automatically on disconnect or manually, it is not safe to invoke any
+     * further operations or functions on the {@link MqttClientConnection}.**
+     */
+    close_on_disconnect?: boolean;
+
+    /**
      * Optional function to transform websocket handshake request.
      * If provided, function is called each time a websocket connection is attempted.
      * The function may modify the HTTP request before it is sent to the server.
@@ -221,6 +234,7 @@ export interface MqttConnectionConfig {
  */
 export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitter) {
     readonly tls_ctx?: io.ClientTlsContext; // this reference keeps the tls_ctx alive beyond the life of the connection
+    readonly close_on_disconnect?: boolean; // needed to track if close() should be called after disconnect()
 
     /**
      * @param client The client that owns this connection
@@ -265,6 +279,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             throw new CrtError("MqttClientConnection constructor: socket_options in configuration not defined");
         }
 
+        // We need to track whether or not we automatically close the disconnect() callback or not.
+        // By default, we release ALL native resources when a call to disconnect() has been made but
+        // this means the customer can cannot manually disconnect and reconnect, which is possible in
+        // the other SDKs. Unfortunately, we have vended this default behavior for long enough that we
+        // need to support both workflows (freeing native resources on disconnect and manually)
+        this.close_on_disconnect = config.close_on_disconnect;
+
         this._super(crt_native.mqtt_client_connection_new(
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
@@ -291,7 +312,33 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         this.on('error', (error) => {});
     }
 
-    private close() {
+    /**
+     * Triggers cleanup of native resources associated with the MQTT connection.  Once this has been invoked,
+     * callbacks and events are not guaranteed to be received. Calling multiple times will result in an error
+     * being thrown.
+     *
+     * By default this will be automatically called when the disconnect() function is called and the
+     * client is successfully disconnected. This prevents manually reconnecting after calling disconnect().
+     * While this means you cannot reuse a connection after calling disconnect, it also means you do not need
+     * to worry about remembering to call close().
+     *
+     * If you have set close_on_disconnect to false, then you must call close() when finished with the connection
+     * or native resources will leak. With close_on_disconnect set to false, a safe and proper shutdown can be
+     * accomplished with the following:
+     *
+     * ```ts
+     * await connection.disconnect();
+     * connection.close();
+     * ```
+     *
+     * Calling close() is **only required if close_on_disconnect is set to false.**
+     *
+     * Note: **Once close() is called, whether automatically on disconnect or manually, it is not safe to invoke any
+     * further operations or functions on the MqttClientConnection.**
+     *
+     * @group Node-only
+     */
+    close() {
         crt_native.mqtt_client_connection_close(this.native_handle());
     }
 
@@ -397,8 +444,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     /**
-     * The connection will automatically reconnect. To cease reconnection attempts, call {@link disconnect}.
-     * To resume the connection, call {@link connect}.
+     * The connection will automatically reconnect when disconnected, removing the need for this function.
+     *
+     * To cease automatic reconnection attempts, call {@link disconnect}.
+     *
+     * Connections can be resumed by calling {@link connect}, though note that close_on_disconnect must be
+     * set to false, as otherwise {@link disconnect} will make the connection unable to reconnect.
+     *
      * @deprecated
      */
     async reconnect() {
@@ -493,6 +545,9 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     /**
      * Close the connection (async).
+     *
+     * By default will free all native resources, rendering the connection unusable after the disconnect() call.
+     *
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {
@@ -580,6 +635,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void>)) => void) {
         resolve();
         this.emit('disconnect');
-        this.close();
+
+        // Default behavior HAS to be to close for backwards compatibility
+        if (this.close_on_disconnect != false || this.close_on_disconnect == undefined) {
+            this.close();
+        }
     }
 }
