@@ -132,7 +132,7 @@ test('MQTT Native ECC key Connect/Disconnect', async () => {
 /**
  * Helper function to make creating an IoT Core connection easier.
  */
-function make_test_iot_core_connection(aws_opts: Config, clean_session?: boolean, close_on_disconnect?: boolean) {
+function make_test_iot_core_connection(aws_opts: Config, clean_session?: boolean) {
     const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(aws_opts.endpoint)
@@ -144,9 +144,6 @@ function make_test_iot_core_connection(aws_opts: Config, clean_session?: boolean
         config.with_clean_session(true)
     }
 
-    if (close_on_disconnect != undefined) {
-        config.with_close_on_disconnect(close_on_disconnect);
-    }
     const client = new MqttClient(new ClientBootstrap());
     return client.new_connection(config.build());
 }
@@ -264,8 +261,7 @@ test('MQTT Disconnect behavior hard-disconnect - default functions like expected
         }
         const connection = make_test_iot_core_connection(
             aws_opts,
-            false /* clean start */,
-            true /* close on disconnect */);
+            false /* clean start */);
         await connection.connect();
         await connection.disconnect();
 
@@ -275,39 +271,6 @@ test('MQTT Disconnect behavior hard-disconnect - default functions like expected
             did_throw = true;
         })
         expect(did_throw).toBeTruthy();
-        resolve(true);
-    });
-    await expect(promise).resolves.toBeTruthy();
-});
-
-test('MQTT Disconnect behavior soft-disconnect - ensure disabling automatic close on disconnect works', async () => {
-    const promise = new Promise(async (resolve, reject) => {
-        let aws_opts: Config;
-        try {
-            aws_opts = await fetch_credentials();
-        } catch (err) {
-            reject(err);
-            return;
-        }
-        const connection = make_test_iot_core_connection(
-            aws_opts,
-            false /* clean start */,
-            false /* close on disconnect */);
-        await connection.connect();
-        await connection.disconnect();
-
-        // We should be able to reconnect manually
-        let did_throw = false;
-        await connection.connect().catch((err: any) => {
-            did_throw = true;
-        })
-        await connection.disconnect().catch((err: any) => {
-            did_throw = true;
-        })
-
-        expect(did_throw).toBeFalsy();
-        // We have to call closed to free native resources
-        connection.close();
         resolve(true);
     });
     await expect(promise).resolves.toBeTruthy();
@@ -324,8 +287,7 @@ test('MQTT Disconnect behavior hard-disconnect - ensure operations do not work a
         }
         const connection = make_test_iot_core_connection(
             aws_opts,
-            false /* clean start */,
-            true /* close on disconnect */);
+            false /* clean start */);
         await connection.connect();
         await connection.disconnect();
 
@@ -335,39 +297,6 @@ test('MQTT Disconnect behavior hard-disconnect - ensure operations do not work a
             did_throw = true;
         })
         expect(did_throw).toBeTruthy();
-        resolve(true);
-    });
-    await expect(promise).resolves.toBeTruthy();
-});
-
-test('MQTT Disconnect behavior soft-disconnect - ensure operations work after disconnect', async () => {
-    const promise = new Promise(async (resolve, reject) => {
-        let aws_opts: Config;
-        try {
-            aws_opts = await fetch_credentials();
-        } catch (err) {
-            reject(err);
-            return;
-        }
-        const connection = make_test_iot_core_connection(
-            aws_opts,
-            false /* clean start */,
-            false /* close on disconnect */);
-        await connection.connect();
-        await connection.disconnect();
-
-        let did_throw = false;
-        // We have to just call the publish but not await it - as we want a successful publish
-        // not an unsuccessful one and success only happens when connected and the publish goes out.
-        let publish = connection.publish("test/example/topic", "payload", QoS.AtLeastOnce).catch(err => {
-            did_throw = true;
-        })
-        await connection.connect();
-        await publish;
-        await connection.disconnect();
-        expect(did_throw).toBeFalsy();
-        // We have to call closed to free native resources
-        connection.close();
         resolve(true);
     });
     await expect(promise).resolves.toBeTruthy();

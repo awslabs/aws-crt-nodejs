@@ -73,8 +73,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             password: undefined,
             tls_ctx: undefined,
             reconnect_min_sec: DEFAULT_RECONNECT_MIN_SEC,
-            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC,
-            close_on_disconnect: true
+            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC
         };
         this.is_using_custom_authorizer = false
     }
@@ -455,23 +454,6 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
-        return this;
-    }
-
-    /**
-     * Sets whether calling disconnecting will trigger a cleanup of native resources associated with the MqttClientConnection
-     * automatically when the MqttClientConnection disconnect() function is called.
-     *
-     * **Defaults to true.** If set to false, you must manually call the MqttClientConnection close()
-     * function when you are done connection or native resources will leak.
-     *
-     * Note: **Once close() is called, whether automatically on disconnect or manually, it is not safe to invoke any
-     * further operations or functions on the MqttClientConnection.**
-     *
-     * @param close_on_disconnect whether the connection will automatically clean resources on disconnect()
-     */
-    with_close_on_disconnect(close_on_disconnect: boolean) {
-        this.params.close_on_disconnect = close_on_disconnect;
         return this;
     }
 
