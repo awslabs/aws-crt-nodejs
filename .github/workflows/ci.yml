@@ -122,6 +122,7 @@ jobs:
       - name: Check docs
         run: |
           npm ci
+          node --version
           ./make-docs.sh
 
   check-submodules:
