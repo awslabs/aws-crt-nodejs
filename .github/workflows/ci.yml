@@ -121,6 +121,7 @@ jobs:
           submodules: true
       - name: Check docs
         run: |
+          npm install
           npm ci
           ./make-docs.sh
 
