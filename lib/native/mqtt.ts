@@ -397,8 +397,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     }
 
     /**
-     * The connection will automatically reconnect. To cease reconnection attempts, call {@link disconnect}.
-     * To resume the connection, call {@link connect}.
+     * The connection will automatically reconnect when disconnected, removing the need for this function.
+     * To cease automatic reconnection attempts, call {@link disconnect}.
      * @deprecated
      */
     async reconnect() {
@@ -430,6 +430,17 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      * * For QoS 2, completes when PUBCOMP is received.
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false) {
+        // Skip payload since it can be several different types
+        if (typeof(topic) !== 'string') {
+            return Promise.reject("topic is not a string");
+        }
+        if (typeof(qos) !== 'number') {
+            return Promise.reject("qos is not a number");
+        }
+        if (typeof(retain) !== 'boolean') {
+            return Promise.reject("retain is not a boolean");
+        }
+
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
             try {
@@ -460,6 +471,13 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *          from the server or is rejected when an exception occurs.
      */
     async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback) {
+        if (typeof(topic) !== 'string') {
+            return Promise.reject("topic is not a string");
+        }
+        if (typeof(qos) !== 'number') {
+            return Promise.reject("qos is not a number");
+        }
+
         return new Promise<MqttSubscribeRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
@@ -480,6 +498,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *          UNSUBACK is received from the server or is rejected when an exception occurs.
      */
     async unsubscribe(topic: string) {
+        if (typeof(topic) !== 'string') {
+            return Promise.reject("topic is not a string");
+        }
+
         return new Promise<MqttRequest>((resolve, reject) => {
             reject = this._reject(reject);
 
@@ -493,6 +515,9 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     /**
      * Close the connection (async).
+     *
+     * Will free all native resources, rendering the connection unusable after the disconnect() call.
+     *
      * @returns Promise which completes when the connection is closed.
     */
     async disconnect() {

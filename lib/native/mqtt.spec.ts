@@ -21,6 +21,10 @@ class AWS_IOT_ENV {
     public static IOT_MQTT_ECC_KEY = process.env.AWS_TEST_MQTT311_IOT_CORE_ECC_KEY ?? "";
     public static IOT_MQTT_REGION = process.env.AWS_TEST_MQTT311_IOT_CORE_REGION ?? "";
 
+    public static IOT_CRED_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_ACCESS_KEY ?? "";
+    public static IOT_CRED_SECRET_ACCESS_KEY = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SECRET_ACCESS_KEY ?? "";
+    public static IOT_CRED_SESSION_TOKEN = process.env.AWS_TEST_MQTT311_ROLE_CREDENTIAL_SESSION_TOKEN ?? "";
+
     public static DIRECT_MQTT_HOST = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_HOST ?? "";
     public static DIRECT_MQTT_PORT = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_PORT ?? "";
     public static DIRECT_AUTH_MQTT_HOST = process.env.AWS_TEST_MQTT311_DIRECT_MQTT_BASIC_AUTH_HOST ?? "";
@@ -94,6 +98,16 @@ class AWS_IOT_ENV {
     public static is_valid_iot_websocket() {
         return AWS_IOT_ENV.IOT_MQTT_HOST !== "" &&
             AWS_IOT_ENV.IOT_MQTT_REGION !== "";
+    }
+
+    public static is_valid_iot_cred() {
+        return AWS_IOT_ENV.IOT_MQTT_HOST !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_REGION !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_RSA_CERT !== "" &&
+            AWS_IOT_ENV.IOT_MQTT_RSA_KEY !== "" &&
+            AWS_IOT_ENV.IOT_CRED_ACCESS_KEY !== "" &&
+            AWS_IOT_ENV.IOT_CRED_SECRET_ACCESS_KEY !== "" &&
+            AWS_IOT_ENV.IOT_CRED_SESSION_TOKEN !== "";
     }
 }
 
@@ -293,18 +307,32 @@ conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy
     }
     await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
+/**
+ * Helper function to make creating an IoT Core connection easier.
+ */
+function make_test_iot_core_connection(clean_session?: boolean) {
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(
+            AWS_IOT_ENV.IOT_MQTT_RSA_CERT, AWS_IOT_ENV.IOT_MQTT_RSA_KEY)
+        .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+        .with_endpoint(AWS_IOT_ENV.IOT_MQTT_HOST)
+        .with_credentials(
+            AWS_IOT_ENV.IOT_MQTT_REGION, AWS_IOT_ENV.IOT_CRED_ACCESS_KEY,
+            AWS_IOT_ENV.IOT_CRED_SECRET_ACCESS_KEY, AWS_IOT_ENV.IOT_CRED_SESSION_TOKEN);
 
-conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT Operation statistics simple', async () => {
+    if (clean_session != undefined) {
+        config.with_clean_session(clean_session);
+    } else {
+        config.with_clean_session(true)
+    }
+
+    const client = new MqttClient(new ClientBootstrap());
+    return client.new_connection(config.build());
+}
+
+conditional_test(AWS_IOT_ENV.is_valid_iot_cred())('MQTT Operation statistics simple', async () => {
     const promise = new Promise(async (resolve, reject) => {
 
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
-            AWS_IOT_ENV.IOT_MQTT_RSA_CERT, AWS_IOT_ENV.IOT_MQTT_RSA_KEY)
-            .with_clean_session(true)
-            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(AWS_IOT_ENV.IOT_MQTT_HOST)
-            .build()
-        const client = new MqttClient(new ClientBootstrap());
-        const connection = client.new_connection(config);
+        const connection = make_test_iot_core_connection();
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -346,17 +374,10 @@ conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT Operation statistics simp
     await expect(promise).resolves.toBeTruthy();
 });
 
-conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT Operation statistics check publish', async () => {
+conditional_test(AWS_IOT_ENV.is_valid_iot_cred())('MQTT Operation statistics check publish', async () => {
     const promise = new Promise(async (resolve, reject) => {
 
-        const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
-            AWS_IOT_ENV.IOT_MQTT_RSA_CERT, AWS_IOT_ENV.IOT_MQTT_RSA_KEY)
-            .with_clean_session(true)
-            .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-            .with_endpoint(AWS_IOT_ENV.IOT_MQTT_HOST)
-            .build()
-        const client = new MqttClient(new ClientBootstrap());
-        const connection = client.new_connection(config);
+        const connection = make_test_iot_core_connection();
 
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
@@ -394,6 +415,44 @@ conditional_test(AWS_IOT_ENV.is_valid_iot_rsa())('MQTT Operation statistics chec
         })
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_iot_cred())('MQTT Disconnect behavior hard-disconnect - default functions like expected', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+
+        const connection = make_test_iot_core_connection(
+            false /* clean start */);
+        await connection.connect();
+        await connection.disconnect();
+
+        // Native resources should have been cleaned on the disconnect, so the connect attempt should throw.
+        let did_throw = false;
+        await connection.connect().catch(err => {
+            did_throw = true;
+        })
+        expect(did_throw).toBeTruthy();
+        resolve(true);
+    });
+    await expect(promise).resolves.toBeTruthy();
+});
+
+conditional_test(AWS_IOT_ENV.is_valid_iot_cred())('MQTT Disconnect behavior hard-disconnect - ensure operations do not work after disconnect', async () => {
+    const promise = new Promise(async (resolve, reject) => {
+
+        const connection = make_test_iot_core_connection(
+            false /* clean start */);
+        await connection.connect();
+        await connection.disconnect();
+
+        // Doing any operations after disconnect should throw because the client is cleaned up
+        let did_throw = false;
+        await connection.publish("test/example/topic", "payload", QoS.AtLeastOnce).catch(err => {
+            did_throw = true;
+        })
+        expect(did_throw).toBeTruthy();
+        resolve(true);
     });
     await expect(promise).resolves.toBeTruthy();
 });
