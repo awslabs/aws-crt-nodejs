@@ -311,7 +311,7 @@ conditional_test(AWS_IOT_ENV.is_valid_ws_proxy())('MQTT311 WS Connection - Proxy
  * Helper function to make creating an IoT Core connection easier.
  */
 function make_test_iot_core_connection(clean_session?: boolean) {
-    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(
+    const config = AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
             AWS_IOT_ENV.IOT_MQTT_RSA_CERT, AWS_IOT_ENV.IOT_MQTT_RSA_KEY)
         .with_client_id(`node-mqtt-unit-test-${uuid()}`)
         .with_endpoint(AWS_IOT_ENV.IOT_MQTT_HOST)
