@@ -119,6 +119,11 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
         return NULL;
     });
 
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has already been closed and cannot be closed again");
+        return NULL;
+    }
+
     /* connection has been shutdown, no callbacks will happen after it */
     s_mqtt_client_connection_release_threadsafe_function(binding);
 
@@ -148,15 +153,23 @@ static void s_on_connection_interrupted_call(napi_env env, napi_value on_interru
     struct connection_interrupted_args *args = user_data;
 
     if (env) {
-        napi_value params[1];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
+        if (binding->on_connection_interrupted) {
 
-        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+            napi_value params[1];
+            const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_connection_interrupted, NULL, on_interrupted, num_params, params));
+            AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_connection_interrupted, NULL, on_interrupted, num_params, params));
+        } else {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "Interrupt callback invoked for connection binding %p but callback is null",
+                (void *)binding);
+        }
     }
 
     aws_mem_release(binding->allocator, args);
@@ -194,16 +207,23 @@ static void s_on_connection_resumed_call(napi_env env, napi_value on_resumed, vo
     struct connection_resumed_args *args = user_data;
 
     if (env) {
-        napi_value params[2];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
+        if (binding->on_connection_resumed) {
+            napi_value params[2];
+            const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[0]));
-        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[1]));
+            AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[0]));
+            AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[1]));
 
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_connection_resumed, NULL, on_resumed, num_params, params));
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_connection_resumed, NULL, on_resumed, num_params, params));
+        } else {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "Resume callback invoked for connection binding %p but callback is null",
+                (void *)binding);
+        }
     }
 
     aws_mem_release(binding->allocator, args);
@@ -265,7 +285,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     napi_value result = NULL;
 
-    /* Allocatations that should not outlive this function */
+    /* Allocations that should not outlive this function */
     struct aws_byte_buf will_topic;
     AWS_ZERO_STRUCT(will_topic);
     struct aws_byte_buf will_payload;
@@ -719,6 +739,11 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
         goto cleanup;
     });
 
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
+        goto cleanup;
+    }
+
     struct aws_allocator *allocator = binding->allocator;
 
     napi_value node_client_id = *arg++;
@@ -869,6 +894,11 @@ napi_value aws_napi_mqtt_client_connection_reconnect(napi_env env, napi_callback
         return NULL;
     });
 
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
+        return NULL;
+    }
+
     struct connect_args *args = aws_mem_calloc(binding->allocator, 1, sizeof(struct connect_args));
     AWS_FATAL_ASSERT(args);
     args->allocator = binding->allocator;
@@ -995,6 +1025,11 @@ napi_value aws_napi_mqtt_client_connection_publish(napi_env env, napi_callback_i
     });
 
     args->binding = binding;
+
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
+        goto cleanup;
+    }
 
     napi_value node_topic = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&topic_buf, env, node_topic), {
@@ -1341,6 +1376,11 @@ napi_value aws_napi_mqtt_client_connection_subscribe(napi_env env, napi_callback
     AWS_FATAL_ASSERT(sub);
     sub->allocator = allocator;
 
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
+        goto cleanup;
+    }
+
     napi_value node_topic = *arg++;
     AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&sub->topic, env, node_topic), {
         napi_throw_type_error(env, NULL, "topic must be a String");
@@ -1456,32 +1496,42 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
     struct on_any_publish_args *args = user_data;
 
     if (env) {
-        napi_value params[5];
-        const size_t num_params = AWS_ARRAY_SIZE(params);
+        if (binding->on_any_publish) {
+            napi_value params[5];
+            const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
-        AWS_NAPI_ENSURE(
-            env,
-            napi_create_external_arraybuffer(
+            AWS_NAPI_ENSURE(
+                env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
+            AWS_NAPI_ENSURE(
                 env,
-                args->payload->buffer,
-                args->payload->len,
-                s_any_publish_external_arraybuffer_finalizer,
-                args->payload,
-                &params[1]));
-        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
-        AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
-        AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
+                napi_create_external_arraybuffer(
+                    env,
+                    args->payload->buffer,
+                    args->payload->len,
+                    s_any_publish_external_arraybuffer_finalizer,
+                    args->payload,
+                    &params[1]));
+            AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
+            AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
+            AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
 
-        /*
-         * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
-         * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it up.
-         */
-        args->payload = NULL;
+            /*
+             * We've successfully created the external array buffer whose finalizer will clean this byte_buf up.
+             * It's now safe and correct to set this to NULL in the args so that the args destructor does not clean it
+             * up.
+             */
+            args->payload = NULL;
 
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(env, binding->on_any_publish, NULL, on_publish, num_params, params));
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_any_publish, NULL, on_publish, num_params, params));
+        } else {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "Any publish callback invoked for connection binding %p but callback is null",
+                (void *)binding);
+        }
     }
 
     s_destroy_on_any_publish_args(args);
@@ -1674,6 +1724,11 @@ napi_value aws_napi_mqtt_client_connection_unsubscribe(napi_env env, napi_callba
     args->allocator = allocator;
     args->binding = binding;
 
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
+        goto cleanup;
+    }
+
     napi_value node_topic = *arg++;
     if (aws_byte_buf_init_from_napi(&args->topic, env, node_topic)) {
         napi_throw_type_error(env, NULL, "topic must be a String");
@@ -1784,6 +1839,11 @@ napi_value aws_napi_mqtt_client_connection_disconnect(napi_env env, napi_callbac
         return NULL;
     });
 
+    if (binding->connection == NULL) {
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
+        return NULL;
+    }
+
     struct aws_allocator *allocator = binding->allocator;
     struct disconnect_args *args = aws_mem_calloc(allocator, 1, sizeof(struct disconnect_args));
     AWS_FATAL_ASSERT(args);
@@ -1889,7 +1949,7 @@ napi_value aws_napi_mqtt_client_connection_get_queue_statistics(napi_env env, na
     }
 
     if (binding->connection == NULL) {
-        napi_throw_error(env, NULL, "aws_napi_mqtt_client_connection_get_queue_statistics - connection was null");
+        napi_throw_error(env, NULL, "Connection has been closed and can no longer be used");
         return NULL;
     }
 

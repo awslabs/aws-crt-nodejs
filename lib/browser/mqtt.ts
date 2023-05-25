@@ -516,6 +516,17 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * * For QoS 2, completes when PUBCOMP is received.
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
+        // Skip payload since it can be several different types
+        if (typeof(topic) !== 'string') {
+            return Promise.reject("topic is not a string");
+        }
+        if (typeof(qos) !== 'number') {
+            return Promise.reject("qos is not a number");
+        }
+        if (typeof(retain) !== 'boolean') {
+            return Promise.reject('retain is not a boolean');
+        }
+
         let payload_data = normalize_payload(payload);
         return new Promise((resolve, reject) => {
             this.connection.publish(topic, payload_data, { qos: qos, retain: retain }, (error, packet) => {
@@ -553,6 +564,13 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *          from the server or is rejected when an exception occurs.
      */
     async subscribe(topic: string, qos: QoS, on_message?: OnMessageCallback): Promise<MqttSubscribeRequest> {
+        if (typeof(topic) !== 'string') {
+            return Promise.reject("topic is not a string");
+        }
+        if (typeof(qos) !== 'number') {
+            return Promise.reject("qos is not a number");
+        }
+
         this.subscriptions.insert(topic, on_message);
         return new Promise((resolve, reject) => {
             this.connection.subscribe(topic, { qos: qos }, (error, packet) => {
@@ -575,6 +593,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *          UNSUBACK is received from the server or is rejected when an exception occurs.
      */
     async unsubscribe(topic: string): Promise<MqttRequest> {
+        if (typeof(topic) !== 'string') {
+            return Promise.reject("topic is not a string");
+        }
+
         this.subscriptions.remove(topic);
         return new Promise((resolve, reject) => {
             this.connection.unsubscribe(topic, undefined, (error?: Error, packet?: mqtt.Packet) => {
