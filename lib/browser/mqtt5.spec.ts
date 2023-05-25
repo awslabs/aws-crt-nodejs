@@ -290,6 +290,7 @@ function createWsIotCoreClientConfig() : mqtt5.Mqtt5ClientConfig {
     let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
         aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
         aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
+        aws_sts_token: test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN,
         aws_region: "us-east-1"
     });
 
@@ -405,7 +406,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 0 - Unsub', async () => {
-    let topic : string = `test-${uuid()}`;
+    let topic : string = `test/${uuid()}`;
     let testPayload : Buffer = Buffer.from("Derp", "utf-8");
 
     let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createWsIotCoreClientConfig());
@@ -428,7 +429,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 1 - Unsub', async () => {
-    let topic : string = `test-${uuid()}`;
+    let topic : string = `test/${uuid()}`;
     let testPayload : Buffer = Buffer.from("Derp", "utf-8");
 
     let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(createWsIotCoreClientConfig());
@@ -452,7 +453,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
     let willPayload : Buffer = Buffer.from("ToMyChildrenIBequeathNothing", "utf-8");
-    let willTopic : string = `will/test${uuid()}`;
+    let willTopic : string = `test/will/test${uuid()}`;
 
     let publisherConfig: mqtt5.Mqtt5ClientConfig = createWsIotCoreClientConfig();
 

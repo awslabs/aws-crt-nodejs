@@ -152,7 +152,7 @@ export interface MqttConnectionConfig {
      * The `session_present` bool in the connection callback informs
      * whether an existing session was successfully resumed.
      * If an existing session is resumed, the server remembers previous subscriptions
-     * and sends mesages (with QoS1 or higher) that were published while the client was offline.
+     * and sends messages (with QoS1 or higher) that were published while the client was offline.
      */
     clean_session?: boolean;
 
