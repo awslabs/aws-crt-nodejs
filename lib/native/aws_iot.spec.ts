@@ -194,14 +194,17 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     let connection = client.new_connection(config);
 
     const connectionFailure = once(connection, "connection_failure")
-    connection.connect();
+    let expected_error = false;
+    try {
+        await connection.connect();
+    } catch (error) {
+        expected_error = true;
+    }
+    expect(expected_error).toBeTruthy();
 
     let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
     expect(connectionFailedEvent).toBeDefined();
     expect(connectionFailedEvent.error).toBeDefined();
-
-    // Disconnect to stop trying to reconnect
-    connection.disconnect();
 });
 
 // requires correct credentials to be sourced from the default credentials provider chain
@@ -213,9 +216,11 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_websocket())('MQ
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets(websocket_config);
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    builder.with_port(443);
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
+
     await connection.connect();
     await connection.disconnect();
 });
