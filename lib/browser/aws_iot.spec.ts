@@ -60,8 +60,17 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     let config = builder.build();
     let client = new mqtt311.MqttClient(new io.ClientBootstrap());
     let connection = client.new_connection(config);
+
+    const connectionSuccess = once(connection, "connection_success");
     await connection.connect();
+
+    let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = (await connectionSuccess)[0];
+    expect(connectionSuccessEvent.session_present).toBeFalsy();
+    expect(connectionSuccessEvent.reason_code).toBeUndefined();
+
+    const closed = once(connection, "closed");
     await connection.disconnect();
+    await closed;
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {

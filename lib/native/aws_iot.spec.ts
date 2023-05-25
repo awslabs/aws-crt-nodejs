@@ -9,7 +9,7 @@ import * as aws_iot_mqtt311 from "./aws_iot";
 import * as io from "./io"
 import * as auth from "./auth"
 import { v4 as uuid } from 'uuid';
-
+import {once} from "events";
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -162,8 +162,45 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     let config = builder.build();
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
+
+    const connectionSuccess = once(connection, "connection_success");
     await connection.connect();
+
+    let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = (await connectionSuccess)[0];
+    expect(connectionSuccessEvent.session_present).toBeFalsy();
+    expect(connectionSuccessEvent.reason_code).toBeUndefined();
+
+    const closed = once(connection, "closed");
     await connection.disconnect();
+    await closed;
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () => {
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    builder.with_credentials(
+        test_env.AWS_IOT_ENV.MQTT311_REGION,
+        test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
+        test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
+        test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
+    );
+    /* Use the wrong port and endpoint ensure a fail */
+    builder.with_endpoint("testendpointhere");
+    builder.with_port(321);
+    let config = builder.build();
+
+    let client = new mqtt311.MqttClient();
+    let connection = client.new_connection(config);
+
+    const connectionFailure = once(connection, "connection_failure")
+    connection.connect();
+
+    let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
+    expect(connectionFailedEvent).toBeDefined();
+    expect(connectionFailedEvent.error).toBeDefined();
+
+    // Disconnect to stop trying to reconnect
+    connection.disconnect();
 });
 
 // requires correct credentials to be sourced from the default credentials provider chain
