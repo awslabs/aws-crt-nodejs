@@ -10,6 +10,7 @@ import { v4 as uuid } from 'uuid';
 import { OnConnectionSuccessResult, OnConnectionClosedResult } from '../common/mqtt';
 import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} from "./http"
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
+import {once} from "events";
 
 jest.setTimeout(10000);
 
@@ -349,7 +350,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         const connection = make_test_iot_core_connection(
             false /* clean start */);
         await connection.connect();
+        const closed = once(connection, "closed");
         await connection.disconnect();
+        await closed;
 
         // Native resources should have been cleaned on the disconnect, so the connect attempt should throw.
         let did_throw = false;
@@ -368,7 +371,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         const connection = make_test_iot_core_connection(
             false /* clean start */);
         await connection.connect();
+        const closed = once(connection, "closed");
         await connection.disconnect();
+        await closed;
 
         // Doing any operations after disconnect should throw because the client is cleaned up
         let did_throw = false;
