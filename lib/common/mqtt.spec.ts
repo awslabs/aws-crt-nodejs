@@ -5,10 +5,10 @@
 
 import { v4 as uuid } from 'uuid';
 
+import * as test_env from "@test/test_env"
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-import { Config, fetch_credentials } from '@test/credentials';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 import {once} from "events";
 
@@ -17,13 +17,15 @@ jest.setTimeout(10000);
 async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
-            let aws_opts: Config = await fetch_credentials();
-
-            const builder = AwsIotMqttConnectionConfigBuilder.new_mtls_builder(aws_opts.certificate, aws_opts.private_key)
+            let builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets()
                 .with_clean_session(true)
                 .with_client_id(`node-mqtt-unit-test-${uuid()}`)
-                .with_endpoint(aws_opts.endpoint)
-                .with_credentials(Config.region, aws_opts.access_key, aws_opts.secret_key, aws_opts.session_token)
+                .with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST)
+                .with_credentials(
+                    test_env.AWS_IOT_ENV.MQTT311_REGION,
+                    test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
+                    test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
+                    test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN)
                 .with_ping_timeout_ms(5000);
 
             if (will !== undefined) {
@@ -41,7 +43,7 @@ async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
     });
 }
 
-test('MQTT Connect/Disconnect', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Connect/Disconnect', async () => {
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -56,7 +58,7 @@ test('MQTT Connect/Disconnect', async () => {
     await onDisconnect;
 });
 
-test('MQTT Pub/Sub', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Pub/Sub', async () => {
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -67,7 +69,7 @@ test('MQTT Pub/Sub', async () => {
     let connectResult = (await onConnect)[0];
     expect(connectResult).toBeFalsy(); /* session present */
 
-    const test_topic = `/test/me/senpai/${uuid()}`;
+    const test_topic = `test/me/senpai/${uuid()}`;
     const test_payload = 'NOTICE ME';
 
     var resolvePromise: (value: void | PromiseLike<void>) => void;
@@ -95,14 +97,14 @@ test('MQTT Pub/Sub', async () => {
     await onDisconnect;
 });
 
-test('MQTT Will', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Will', async () => {
     /* TODO: this doesn't really test anything.  Unfortunately, there's no easy way to break the
     *   MQTT311 connection without it sending a client-side DISCONNECT packet which removes the will. It's not
     *   impossible but would require changes to the C API as well as the bindings to add a path that skips the
     *   DISCONNECT packet, which is far beyond the scope of refactoring these tests to be more procedural and reliable.
     */
     const connection = await makeConnection(new MqttWill(
-        '/last/will/and/testament',
+        'test/last/will/and/testament',
         QoS.AtLeastOnce,
         'AVENGE ME'
     ));
@@ -119,7 +121,7 @@ test('MQTT Will', async () => {
     await onDisconnect;
 });
 
-test('MQTT On Any Publish', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT On Any Publish', async () => {
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -130,7 +132,7 @@ test('MQTT On Any Publish', async () => {
     let connectResult = (await onConnect)[0];
     expect(connectResult).toBeFalsy(); /* session present */
 
-    const test_topic = `/test/me/senpai/${uuid()}`;
+    const test_topic = `test/me/senpai/${uuid()}`;
     const test_payload = 'NOTICE ME';
 
     let onMessage = once(connection, 'message');
@@ -156,7 +158,7 @@ test('MQTT On Any Publish', async () => {
     await onDisconnect;
 });
 
-test('MQTT payload types', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT payload types', async () => {
     const connection = await makeConnection();
 
     let onDisconnect = once(connection, 'disconnect');
@@ -166,24 +168,24 @@ test('MQTT payload types', async () => {
     const id = uuid();
 
     const tests: { [key: string]: { send: Payload, recv: ArrayBuffer } } = {
-        [`/test/types/${id}/string`]: {
+        [`test/types/${id}/string`]: {
             send: 'utf-8 👁👄👁 time',
             recv: fromUtf8('utf-8 👁👄👁 time').buffer,
         },
-        [`/test/types/${id}/dataview`]: {
+        [`test/types/${id}/dataview`]: {
             send: new DataView(fromUtf8('I was a DataView').buffer),
             recv: fromUtf8('I was a DataView').buffer,
         },
-        [`/test/types/${id}/uint8array`]: {
+        [`test/types/${id}/uint8array`]: {
             // note: sending partial view of a larger buffer
             send: new Uint8Array(new Uint8Array([0, 1, 2, 3, 4, 5, 6]).buffer, 2, 3),
             recv: new Uint8Array([2, 3, 4]).buffer,
         },
-        [`/test/types/${id}/arraybuffer`]: {
+        [`test/types/${id}/arraybuffer`]: {
             send: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
             recv: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
         },
-        [`/test/types/${id}/json`]: {
+        [`test/types/${id}/json`]: {
             send: { I: "was JSON" },
             recv: fromUtf8('{"I": "was JSON"}').buffer,
         },
@@ -216,7 +218,7 @@ test('MQTT payload types', async () => {
         }
     });
 
-    await connection.subscribe(`/test/types/${id}/#`, QoS.AtLeastOnce);
+    await connection.subscribe(`test/types/${id}/#`, QoS.AtLeastOnce);
 
     for (const topic in tests) {
         await connection.publish(topic, tests[topic].send, QoS.AtLeastOnce);

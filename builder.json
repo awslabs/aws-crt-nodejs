@@ -21,9 +21,31 @@
                 "gtk3",
                 "alsa-lib",
                 "atk",
-                "cups-libs"
+                "cups-libs",
+                "libdrm",
+                "mesa-libgbm",
+
+                "libXdamage",
+                "libXext",
+                "libXi",
+                "libXrandr",
+                "libXtst",
+                "pango",
+                "xorg-x11-fonts-100dpi",
+                "xorg-x11-fonts-75dpi",
+                "xorg-x11-fonts-cyrillic",
+                "xorg-x11-fonts-misc",
+                "xorg-x11-fonts-Type1",
+                "xorg-x11-utils"
             ],
             "+test_steps": [
+                [
+                    "sudo",
+                    "yum",
+                    "install",
+                    "nss",
+                    "-y"
+                ],
                 [
                     "npm",
                     "run",
@@ -50,8 +72,7 @@
             "update",
             "--init",
             "--recursive"
-        ],
-        "pkcs11-test-setup"
+        ]
     ],
     "build_steps": [
         [
