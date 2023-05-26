@@ -677,15 +677,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
             }
         }
 
-        /* Only try and reconnect if our desired state is connected, or in other words, no one has called disconnect() */
-        if (this.desiredState == MqttBrowserClientState.Connected) {
+        /* Only try and reconnect if we were intending to connect */
+        if (this.intendingToConnect == true) {
 
-            /* If the user is trying to connect via connect(), then emit a connection failure */
-            if (this.intendingToConnect == true) {
-                let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
-                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
-                this.emit('connection_failure', failureCallbackData);
-            }
+            let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
+            let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+            this.emit('connection_failure', failureCallbackData);
 
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
