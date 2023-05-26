@@ -102,16 +102,14 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
     builder.with_credentials(
         test_env.AWS_IOT_ENV.MQTT311_REGION,
-        test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
+        "ThisIsAnInvalidKey", // Intentionally use an invalid/made-up access key
         test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
         test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
     );
-    /* Use the wrong port to ensure a fail */
-    builder.with_endpoint("abcdefg");
-    builder.with_port(738);
     let config = builder.build();
 
     let client = new mqtt311.MqttClient();
