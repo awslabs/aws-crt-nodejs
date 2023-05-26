@@ -109,8 +109,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
         test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
         test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
     );
-    /* Use the wrong port and endpoint ensure a fail */
-    builder.with_endpoint("testendpointhere");
+    /* Use the wrong port to ensure a fail */
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
     builder.with_port(321);
     let config = builder.build();
 
