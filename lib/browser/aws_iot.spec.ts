@@ -10,6 +10,8 @@ import * as io from "./io"
 import { v4 as uuid } from 'uuid';
 import {once} from "events";
 
+jest.setTimeout(10000);
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
 
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
@@ -47,7 +49,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
     await connection.disconnect();
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -73,7 +75,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     await closed;
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect No Bootstrap', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -100,26 +102,27 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     await closed;
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () => {
-    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('MQTT Browser Websocket Connect/Disconnect - Connection Failure', async () => {
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
+    builder.with_custom_authorizer(
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_USERNAME,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_NAME,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_SIGNATURE,
+        "Thisisnotthepassword",
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_KEY_NAME,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_TOKEN,
+    )
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-    builder.with_credentials(
-        test_env.AWS_IOT_ENV.MQTT311_REGION,
-        "ThisIsAnInvalidKey", // Intentionally use an invalid/made-up access key
-        test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
-        test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
-    );
     let config = builder.build();
-
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
 
     const connectionFailure = once(connection, "connection_failure")
     try {
-        await connection.connect();
+        connection.connect();
     } catch (error) {
-        // Skip - this is expected because we are intentionally using a bad port.
+        // Skip - this is expected because we are intentionally using a bad password
     }
 
     let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];

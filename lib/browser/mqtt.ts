@@ -474,8 +474,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
             const on_connect_error = (error: Error) => {
                 let crtError = new CrtError(error);
-
-                console.log("on_connect_error invoked");
                 let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
                 this.emit('connection_failure', failureCallbackData);
 
@@ -677,16 +675,10 @@ export class MqttClientConnection extends BufferedEventEmitter {
             }
         }
 
-        console.log("on_close invoked");
-
         /* Only try and reconnect if our desired state is connected, or in other words, no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
-
-            console.log("on_close and desired state connected invoked");
-
             /* If the user is trying to connect via connect(), then emit a connection failure */
             if (this.intendingToConnect == true) {
-                console.log("on_close, desired state connected, and intention to connect invoked");
                 let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
                 let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
                 this.emit('connection_failure', failureCallbackData);
