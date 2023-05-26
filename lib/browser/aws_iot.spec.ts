@@ -118,7 +118,11 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     let connection = client.new_connection(config);
 
     const connectionFailure = once(connection, "connection_failure")
-    connection.connect();
+    try {
+        await connection.connect();
+    } catch (error) {
+        // Skip - this is expected because we are intentionally using a bad port.
+    }
 
     let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
     expect(connectionFailedEvent).toBeDefined();
