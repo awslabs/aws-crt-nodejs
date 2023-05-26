@@ -474,11 +474,11 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
             const on_connect_error = (error: Error) => {
                 let crtError = new CrtError(error);
-                if (this.intendingToConnect == true) {
-                    let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
-                    this.emit('connection_failure', failureCallbackData);
-                    this.intendingToConnect = false;
-                }
+
+                console.log("on_connect_error invoked");
+                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                this.emit('connection_failure', failureCallbackData);
+
                 reject(crtError);
             };
             this.connection.once('error', on_connect_error);
@@ -677,12 +677,20 @@ export class MqttClientConnection extends BufferedEventEmitter {
             }
         }
 
-        /* Only try and reconnect if we were intending to connect */
-        if (this.intendingToConnect == true) {
+        console.log("on_close invoked");
 
-            let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
-            let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
-            this.emit('connection_failure', failureCallbackData);
+        /* Only try and reconnect if our desired state is connected, or in other words, no one has called disconnect() */
+        if (this.desiredState == MqttBrowserClientState.Connected) {
+
+            console.log("on_close and desired state connected invoked");
+
+            /* If the user is trying to connect via connect(), then emit a connection failure */
+            if (this.intendingToConnect == true) {
+                console.log("on_close, desired state connected, and intention to connect invoked");
+                let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
+                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                this.emit('connection_failure', failureCallbackData);
+            }
 
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
