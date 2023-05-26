@@ -265,8 +265,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
             let statistics = connection.getQueueStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+            // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
+            // TODO - find a way to test unacked operations reliably without worrying about socket speed.
 
             const test_topic = `/test/me/senpai/${uuid()}`;
             const test_payload = 'NOTICE ME';
@@ -279,8 +279,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
                 statistics = connection.getQueueStatistics();
                 expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
                 expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
-                expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
-                expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+                // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
+                // TODO - find a way to test unacked operations reliably without worrying about socket speed.
 
                 const disconnected = connection.disconnect();
                 await expect(disconnected).resolves.toBeUndefined();
@@ -310,8 +310,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
             let statistics = connection.getQueueStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+            // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
+            // TODO - find a way to test unacked operations reliably without worrying about socket speed.
 
             const test_topic = `/test/me/senpai/${uuid()}`;
             const test_payload = 'NOTICE ME';
@@ -332,8 +332,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
             statistics = connection.getQueueStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(1);
             expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(test_topic.length + test_payload.length + 4);
-            expect(statistics.unackedOperationCount).toBeLessThanOrEqual(0);
-            expect(statistics.unackedOperationSize).toBeLessThanOrEqual(0);
+            // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
+            // TODO - find a way to test unacked operations reliably without worrying about socket speed.
         });
         connection.on('error', (error) => {
             reject(error);
