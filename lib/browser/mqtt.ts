@@ -291,7 +291,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     // The last error reported by MQTT.JS - or undefined if none has occurred or the error has been processed.
     private lastError? : Error;
-    private intendingToConnect : boolean = false;
 
     /**
      * @param client The client that owns this connection
@@ -640,7 +639,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_online = (session_present: boolean) => {
         this.currentState = MqttBrowserClientState.Connected;
-        this.intendingToConnect = false;
 
         if (++this.connection_count == 1) {
             this.emit('connect', session_present);
@@ -669,20 +667,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
             /* Did we intend to disconnect? If so, then emit the event */
             if (this.desiredState == MqttBrowserClientState.Stopped) {
                 this.emit("closed");
-
-                /* This is an intended disconnection, so we cannot be expecting to connect */
-                this.intendingToConnect = false;
             }
         }
 
         /* Only try and reconnect if our desired state is connected, or in other words, no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
-            /* If the user is trying to connect via connect(), then emit a connection failure */
-            if (this.intendingToConnect == true) {
-                let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
-                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
-                this.emit('connection_failure', failureCallbackData);
-            }
+            let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
+            let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+            this.emit('connection_failure', failureCallbackData);
 
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
