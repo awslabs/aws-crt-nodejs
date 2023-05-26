@@ -476,6 +476,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 let crtError = new CrtError(error);
                 if (this.intendingToConnect == true) {
                     let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                    console.log("\n DEBUG Connection failure invoked! \n");
                     this.emit('connection_failure', failureCallbackData);
                     this.intendingToConnect = false;
                 }
@@ -684,6 +685,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
             if (this.intendingToConnect == true) {
                 let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
                 let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                console.log("\n DEBUG Connection failure invoked! \n");
                 this.emit('connection_failure', failureCallbackData);
             }
 

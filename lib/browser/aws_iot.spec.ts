@@ -111,7 +111,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     );
     /* Use the wrong port to ensure a fail */
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
-    builder.with_port(321);
+    builder.with_port(738);
+    let options = new io.SocketOptions(io.SocketType.STREAM, io.SocketDomain.IPV4, 400);
+    builder.with_socket_options(options);
     let config = builder.build();
 
     let client = new mqtt311.MqttClient();
