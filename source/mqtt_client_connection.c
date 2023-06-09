@@ -44,6 +44,7 @@ struct mqtt_connection_binding {
     napi_threadsafe_function on_connection_resumed;
     napi_threadsafe_function on_any_publish;
     napi_threadsafe_function transform_websocket;
+    napi_threadsafe_function on_closed;
 };
 
 static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_connection_binding *binding) {
@@ -69,6 +70,11 @@ static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_con
         AWS_NAPI_ENSURE(
             binding->env, aws_napi_release_threadsafe_function(binding->transform_websocket, napi_tsfn_abort));
         binding->transform_websocket = NULL;
+    }
+
+    if (binding->on_closed != NULL) {
+        AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_closed, napi_tsfn_abort));
+        binding->on_closed = NULL;
     }
 }
 
@@ -1872,6 +1878,10 @@ on_error:
     return NULL;
 }
 
+/*******************************************************************************
+ * Operation Statistics
+ ******************************************************************************/
+
 static int s_create_napi_mqtt_connection_statistics(
     napi_env env,
     const struct aws_mqtt_connection_operation_statistics *stats,
@@ -1955,4 +1965,87 @@ napi_value aws_napi_mqtt_client_connection_get_queue_statistics(napi_env env, na
     }
 
     return napi_stats;
+}
+
+/*******************************************************************************
+ * On Closed
+ ******************************************************************************/
+
+static void s_on_closed_call(napi_env env, napi_value on_closed, void *context, void *user_data) {
+    (void)user_data;
+    struct mqtt_connection_binding *binding = context;
+
+    if (binding->on_closed == NULL) {
+        return;
+    }
+
+    if (env) {
+        AWS_NAPI_ENSURE(env, aws_napi_dispatch_threadsafe_function(env, binding->on_closed, NULL, on_closed, 0, NULL));
+    }
+}
+
+static void s_on_closed(
+    struct aws_mqtt_client_connection *connection,
+    struct on_connection_closed_data *data,
+    void *user_data) {
+
+    (void)data;
+    (void)connection;
+
+    struct mqtt_connection_binding *binding = user_data;
+    if (binding->on_closed == NULL) {
+        return;
+    }
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_closed, binding));
+    return;
+}
+
+napi_value aws_napi_mqtt_client_connection_on_closed(napi_env env, napi_callback_info cb_info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        return NULL;
+    });
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "mqtt_client_on_closed needs exactly 2 arguments");
+        return NULL;
+    }
+
+    napi_value node_binding = *arg++;
+    struct mqtt_connection_binding *binding = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(env, NULL, "Unable to extract external");
+        return NULL;
+    });
+
+    napi_value node_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, node_handler)) {
+        napi_throw_error(env, NULL, "handler must not be null or undefined");
+        return NULL;
+    }
+
+    /*
+     * There's no reasonable way of making this safe for multiple calls.  We have to assume this is pre-connect
+     * otherwise the callback could be getting used in another thread as we try and change it here.
+     */
+    if (binding->on_closed != NULL) {
+        napi_throw_error(env, NULL, "on_closed handler cannot be set more than once");
+        return NULL;
+    }
+
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env, node_handler, "on_closed", s_on_closed_call, binding, &binding->on_closed),
+        { return NULL; });
+
+    if (aws_mqtt_client_connection_set_connection_closed_handler(binding->connection, s_on_closed, binding)) {
+        napi_throw_error(env, NULL, "Unable to set on_closed handler");
+        return NULL;
+    }
+
+    return NULL;
 }

@@ -11,6 +11,8 @@
  * @module mqtt
  */
 
+import { ICrtError } from './error';
+
 /**
  * Quality of service control for mqtt publish operations
  *
@@ -82,6 +84,41 @@ export interface MqttRequest {
 }
 
 /**
+ * The data returned from an on_connection_success callback
+ *
+ * @category MQTT
+ */
+export interface OnConnectionSuccessResult {
+    /**
+     * A boolean indicating if the connection resumed a session.
+     */
+    session_present: boolean;
+    /**
+     * An optional connect return code received from the server, if a connect return code was returned.
+     */
+    reason_code?: number;
+}
+
+/**
+ * The data returned from an on_connection_failed callback
+ *
+ * @category MQTT
+ */
+export interface OnConnectionFailedResult {
+    /**
+     * Error description of the error that occurred
+     */
+    error: ICrtError;
+}
+
+/**
+ * The data returned from the on_connection_closed callback
+ *
+ * @category MQTT
+ */
+export interface OnConnectionClosedResult {}
+
+/**
  * Subscription SUBACK result
  *
  * @category MQTT
@@ -150,15 +187,14 @@ export type MqttConnectionResumed = (return_code: number, session_present: boole
 
 /**
  * Const value for max reconnection back off time
- * 
+ *
  * @category MQTT
  */
 export const DEFAULT_RECONNECT_MAX_SEC = 128;
 
 /**
  * Const value for min reconnection back off time
- * 
+ *
  * @category MQTT
  */
  export const DEFAULT_RECONNECT_MIN_SEC = 1;
- 

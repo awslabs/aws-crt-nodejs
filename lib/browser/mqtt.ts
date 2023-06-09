@@ -31,11 +31,17 @@ import {
     MqttConnectionDisconnected,
     MqttConnectionResumed,
     DEFAULT_RECONNECT_MIN_SEC,
-    DEFAULT_RECONNECT_MAX_SEC
+    DEFAULT_RECONNECT_MAX_SEC,
+    OnConnectionSuccessResult,
+    OnConnectionFailedResult,
+    OnConnectionClosedResult
 } from "../common/mqtt";
-import {normalize_payload} from "../common/mqtt_shared";
+import { normalize_payload } from "../common/mqtt_shared";
 
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
+export {
+    QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
+    MqttConnectionResumed, OnConnectionSuccessResult, OnConnectionFailedResult, OnConnectionClosedResult
+} from "../common/mqtt";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
@@ -55,6 +61,41 @@ export type MqttConnectionError = (error: CrtError) => void;
  * @category MQTT
  */
 export type MqttConnectionInterrupted = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * This listener is invoked for every successful connect and every successful reconnect.
+ *
+ * @param callback_data Data returned containing information about the successful connection.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionSuccess = (callback_data: OnConnectionSuccessResult) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has failed
+ * to connect.
+ *
+ * This listener is invoked for every failed connect and every failed reconnect.
+ *
+ * @param callback_data Data returned containing information about the failed connection.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionFailure = (callback_data: OnConnectionFailedResult) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * disconnected and shutdown successfully.
+ *
+ * @param callback_data Data returned containing information about the closed/disconnected connection.
+ *                      Currently empty, but may contain data in the future.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => void;
 
 /**
  * @category MQTT
@@ -248,6 +289,9 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private desiredState: MqttBrowserClientState = MqttBrowserClientState.Stopped;
     private reconnectTask?: ReturnType<typeof setTimeout>;
 
+    // The last error reported by MQTT.JS - or undefined if none has occurred or the error has been processed.
+    private lastError? : Error;
+
     /**
      * @param client The client that owns this connection
      * @param config The configuration for this connection
@@ -288,12 +332,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         // If the credentials are set but no the credentials_provider
         if (this.config.credentials_provider == undefined &&
-            this.config.credentials != undefined){
+            this.config.credentials != undefined) {
             const provider = new auth.StaticCredentialProvider(
                 { aws_region: this.config.credentials.aws_region,
-                    aws_access_id: this.config.credentials.aws_access_id,
-                    aws_secret_key: this.config.credentials.aws_secret_key,
-                    aws_sts_token: this.config.credentials.aws_sts_token});
+                  aws_access_id: this.config.credentials.aws_access_id,
+                  aws_secret_key: this.config.credentials.aws_secret_key,
+                  aws_sts_token: this.config.credentials.aws_sts_token});
             this.config.credentials_provider = provider;
         }
 
@@ -365,6 +409,29 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     static MESSAGE = 'message';
 
+    /**
+     * Emitted on every successful connect and reconnect.
+     * Will contain a boolean indicating whether the connection resumed a session.
+     *
+     * @event
+     */
+    static CONNECTION_SUCCESS = 'connection_success';
+
+    /**
+     * Emitted on an unsuccessful connect and reconnect.
+     * Will contain an error code indicating the reason for the unsuccessful connection.
+     *
+     * @event
+     */
+    static CONNECTION_FAILURE = 'connection_failure';
+
+    /**
+     * Emitted when the MQTT connection was disconnected and shutdown successfully.
+     *
+     * @event
+     */
+    static CLOSED = 'closed'
+
     on(event: 'connect', listener: MqttConnectionConnected): this;
 
     on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
@@ -372,6 +439,12 @@ export class MqttClientConnection extends BufferedEventEmitter {
     on(event: 'error', listener: MqttConnectionError): this;
 
     on(event: 'interrupt', listener: MqttConnectionInterrupted): this;
+
+    on(event: 'connection_success', listener: MqttConnectionSuccess): this;
+
+    on(event: 'connection_failure', listener: MqttConnectionFailure): this;
+
+    on(event: 'closed', listener: MqttConnectionClosed): this;
 
     on(event: 'resume', listener: MqttConnectionResumed): this;
 
@@ -399,13 +472,18 @@ export class MqttClientConnection extends BufferedEventEmitter {
             }
 
             const on_connect_error = (error: Error) => {
-                reject(new CrtError(error));
+                let crtError = new CrtError(error);
+                let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+                this.emit('connection_failure', failureCallbackData);
+
+                reject(crtError);
             };
+            this.connection.once('error', on_connect_error);
+
             this.connection.once('connect', (connack: mqtt.IConnackPacket) => {
                 this.connection.removeListener('error', on_connect_error);
                 resolve(connack.sessionPresent);
             });
-            this.connection.once('error', on_connect_error);
         });
     }
 
@@ -458,7 +536,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 if (qos != QoS.AtMostOnce) {
                     id = (packet as mqtt.IPublishPacket).messageId;
                 }
-                resolve({packet_id: id} );
+                resolve({ packet_id: id });
             });
         });
     }
@@ -569,9 +647,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
             this.reset_reconnect_times();
             this.emit('resume', 0, session_present);
         }
+
+        // Call connection success every time we connect, whether it is a first connect or a reconnect
+        let successCallbackData = { session_present: session_present } as OnConnectionSuccessResult;
+        this.emit('connection_success', successCallbackData);
     }
 
     private on_close = () => {
+        let lastError : Error | undefined = this.lastError;
+
         /*
          * Only emit an interruption event if we were connected, otherwise we just failed to reconnect after
          * a disconnection.
@@ -579,10 +663,19 @@ export class MqttClientConnection extends BufferedEventEmitter {
         if (this.currentState == MqttBrowserClientState.Connected) {
             this.currentState = MqttBrowserClientState.Stopped;
             this.emit('interrupt', -1);
+
+            /* Did we intend to disconnect? If so, then emit the event */
+            if (this.desiredState == MqttBrowserClientState.Stopped) {
+                this.emit("closed");
+            }
         }
 
-        /* Only try and reconnect if our desired state is connected, ie no one has called disconnect() */
+        /* Only try and reconnect if our desired state is connected, or in other words, no one has called disconnect() */
         if (this.desiredState == MqttBrowserClientState.Connected) {
+            let crtError = new CrtError(lastError?.toString() ?? "connectionFailure")
+            let failureCallbackData = { error: crtError } as OnConnectionFailedResult;
+            this.emit('connection_failure', failureCallbackData);
+
             const waitTime = this.get_reconnect_time_sec();
             this.reconnectTask = setTimeout(() => {
                     /** Emit reconnect after backoff time */
@@ -591,13 +684,25 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 },
                 waitTime * 1000);
         }
+
+        this.lastError = undefined;
     }
 
     private on_disconnected = () => {
         this.emit('disconnect');
+
+        /**
+         * This shouldn't ever occur, but in THEORY it could be possible to have on_disconnected called with the intent
+         * to disconnect without on_close called first. This would properly emit 'closed' should that unlikely event occur.
+         */
+        if (this.currentState == MqttBrowserClientState.Connected && this.desiredState == MqttBrowserClientState.Stopped) {
+            let closedCallbackData = {} as OnConnectionClosedResult;
+            this.emit("closed", closedCallbackData);
+        }
     }
 
     private on_error = (error: Error) => {
+        this.lastError = error;
         this.emit('error', new CrtError(error))
     }
 
@@ -612,8 +717,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }
 
-    private reset_reconnect_times()
-    {
+    private reset_reconnect_times() {
         this.reconnect_count = 0;
     }
 

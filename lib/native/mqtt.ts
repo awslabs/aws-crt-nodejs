@@ -32,8 +32,14 @@ import {
     MqttConnectionResumed,
     DEFAULT_RECONNECT_MIN_SEC,
     DEFAULT_RECONNECT_MAX_SEC,
+    OnConnectionSuccessResult,
+    OnConnectionFailedResult,
+    OnConnectionClosedResult
 } from "../common/mqtt";
-export { QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected, MqttConnectionResumed } from "../common/mqtt";
+export {
+    QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
+    MqttConnectionResumed, OnConnectionSuccessResult, OnConnectionFailedResult, OnConnectionClosedResult
+} from "../common/mqtt";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
@@ -53,6 +59,41 @@ export type MqttConnectionError = (error: CrtError) => void;
  * @category MQTT
  */
 export type MqttConnectionInterrupted = (error: CrtError) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * This listener is invoked for every successful connect and every successful reconnect.
+ *
+ * @param callback_data Data returned containing information about the successful connection.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionSucess = (callback_data: OnConnectionSuccessResult) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * connected successfully.
+ *
+ * This listener is invoked for every failed connect and every failed reconnect.
+ *
+ * @param callback_data Data returned containing information about the failed connection.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionFailure = (callback_data: OnConnectionFailedResult) => void;
+
+/**
+ * Listener signature for event emitted from an {@link MqttClientConnection} when the connection has been
+ * disconnected and shutdown successfully.
+ *
+ * @param callback_data Data returned containing information about the closed/disconnected connection.
+ *                      Currently empty, but may contain data in the future.
+ *
+ * @category MQTT
+ */
+export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => void;
 
 /**
  * MQTT client
@@ -187,31 +228,31 @@ export interface MqttConnectionConfig {
 /**
  * Information about the connection's queue of operations
  */
- export interface ConnectionStatistics {
+export interface ConnectionStatistics {
 
     /**
      * Total number of operations submitted to the connection that have not yet been completed.  Unacked operations
      * are a subset of this.
      */
-    incompleteOperationCount : number;
+    incompleteOperationCount: number;
 
     /**
      * Total packet size of operations submitted to the connection that have not yet been completed.  Unacked operations
      * are a subset of this.
      */
-    incompleteOperationSize : number;
+    incompleteOperationSize: number;
 
     /**
      * Total number of operations that have been sent to the server and are waiting for a corresponding ACK before
      * they can be completed.
      */
-    unackedOperationCount : number;
+    unackedOperationCount: number;
 
     /**
      * Total packet size of operations that have been sent to the server and are waiting for a corresponding ACK before
      * they can be completed.
      */
-    unackedOperationSize : number;
+    unackedOperationSize: number;
 };
 
 /**
@@ -281,6 +322,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
+        crt_native.mqtt_client_connection_on_closed(this.native_handle(), this._on_connection_closed.bind(this));
 
         /*
          * Failed mqtt operations (which is normal) emit error events as well as rejecting the original promise.
@@ -288,7 +330,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
          * the whole program to an end because a handler wasn't installed.  Programs that install their own handler
          * will be unaffected.
          */
-        this.on('error', (error) => {});
+        this.on('error', (error) => { });
     }
 
     private close() {
@@ -339,6 +381,30 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      */
     static MESSAGE = 'message';
 
+    /**
+     * Emitted on every successful connect and reconnect.
+     * Will contain a number with the connection reason code and
+     * a boolean indicating whether the connection resumed a session.
+     *
+     * @event
+     */
+    static CONNECTION_SUCCESS = 'connection_success';
+
+    /**
+     * Emitted on an unsuccessful connect and reconnect.
+     * Will contain an error code indicating the reason for the unsuccessful connection.
+     *
+     * @event
+     */
+    static CONNECTION_FAILURE = 'connection_failure';
+
+    /**
+     * Emitted when the MQTT connection was disconnected and shutdown successfully.
+     *
+     * @event
+     */
+    static CLOSED = 'closed'
+
     on(event: 'connect', listener: MqttConnectionConnected): this;
 
     on(event: 'disconnect', listener: MqttConnectionDisconnected): this;
@@ -350,6 +416,12 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     on(event: 'resume', listener: MqttConnectionResumed): this;
 
     on(event: 'message', listener: OnMessageCallback): this;
+
+    on(event: 'connection_success', listener: MqttConnectionSucess): this;
+
+    on(event: 'connection_failure', listener: MqttConnectionFailure): this;
+
+    on(event: 'closed', listener: MqttConnectionClosed): this;
 
     // Overridden to allow uncorking on ready
     on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -540,7 +612,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *
      * @group Node-only
      */
-     getQueueStatistics() : ConnectionStatistics {
+    getQueueStatistics(): ConnectionStatistics {
         return crt_native.mqtt_client_connection_get_queue_statistics(this.native_handle());
     }
 
@@ -561,24 +633,42 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
+        let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
+        this.emit('connection_success', successCallbackData);
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
         this.emit('message', topic, payload, dup, qos, retain);
     }
 
-    private _on_connect_callback(resolve : (value: (boolean | PromiseLike<boolean>)) => void, reject : (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
+    private _on_connection_closed() {
+        let closedCallbackData = {} as OnConnectionClosedResult;
+        this.emit('closed', closedCallbackData);
+        /**
+         * We call close() here instead of on disconnect because on_close is always called AFTER disconnect
+         * but if we call close() before, then we cannot emit the closed callback.
+         */
+        this.close();
+    }
+
+    private _on_connect_callback(resolve: (value: (boolean | PromiseLike<boolean>)) => void, reject: (reason?: any) => void, error_code: number, return_code: number, session_present: boolean) {
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
+            let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
+            this.emit('connection_success', successCallbackData);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
+            let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
+            this.emit('connection_failure', failureCallbackData);
         } else {
             reject("Server rejected connection.");
+            let failureCallbackData = { error: new CrtError(5134) } as OnConnectionFailedResult; // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
+            this.emit('connection_failure', failureCallbackData);
         }
     }
 
-    private _on_puback_callback(resolve : (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+    private _on_puback_callback(resolve: (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject: (reason?: any) => void, packet_id: number, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id });
         } else {
@@ -586,7 +676,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_suback_callback(resolve : (value: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest>)) => void, reject : (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
+    private _on_suback_callback(resolve: (value: (MqttSubscribeRequest | PromiseLike<MqttSubscribeRequest>)) => void, reject: (reason?: any) => void, packet_id: number, topic: string, qos: QoS, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id, topic, qos, error_code });
         } else {
@@ -594,7 +684,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         }
     }
 
-    private _on_unsuback_callback(resolve : (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject : (reason?: any) => void, packet_id: number, error_code: number) {
+    private _on_unsuback_callback(resolve: (value: (MqttRequest | PromiseLike<MqttRequest>)) => void, reject: (reason?: any) => void, packet_id: number, error_code: number) {
         if (error_code == 0) {
             resolve({ packet_id });
         } else {
@@ -605,6 +695,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _on_disconnect_callback(resolve: (value?: (void | PromiseLike<void>)) => void) {
         resolve();
         this.emit('disconnect');
-        this.close();
+        /** NOTE: We are NOT calling close() here but instead calling it at
+         * on_closed because it is always called after disconnect */
     }
 }
