@@ -11,6 +11,7 @@ const path = require("path");
 const cmake = require("cmake-js");
 const axios = require("axios");
 const tar = require("tar");
+const getCRuntime = require("./cruntime")
 
 const nativeSourceDir = "crt/";
 
@@ -101,6 +102,8 @@ async function fetchNativeCode(url, version, path) {
     await tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
 }
 
+
+
 async function buildLocally() {
     const platform = os.platform();
     let arch = os.arch();
@@ -116,7 +119,7 @@ async function buildLocally() {
         target: "install",
         debug: process.argv.includes('--debug'),
         arch: arch,
-        out: path.join('build', `${platform}-${arch}`),
+        out: path.join('build', `${platform}-${arch}-${getCRuntime()}`),
         cMakeOptions: {
             CMAKE_EXPORT_COMPILE_COMMANDS: true,
             CMAKE_JS_PLATFORM: platform,
