@@ -1,0 +1,21 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+  pre_build:
+    commands:
+      - cd aws-crt-nodejs
+      - bash ./continuous-delivery/update-version.sh
+  build:
+    commands:
+      - export OUTPUT_BIN=aws_crt_nodejs_linux
+      - mkdir -p OUTPUT_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_x64/* OUTPUT_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_aarch64/* OUTPUT_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux_musl_x64/* OUTPUT_BIN
+      - ls OUTPUT_BIN
+
+artifacts:
+  files:
+    - "aws_crt_nodejs_linux/**/*"
