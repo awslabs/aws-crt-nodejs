@@ -5,7 +5,7 @@
 const os = require("os")
 const child_process = require('child_process')
 
-async function getCRuntime() {
+function getCRuntime() {
     const platform = os.platform();
     let non_linux_runtime_tag = 'cruntime';
     if(platform !== "linux") {
