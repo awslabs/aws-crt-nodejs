@@ -9,7 +9,7 @@ function getCRuntime() {
     const platform = os.platform();
     let cruntime = 'cruntime';
     if (platform === 'linux') {
-        const lddOutput = child_process.execSync('ldd --version').toString();
+        const lddOutput = child_process.execSync('ldd --version 2>&1').toString();
         if (lddOutput.includes('musl')) {
             cruntime = 'musl';
         } else {
