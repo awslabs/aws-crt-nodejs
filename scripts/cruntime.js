@@ -3,22 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 const os = require("os")
-const child_process = require("child_process");
+const child_process = require('child_process')
 
-function getCRuntime() {
+async function getCRuntime() {
     const platform = os.platform();
-    let cruntime = 'cruntime';
-    if (platform === 'linux') {
-        const lddOutput = child_process.execSync('ldd --version 2>&1').toString();
-        if (lddOutput.includes('musl')) {
-            cruntime = 'musl';
-        } else {
-            cruntime = 'glibc';
-        }
+    let non_linux_runtime_tag = 'cruntime';
+    if(platform !== "linux") {
+        return non_linux_runtime_tag;
     }
 
-    console.log(`C Runtime: ${cruntime}`);
-    return cruntime
+    try {
+        // sometimes, ldd's output goes to stderr, so capture that too
+        // Using spawnSync because execSync treats any output to stderr as an exception.
+        const spawnedProcess = child_process.spawnSync('ldd', ['--version'], { encoding: 'utf-8' });
+        const output = spawnedProcess.stdout + spawnedProcess.stderr;
+        if (output.includes('musl')) {
+            return 'musl';
+        } else {
+            return 'glibc';
+        }
+    } catch (error) {
+        console.error(`Error executing ldd --version: ${error}`);
+        return  'glibc';
+    }
+
 }
 
 module.exports = getCRuntime;
