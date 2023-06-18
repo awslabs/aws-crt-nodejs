@@ -15,7 +15,7 @@ async function getCRuntime() {
     try {
         // sometimes, ldd's output goes to stderr, so capture that too
         // Using spawnSync because execSync treats any output to stderr as an exception.
-        const spawnedProcess = child_process.spawnSync('ldd', ['--version'], { encoding: 'utf-8' });
+        const spawnedProcess = child_process.spawnSync('ldd', ['--version'], { encoding: 'utf8' });
         const output = spawnedProcess.stdout + spawnedProcess.stderr;
         if (output.includes('musl')) {
             return 'musl';
