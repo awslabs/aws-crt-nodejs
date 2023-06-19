@@ -44,7 +44,7 @@ class CrtCiTest(Builder.Action):
                 def _terminate_echo_server():
                     proc.terminate()
                     proc.wait()
-                # TODO: Need to add musl support in Java first for this. Commenting it temporary to test other stuff. Will remove before merge
+                # TODO: Need to add musl support in Java first for this. Commenting it temporarily to test other stuff. Will remove before merge
                 # env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST", "127.0.0.1", quiet=False)
                 # env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT", "8033", quiet=False)
             finally:
@@ -61,7 +61,8 @@ class CrtCiTest(Builder.Action):
         java_sdk_dir = None
 
         try:
-            java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
+            # TODO: Need to add musl support in Java first for this. Commenting it temporarily to test other stuff. Will remove before merge
+            # java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
             Builder.SetupCrossCICrtEnvironment().run(env)
             env.shell.exec(["npm", "run", "test:native"], check=True)
         except:
