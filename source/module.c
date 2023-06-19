@@ -287,8 +287,10 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
     memcpy(napi_buf_data, data_buffer->buffer, data_buffer->len);
 
     // As the chunk is copied into NodeJS, release the data
+    struct aws_allocator *allocator = buffer->allocator;
     aws_byte_buf_clean_up(data_buffer);
-    aws_mem_release(data_buffer->allocator, data_buffer);
+    aws_mem_release(allocator, data_buffer);
+    data_buffer = NULL;
 
 #endif
 

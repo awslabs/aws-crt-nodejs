@@ -1274,8 +1274,9 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
         memcpy(napi_buf_data, args->payload->buffer, args->payload->len);
 
         // As the payload is copied to nodejs, release the data
+        struct aws_allocator *allocator = args->payload->allocator;
         aws_byte_buf_clean_up(args->payload);
-        aws_mem_release(args->payload->allocator, args->payload);
+        aws_mem_release(allocator, args->payload);
 #endif
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
         AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
@@ -1537,8 +1538,9 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
             memcpy(napi_buf_data, args->payload->buffer, args->payload->len);
 
             // As the payload is copied to nodejs, release the data
+            struct aws_allocator *allocator = args->payload->allocator;
             aws_byte_buf_clean_up(args->payload);
-            aws_mem_release(args->payload->allocator, args->payload);
+            aws_mem_release(allocator, args->payload);
 
 #endif
             AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
