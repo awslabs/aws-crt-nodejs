@@ -42,6 +42,11 @@ class CrtCiTest(Builder.Action):
 
                 @atexit.register
                 def _terminate_echo_server():
+                    print("Terminating echo server")
+                    if "AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST" in os.environ:
+                        del os.environ["AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST"]
+                    if "AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT" in os.environ:
+                        del os.environ["AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT"]
                     proc.terminate()
                     proc.wait()
 
