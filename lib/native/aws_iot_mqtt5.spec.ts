@@ -232,7 +232,10 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot
             cert_file_path: test_env.AWS_IOT_ENV.MQTT5_PKCS11_CERT,
         }
     );
-    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+    const mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
+    await test_utils.testConnect(mqtt5Client);
+
+    mqtt5Client.close();
     pkcs11_lib.close();
 });
 
