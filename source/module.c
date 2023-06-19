@@ -241,6 +241,7 @@ int aws_napi_attach_object_property_optional_string(
     return aws_napi_attach_object_property_string(object, env, key_name, *value);
 }
 
+#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 static void s_finalize_external_binary_byte_buf(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
@@ -254,6 +255,7 @@ static void s_finalize_external_binary_byte_buf(napi_env env, void *finalize_dat
     aws_byte_buf_clean_up(buffer);
     aws_mem_release(allocator, buffer);
 }
+#endif
 
 int aws_napi_attach_object_property_binary_as_finalizable_external(
     napi_value object,
@@ -266,6 +268,8 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
     }
 
     napi_value napi_binary = NULL;
+
+#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
     AWS_NAPI_ENSURE(
         env,
         napi_create_external_arraybuffer(
@@ -275,6 +279,18 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
             s_finalize_external_binary_byte_buf,
             data_buffer,
             &napi_binary));
+
+#else
+    void *napi_buf_data = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, data_buffer->len, napi_buf_data, &napi_binary));
+
+    memcpy(data_buffer->buffer, napi_buf_data, data_buffer->len);
+
+    // As the chunk is copied into NodeJS, release the data
+    aws_byte_buf_clean_up(data_buffer);
+    aws_mem_release(data_buffer->allocator, data_buffer);
+
+#endif
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_binary), {
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
