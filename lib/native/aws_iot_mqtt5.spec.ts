@@ -11,6 +11,8 @@ import * as fs from 'fs';
 import * as auth from "./auth";
 import * as io from "./io";
 import {Pkcs11Lib} from "./io";
+import {Mqtt5Client} from "./mqtt5";
+import {once} from "events";
 
 jest.setTimeout(10000);
 
@@ -234,7 +236,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot
     );
     const mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
     await test_utils.testConnect(mqtt5Client);
-
+    const stopped = once(mqtt5Client, Mqtt5Client.STOPPED);
+    mqtt5Client.stop();
+    await stopped;
     mqtt5Client.close();
     pkcs11_lib.close();
 });
