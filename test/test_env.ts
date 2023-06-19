@@ -82,7 +82,7 @@ export class AWS_IOT_ENV {
             AWS_IOT_ENV.MQTT5_PKCS11_TOKEN_LABEL !== "" &&
             AWS_IOT_ENV.MQTT5_PKCS11_PIN !== "" &&
             AWS_IOT_ENV.MQTT5_PKCS11_PRIVATE_KEY_LABEL !== "" &&
-            AWS_IOT_ENV.MQTT5_PKCS11_CERT !== "" && false;
+            AWS_IOT_ENV.MQTT5_PKCS11_CERT !== "";
     }
 
     public static mqtt5_is_valid_pkcs12() {
@@ -223,7 +223,7 @@ export class AWS_IOT_ENV {
             AWS_IOT_ENV.MQTT311_PKCS11_TOKEN_LABEL !== "" &&
             AWS_IOT_ENV.MQTT311_PKCS11_PIN !== "" &&
             AWS_IOT_ENV.MQTT311_PKCS11_PRIVATE_KEY_LABEL !== "" &&
-            AWS_IOT_ENV.MQTT311_PKCS11_CERT !== "" && false;
+            AWS_IOT_ENV.MQTT311_PKCS11_CERT !== "";
     }
 
     public static mqtt311_is_valid_pkcs12() {
