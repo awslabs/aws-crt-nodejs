@@ -15,6 +15,10 @@
         "alpine": {
             "!imports":[
                 "JDK8"
+            ],
+            "packages:": [
+                "nodejs",
+                "npm"
             ]
         },
         "al2": {
