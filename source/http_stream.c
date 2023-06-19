@@ -148,9 +148,9 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
 
 #else
         void *buf_data = NULL;
-        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->chunk.len, buf_data, &params[0]));
+        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->chunk.len, &buf_data, &params[0]));
 
-        memcpy(args->chunk.buffer, buf_data, args->chunk.len);
+        memcpy(buf_data, args->chunk.buffer, args->chunk.len);
 
         // As the chunk is copied into NodeJS, release the data
         aws_byte_buf_clean_up(&args->chunk);

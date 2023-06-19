@@ -1269,9 +1269,9 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
                 &params[1]));
 #else
         void *napi_buf_data = NULL;
-        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->payload->len, napi_buf_data, &params[1]));
+        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->payload->len, &napi_buf_data, &params[1]));
 
-        memcpy(args->payload->buffer, napi_buf_data, args->payload->len);
+        memcpy(napi_buf_data, args->payload->buffer, args->payload->len);
 
         // As the payload is copied to nodejs, release the data
         aws_byte_buf_clean_up(args->payload);
@@ -1532,9 +1532,9 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
 #else
 
             void *napi_buf_data = NULL;
-            AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->payload->len, napi_buf_data, &params[1]));
+            AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->payload->len, &napi_buf_data, &params[1]));
 
-            memcpy(args->payload->buffer, napi_buf_data, args->payload->len);
+            memcpy(napi_buf_data, args->payload->buffer, args->payload->len);
 
             // As the payload is copied to nodejs, release the data
             aws_byte_buf_clean_up(args->payload);

@@ -282,9 +282,9 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
 
 #else
     void *napi_buf_data = NULL;
-    AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, data_buffer->len, napi_buf_data, &napi_binary));
+    AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, data_buffer->len, &napi_buf_data, &napi_binary));
 
-    memcpy(data_buffer->buffer, napi_buf_data, data_buffer->len);
+    memcpy(napi_buf_data, data_buffer->buffer, data_buffer->len);
 
     // As the chunk is copied into NodeJS, release the data
     aws_byte_buf_clean_up(data_buffer);
