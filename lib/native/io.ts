@@ -521,7 +521,7 @@ export class Pkcs11Lib extends NativeResource {
      * @param behavior - Specifies how `C_Initialize()` and `C_Finalize()`
      *                   will be called on the PKCS#11 library.
      */
-    constructor(path: string, behavior: Pkcs11Lib.InitializeFinalizeBehavior = Pkcs11Lib.InitializeFinalizeBehavior.STRICT) {
+    constructor(path: string, behavior: Pkcs11Lib.InitializeFinalizeBehavior = Pkcs11Lib.InitializeFinalizeBehavior.DEFAULT) {
         super(crt_native.io_pkcs11_lib_new(path, behavior));
     }
 
