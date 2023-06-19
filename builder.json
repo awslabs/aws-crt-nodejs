@@ -16,7 +16,7 @@
             "!imports":[
                 "JDK8"
             ],
-            "+packages:": [
+            "+packages": [
                 "nodejs",
                 "npm"
             ]
