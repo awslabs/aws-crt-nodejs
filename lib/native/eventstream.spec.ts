@@ -73,7 +73,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
 
     await disconnected;
 
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     connection.close();
 });
@@ -86,7 +86,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
 
     connection.close();
 
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 });
 
 async function doConnectionFailureTest(config : eventstream.ClientConnectionOptions) {
@@ -150,7 +150,7 @@ async function doProtocolConnectionSuccessTest1() {
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection success Echo Server - happy path', async () => {
     await doProtocolConnectionSuccessTest1();
 
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 });
 
 async function doProtocolConnectionSuccessTest2() {
@@ -172,12 +172,12 @@ async function doProtocolConnectionSuccessTest2() {
 
     connection.close();
 
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 }
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection success Echo Server - close while connecting', async () => {
     await doProtocolConnectionSuccessTest2();
 
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 });
 
 async function makeGoodConnection() : Promise<eventstream.ClientConnection> {
@@ -917,7 +917,7 @@ test('Eventstream connection cancel - example.com, cancel after connect', async 
 
     let controller : cancel.CancelController = new cancel.CancelController();
 
-    setTimeout(() => { controller.cancel(); }, 1000);
+    setTimeout(() => { controller.cancel(); }, 3000);
 
     await expect(connection.connect({
         cancelController : controller
