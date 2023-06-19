@@ -10,9 +10,6 @@ import * as iot from "./iot";
 import * as fs from 'fs';
 import * as auth from "./auth";
 import * as io from "./io";
-import {Pkcs11Lib} from "./io";
-import {Mqtt5Client} from "./mqtt5";
-import {once} from "events";
 
 jest.setTimeout(10000);
 
@@ -223,7 +220,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
-    const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+    const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH);
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
         test_env.AWS_IOT_ENV.MQTT5_HOST,
         {
@@ -234,13 +231,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot
             cert_file_path: test_env.AWS_IOT_ENV.MQTT5_PKCS11_CERT,
         }
     );
-    const mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
-    await test_utils.testConnect(mqtt5Client);
-    const stopped = once(mqtt5Client, Mqtt5Client.STOPPED);
-    mqtt5Client.stop();
-    await stopped;
-    mqtt5Client.close();
-    pkcs11_lib.close();
+    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {

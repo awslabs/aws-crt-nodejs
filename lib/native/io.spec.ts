@@ -25,8 +25,7 @@ const pkcs11_test = conditional_test(PKCS11_LIB_PATH)
 
 pkcs11_test('Pkcs11Lib sanity check', () => {
     // sanity check that we can load and unload a PKCS#11 library
-    const pkcs11_lib = new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-    pkcs11_lib.close()
+    new Pkcs11Lib(PKCS11_LIB_PATH);
 });
 
 pkcs11_test('Pkcs11Lib exception', () => {
