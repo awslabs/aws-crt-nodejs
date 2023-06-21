@@ -334,6 +334,7 @@ export class AWS_IOT_ENV {
             AWS_IOT_ENV.MQTT311_IOT_CRED_SESSION_TOKEN !== "";
     }
 
+    
     // ====================
     // Misc
     // ====================
