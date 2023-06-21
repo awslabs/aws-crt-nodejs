@@ -54,6 +54,10 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws I
     // The published Softhsm package on muslc (Alpine) crashes if we don't call C_Finalize at the end.
     // The Strict initialization fails with already initialized error if we don't wrap this in an async function.
     console.error("running mqtt311 test");
+    if (global.gc) {
+        console.error("running GC");
+        global.gc();
+    }
 
     await (async function() {
         console.error("mqtt311 test function called");
