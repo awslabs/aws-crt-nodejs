@@ -222,19 +222,21 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
     // The published Softhsm package on muslc (Alpine) crashes if we don't call C_Finalize at the end.
-    const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
-        test_env.AWS_IOT_ENV.MQTT5_HOST,
-        {
-            pkcs11_lib: pkcs11_lib,
-            user_pin: test_env.AWS_IOT_ENV.MQTT5_PKCS11_PIN,
-            token_label: test_env.AWS_IOT_ENV.MQTT5_PKCS11_TOKEN_LABEL,
-            private_key_object_label: test_env.AWS_IOT_ENV.MQTT5_PKCS11_PRIVATE_KEY_LABEL,
-            cert_file_path: test_env.AWS_IOT_ENV.MQTT5_PKCS11_CERT,
-        }
-    );
-    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
-    pkcs11_lib.close()
+    await (async function() {
+        const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+        let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
+            test_env.AWS_IOT_ENV.MQTT5_HOST,
+            {
+                pkcs11_lib: pkcs11_lib,
+                user_pin: test_env.AWS_IOT_ENV.MQTT5_PKCS11_PIN,
+                token_label: test_env.AWS_IOT_ENV.MQTT5_PKCS11_TOKEN_LABEL,
+                private_key_object_label: test_env.AWS_IOT_ENV.MQTT5_PKCS11_PRIVATE_KEY_LABEL,
+                cert_file_path: test_env.AWS_IOT_ENV.MQTT5_PKCS11_CERT,
+            }
+        );
+        await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+        pkcs11_lib.close()
+    }())
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {
