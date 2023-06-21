@@ -227,7 +227,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot
     await (async function() {
         console.error("executed the function");
         const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-        let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
+        const mqtt5Client = new mqtt5.Mqtt5Client(iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
             {
                 pkcs11_lib: pkcs11_lib,
@@ -236,8 +236,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot
                 private_key_object_label: test_env.AWS_IOT_ENV.MQTT5_PKCS11_PRIVATE_KEY_LABEL,
                 cert_file_path: test_env.AWS_IOT_ENV.MQTT5_PKCS11_CERT,
             }
-        );
-        const mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
+        ).build());
         await test_utils.testConnect(mqtt5Client);
         mqtt5Client.close();
         pkcs11_lib.close();
