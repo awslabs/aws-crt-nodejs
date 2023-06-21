@@ -26,8 +26,10 @@ const pkcs11_test = conditional_test(PKCS11_LIB_PATH)
 pkcs11_test('Pkcs11Lib sanity check', () => {
     // sanity check that we can load and unload a PKCS#11 library
     // The published Softhsm package on muslc (Alpine) crashes if we don't call C_Finalize at the end.
-    const pkcs11= new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
-    pkcs11.close()
+    (function() {
+        const pkcs11 = new Pkcs11Lib(PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+        pkcs11.close()
+    }())
 });
 
 pkcs11_test('Pkcs11Lib exception', () => {
