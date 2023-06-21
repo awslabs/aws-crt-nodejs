@@ -33,7 +33,7 @@ pkcs11_test('Pkcs11Lib sanity check', () => {
 pkcs11_test('Pkcs11Lib exception', () => {
     // check that initialization errors get thrown
     expect(() => {
-        new Pkcs11Lib("obviously-invalid-path.so", Pkcs11Lib.InitializeFinalizeBehavior.OMIT);
+        new Pkcs11Lib("obviously-invalid-path.so", Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
     }).toThrow(/AWS_IO_SHARED_LIBRARY_LOAD_FAILURE/);
 });
 
