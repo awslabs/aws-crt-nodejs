@@ -7,7 +7,6 @@ import * as test_env from "@test/test_env"
 import * as mqtt311 from "./mqtt";
 import * as aws_iot_mqtt311 from "./aws_iot";
 import * as io from "./io"
-import {Pkcs11Lib} from "./io"
 import * as auth from "./auth"
 import {v4 as uuid} from 'uuid';
 import {once} from "events";

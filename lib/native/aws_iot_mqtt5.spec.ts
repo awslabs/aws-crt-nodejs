@@ -10,7 +10,6 @@ import * as iot from "./iot";
 import * as fs from 'fs';
 import * as auth from "./auth";
 import * as io from "./io";
-import {Pkcs11Lib} from "./io";
 import {native_memory_dump} from "./crt";
 
 jest.setTimeout(10000);
