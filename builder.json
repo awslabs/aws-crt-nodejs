@@ -13,7 +13,7 @@
             "enabled": false
         },
         "alpine": {
-            "_comment": "Installing node via nvm have issues on Alpine Linux, so install nodejs via the package manager",
+            "_comment": "Installing Node.js using NVM has issues on Alpine Linux, so install Node.js via the package manager instead.",
             "!imports":[
                 "JDK8"
             ],
