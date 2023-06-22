@@ -232,6 +232,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot
         }
     );
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+    pkcs11_lib.close();
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {

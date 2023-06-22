@@ -65,6 +65,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws I
     let connection = client.new_connection(config);
     await connection.connect();
     await connection.disconnect();
+    pkcs11_lib.close()
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs12())('Aws Iot Core PKCS12 connection', async () => {
