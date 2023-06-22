@@ -61,7 +61,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws I
 
     await (async function() {
         console.error("mqtt311 test function called");
-        const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT311_PKCS11_LIB_PATH, Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
+        const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT311_PKCS11_LIB_PATH);
         const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
             pkcs11_lib: pkcs11_lib,
             user_pin: test_env.AWS_IOT_ENV.MQTT311_PKCS11_PIN,
