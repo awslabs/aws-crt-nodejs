@@ -6,8 +6,6 @@ module.exports = {
         '<rootDir>/lib/common/*.spec.ts',
         '<rootDir>/lib/native/*.spec.ts',
     ],
-    globalSetup: "<rootDir>/test/native/jest.global.setup.ts",
-    globalTeardown: "<rootDir>/test/native/jest.global.teardown.ts",
     preset: 'ts-jest',
     globals: {
         'ts-jest': {
@@ -24,8 +22,7 @@ module.exports = {
     modulePathIgnorePatterns: [
         '/cmake-js/'
     ],
-    //setupFiles: ['<rootDir>/test/native/jest.setup.ts'],
-    setupFilesAfterEnv: ["<rootDir>/test/native/jest.setup.ts"],
+    setupFilesAfterEnv: ["<rootDir>/test/native/jest.setup.after.env.ts"],
     moduleNameMapper: {
         '@common/(.+)': '<rootDir>/lib/common/$1',
         '@awscrt/(.+)': '<rootDir>/lib/native/$1',

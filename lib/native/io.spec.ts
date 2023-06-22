@@ -24,15 +24,7 @@ const PKCS11_LIB_PATH = process.env.AWS_TEST_PKCS11_LIB ?? "";
 const pkcs11_test = conditional_test(PKCS11_LIB_PATH)
 
 pkcs11_test('Pkcs11Lib sanity check', () => {
-    // sanity check that we can load and unload a PKCS#11 library
-    // The published Softhsm package on muslc (Alpine) crashes if we don't call C_Finalize at the end.
-    console.error("running sanity test");
-
-    (function() {
-        console.error("sanity test function called");
-        const pkcs11 = new Pkcs11Lib(PKCS11_LIB_PATH);
-        pkcs11.close()
-    }())
+    new Pkcs11Lib(PKCS11_LIB_PATH);
 });
 
 pkcs11_test('Pkcs11Lib exception', () => {

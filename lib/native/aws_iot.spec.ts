@@ -50,33 +50,21 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
-    // The published Softhsm package on muslc (Alpine) crashes if we don't call C_Finalize at the end.
-    // The Strict initialization fails with already initialized error if we don't wrap this in an async function.
-    console.error("running mqtt311 test");
-    if (global.gc) {
-        console.error("running GC");
-        global.gc();
-    }
-
-    await (async function() {
-        console.error("mqtt311 test function called");
-        const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT311_PKCS11_LIB_PATH);
-        const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
-            pkcs11_lib: pkcs11_lib,
-            user_pin: test_env.AWS_IOT_ENV.MQTT311_PKCS11_PIN,
-            token_label: test_env.AWS_IOT_ENV.MQTT311_PKCS11_TOKEN_LABEL,
-            private_key_object_label: test_env.AWS_IOT_ENV.MQTT311_PKCS11_PRIVATE_KEY_LABEL,
-            cert_file_path: test_env.AWS_IOT_ENV.MQTT311_PKCS11_CERT,
-        });
-        builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
-        builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        let config = builder.build();
-        let client = new mqtt311.MqttClient();
-        let connection = client.new_connection(config);
-        await connection.connect();
-        await connection.disconnect();
-        pkcs11_lib.close()
-    }())
+    const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT311_PKCS11_LIB_PATH);
+    const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
+        pkcs11_lib: pkcs11_lib,
+        user_pin: test_env.AWS_IOT_ENV.MQTT311_PKCS11_PIN,
+        token_label: test_env.AWS_IOT_ENV.MQTT311_PKCS11_TOKEN_LABEL,
+        private_key_object_label: test_env.AWS_IOT_ENV.MQTT311_PKCS11_PRIVATE_KEY_LABEL,
+        cert_file_path: test_env.AWS_IOT_ENV.MQTT311_PKCS11_CERT,
+    });
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    let config = builder.build();
+    let client = new mqtt311.MqttClient();
+    let connection = client.new_connection(config);
+    await connection.connect();
+    await connection.disconnect();
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs12())('Aws Iot Core PKCS12 connection', async () => {
