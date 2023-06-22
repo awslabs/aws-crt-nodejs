@@ -5,7 +5,8 @@
         "JDK8"
     ],
     "+packages": [
-        "maven"
+        "maven",
+        "openssl-devel"
     ],
     "deps_dir": "deps",
     "hosts": {
