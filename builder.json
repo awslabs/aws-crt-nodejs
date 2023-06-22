@@ -18,7 +18,8 @@
             ],
             "+packages": [
                 "nodejs",
-                "npm"
+                "npm",
+                "openssl-devel"
             ]
         },
         "al2": {
