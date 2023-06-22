@@ -8,7 +8,7 @@ import * as mqtt311 from "./mqtt";
 import * as aws_iot_mqtt311 from "./aws_iot";
 import * as io from "./io"
 import * as auth from "./auth"
-import {v4 as uuid} from 'uuid';
+import { v4 as uuid } from 'uuid';
 import {once} from "events";
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
