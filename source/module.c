@@ -27,6 +27,8 @@
 #include <aws/common/ref_count.h>
 #include <aws/common/system_info.h>
 
+#include <aws/event-stream/event_stream.h>
+
 #include <aws/io/event_loop.h>
 #include <aws/io/tls_channel_handler.h>
 
@@ -1110,6 +1112,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
 
         aws_unregister_log_subject_info_list(&s_log_subject_list);
         aws_unregister_error_info(&s_error_list);
+        aws_event_stream_library_clean_up();
         aws_auth_library_clean_up();
         aws_mqtt_library_clean_up();
 
@@ -1179,6 +1182,7 @@ static bool s_create_and_register_function(
 
         aws_mqtt_library_init(allocator);
         aws_auth_library_init(allocator);
+        aws_event_stream_library_init(allocator);
         aws_register_error_info(&s_error_list);
         aws_register_log_subject_info_list(&s_log_subject_list);
 
