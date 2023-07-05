@@ -1232,7 +1232,6 @@ static void s_destroy_on_publish_args(struct on_publish_args *args) {
     aws_mem_release(args->allocator, args);
 }
 
-#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 static void s_publish_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
@@ -1244,7 +1243,6 @@ static void s_publish_external_arraybuffer_finalizer(napi_env env, void *finaliz
     aws_byte_buf_clean_up(buf);
     aws_mem_release(allocator, buf);
 }
-#endif
 
 static void s_on_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
     (void)context;
@@ -1257,27 +1255,14 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
         AWS_NAPI_ENSURE(
             env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[0]));
 
-#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
-        AWS_NAPI_ENSURE(
+        aws_napi_create_external_arraybuffer_function(
             env,
-            napi_create_external_arraybuffer(
-                env,
-                args->payload->buffer,
-                args->payload->len,
-                s_publish_external_arraybuffer_finalizer,
-                args->payload,
-                &params[1]));
-#else
-        void *napi_buf_data = NULL;
-        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->payload->len, &napi_buf_data, &params[1]));
+            args->payload->buffer,
+            args->payload->len,
+            s_publish_external_arraybuffer_finalizer,
+            args->payload,
+            &params[1]);
 
-        memcpy(napi_buf_data, args->payload->buffer, args->payload->len);
-
-        // As the payload is copied to nodejs, release the data
-        struct aws_allocator *allocator = args->payload->allocator;
-        aws_byte_buf_clean_up(args->payload);
-        aws_mem_release(allocator, args->payload);
-#endif
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
         AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
@@ -1494,7 +1479,6 @@ static void s_destroy_on_any_publish_args(struct on_any_publish_args *args) {
     aws_mem_release(args->allocator, args);
 }
 
-#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 static void s_any_publish_external_arraybuffer_finalizer(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
@@ -1506,7 +1490,6 @@ static void s_any_publish_external_arraybuffer_finalizer(napi_env env, void *fin
     aws_byte_buf_clean_up(payload);
     aws_mem_release(allocator, payload);
 }
-#endif
 
 static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *context, void *user_data) {
     struct mqtt_connection_binding *binding = context;
@@ -1520,29 +1503,14 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
             AWS_NAPI_ENSURE(
                 env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
 
-#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
-            AWS_NAPI_ENSURE(
+            aws_napi_create_external_arraybuffer_function(
                 env,
-                napi_create_external_arraybuffer(
-                    env,
-                    args->payload->buffer,
-                    args->payload->len,
-                    s_any_publish_external_arraybuffer_finalizer,
-                    args->payload,
-                    &params[1]));
-#else
+                args->payload->buffer,
+                args->payload->len,
+                s_any_publish_external_arraybuffer_finalizer,
+                args->payload,
+                &params[1]);
 
-            void *napi_buf_data = NULL;
-            AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, args->payload->len, &napi_buf_data, &params[1]));
-
-            memcpy(napi_buf_data, args->payload->buffer, args->payload->len);
-
-            // As the payload is copied to nodejs, release the data
-            struct aws_allocator *allocator = args->payload->allocator;
-            aws_byte_buf_clean_up(args->payload);
-            aws_mem_release(allocator, args->payload);
-
-#endif
             AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
             AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
             AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));

@@ -251,6 +251,21 @@ napi_status aws_napi_create_threadsafe_function(
     void *context,
     napi_threadsafe_function *result);
 
+/*
+ * Wrapper around napi_create_external_arraybuffer,
+ * aws_napi_create_external_arraybuffer_function handles the creation of the arraybuffer from the `external_data`. As
+ * some runtimes other than Node.js have dropped support for external buffers, the napi function call will fail in such
+ * case. If the call failed, the function will directly create an arraybuffer in Node and copy the data of external
+ * buffer into it. Once data copied, the `finalize_cb` will be immediately invoked to release the external data.
+ */
+napi_status aws_napi_create_external_arraybuffer_function(
+    napi_env env,
+    void *external_data,
+    size_t byte_length,
+    napi_finalize finalize_cb,
+    void *finalize_hint,
+    napi_value *result);
+
 /**
  * Wrapper around napi_acquire_threadsafe_function,
  * check the function before acquiring it.
@@ -285,6 +300,7 @@ napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function
  */
 struct aws_napi_context {
     napi_env env;
+    napi_ref ref;
     struct aws_allocator *allocator;
     struct aws_napi_logger_ctx *logger;
 };

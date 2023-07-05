@@ -241,7 +241,6 @@ int aws_napi_attach_object_property_optional_string(
     return aws_napi_attach_object_property_string(object, env, key_name, *value);
 }
 
-#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 static void s_finalize_external_binary_byte_buf(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)env;
     (void)finalize_data;
@@ -255,7 +254,6 @@ static void s_finalize_external_binary_byte_buf(napi_env env, void *finalize_dat
     aws_byte_buf_clean_up(buffer);
     aws_mem_release(allocator, buffer);
 }
-#endif
 
 int aws_napi_attach_object_property_binary_as_finalizable_external(
     napi_value object,
@@ -269,30 +267,8 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
 
     napi_value napi_binary = NULL;
 
-#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
-    AWS_NAPI_ENSURE(
-        env,
-        napi_create_external_arraybuffer(
-            env,
-            data_buffer->buffer,
-            data_buffer->len,
-            s_finalize_external_binary_byte_buf,
-            data_buffer,
-            &napi_binary));
-
-#else
-    void *napi_buf_data = NULL;
-    AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, data_buffer->len, &napi_buf_data, &napi_binary));
-
-    memcpy(napi_buf_data, data_buffer->buffer, data_buffer->len);
-
-    // As the chunk is copied into NodeJS, release the data
-    struct aws_allocator *allocator = data_buffer->allocator;
-    aws_byte_buf_clean_up(data_buffer);
-    aws_mem_release(allocator, data_buffer);
-    data_buffer = NULL;
-
-#endif
+    aws_napi_create_external_arraybuffer_function(
+        env, data_buffer->buffer, data_buffer->len, s_finalize_external_binary_byte_buf, data_buffer, &napi_binary);
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_binary), {
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
@@ -847,6 +823,9 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_callback_scope_mismatch:
             reason = "napi_callback_scope_mismatch";
             break;
+        case napi_no_external_buffers_allowed:
+            reason = "napi_no_external_buffers_allowed";
+            break;
 #if NAPI_VERSION >= 3
         case napi_queue_full:
             reason = "napi_queue_full";
@@ -945,6 +924,33 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
         AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(ToString(exception)) failed");
         return;
     }
+}
+
+napi_status aws_napi_create_external_arraybuffer_function(struct aws_allocator allocator; napi_env env,
+                                                                                          void *external_data,
+                                                                                          size_t byte_length,
+                                                                                          napi_finalize finalize_cb,
+                                                                                          void *finalize_hint,
+                                                                                          napi_value *result) {
+
+    napi_status status = napi_create_external_arraybuffer(
+        env, external_data, byte_length, s_finalize_external_binary_byte_buf, finalize_hint, &result);
+
+    // The external buffer is disabled, manually copy the external_data into Node
+    if (status == napi_no_external_buffers_allowed) {
+        void *napi_buf_data = NULL;
+        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, byte_length, &napi_buf_data, &result));
+
+        memcpy(napi_buf_data, external_data, byte_length);
+
+        // As the data has been copied into the Node, invoke the finalize callback to make sure the
+        // data is released.
+        finalize_cb(finalize_hint);
+    } else if (status != napi_ok) {
+        AWS_NAPI_LOGF_ERROR("N-API call failed: napi_create_external_arraybuffer: %s", aws_napi_status_to_str(status));
+    }
+
+    return status;
 }
 
 napi_status aws_napi_dispatch_threadsafe_function(
