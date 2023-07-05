@@ -133,12 +133,10 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function transform_websocket;
 };
 
-static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
+static void s_aws_mqtt5_release_callbacks(struct aws_mqtt5_client_binding *binding) {
     if (binding == NULL) {
         return;
     }
-
-    aws_tls_connection_options_clean_up(&binding->tls_connection_options);
 
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_stopped);
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_attempting_connect);
@@ -147,6 +145,18 @@ static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_disconnection);
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_message_received);
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, transform_websocket);
+}
+
+static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
+
+    if (binding == NULL) {
+        return;
+    }
+
+    aws_tls_connection_options_clean_up(&binding->tls_connection_options);
+
+    // We should unhook the callbacks on close already. We just double check here to be secure.
+    s_aws_mqtt5_release_callbacks(binding);
 
     aws_mem_release(binding->allocator, binding);
 }
@@ -3516,6 +3526,8 @@ napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - client was null");
         return NULL;
     }
+
+    s_aws_mqtt5_release_callbacks(binding);
 
     napi_ref node_client_external_ref = binding->node_client_external_ref;
     binding->node_client_external_ref = NULL;

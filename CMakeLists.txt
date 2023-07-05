@@ -24,8 +24,9 @@ if (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib64")
     set(FIND_LIBRARY_USE_LIB64_PATHS true)
 endif()
 
-# define Node API
-add_definitions(-DNODE_API_NO_EXTERNAL_BUFFERS_ALLOWED)
+# Some runtimes other than Node.js (e.x.: Chromium and Electron ) have dropped support for external buffers.
+# Uncomment the definition below to hide the functions that create external buffers.
+# add_definitions(-DNODE_API_NO_EXTERNAL_BUFFERS_ALLOWED)
 
 # This is required in order to append /lib/cmake to each element in CMAKE_PREFIX_PATH
 set(AWS_MODULE_DIR "/${CMAKE_INSTALL_LIBDIR}/cmake")
