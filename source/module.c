@@ -928,12 +928,13 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
     }
 }
 
-napi_status aws_napi_create_external_arraybuffer_function(struct aws_allocator allocator; napi_env env,
-                                                                                          void *external_data,
-                                                                                          size_t byte_length,
-                                                                                          napi_finalize finalize_cb,
-                                                                                          void *finalize_hint,
-                                                                                          napi_value *result) {
+napi_status aws_napi_create_external_arraybuffer_function(
+    napi_env env,
+    void *external_data,
+    size_t byte_length,
+    napi_finalize finalize_cb,
+    void *finalize_hint,
+    napi_value *result) {
 
     napi_status status = napi_create_external_arraybuffer(
         env, external_data, byte_length, s_finalize_external_binary_byte_buf, finalize_hint, &result);
@@ -947,7 +948,7 @@ napi_status aws_napi_create_external_arraybuffer_function(struct aws_allocator a
 
         // As the data has been copied into the Node, invoke the finalize callback to make sure the
         // data is released.
-        finalize_cb(finalize_hint);
+        finalize_cb(env, finalize_hint, finalize_hint);
     } else if (status != napi_ok) {
         AWS_NAPI_LOGF_ERROR("N-API call failed: napi_create_external_arraybuffer: %s", aws_napi_status_to_str(status));
     }
@@ -1145,6 +1146,9 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
 
     struct aws_napi_context *ctx = user_data;
     aws_napi_logger_destroy(ctx->logger);
+
+    AWS_NAPI_ENSURE(env, napi_delete_reference(env, ctx->ref));
+
     struct aws_allocator *ctx_allocator = ctx->allocator;
     aws_mem_release(ctx->allocator, ctx);
 
@@ -1166,8 +1170,10 @@ static struct aws_napi_context *s_napi_context_new(struct aws_allocator *allocat
     ctx->allocator = allocator;
 
     /* bind the context to exports, thus binding its lifetime to that object */
-    AWS_NAPI_ENSURE(env, napi_wrap(env, exports, ctx, s_napi_context_finalize, NULL, NULL));
+    AWS_NAPI_ENSURE(env, napi_wrap(env, exports, ctx, s_napi_context_finalize, NULL, &ctx->ref));
 
+    // make sure increase the ref
+    AWS_NAPI_ENSURE(env, napi_reference_ref(env, ctx->ref, NULL));
     ctx->logger = aws_napi_logger_new(allocator, env);
 
     return ctx;
