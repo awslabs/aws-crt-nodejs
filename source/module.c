@@ -825,9 +825,6 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_callback_scope_mismatch:
             reason = "napi_callback_scope_mismatch";
             break;
-        case napi_no_external_buffers_allowed:
-            reason = "napi_no_external_buffers_allowed";
-            break;
 #if NAPI_VERSION >= 3
         case napi_queue_full:
             reason = "napi_queue_full";
@@ -838,6 +835,13 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_bigint_expected:
             reason = "napi_bigint_expected";
             break;
+/* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
+ * Use it for external buffer related changes after bump to node 14
+ *
+ * case napi_no_external_buffers_allowed:
+ *     reason = "napi_no_external_buffers_allowed";
+ *     break;
+ */
 #endif
     }
     return reason;
@@ -939,8 +943,13 @@ napi_status aws_napi_create_external_arraybuffer_function(
     napi_status status = napi_create_external_arraybuffer(
         env, external_data, byte_length, s_finalize_external_binary_byte_buf, finalize_hint, result);
 
-    // The external buffer is disabled, manually copy the external_data into Node
-    if (status == napi_no_external_buffers_allowed) {
+    if (status != napi_ok) {
+
+        /* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
+         * Use it to determine if the function failed because of the external buffer support after bump
+         * minimal support to node 14
+         */
+        // The external buffer is disabled, manually copy the external_data into Node
         void *napi_buf_data = NULL;
         AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, byte_length, &napi_buf_data, result));
 
@@ -949,7 +958,7 @@ napi_status aws_napi_create_external_arraybuffer_function(
         // As the data has been copied into the Node, invoke the finalize callback to make sure the
         // data is released.
         finalize_cb(env, finalize_hint, finalize_hint);
-    } else if (status != napi_ok) {
+
         AWS_NAPI_LOGF_ERROR("N-API call failed: napi_create_external_arraybuffer: %s", aws_napi_status_to_str(status));
     }
 
