@@ -958,8 +958,6 @@ napi_status aws_napi_create_external_arraybuffer_function(
         // As the data has been copied into the Node, invoke the finalize callback to make sure the
         // data is released.
         finalize_cb(env, finalize_hint, finalize_hint);
-
-        AWS_NAPI_LOGF_ERROR("N-API call failed: napi_create_external_arraybuffer: %s", aws_napi_status_to_str(status));
     }
 
     return status;
