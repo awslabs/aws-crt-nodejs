@@ -940,10 +940,10 @@ napi_status aws_napi_create_external_arraybuffer_function(
     void *finalize_hint,
     napi_value *result) {
 
-    napi_status status =
+    napi_status external_buffer_status =
         napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
-    if (status != napi_ok) {
+    if (external_buffer_status != napi_ok) {
 
         /* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
          * Use it to determine if the function failed because of the external buffer support after bump
@@ -960,7 +960,7 @@ napi_status aws_napi_create_external_arraybuffer_function(
         finalize_cb(env, finalize_hint, finalize_hint);
     }
 
-    return status;
+    return external_buffer_status;
 }
 
 napi_status aws_napi_dispatch_threadsafe_function(
