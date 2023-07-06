@@ -300,7 +300,6 @@ napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function
  */
 struct aws_napi_context {
     napi_env env;
-    napi_ref ref;
     struct aws_allocator *allocator;
     struct aws_napi_logger_ctx *logger;
 };
