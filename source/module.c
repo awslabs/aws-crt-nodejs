@@ -940,8 +940,8 @@ napi_status aws_napi_create_external_arraybuffer_function(
     void *finalize_hint,
     napi_value *result) {
 
-    napi_status status = napi_create_external_arraybuffer(
-        env, external_data, byte_length, s_finalize_external_binary_byte_buf, finalize_hint, result);
+    napi_status status =
+        napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
     if (status != napi_ok) {
 
