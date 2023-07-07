@@ -123,7 +123,9 @@ async function buildLocally() {
             BUILD_TESTING: 'OFF',
             CMAKE_INSTALL_PREFIX: 'crt/install',
             CMAKE_PREFIX_PATH: 'crt/install',
-        }
+        },
+        runtime: "electron",
+        runtimeVersion: "25.2.0"
     }
 
     // We need to pass some extra flags to pull off cross-compiling

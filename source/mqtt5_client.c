@@ -133,7 +133,8 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function transform_websocket;
 };
 
-static void s_aws_mqtt5_release_callbacks(struct aws_mqtt5_client_binding *binding) {
+static void s_aws_mqtt5_release_callbacks(struct aws_mqtt5_client_binding *binding)
+{
     if (binding == NULL) {
         return;
     }
@@ -149,9 +150,19 @@ static void s_aws_mqtt5_release_callbacks(struct aws_mqtt5_client_binding *bindi
 
 static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
 
+
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_destroy - releasing... client binding ");
+
     if (binding == NULL) {
         return;
     }
+
+
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_destroy - binding was not null ");
 
     aws_tls_connection_options_clean_up(&binding->tls_connection_options);
 
@@ -159,24 +170,44 @@ static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *
     s_aws_mqtt5_release_callbacks(binding);
 
     aws_mem_release(binding->allocator, binding);
+    binding = NULL;
 }
 
 static void s_aws_mqtt5_client_binding_on_zero(void *object) {
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_on_zero - enter...",
+        (void *)object);
     s_aws_mqtt5_client_binding_destroy(object);
 }
 
 static struct aws_mqtt5_client_binding *s_aws_mqtt5_client_binding_acquire(struct aws_mqtt5_client_binding *binding) {
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_acquire - AC1",
+        (void *)binding);
     if (binding == NULL) {
         return NULL;
     }
 
     aws_ref_count_acquire(&binding->ref_count);
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_acquire - acquired, count %d",
+        (void *)binding, binding->ref_count.ref_count.value);
     return binding;
 }
 
 static struct aws_mqtt5_client_binding *s_aws_mqtt5_client_binding_release(struct aws_mqtt5_client_binding *binding) {
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_release - RL1");
     if (binding != NULL) {
         aws_ref_count_release(&binding->ref_count);
+            AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_release - released, count %d",
+        (void *)binding, binding->ref_count.ref_count.value);
     }
 
     return NULL;
@@ -185,8 +216,23 @@ static struct aws_mqtt5_client_binding *s_aws_mqtt5_client_binding_release(struc
 static void s_aws_mqtt5_client_binding_on_client_terminate(void *user_data) {
     struct aws_mqtt5_client_binding *binding = user_data;
 
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_on_client_terminate - terminated...",
+        (void *)binding->client);
+
     s_aws_mqtt5_client_binding_release(binding);
 }
+
+
+// static void s_aws_mqtt5_client_cleanup_hook_hanlder(napi_env env, void *cleanup_data) {
+//     (void)env;
+
+//     struct aws_mqtt5_client_binding *binding = cleanup_data;
+//     AWS_LOGF_INFO(
+//         AWS_LS_NODEJS_CRT_GENERAL,
+//         "id=%p s_aws_mqtt5_client_cleanup_hook_hanlder - mqtt5_client node wrapper is being finalized");
+// }
 
 /*
  * Invoked when the node mqtt5 client is garbage collected or if fails construction partway through
@@ -296,7 +342,7 @@ error:
 static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *publish_packet, void *user_data) {
     struct aws_mqtt5_client_binding *binding = user_data;
 
-    if (!binding->on_message_received) {
+    if (!binding || !binding->on_message_received) {
         return;
     }
 
@@ -327,6 +373,10 @@ static void s_on_simple_event_user_data_destroy(struct on_simple_event_user_data
 
 static struct on_simple_event_user_data *s_on_simple_event_user_data_new(struct aws_mqtt5_client_binding *binding) {
 
+    if (!binding || !binding->on_stopped) {
+        return NULL;
+    }
+
     struct on_simple_event_user_data *user_data =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct on_simple_event_user_data));
     user_data->allocator = binding->allocator;
@@ -336,7 +386,7 @@ static struct on_simple_event_user_data *s_on_simple_event_user_data_new(struct 
 }
 
 static void s_on_stopped(struct aws_mqtt5_client_binding *binding) {
-    if (!binding->on_stopped) {
+    if (!binding || !binding->on_stopped) {
         return;
     }
 
@@ -346,7 +396,7 @@ static void s_on_stopped(struct aws_mqtt5_client_binding *binding) {
 }
 
 static void s_on_attempting_connect(struct aws_mqtt5_client_binding *binding) {
-    if (!binding->on_attempting_connect) {
+    if (!binding || !binding->on_attempting_connect) {
         return;
     }
 
@@ -420,7 +470,7 @@ static void s_on_connection_success(
     const struct aws_mqtt5_packet_connack_view *connack,
     const struct aws_mqtt5_negotiated_settings *settings) {
 
-    if (!binding->on_connection_success) {
+    if (!binding || !binding->on_connection_success) {
         return;
     }
 
@@ -438,7 +488,7 @@ static void s_on_connection_failure(
     struct aws_mqtt5_client_binding *binding,
     const struct aws_mqtt5_packet_connack_view *connack,
     int error_code) {
-    if (!binding->on_connection_failure) {
+    if (!binding || !binding->on_connection_failure) {
         return;
     }
 
@@ -465,7 +515,29 @@ static void s_on_disconnection_user_data_destroy(struct on_disconnection_user_da
         return;
     }
 
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_on_disconnection_user_data_destroy - release binding...",
+        (void *)disconnection_ud);
+
     disconnection_ud->binding = s_aws_mqtt5_client_binding_release(disconnection_ud->binding);
+
+    aws_mqtt5_packet_disconnect_storage_clean_up(&disconnection_ud->disconnect_storage);
+
+    aws_mem_release(disconnection_ud->allocator, disconnection_ud);
+}
+
+
+
+static void s_on_disconnection_user_data_destroy_no_binding(struct on_disconnection_user_data *disconnection_ud) {
+    if (disconnection_ud == NULL) {
+        return;
+    }
+
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_on_disconnection_user_data_destroy_no_binding - release binding...",
+        (void *)disconnection_ud);
 
     aws_mqtt5_packet_disconnect_storage_clean_up(&disconnection_ud->disconnect_storage);
 
@@ -1038,7 +1110,8 @@ static void s_napi_on_disconnection(napi_env env, napi_value function, void *con
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_disconnection_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
-            goto done;
+            s_on_disconnection_user_data_destroy(disconnection_ud);
+            return;
         }
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, disconnection_ud->error_code, &params[1]), { goto done; });
@@ -1086,9 +1159,17 @@ static int s_create_napi_publish_packet(
 
     if (aws_napi_attach_object_property_binary_as_finalizable_external(
             packet, env, AWS_NAPI_KEY_PAYLOAD, message_received_ud->payload)) {
+                 AWS_LOGF_INFO(
+    AWS_LS_NODEJS_CRT_GENERAL,
+    "s_create_napi_publish_packet - publish external failed");
         return AWS_OP_ERR;
     }
     message_received_ud->payload = NULL;
+
+    AWS_LOGF_INFO(
+    AWS_LS_NODEJS_CRT_GENERAL,
+    "s_create_napi_publish_packet - publish external succeed");
+
 
     if (aws_napi_attach_object_property_u32(packet, env, AWS_NAPI_KEY_QOS, (uint32_t)publish_view->qos)) {
         return AWS_OP_ERR;
@@ -2023,6 +2104,19 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     binding->allocator = allocator;
     aws_ref_count_init(&binding->ref_count, binding, s_aws_mqtt5_client_binding_on_zero);
 
+
+    // AWS_NAPI_CALL(env, napi_add_env_cleanup_hook(env, s_aws_mqtt5_client_cleanup_hook_hanlder, binding), {
+    //     aws_mem_release(allocator, binding);
+    //     napi_throw_error(env, NULL, "s_aws_mqtt5_client_cleanup_hook_hanlder - Failed to create n-api external");
+    //     AWS_LOGF_INFO(
+    //             AWS_LS_NODEJS_CRT_GENERAL,
+    //             "s_aws_mqtt5_client_cleanup_hook_hanlder - Failed to create n-api external");
+    //     goto cleanup;
+    // });
+
+    AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_aws_mqtt5_client_cleanup_hook_hanlder - Success to create n-api external");
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_aws_mqtt5_client_extern_finalize, NULL, &node_external), {
         aws_mem_release(allocator, binding);
         napi_throw_error(env, NULL, "mqtt5_client_new - Failed to create n-api external");

@@ -9,6 +9,10 @@ endif()
 
 include(CTest)
 
+add_definitions(-DNAPI_VERSION=4)
+
+include_directories(${CMAKE_JS_INC})
+
 # ensure that the release build has symbols
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
@@ -23,6 +27,18 @@ endif()
 if (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib64")
     set(FIND_LIBRARY_USE_LIB64_PATHS true)
 endif()
+
+
+# Some runtimes other than Node.js (e.x.: Chromium and Electron ) have dropped support for external buffers.
+# Uncomment the definition below to hide the functions that create external buffers.
+set(NODE_RUNTIME "electron")
+set(NODE_RUNTIMEVERSION "25.2.0")
+set(NODE_RUNTIME "arm64")
+# add_definitions(
+#     -DV8_COMPRESS_POINTERS
+#     -DV8_REVERSE_JSARGS
+#     -DV8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+# )
 
 # This is required in order to append /lib/cmake to each element in CMAKE_PREFIX_PATH
 set(AWS_MODULE_DIR "/${CMAKE_INSTALL_LIBDIR}/cmake")
@@ -82,7 +98,7 @@ file(GLOB AWS_CRT_SRC
        "source/*.c"
 )
 
-add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
+add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC} ${CMAKE_JS_SRC})
 aws_set_common_properties(${PROJECT_NAME})
 aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
 aws_add_sanitizers(${PROJECT_NAME})
@@ -104,6 +120,11 @@ aws_use_package(aws-c-event-stream REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
 set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
+
+if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
+  # Generate node.lib
+  execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})
+endif()
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
     DESTINATION ${destination})
