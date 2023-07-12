@@ -269,7 +269,7 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
 
     napi_value napi_binary = NULL;
 
-    AWS_NAPI_ENSURE(aws_napi_create_external_arraybuffer(
+    AWS_NAPI_ENSURE(env, aws_napi_create_external_arraybuffer(
         env, data_buffer->buffer, data_buffer->len, s_finalize_external_binary_byte_buf, data_buffer, &napi_binary));
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_binary), {
@@ -944,6 +944,7 @@ napi_status aws_napi_create_external_arraybuffer(
         napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
     if (external_buffer_status != napi_ok) {
+
         /* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
          * Use it to determine if the function failed because of the external buffer support after bump
          * minimal support to node 14
