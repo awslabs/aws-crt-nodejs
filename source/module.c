@@ -269,8 +269,15 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
 
     napi_value napi_binary = NULL;
 
-    AWS_NAPI_ENSURE(env, aws_napi_create_external_arraybuffer(
-        env, data_buffer->buffer, data_buffer->len, s_finalize_external_binary_byte_buf, data_buffer, &napi_binary));
+    AWS_NAPI_ENSURE(
+        env,
+        aws_napi_create_external_arraybuffer(
+            env,
+            data_buffer->buffer,
+            data_buffer->len,
+            s_finalize_external_binary_byte_buf,
+            data_buffer,
+            &napi_binary));
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_binary), {
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
