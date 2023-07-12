@@ -269,8 +269,8 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
 
     napi_value napi_binary = NULL;
 
-    aws_napi_create_external_arraybuffer_function(
-        env, data_buffer->buffer, data_buffer->len, s_finalize_external_binary_byte_buf, data_buffer, &napi_binary);
+    AWS_NAPI_ENSURE(aws_napi_create_external_arraybuffer(
+        env, data_buffer->buffer, data_buffer->len, s_finalize_external_binary_byte_buf, data_buffer, &napi_binary));
 
     AWS_NAPI_CALL(env, napi_set_named_property(env, object, key_name, napi_binary), {
         return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
@@ -932,7 +932,7 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
     }
 }
 
-napi_status aws_napi_create_external_arraybuffer_function(
+napi_status aws_napi_create_external_arraybuffer(
     napi_env env,
     void *external_data,
     size_t byte_length,
@@ -944,14 +944,24 @@ napi_status aws_napi_create_external_arraybuffer_function(
         napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
     if (external_buffer_status != napi_ok) {
-
         /* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
          * Use it to determine if the function failed because of the external buffer support after bump
          * minimal support to node 14
          */
+        AWS_NAPI_LOGF_ERROR(
+            "napi_create_external_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
+            aws_napi_status_to_str(external_buffer_status));
+
         // The external buffer is disabled, manually copy the external_data into Node
         void *napi_buf_data = NULL;
-        AWS_NAPI_ENSURE(env, napi_create_arraybuffer(env, byte_length, &napi_buf_data, result));
+        napi_status create_arraybuffer_status = napi_create_arraybuffer(env, byte_length, &napi_buf_data, result);
+
+        if (create_arraybuffer_status != napi_ok) {
+            AWS_NAPI_LOGF_ERROR(
+                "napi_create_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
+                aws_napi_status_to_str(create_arraybuffer_status));
+            return create_arraybuffer_status;
+        }
 
         memcpy(napi_buf_data, external_data, byte_length);
 
@@ -960,7 +970,7 @@ napi_status aws_napi_create_external_arraybuffer_function(
         finalize_cb(env, finalize_hint, finalize_hint);
     }
 
-    return external_buffer_status;
+    return napi_ok;
 }
 
 napi_status aws_napi_dispatch_threadsafe_function(

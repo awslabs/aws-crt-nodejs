@@ -138,8 +138,8 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
         napi_value params[1];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
-        aws_napi_create_external_arraybuffer_function(
-            env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]);
+        AWS_NAPI_ENSURE(aws_napi_create_external_arraybuffer(
+            env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]));
 
         AWS_NAPI_ENSURE(
             env, aws_napi_dispatch_threadsafe_function(env, binding->on_body, NULL, on_body, num_params, params));
