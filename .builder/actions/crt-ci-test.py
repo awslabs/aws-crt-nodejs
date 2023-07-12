@@ -65,7 +65,6 @@ class CrtCiTest(Builder.Action):
             # java_sdk_dir = self._build_and_run_eventstream_echo_server(env)
             Builder.SetupCrossCICrtEnvironment().run(env)
             env.shell.exec(["npm", "run", "test:native"], check=True)
-            Builder.CleanupCrossCICrtEnvironment().run(env)
         except:
             print(f'Failure while running tests')
             actions.append("exit 1")
