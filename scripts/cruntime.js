@@ -8,6 +8,9 @@ const child_process = require('child_process')
 function getCRuntime() {
     const platform = os.platform();
     let non_linux_runtime_tag = 'cruntime';
+    let musl_tag = 'musl';
+    let glbic_tag = 'glibc';
+
     if(platform !== "linux") {
         return non_linux_runtime_tag;
     }
@@ -17,14 +20,13 @@ function getCRuntime() {
         // Using spawnSync because execSync treats any output to stderr as an exception.
         const spawnedProcess = child_process.spawnSync('ldd', ['--version'], { encoding: 'utf8' });
         const output = spawnedProcess.stdout + spawnedProcess.stderr;
-        if (output.includes('musl')) {
-            return 'musl';
+        if (output.includes(musl_tag)) {
+            return musl_tag;
         } else {
-            return 'glibc';
+            return glbic_tag;
         }
     } catch (error) {
-        console.error(`Error executing ldd --version: ${error}`);
-        return  'glibc';
+        return glbic_tag;
     }
 
 }
