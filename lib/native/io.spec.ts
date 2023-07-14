@@ -6,7 +6,7 @@
 import * as io from './io';
 import { Pkcs11Lib } from './io';
 import { CrtError } from './error';
-import {cRunTime} from "./binding";
+import {cRuntime} from "./binding";
 
 const conditional_test = (condition: any) => condition ? it : it.skip;
 
@@ -27,7 +27,7 @@ const PKCS11_LIB_PATH = process.env.AWS_TEST_PKCS11_LIB ?? "";
  * Supporting AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE on Node-js is not trivial due to non-deterministic cleanup.
  * TODO: Support AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE in tests
  */
-const pkcs11_test = conditional_test(cRunTime !== "musl" && PKCS11_LIB_PATH)
+const pkcs11_test = conditional_test(cRuntime !== "musl" && PKCS11_LIB_PATH)
 
 pkcs11_test('Pkcs11Lib sanity check', () => {
     // sanity check that we can load and unload a PKCS#11 library
