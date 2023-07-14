@@ -102,8 +102,6 @@ async function fetchNativeCode(url, version, path) {
     await tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
 }
 
-
-
 async function buildLocally() {
     const platform = os.platform();
     let arch = os.arch();
