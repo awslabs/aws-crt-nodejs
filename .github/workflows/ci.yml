@@ -7,8 +7,8 @@ on:
       - 'docs'
 
 env:
-  BUILDER_VERSION: skip-pkcs11-alpine
-  BUILDER_SOURCE: channels
+  BUILDER_VERSION: v0.9.46
+  BUILDER_SOURCE: releases
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
   LINUX_BASE_IMAGE: ubuntu-18-x64
@@ -43,7 +43,7 @@ jobs:
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
 
-  musl:
+  musl-linux:
     runs-on: ubuntu-20.04 # latest
     strategy:
       fail-fast: false
