@@ -44,6 +44,7 @@ class CrtCiTest(Builder.Action):
                 def _terminate_echo_server():
                     proc.terminate()
                     proc.wait()
+
                 env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST", "127.0.0.1", quiet=False)
                 env.shell.setenv("AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT", "8033", quiet=False)
             finally:
