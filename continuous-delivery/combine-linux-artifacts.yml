@@ -1,3 +1,4 @@
+# We need a CodeBuild action to combine linux artifacts, as we've hit the limit of 5 input artifacts in CodePipeline.
 version: 0.2
 phases:
   build:
