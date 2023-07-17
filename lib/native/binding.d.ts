@@ -511,3 +511,8 @@ export function event_stream_client_stream_send_message(
 ) : void;
 
 export const cRuntime: string;
+export const CRuntimeType: {
+    NON_LINUX: string,
+    MUSL: string,
+    GLIBC: string
+};
