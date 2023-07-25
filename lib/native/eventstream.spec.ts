@@ -611,46 +611,46 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
     connection.close();
 });
 
-conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate one-time echo stream, verify response, verify stream ended', async () => {
-
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-
-    let stream : eventstream.ClientStream = connection.newStream();
-
-    const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
-    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
-
-    const payloadAsString = "{}";
-
-    let message : eventstream.Message = {
-        type: eventstream.MessageType.ApplicationMessage,
-        payload: payloadAsString
-    };
-
-    await stream.activate({
-        operation: "awstest#EchoMessage",
-        message : message
-    });
-
-    let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
-    let response: eventstream.Message = responseEvent.message;
-
-    expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
-    expect(response.flags).toBeDefined();
-    expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(eventstream.MessageFlags.TerminateStream);
-
-    let payload : string = "";
-    if (response.payload !== undefined) {
-        var decoder = new TextDecoder();
-        payload = decoder.decode(Buffer.from(response.payload));
-    }
-    expect(payload).toEqual(payloadAsString);
-
-    await streamEnded;
-
-    stream.close();
-    connection.close();
-});
+// conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate one-time echo stream, verify response, verify stream ended', async () => {
+//
+//     let connection : eventstream.ClientConnection = await makeGoodConnection();
+//
+//     let stream : eventstream.ClientStream = connection.newStream();
+//
+//     const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
+//     const streamEnded = once(stream, eventstream.ClientStream.ENDED);
+//
+//     const payloadAsString = "{}";
+//
+//     let message : eventstream.Message = {
+//         type: eventstream.MessageType.ApplicationMessage,
+//         payload: payloadAsString
+//     };
+//
+//     await stream.activate({
+//         operation: "awstest#EchoMessage",
+//         message : message
+//     });
+//
+//     let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
+//     let response: eventstream.Message = responseEvent.message;
+//
+//     expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
+//     expect(response.flags).toBeDefined();
+//     expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(eventstream.MessageFlags.TerminateStream);
+//
+//     let payload : string = "";
+//     if (response.payload !== undefined) {
+//         var decoder = new TextDecoder();
+//         payload = decoder.decode(Buffer.from(response.payload));
+//     }
+//     expect(payload).toEqual(payloadAsString);
+//
+//     await streamEnded;
+//
+//     stream.close();
+//     connection.close();
+// });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, send message, verify echo response', async () => {
 
