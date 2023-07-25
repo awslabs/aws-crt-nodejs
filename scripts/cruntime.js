@@ -9,7 +9,7 @@ function getCRuntime() {
     const platform = os.platform();
     let non_linux_runtime_tag = 'cruntime';
     let musl_tag = 'musl';
-    let glbic_tag = 'glibc';
+    let glibc_tag = 'glibc';
 
     if(platform !== "linux") {
         return non_linux_runtime_tag;
@@ -23,10 +23,10 @@ function getCRuntime() {
         if (output.includes(musl_tag)) {
             return musl_tag;
         } else {
-            return glbic_tag;
+            return glibc_tag;
         }
     } catch (error) {
-        return glbic_tag;
+        return glibc_tag;
     }
 
 }
