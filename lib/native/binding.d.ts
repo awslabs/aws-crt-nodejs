@@ -509,3 +509,10 @@ export function event_stream_client_stream_send_message(
     options: eventstream.StreamMessageOptions,
     completion_callback: (errorCode: number) => void
 ) : void;
+
+export const cRuntime: string;
+export const CRuntimeType: {
+    NON_LINUX: string,
+    MUSL: string,
+    GLIBC: string
+};
