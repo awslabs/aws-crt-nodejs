@@ -15,7 +15,7 @@ class CrtCiTest(Builder.Action):
             # maven is installed, so this is a configuration we can start an event stream echo server
             java_sdk_dir = env.shell.mktemp()
 
-            env.shell.exec(["git", "clone","-b","MuslSupport" "https://github.com/aws/aws-iot-device-sdk-java-v2"], working_dir=java_sdk_dir, check=True)
+            env.shell.exec(["git", "clone","-b","MuslSupport", "https://github.com/aws/aws-iot-device-sdk-java-v2"], working_dir=java_sdk_dir, check=True)
 
             sdk_dir = os.path.join(java_sdk_dir, "aws-iot-device-sdk-java-v2", "sdk")
             env.shell.pushd(sdk_dir)
