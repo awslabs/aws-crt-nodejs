@@ -18,6 +18,7 @@
                 "JDK8"
             ],
             "+packages": [
+                "openjdk8",
                 "nodejs",
                 "npm"
             ]
