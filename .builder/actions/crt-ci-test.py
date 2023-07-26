@@ -38,7 +38,7 @@ class CrtCiTest(Builder.Action):
                 print(f'Echo server command: {echo_server_command}')
 
                 # bypass builder's exec wrapper since it doesn't allow for background execution
-                proc = subprocess.Popen(echo_server_command)
+                proc = subprocess.Popen(echo_server_command, stdout=subprocess.PIPE)
 
                 @atexit.register
                 def _terminate_echo_server():
