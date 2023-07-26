@@ -350,7 +350,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
      *
      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
      */
-    if (os.platform() !== 'win32' && cRuntime !== CRuntimeType.MUSL) {
+    if (os.platform() !== 'win32') {
         let response: eventstream.MessageEvent = (await connectResponse)[0];
         let message: eventstream.Message = response.message;
 
