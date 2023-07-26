@@ -6,7 +6,7 @@
 import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
 import {once} from "events";
-import crt_native, {cRuntime, CRuntimeType} from "./binding";
+import crt_native from "./binding";
 import * as os from "os";
 
 jest.setTimeout(10000);
