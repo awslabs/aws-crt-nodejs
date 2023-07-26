@@ -317,12 +317,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
-    enable_logging(LogLevel.TRACE);
-    Console.error("start");
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
-    Console.error("await connection");
     await connection.connect({});
-    Console.error("connection success");
 
     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
     const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
@@ -334,12 +330,10 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
             eventstream.Header.newString('client-name', 'accepted.testy_mc_testerson')
         ]
     };
-    Console.error("await send message");
 
     await connection.sendProtocolMessage({
         message: connectMessage
     });
-    Console.error("message sent");
 
     /*
      * Sigh.
@@ -356,6 +350,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
      * requiring platform-specific permissions tweaks to allow communication between multiple processes.
      *
      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
+     * We also skip this on Musl as it is very flaky.
      */
     if (os.platform() !== 'win32' &&  cRuntime !== CRuntimeType.MUSL) {
         let response: eventstream.MessageEvent = (await connectResponse)[0];
@@ -365,12 +360,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
         expect(message.flags).toBeDefined();
         expect((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted).toEqual(0);
     }
-    Console.error("await disconnect");
 
     await disconnected;
-
-    Console.error("disconnected");
-
     connection.close();
 });
 
