@@ -4,7 +4,7 @@ phases:
     commands:
       - mkdir linux-x64-musl
       - cd aws-crt-nodejs
-      - builder build --project=aws-crt-nodejs --skip-install run_tests=false
+      - builder build --project=aws-crt-nodejs run_tests=false
       - cp -r dist/bin/linux-x64-musl/* ../linux-x64-musl/
 
 artifacts:
