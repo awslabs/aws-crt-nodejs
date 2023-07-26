@@ -7,11 +7,9 @@ import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
 import {once} from "events";
 import crt_native from "./binding";
-import * as Console from "console";
-import {enable_logging, LogLevel} from "./io";
-// import * as os from "os";
+import * as os from "os";
 
-jest.setTimeout(100000);
+jest.setTimeout(10000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
@@ -315,107 +313,57 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
 
     connection.close();
 });
-//
-// conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
-//     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
-//
-//     await connection.connect({});
-//
-//     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
-//     const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
-//
-//     let connectMessage: eventstream.Message = {
-//         type: eventstream.MessageType.Connect,
-//         headers: [
-//             eventstream.Header.newString(':version', '0.0.1'),
-//             eventstream.Header.newString('client-name', 'accepted.testy_mc_testerson')
-//         ]
-//     };
-//
-//     await connection.sendProtocolMessage({
-//         message: connectMessage
-//     });
-//
-//     /*
-//      * Sigh.
-//      * On Windows, our EchoTest server closes the connection in this case with an RST rather than a FIN.  Searching
-//      * the web hints at a possible timing issue (that affects Windows far more than other platforms) when closing
-//      * server-side (listener-spawned) sockets that leads to an RST over a FIN:
-//      *
-//      *   https://github.com/libuv/libuv/issues/3034 shows a similar problem, for example.
-//      *
-//      * A socket that is closed with an RST is not readable, despite the fact that there was previously received data.
-//      * So we'll never be able to get the failed ConnAck because the attempt to read from the socket fails immediately.
-//      *
-//      * Alternatively, we could restrict these tests to domain/local sockets but that creates its own set of problems,
-//      * requiring platform-specific permissions tweaks to allow communication between multiple processes.
-//      *
-//      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
-//      */
-//     if (os.platform() !== 'win32') {
-//         let response: eventstream.MessageEvent = (await connectResponse)[0];
-//         let message: eventstream.Message = response.message;
-//
-//         expect(message.type).toEqual(eventstream.MessageType.ConnectAck);
-//         expect(message.flags).toBeDefined();
-//         expect((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted).toEqual(0);
-//     }
-//
-//     await disconnected;
-//
-//     connection.close();
-// });
-conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate one-time echo stream, verify response, verify stream ended', async () => {
-    enable_logging(LogLevel.TRACE);
-    Console.error("make connection");
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    Console.error("connection made");
 
-    let stream : eventstream.ClientStream = connection.newStream();
-    Console.error("new stream");
+conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
+    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
-    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
+    await connection.connect({});
 
-    const payloadAsString = "{}";
+    const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
+    const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
-    let message : eventstream.Message = {
-        type: eventstream.MessageType.ApplicationMessage,
-        payload: payloadAsString
+    let connectMessage: eventstream.Message = {
+        type: eventstream.MessageType.Connect,
+        headers: [
+            eventstream.Header.newString(':version', '0.0.1'),
+            eventstream.Header.newString('client-name', 'accepted.testy_mc_testerson')
+        ]
     };
-    Console.error("await activate");
 
-    await stream.activate({
-        operation: "awstest#EchoMessage",
-        message : message
+    await connection.sendProtocolMessage({
+        message: connectMessage
     });
-    Console.error("activated");
 
-    let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
-    Console.error("response received");
+    /*
+     * Sigh.
+     * On Windows, our EchoTest server closes the connection in this case with an RST rather than a FIN.  Searching
+     * the web hints at a possible timing issue (that affects Windows far more than other platforms) when closing
+     * server-side (listener-spawned) sockets that leads to an RST over a FIN:
+     *
+     *   https://github.com/libuv/libuv/issues/3034 shows a similar problem, for example.
+     *
+     * A socket that is closed with an RST is not readable, despite the fact that there was previously received data.
+     * So we'll never be able to get the failed ConnAck because the attempt to read from the socket fails immediately.
+     *
+     * Alternatively, we could restrict these tests to domain/local sockets but that creates its own set of problems,
+     * requiring platform-specific permissions tweaks to allow communication between multiple processes.
+     *
+     * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
+     */
+    if (os.platform() !== 'win32') {
+        let response: eventstream.MessageEvent = (await connectResponse)[0];
+        let message: eventstream.Message = response.message;
 
-    let response: eventstream.Message = responseEvent.message;
-
-    expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
-    expect(response.flags).toBeDefined();
-    expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(eventstream.MessageFlags.TerminateStream);
-
-    let payload : string = "";
-    if (response.payload !== undefined) {
-        var decoder = new TextDecoder();
-        payload = decoder.decode(Buffer.from(response.payload));
+        expect(message.type).toEqual(eventstream.MessageType.ConnectAck);
+        expect(message.flags).toBeDefined();
+        expect((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted).toEqual(0);
     }
-    expect(payload).toEqual(payloadAsString);
-    Console.error("await end");
 
-    await streamEnded;
-    Console.error("ended");
+    await disconnected;
 
-    stream.close();
     connection.close();
-    enable_logging(LogLevel.ERROR);
-
 });
+
 conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - create with undefined', async () => {
     expect(() => {
         // @ts-ignore
@@ -663,7 +611,46 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
     connection.close();
 });
 
+conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate one-time echo stream, verify response, verify stream ended', async () => {
 
+    let connection : eventstream.ClientConnection = await makeGoodConnection();
+
+    let stream : eventstream.ClientStream = connection.newStream();
+
+    const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
+    const streamEnded = once(stream, eventstream.ClientStream.ENDED);
+
+    const payloadAsString = "{}";
+
+    let message : eventstream.Message = {
+        type: eventstream.MessageType.ApplicationMessage,
+        payload: payloadAsString
+    };
+
+    await stream.activate({
+        operation: "awstest#EchoMessage",
+        message : message
+    });
+
+    let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
+    let response: eventstream.Message = responseEvent.message;
+
+    expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
+    expect(response.flags).toBeDefined();
+    expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(eventstream.MessageFlags.TerminateStream);
+
+    let payload : string = "";
+    if (response.payload !== undefined) {
+        var decoder = new TextDecoder();
+        payload = decoder.decode(Buffer.from(response.payload));
+    }
+    expect(payload).toEqual(payloadAsString);
+
+    await streamEnded;
+
+    stream.close();
+    connection.close();
+});
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, send message, verify echo response', async () => {
 

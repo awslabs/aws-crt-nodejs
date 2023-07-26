@@ -15,7 +15,7 @@ class CrtCiTest(Builder.Action):
             # maven is installed, so this is a configuration we can start an event stream echo server
             java_sdk_dir = env.shell.mktemp()
 
-            env.shell.exec(["git", "clone","-b","MuslSupport", "https://github.com/aws/aws-iot-device-sdk-java-v2"], working_dir=java_sdk_dir, check=True)
+            env.shell.exec(["git", "clone", "https://github.com/aws/aws-iot-device-sdk-java-v2"], working_dir=java_sdk_dir, check=True)
 
             sdk_dir = os.path.join(java_sdk_dir, "aws-iot-device-sdk-java-v2", "sdk")
             env.shell.pushd(sdk_dir)
@@ -33,12 +33,12 @@ class CrtCiTest(Builder.Action):
                 target_class_path = os.path.join(sdk_dir, "target", "classes")
                 directory_separator = os.pathsep
 
-                echo_server_command = ["java", "-classpath", f"{test_class_path}{directory_separator}{target_class_path}{directory_separator}{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033", "-Daws.crt.log.level=Trace"]
+                echo_server_command = ["java", "-classpath", f"{test_class_path}{directory_separator}{target_class_path}{directory_separator}{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
 
                 print(f'Echo server command: {echo_server_command}')
 
                 # bypass builder's exec wrapper since it doesn't allow for background execution
-                proc = subprocess.Popen(echo_server_command, stdout=subprocess.PIPE)
+                proc = subprocess.Popen(echo_server_command)
 
                 @atexit.register
                 def _terminate_echo_server():
@@ -68,8 +68,6 @@ class CrtCiTest(Builder.Action):
             print(f'Failure while running tests')
             actions.append("exit 1")
         finally:
-            env.shell.exec(["cat", "/tmp/waahm7Logs.txt"], check=True)
-            env.shell.exec(["cat", "/tmp/waahm7ServerLogs.txt"], check=True)
             if java_sdk_dir:
                 env.shell.rm(java_sdk_dir)
 
