@@ -13,7 +13,7 @@
             "enabled": false
         },
         "alpine": {
-            "_comment:": "Override imports to install Node.js from the Alpine package manager instead of Builder. Installing Node.js via npm on Alpine has unexpected issues.",
+            "_comment:": "Override imports to install Node.js and OpenJDK8 from the Alpine package manager instead of Builder. Installing Node.js via npm on Alpine has unexpected issues. Openjdk11 has a gson stack overflow error in one of the event stream test",
             "!imports":[
             ],
             "+packages": [
