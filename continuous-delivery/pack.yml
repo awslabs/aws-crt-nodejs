@@ -11,7 +11,7 @@ phases:
     commands:
       - export DIST_BIN=dist/bin
       - mkdir -p $DIST_BIN
-      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux/aws_crt_nodejs_linux/* $DIST_BIN
+      - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_linux/* $DIST_BIN
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_osx_x64_arm64/* $DIST_BIN
       - cp -r $CODEBUILD_SRC_DIR_aws_crt_nodejs_win_x64/* $DIST_BIN
       - ls $DIST_BIN
