@@ -413,6 +413,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
     stream.close();
     connection.close();
+    enable_logging(LogLevel.ERROR);
+
 });
 conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - create with undefined', async () => {
     expect(() => {
