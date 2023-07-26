@@ -21,7 +21,7 @@ def main():
         arch = os.uname().machine
         print("uname result {}".format(arch))
 
-    lib_path = "dist/bin/darwin-{}/aws-crt-nodejs.node".format(arch)
+    lib_path = "dist/bin/darwin-{}-cruntime/aws-crt-nodejs.node".format(arch)
 
     if re.match(r'^(aarch64|armv[6-8]|arm64)', arch): # on arm
         # The oldest version we can target on arm64 is 11.0
