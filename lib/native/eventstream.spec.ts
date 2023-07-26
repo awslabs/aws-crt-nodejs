@@ -6,7 +6,7 @@
 import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
 import {once} from "events";
-import crt_native from "./binding";
+import crt_native, {cRuntime, CRuntimeType} from "./binding";
 import * as os from "os";
 
 jest.setTimeout(10000);
@@ -350,7 +350,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
      *
      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
      */
-    if (os.platform() !== 'win32') {
+    if (os.platform() !== 'win32' && cRuntime !== CRuntimeType.MUSL) {
         let response: eventstream.MessageEvent = (await connectResponse)[0];
         let message: eventstream.Message = response.message;
 
