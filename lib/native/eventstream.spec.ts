@@ -314,7 +314,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
     connection.close();
 });
 
-conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
+// Skip this test on Musl as it is very flaky
+conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
     await connection.connect({});
 
@@ -348,9 +349,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
      * requiring platform-specific permissions tweaks to allow communication between multiple processes.
      *
      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
-     * We also skip this on Musl as it is very flaky.
      */
-    if (os.platform() !== 'win32' &&  cRuntime !== CRuntimeType.MUSL) {
+    if (os.platform() !== 'win32') {
         let response: eventstream.MessageEvent = (await connectResponse)[0];
         let message: eventstream.Message = response.message;
 
