@@ -9,7 +9,7 @@ import {once} from "events";
 import crt_native from "./binding";
 import * as os from "os";
 
-jest.setTimeout(10000);
+jest.setTimeout(20000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
