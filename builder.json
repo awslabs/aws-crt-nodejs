@@ -128,7 +128,6 @@
             "node",
             "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
         ],
-        ["cat", "/tmp/waahm7Logs.txt"],
         "crt-size-check"
     ]
 }

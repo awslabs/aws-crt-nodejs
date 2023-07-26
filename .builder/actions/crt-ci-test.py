@@ -65,6 +65,7 @@ class CrtCiTest(Builder.Action):
             Builder.SetupCrossCICrtEnvironment().run(env)
             env.shell.exec(["npm", "run", "test:native"], check=True)
         except:
+            env.shell.exec(["cat", "/tmp/waahm7Logs.txt"], check=True)
             print(f'Failure while running tests')
             actions.append("exit 1")
         finally:
