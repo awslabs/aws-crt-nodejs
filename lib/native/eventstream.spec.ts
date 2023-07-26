@@ -8,8 +8,6 @@ import * as cancel from '../common/cancel';
 import {once} from "events";
 import crt_native, {cRuntime, CRuntimeType} from "./binding";
 import * as os from "os";
-import * as Console from "console";
-import {enable_logging, LogLevel} from "./io";
 
 jest.setTimeout(10000);
 
