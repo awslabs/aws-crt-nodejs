@@ -316,7 +316,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
 
 /*
  * Skip this test on Musl as it is very flaky
- * TODO: Figure out why it is flaky on Musl and Fix that.
+ * TODO: Figure out why it is flaky on Musl and fix it.
  */
 conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
