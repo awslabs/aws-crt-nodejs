@@ -15,7 +15,6 @@
         "alpine": {
             "_comment:": "Override imports to install Node.js from the Alpine package manager instead of Builder. Installing Node.js via npm on Alpine has unexpected issues.",
             "!imports":[
-                "JDK8"
             ],
             "+packages": [
                 "openjdk8",
