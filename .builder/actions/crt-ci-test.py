@@ -33,7 +33,7 @@ class CrtCiTest(Builder.Action):
                 target_class_path = os.path.join(sdk_dir, "target", "classes")
                 directory_separator = os.pathsep
 
-                echo_server_command = ["java", "-classpath", f"{test_class_path}{directory_separator}{target_class_path}{directory_separator}{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033"]
+                echo_server_command = ["java", "-classpath", f"{test_class_path}{directory_separator}{target_class_path}{directory_separator}{classpath}", "software.amazon.awssdk.eventstreamrpc.echotest.EchoTestServiceRunner", "127.0.0.1", "8033", "-Daws.crt.log.level=Trace"]
 
                 print(f'Echo server command: {echo_server_command}')
 
