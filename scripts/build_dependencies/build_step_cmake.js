@@ -7,6 +7,7 @@ const os = require('os');
 const process = require("process");
 const path = require("path");
 const utils = require('./build_utils');
+const getCRuntime = require("../cruntime")
 
 module.exports = {
     cmake: null,
@@ -77,7 +78,7 @@ module.exports = {
             target: "install",
             debug: process.argv.includes('--debug'),
             arch: arch,
-            out: path.join('build', `${platform}-${arch}`),
+            out: path.join('build', `${platform}-${arch}-${getCRuntime()}`),
             cMakeOptions: {
                 CMAKE_EXPORT_COMPILE_COMMANDS: true,
                 CMAKE_JS_PLATFORM: platform,

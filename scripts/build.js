@@ -7,8 +7,6 @@ const crypto = require('crypto');
 const process = require("process");
 const path = require("path");
 
-const getCRuntime = require("./cruntime")
-
 const nativeSourceDir = "crt/";
 const build_step_tar = require("./build_dependencies/build_step_tar");
 const build_step_cmake = require("./build_dependencies/build_step_cmake");
@@ -88,14 +86,9 @@ function checkDoDownload() {
         }
     } else {
         // kick off local build
-        await buildLocally();
+        await build_step_cmake.performStep();
     }
-    catch (err) {
-        // teardown tmpPath and source directory on failure
-        rmRecursive(tmpPath);
-        rmRecursive(nativeSourceDir);
-        throw err;
-    }
-} else {
-    build_step_cmake.performStep();
-}
+})().catch((reason) => {
+    console.error(reason)
+    process.exitCode = 1
+})
