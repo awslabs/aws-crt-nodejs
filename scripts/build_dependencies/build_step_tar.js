@@ -2,15 +2,15 @@
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0.
  */
- const path = require("path");
- const process = require("process");
- const build_step_axios = require("./build_step_axios");
- const utils = require('./build_utils');
+const path = require("path");
+const process = require("process");
+const build_step_axios = require("./build_step_axios");
+const utils = require('./build_utils');
 
 module.exports = {
 
-    tar : null,
-    tar_version : require("../../package.json").devDependencies['tar'].replace("^", ""),
+    tar: null,
+    tar_version: "6.1.11",
 
     /**
      * Will download the file at the given url with the given version to the given path using tar.
@@ -29,7 +29,7 @@ module.exports = {
      * Will download the file at the given url with the given version to the given path using tar.
      * Will ALWAYS download tar to the node_modules in scripts/build_dependencies/node_modules.
      */
-    getPackageAndFetchNativeCode : async function (url, version, source_path, nativeSourceDir) {
+    getPackageAndFetchNativeCode: async function (url, version, source_path, nativeSourceDir) {
         const workDir = path.join(__dirname, "../../")
 
         process.chdir(__dirname);

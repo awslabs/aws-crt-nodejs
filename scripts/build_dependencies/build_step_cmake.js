@@ -11,7 +11,7 @@ const getCRuntime = require("../cruntime")
 
 module.exports = {
     cmake: null,
-    cmake_version: require("../../package.json").devDependencies['cmake-js'].replace("^", ""),
+    cmake_version: "6.3.2",
 
     /**
      * Will compile the source code for the CRT using cmake-js. Will automatically either use
