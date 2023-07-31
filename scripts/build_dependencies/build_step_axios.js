@@ -56,12 +56,17 @@ module.exports = {
                 let error = null;
                 writer.on('error', err => {
                     error = err;
+                    console.log("Source file download failed " + err);
                     writer.close();
                     reject(err);
                 });
                 writer.on('close', () => {
                     if (!error) {
+                        console.log("Source file download succeed!");
                         resolve();
+                    } else {
+                        console.log("Source file download failed " + err);
+                        reject(err);
                     }
                 });
             });

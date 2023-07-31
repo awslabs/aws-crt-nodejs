@@ -52,13 +52,25 @@ async function buildFromRemoteSource(tmpPath) {
     let rawData = fs.readFileSync('package.json');
     const version = JSON.parse(rawData)["version"];
     // Get the file using tar, loaded as an install-time dependency (see scripts/build_dependencies)
-    await build_step_tar.performStep(host, version, tmpPath, nativeSourceDir);
+    try {
+        await build_step_tar.performStep(host, version, tmpPath, nativeSourceDir);
+    } catch (error) {
+        console.log("tar perform step failed with" + error);
+        throw error;
+    } finally {
+        rmRecursive(tmpPath);
+    }
     // Clean up temp directory
-    rmRecursive(tmpPath);
     // Kick off local build using cmake-js loaded as an install-time dependency (see scripts/build_dependencies)
-    await build_step_cmake.performStep();
-    // Local build finished successfully, we don't need source anymore.
-    rmRecursive(nativeSourceDir);
+    try {
+        await build_step_cmake.performStep();
+    } catch (error) {
+        console.log("tar perform step failed with" + error);
+        throw error;
+    } finally {
+        // Local build finished successfully, we don't need source anymore.
+        rmRecursive(nativeSourceDir);
+    }
 }
 
 function checkDoDownload() {
@@ -82,6 +94,7 @@ function checkDoDownload() {
             // teardown tmpPath and source directory on failure
             rmRecursive(tmpPath);
             rmRecursive(nativeSourceDir);
+            console.log("build from remote source failed with" + err);
             throw err;
         }
     } else {

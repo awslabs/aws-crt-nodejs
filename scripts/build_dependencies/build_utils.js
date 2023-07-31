@@ -21,26 +21,22 @@ module.exports = {
 
         // Do we have it in our node list? If so, then use that!
         try {
-            var list_output = child_process.execSync("npm list --depth 0 " + package_name, {encoding: "utf8"});
+            var list_output = child_process.execSync("npm list --depth 0 " + package_name, { encoding: "utf8" });
             if (list_output.indexOf(package_name + "@" + package_version) !== -1) {
                 console.log("Found " + package_name + " in node list!");
                 return true;
             }
         } catch (error) {
-            console.log("npm list " + package_name + " error:");
-            console.log(error);
         }
 
         // Do we have it in our global list?
         try {
-            var list_output = child_process.execSync("npm list -g --depth 0 " + package_name, {encoding: "utf8"});
+            var list_output = child_process.execSync("npm list -g --depth 0 " + package_name, { encoding: "utf8" });
             if (list_output.indexOf(package_name + "@" + package_version) !== -1) {
                 console.log("Found " + package_name + " in node list!");
                 return true;
             }
         } catch (error) {
-            console.log("npm global list " + package_name + " error:");
-            console.log(error);
         }
 
         console.log("Could not find " + package_name + " version " + package_version);
@@ -59,7 +55,7 @@ module.exports = {
      * @param {string} package_version The version of the package to download - leave blank for latest. (example: '6.3.2')
      * @returns True if the package was downloaded dynamically, otherwise false.
      */
-    npmDownloadAndInstallRuntimePackage : function(package_name, package_version) {
+    npmDownloadAndInstallRuntimePackage: function (package_name, package_version) {
         console.log("Looking for " + package_name + " version " + package_version + " as a dependency...");
 
         if (this.npmCheckIfPackageExists(package_name, package_version) == true) {
@@ -90,7 +86,7 @@ module.exports = {
      * @param {string} package_name
      * @param {string} package_version
      */
-    npmErrorPrint : function (package_name, package_version) {
+    npmErrorPrint: function (package_name, package_version) {
         console.log("ERROR: Could not download " + package_name + "! Cannot build CRT");
         console.log("This is likely due to being unable to download the package.");
         console.log("Please install " + package_name + " version " + this.package_version + " and then run the aws-crt install script again");

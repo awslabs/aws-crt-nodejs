@@ -45,7 +45,7 @@ module.exports = {
         }
         process.chdir(workDir);
 
-        this.fetchNativeCode(url, version, source_path, nativeSourceDir);
+        await this.fetchNativeCode(url, version, source_path, nativeSourceDir);
     },
 
     /**
@@ -54,6 +54,7 @@ module.exports = {
      */
     fetchNativeCode: async function (url, version, source_path, nativeSourceDir) {
         build_step_axios.loadAxios();
+
         const sourceURL = `${url}/aws-crt-${version}-source.tgz`
         const tarballPath = source_path + "source.tgz";
         await build_step_axios.downloadFile(sourceURL, tarballPath);
