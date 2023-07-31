@@ -1,0 +1,9 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+  build:
+    commands:
+      - cd aws-crt-nodejs
+      - node ./scripts/build --source_download
