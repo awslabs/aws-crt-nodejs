@@ -31,19 +31,16 @@ module.exports = {
      */
     getPackageAndFetchNativeCode: async function (url, version, source_path, nativeSourceDir) {
         const workDir = path.join(__dirname, "../../")
-
-        process.chdir(__dirname);
+        process.chdir(workDir);
         if (this.tar == null) {
             try {
                 utils.npmDownloadAndInstallRuntimePackage("tar", this.tar_version);
                 this.tar = require('tar');
             } catch (error) {
                 utils.npmErrorPrint("tar", this.tar_version);
-                process.chdir(workDir);
                 process.exit(1);
             }
         }
-        process.chdir(workDir);
 
         await this.fetchNativeCode(url, version, source_path, nativeSourceDir);
     },

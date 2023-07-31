@@ -41,19 +41,17 @@ module.exports = {
      */
     getPackageAndBuildSource: async function () {
         const workDir = path.join(__dirname, "../../")
+        process.chdir(workDir);
 
-        process.chdir(__dirname);
         if (this.cmake == null) {
             try {
                 utils.npmDownloadAndInstallRuntimePackage("cmake-js", this.cmake_version);
                 this.cmake = require('cmake-js');
             } catch (error) {
                 utils.npmErrorPrint("cmake-js", this.cmake_version);
-                process.chdir(workDir);
                 process.exit(1);
             }
         }
-        process.chdir(workDir);
 
         await this.buildSource();
         return;

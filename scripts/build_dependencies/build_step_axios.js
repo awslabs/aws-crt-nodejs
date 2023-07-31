@@ -19,8 +19,7 @@ module.exports = {
      */
     loadAxios: function () {
         const workDir = path.join(__dirname, "../../")
-
-        process.chdir(__dirname);
+        process.chdir(workDir);
         if (this.axios == null) {
             if (utils.npmCheckIfPackageExists("axios", this.axios_version)) {
                 this.axios = require("axios");
@@ -30,12 +29,10 @@ module.exports = {
                     this.axios = require('axios');
                 } catch (error) {
                     utils.npmErrorPrint("axios", this.axios_version);
-                    process.chdir(workDir);
                     process.exit(1);
                 }
             }
         }
-        process.chdir(workDir);
     },
 
     /**
