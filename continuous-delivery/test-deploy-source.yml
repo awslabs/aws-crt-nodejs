@@ -3,7 +3,10 @@ phases:
   install:
     runtime-versions:
       nodejs: 18
-  build:
+  pre_build:
     commands:
       - cd aws-crt-nodejs
+      - bash ./continuous-delivery/update-version.sh
+  build:
+    commands:
       - node ./scripts/build --source_download
