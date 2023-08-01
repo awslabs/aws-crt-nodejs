@@ -10,7 +10,7 @@ const utils = require('./build_utils');
 module.exports = {
 
     tar: null,
-    tar_version: "6.1.11",
+    tar_version: require("../../package.json").dependencies['tar'].replace("^", ""),
 
     /**
      * Will download the file at the given url with the given version to the given path using tar.
