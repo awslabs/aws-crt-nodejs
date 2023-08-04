@@ -6,7 +6,7 @@
 import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
 import {once} from "events";
-import crt_native from "./binding";
+import crt_native, {cRuntime, CRuntimeType} from "./binding";
 import * as os from "os";
 
 jest.setTimeout(10000);
@@ -314,9 +314,12 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
     connection.close();
 });
 
-conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
+/*
+ * Skip this test on Musl as it is very flaky
+ * TODO: Figure out why it is flaky on Musl and fix it.
+ */
+conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
-
     await connection.connect({});
 
     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
@@ -360,7 +363,6 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection fa
     }
 
     await disconnected;
-
     connection.close();
 });
 

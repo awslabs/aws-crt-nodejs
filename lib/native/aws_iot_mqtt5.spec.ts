@@ -10,6 +10,7 @@ import * as iot from "./iot";
 import * as fs from 'fs';
 import * as auth from "./auth";
 import * as io from "./io";
+import {CRuntimeType, cRuntime} from "./binding"
 
 jest.setTimeout(10000);
 
@@ -219,7 +220,12 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
+/**
+ * Skip test if cruntime is Musl. Softhsm library crashes on Alpine if we don't use AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE.
+ * Supporting AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE on Node-js is not trivial due to non-deterministic cleanup.
+ * TODO: Support AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE
+ */
+test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
     const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH);
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
         test_env.AWS_IOT_ENV.MQTT5_HOST,
