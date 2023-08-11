@@ -1171,9 +1171,11 @@ static bool s_create_and_register_function(
     return true;
 }
 
+#if defined(__clang__) || defined(__GNUC__)
 /* Suppress compiler warnings about NAPI_MODULE_INIT().
  * See: https://github.com/nodejs/node/pull/49103 */
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#    pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
 
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
 
