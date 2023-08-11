@@ -12,8 +12,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 /* Suppress compiler warnings from node_api.h.
- * Node 18.17.0 made changes that cause warnings from
- * AppleClang (when building for arm64 from x64 machine). */
+ * See: https://github.com/nodejs/node/pull/49103 */
 #if defined(__clang__) || defined(__GNUC__)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wstrict-prototypes"

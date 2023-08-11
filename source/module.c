@@ -1172,8 +1172,7 @@ static bool s_create_and_register_function(
 }
 
 /* Suppress compiler warnings about NAPI_MODULE_INIT().
- * Node 18.17.0 made changes that cause warnings from
- * AppleClang (when building for arm64 from x64 machine). */
+ * See: https://github.com/nodejs/node/pull/49103 */
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"
 
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
