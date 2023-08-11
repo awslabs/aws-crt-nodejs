@@ -10,8 +10,21 @@
 #include <aws/common/string.h>
 
 #define WIN32_LEAN_AND_MEAN
+
+/* Suppress compiler warnings from node_api.h.
+ * Node 18.17.0 made changes that cause warnings from
+ * AppleClang (when building for arm64 from x64 machine). */
+#if defined(__clang__) || defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
+
 #define NAPI_VERSION 4
 #include <node_api.h>
+
+#if defined(__clang__) || defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#endif
 
 #define AWS_CRT_NODEJS_PACKAGE_ID 11
 

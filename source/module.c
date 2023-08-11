@@ -1000,7 +1000,7 @@ napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function
 
 AWS_STATIC_STRING_FROM_LITERAL(s_mem_tracing_env_var, "AWS_CRT_MEMORY_TRACING");
 static struct aws_allocator *s_allocator = NULL;
-struct aws_allocator *aws_napi_get_allocator() {
+struct aws_allocator *aws_napi_get_allocator(void) {
     if (AWS_UNLIKELY(s_allocator == NULL)) {
         struct aws_string *value = NULL;
         if (aws_get_environment_value(aws_default_allocator(), s_mem_tracing_env_var, &value) || value == NULL) {
@@ -1170,6 +1170,11 @@ static bool s_create_and_register_function(
 
     return true;
 }
+
+/* Suppress compiler warnings about NAPI_MODULE_INIT().
+ * Node 18.17.0 made changes that cause warnings from
+ * AppleClang (when building for arm64 from x64 machine). */
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 
 /* napi_value */ NAPI_MODULE_INIT() /* (napi_env env, napi_value exports) */ {
 
