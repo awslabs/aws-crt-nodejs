@@ -77,6 +77,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_PREFIX_PATH}/${CMAKE_INSTALL_LIBDIR}/cmak
 include(AwsCFlags)
 include(AwsSharedLibSetup)
 include(AwsSanitizers)
+include(AwsCRuntime)
+
+aws_determine_local_c_runtime(AWS_C_RUNTIME)
 
 file(GLOB AWS_CRT_SRC
        "source/*.c"
@@ -103,7 +106,6 @@ aws_use_package(aws-checksums REQUIRED)
 aws_use_package(aws-c-event-stream REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS})
 
-set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH})
-
+set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH}-${AWS_C_RUNTIME})
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/aws-crt-nodejs.node"
     DESTINATION ${destination})
