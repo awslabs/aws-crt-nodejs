@@ -296,7 +296,6 @@ static void s_on_connection_success_call(napi_env env, napi_value on_success, vo
         }
     }
     aws_mem_release(binding->allocator, args);
-
 }
 
 static void s_on_connection_success(
@@ -305,7 +304,6 @@ static void s_on_connection_success(
     bool session_present,
     void *user_data) {
     (void)connection;
-
 
     struct mqtt_connection_binding *binding = user_data;
     if (!binding->on_connection_success) {
@@ -320,7 +318,6 @@ static void s_on_connection_success(
     args->session_present = session_present;
 
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_success, args));
-
 }
 
 /*******************************************************************************
@@ -354,11 +351,7 @@ static void s_on_connection_failure_call(napi_env env, napi_value on_failure, vo
     aws_mem_release(binding->allocator, args);
 }
 
-
-static void s_on_connection_failure(
-    struct aws_mqtt_client_connection *connection,
-    int error_code,
-    void *user_data) {
+static void s_on_connection_failure(struct aws_mqtt_client_connection *connection, int error_code, void *user_data) {
     (void)connection;
 
     struct mqtt_connection_binding *binding = user_data;
@@ -687,7 +680,6 @@ cleanup:
     aws_byte_buf_clean_up(&password);
     return result;
 }
-
 
 /*******************************************************************************
  * Connect
