@@ -310,6 +310,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
             (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); },
+            (return_code: number, session_present: boolean) => { this._on_connection_success(return_code, session_present); },
+            (error_code: number) => { this._on_connection_failure(error_code); },
             config.tls_ctx ? config.tls_ctx.native_handle() : null,
             will,
             config.username,
@@ -625,6 +627,18 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
                 this.emit('error', new CrtError(reason));
             });
         };
+    }
+
+    private _on_connection_failure(error_code: number) {
+        let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
+        this.emit('connection_failure', failureCallbackData);
+
+    }
+    private _on_connection_success(return_code: number, session_present: boolean) {
+
+        let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
+        this.emit('connection_success', successCallbackData);
+
     }
 
     private _on_connection_interrupted(error_code: number) {
