@@ -632,13 +632,11 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
     private _on_connection_failure(error_code: number) {
         let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
         this.emit('connection_failure', failureCallbackData);
-
     }
-    private _on_connection_success(return_code: number, session_present: boolean) {
 
+    private _on_connection_success(return_code: number, session_present: boolean) {
         let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
         this.emit('connection_success', successCallbackData);
-
     }
 
     private _on_connection_interrupted(error_code: number) {
@@ -647,8 +645,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
-        let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
-        this.emit('connection_success', successCallbackData);
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
@@ -669,8 +665,6 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
-            let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
-            this.emit('connection_success', successCallbackData);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
             let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;

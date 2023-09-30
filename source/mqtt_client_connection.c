@@ -310,7 +310,7 @@ static void s_on_connection_success(
         return;
     }
 
-    struct connection_resumed_args *args =
+    struct connection_success_args *args =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_success_args));
     AWS_FATAL_ASSERT(args);
 
@@ -487,8 +487,11 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     }
 
     if (binding->on_connection_failure || binding->on_connection_success) {
-        aws_mqtt_client_connection_set_connection_result_handlers(
-            binding->connection, s_on_connection_success, binding, s_on_connection_failure, binding);
+        if (aws_mqtt_client_connection_set_connection_result_handlers(
+                binding->connection, s_on_connection_success, binding, s_on_connection_failure, binding) !=
+            AWS_OP_SUCCESS) {
+            goto cleanup;
+        }
     }
 
     napi_value node_tls = *arg++;
