@@ -667,12 +667,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             this.emit('connect', session_present);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
-            let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
-            this.emit('connection_failure', failureCallbackData);
         } else {
             reject("Server rejected connection.");
-            let failureCallbackData = { error: new CrtError(5134) } as OnConnectionFailedResult; // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
-            this.emit('connection_failure', failureCallbackData);
         }
     }
 
