@@ -1,0 +1,13 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+  pre_build:
+    commands:
+      - apt-get update -y && apt-get install -y cmake libz-dev libssl-dev
+      - cd aws-crt-nodejs
+      - bash ./continuous-delivery/update-version.sh
+  build:
+    commands:
+      - node ./scripts/build --source_download
