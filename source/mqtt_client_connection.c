@@ -348,6 +348,12 @@ static void s_on_connection_failure_call(napi_env env, napi_value on_failure, vo
                 (void *)binding);
         }
     }
+
+        if (binding->on_connection_failure != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_failure, napi_tsfn_abort));
+        binding->on_connection_failure = NULL;
+    }
     aws_mem_release(binding->allocator, args);
 }
 
@@ -467,7 +473,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
             aws_napi_create_threadsafe_function(
                 env,
                 node_on_failure,
-                "aws_mqtt_client_connection_on_connection_failed",
+                "aws_mqtt_client_connection_on_connection_failure",
                 s_on_connection_failure_call,
                 binding,
                 &binding->on_connection_failure),
@@ -735,7 +741,40 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
      */
     if (args->return_code || args->error_code) {
         /* Failed to create a connection, none of the callbacks will be invoked again */
-        s_mqtt_client_connection_release_threadsafe_function(binding);
+        if (binding->on_connection_interrupted != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_interrupted, napi_tsfn_abort));
+        binding->on_connection_interrupted = NULL;
+    }
+
+    if (binding->on_connection_resumed != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_resumed, napi_tsfn_abort));
+        binding->on_connection_resumed = NULL;
+    }
+
+    if (binding->on_any_publish != NULL) {
+        AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_any_publish, napi_tsfn_abort));
+        binding->on_any_publish = NULL;
+    }
+
+    if (binding->transform_websocket != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->transform_websocket, napi_tsfn_abort));
+        binding->transform_websocket = NULL;
+    }
+
+    if (binding->on_closed != NULL) {
+        AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_closed, napi_tsfn_abort));
+        binding->on_closed = NULL;
+    }
+
+    if (binding->on_connection_success != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_success, napi_tsfn_abort));
+        binding->on_connection_success = NULL;
+    }
+
     }
 
     s_destroy_connect_args(args);
