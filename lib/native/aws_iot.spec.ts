@@ -200,7 +200,6 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
 
-    const connectionFailure = once(connection, "connection_failure")
     let expected_error = false;
     try {
         await connection.connect();
@@ -209,6 +208,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     }
     expect(expected_error).toBeTruthy();
 
+    const connectionFailure = once(connection, "connection_failure")
     let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
     expect(connectionFailedEvent).toBeDefined();
     expect(connectionFailedEvent.error).toBeDefined();

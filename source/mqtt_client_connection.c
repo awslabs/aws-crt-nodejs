@@ -47,7 +47,17 @@ struct mqtt_connection_binding {
     napi_threadsafe_function on_closed;
     napi_threadsafe_function on_connection_success;
     napi_threadsafe_function on_connection_failure;
+    bool first_successfull_connection;
 };
+
+static void s_mqtt_client_connection_release_threadsafe_function_on_failure(struct mqtt_connection_binding *binding) {
+
+    if (binding->on_connection_failure != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_failure, napi_tsfn_abort));
+        binding->on_connection_failure = NULL;
+    }
+}
 
 static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_connection_binding *binding) {
 
@@ -84,12 +94,6 @@ static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_con
             binding->env, aws_napi_release_threadsafe_function(binding->on_connection_success, napi_tsfn_abort));
         binding->on_connection_success = NULL;
     }
-
-    if (binding->on_connection_failure != NULL) {
-        AWS_NAPI_ENSURE(
-            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_failure, napi_tsfn_abort));
-        binding->on_connection_failure = NULL;
-    }
 }
 
 static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
@@ -101,6 +105,7 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
 
     /* Should have already been done, but just to be safe -- now that it's reentrant -- release the functions anyways */
     s_mqtt_client_connection_release_threadsafe_function(binding);
+    s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
 
     if (binding->use_tls_options) {
         aws_tls_connection_options_clean_up(&binding->tls_options);
@@ -113,11 +118,12 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
 }
 
 napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_info info) {
-    struct mqtt_connection_binding *binding = NULL;
 
+    struct mqtt_connection_binding *binding = NULL;
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
+
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
@@ -140,6 +146,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
 
     /* connection has been shutdown, no callbacks will happen after it */
     s_mqtt_client_connection_release_threadsafe_function(binding);
+    s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
 
     /* no more node interop will be done, free node resources */
     if (binding->node_external) {
@@ -276,6 +283,7 @@ struct connection_success_args {
 static void s_on_connection_success_call(napi_env env, napi_value on_success, void *context, void *user_data) {
     struct mqtt_connection_binding *binding = context;
     struct connection_success_args *args = user_data;
+
     if (env) {
         if (binding->on_connection_success) {
             napi_value params[2];
@@ -306,6 +314,7 @@ static void s_on_connection_success(
     (void)connection;
 
     struct mqtt_connection_binding *binding = user_data;
+    binding->first_successfull_connection = true;
     if (!binding->on_connection_success) {
         return;
     }
@@ -387,6 +396,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     AWS_FATAL_ASSERT(binding);
     binding->env = env;
     binding->allocator = allocator;
+    binding->first_successfull_connection = false;
 
     napi_value node_external;
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_mqtt_client_connection_finalize, NULL, &node_external), {
@@ -467,7 +477,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
             aws_napi_create_threadsafe_function(
                 env,
                 node_on_failure,
-                "aws_mqtt_client_connection_on_connection_failed",
+                "aws_mqtt_client_connection_on_connection_failure",
                 s_on_connection_failure_call,
                 binding,
                 &binding->on_connection_failure),
@@ -736,6 +746,9 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
     if (args->return_code || args->error_code) {
         /* Failed to create a connection, none of the callbacks will be invoked again */
         s_mqtt_client_connection_release_threadsafe_function(binding);
+        if (binding->first_successfull_connection == true) {
+            s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
+        }
     }
 
     s_destroy_connect_args(args);
@@ -759,7 +772,6 @@ static void s_on_connected(
     args->error_code = error_code;
     args->return_code = return_code;
     args->session_present = session_present;
-
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_connect, args));
 }
 
