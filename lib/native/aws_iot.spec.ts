@@ -183,14 +183,14 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     await closed;
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () => {
+test('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
     builder.with_credentials(
-        test_env.AWS_IOT_ENV.MQTT311_REGION,
-        test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
-        test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
-        test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
+        "us-west-2",
+        "derp",
+        "derp",
+        "derp"
     );
     /* Use the wrong port and endpoint ensure a fail */
     builder.with_endpoint("testendpointhere");
@@ -200,6 +200,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
 
+    const connectionFailure = once(connection, "connection_failure")
     let expected_error = false;
     try {
         await connection.connect();
@@ -207,8 +208,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
         expected_error = true;
     }
     expect(expected_error).toBeTruthy();
-
-    const connectionFailure = once(connection, "connection_failure")
+    
     let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
     expect(connectionFailedEvent).toBeDefined();
     expect(connectionFailedEvent.error).toBeDefined();
