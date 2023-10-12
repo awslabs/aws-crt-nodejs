@@ -205,6 +205,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     connection.on('error', () => {});
     connection.on('connection_failure', (result) => { failurePromise.resolve(result)});
 
+    connection.on('error', () => {});
+    connection.on('connection_failure', (result) => { failurePromise.resolve(result)});
+
     let expected_error = false;
     try {
         await connection.connect();
