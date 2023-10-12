@@ -199,7 +199,8 @@ test('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () =
 
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
-
+    connection.on('error', () => {});
+    
     const connectionFailure = once(connection, "connection_failure")
     let expected_error = false;
     try {
