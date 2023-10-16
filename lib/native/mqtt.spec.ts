@@ -11,6 +11,8 @@ import { OnConnectionSuccessResult, OnConnectionClosedResult } from '../common/m
 import { HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType } from "./http"
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 import { once } from "events";
+import {newLiftedPromise} from "../common/promise";
+import * as mqtt311 from "./mqtt";
 
 jest.setTimeout(10000);
 
