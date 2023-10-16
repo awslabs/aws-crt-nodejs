@@ -375,7 +375,6 @@ static void s_on_connection_failure(struct aws_mqtt_client_connection *connectio
     args->error_code = error_code;
 
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_failure, args));
-    s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
 }
 
 napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info cb_info) {
