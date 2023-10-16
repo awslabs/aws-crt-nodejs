@@ -19,7 +19,7 @@ jest.setTimeout(10000);
 async function test_connection(config: MqttConnectionConfig, client: MqttClient) {
     let successfulPromise = newLiftedPromise<mqtt311.OnConnectionSuccessResult>();
     const connection = client.new_connection(config);
-    connection.on('success', () => {});
+    //connection.on('success', () => {});
     connection.on('connection_success', (result) => { successfulPromise.resolve(result)});
 
     const promise = new Promise(async (resolve, reject) => {
@@ -64,7 +64,8 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
         await expect(connected).resolves.toBeDefined();
     });
 
-    let connectionFailedEvent: mqtt311.OnConnectionSuccessResult = await successfulPromise.promise;
+    let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = await successfulPromise.promise;
+    expect(connectionFailedEvent).toBeDefined();
     await expect(promise).resolves.toBeTruthy();
 }
 
