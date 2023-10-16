@@ -8,14 +8,19 @@ import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions } f
 import { MqttClient, MqttConnectionConfig, QoS } from './mqtt';
 import { v4 as uuid } from 'uuid';
 import { OnConnectionSuccessResult, OnConnectionClosedResult } from '../common/mqtt';
-import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} from "./http"
+import { HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType } from "./http"
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
-import {once} from "events";
+import { once } from "events";
 
 jest.setTimeout(10000);
 
 async function test_connection(config: MqttConnectionConfig, client: MqttClient) {
+    let successfulPromise = newLiftedPromise<mqtt311.OnConnectionSuccessResult>();
     const connection = client.new_connection(config);
+    connection.on('success', () => {});
+    connection.on('connection_success', (result) => { successfulPromise.resolve(result)});
+
+
     const promise = new Promise(async (resolve, reject) => {
         let onConnectionSuccessCalled = false;
         let onConnectionDisconnectCalled = false;
@@ -34,7 +39,8 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
         connection.on('disconnect', () => {
             onConnectionDisconnectCalled = true;
         });
-        connection.on('connection_success', (callback_data:OnConnectionSuccessResult) => {
+        //connection.on('connection_success', (callback_data:OnConnectionSuccessResult) => {
+        connection.on('connection_success', (result) => { successfulPromise.resolve(result)});
             expect(callback_data.session_present).toBe(false);
             expect(callback_data.reason_code).toBeDefined();
             expect(callback_data.reason_code).toBe(0); // Success
@@ -56,6 +62,8 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
+
+    let connectionFailedEvent: mqtt311.OnConnectionSuccessResult = await successfulPromise.promise;
     await expect(promise).resolves.toBeTruthy();
 }
 
@@ -67,6 +75,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_mqtt())('
         clean_session: true,
         socket_options: new SocketOptions()
     }
+    console.log("test begins");
     await test_connection(config, new MqttClient(new ClientBootstrap()));
 });
 
