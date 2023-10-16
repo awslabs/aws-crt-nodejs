@@ -350,6 +350,7 @@ static void s_on_connection_failure_call(napi_env env, napi_value on_failure, vo
                 env,
                 aws_napi_dispatch_threadsafe_function(
                     env, binding->on_connection_failure, NULL, on_failure, num_params, params));
+            s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
         } else {
             AWS_LOGF_INFO(
                 AWS_LS_NODEJS_CRT_GENERAL,
