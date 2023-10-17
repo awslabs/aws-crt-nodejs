@@ -7,23 +7,17 @@ import * as test_env from "@test/test_env"
 import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions } from './io';
 import { MqttClient, MqttConnectionConfig, QoS } from './mqtt';
 import { v4 as uuid } from 'uuid';
-import { OnConnectionClosedResult } from '../common/mqtt';
-import { HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType } from "./http"
+import { OnConnectionSuccessResult, OnConnectionClosedResult } from '../common/mqtt';
+import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} from "./http"
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
-import { once } from "events";
-import {newLiftedPromise} from "../common/promise";
-import * as mqtt311 from "./mqtt";
+import {once} from "events";
 
 jest.setTimeout(10000);
 
 async function test_connection(config: MqttConnectionConfig, client: MqttClient) {
-    let successfulPromise = newLiftedPromise<mqtt311.OnConnectionSuccessResult>();
     const connection = client.new_connection(config);
-    //connection.on('success', () => {});
-    connection.on('connection_success', (result) => { successfulPromise.resolve(result)});
-
     const promise = new Promise(async (resolve, reject) => {
-        //let onConnectionSuccessCalled = false;
+        let onConnectionSuccessCalled = false;
         let onConnectionDisconnectCalled = false;
 
         connection.on('connect', async (session_present) => {
@@ -40,13 +34,12 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
         connection.on('disconnect', () => {
             onConnectionDisconnectCalled = true;
         });
-        //connection.on('connection_success', (callback_data:OnConnectionSuccessResult) => {
-        connection.on('connection_success', (result) => { successfulPromise.resolve(result)});
-            //expect(callback_data.session_present).toBe(false);
-           // expect(callback_data.reason_code).toBeDefined();
-           // expect(callback_data.reason_code).toBe(0); // Success
-           // onConnectionSuccessCalled = true;
-       // })
+        connection.on('connection_success', async (callback_data:OnConnectionSuccessResult) => {
+            expect(callback_data.session_present).toBe(false);
+            expect(callback_data.reason_code).toBeDefined();
+            expect(callback_data.reason_code).toBe(0); // Success
+            onConnectionSuccessCalled = true;
+        })
         connection.on('closed', async (callback_data:OnConnectionClosedResult) => {
             /**
              * We want to wait *just* a little bit, as we might be still processing the disconnect callback
@@ -55,7 +48,7 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
             await new Promise(r => setTimeout(r, 500));
 
             // Make sure connection_success was called before us
-           // expect(onConnectionSuccessCalled).toBeTruthy();
+            expect(onConnectionSuccessCalled).toBeTruthy();
             // Make sure disconnect was called before us
             expect(onConnectionDisconnectCalled).toBeTruthy();
             resolve(true);
@@ -63,9 +56,6 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
         const connected = connection.connect();
         await expect(connected).resolves.toBeDefined();
     });
-
-    let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = await successfulPromise.promise;
-    expect(connectionSuccessEvent).toBeDefined();
     await expect(promise).resolves.toBeTruthy();
 }
 
