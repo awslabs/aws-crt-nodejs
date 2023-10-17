@@ -65,7 +65,7 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
     });
 
     let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = await successfulPromise.promise;
-    expect(connectionFailedEvent).toBeDefined();
+    expect(connectionSuccessEvent).toBeDefined();
     await expect(promise).resolves.toBeTruthy();
 }
 
