@@ -34,7 +34,7 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
         connection.on('disconnect', () => {
             onConnectionDisconnectCalled = true;
         });
-        connection.on('connection_success', (callback_data:OnConnectionSuccessResult) => {
+        connection.on('connection_success', async (callback_data:OnConnectionSuccessResult) => {
             expect(callback_data.session_present).toBe(false);
             expect(callback_data.reason_code).toBeDefined();
             expect(callback_data.reason_code).toBe(0); // Success

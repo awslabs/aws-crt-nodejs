@@ -11,6 +11,7 @@ import * as auth from "./auth"
 import { v4 as uuid } from 'uuid';
 import {once} from "events";
 import {cRuntime, CRuntimeType} from "./binding"
+import {newLiftedPromise} from "../common/promise";
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -197,10 +198,13 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     builder.with_port(321);
     let config = builder.build();
 
+    let failurePromise = newLiftedPromise<mqtt311.OnConnectionFailedResult>();
+
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
+    connection.on('error', () => {});
+    connection.on('connection_failure', (result) => { failurePromise.resolve(result)});
 
-    const connectionFailure = once(connection, "connection_failure")
     let expected_error = false;
     try {
         await connection.connect();
@@ -209,7 +213,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     }
     expect(expected_error).toBeTruthy();
 
-    let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
+    let connectionFailedEvent: mqtt311.OnConnectionFailedResult = await failurePromise.promise;
     expect(connectionFailedEvent).toBeDefined();
     expect(connectionFailedEvent.error).toBeDefined();
 });

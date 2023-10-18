@@ -310,6 +310,8 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             client.native_handle(),
             (error_code: number) => { this._on_connection_interrupted(error_code); },
             (return_code: number, session_present: boolean) => { this._on_connection_resumed(return_code, session_present); },
+            (return_code: number, session_present: boolean) => { this._on_connection_success(return_code, session_present); },
+            (error_code: number) => { this._on_connection_failure(error_code); },
             config.tls_ctx ? config.tls_ctx.native_handle() : null,
             will,
             config.username,
@@ -627,14 +629,22 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         };
     }
 
+    private _on_connection_failure(error_code: number) {
+        let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
+        this.emit('connection_failure', failureCallbackData);
+    }
+
+    private _on_connection_success(return_code: number, session_present: boolean) {
+        let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
+        this.emit('connection_success', successCallbackData);
+    }
+
     private _on_connection_interrupted(error_code: number) {
         this.emit('interrupt', new CrtError(error_code));
     }
 
     private _on_connection_resumed(return_code: number, session_present: boolean) {
         this.emit('resume', return_code, session_present);
-        let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
-        this.emit('connection_success', successCallbackData);
     }
 
     private _on_any_publish(topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) {
@@ -655,16 +665,10 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
         if (error_code == 0 && return_code == 0) {
             resolve(session_present);
             this.emit('connect', session_present);
-            let successCallbackData = { session_present: session_present, reason_code: return_code } as OnConnectionSuccessResult;
-            this.emit('connection_success', successCallbackData);
         } else if (error_code != 0) {
             reject("Failed to connect: " + io.error_code_to_string(error_code));
-            let failureCallbackData = { error: new CrtError(error_code) } as OnConnectionFailedResult;
-            this.emit('connection_failure', failureCallbackData);
         } else {
             reject("Server rejected connection.");
-            let failureCallbackData = { error: new CrtError(5134) } as OnConnectionFailedResult; // 5134 = AWS_ERROR_MQTT_UNEXPECTED_HANGUP
-            this.emit('connection_failure', failureCallbackData);
         }
     }
 
