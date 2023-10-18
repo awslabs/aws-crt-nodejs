@@ -748,6 +748,11 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
         /* Failed to create a connection, none of the callbacks will be invoked again */
         s_mqtt_client_connection_release_threadsafe_function(binding);
         if (binding->first_successfull_connection == true) {
+            /* separating the cleanup to on_connection_failure, to make it
+             * possible for the callback to be sent later and not free the
+             * callback prematurely. It will be freed when we send the callback
+             * itself later on. if it is not the first successfull connection,
+             * then re-connect will handle this scenario */
             s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
         }
     }
