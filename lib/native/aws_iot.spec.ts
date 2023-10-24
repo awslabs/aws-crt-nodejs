@@ -10,6 +10,8 @@ import * as io from "./io"
 import * as auth from "./auth"
 import { v4 as uuid } from 'uuid';
 import {once} from "events";
+import {cRuntime, CRuntimeType} from "./binding"
+import {newLiftedPromise} from "../common/promise";
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -49,7 +51,13 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
     await connection.disconnect();
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
+/**
+ * Skip test if cruntime is Musl. Softhsm library crashes on Alpine if we don't use AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE.
+ * Supporting AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE on Node-js is not trivial due to non-deterministic cleanup.
+ * TODO: Support AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE
+ */
+test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
+
     const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT311_PKCS11_LIB_PATH);
     const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
         pkcs11_lib: pkcs11_lib,
@@ -190,10 +198,13 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     builder.with_port(321);
     let config = builder.build();
 
+    let failurePromise = newLiftedPromise<mqtt311.OnConnectionFailedResult>();
+
     let client = new mqtt311.MqttClient();
     let connection = client.new_connection(config);
+    connection.on('error', () => {});
+    connection.on('connection_failure', (result) => { failurePromise.resolve(result)});
 
-    const connectionFailure = once(connection, "connection_failure")
     let expected_error = false;
     try {
         await connection.connect();
@@ -202,7 +213,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
     }
     expect(expected_error).toBeTruthy();
 
-    let connectionFailedEvent: mqtt311.OnConnectionFailedResult = (await connectionFailure)[0];
+    let connectionFailedEvent: mqtt311.OnConnectionFailedResult = await failurePromise.promise;
     expect(connectionFailedEvent).toBeDefined();
     expect(connectionFailedEvent.error).toBeDefined();
 });

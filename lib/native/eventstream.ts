@@ -15,12 +15,6 @@ import crt_native from "./binding";
 /**
  * Node.js specific eventstream rpc native bindings
  *
- * DEVELOPER PREVIEW DISCLAIMER
- *
- * Eventstream RPC support is currently in **developer preview**.  We encourage feedback at all times, but feedback
- * during the preview window is especially valuable in shaping the final product.  During the preview period we may make
- * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
- *
  * @packageDocumentation
  * @module eventstream
  * @mergeTarget

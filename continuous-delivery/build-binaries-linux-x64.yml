@@ -2,11 +2,11 @@ version: 0.2
 phases:
   build:
     commands:
-      - mkdir linux-x64
+      - mkdir linux-x64-glibc
       - cd aws-crt-nodejs
       - builder build --project=aws-crt-nodejs --skip-install run_tests=false
-      - cp -r dist/bin/linux-x64/* ../linux-x64/
+      - cp -r dist/bin/linux-x64-glibc/* ../linux-x64-glibc/
 
 artifacts:
   files:
-    - 'linux-x64/**/*'
+    - 'linux-x64-glibc/**/*'
