@@ -159,9 +159,12 @@ static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *
     s_aws_mqtt5_release_callbacks(binding);
 
     aws_mem_release(binding->allocator, binding);
+
+    binding = NULL;
 }
 
 static void s_aws_mqtt5_client_binding_on_zero(void *object) {
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id= s_aws_mqtt5_client_binding_on_zero - binding on 0 ");
     s_aws_mqtt5_client_binding_destroy(object);
 }
 
@@ -184,7 +187,10 @@ static struct aws_mqtt5_client_binding *s_aws_mqtt5_client_binding_release(struc
 
 static void s_aws_mqtt5_client_binding_on_client_terminate(void *user_data) {
     struct aws_mqtt5_client_binding *binding = user_data;
-
+    AWS_LOGF_DEBUG(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt5_client_binding_on_client_terminate - native client terminated",
+        (void *)binding);
     s_aws_mqtt5_client_binding_release(binding);
 }
 
@@ -197,10 +203,9 @@ static void s_aws_mqtt5_client_extern_finalize(napi_env env, void *finalize_data
 
     struct aws_mqtt5_client_binding *binding = finalize_data;
 
-    AWS_LOGF_INFO(
+    AWS_LOGF_DEBUG(
         AWS_LS_NODEJS_CRT_GENERAL,
-        "id=%p s_aws_mqtt5_client_extern_finalize - mqtt5_client node wrapper is being finalized",
-        (void *)binding->client);
+        "id= s_aws_mqtt5_client_extern_finalize - mqtt5_client node wrapper is being finalized");
 
     if (binding->client != NULL) {
         /* if client is not null, then this is a successfully constructed client which should shutdown normally */
@@ -340,6 +345,8 @@ static void s_on_stopped(struct aws_mqtt5_client_binding *binding) {
         return;
     }
 
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_on_stopped - releasing... client binding ");
+
     /* queue a callback in node's libuv thread */
     AWS_NAPI_ENSURE(
         NULL, aws_napi_queue_threadsafe_function(binding->on_stopped, s_on_simple_event_user_data_new(binding)));
@@ -424,11 +431,15 @@ static void s_on_connection_success(
         return;
     }
 
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_on_connection_success - releasing... client binding ");
+
     struct on_connection_result_user_data *connection_result_ud =
         s_on_connection_result_user_data_new(binding->allocator, binding, connack, settings, AWS_ERROR_SUCCESS);
     if (connection_result_ud == NULL) {
         return;
     }
+
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_on_connection_success - start release threadsafe");
 
     /* queue a callback in node's libuv thread */
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_success, connection_result_ud));
@@ -465,7 +476,9 @@ static void s_on_disconnection_user_data_destroy(struct on_disconnection_user_da
         return;
     }
 
-    disconnection_ud->binding = s_aws_mqtt5_client_binding_release(disconnection_ud->binding);
+    s_aws_mqtt5_client_binding_release(disconnection_ud->binding);
+
+    disconnection_ud->binding = NULL;
 
     aws_mqtt5_packet_disconnect_storage_clean_up(&disconnection_ud->disconnect_storage);
 
@@ -508,6 +521,8 @@ static void s_on_disconnection(
         return;
     }
 
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_on_disconnection - releasing... client binding ");
+
     struct on_disconnection_user_data *disconnection_ud =
         s_on_disconnection_user_data_new(binding->allocator, binding, disconnect, error_code);
     if (disconnection_ud == NULL) {
@@ -520,6 +535,8 @@ static void s_on_disconnection(
 
 static void s_lifecycle_event_callback(const struct aws_mqtt5_client_lifecycle_event *event) {
     struct aws_mqtt5_client_binding *binding = event->user_data;
+
+    AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_lifecycle_event_callback - releasing... client binding ");
 
     switch (event->event_type) {
         case AWS_MQTT5_CLET_STOPPED:
@@ -566,7 +583,7 @@ static void s_napi_on_stopped(napi_env env, napi_value function, void *context, 
          */
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_stopped_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
@@ -599,7 +616,7 @@ static void s_napi_on_attempting_connect(napi_env env, napi_value function, void
          */
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_attempting_connect_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
@@ -885,7 +902,7 @@ static void s_napi_on_connection_success(napi_env env, napi_value function, void
          */
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_connection_success_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
@@ -936,7 +953,7 @@ static void s_napi_on_connection_failure(napi_env env, napi_value function, void
          */
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_connection_failure_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
@@ -1034,7 +1051,7 @@ static void s_napi_on_disconnection(napi_env env, napi_value function, void *con
          */
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_on_disconnection_call - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
@@ -1183,7 +1200,7 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
          */
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->node_mqtt5_client_ref, &params[0]) != napi_ok || params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_napi_on_message_received - mqtt5_client node wrapper no longer resolvable",
                 (void *)binding->client);
@@ -2454,6 +2471,7 @@ static void s_aws_napi_mqtt5_operation_binding_destroy(struct aws_napi_mqtt5_ope
 
     binding->client_binding = s_aws_mqtt5_client_binding_release(binding->client_binding);
 
+    printf(stderr, "s_aws_napi_mqtt5_operation_binding_destroy: destory operation completion");
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_operation_completion);
 
     switch (binding->valid_storage) {
@@ -2551,7 +2569,7 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "s_napi_on_subscribe_complete - mqtt5_client node wrapper no longer resolvable");
             goto done;
@@ -2577,6 +2595,7 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
+        binding->on_operation_completion = NULL;
     }
 
 done:
@@ -2947,7 +2966,7 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "s_napi_on_unsubscribe_complete - mqtt5_client node wrapper no longer resolvable");
             goto done;
@@ -2971,6 +2990,7 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
+        binding->on_operation_completion = NULL;
     }
 
 done:
@@ -3261,7 +3281,7 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
         params[0] = NULL;
         if (napi_get_reference_value(env, binding->client_binding->node_mqtt5_client_ref, &params[0]) != napi_ok ||
             params[0] == NULL) {
-            AWS_LOGF_INFO(
+            AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "s_napi_on_publish_complete - mqtt5_client node wrapper no longer resolvable");
             goto done;
@@ -3287,6 +3307,8 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
+        // As dispatch would release function, manually set it to
+        binding->on_operation_completion = NULL;
     }
 
 done:
@@ -3526,8 +3548,6 @@ napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "aws_napi_mqtt5_client_close - client was null");
         return NULL;
     }
-
-    s_aws_mqtt5_release_callbacks(binding);
 
     napi_ref node_client_external_ref = binding->node_client_external_ref;
     binding->node_client_external_ref = NULL;

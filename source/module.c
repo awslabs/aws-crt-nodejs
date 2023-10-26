@@ -957,7 +957,7 @@ napi_status aws_napi_create_external_arraybuffer(
          * minimal support to node 14
          */
         AWS_NAPI_LOGF_ERROR(
-            "napi_create_external_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
+            "1 napi_create_external_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
             aws_napi_status_to_str(external_buffer_status));
 
         // The external buffer is disabled, manually copy the external_data into Node
@@ -966,7 +966,7 @@ napi_status aws_napi_create_external_arraybuffer(
 
         if (create_arraybuffer_status != napi_ok) {
             AWS_NAPI_LOGF_ERROR(
-                "napi_create_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
+                "2 napi_create_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
                 aws_napi_status_to_str(create_arraybuffer_status));
             return create_arraybuffer_status;
         }
@@ -989,6 +989,9 @@ napi_status aws_napi_dispatch_threadsafe_function(
     size_t argc,
     napi_value *argv) {
 
+    if (!function || !tsfn)
+        return napi_ok;
+
     napi_status call_status = napi_ok;
     if (!this_ptr) {
         AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
@@ -1004,6 +1007,13 @@ napi_status aws_napi_dispatch_threadsafe_function(
     return (call_status != napi_ok) ? call_status : release_status;
 }
 
+void aws_threadsafe_function_finalize_cb(napi_env env, void *finalize_data, void *finalize_hint) {
+    AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
+    // reset the function on finalize
+    if (finalize_data && *(napi_threadsafe_function *)finalize_data)
+        *(napi_threadsafe_function *)finalize_data = NULL;
+}
+
 napi_status aws_napi_create_threadsafe_function(
     napi_env env,
     napi_value function,
@@ -1014,9 +1024,19 @@ napi_status aws_napi_create_threadsafe_function(
 
     napi_value resource_name = NULL;
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
-
+    AWS_NAPI_LOGF_ERROR("create threadsafe function ...%s : %p ", name, result);
     return napi_create_threadsafe_function(
-        env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result);
+        env,
+        function,
+        NULL,
+        resource_name,
+        0,
+        1,
+        result,
+        aws_threadsafe_function_finalize_cb,
+        context,
+        call_js,
+        result);
 }
 
 napi_status aws_napi_release_threadsafe_function(
@@ -1044,8 +1064,11 @@ napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_fun
 
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
     /* increase the ref count, gets decreased when the call completes */
-    AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));
-    return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
+    if (function) {
+        AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));
+        return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
+    }
+    return napi_ok;
 }
 
 AWS_STATIC_STRING_FROM_LITERAL(s_mem_tracing_env_var, "AWS_CRT_MEMORY_TRACING");
