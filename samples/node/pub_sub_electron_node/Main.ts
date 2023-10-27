@@ -49,6 +49,11 @@ app.on('window-all-closed', () => {
 })
 
 
+app.on('will-quit', () => {
+  //Cleanup()
+})
+
+
 function console_render_log(msg: string)
 {
   try
@@ -152,6 +157,14 @@ async function createClientAndStartPubSub(isWebsocket : boolean) {
       client.start();
       await connectionSuccess;
 
+      const suback = await client.subscribe({
+        subscriptions: [
+            { qos: mqtt5.QoS.AtLeastOnce, topicFilter: qos1_topic },
+            { qos: mqtt5.QoS.AtMostOnce, topicFilter: qos0_topic }
+        ]
+    });
+    console_render_log('Suback result: ' + JSON.stringify(suback));
+
   //     const suback = await client.subscribe({
   //         subscriptions: [
   //             { qos: mqtt5.QoS.AtLeastOnce, topicFilter: qos1_topic },
@@ -206,6 +219,17 @@ export const PubSub5WebsocketsStart = async () => {
 
 }
 
+// async function Cleanup(){
+//   if(client == null)
+//   {
+//       return;
+//   }
+//   const stopped = once(client, "stopped");
+//   client.stop();
+//   await stopped;
+//   client.close();
+//   client = null;
+// }
 
 async function PubSub5Stop(){
   if(client == null)
