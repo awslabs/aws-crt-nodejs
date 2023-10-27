@@ -2595,7 +2595,7 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
-        binding->on_operation_completion = NULL;
+        // binding->on_operation_completion = NULL;
     }
 
 done:
@@ -2990,7 +2990,7 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
             env,
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
-        binding->on_operation_completion = NULL;
+        // binding->on_operation_completion = NULL;
     }
 
 done:
@@ -3308,7 +3308,7 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
             aws_napi_dispatch_threadsafe_function(
                 env, binding->on_operation_completion, NULL, function, num_params, params));
         // As dispatch would release function, manually set it to
-        binding->on_operation_completion = NULL;
+        // binding->on_operation_completion = NULL;
     }
 
 done:
