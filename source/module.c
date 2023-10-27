@@ -955,7 +955,7 @@ napi_status aws_napi_dispatch_threadsafe_function(
 }
 
 void aws_threadsafe_function_finalize_cb(napi_env env, void *finalize_data, void *finalize_hint) {
-    AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
+    // AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
     // reset the function on finalize
     if (finalize_data && *(napi_threadsafe_function *)finalize_data)
         *(napi_threadsafe_function *)finalize_data = NULL;
