@@ -18,7 +18,7 @@
 
 #include <aws/common/condition_variable.h>
 #include <aws/common/mutex.h>
-
+#include <aws/http/request_response.h>
 #include <aws/io/tls_channel_handler.h>
 
 static const char *AWS_NAPI_KEY_ENDPOINT = "endpoint";
@@ -584,7 +584,6 @@ done:
  **********************************************************************************************************************/
 
 struct signer_sign_request_state {
-    napi_ref node_request;
     struct aws_http_message *request;
     struct aws_signable *signable;
 
@@ -629,7 +628,7 @@ static void s_destroy_signing_binding(
     }
 
     /* Release references */
-    napi_delete_reference(env, binding->node_request);
+    aws_http_message_release(binding->request);
 
     const size_t num_blacklisted = binding->header_blacklist.length;
     for (size_t i = 0; i < num_blacklisted; ++i) {
@@ -641,7 +640,7 @@ static void s_destroy_signing_binding(
 
     aws_signable_destroy(binding->signable);
 
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, binding->on_complete));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     aws_mem_release(allocator, binding);
 }
 
@@ -930,8 +929,7 @@ static napi_value s_aws_sign_request(napi_env env, const struct aws_napi_callbac
 
     /* Get request */
     aws_napi_method_next_argument(napi_object, cb_info, &arg);
-    napi_create_reference(env, arg->node, 1, &state->node_request);
-    state->request = aws_napi_http_message_unwrap(env, arg->node);
+    state->request = aws_http_message_acquire(aws_napi_http_message_unwrap(env, arg->node));
     state->signable = aws_signable_new_http_request(allocator, state->request);
 
     /* Populate config */
@@ -1054,7 +1052,7 @@ static napi_value s_aws_verify_sigv4a_signing(napi_env env, const struct aws_nap
 
     /* Get request */
     aws_napi_method_next_argument(napi_object, cb_info, &arg);
-    state->request = aws_napi_http_message_unwrap(env, arg->node);
+    state->request = aws_http_message_acquire(aws_napi_http_message_unwrap(env, arg->node));
     state->signable = aws_signable_new_http_request(allocator, state->request);
 
     /* Populate config */
