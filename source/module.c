@@ -954,6 +954,13 @@ napi_status aws_napi_dispatch_threadsafe_function(
     return (call_status != napi_ok) ? call_status : release_status;
 }
 
+void aws_threadsafe_function_finalize_cb(napi_env env, void *finalize_data, void *finalize_hint) {
+    AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
+    // reset the function on finalize
+    if (finalize_data && *(napi_threadsafe_function *)finalize_data)
+        *(napi_threadsafe_function *)finalize_data = NULL;
+}
+
 napi_status aws_napi_create_threadsafe_function(
     napi_env env,
     napi_value function,
@@ -966,7 +973,7 @@ napi_status aws_napi_create_threadsafe_function(
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
 
     return napi_create_threadsafe_function(
-        env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result);
+        env, function, NULL, resource_name, 0, 1, result, aws_threadsafe_function_finalize_cb, context, call_js, result);
 }
 
 napi_status aws_napi_release_threadsafe_function(
