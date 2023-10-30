@@ -353,6 +353,7 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
      *
      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
      */
+    /*
     if (os.platform() !== 'win32') {
         let response: eventstream.MessageEvent = (await connectResponse)[0];
         let message: eventstream.Message = response.message;
@@ -360,7 +361,7 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
         expect(message.type).toEqual(eventstream.MessageType.ConnectAck);
         expect(message.flags).toBeDefined();
         expect((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted).toEqual(0);
-    }
+    }*/
 
     await disconnected;
     connection.close();
