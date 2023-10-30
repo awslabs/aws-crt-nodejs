@@ -1010,8 +1010,11 @@ napi_status aws_napi_dispatch_threadsafe_function(
 void aws_threadsafe_function_finalize_cb(napi_env env, void *finalize_data, void *finalize_hint) {
     AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
     // reset the function on finalize
-    if (finalize_data && *(napi_threadsafe_function *)finalize_data)
-        AWS_ZERO_STRUCT(*(napi_threadsafe_function *)finalize_data);
+    struct aws_threadsafe_function *aws_function = (struct aws_threadsafe_function *)finalize_data;
+    aws_mutex_lock(&aws_function->function_lock);
+    if (aws_function->init)
+        aws_function->init = false;
+    aws_mutex_unlock(&aws_function->function_lock);
 }
 
 napi_status aws_napi_create_threadsafe_function(
@@ -1026,17 +1029,40 @@ napi_status aws_napi_create_threadsafe_function(
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
     AWS_NAPI_LOGF_ERROR("create threadsafe function ...%s : %p ", name, result);
     return napi_create_threadsafe_function(
+        env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result);
+}
+
+napi_status aws_napi_create_threadsafe_function_mutex(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    struct aws_threadsafe_function *result_function) {
+
+    napi_value resource_name = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
+    AWS_NAPI_LOGF_ERROR("create threadsafe function ...%s : %p ", name, result_function);
+
+    aws_mutex_init(&(result_function->function_lock));
+
+    aws_mutex_lock(&result_function->function_lock);
+
+    napi_status result = napi_create_threadsafe_function(
         env,
         function,
         NULL,
         resource_name,
         0,
         1,
-        result,
+        result_function,
         aws_threadsafe_function_finalize_cb,
         context,
         call_js,
-        result);
+        &result_function->function);
+    result_function->init = true;
+    aws_mutex_unlock(&result_function->function_lock);
+    return result;
 }
 
 napi_status aws_napi_release_threadsafe_function(

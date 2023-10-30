@@ -7,6 +7,7 @@
 
 #include <aws/common/byte_buf.h>
 #include <aws/common/logging.h>
+#include <aws/common/mutex.h>
 #include <aws/common/string.h>
 
 #define WIN32_LEAN_AND_MEAN
@@ -282,6 +283,20 @@ napi_status aws_napi_create_threadsafe_function(
     void *context,
     napi_threadsafe_function *result);
 
+struct aws_threadsafe_function {
+    napi_threadsafe_function function;
+    struct aws_mutex function_lock;
+    bool init;
+};
+
+napi_status aws_napi_create_threadsafe_function_mutex(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    struct aws_threadsafe_function *result_function);
+
 /**
  * Wrapper around napi_acquire_threadsafe_function,
  * check the function before acquiring it.
@@ -374,5 +389,14 @@ struct aws_napi_context {
         AWS_NAPI_ENSURE(NULL, aws_napi_release_threadsafe_function(binding_name->function_name, napi_tsfn_abort));     \
         binding_name->function_name = NULL;                                                                            \
     }
+
+#define AWS_MQTT5_CLEAN_THREADSAFE_FUNCTION(binding_name, aws_function)                                                \
+    aws_mutex_lock(&binding_name->aws_function.function_lock);                                                         \
+    if (binding_name->aws_function.init) {                                                                             \
+        AWS_NAPI_ENSURE(                                                                                               \
+            NULL, aws_napi_release_threadsafe_function(binding_name->aws_function.function, napi_tsfn_abort));         \
+    }                                                                                                                  \
+    aws_mutex_unlock(&binding_name->aws_function.function_lock);                                                       \
+    aws_mutex_clean_up(&binding_name->aws_function.function_lock);
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */
