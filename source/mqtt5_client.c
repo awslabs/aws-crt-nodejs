@@ -316,8 +316,9 @@ static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *pu
     }
     aws_mutex_lock(&binding->on_message_received.function_lock);
     /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(
-        NULL, aws_napi_queue_threadsafe_function(binding->on_message_received.function, message_received_ud));
+    if (binding->on_message_received.init)
+        AWS_NAPI_ENSURE(
+            NULL, aws_napi_queue_threadsafe_function(binding->on_message_received.function, message_received_ud));
     aws_mutex_unlock(&binding->on_message_received.function_lock);
 }
 
@@ -358,10 +359,11 @@ static void s_on_stopped(struct aws_mqtt5_client_binding *binding) {
     AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_on_stopped - releasing... client binding ");
 
     aws_mutex_lock(&binding->on_stopped.function_lock);
-    /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(
-        NULL,
-        aws_napi_queue_threadsafe_function(binding->on_stopped.function, s_on_simple_event_user_data_new(binding)));
+    if (binding->on_stopped.init)
+        /* queue a callback in node's libuv thread */
+        AWS_NAPI_ENSURE(
+            NULL,
+            aws_napi_queue_threadsafe_function(binding->on_stopped.function, s_on_simple_event_user_data_new(binding)));
     aws_mutex_unlock(&binding->on_stopped.function_lock);
     aws_mutex_unlock(&binding->on_stopped.function_lock);
 }
@@ -373,12 +375,12 @@ static void s_on_attempting_connect(struct aws_mqtt5_client_binding *binding) {
         aws_mutex_unlock(&binding->on_attempting_connect.function_lock);
         return;
     }
-
-    /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(
-        NULL,
-        aws_napi_queue_threadsafe_function(
-            binding->on_attempting_connect.function, s_on_simple_event_user_data_new(binding)));
+    if (binding->on_attempting_connect.init)
+        /* queue a callback in node's libuv thread */
+        AWS_NAPI_ENSURE(
+            NULL,
+            aws_napi_queue_threadsafe_function(
+                binding->on_attempting_connect.function, s_on_simple_event_user_data_new(binding)));
     aws_mutex_unlock(&binding->on_attempting_connect.function_lock);
 }
 
@@ -464,9 +466,10 @@ static void s_on_connection_success(
     AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "id=%p s_on_connection_success - start release threadsafe");
 
     aws_mutex_lock(&binding->on_connection_success.function_lock);
-    /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(
-        NULL, aws_napi_queue_threadsafe_function(binding->on_connection_success.function, connection_result_ud));
+    if (binding->on_connection_success.init)
+        /* queue a callback in node's libuv thread */
+        AWS_NAPI_ENSURE(
+            NULL, aws_napi_queue_threadsafe_function(binding->on_connection_success.function, connection_result_ud));
     aws_mutex_unlock(&binding->on_connection_success.function_lock);
 }
 
@@ -487,9 +490,10 @@ static void s_on_connection_failure(
     }
 
     aws_mutex_lock(&binding->on_connection_failure.function_lock);
-    /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(
-        NULL, aws_napi_queue_threadsafe_function(binding->on_connection_failure.function, connection_result_ud));
+    if (binding->on_connection_failure.init)
+        /* queue a callback in node's libuv thread */
+        AWS_NAPI_ENSURE(
+            NULL, aws_napi_queue_threadsafe_function(binding->on_connection_failure.function, connection_result_ud));
 
     aws_mutex_unlock(&binding->on_connection_failure.function_lock);
 }
@@ -629,10 +633,11 @@ static void s_napi_on_stopped(napi_env env, napi_value function, void *context, 
         }
 
         aws_mutex_lock(&binding->on_stopped.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_stopped.function, NULL, function, num_params, params));
+        if (binding->on_stopped.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_stopped.function, NULL, function, num_params, params));
         aws_mutex_unlock(&binding->on_stopped.function_lock);
     }
 
@@ -665,10 +670,11 @@ static void s_napi_on_attempting_connect(napi_env env, napi_value function, void
             goto done;
         }
         aws_mutex_lock(&binding->on_attempting_connect.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_attempting_connect.function, NULL, function, num_params, params));
+        if (binding->on_attempting_connect.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_attempting_connect.function, NULL, function, num_params, params));
         aws_mutex_unlock(&binding->on_attempting_connect.function_lock);
     }
 
@@ -969,10 +975,11 @@ static void s_napi_on_connection_success(napi_env env, napi_value function, void
         }
 
         aws_mutex_lock(&binding->on_connection_success.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_connection_success.function, NULL, function, num_params, params));
+        if (binding->on_connection_success.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_connection_success.function, NULL, function, num_params, params));
         aws_mutex_unlock(&binding->on_connection_success.function_lock);
     }
 
@@ -1016,10 +1023,11 @@ static void s_napi_on_connection_failure(napi_env env, napi_value function, void
         }
 
         aws_mutex_lock(&binding->on_connection_failure.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_connection_failure.function, NULL, function, num_params, params));
+        if (binding->on_connection_failure.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_connection_failure.function, NULL, function, num_params, params));
         aws_mutex_unlock(&binding->on_connection_failure.function_lock);
     }
 
@@ -1115,10 +1123,11 @@ static void s_napi_on_disconnection(napi_env env, napi_value function, void *con
             goto done;
         }
         aws_mutex_lock(&binding->on_disconnection.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_disconnection.function, NULL, function, num_params, params));
+        if (binding->on_disconnection.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_disconnection.function, NULL, function, num_params, params));
         aws_mutex_unlock(&binding->on_disconnection.function_lock);
     }
 
@@ -1265,10 +1274,11 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
         }
 
         aws_mutex_lock(&binding->on_message_received.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_message_received.function, NULL, function, num_params, params));
+        if (binding->on_message_received.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_message_received.function, NULL, function, num_params, params));
 
         aws_mutex_unlock(&binding->on_message_received.function_lock);
     }
@@ -1855,10 +1865,11 @@ static void s_napi_mqtt5_transform_websocket(
                 &params[1]));
 
         aws_mutex_lock(&args->binding->transform_websocket.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, args->binding->transform_websocket.function, NULL, transform_websocket, num_params, params));
+        if (args->binding->transform_websocket.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, args->binding->transform_websocket.function, NULL, transform_websocket, num_params, params));
 
         aws_mutex_unlock(&args->binding->transform_websocket.function_lock);
     } else {
@@ -1886,7 +1897,8 @@ static void s_mqtt5_transform_websocket(
     args->complete_ctx = complete_ctx;
 
     aws_mutex_lock(&binding->transform_websocket.function_lock);
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->transform_websocket.function, args));
+    if (binding->transform_websocket.init)
+        AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->transform_websocket.function, args));
     aws_mutex_unlock(&binding->transform_websocket.function_lock);
 }
 
@@ -2650,10 +2662,11 @@ static void s_napi_on_subscribe_complete(napi_env env, napi_value function, void
         }
 
         aws_mutex_lock(&binding->on_operation_completion.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_operation_completion.function, NULL, function, num_params, params));
+        if (binding->on_operation_completion.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_operation_completion.function, NULL, function, num_params, params));
         // binding->on_operation_completion = NULL;
         aws_mutex_unlock(&binding->on_operation_completion.function_lock);
     }
@@ -2680,8 +2693,9 @@ static void s_on_subscribe_complete(
     }
 
     aws_mutex_lock(&binding->on_operation_completion.function_lock);
-    /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion.function, binding));
+    if (binding->on_operation_completion.init)
+        /* queue a callback in node's libuv thread */
+        AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion.function, binding));
     aws_mutex_unlock(&binding->on_operation_completion.function_lock);
 }
 
@@ -3049,10 +3063,11 @@ static void s_napi_on_unsubscribe_complete(napi_env env, napi_value function, vo
         }
 
         aws_mutex_lock(&binding->on_operation_completion.function_lock);
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_operation_completion.function, NULL, function, num_params, params));
+        if (binding->on_operation_completion.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_operation_completion.function, NULL, function, num_params, params));
         // binding->on_operation_completion = NULL;
         aws_mutex_unlock(&binding->on_operation_completion.function_lock);
     }
@@ -3080,7 +3095,8 @@ static void s_on_unsubscribe_complete(
 
     /* queue a callback in node's libuv thread */
     aws_mutex_lock(&binding->on_operation_completion.function_lock);
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion.function, binding));
+    if (binding->on_operation_completion.init)
+        AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion.function, binding));
     aws_mutex_unlock(&binding->on_operation_completion.function_lock);
 }
 
@@ -3372,10 +3388,11 @@ static void s_napi_on_publish_complete(napi_env env, napi_value function, void *
 
         aws_mutex_lock(&binding->on_operation_completion.function_lock);
         printf(stderr, "locked on publish complete");
-        AWS_NAPI_ENSURE(
-            env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_operation_completion.function, NULL, function, num_params, params));
+        if (binding->on_operation_completion.init)
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_operation_completion.function, NULL, function, num_params, params));
         // As dispatch would release function, manually set it to
         // binding->on_operation_completion = NULL;
         aws_mutex_unlock(&binding->on_operation_completion.function_lock);
@@ -3409,7 +3426,8 @@ static void s_on_publish_complete(
 
     aws_mutex_lock(&binding->on_operation_completion.function_lock);
     /* queue a callback in node's libuv thread */
-    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion.function, binding));
+    if (binding->on_operation_completion.init)
+        AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_operation_completion.function, binding));
     aws_mutex_unlock(&binding->on_operation_completion.function_lock);
 }
 
