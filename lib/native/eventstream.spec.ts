@@ -7,7 +7,7 @@ import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
 import {once} from "events";
 import crt_native, {cRuntime, CRuntimeType} from "./binding";
-import * as os from "os";
+//import * as os from "os";
 
 jest.setTimeout(10000);
 
@@ -322,7 +322,7 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
     await connection.connect({});
 
-    const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
+    //const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
     const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
     let connectMessage: eventstream.Message = {
