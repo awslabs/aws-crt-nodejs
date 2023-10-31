@@ -323,7 +323,7 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
     await connection.connect({});
 
     //const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
-    const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
+   // const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
     let connectMessage: eventstream.Message = {
         type: eventstream.MessageType.Connect,
