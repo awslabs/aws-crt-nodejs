@@ -289,9 +289,18 @@ struct aws_threadsafe_function {
     struct aws_mutex function_lock;
     struct aws_condition_variable signal;
     bool init;
+    struct aws_allocator *allocator;
 };
 
 napi_status aws_napi_create_threadsafe_function_mutex(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    struct aws_threadsafe_function *result_function);
+
+napi_status aws_napi_create_threadsafe_function_operations(
     napi_env env,
     napi_value function,
     const char *name,

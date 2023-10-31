@@ -1008,23 +1008,31 @@ napi_status aws_napi_dispatch_threadsafe_function(
 }
 
 void aws_threadsafe_function_finalize_cb(napi_env env, void *finalize_data, void *finalize_hint) {
+
     AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
     // reset the function on finalize
     struct aws_threadsafe_function *aws_function = (struct aws_threadsafe_function *)finalize_data;
-    aws_mutex_lock(&aws_function->function_lock);
-    aws_function->function = NULL;
-    aws_mutex_unlock(&aws_function->function_lock);
+    if (aws_function) {
 
-    if (finalize_hint) {
-        struct aws_napi_mqtt5_operation_binding *binding = finalize_hint;
-        AWS_NAPI_LOGF_ERROR(
-            "s_aws_napi_mqtt5_operation_binding_destroy finish waiting, start to release: %p",
-            binding->on_operation_completion);
-        aws_mutex_clean_up(&binding->on_operation_completion->function_lock);
-        aws_condition_variable_clean_up(&binding->on_operation_completion->signal);
-        aws_mem_release(binding->allocator, binding->on_operation_completion);
+        aws_mutex_lock(&aws_function->function_lock);
+        aws_function->function = NULL;
+        aws_mutex_unlock(&aws_function->function_lock);
+    }
+}
 
-        aws_mem_release(binding->allocator, finalize_hint);
+void aws_threadsafe_function_operation_finalize_cb(napi_env env, void *finalize_data, void *finalize_hint) {
+
+    AWS_NAPI_LOGF_ERROR("start finalize callback ...: %p , %p", finalize_data, finalize_hint);
+    // reset the function on finalize
+    struct aws_threadsafe_function *aws_function = (struct aws_threadsafe_function *)finalize_data;
+    if (aws_function) {
+        aws_mutex_lock(&aws_function->function_lock);
+        aws_function->function = NULL;
+        aws_mutex_unlock(&aws_function->function_lock);
+
+        aws_mutex_clean_up(&aws_function->function_lock);
+        aws_condition_variable_clean_up(&aws_function->signal);
+        aws_mem_release(aws_function->allocator, aws_function);
     }
 }
 
@@ -1066,6 +1074,37 @@ napi_status aws_napi_create_threadsafe_function_mutex(
         1,
         result_function,
         aws_threadsafe_function_finalize_cb,
+        context,
+        call_js,
+        &result_function->function);
+    result_function->init = true;
+    aws_mutex_unlock(&result_function->function_lock);
+    return result;
+}
+
+napi_status aws_napi_create_threadsafe_function_operations(
+    napi_env env,
+    napi_value function,
+    const char *name,
+    napi_threadsafe_function_call_js call_js,
+    void *context,
+    struct aws_threadsafe_function *result_function) {
+
+    napi_value resource_name = NULL;
+    AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
+    AWS_NAPI_LOGF_ERROR("create threadsafe function ...%s : %p ", name, result_function);
+
+    aws_mutex_lock(&result_function->function_lock);
+
+    napi_status result = napi_create_threadsafe_function(
+        env,
+        function,
+        NULL,
+        resource_name,
+        0,
+        1,
+        result_function,
+        aws_threadsafe_function_operation_finalize_cb,
         context,
         call_js,
         &result_function->function);

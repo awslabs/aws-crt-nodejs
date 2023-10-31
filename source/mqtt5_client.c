@@ -2569,6 +2569,14 @@ static void s_aws_napi_mqtt5_operation_binding_destroy(struct aws_napi_mqtt5_ope
         default:
             break;
     }
+
+    AWS_NAPI_LOGF_ERROR(
+        "s_aws_napi_mqtt5_operation_binding_destroy finish waiting, start to release: %p",
+        binding->on_operation_completion);
+
+    binding->on_operation_completion = NULL;
+    aws_mem_release(binding->allocator, binding);
+    binding = NULL;
 }
 
 static int s_create_napi_suback_packet(
@@ -2928,9 +2936,11 @@ napi_value aws_napi_mqtt5_client_subscribe(napi_env env, napi_callback_info info
         aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
     binding->allocator = allocator;
     binding->client_binding = s_aws_mqtt5_client_binding_acquire(client_binding);
-    binding->on_operation_completion = aws_mem_calloc(allocator, 1, sizeof(struct aws_threadsafe_function));
-    aws_mutex_init(&binding->on_operation_completion->function_lock);
-    aws_condition_variable_init(&binding->on_operation_completion->signal);
+    struct aws_threadsafe_function *function = aws_mem_calloc(allocator, 1, sizeof(struct aws_threadsafe_function));
+    aws_mutex_init(&function->function_lock);
+    aws_condition_variable_init(&function->signal);
+    function->allocator = allocator;
+    binding->on_operation_completion = function;
 
     napi_value node_subscribe_packet = *arg++;
 
@@ -2949,7 +2959,7 @@ napi_value aws_napi_mqtt5_client_subscribe(napi_env env, napi_callback_info info
     napi_value completion_callback = *arg++;
     AWS_NAPI_CALL(
         env,
-        aws_napi_create_threadsafe_function_mutex(
+        aws_napi_create_threadsafe_function_operations(
             env,
             completion_callback,
             "aws_mqtt5_on_subsription_complete",
@@ -3283,9 +3293,12 @@ napi_value aws_napi_mqtt5_client_unsubscribe(napi_env env, napi_callback_info in
         aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
     binding->allocator = allocator;
     binding->client_binding = s_aws_mqtt5_client_binding_acquire(client_binding);
-    binding->on_operation_completion = aws_mem_calloc(allocator, 1, sizeof(struct aws_threadsafe_function));
-    aws_mutex_init(&binding->on_operation_completion->function_lock);
-    aws_condition_variable_init(&binding->on_operation_completion->signal);
+    struct aws_threadsafe_function *function = aws_mem_calloc(allocator, 1, sizeof(struct aws_threadsafe_function));
+    aws_mutex_init(&function->function_lock);
+    aws_condition_variable_init(&function->signal);
+    function->allocator = allocator;
+
+    binding->on_operation_completion = function;
 
     napi_value node_unsubscribe_packet = *arg++;
     AWS_NAPI_LOGF_ERROR("unsubscribe binding function: %p", binding->on_operation_completion);
@@ -3302,7 +3315,7 @@ napi_value aws_napi_mqtt5_client_unsubscribe(napi_env env, napi_callback_info in
     napi_value completion_callback = *arg++;
     AWS_NAPI_CALL(
         env,
-        aws_napi_create_threadsafe_function_mutex(
+        aws_napi_create_threadsafe_function_operations(
             env,
             completion_callback,
             "aws_mqtt5_on_unsubscribe_complete",
@@ -3503,9 +3516,12 @@ napi_value aws_napi_mqtt5_client_publish(napi_env env, napi_callback_info info) 
         aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt5_operation_binding));
     binding->allocator = allocator;
     binding->client_binding = s_aws_mqtt5_client_binding_acquire(client_binding);
-    binding->on_operation_completion = aws_mem_calloc(allocator, 1, sizeof(struct aws_threadsafe_function));
-    aws_mutex_init(&binding->on_operation_completion->function_lock);
-    aws_condition_variable_init(&binding->on_operation_completion->signal);
+    struct aws_threadsafe_function *function = aws_mem_calloc(allocator, 1, sizeof(struct aws_threadsafe_function));
+    aws_mutex_init(&function->function_lock);
+    aws_condition_variable_init(&function->signal);
+    function->allocator = allocator;
+
+    binding->on_operation_completion = function;
 
     napi_value node_publish_packet = *arg++;
 
@@ -3523,7 +3539,7 @@ napi_value aws_napi_mqtt5_client_publish(napi_env env, napi_callback_info info) 
     napi_value completion_callback = *arg++;
     AWS_NAPI_CALL(
         env,
-        aws_napi_create_threadsafe_function_mutex(
+        aws_napi_create_threadsafe_function_operations(
             env,
             completion_callback,
             "aws_mqtt5_on_publish_complete",
