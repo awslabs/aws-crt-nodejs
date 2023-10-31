@@ -361,9 +361,11 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
         expect(message.type).toEqual(eventstream.MessageType.ConnectAck);
         expect(message.flags).toBeDefined();
         expect((message.flags ?? 0) & eventstream.MessageFlags.ConnectionAccepted).toEqual(0);
-    }*/
+    }
 
     await disconnected;
+    connection.close();
+    */
     connection.close();
 });
 
