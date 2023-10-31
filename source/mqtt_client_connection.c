@@ -45,7 +45,19 @@ struct mqtt_connection_binding {
     napi_threadsafe_function on_any_publish;
     napi_threadsafe_function transform_websocket;
     napi_threadsafe_function on_closed;
+    napi_threadsafe_function on_connection_success;
+    napi_threadsafe_function on_connection_failure;
+    bool first_successfull_connection;
 };
+
+static void s_mqtt_client_connection_release_threadsafe_function_on_failure(struct mqtt_connection_binding *binding) {
+
+    if (binding->on_connection_failure != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_failure, napi_tsfn_abort));
+        binding->on_connection_failure = NULL;
+    }
+}
 
 static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_connection_binding *binding) {
 
@@ -76,6 +88,12 @@ static void s_mqtt_client_connection_release_threadsafe_function(struct mqtt_con
         AWS_NAPI_ENSURE(binding->env, aws_napi_release_threadsafe_function(binding->on_closed, napi_tsfn_abort));
         binding->on_closed = NULL;
     }
+
+    if (binding->on_connection_success != NULL) {
+        AWS_NAPI_ENSURE(
+            binding->env, aws_napi_release_threadsafe_function(binding->on_connection_success, napi_tsfn_abort));
+        binding->on_connection_success = NULL;
+    }
 }
 
 static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
@@ -87,6 +105,7 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
 
     /* Should have already been done, but just to be safe -- now that it's reentrant -- release the functions anyways */
     s_mqtt_client_connection_release_threadsafe_function(binding);
+    s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
 
     if (binding->use_tls_options) {
         aws_tls_connection_options_clean_up(&binding->tls_options);
@@ -99,11 +118,12 @@ static void s_mqtt_client_connection_finalize(napi_env env, void *finalize_data,
 }
 
 napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_info info) {
-    struct mqtt_connection_binding *binding = NULL;
 
+    struct mqtt_connection_binding *binding = NULL;
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
+
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to retreive callback information");
         return NULL;
@@ -126,6 +146,7 @@ napi_value aws_napi_mqtt_client_connection_close(napi_env env, napi_callback_inf
 
     /* connection has been shutdown, no callbacks will happen after it */
     s_mqtt_client_connection_release_threadsafe_function(binding);
+    s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
 
     /* no more node interop will be done, free node resources */
     if (binding->node_external) {
@@ -251,11 +272,116 @@ static void s_on_connection_resumed(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_resumed, args));
 }
 
+/*******************************************************************************
+ * on_connection_success
+ ******************************************************************************/
+struct connection_success_args {
+    enum aws_mqtt_connect_return_code return_code;
+    bool session_present;
+};
+
+static void s_on_connection_success_call(napi_env env, napi_value on_success, void *context, void *user_data) {
+    struct mqtt_connection_binding *binding = context;
+    struct connection_success_args *args = user_data;
+
+    if (env) {
+        if (binding->on_connection_success) {
+            napi_value params[2];
+            const size_t num_params = AWS_ARRAY_SIZE(params);
+
+            AWS_NAPI_ENSURE(env, napi_create_int32(env, args->return_code, &params[0]));
+            AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->session_present, &params[1]));
+
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_connection_success, NULL, on_success, num_params, params));
+        } else {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "Success callback invoked for connection binding %p but callback is null",
+                (void *)binding);
+        }
+    }
+    aws_mem_release(binding->allocator, args);
+}
+
+static void s_on_connection_success(
+    struct aws_mqtt_client_connection *connection,
+    enum aws_mqtt_connect_return_code return_code,
+    bool session_present,
+    void *user_data) {
+    (void)connection;
+
+    struct mqtt_connection_binding *binding = user_data;
+    binding->first_successfull_connection = true;
+    if (!binding->on_connection_success) {
+        return;
+    }
+
+    struct connection_success_args *args =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_success_args));
+    AWS_FATAL_ASSERT(args);
+
+    args->return_code = return_code;
+    args->session_present = session_present;
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_success, args));
+}
+
+/*******************************************************************************
+ * on_connection_failure
+ ******************************************************************************/
+
+struct connection_failure_args {
+    int error_code;
+};
+static void s_on_connection_failure_call(napi_env env, napi_value on_failure, void *context, void *user_data) {
+    struct mqtt_connection_binding *binding = context;
+    struct connection_failure_args *args = user_data;
+    if (env) {
+        if (binding->on_connection_failure) {
+            napi_value params[1];
+            const size_t num_params = AWS_ARRAY_SIZE(params);
+
+            AWS_NAPI_ENSURE(env, napi_create_int32(env, args->error_code, &params[0]));
+
+            AWS_NAPI_ENSURE(
+                env,
+                aws_napi_dispatch_threadsafe_function(
+                    env, binding->on_connection_failure, NULL, on_failure, num_params, params));
+            s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
+        } else {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "Failure callback invoked for connection binding %p but callback is null",
+                (void *)binding);
+        }
+    }
+    aws_mem_release(binding->allocator, args);
+}
+
+static void s_on_connection_failure(struct aws_mqtt_client_connection *connection, int error_code, void *user_data) {
+    (void)connection;
+
+    struct mqtt_connection_binding *binding = user_data;
+    if (!binding->on_connection_failure) {
+        return;
+    }
+
+    struct connection_failure_args *args =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct connection_failure_args));
+    AWS_FATAL_ASSERT(args);
+    args->error_code = error_code;
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_connection_failure, args));
+}
+
 napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info cb_info) {
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    napi_value node_args[12];
+    napi_value node_args[14];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -271,6 +397,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     AWS_FATAL_ASSERT(binding);
     binding->env = env;
     binding->allocator = allocator;
+    binding->first_successfull_connection = false;
 
     napi_value node_external;
     AWS_NAPI_CALL(env, napi_create_external(env, binding, s_mqtt_client_connection_finalize, NULL, &node_external), {
@@ -330,6 +457,34 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
             { goto cleanup; });
     }
 
+    napi_value node_on_success = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_on_success)) {
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_success,
+                "aws_mqtt_client_connection_on_connection_success",
+                s_on_connection_success_call,
+                binding,
+                &binding->on_connection_success),
+            { goto cleanup; });
+    }
+
+    napi_value node_on_failure = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_on_failure)) {
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_failure,
+                "aws_mqtt_client_connection_on_connection_failure",
+                s_on_connection_failure_call,
+                binding,
+                &binding->on_connection_failure),
+            { goto cleanup; });
+    }
+
     /* CREATE THE THING */
     binding->connection = aws_mqtt_client_connection_new(node_client->native_client);
     if (!binding->connection) {
@@ -340,6 +495,14 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     if (binding->on_connection_interrupted || binding->on_connection_resumed) {
         aws_mqtt_client_connection_set_connection_interruption_handlers(
             binding->connection, s_on_connection_interrupted, binding, s_on_connection_resumed, binding);
+    }
+
+    if (binding->on_connection_failure || binding->on_connection_success) {
+        if (aws_mqtt_client_connection_set_connection_result_handlers(
+                binding->connection, s_on_connection_success, binding, s_on_connection_failure, binding) !=
+            AWS_OP_SUCCESS) {
+            goto cleanup;
+        }
     }
 
     napi_value node_tls = *arg++;
@@ -584,6 +747,14 @@ static void s_on_connect_call(napi_env env, napi_value on_connect, void *context
     if (args->return_code || args->error_code) {
         /* Failed to create a connection, none of the callbacks will be invoked again */
         s_mqtt_client_connection_release_threadsafe_function(binding);
+        if (binding->first_successfull_connection == true) {
+            /* separating the cleanup to on_connection_failure, to make it
+             * possible for the callback to be sent later and not free the
+             * callback prematurely. It will be freed when we send the callback
+             * itself later on. if it is not the first successfull connection,
+             * then re-connect will handle this scenario */
+            s_mqtt_client_connection_release_threadsafe_function_on_failure(binding);
+        }
     }
 
     s_destroy_connect_args(args);
@@ -607,7 +778,6 @@ static void s_on_connected(
     args->error_code = error_code;
     args->return_code = return_code;
     args->session_present = session_present;
-
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(args->on_connect, args));
 }
 

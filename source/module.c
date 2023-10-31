@@ -947,10 +947,10 @@ napi_status aws_napi_dispatch_threadsafe_function(
         call_status = status;
         s_handle_failed_callback(env, function, status);
     });
+    /* main thread can exit now */
+    napi_unref_threadsafe_function(env, tsfn);
     /* Must always decrement the ref count, or the function will be pinned */
     napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
-    /* main thread can exit now */
-    AWS_NAPI_ENSURE(env, napi_unref_threadsafe_function(env, tsfn));
     return (call_status != napi_ok) ? call_status : release_status;
 }
 
@@ -966,7 +966,17 @@ napi_status aws_napi_create_threadsafe_function(
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
 
     return napi_create_threadsafe_function(
-        env, function, NULL, resource_name, 0, 1, NULL, NULL, context, call_js, result);
+        env,
+        function,
+        NULL /*async_resource*/,
+        resource_name,
+        0 /*max_queue_size - 0 means no limit*/,
+        1 /*initial_thread_count*/,
+        NULL /*thread_finalize_data*/,
+        NULL /*thread_finalize_cb*/,
+        context,
+        call_js,
+        result);
 }
 
 napi_status aws_napi_release_threadsafe_function(

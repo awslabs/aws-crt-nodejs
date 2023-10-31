@@ -193,6 +193,8 @@ export function mqtt_client_connection_new(
     client: NativeHandle,
     on_interrupted?: (error_code: number) => void,
     on_resumed?: (return_code: number, session_present: boolean) => void,
+    on_success?: (return_code: number, session_present: boolean) => void,
+    on_failure?: (error_code: number) => void,
     tls_ctx?: NativeHandle,
     will?: { topic: StringLike, payload: StringLike, qos: number, retain: boolean },
     username?: StringLike,

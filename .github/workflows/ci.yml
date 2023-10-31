@@ -131,7 +131,7 @@ jobs:
         node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
 
   osx:
-    runs-on: macos-11 # latest
+    runs-on: macos-12 # latest
     steps:
     - name: Build ${{ env.PACKAGE_NAME }} + consumers
       run: |
