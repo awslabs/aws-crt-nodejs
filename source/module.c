@@ -989,8 +989,8 @@ napi_status aws_napi_dispatch_threadsafe_function(
     size_t argc,
     napi_value *argv) {
 
-    if (!function || !tsfn)
-        return napi_ok;
+    // if (!function || !tsfn)
+    //     return napi_ok;
 
     napi_status call_status = napi_ok;
     if (!this_ptr) {
@@ -1043,8 +1043,6 @@ napi_status aws_napi_create_threadsafe_function_mutex(
     napi_value resource_name = NULL;
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, name, NAPI_AUTO_LENGTH, &resource_name));
     AWS_NAPI_LOGF_ERROR("create threadsafe function ...%s : %p ", name, result_function);
-
-    aws_mutex_init(&(result_function->function_lock));
 
     aws_mutex_lock(&result_function->function_lock);
 

@@ -9,6 +9,7 @@
 #include <aws/common/logging.h>
 #include <aws/common/mutex.h>
 #include <aws/common/string.h>
+#include <aws/common/condition_variable.h>
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -286,6 +287,7 @@ napi_status aws_napi_create_threadsafe_function(
 struct aws_threadsafe_function {
     napi_threadsafe_function function;
     struct aws_mutex function_lock;
+    struct aws_condition_variable signal;
     bool init;
 };
 
@@ -391,12 +393,24 @@ struct aws_napi_context {
     }
 
 #define AWS_MQTT5_CLEAN_THREADSAFE_FUNCTION(binding_name, aws_function)                                                \
+    aws_mutex_lock(&binding_name->aws_function->function_lock);                                                         \
+    if (binding_name->aws_function->init) {                                                                             \
+        aws_mutex_unlock(&binding_name->aws_function->function_lock);                                                       \
+        AWS_NAPI_ENSURE(                                                                                               \
+            NULL, aws_napi_release_threadsafe_function(binding_name->aws_function->function, napi_tsfn_abort));         \
+    }                                                                                                                  \
+    else aws_mutex_unlock(&binding_name->aws_function->function_lock);                                                       \
+
+
+#define AWS_MQTT5_CLEAN_THREADSAFE_FUNCTION_POINTER(binding_name, aws_function)                                                \
     aws_mutex_lock(&binding_name->aws_function.function_lock);                                                         \
     if (binding_name->aws_function.init) {                                                                             \
+        aws_mutex_unlock(&binding_name->aws_function.function_lock);                                                       \
         AWS_NAPI_ENSURE(                                                                                               \
             NULL, aws_napi_release_threadsafe_function(binding_name->aws_function.function, napi_tsfn_abort));         \
     }                                                                                                                  \
-    aws_mutex_unlock(&binding_name->aws_function.function_lock);                                                       \
-    aws_mutex_clean_up(&binding_name->aws_function.function_lock);
+    else aws_mutex_unlock(&binding_name->aws_function.function_lock);\
+    aws_mutex_clean_up(&binding_name->aws_function.function_lock);\
+    aws_condition_variable_clean_up(&binding_name->aws_function.signal);
 
 #endif /* AWS_CRT_NODEJS_MODULE_H */
