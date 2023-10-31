@@ -641,7 +641,7 @@ static void s_destroy_signing_binding(
 
     aws_signable_destroy(binding->signable);
 
-    AWS_NAPI_ENSURE(env, aws_napi_unref_threadsafe_function(env, binding->on_complete));
+    AWS_NAPI_ENSURE(env, aws_napi_release_threadsafe_function(binding->on_complete, napi_tsfn_abort));
     aws_mem_release(allocator, binding);
 }
 

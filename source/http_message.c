@@ -121,6 +121,10 @@ static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void
     struct http_request_binding *binding = finalize_data;
     struct aws_allocator *allocator = finalize_hint;
 
+    if (binding->node_headers != NULL) {
+        napi_delete_reference(env, binding->node_headers);
+    }
+
     aws_http_message_destroy(binding->native);
     aws_mem_release(allocator, binding);
 }
