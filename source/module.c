@@ -1012,9 +1012,20 @@ void aws_threadsafe_function_finalize_cb(napi_env env, void *finalize_data, void
     // reset the function on finalize
     struct aws_threadsafe_function *aws_function = (struct aws_threadsafe_function *)finalize_data;
     aws_mutex_lock(&aws_function->function_lock);
-    if (aws_function->init)
-        aws_function->init = false;
+    aws_function->function = NULL;
     aws_mutex_unlock(&aws_function->function_lock);
+
+    if (finalize_hint) {
+        struct aws_napi_mqtt5_operation_binding *binding = finalize_hint;
+        AWS_NAPI_LOGF_ERROR(
+            "s_aws_napi_mqtt5_operation_binding_destroy finish waiting, start to release: %p",
+            binding->on_operation_completion);
+        aws_mutex_clean_up(&binding->on_operation_completion->function_lock);
+        aws_condition_variable_clean_up(&binding->on_operation_completion->signal);
+        aws_mem_release(binding->allocator, binding->on_operation_completion);
+
+        aws_mem_release(binding->allocator, finalize_hint);
+    }
 }
 
 napi_status aws_napi_create_threadsafe_function(
