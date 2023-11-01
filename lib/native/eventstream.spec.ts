@@ -6,8 +6,8 @@
 import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
 import {once} from "events";
-import crt_native, {cRuntime, CRuntimeType} from "./binding";
-//import * as os from "os";
+import crt_native from "./binding";
+import * as os from "os";
 
 jest.setTimeout(10000);
 
@@ -314,19 +314,14 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
     connection.close();
 });
 
-/*
- * Skip this test on Musl as it is very flaky
- * TODO: Figure out why it is flaky on Musl and fix it.
- */
-conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
+conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
 
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
     connection.close();
-    /*
     await connection.connect({});
 
-    //const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
-   // const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
+    const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
+    const disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
     let connectMessage: eventstream.Message = {
         type: eventstream.MessageType.Connect,
@@ -339,7 +334,7 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
     await connection.sendProtocolMessage({
         message: connectMessage
     });
-*/
+
     /*
      * Sigh.
      * On Windows, our EchoTest server closes the connection in this case with an RST rather than a FIN.  Searching
@@ -356,7 +351,6 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
      *
      * So in the interest of avoiding rabbit holes, we only verify the failed connack on non-Windows platforms.
      */
-    /*
     if (os.platform() !== 'win32') {
         let response: eventstream.MessageEvent = (await connectResponse)[0];
         let message: eventstream.Message = response.message;
@@ -368,8 +362,6 @@ conditional_test(cRuntime !== CRuntimeType.MUSL && hasEchoServerEnvironment())('
 
     await disconnected;
     connection.close();
-    */
-   // connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - create with undefined', async () => {
