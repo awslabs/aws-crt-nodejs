@@ -98,6 +98,10 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Will', async () => {
+    // To check that Will message was successfully set for a connection, the connection should be closed without
+    // sending a client-side DISCONNECT packet. This test forces server to close connection by opening another
+    // connection with the same client ID.
+
     const willTopic = 'test/last/will/and/testament'
     const willPayload = 'AVENGE ME'
     const client_id = `node-mqtt-unit-test-will-${uuid()}`
