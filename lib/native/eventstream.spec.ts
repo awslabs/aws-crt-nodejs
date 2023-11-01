@@ -317,7 +317,6 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
 
     let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
-    connection.close();
     await connection.connect({});
 
     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
