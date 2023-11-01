@@ -14,18 +14,12 @@ import {once} from "events";
 
 jest.setTimeout(10000);
 
-async function makeConnection(will?: MqttWill, client_id?: string) : Promise<MqttClientConnection> {
-    // TODO Fix naming or find a way to pass client_id to builder.
-    let my_client_id = `node-mqtt-unit-test-${uuid()}`
-    if (client_id !== undefined) {
-        my_client_id = client_id
-    }
-
+async function makeConnection(will?: MqttWill, client_id: string = `node-mqtt-unit-test-${uuid()}`) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
             let builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets()
                 .with_clean_session(true)
-                .with_client_id(my_client_id)
+                .with_client_id(client_id)
                 .with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST)
                 .with_credentials(
                     test_env.AWS_IOT_ENV.MQTT311_REGION,
