@@ -115,17 +115,17 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     expect(connectWithWillResult).toBeFalsy(); /* session present */
 
     // The second connection that subscribes to first connection's Will topic.
-    const connectionBeneficiary = await makeConnection();
-    const onConnectBeneficiary = once(connectionBeneficiary, 'connect');
-    const onDisconnectBeneficiary = once(connectionBeneficiary, 'disconnect');
-    await connectionBeneficiary.connect()
-    const connectBeneficiaryResult = (await onConnectBeneficiary)[0];
-    expect(connectBeneficiaryResult).toBeFalsy(); /* session present */
+    const connectionWaitingForWill = await makeConnection();
+    const onConnectWaitingForWill = once(connectionWaitingForWill, 'connect');
+    const onDisconnectWaitingForWill = once(connectionWaitingForWill, 'disconnect');
+    await connectionWaitingForWill.connect()
+    const connectWaitingForWill = (await onConnectWaitingForWill)[0];
+    expect(connectWaitingForWill).toBeFalsy(); /* session present */
 
-    const onMessage = once(connectionBeneficiary, 'message');
-    await connectionBeneficiary.subscribe(willTopic, QoS.AtLeastOnce);
+    const onMessage = once(connectionWaitingForWill, 'message');
+    await connectionWaitingForWill.subscribe(willTopic, QoS.AtLeastOnce);
 
-    // The third connection that will "kill" the first one because it has the same client ID.
+    // The third connection that will cause the first one to be disconnected because it has the same client ID.
     const connectionDuplicate = await makeConnection(undefined, client_id);
     const onConnectDuplicate = once(connectionDuplicate, 'connect');
     const onDisconnectDuplicate = once(connectionDuplicate, 'disconnect');
@@ -133,7 +133,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     const connectDuplicateResult = (await onConnectDuplicate)[0];
     expect(connectDuplicateResult).toBeFalsy(); /* session present */
 
-    // Beneficiary connection is waiting for Will message after the first connection was kicked out.
+    // The second connection should receive Will message after the first connection was kicked out.
     const messageReceivedArgs = (await onMessage);
     const messageReceivedTopic = messageReceivedArgs[0];
     const messageReceivedPayload = messageReceivedArgs[1];
@@ -147,8 +147,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     expect(messageReceivedQos).toEqual(QoS.AtLeastOnce);
     expect(messageReceivedRetain).toBeFalsy();
 
-    await connectionBeneficiary.disconnect();
-    await onDisconnectBeneficiary;
+    await connectionWaitingForWill.disconnect();
+    await onDisconnectWaitingForWill;
 
     await connectionDuplicate.disconnect();
     await onDisconnectDuplicate;
