@@ -838,7 +838,6 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_callback_scope_mismatch:
             reason = "napi_callback_scope_mismatch";
             break;
-#if NAPI_VERSION >= 3
         case napi_queue_full:
             reason = "napi_queue_full";
             break;
@@ -851,8 +850,6 @@ const char *aws_napi_status_to_str(napi_status status) {
         case NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE:
             reason = "napi_no_external_buffers_allowed";
             break;
-
-#endif
     }
     return reason;
 }
@@ -955,18 +952,12 @@ napi_status aws_napi_create_external_arraybuffer(
 
     if (external_buffer_status == NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE) {
 
-        AWS_LOGF_DEBUG(
-            AWS_LS_NODEJS_CRT_GENERAL,
-            "napi_create_external_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
-            aws_napi_status_to_str(external_buffer_status));
-
         // The external buffer is disabled, manually copy the external_data into Node
         void *napi_buf_data = NULL;
         napi_status create_arraybuffer_status = napi_create_arraybuffer(env, byte_length, &napi_buf_data, result);
 
         if (create_arraybuffer_status != napi_ok) {
-            AWS_LOGF_DEBUG(
-                AWS_LS_NODEJS_CRT_GENERAL,
+            AWS_NAPI_LOGF_ERROR(
                 "napi_create_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
                 aws_napi_status_to_str(create_arraybuffer_status));
             return create_arraybuffer_status;
