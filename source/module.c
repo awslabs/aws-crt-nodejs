@@ -47,6 +47,12 @@ AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 #define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
 
+/* TODO:
+ * Hardcoded enum value for `napi_no_external_buffers_allowed`.
+ * The enum `napi_no_external_buffers_allowed` is introduced in node14.
+ * Use it for external buffer related changes after bump to node 14 */
+#define NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE 22
+
 /* clang-format off */
 static struct aws_error_info s_errors[] = {
     AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
@@ -842,13 +848,10 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_bigint_expected:
             reason = "napi_bigint_expected";
             break;
-/* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
- * Use it for external buffer related changes after bump to node 14
- *
- * case napi_no_external_buffers_allowed:
- *     reason = "napi_no_external_buffers_allowed";
- *     break;
- */
+        case NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE:
+            reason = "napi_no_external_buffers_allowed";
+            break;
+
 #endif
     }
     return reason;
@@ -950,13 +953,10 @@ napi_status aws_napi_create_external_arraybuffer(
     napi_status external_buffer_status =
         napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
-    if (external_buffer_status != napi_ok) {
+    if (external_buffer_status == NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE) {
 
-        /* TODO: The enum `napi_no_external_buffers_allowed` is introduced in node14.
-         * Use it to determine if the function failed because of the external buffer support after bump
-         * minimal support to node 14
-         */
-        AWS_NAPI_LOGF_ERROR(
+        AWS_LOGF_DEBUG(
+            AWS_LS_NODEJS_CRT_GENERAL,
             "napi_create_external_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
             aws_napi_status_to_str(external_buffer_status));
 
@@ -965,7 +965,8 @@ napi_status aws_napi_create_external_arraybuffer(
         napi_status create_arraybuffer_status = napi_create_arraybuffer(env, byte_length, &napi_buf_data, result);
 
         if (create_arraybuffer_status != napi_ok) {
-            AWS_NAPI_LOGF_ERROR(
+            AWS_LOGF_DEBUG(
+                AWS_LS_NODEJS_CRT_GENERAL,
                 "napi_create_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
                 aws_napi_status_to_str(create_arraybuffer_status));
             return create_arraybuffer_status;
