@@ -209,9 +209,6 @@ static void s_napi_event_stream_connection_on_connection_shutdown(
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, shutdown_data->error_code, &params[1]), { goto done; });
 
-        /* Unsure if the destruction of node_event_stream_client_connection_ref will impact the dispatch call */
-        binding->is_closed = true;
-
         AWS_NAPI_ENSURE(
             env,
             aws_napi_dispatch_threadsafe_function(
