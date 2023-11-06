@@ -14,12 +14,12 @@ import {once} from "events";
 
 jest.setTimeout(10000);
 
-async function makeConnection(will?: MqttWill) : Promise<MqttClientConnection> {
+async function makeConnection(will?: MqttWill, client_id: string = `node-mqtt-unit-test-${uuid()}`) : Promise<MqttClientConnection> {
     return new Promise<MqttClientConnection>(async (resolve, reject) => {
         try {
             let builder = AwsIotMqttConnectionConfigBuilder.new_with_websockets()
                 .with_clean_session(true)
-                .with_client_id(`node-mqtt-unit-test-${uuid()}`)
+                .with_client_id(client_id)
                 .with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST)
                 .with_credentials(
                     test_env.AWS_IOT_ENV.MQTT311_REGION,
@@ -98,27 +98,67 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Will', async () => {
-    /* TODO: this doesn't really test anything.  Unfortunately, there's no easy way to break the
-    *   MQTT311 connection without it sending a client-side DISCONNECT packet which removes the will. It's not
-    *   impossible but would require changes to the C API as well as the bindings to add a path that skips the
-    *   DISCONNECT packet, which is far beyond the scope of refactoring these tests to be more procedural and reliable.
-    */
-    const connection = await makeConnection(new MqttWill(
-        'test/last/will/and/testament',
+    // To check that Will message was successfully set for a connection, the connection should be closed without
+    // sending a client-side DISCONNECT packet. This test forces server to close connection by opening another
+    // connection with the same client ID.
+
+    const willTopic = 'test/last/will/and/testament'
+    const willPayload = 'AVENGE ME'
+    const client_id = `node-mqtt-unit-test-will-${uuid()}`
+
+    // Connection with Will set.
+    const connectionWithWill = await makeConnection(new MqttWill(
+        willTopic,
         QoS.AtLeastOnce,
-        'AVENGE ME'
-    ));
+        willPayload
+    ), client_id);
+    const onConnectWithWill = once(connectionWithWill, 'connect');
+    const onDisconnectWithWill = once(connectionWithWill, 'disconnect');
+    await connectionWithWill.connect();
+    const connectWithWillResult = (await onConnectWithWill)[0];
+    expect(connectWithWillResult).toBeFalsy(); /* session present */
 
-    let onConnect = once(connection, 'connect');
-    let onDisconnect = once(connection, 'disconnect');
+    // The second connection that subscribes to first connection's Will topic.
+    const connectionWaitingForWill = await makeConnection();
+    const onConnectWaitingForWill = once(connectionWaitingForWill, 'connect');
+    const onDisconnectWaitingForWill = once(connectionWaitingForWill, 'disconnect');
+    await connectionWaitingForWill.connect()
+    const connectWaitingForWill = (await onConnectWaitingForWill)[0];
+    expect(connectWaitingForWill).toBeFalsy(); /* session present */
 
-    await connection.connect();
+    const onMessage = once(connectionWaitingForWill, 'message');
+    await connectionWaitingForWill.subscribe(willTopic, QoS.AtLeastOnce);
 
-    let connectResult = (await onConnect)[0];
-    expect(connectResult).toBeFalsy(); /* session present */
+    // The third connection that will cause the first one to be disconnected because it has the same client ID.
+    const connectionDuplicate = await makeConnection(undefined, client_id);
+    const onConnectDuplicate = once(connectionDuplicate, 'connect');
+    const onDisconnectDuplicate = once(connectionDuplicate, 'disconnect');
+    await connectionDuplicate.connect()
+    const connectDuplicateResult = (await onConnectDuplicate)[0];
+    expect(connectDuplicateResult).toBeFalsy(); /* session present */
 
-    await connection.disconnect();
-    await onDisconnect;
+    // The second connection should receive Will message after the first connection was kicked out.
+    const messageReceivedArgs = (await onMessage);
+    const messageReceivedTopic = messageReceivedArgs[0];
+    const messageReceivedPayload = messageReceivedArgs[1];
+    const messageReceivedQos = messageReceivedArgs[3];
+    const messageReceivedRetain = messageReceivedArgs[4];
+
+    expect(messageReceivedTopic).toEqual(willTopic);
+    expect(messageReceivedPayload).toBeDefined();
+    const payload_str = (new TextDecoder()).decode(new Uint8Array(messageReceivedPayload));
+    expect(payload_str).toEqual(willPayload);
+    expect(messageReceivedQos).toEqual(QoS.AtLeastOnce);
+    expect(messageReceivedRetain).toBeFalsy();
+
+    await connectionWaitingForWill.disconnect();
+    await onDisconnectWaitingForWill;
+
+    await connectionDuplicate.disconnect();
+    await onDisconnectDuplicate;
+
+    await connectionWithWill.disconnect();
+    await onDisconnectWithWill;
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT On Any Publish', async () => {
