@@ -557,7 +557,7 @@ static void s_on_disconnection(
     }
 
     aws_mutex_lock(&binding->on_disconnection->function_lock);
-    if (!binding->on_disconnection->init) {
+    if (binding->on_disconnection->init) {
         /* queue a callback in node's libuv thread */
         AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_disconnection->function, disconnection_ud));
     }
