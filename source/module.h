@@ -269,6 +269,16 @@ napi_status aws_napi_dispatch_threadsafe_function(
     napi_value *argv);
 
 /**
+ * Wrapper around napi_threadsafe_function, setup the
+ */
+struct aws_threadsafe_function {
+    napi_threadsafe_function function;
+    struct aws_mutex function_lock;
+    bool init;
+    struct aws_allocator *allocator;
+};
+
+/**
  * Wrapper around napi_create_threadsafe_function,
  * aws_napi_release_threadsafe_function needed to clean up the threadsafe function
  * Note: If you want to release a thread safe function from within that thread safe function's callback, call unref
