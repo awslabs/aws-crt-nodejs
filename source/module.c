@@ -1028,6 +1028,7 @@ void aws_threadsafe_function_operation_finalize_cb(napi_env env, void *finalize_
     if (aws_function) {
         aws_mutex_lock(&aws_function->function_lock);
         aws_function->function = NULL;
+        aws_function->init = false;
         aws_mutex_unlock(&aws_function->function_lock);
 
         aws_mutex_clean_up(&aws_function->function_lock);
