@@ -27,7 +27,7 @@ import {
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
-import axios = require('axios');
+import * as axios from "axios";
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
