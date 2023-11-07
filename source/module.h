@@ -205,6 +205,9 @@ int aws_napi_get_property_array_size(
     const char *property_name,
     size_t *array_size_out);
 
+int aws_napi_disable_threadsafe_function();
+
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
 /** Copies data from cur into a new ArrayBuffer, then returns a DataView to the buffer. */
@@ -269,16 +272,6 @@ napi_status aws_napi_dispatch_threadsafe_function(
     napi_value *argv);
 
 /**
- * Wrapper around napi_threadsafe_function, setup the
- */
-struct aws_threadsafe_function {
-    napi_threadsafe_function function;
-    struct aws_mutex function_lock;
-    bool init;
-    struct aws_allocator *allocator;
-};
-
-/**
  * Wrapper around napi_create_threadsafe_function,
  * aws_napi_release_threadsafe_function needed to clean up the threadsafe function
  * Note: If you want to release a thread safe function from within that thread safe function's callback, call unref
@@ -318,6 +311,8 @@ napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_fun
  * and pins the function reference until the call completes
  */
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data);
+
+
 
 /*
  * One of these will be allocated each time the module init function is called

@@ -41,6 +41,8 @@ export function native_memory_dump(): void;
 export function error_code_to_string(error_code: number): string;
 /** @internal */
 export function error_code_to_name(error_code: number): string;
+/** @internal */
+export function disable_threadsafe_function(): number;
 
 /* IO */
 /** @internal */

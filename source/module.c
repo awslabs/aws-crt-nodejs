@@ -53,6 +53,9 @@ AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
  * Use it for external buffer related changes after bump to node 14 */
 #define NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE 22
 
+static uint8_t s_tsfn_cb_protect = 0;
+static struct aws_mutex s_cb_lock = AWS_MUTEX_INIT;
+
 /* clang-format off */
 static struct aws_error_info s_errors[] = {
     AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
@@ -749,6 +752,13 @@ int aws_napi_get_property_array_size(
     return AWS_OP_SUCCESS;
 }
 
+int aws_napi_disable_threadsafe_function()
+{
+    aws_mutex_lock(&s_cb_lock);
+    s_tsfn_cb_protect = 0;
+    aws_mutex_unlock(&s_cb_lock);
+}
+
 void aws_napi_throw_last_error(napi_env env) {
     const int error_code = aws_last_error();
     napi_throw_error(env, aws_error_str(error_code), aws_error_debug_str(error_code));
@@ -981,6 +991,14 @@ napi_status aws_napi_dispatch_threadsafe_function(
     size_t argc,
     napi_value *argv) {
 
+    aws_mutex_lock(&s_cb_lock);
+    if(s_tsfn_cb_protect == 0 )
+    {
+    aws_mutex_unlock(&s_cb_lock);
+        return napi_ok;
+    }
+    aws_mutex_unlock(&s_cb_lock);
+
     napi_status call_status = napi_ok;
     if (!this_ptr) {
         AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
@@ -1024,6 +1042,14 @@ napi_status aws_napi_create_threadsafe_function(
 napi_status aws_napi_release_threadsafe_function(
     napi_threadsafe_function function,
     napi_threadsafe_function_release_mode mode) {
+            aws_mutex_lock(&s_cb_lock);
+    if(s_tsfn_cb_protect == 0 )
+    {
+    aws_mutex_unlock(&s_cb_lock);
+        return napi_ok;
+    }
+    aws_mutex_unlock(&s_cb_lock);
+
     if (function) {
         return napi_release_threadsafe_function(function, mode);
     }
@@ -1031,6 +1057,14 @@ napi_status aws_napi_release_threadsafe_function(
 }
 
 napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function function) {
+        aws_mutex_lock(&s_cb_lock);
+    if(s_tsfn_cb_protect == 0 )
+    {
+    aws_mutex_unlock(&s_cb_lock);
+        return napi_ok;
+    }
+    aws_mutex_unlock(&s_cb_lock);
+
     if (function) {
         return napi_acquire_threadsafe_function(function);
     }
@@ -1038,6 +1072,14 @@ napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function functi
 }
 
 napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
+        aws_mutex_lock(&s_cb_lock);
+    if(s_tsfn_cb_protect == 0 )
+    {
+    aws_mutex_unlock(&s_cb_lock);
+        return napi_ok;
+    }
+    aws_mutex_unlock(&s_cb_lock);
+
     if (function) {
         return napi_unref_threadsafe_function(env, function);
     }
@@ -1045,6 +1087,14 @@ napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_fun
 }
 
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
+        aws_mutex_lock(&s_cb_lock);
+    if(s_tsfn_cb_protect == 0 )
+    {
+    aws_mutex_unlock(&s_cb_lock);
+        return napi_ok;
+    }
+    aws_mutex_unlock(&s_cb_lock);
+
     /* increase the ref count, gets decreased when the call completes */
     AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));
     return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
@@ -1151,6 +1201,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
     --s_module_initialize_count;
 
     if (s_module_initialize_count == 0) {
+
         aws_client_bootstrap_release(s_default_client_bootstrap);
         s_default_client_bootstrap = NULL;
 
@@ -1184,7 +1235,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
             aws_mem_tracer_destroy(ctx_allocator);
         }
     }
-
+    aws_napi_disable_threadsafe_function();
     aws_mutex_unlock(&s_module_lock);
 }
 
@@ -1236,6 +1287,11 @@ static bool s_create_and_register_function(
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
     if (s_module_initialize_count == 0) {
+        aws_mutex_lock(&s_cb_lock);
+        s_tsfn_cb_protect = 1;
+        aws_mutex_unlock(&s_cb_lock);
+
+
         s_install_crash_handler();
 
         aws_mqtt_library_init(allocator);
@@ -1301,6 +1357,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(native_memory_dump)
     CREATE_AND_REGISTER_FN(error_code_to_string)
     CREATE_AND_REGISTER_FN(error_code_to_name)
+    CREATE_AND_REGISTER_FN(disable_threadsafe_function)
 
     /* IO */
     CREATE_AND_REGISTER_FN(io_logging_enable)
