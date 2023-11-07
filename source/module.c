@@ -1217,6 +1217,8 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
         aws_mqtt_library_clean_up();
 
         s_uninstall_crash_handler();
+        // clean up threadsafe function lock
+        aws_rw_lock_clean_up(&s_tsfn_lock);
     }
 
     struct aws_napi_context *ctx = user_data;
@@ -1231,8 +1233,6 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
             }
             aws_mem_tracer_destroy(ctx_allocator);
         }
-        // clean up threadsafe function lock
-        aws_rw_lock_clean_up(&s_tsfn_lock);
     }
     aws_mutex_unlock(&s_module_lock);
 }
