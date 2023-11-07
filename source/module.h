@@ -205,8 +205,6 @@ int aws_napi_get_property_array_size(
     const char *property_name,
     size_t *array_size_out);
 
-int aws_napi_disable_threadsafe_function();
-
 
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str);
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str);
@@ -312,7 +310,11 @@ napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_fun
  */
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data);
 
-
+/**
+ * Disable the thread safe function operations. The function will prevent any access to threadsafe function
+ * including acquire, release, or function call.
+ */
+void aws_napi_disable_threadsafe_function(void);
 
 /*
  * One of these will be allocated each time the module init function is called

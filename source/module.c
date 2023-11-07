@@ -25,6 +25,7 @@
 #include <aws/common/logging.h>
 #include <aws/common/mutex.h>
 #include <aws/common/ref_count.h>
+#include <aws/common/rw_lock.h>
 #include <aws/common/system_info.h>
 
 #include <aws/event-stream/event_stream.h>
@@ -53,8 +54,8 @@ AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
  * Use it for external buffer related changes after bump to node 14 */
 #define NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE 22
 
-static uint8_t s_tsfn_cb_protect = 0;
-static struct aws_mutex s_cb_lock = AWS_MUTEX_INIT;
+static bool s_tsfn_enabled = false;
+static struct aws_rw_lock s_tsfn_lock;
 
 /* clang-format off */
 static struct aws_error_info s_errors[] = {
@@ -752,11 +753,16 @@ int aws_napi_get_property_array_size(
     return AWS_OP_SUCCESS;
 }
 
-int aws_napi_disable_threadsafe_function()
-{
-    aws_mutex_lock(&s_cb_lock);
-    s_tsfn_cb_protect = 0;
-    aws_mutex_unlock(&s_cb_lock);
+void aws_napi_enable_threadsafe_function(void) {
+    aws_rw_lock_wlock(&s_tsfn_lock);
+    s_tsfn_enabled = true;
+    aws_rw_lock_wunlock(&s_tsfn_lock);
+}
+
+void aws_napi_disable_threadsafe_function(void) {
+    aws_rw_lock_wlock(&s_tsfn_lock);
+    s_tsfn_enabled = false;
+    aws_rw_lock_wunlock(&s_tsfn_lock);
 }
 
 void aws_napi_throw_last_error(napi_env env) {
@@ -991,27 +997,25 @@ napi_status aws_napi_dispatch_threadsafe_function(
     size_t argc,
     napi_value *argv) {
 
-    aws_mutex_lock(&s_cb_lock);
-    if(s_tsfn_cb_protect == 0 )
-    {
-    aws_mutex_unlock(&s_cb_lock);
-        return napi_ok;
+    aws_rw_lock_rlock(&s_tsfn_lock);
+    napi_status result = napi_ok;
+    if (s_tsfn_enabled) {
+        napi_status call_status = napi_ok;
+        if (!this_ptr) {
+            AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
+        }
+        AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), {
+            call_status = status;
+            s_handle_failed_callback(env, function, status);
+        });
+        /* main thread can exit now */
+        napi_unref_threadsafe_function(env, tsfn);
+        /* Must always decrement the ref count, or the function will be pinned */
+        napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
+        result = (call_status != napi_ok) ? call_status : release_status;
     }
-    aws_mutex_unlock(&s_cb_lock);
-
-    napi_status call_status = napi_ok;
-    if (!this_ptr) {
-        AWS_NAPI_ENSURE(env, napi_get_undefined(env, &this_ptr));
-    }
-    AWS_NAPI_CALL(env, napi_call_function(env, this_ptr, function, argc, argv, NULL), {
-        call_status = status;
-        s_handle_failed_callback(env, function, status);
-    });
-    /* main thread can exit now */
-    napi_unref_threadsafe_function(env, tsfn);
-    /* Must always decrement the ref count, or the function will be pinned */
-    napi_status release_status = napi_release_threadsafe_function(tsfn, napi_tsfn_release);
-    return (call_status != napi_ok) ? call_status : release_status;
+    aws_rw_lock_runlock(&s_tsfn_lock);
+    return result;
 }
 
 napi_status aws_napi_create_threadsafe_function(
@@ -1042,62 +1046,45 @@ napi_status aws_napi_create_threadsafe_function(
 napi_status aws_napi_release_threadsafe_function(
     napi_threadsafe_function function,
     napi_threadsafe_function_release_mode mode) {
-            aws_mutex_lock(&s_cb_lock);
-    if(s_tsfn_cb_protect == 0 )
-    {
-    aws_mutex_unlock(&s_cb_lock);
-        return napi_ok;
+    napi_status result = napi_ok;
+    aws_rw_lock_rlock(&s_tsfn_lock);
+    if (s_tsfn_enabled && function) {
+        result = napi_release_threadsafe_function(function, mode);
     }
-    aws_mutex_unlock(&s_cb_lock);
-
-    if (function) {
-        return napi_release_threadsafe_function(function, mode);
-    }
-    return napi_ok;
+    aws_rw_lock_runlock(&s_tsfn_lock);
+    return result;
 }
 
 napi_status aws_napi_acquire_threadsafe_function(napi_threadsafe_function function) {
-        aws_mutex_lock(&s_cb_lock);
-    if(s_tsfn_cb_protect == 0 )
-    {
-    aws_mutex_unlock(&s_cb_lock);
-        return napi_ok;
+    napi_status result = napi_ok;
+    aws_rw_lock_rlock(&s_tsfn_lock);
+    if (s_tsfn_enabled && function) {
+        result = napi_acquire_threadsafe_function(function);
     }
-    aws_mutex_unlock(&s_cb_lock);
-
-    if (function) {
-        return napi_acquire_threadsafe_function(function);
-    }
-    return napi_ok;
+    aws_rw_lock_runlock(&s_tsfn_lock);
+    return result;
 }
 
 napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function function) {
-        aws_mutex_lock(&s_cb_lock);
-    if(s_tsfn_cb_protect == 0 )
-    {
-    aws_mutex_unlock(&s_cb_lock);
-        return napi_ok;
+    napi_status result = napi_ok;
+    aws_rw_lock_rlock(&s_tsfn_lock);
+    if (s_tsfn_enabled && function) {
+        result = napi_unref_threadsafe_function(env, function);
     }
-    aws_mutex_unlock(&s_cb_lock);
-
-    if (function) {
-        return napi_unref_threadsafe_function(env, function);
-    }
-    return napi_ok;
+    aws_rw_lock_runlock(&s_tsfn_lock);
+    return result;
 }
 
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data) {
-        aws_mutex_lock(&s_cb_lock);
-    if(s_tsfn_cb_protect == 0 )
-    {
-    aws_mutex_unlock(&s_cb_lock);
-        return napi_ok;
+    napi_status result = napi_ok;
+    aws_rw_lock_rlock(&s_tsfn_lock);
+    if (s_tsfn_enabled && function) {
+        /* increase the ref count, gets decreased when the call completes */
+        AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));
+        result = napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
     }
-    aws_mutex_unlock(&s_cb_lock);
-
-    /* increase the ref count, gets decreased when the call completes */
-    AWS_NAPI_ENSURE(NULL, napi_acquire_threadsafe_function(function));
-    return napi_call_threadsafe_function(function, user_data, napi_tsfn_nonblocking);
+    aws_rw_lock_runlock(&s_tsfn_lock);
+    return result;
 }
 
 AWS_STATIC_STRING_FROM_LITERAL(s_mem_tracing_env_var, "AWS_CRT_MEMORY_TRACING");
@@ -1220,6 +1207,10 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
         aws_mqtt_library_clean_up();
 
         s_uninstall_crash_handler();
+
+        // Disable and release node threadsafe function lock
+        aws_napi_disable_threadsafe_function();
+        aws_rw_lock_clean_up(&s_tsfn_lock);
     }
 
     struct aws_napi_context *ctx = user_data;
@@ -1235,7 +1226,6 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
             aws_mem_tracer_destroy(ctx_allocator);
         }
     }
-    aws_napi_disable_threadsafe_function();
     aws_mutex_unlock(&s_module_lock);
 }
 
@@ -1287,10 +1277,8 @@ static bool s_create_and_register_function(
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
     if (s_module_initialize_count == 0) {
-        aws_mutex_lock(&s_cb_lock);
-        s_tsfn_cb_protect = 1;
-        aws_mutex_unlock(&s_cb_lock);
-
+        aws_rw_lock_init(&s_tsfn_lock);
+        aws_napi_enable_threadsafe_function();
 
         s_install_crash_handler();
 

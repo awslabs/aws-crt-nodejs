@@ -34,11 +34,6 @@ export { HttpProxyOptions } from './http';
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
 
-process.on('exit',function () {
-    crt_native.disable_threadsafe_function();
-    console.log('About to exit.');
-  });
-
 /**
  * Websocket handshake http request transformation function signature
  */
