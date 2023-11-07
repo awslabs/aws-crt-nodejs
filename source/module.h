@@ -311,9 +311,9 @@ napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function
 
 /**
  * Disable the thread safe function operations. The function will prevent any access to threadsafe function
- * including acquire, release, or function call.
+ * including acquire, release, function call and so on.
  */
-void aws_napi_disable_threadsafe_function(void);
+napi_value aws_napi_disable_threadsafe_function(napi_env env, napi_callback_info info);
 
 /*
  * One of these will be allocated each time the module init function is called

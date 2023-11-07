@@ -753,16 +753,26 @@ int aws_napi_get_property_array_size(
     return AWS_OP_SUCCESS;
 }
 
-void aws_napi_enable_threadsafe_function(void) {
+void s_aws_enable_threadsafe_function(void) {
     aws_rw_lock_wlock(&s_tsfn_lock);
     s_tsfn_enabled = true;
     aws_rw_lock_wunlock(&s_tsfn_lock);
 }
 
-void aws_napi_disable_threadsafe_function(void) {
+void s_aws_disable_threadsafe_function(void) {
     aws_rw_lock_wlock(&s_tsfn_lock);
     s_tsfn_enabled = false;
     aws_rw_lock_wunlock(&s_tsfn_lock);
+}
+
+napi_value aws_napi_disable_threadsafe_function(napi_env env, napi_callback_info info) {
+    (void)info;
+    if (env == NULL) {
+        aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+        return NULL;
+    }
+    s_aws_disable_threadsafe_function();
+    return NULL;
 }
 
 void aws_napi_throw_last_error(napi_env env) {
@@ -1209,7 +1219,7 @@ static void s_napi_context_finalize(napi_env env, void *user_data, void *finaliz
         s_uninstall_crash_handler();
 
         // Disable and release node threadsafe function lock
-        aws_napi_disable_threadsafe_function();
+        s_aws_disable_threadsafe_function();
         aws_rw_lock_clean_up(&s_tsfn_lock);
     }
 
@@ -1278,7 +1288,7 @@ static bool s_create_and_register_function(
 
     if (s_module_initialize_count == 0) {
         aws_rw_lock_init(&s_tsfn_lock);
-        aws_napi_enable_threadsafe_function();
+        s_aws_enable_threadsafe_function();
 
         s_install_crash_handler();
 
