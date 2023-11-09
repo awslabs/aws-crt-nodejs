@@ -784,8 +784,8 @@ export interface PublishPacket extends IPacket {
     messageExpiryIntervalSeconds?: number;
 
     /**
-     * Sent publishes - topic alias to use, if possible, when encoding this packet.  Only used if the client's outbound
-     * topic aliasing mode is set to ??.
+     * Sent publishes - (Node only) topic alias to use, if possible, when encoding this packet.  Only used if the
+     * client's outbound topic aliasing mode is set to Manual.
      *
      * Received publishes - topic alias used by the server when transmitting the publish to the client.
      *
