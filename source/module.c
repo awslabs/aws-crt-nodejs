@@ -873,7 +873,7 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_bigint_expected:
             reason = "napi_bigint_expected";
             break;
-        case NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE:
+        case napi_no_external_buffers_allowed:
             reason = "napi_no_external_buffers_allowed";
             break;
     }
@@ -976,7 +976,7 @@ napi_status aws_napi_create_external_arraybuffer(
     napi_status external_buffer_status =
         napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
-    if (external_buffer_status == NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE) {
+    if (external_buffer_status == napi_no_external_buffers_allowed) {
 
         // The external buffer is disabled, manually copy the external_data into Node
         void *napi_buf_data = NULL;
