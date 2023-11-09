@@ -5,11 +5,10 @@
 
 import * as test_utils from "@test/mqtt5";
 import * as mqtt5 from "./mqtt5";
-import {OutboundTopicAliasBehaviorType} from "./mqtt5";
-import * as io from "./io";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
+import * as io from "./io";
 import {once} from "events";
 
 jest.setTimeout(10000);
@@ -646,7 +645,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with LRU aliasing', async () => {
     let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
     clientConfig.topicAliasingOptions = {
-        outboundBehavior : OutboundTopicAliasBehaviorType.LRU,
+        outboundBehavior : mqtt5.OutboundTopicAliasBehaviorType.LRU,
         outboundCacheMaxSize : 10
     };
 
@@ -685,7 +684,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with manual aliasing', async () => {
     let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
     clientConfig.topicAliasingOptions = {
-        outboundBehavior : OutboundTopicAliasBehaviorType.Manual,
+        outboundBehavior : mqtt5.OutboundTopicAliasBehaviorType.Manual,
         outboundCacheMaxSize : 10
     };
 
