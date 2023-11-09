@@ -88,7 +88,7 @@ static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE = "incompleteOperation
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_COUNT = "unackedOperationCount";
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_SIZE = "unackedOperationSize";
 static const char *AWS_NAPI_KEY_TYPE = "type";
-static const char *AWS_NAPI_KEY_TOPIC_ALIASING_CONFIG = "topicAliasingConfig";
+static const char *AWS_NAPI_KEY_TOPIC_ALIASING_OPTIONS = "topicAliasingOptions";
 static const char *AWS_NAPI_KEY_OUTBOUND_BEHAVIOR = "outboundBehavior";
 static const char *AWS_NAPI_KEY_OUTBOUND_CACHE_MAX_SIZE = "outboundCacheMaxSize";
 static const char *AWS_NAPI_KEY_INBOUND_BEHAVIOR = "inboundBehavior";
@@ -2007,7 +2007,7 @@ static int s_init_client_configuration_from_js_client_configuration(
     if (AWS_NGNPR_VALID_VALUE == aws_napi_get_named_property(
                                      env,
                                      node_client_config,
-                                     AWS_NAPI_KEY_TOPIC_ALIASING_CONFIG,
+                                     AWS_NAPI_KEY_TOPIC_ALIASING_OPTIONS,
                                      napi_object,
                                      &napi_value_topic_aliasing_options)) {
         if (s_init_topic_aliasing_options_from_napi(

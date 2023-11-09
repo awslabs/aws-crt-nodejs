@@ -467,6 +467,15 @@ export class AwsIotMqtt5ClientConfigBuilder {
         return this;
     }
 
+    /**
+     * Overrides how the MQTT5 client should behave with respect to topic aliasing
+     *
+     * @param topicAliasingOptions how the MQTT5 client should behave with respect to topic aliasing
+     */
+    withTopicAliasingOptions(topicAliasingOptions: mqtt5.TopicAliasingOptions) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.topicAliasingOptions = topicAliasingOptions;
+        return this;
+    }
 
     /**
      * Constructs an MQTT5 Client configuration object for creating mqtt5 clients.

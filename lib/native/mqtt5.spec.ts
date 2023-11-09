@@ -5,10 +5,11 @@
 
 import * as test_utils from "@test/mqtt5";
 import * as mqtt5 from "./mqtt5";
+import {OutboundTopicAliasBehaviorType} from "./mqtt5";
+import * as io from "./io";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
-import * as io from "./io";
 import {once} from "events";
 
 jest.setTimeout(10000);
@@ -634,6 +635,86 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
     // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
     // TODO - find a way to test unacked operations reliably without worrying about socket speed.
+
+    client.stop();
+    await stopped;
+
+    client.close();
+});
+
+/* This test doesn't verify LRU aliasing it just gives some evidence that enabling LRU aliasing doesn't blow something up */
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with LRU aliasing', async () => {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    clientConfig.topicAliasingOptions = {
+        outboundBehavior : OutboundTopicAliasBehaviorType.LRU,
+        outboundCacheMaxSize : 10
+    };
+
+    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    let topic : string = `test-${uuid()}`;
+    let testPayload : Buffer = Buffer.from("Derp", "utf-8");
+    let qos : mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+});
+
+/* This test doesn't verify manual aliasing it just gives some evidence that enabling manual aliasing doesn't blow something up */
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with manual aliasing', async () => {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    clientConfig.topicAliasingOptions = {
+        outboundBehavior : OutboundTopicAliasBehaviorType.Manual,
+        outboundCacheMaxSize : 10
+    };
+
+    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    let topic : string = `test-${uuid()}`;
+    let testPayload : Buffer = Buffer.from("Derp", "utf-8");
+    let qos : mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload,
+        topicAlias: 1
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload,
+        topicAlias: 1
+    });
 
     client.stop();
     await stopped;

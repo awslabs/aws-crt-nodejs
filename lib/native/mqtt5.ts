@@ -369,7 +369,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Node-only
      */
-    topicAliasingConfig? : TopicAliasingOptions
+    topicAliasingOptions? : TopicAliasingOptions
 }
 
 /**
