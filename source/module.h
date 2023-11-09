@@ -225,6 +225,25 @@ struct aws_client_bootstrap *aws_napi_get_default_client_bootstrap(void);
 
 const char *aws_napi_status_to_str(napi_status status);
 
+/*
+ * Wrapper around napi_create_external_arraybuffer,
+ * The function returns `napi_ok` if array buffer is created successfully in nodejs. Otherwise returns the error code.
+ * The user is responsible to release/proceed the `external_data` if the creation failed.
+ *
+ * `aws_napi_create_external_arraybuffer` handles the creation of the arraybuffer from the `external_data`. As
+ * some runtimes other than Node.js have dropped support for external buffers, the napi function call will fail in such
+ * case. If the call failed, the function will directly create an arraybuffer in Node and copy the data of external
+ * buffer into it. Once data copied, the `finalize_cb` will be immediately invoked to release the external data.
+ *
+ */
+napi_status aws_napi_create_external_arraybuffer(
+    napi_env env,
+    void *external_data,
+    size_t byte_length,
+    napi_finalize finalize_cb,
+    void *finalize_hint,
+    napi_value *result);
+
 /**
  * Gets the allocator used to allocate native resources in the node environment, should be used
  * by all binding code in this extension

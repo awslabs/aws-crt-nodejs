@@ -140,7 +140,7 @@ static void s_on_body_call(napi_env env, napi_value on_body, void *context, void
 
         AWS_NAPI_ENSURE(
             env,
-            napi_create_external_arraybuffer(
+            aws_napi_create_external_arraybuffer(
                 env, args->chunk.buffer, args->chunk.len, s_external_arraybuffer_finalizer, args, &params[0]));
 
         AWS_NAPI_ENSURE(

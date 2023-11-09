@@ -1424,15 +1424,17 @@ static void s_on_publish_call(napi_env env, napi_value on_publish, void *context
 
         AWS_NAPI_ENSURE(
             env, napi_create_string_utf8(env, (const char *)args->topic.buffer, args->topic.len, &params[0]));
+
         AWS_NAPI_ENSURE(
             env,
-            napi_create_external_arraybuffer(
+            aws_napi_create_external_arraybuffer(
                 env,
                 args->payload->buffer,
                 args->payload->len,
                 s_publish_external_arraybuffer_finalizer,
                 args->payload,
                 &params[1]));
+
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
         AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
         AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
@@ -1672,15 +1674,17 @@ static void s_on_any_publish_call(napi_env env, napi_value on_publish, void *con
 
             AWS_NAPI_ENSURE(
                 env, napi_create_string_utf8(env, aws_string_c_str(args->topic), args->topic->len, &params[0]));
+
             AWS_NAPI_ENSURE(
                 env,
-                napi_create_external_arraybuffer(
+                aws_napi_create_external_arraybuffer(
                     env,
                     args->payload->buffer,
                     args->payload->len,
                     s_any_publish_external_arraybuffer_finalizer,
                     args->payload,
                     &params[1]));
+
             AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->dup, &params[2]));
             AWS_NAPI_ENSURE(env, napi_create_int32(env, args->qos, &params[3]));
             AWS_NAPI_ENSURE(env, napi_get_boolean(env, args->retain, &params[4]));
