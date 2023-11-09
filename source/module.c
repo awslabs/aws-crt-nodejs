@@ -47,12 +47,6 @@ AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 #define AWS_DEFINE_ERROR_INFO_CRT_NODEJS(CODE, STR) AWS_DEFINE_ERROR_INFO(CODE, STR, "aws-crt-nodejs")
 
-/* TODO:
- * Hardcoded enum value for `napi_no_external_buffers_allowed`.
- * The enum `napi_no_external_buffers_allowed` is introduced in node14.
- * Use it for external buffer related changes after bump to node 14 */
-#define NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE 22
-
 /* clang-format off */
 static struct aws_error_info s_errors[] = {
     AWS_DEFINE_ERROR_INFO_CRT_NODEJS(
@@ -847,7 +841,7 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_bigint_expected:
             reason = "napi_bigint_expected";
             break;
-        case NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE:
+        case napi_no_external_buffers_allowed:
             reason = "napi_no_external_buffers_allowed";
             break;
     }
@@ -950,7 +944,7 @@ napi_status aws_napi_create_external_arraybuffer(
     napi_status external_buffer_status =
         napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
 
-    if (external_buffer_status == NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE) {
+    if (external_buffer_status == napi_no_external_buffers_allowed) {
 
         // The external buffer is disabled, manually copy the external_data into Node
         void *napi_buf_data = NULL;
