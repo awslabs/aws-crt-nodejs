@@ -789,7 +789,7 @@ export interface PublishPacket extends IPacket {
      *
      * Received publishes - topic alias used by the server when transmitting the publish to the client.
      *
-     * See [MQTT5 Topic Aliasi](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901113)
+     * See [MQTT5 Topic Alias](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901113)
      */
     topicAlias?: number;
 
