@@ -268,9 +268,10 @@ int aws_napi_attach_object_property_binary_as_finalizable_external(
     }
 
     napi_value napi_binary = NULL;
+
     AWS_NAPI_ENSURE(
         env,
-        napi_create_external_arraybuffer(
+        aws_napi_create_external_arraybuffer(
             env,
             data_buffer->buffer,
             data_buffer->len,
@@ -831,7 +832,6 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_callback_scope_mismatch:
             reason = "napi_callback_scope_mismatch";
             break;
-#if NAPI_VERSION >= 3
         case napi_queue_full:
             reason = "napi_queue_full";
             break;
@@ -841,7 +841,9 @@ const char *aws_napi_status_to_str(napi_status status) {
         case napi_bigint_expected:
             reason = "napi_bigint_expected";
             break;
-#endif
+        case napi_no_external_buffers_allowed:
+            reason = "napi_no_external_buffers_allowed";
+            break;
     }
     return reason;
 }
@@ -929,6 +931,40 @@ static void s_handle_failed_callback(napi_env env, napi_value function, napi_sta
         AWS_NAPI_LOGF_ERROR("aws_string_new_from_napi(ToString(exception)) failed");
         return;
     }
+}
+
+napi_status aws_napi_create_external_arraybuffer(
+    napi_env env,
+    void *external_data,
+    size_t byte_length,
+    napi_finalize finalize_cb,
+    void *finalize_hint,
+    napi_value *result) {
+
+    napi_status external_buffer_status =
+        napi_create_external_arraybuffer(env, external_data, byte_length, finalize_cb, finalize_hint, result);
+
+    if (external_buffer_status == napi_no_external_buffers_allowed) {
+
+        // The external buffer is disabled, manually copy the external_data into Node
+        void *napi_buf_data = NULL;
+        napi_status create_arraybuffer_status = napi_create_arraybuffer(env, byte_length, &napi_buf_data, result);
+
+        if (create_arraybuffer_status != napi_ok) {
+            AWS_NAPI_LOGF_ERROR(
+                "napi_create_arraybuffer (in aws_napi_create_external_arraybuffer) failed with : %s",
+                aws_napi_status_to_str(create_arraybuffer_status));
+            return create_arraybuffer_status;
+        }
+
+        memcpy(napi_buf_data, external_data, byte_length);
+
+        // As the data has been copied into the Node, invoke the finalize callback to make sure the
+        // data is released.
+        finalize_cb(env, finalize_hint, finalize_hint);
+    }
+
+    return napi_ok;
 }
 
 napi_status aws_napi_dispatch_threadsafe_function(
