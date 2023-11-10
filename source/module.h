@@ -309,6 +309,12 @@ napi_status aws_napi_unref_threadsafe_function(napi_env env, napi_threadsafe_fun
  */
 napi_status aws_napi_queue_threadsafe_function(napi_threadsafe_function function, void *user_data);
 
+/**
+ * Disable the thread safe function operations. The function will prevent any access to threadsafe function
+ * including acquire, release, function call and so on.
+ */
+napi_value aws_napi_disable_threadsafe_function(napi_env env, napi_callback_info info);
+
 /*
  * One of these will be allocated each time the module init function is called
  * Any global state that isn't thread safe or requires clean up should be stored
