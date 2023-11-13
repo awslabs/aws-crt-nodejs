@@ -784,6 +784,16 @@ export interface PublishPacket extends IPacket {
     messageExpiryIntervalSeconds?: number;
 
     /**
+     * Sent publishes - (Node only) topic alias to use, if possible, when encoding this packet.  Only used if the
+     * client's outbound topic aliasing mode is set to Manual.
+     *
+     * Received publishes - topic alias used by the server when transmitting the publish to the client.
+     *
+     * See [MQTT5 Topic Alias](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901113)
+     */
+    topicAlias?: number;
+
+    /**
      * Opaque topic string intended to assist with request/response implementations.  Not internally meaningful to
      * MQTT5 or this client.
      *

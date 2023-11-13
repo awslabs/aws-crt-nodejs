@@ -47,6 +47,7 @@ static const char *AWS_NAPI_KEY_QOS = "qos";
 static const char *AWS_NAPI_KEY_RETAIN = "retain";
 static const char *AWS_NAPI_KEY_PAYLOAD_FORMAT = "payloadFormat";
 static const char *AWS_NAPI_KEY_MESSAGE_EXPIRY_INTERVAL_SECONDS = "messageExpiryIntervalSeconds";
+static const char *AWS_NAPI_KEY_TOPIC_ALIAS = "topicAlias";
 static const char *AWS_NAPI_KEY_RESPONSE_TOPIC = "responseTopic";
 static const char *AWS_NAPI_KEY_CORRELATION_DATA = "correlationData";
 static const char *AWS_NAPI_KEY_CONTENT_TYPE = "contentType";
@@ -87,6 +88,11 @@ static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE = "incompleteOperation
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_COUNT = "unackedOperationCount";
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_SIZE = "unackedOperationSize";
 static const char *AWS_NAPI_KEY_TYPE = "type";
+static const char *AWS_NAPI_KEY_TOPIC_ALIASING_OPTIONS = "topicAliasingOptions";
+static const char *AWS_NAPI_KEY_OUTBOUND_BEHAVIOR = "outboundBehavior";
+static const char *AWS_NAPI_KEY_OUTBOUND_CACHE_MAX_SIZE = "outboundCacheMaxSize";
+static const char *AWS_NAPI_KEY_INBOUND_BEHAVIOR = "inboundBehavior";
+static const char *AWS_NAPI_KEY_INBOUND_CACHE_MAX_SIZE = "inboundCacheMaxSize";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -1100,6 +1106,11 @@ static int s_create_napi_publish_packet(
         return AWS_OP_ERR;
     }
 
+    if (aws_napi_attach_object_property_optional_u16(
+            packet, env, AWS_NAPI_KEY_TOPIC_ALIAS, publish_view->topic_alias)) {
+        return AWS_OP_ERR;
+    }
+
     if (aws_napi_attach_object_property_optional_string(
             packet, env, AWS_NAPI_KEY_RESPONSE_TOPIC, publish_view->response_topic)) {
         return AWS_OP_ERR;
@@ -1345,6 +1356,7 @@ struct aws_napi_mqtt5_publish_storage {
 
     enum aws_mqtt5_payload_format_indicator payload_format;
     uint32_t message_expiry_interval_seconds;
+    uint16_t topic_alias;
 
     struct aws_byte_buf response_topic;
     struct aws_byte_cursor response_topic_cursor;
@@ -1458,6 +1470,13 @@ static int s_init_publish_options_from_napi(
             AWS_NAPI_KEY_MESSAGE_EXPIRY_INTERVAL_SECONDS,
             &publish_storage->message_expiry_interval_seconds),
         { publish_options->message_expiry_interval_seconds = &publish_storage->message_expiry_interval_seconds; });
+
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_TOPIC_ALIAS,
+        "s_init_publish_options_from_napi",
+        aws_napi_get_named_property_as_uint16(
+            env, node_publish_config, AWS_NAPI_KEY_TOPIC_ALIAS, &publish_storage->topic_alias),
+        { publish_options->topic_alias = &publish_storage->topic_alias; });
 
     PARSE_OPTIONAL_NAPI_PROPERTY(
         AWS_NAPI_KEY_RESPONSE_TOPIC,
@@ -1677,6 +1696,58 @@ static int s_init_connect_options_from_napi(
     return AWS_OP_SUCCESS;
 }
 
+/* Extract topic aliasing configuration from a node object */
+static int s_init_topic_aliasing_options_from_napi(
+    struct aws_mqtt5_client_binding *binding,
+    napi_env env,
+    napi_value node_topic_aliasing_config,
+    struct aws_mqtt5_client_topic_alias_options *topic_aliasing_options) {
+
+    uint32_t outbound_behavior = 0;
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_OUTBOUND_BEHAVIOR,
+        "s_init_topic_aliasing_options_from_napi",
+        aws_napi_get_named_property_as_uint32(
+            env, node_topic_aliasing_config, AWS_NAPI_KEY_OUTBOUND_BEHAVIOR, (uint32_t *)&outbound_behavior),
+        {
+            topic_aliasing_options->outbound_topic_alias_behavior =
+                (enum aws_mqtt5_client_outbound_topic_alias_behavior_type)outbound_behavior;
+        });
+
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_OUTBOUND_CACHE_MAX_SIZE,
+        "s_init_topic_aliasing_options_from_napi",
+        aws_napi_get_named_property_as_uint16(
+            env,
+            node_topic_aliasing_config,
+            AWS_NAPI_KEY_OUTBOUND_CACHE_MAX_SIZE,
+            &topic_aliasing_options->outbound_alias_cache_max_size),
+        {});
+
+    uint32_t inbound_behavior = 0;
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_INBOUND_BEHAVIOR,
+        "s_init_topic_aliasing_options_from_napi",
+        aws_napi_get_named_property_as_uint32(
+            env, node_topic_aliasing_config, AWS_NAPI_KEY_INBOUND_BEHAVIOR, (uint32_t *)&inbound_behavior),
+        {
+            topic_aliasing_options->inbound_topic_alias_behavior =
+                (enum aws_mqtt5_client_inbound_topic_alias_behavior_type)inbound_behavior;
+        });
+
+    PARSE_OPTIONAL_NAPI_PROPERTY(
+        AWS_NAPI_KEY_INBOUND_CACHE_MAX_SIZE,
+        "s_init_topic_aliasing_options_from_napi",
+        aws_napi_get_named_property_as_uint16(
+            env,
+            node_topic_aliasing_config,
+            AWS_NAPI_KEY_INBOUND_CACHE_MAX_SIZE,
+            &topic_aliasing_options->inbound_alias_cache_size),
+        {});
+
+    return AWS_OP_SUCCESS;
+}
+
 /*
  * Persistent storage for mqtt5 client options
  */
@@ -1814,6 +1885,7 @@ static int s_init_client_configuration_from_js_client_configuration(
     struct aws_mqtt5_client_options *client_options,
     struct aws_mqtt5_packet_connect_view *connect_options,
     struct aws_mqtt5_packet_publish_view *will_options,
+    struct aws_mqtt5_client_topic_alias_options *topic_aliasing_options,
     struct aws_napi_mqtt5_client_creation_storage *options_storage) {
 
     /* required config parameters */
@@ -1931,6 +2003,25 @@ static int s_init_client_configuration_from_js_client_configuration(
         }
     }
 
+    napi_value napi_value_topic_aliasing_options = NULL;
+    if (AWS_NGNPR_VALID_VALUE == aws_napi_get_named_property(
+                                     env,
+                                     node_client_config,
+                                     AWS_NAPI_KEY_TOPIC_ALIASING_OPTIONS,
+                                     napi_object,
+                                     &napi_value_topic_aliasing_options)) {
+        if (s_init_topic_aliasing_options_from_napi(
+                binding, env, napi_value_topic_aliasing_options, topic_aliasing_options)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_init_client_configuration_from_js_client_configuration - failed to destructure topic aliasing "
+                "properties");
+            return AWS_OP_ERR;
+        }
+
+        client_options->topic_aliasing_options = topic_aliasing_options;
+    }
+
     napi_value node_transform_websocket = NULL;
     if (AWS_NGNPR_VALID_VALUE == aws_napi_get_named_property(
                                      env,
@@ -2028,6 +2119,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_mqtt5_packet_publish_view will_options;
     AWS_ZERO_STRUCT(will_options);
 
+    struct aws_mqtt5_client_topic_alias_options topic_aliasing_options;
+    AWS_ZERO_STRUCT(topic_aliasing_options);
+
     struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
 
@@ -2053,7 +2147,14 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     }
 
     if (s_init_client_configuration_from_js_client_configuration(
-            env, node_client_config, binding, &client_options, &connect_options, &will_options, &options_storage)) {
+            env,
+            node_client_config,
+            binding,
+            &client_options,
+            &connect_options,
+            &will_options,
+            &topic_aliasing_options,
+            &options_storage)) {
         napi_throw_error(
             env,
             NULL,
