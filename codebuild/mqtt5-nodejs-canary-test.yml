@@ -4,6 +4,7 @@ env:
   variables:
     CANARY_DURATION: 25200
     CANARY_TPS: 50
+    CANARY_CLIENT_COUNT: 10
     CANARY_LOG_FILE: 'canary_log.txt'
     CANARY_LOG_LEVEL: 'Error'
     PACKAGE_NAME: 'aws-crt-nodejs'
@@ -31,7 +32,7 @@ phases:
       # Run the Canary
       - cd canary/mqtt5
       - npm install --unsafe-perm
-      - python3 ../../codebuild/CanaryWrapper.py --canary_executable node --canary_arguments "./dist/canary.js --duration ${CANARY_DURATION} --endpoint ${ENDPOINT} --tps ${CANARY_TPS}" --git_hash ${GIT_HASH} --git_repo_name $PACKAGE_NAME --codebuild_log_path $CODEBUILD_LOG_PATH --ticket_item "${CODEBUILD_TICKET_ITEM}"
+      - python3 ../../codebuild/CanaryWrapper.py --canary_executable node --canary_arguments "./dist/canary.js --duration ${CANARY_DURATION} --endpoint ${ENDPOINT} --tps ${CANARY_TPS} --clients ${CANARY_CLIENT_COUNT}" --git_hash ${GIT_HASH} --git_repo_name $PACKAGE_NAME --codebuild_log_path $CODEBUILD_LOG_PATH --ticket_item "${CODEBUILD_TICKET_ITEM}"
   post_build:
     commands:
       - echo Build completed on `date`
