@@ -168,8 +168,8 @@ async function runCanaryIteration(testContext: TestContext, endTime: Date, mqttS
     let operationTable = [
         { weight : 1, op: async () => { await doSubscribe(context); }},
         { weight : 1, op: async () => { await doUnsubscribe(context); }},
-        { weight : 20, op: async () => { await doPublish(context, mqtt5_packet.QoS.AtMostOnce); }},
-        { weight : 20, op: async () => { await doPublish(context, mqtt5_packet.QoS.AtLeastOnce); }}
+        { weight : 20, op: async () => { await doPublish(context, mqtt5.QoS.AtMostOnce); }},
+        { weight : 20, op: async () => { await doPublish(context, mqtt5.QoS.AtLeastOnce); }}
     ];
 
     var weightedOperations = operationTable.map(function (operation) {
