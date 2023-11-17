@@ -38,6 +38,8 @@ static const char *AWS_NAPI_KEY_RESPONSE_INFORMATION = "responseInformation";
 static const char *AWS_NAPI_KEY_SERVER_REFERENCE = "serverReference";
 static const char *AWS_NAPI_KEY_RECEIVE_MAXIMUM_FROM_SERVER = "receiveMaximumFromServer";
 static const char *AWS_NAPI_KEY_MAXIMUM_PACKET_SIZE_TO_SERVER = "maximumPacketSizeToServer";
+static const char *AWS_NAPI_KEY_TOPIC_ALIAS_MAXIMUM_TO_SERVER = "topicAliasMaximumToServer";
+static const char *AWS_NAPI_KEY_TOPIC_ALIAS_MAXIMUM_TO_CLIENT = "topicAliasMaximumToClient";
 static const char *AWS_NAPI_KEY_REJOINED_SESSION = "rejoinedSession";
 static const char *AWS_NAPI_KEY_CLIENT_ID = "clientId";
 static const char *AWS_NAPI_KEY_SESSION_EXPIRY_INTERVAL_SECONDS = "sessionExpiryIntervalSeconds";
@@ -812,6 +814,16 @@ static int s_create_napi_negotiated_settings(
 
     if (aws_napi_attach_object_property_u32(
             napi_settings, env, AWS_NAPI_KEY_MAXIMUM_PACKET_SIZE_TO_SERVER, settings->maximum_packet_size_to_server)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u16(
+            napi_settings, env, AWS_NAPI_KEY_TOPIC_ALIAS_MAXIMUM_TO_SERVER, settings->topic_alias_maximum_to_server)) {
+        return AWS_OP_ERR;
+    }
+
+    if (aws_napi_attach_object_property_u16(
+            napi_settings, env, AWS_NAPI_KEY_TOPIC_ALIAS_MAXIMUM_TO_CLIENT, settings->topic_alias_maximum_to_client)) {
         return AWS_OP_ERR;
     }
 
