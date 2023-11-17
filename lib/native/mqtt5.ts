@@ -40,6 +40,111 @@ export * from '../common/mqtt5_packet';
 export type WebsocketHandshakeTransform = (request: http.HttpRequest, done: (error_code?: number) => void) => void;
 
 /**
+ * An enumeration that controls how the client applies topic aliasing to outbound publish packets.
+ *
+ * Topic alias behavior is described in https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901113
+ */
+export enum OutboundTopicAliasBehaviorType {
+
+    /**
+     * Maps to Disabled.  This keeps the client from being broken (by default) if the broker
+     * topic aliasing implementation has a problem.
+     */
+    Default = 0,
+
+    /**
+     * Outbound aliasing is the user's responsibility.  Client will cache and use
+     * previously-established aliases if they fall within the negotiated limits of the connection.
+     *
+     * The user must still always submit a full topic in their publishes because disconnections disrupt
+     * topic alias mappings unpredictably.  The client will properly use a requested alias when the most-recently-seen
+     * binding for a topic alias value matches the alias and topic in the publish packet.
+     */
+    Manual = 1,
+
+    /**
+     * (Recommended) The client will ignore any user-specified topic aliasing and instead use an LRU cache to drive
+     * alias usage.
+     */
+    LRU = 2,
+
+    /**
+     * Completely disable outbound topic aliasing.
+     */
+    Disabled = 3,
+}
+
+/**
+ * An enumeration that controls whether or not the client allows the broker to send publishes that use topic
+ * aliasing.
+ *
+ * Topic alias behavior is described in https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901113
+ */
+export enum InboundTopicAliasBehaviorType {
+
+    /**
+     * Maps to Disabled.  This keeps the client from being broken (by default) if the broker
+     * topic aliasing implementation has a problem.
+     */
+    Default = 0,
+
+    /**
+     * Allow the server to send PUBLISH packets to the client that use topic aliasing
+     */
+    Enabled = 1,
+
+    /**
+     * Forbid the server from sending PUBLISH packets to the client that use topic aliasing
+     */
+    Disabled = 2,
+}
+
+/**
+ * Configuration for all client topic aliasing behavior.
+ */
+export interface TopicAliasingOptions {
+
+    /**
+     * Controls what kind of outbound topic aliasing behavior the client should attempt to use.
+     *
+     * If topic aliasing is not supported by the server, this setting has no effect and any attempts to directly
+     * manipulate the topic alias id in outbound publishes will be ignored.
+     *
+     * If left undefined, then outbound topic aliasing is disabled.
+     */
+    outboundBehavior?: OutboundTopicAliasBehaviorType,
+
+    /**
+     * If outbound topic aliasing is set to LRU, this controls the maximum size of the cache.  If outbound topic
+     * aliasing is set to LRU and this is zero or undefined, a sensible default is used (25).  If outbound topic
+     * aliasing is not set to LRU, then this setting has no effect.
+     *
+     * The final size of the cache is determined by the minimum of this setting and the value of the
+     * topic_alias_maximum property of the received CONNACK.  If the received CONNACK does not have an explicit
+     * positive value for that field, outbound topic aliasing is disabled for the duration of that connection.
+     */
+    outboundCacheMaxSize?: number,
+
+    /**
+     * Controls whether or not the client allows the broker to use topic aliasing when sending publishes.  Even if
+     * inbound topic aliasing is enabled, it is up to the server to choose whether or not to use it.
+     *
+     * If left undefined, then inbound topic aliasing is disabled.
+     */
+    inboundBehavior?: InboundTopicAliasBehaviorType,
+
+    /**
+     * If inbound topic aliasing is enabled, this will control the size of the inbound alias cache.  If inbound
+     * aliases are enabled and this is zero or undefined, then a sensible default will be used (25).  If inbound
+     * aliases are disabled, this setting has no effect.
+     *
+     * Behaviorally, this value overrides anything present in the topic_alias_maximum field of
+     * the CONNECT packet options.
+     */
+    inboundCacheMaxSize?: number,
+}
+
+/**
  * Information about the client's queue of operations
  */
 export interface ClientStatistics {
@@ -263,6 +368,15 @@ export interface Mqtt5ClientConfig {
      * @group Node-only
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
+
+    /**
+     * Additional controls for client behavior with respect to topic alias usage.
+     *
+     * If this setting is left undefined, then topic aliasing behavior will be disabled.
+     *
+     * @group Node-only
+     */
+    topicAliasingOptions? : TopicAliasingOptions
 }
 
 /**
