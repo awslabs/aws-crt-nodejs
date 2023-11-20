@@ -150,12 +150,20 @@ async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
     try {
         context.mqttStats.publishesAttempted++;
         let index = Math.floor(Math.random() * 10);
+
+        let payload = Buffer.alloc(10000);
+        for(let i = 0; i < 10000; i++)
+        {
+            // assign random  1byte utf8 characters
+            payload[i] = Math.floor(Math.random() *128);
+        }
+
         await context.clients[index].publish({
             topicName: RECEIVED_TOPIC,
             qos: qos,
-            payload: Buffer.alloc(10000),
+            payload:payload,
             retain: false,
-            payloadFormat: mqtt5.PayloadFormatIndicator.Utf8,
+            payloadFormat: mqtt5.PayloadFormatIndicator.Bytes,
             messageExpiryIntervalSeconds: 60,
             responseTopic: "talk/to/me",
             correlationData: Buffer.alloc(3000),
@@ -168,6 +176,7 @@ async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
         context.mqttStats.publishesSucceeded++;
     } catch (err) {
         context.mqttStats.publishesFailed++;
+        console.log("Publish Failed with " + err);
     }
 }
 
@@ -231,7 +240,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 }
 
 async function main(args : Args){
-    let mqttStats : CanaryMqttStatistics = {
+        let mqttStats : CanaryMqttStatistics = {
         clientsUsed: 0,
         publishesReceived: 0,
         subscribesAttempted: 0,
