@@ -79,6 +79,12 @@ function sleep(millisecond: number) {
     return new Promise((resolve) => setInterval(resolve, millisecond));
 }
 
+function getRandomClient(clients : mqtt5.Mqtt5Client[]): mqtt5.Mqtt5Client
+{
+    let index = Math.floor(Math.random() * clients.length);
+    return clients[index];
+}
+
 function createCanaryClients(testContext: TestContext, mqttStats: CanaryMqttStatistics): mqtt5.Mqtt5Client[] {
     const client_config: mqtt5.Mqtt5ClientConfig = {
         hostName: testContext.hostname,
@@ -109,8 +115,7 @@ async function doSubscribe(context: CanaryContext) {
     try {
         context.mqttStats.subscribesAttempted++;
 
-        let index = Math.floor(Math.random() * 10);
-        await context.clients[index].subscribe({
+        await getRandomClient(context.clients).subscribe({
             subscriptions: [
                 { topicFilter: RECEIVED_TOPIC, qos: mqtt5.QoS.AtLeastOnce }
             ]
@@ -134,8 +139,7 @@ async function doUnsubscribe(context: CanaryContext) {
     try {
         context.mqttStats.unsubscribesAttempted++;
 
-        let index = Math.floor(Math.random() * 10);
-        await context.clients[index].unsubscribe({
+        await getRandomClient(context.clients).unsubscribe({
             topicFilters: [topicFilter]
         });
 
@@ -149,19 +153,18 @@ async function doUnsubscribe(context: CanaryContext) {
 async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
     try {
         context.mqttStats.publishesAttempted++;
-        let index = Math.floor(Math.random() * 10);
 
+        // Generate random binary payload data
         let payload = Buffer.alloc(10000);
         for(let i = 0; i < 10000; i++)
         {
-            // assign random  1byte utf8 characters
-            payload[i] = Math.floor(Math.random() *128);
+            payload[i] = Math.floor(Math.random() * 128);
         }
 
-        await context.clients[index].publish({
+        await getRandomClient(context.clients).publish({
             topicName: RECEIVED_TOPIC,
             qos: qos,
-            payload:payload,
+            payload: payload,
             retain: false,
             payloadFormat: mqtt5.PayloadFormatIndicator.Bytes,
             messageExpiryIntervalSeconds: 60,
@@ -192,18 +195,18 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
     };
 
     // Start clients
-    for (let i = 0; i < context.clients.length; i++) {
-        context.clients[i].start();
-        const connectionSuccess = once(context.clients[i], "connectionSuccess");
+    context.clients.forEach( async client => {
+        client.start();
+        const connectionSuccess = once(client, "connectionSuccess");
 
         await connectionSuccess;
 
-        await context.clients[i].subscribe({
+        await client.subscribe({
             subscriptions: [
                 { topicFilter: RECEIVED_TOPIC, qos: mqtt5.QoS.AtLeastOnce }
             ]
         });
-    }
+    });
 
     let operationTable = [
         { weight : 1, op: async () => { await doSubscribe(context); }},
@@ -230,12 +233,12 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 
 
     // Stop and close clients
-    for (let i = 0; i < context.clients.length; i++) {
-        const stopped = once(context.clients[i], "stopped");
-        context.clients[i].stop();
+    context.clients.forEach( async client => {
+        const stopped = once(client, "stopped");
+        client.stop();
         await stopped;
-        context.clients[i].close();
-    }
+        client.close();
+    });
 
 }
 
