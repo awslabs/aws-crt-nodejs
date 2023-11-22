@@ -25,17 +25,17 @@ yargs.command('*', false, (yargs: any) => {
             default: 'localhost',
         },
         'port': {
-            description: 'number: port to connect to',
+            description: 'INT: port to connect to',
             type: 'number',
             default: 1883,
         },
         'tps': {
-            description: 'number: transaction per second',
+            description: 'INT: transaction per second',
             type: 'number',
             default: 0,
         },
         'clients': {
-            description: 'number: concurrent running clients',
+            description: 'INT: concurrent running clients',
             type: 'number',
             default: 10,
         }
@@ -72,17 +72,16 @@ interface CanaryContext {
 
     mqttStats: CanaryMqttStatistics;
 
-    subscriptions: string[];
+    subscriptions: string[][];
 }
 
 function sleep(millisecond: number) {
     return new Promise((resolve) => setInterval(resolve, millisecond));
 }
 
-function getRandomClient(clients : mqtt5.Mqtt5Client[]): mqtt5.Mqtt5Client
+function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
 {
-    let index = Math.floor(Math.random() * clients.length);
-    return clients[index];
+    return Math.floor(Math.random() * clients.length);
 }
 
 function createCanaryClients(testContext: TestContext, mqttStats: CanaryMqttStatistics): mqtt5.Mqtt5Client[] {
@@ -112,20 +111,22 @@ function createCanaryClients(testContext: TestContext, mqttStats: CanaryMqttStat
 async function doSubscribe(context: CanaryContext) {
     let topicFilter: string = `Mqtt5/Canary/RandomSubscribe${uuid()}`;
 
+    let index = getRandomIndex(context.clients);
     try {
         context.mqttStats.subscribesAttempted++;
 
-        await getRandomClient(context.clients).subscribe({
+        await context.clients[index].subscribe({
             subscriptions: [
                 { topicFilter: RECEIVED_TOPIC, qos: mqtt5.QoS.AtLeastOnce }
             ]
         });
 
-        context.subscriptions.push(topicFilter);
+        context.subscriptions[index].push(topicFilter);
         context.mqttStats.subscribesSucceeded++;
     } catch (err) {
         context.mqttStats.subscribesFailed++;
-        context.subscriptions.filter(entry => entry !== topicFilter);
+        if(context.subscriptions[index].length > 0 )
+            context.subscriptions[index].filter(entry => entry !== topicFilter);
     }
 }
 
@@ -134,19 +135,20 @@ async function doUnsubscribe(context: CanaryContext) {
         return;
     }
 
-    let topicFilter: string = context.subscriptions.pop() ?? "canthappen";
+    let index = getRandomIndex(context.clients);
+    let topicFilter: string = context.subscriptions[index].pop() ?? "canthappen";
 
     try {
         context.mqttStats.unsubscribesAttempted++;
 
-        await getRandomClient(context.clients).unsubscribe({
+        await context.clients[index].unsubscribe({
             topicFilters: [topicFilter]
         });
 
         context.mqttStats.unsubscribesSucceeded++;
     } catch (err) {
         context.mqttStats.unsubscribesFailed++;
-        context.subscriptions.push(topicFilter);
+        context.subscriptions[index].push(topicFilter);
     }
 }
 
@@ -155,18 +157,14 @@ async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
         context.mqttStats.publishesAttempted++;
 
         // Generate random binary payload data
-        let payload = Buffer.alloc(10000);
-        for(let i = 0; i < 10000; i++)
-        {
-            payload[i] = Math.floor(Math.random() * 128);
-        }
-
-        await getRandomClient(context.clients).publish({
+        let payload = Buffer.alloc(10000, 'a', "utf-8");
+        let index = getRandomIndex(context.clients);
+        await context.clients[index].publish({
             topicName: RECEIVED_TOPIC,
             qos: qos,
             payload: payload,
             retain: false,
-            payloadFormat: mqtt5.PayloadFormatIndicator.Bytes,
+            payloadFormat: mqtt5.PayloadFormatIndicator.Utf8,
             messageExpiryIntervalSeconds: 60,
             responseTopic: "talk/to/me",
             correlationData: Buffer.alloc(3000),
@@ -206,6 +204,8 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
                 { topicFilter: RECEIVED_TOPIC, qos: mqtt5.QoS.AtLeastOnce }
             ]
         });
+        // setup empty subscription string array
+        context.subscriptions.push(new Array());
     });
 
     let operationTable = [
