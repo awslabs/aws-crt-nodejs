@@ -121,21 +121,20 @@ async function doSubscribe(context: CanaryContext) {
             ]
         });
 
-        context.subscriptions[index].push(topicFilter);
-        context.mqttStats.subscribesSucceeded++;
     } catch (err) {
         context.mqttStats.subscribesFailed++;
-        if(context.subscriptions[index].length > 0 )
-            context.subscriptions[index].filter(entry => entry !== topicFilter);
-    }
-}
-
-async function doUnsubscribe(context: CanaryContext) {
-    if (context.subscriptions.length == 0) {
         return;
     }
 
+    context.subscriptions[index].push(topicFilter);
+    context.mqttStats.subscribesSucceeded++;
+}
+
+async function doUnsubscribe(context: CanaryContext) {
     let index = getRandomIndex(context.clients);
+    if (context.subscriptions.length == 0) {
+        return;
+    }
     let topicFilter: string = context.subscriptions[index].pop() ?? "canthappen";
 
     try {
