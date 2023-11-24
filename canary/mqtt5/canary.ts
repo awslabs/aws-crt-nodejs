@@ -132,7 +132,7 @@ async function doSubscribe(context: CanaryContext) {
 
 async function doUnsubscribe(context: CanaryContext) {
     let index = getRandomIndex(context.clients);
-    if (context.subscriptions.length == 0) {
+    if (context.subscriptions[index].length == 0) {
         return;
     }
     let topicFilter: string = context.subscriptions[index].pop() ?? "canthappen";
