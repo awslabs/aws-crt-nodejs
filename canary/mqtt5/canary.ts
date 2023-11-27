@@ -117,7 +117,7 @@ async function doSubscribe(context: CanaryContext) {
 
         await context.clients[index].subscribe({
             subscriptions: [
-                { topicFilter: RECEIVED_TOPIC, qos: mqtt5.QoS.AtLeastOnce }
+                { topicFilter: topicFilter, qos: mqtt5.QoS.AtLeastOnce }
             ]
         });
 
