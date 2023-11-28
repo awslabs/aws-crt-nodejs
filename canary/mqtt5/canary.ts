@@ -5,7 +5,6 @@
 
 import {ICrtError, mqtt5} from "aws-crt";
 import {once} from "events";
-import {v4 as uuid} from "uuid";
 var weightedRandom = require('weighted-random');
 
 type Args = { [index: string]: any };
@@ -43,6 +42,7 @@ yargs.command('*', false, (yargs: any) => {
 }, main).parse();
 
 let RECEIVED_TOPIC: string = "Canary/Received/Topic";
+let SUBSCRIBE_TOPIC: string = "Mqtt5/Canary/Subscribe_";
 
 interface CanaryMqttStatistics {
     clientsUsed: number;
@@ -72,7 +72,7 @@ interface CanaryContext {
 
     mqttStats: CanaryMqttStatistics;
 
-    subscriptions: string[][];
+    subscriptions: number[];
 }
 
 function sleep(millisecond: number) {
@@ -109,9 +109,10 @@ function createCanaryClients(testContext: TestContext, mqttStats: CanaryMqttStat
 }
 
 async function doSubscribe(context: CanaryContext) {
-    let topicFilter: string = `Mqtt5/Canary/RandomSubscribe${uuid()}`;
-
     let index = getRandomIndex(context.clients);
+    let sub_count = context.subscriptions[index];
+    let topicFilter: string = `${SUBSCRIBE_TOPIC}${sub_count}`;
+
     try {
         context.mqttStats.subscribesAttempted++;
 
@@ -126,16 +127,17 @@ async function doSubscribe(context: CanaryContext) {
         return;
     }
 
-    context.subscriptions[index].push(topicFilter);
+    ++context.subscriptions[index];
     context.mqttStats.subscribesSucceeded++;
 }
 
 async function doUnsubscribe(context: CanaryContext) {
     let index = getRandomIndex(context.clients);
-    if (context.subscriptions[index].length == 0) {
+    let sub_count = context.subscriptions[index];
+    if (sub_count == 0) {
         return;
     }
-    let topicFilter: string = context.subscriptions[index].pop() ?? "canthappen";
+    let topicFilter: string = `${SUBSCRIBE_TOPIC}${sub_count-1}`;
 
     try {
         context.mqttStats.unsubscribesAttempted++;
@@ -147,8 +149,8 @@ async function doUnsubscribe(context: CanaryContext) {
         context.mqttStats.unsubscribesSucceeded++;
     } catch (err) {
         context.mqttStats.unsubscribesFailed++;
-        context.subscriptions[index].push(topicFilter);
     }
+    --context.subscriptions[index];
 }
 
 async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
@@ -204,7 +206,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
             ]
         });
         // setup empty subscription string array
-        context.subscriptions.push(new Array());
+        context.subscriptions.push(0);
     });
 
     let operationTable = [
