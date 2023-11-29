@@ -625,7 +625,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      * @group Node-only
      */
     getQueueStatistics(): ConnectionStatistics {
-        return crt_native.mqtt_client_connection_get_queue_statistics(this.native_handle());
+        return this.getOperationalStatistics();
     }
 
     // Wrap a promise rejection with a function that will also emit the error as an event
