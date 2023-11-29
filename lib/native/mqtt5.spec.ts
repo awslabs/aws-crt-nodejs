@@ -611,7 +611,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await connectionSuccess;
 
-    let statistics : mqtt5.ClientStatistics = client.getQueueStatistics();
+    let statistics : mqtt5.ClientStatistics = client.getOperationalStatistics();
     expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
     expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
     // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
@@ -629,7 +629,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await setTimeout(()=>{}, 2000);
 
-    statistics = client.getQueueStatistics();
+    statistics = client.getOperationalStatistics();
     expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
     expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
     // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey

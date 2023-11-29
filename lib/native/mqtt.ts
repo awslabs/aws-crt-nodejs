@@ -614,6 +614,16 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
      *
      * @group Node-only
      */
+    getOperationalStatistics(): ConnectionStatistics {
+        return crt_native.mqtt_client_connection_get_queue_statistics(this.native_handle());
+    }
+
+    /**
+     * Queries a small set of numerical statistics about the current state of the connection's operation queue
+     * @deprecated use getOperationalStatistics instead
+     *
+     * @group Node-only
+     */
     getQueueStatistics(): ConnectionStatistics {
         return crt_native.mqtt_client_connection_get_queue_statistics(this.native_handle());
     }

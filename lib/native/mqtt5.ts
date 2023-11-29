@@ -540,6 +540,16 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @group Node-only
      */
+    getOperationalStatistics() : ClientStatistics {
+        return crt_native.mqtt5_client_get_queue_statistics(this.native_handle());
+    }
+
+    /**
+     * Queries a small set of numerical statistics about the current state of the client's operation queue
+     * @deprecated use getOperationalStatistics instead
+     *
+     * @group Node-only
+     */
     getQueueStatistics() : ClientStatistics {
         return crt_native.mqtt5_client_get_queue_statistics(this.native_handle());
     }
