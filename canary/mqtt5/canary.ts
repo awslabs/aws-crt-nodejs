@@ -9,6 +9,9 @@ var weightedRandom = require('weighted-random');
 
 type Args = { [index: string]: any };
 
+const RECEIVED_TOPIC: string = "Canary/Received/Topic";
+const SUBSCRIBE_TOPIC: string = "Mqtt5/Canary/Subscribe_";
+
 const yargs = require('yargs');
 
 yargs.command('*', false, (yargs: any) => {
@@ -40,9 +43,6 @@ yargs.command('*', false, (yargs: any) => {
         }
     });
 }, main).parse();
-
-let RECEIVED_TOPIC: string = "Canary/Received/Topic";
-let SUBSCRIBE_TOPIC: string = "Mqtt5/Canary/Subscribe_";
 
 interface CanaryMqttStatistics {
     clientsUsed: number;
