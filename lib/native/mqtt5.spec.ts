@@ -582,6 +582,21 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     expect(willReceived).toEqual(true);
 });
 
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Shared subscriptions test', async () => {
+    let publisherConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    publisherConfig.connectProperties = {
+        keepAliveIntervalSeconds: 1200
+    }
+
+    let publisher : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(publisherConfig);
+
+    let subscriberConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    let subscriber1 : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(subscriberConfig);
+    let subscriber2 : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(subscriberConfig);
+
+    await test_utils.doSharedSubscriptionsTest(publisher, subscriber1, subscriber2);
+});
+
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation failure - null subscribe', async () => {
     await test_utils.nullSubscribeTest(new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig()));
 });

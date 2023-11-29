@@ -576,3 +576,116 @@ export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mq
     await stopped1;
     client1.close();
 }
+
+export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, subscriber1: mqtt5.Mqtt5Client, subscriber2: mqtt5.Mqtt5Client) {
+    const payload : Buffer = Buffer.from("share", "utf-8");
+    const messageNumber: number = 10;
+    const testTopic: string = `mqtt5_test${uuid()}`;
+    const sharedTopicfilter : string = `$share/crttest/${testTopic}`;
+
+    const publisherConnected = once(publisher, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let publisherStopped = once(publisher, mqtt5.Mqtt5Client.STOPPED);
+
+    let subscriber1Connected = once(subscriber1, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let subscriber1Stopped = once(subscriber1, mqtt5.Mqtt5Client.STOPPED);
+
+    let subscriber2Connected = once(subscriber2, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let subscriber2Stopped = once(subscriber2, mqtt5.Mqtt5Client.STOPPED);
+
+    publisher.start();
+    await publisherConnected;
+
+    subscriber1.start();
+    await subscriber1Connected;
+
+    subscriber2.start();
+    await subscriber2Connected;
+
+    await subscriber1.subscribe({
+        subscriptions: [
+            {topicFilter: sharedTopicfilter, qos: mqtt5.QoS.AtLeastOnce}
+        ]
+    });
+    await subscriber2.subscribe({
+        subscriptions: [
+            {topicFilter: sharedTopicfilter, qos: mqtt5.QoS.AtLeastOnce}
+        ]
+    });
+
+    let messageCount : number = 0;
+    let receivedResolve : (value?: void | PromiseLike<void>) => void;
+    let receivedPromise = new Promise<void>((resolve, reject) => {
+        receivedResolve = resolve;
+        setTimeout(() => reject(new Error("Did not receive expected number of messages")), 4000);
+    });
+
+    const clientsReceived = new Map();
+    const messagesReceived = new Map();
+
+    subscriber1.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        let packet: mqtt5.PublishPacket = eventData.message;
+
+        clientsReceived.set(1, 1);
+        messageCount++;
+        if (messageCount == messageNumber) {
+            receivedResolve();
+        }
+
+        let publish: mqtt5.PublishPacket = eventData.message;
+        let receivedPayload : String = new TextDecoder().decode(publish.payload as ArrayBuffer)
+
+        // Check that clients don't receive the same messages.
+        expect(messagesReceived.has(receivedPayload)).toEqual(false);
+        messagesReceived.set(receivedPayload, 1);
+
+        expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
+        expect(packet.topicName).toEqual(testTopic);
+    });
+
+    subscriber2.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        let packet: mqtt5.PublishPacket = eventData.message;
+
+        clientsReceived.set(2, 1);
+        messageCount++;
+        if (messageCount == messageNumber) {
+            receivedResolve();
+        }
+
+        let publish: mqtt5.PublishPacket = eventData.message;
+        let receivedPayload : String = new TextDecoder().decode(publish.payload as ArrayBuffer)
+
+        // Check that clients don't receive the same messages.
+        expect(messagesReceived.has(receivedPayload)).toEqual(false);
+        messagesReceived.set(receivedPayload, 1);
+
+        expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
+        expect(packet.topicName).toEqual(testTopic);
+    });
+
+    for (let i = 0; i < messageNumber; ++i) {
+        let tp : string = payload + "_" + i;
+        publisher.publish({
+            topicName: testTopic,
+            qos: mqtt5.QoS.AtLeastOnce,
+            payload: tp
+        });
+    }
+
+    // Wait for receiving all published messages.
+    await receivedPromise;
+
+    // Wait a little longer to ensure that no extra messages are arrived.
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    expect(clientsReceived.size).toEqual(2);
+    expect(messageCount).toEqual(10);
+
+    subscriber2.stop();
+    await subscriber2Stopped;
+
+    subscriber1.stop();
+    await subscriber1Stopped;
+
+    publisher.stop();
+    await publisherStopped;
+}
