@@ -622,45 +622,31 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     const clientsReceived = new Set();
     const messagesReceived = new Map();
 
-    subscriber1.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
-        let packet: mqtt5.PublishPacket = eventData.message;
+    const getOnMessageReceived = (subscriberId : string) => {
+        return (eventData: mqtt5.MessageReceivedEvent) => {
+            let packet: mqtt5.PublishPacket = eventData.message;
 
-        clientsReceived.add("sub1");
-        messagesCount++;
-        if (messagesCount == messagesNumber) {
-            receivedResolve();
-        }
+            clientsReceived.add(subscriberId);
+            messagesCount++;
+            if (messagesCount == messagesNumber) {
+                receivedResolve();
+            }
 
-        let publish: mqtt5.PublishPacket = eventData.message;
-        let receivedPayload : String = new TextDecoder().decode(publish.payload as ArrayBuffer)
+            let publish: mqtt5.PublishPacket = eventData.message;
+            let receivedPayload : String = new TextDecoder().decode(publish.payload as ArrayBuffer)
 
-        // Check that clients don't receive the same messages.
-        expect(messagesReceived.has(receivedPayload)).toEqual(false);
-        messagesReceived.set(receivedPayload, 1);
+            // Check that clients don't receive the same messages.
+            expect(messagesReceived.has(receivedPayload)).toEqual(false);
+            messagesReceived.set(receivedPayload, 1);
 
-        expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
-        expect(packet.topicName).toEqual(testTopic);
-    });
+            expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
+            expect(packet.topicName).toEqual(testTopic);
+        };
+    };
 
-    subscriber2.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
-        let packet: mqtt5.PublishPacket = eventData.message;
+    subscriber1.on('messageReceived', getOnMessageReceived("sub1"));
 
-        clientsReceived.add("sub2");
-        messagesCount++;
-        if (messagesCount == messagesNumber) {
-            receivedResolve();
-        }
-
-        let publish: mqtt5.PublishPacket = eventData.message;
-        let receivedPayload : String = new TextDecoder().decode(publish.payload as ArrayBuffer)
-
-        // Check that clients don't receive the same messages.
-        expect(messagesReceived.has(receivedPayload)).toEqual(false);
-        messagesReceived.set(receivedPayload, 1);
-
-        expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
-        expect(packet.topicName).toEqual(testTopic);
-    });
+    subscriber2.on('messageReceived', getOnMessageReceived("sub2"));
 
     for (let i = 0; i < messagesNumber; ++i) {
         let tp : string = payload + "_" + i;
