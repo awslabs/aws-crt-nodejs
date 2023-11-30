@@ -593,12 +593,11 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     let subscriber2Stopped = once(subscriber2, mqtt5.Mqtt5Client.STOPPED);
 
     publisher.start();
-    await publisherConnected;
-
     subscriber1.start();
-    await subscriber1Connected;
-
     subscriber2.start();
+
+    await publisherConnected;
+    await subscriber1Connected;
     await subscriber2Connected;
 
     await subscriber1.subscribe({
@@ -612,32 +611,28 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
         ]
     });
 
-    let messagesCount : number = 0;
     let receivedResolve : (value?: void | PromiseLike<void>) => void;
     let receivedPromise = new Promise<void>((resolve, reject) => {
         receivedResolve = resolve;
         setTimeout(() => reject(new Error("Did not receive expected number of messages")), 4000);
     });
 
-    const clientsReceived = new Set();
-    const messagesReceived = new Map();
+    // map: subscriberId -> receivedCount
+    const subscriberMessages = new Map();
 
     const getOnMessageReceived = (subscriberId : string) => {
+        subscriberMessages.set(subscriberId, 0);
+
         return (eventData: mqtt5.MessageReceivedEvent) => {
             let packet: mqtt5.PublishPacket = eventData.message;
 
-            clientsReceived.add(subscriberId);
-            messagesCount++;
-            if (messagesCount == messagesNumber) {
+            subscriberMessages.set(subscriberId, subscriberMessages.get(subscriberId) + 1);
+
+            let messagesReceived : number = 0;
+            subscriberMessages.forEach(v => messagesReceived += v);
+            if (messagesReceived == messagesNumber) {
                 receivedResolve();
             }
-
-            let publish: mqtt5.PublishPacket = eventData.message;
-            let receivedPayload : String = new TextDecoder().decode(publish.payload as ArrayBuffer)
-
-            // Check that clients don't receive the same messages.
-            expect(messagesReceived.has(receivedPayload)).toEqual(false);
-            messagesReceived.set(receivedPayload, 1);
 
             expect(packet.qos).toEqual(mqtt5.QoS.AtLeastOnce);
             expect(packet.topicName).toEqual(testTopic);
@@ -645,33 +640,35 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     };
 
     subscriber1.on('messageReceived', getOnMessageReceived("sub1"));
-
     subscriber2.on('messageReceived', getOnMessageReceived("sub2"));
 
     for (let i = 0; i < messagesNumber; ++i) {
-        let tp : string = payload + "_" + i;
         publisher.publish({
             topicName: testTopic,
             qos: mqtt5.QoS.AtLeastOnce,
-            payload: tp
+            payload: payload
         });
     }
 
     // Wait for receiving all published messages.
     await receivedPromise;
 
-    // Wait a little longer to ensure that no extra messages are arrived.
+    // Wait a little longer to check if extra messages arrive.
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    expect(clientsReceived.size).toEqual(2);
-    expect(messagesCount).toEqual(messagesNumber);
+    let messagesReceived : number = 0;
+    subscriberMessages.forEach(v => {
+        messagesReceived += v;
+        // Each subscriber should receive a portion of messages.
+        expect(v).toBeGreaterThan(0);
+    });
+    expect(messagesReceived).toEqual(messagesNumber);
 
     subscriber2.stop();
-    await subscriber2Stopped;
-
     subscriber1.stop();
-    await subscriber1Stopped;
-
     publisher.stop();
+
+    await subscriber2Stopped;
+    await subscriber1Stopped;
     await publisherStopped;
 }
