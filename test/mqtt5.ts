@@ -579,7 +579,7 @@ export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mq
 
 export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, subscriber1: mqtt5.Mqtt5Client, subscriber2: mqtt5.Mqtt5Client) {
     const payload : Buffer = Buffer.from("share", "utf-8");
-    const messageNumber: number = 10;
+    const messagesNumber: number = 10;
     const testTopic: string = `mqtt5_test${uuid()}`;
     const sharedTopicfilter : string = `$share/crttest/${testTopic}`;
 
@@ -612,22 +612,22 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
         ]
     });
 
-    let messageCount : number = 0;
+    let messagesCount : number = 0;
     let receivedResolve : (value?: void | PromiseLike<void>) => void;
     let receivedPromise = new Promise<void>((resolve, reject) => {
         receivedResolve = resolve;
         setTimeout(() => reject(new Error("Did not receive expected number of messages")), 4000);
     });
 
-    const clientsReceived = new Map();
+    const clientsReceived = new Set();
     const messagesReceived = new Map();
 
     subscriber1.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
         let packet: mqtt5.PublishPacket = eventData.message;
 
-        clientsReceived.set(1, 1);
-        messageCount++;
-        if (messageCount == messageNumber) {
+        clientsReceived.add("sub1");
+        messagesCount++;
+        if (messagesCount == messagesNumber) {
             receivedResolve();
         }
 
@@ -645,9 +645,9 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     subscriber2.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
         let packet: mqtt5.PublishPacket = eventData.message;
 
-        clientsReceived.set(2, 1);
-        messageCount++;
-        if (messageCount == messageNumber) {
+        clientsReceived.add("sub2");
+        messagesCount++;
+        if (messagesCount == messagesNumber) {
             receivedResolve();
         }
 
@@ -662,7 +662,7 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
         expect(packet.topicName).toEqual(testTopic);
     });
 
-    for (let i = 0; i < messageNumber; ++i) {
+    for (let i = 0; i < messagesNumber; ++i) {
         let tp : string = payload + "_" + i;
         publisher.publish({
             topicName: testTopic,
@@ -678,7 +678,7 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     expect(clientsReceived.size).toEqual(2);
-    expect(messageCount).toEqual(10);
+    expect(messagesCount).toEqual(messagesNumber);
 
     subscriber2.stop();
     await subscriber2Stopped;
