@@ -584,13 +584,13 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     const sharedTopicfilter : string = `$share/crttest/${testTopic}`;
 
     const publisherConnected = once(publisher, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
-    let publisherStopped = once(publisher, mqtt5.Mqtt5Client.STOPPED);
+    const publisherStopped = once(publisher, mqtt5.Mqtt5Client.STOPPED);
 
-    let subscriber1Connected = once(subscriber1, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
-    let subscriber1Stopped = once(subscriber1, mqtt5.Mqtt5Client.STOPPED);
+    const subscriber1Connected = once(subscriber1, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    const subscriber1Stopped = once(subscriber1, mqtt5.Mqtt5Client.STOPPED);
 
-    let subscriber2Connected = once(subscriber2, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
-    let subscriber2Stopped = once(subscriber2, mqtt5.Mqtt5Client.STOPPED);
+    const subscriber2Connected = once(subscriber2, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    const subscriber2Stopped = once(subscriber2, mqtt5.Mqtt5Client.STOPPED);
 
     publisher.start();
     subscriber1.start();
@@ -612,7 +612,7 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     });
 
     let receivedResolve : (value?: void | PromiseLike<void>) => void;
-    let receivedPromise = new Promise<void>((resolve, reject) => {
+    const receivedPromise = new Promise<void>((resolve, reject) => {
         receivedResolve = resolve;
         setTimeout(() => reject(new Error("Did not receive expected number of messages")), 4000);
     });
@@ -624,7 +624,7 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
         subscriberMessages.set(subscriberId, 0);
 
         return (eventData: mqtt5.MessageReceivedEvent) => {
-            let packet: mqtt5.PublishPacket = eventData.message;
+            const packet: mqtt5.PublishPacket = eventData.message;
 
             subscriberMessages.set(subscriberId, subscriberMessages.get(subscriberId) + 1);
 
