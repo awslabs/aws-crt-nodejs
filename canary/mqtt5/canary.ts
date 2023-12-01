@@ -10,6 +10,8 @@ var weightedRandom = require('weighted-random');
 
 type Args = { [index: string]: any };
 
+const RECEIVED_TOPIC: string = "Canary/Received/Topic";
+
 const yargs = require('yargs');
 
 yargs.command('*', false, (yargs: any) => {
@@ -42,7 +44,6 @@ yargs.command('*', false, (yargs: any) => {
     });
 }, main).parse();
 
-let RECEIVED_TOPIC: string = "Canary/Received/Topic";
 
 interface CanaryMqttStatistics {
     clientsUsed: number;
@@ -117,7 +118,7 @@ async function doSubscribe(context: CanaryContext) {
 
         await context.clients[index].subscribe({
             subscriptions: [
-                { topicFilter: RECEIVED_TOPIC, qos: mqtt5.QoS.AtLeastOnce }
+                { topicFilter: topicFilter, qos: mqtt5.QoS.AtLeastOnce }
             ]
         });
 
