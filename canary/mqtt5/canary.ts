@@ -76,7 +76,7 @@ interface CanaryContext {
 }
 
 function sleep(millisecond: number) {
-    return new Promise((resolve) => setInterval(resolve, millisecond));
+    return new Promise((resolve) => setTimeout(resolve, millisecond));
 }
 
 function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
