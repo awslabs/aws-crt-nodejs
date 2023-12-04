@@ -73,6 +73,8 @@ export function create_negotiated_settings(config : mqtt5.Mqtt5ClientConfig, con
         sessionExpiryInterval: connack.sessionExpiryInterval ?? config.connectProperties?.sessionExpiryIntervalSeconds ?? 0,
         receiveMaximumFromServer: connack.receiveMaximum ?? DEFAULT_RECEIVE_MAXIMUM,
         maximumPacketSizeToServer: connack.maximumPacketSize ?? MAXIMUM_PACKET_SIZE,
+        topicAliasMaximumToServer: Math.min(config.topicAliasingOptions?.outboundCacheMaxSize ?? 0, connack.topicAliasMaximum ?? 0),
+        topicAliasMaximumToClient: config.topicAliasingOptions?.inboundCacheMaxSize ?? 0,
         serverKeepAlive: connack.serverKeepAlive ?? config.connectProperties?.keepAliveIntervalSeconds ?? mqtt_shared.DEFAULT_KEEP_ALIVE,
         retainAvailable: connack.retainAvailable ?? true,
         wildcardSubscriptionsAvailable: connack.wildcardSubscriptionsAvailable ?? true,
@@ -204,14 +206,34 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
         connectTimeout: crtConfig.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
         clean: should_mqtt_js_use_clean_start(crtConfig.sessionBehavior),
         reconnectPeriod: maxDelay,
-        queueQoSZero : false,
         // @ts-ignore
         autoUseTopicAlias : false,
         // @ts-ignore
         autoAssignTopicAlias : false,
+        queueQoSZero : false,
         transformWsUrl: undefined, /* TODO */
         resubscribe : false
     };
+
+    let topic_aliasing_options = crtConfig.topicAliasingOptions;
+    if (topic_aliasing_options) {
+        switch (topic_aliasing_options.outboundBehavior ?? mqtt5.OutboundTopicAliasBehaviorType.Default) {
+            case mqtt5.OutboundTopicAliasBehaviorType.LRU:
+                // @ts-ignore
+                mqttJsClientConfig.autoUseTopicAlias = true;
+                // @ts-ignore
+                mqttJsClientConfig.autoAssignTopicAlias = true;
+                break;
+
+            case mqtt5.OutboundTopicAliasBehaviorType.Manual:
+                // @ts-ignore
+                mqttJsClientConfig.autoUseTopicAlias = true;
+                break;
+
+            default:
+                break;
+        }
+    }
 
     /*
      * If you leave clientId undefined, mqtt-js will make up some weird thing for you, but the intent is that it
@@ -435,6 +457,7 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5.
     propertiesValid = set_defined_property(properties, "correlationData", publish.correlationData) || propertiesValid;
     propertiesValid = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(publish.userProperties)) || propertiesValid;
     propertiesValid = set_defined_property(properties, "contentType", publish.contentType) || propertiesValid;
+    propertiesValid = set_defined_property(properties, "topicAlias", publish.topicAlias) || propertiesValid;
 
     let mqttJsPublish : mqtt.IClientPublishOptions = {
         qos: publish.qos,
