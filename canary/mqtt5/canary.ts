@@ -76,7 +76,7 @@ interface CanaryContext {
 }
 
 function sleep(millisecond: number) {
-    return new Promise((resolve) => setInterval(resolve, millisecond));
+    return new Promise((resolve) => setTimeout(resolve, millisecond));
 }
 
 function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
@@ -192,7 +192,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
     };
 
     // Start clients
-    context.clients.forEach( async client => {
+    for (let client of context.clients) {
         client.start();
         const connectionSuccess = once(client, "connectionSuccess");
 
@@ -205,7 +205,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         });
         // setup empty subscription string array
         context.subscriptions.push(new Array());
-    });
+    }
 
     let operationTable = [
         { weight : 1, op: async () => { await doSubscribe(context); }},
@@ -214,7 +214,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         { weight : 20, op: async () => { await doPublish(context, mqtt5.QoS.AtLeastOnce); }}
     ];
 
-    var weightedOperations = operationTable.map(function (operation) {
+    let weightedOperations = operationTable.map(function (operation) {
         return operation.weight;
     });
 
@@ -232,13 +232,12 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 
 
     // Stop and close clients
-    context.clients.forEach( async client => {
+    for (let client of context.clients) {
         const stopped = once(client, "stopped");
         client.stop();
         await stopped;
         client.close();
-    });
-
+    }
 }
 
 async function main(args : Args){
