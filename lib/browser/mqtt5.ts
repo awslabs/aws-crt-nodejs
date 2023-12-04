@@ -20,11 +20,12 @@
  *
  */
 
-import { BufferedEventEmitter } from "../common/event";
+import {BufferedEventEmitter} from "../common/event";
 import * as mqtt from "mqtt"; /* The mqtt-js external dependency */
 import * as mqtt5 from "../common/mqtt5";
+import {OutboundTopicAliasBehaviorType} from "../common/mqtt5";
 import * as mqtt5_packet from "../common/mqtt5_packet"
-import { CrtError } from "./error";
+import {CrtError} from "./error";
 import * as WebsocketUtils from "./ws";
 import * as mqtt_utils from "./mqtt5_utils";
 import * as mqtt_shared from "../common/mqtt_shared";
@@ -186,6 +187,13 @@ export interface Mqtt5ClientConfig {
     connectTimeoutMs? : number;
 
     /**
+     * Additional controls for client behavior with respect to topic alias usage.
+     *
+     * If this setting is left undefined, then topic aliasing behavior will be disabled.
+     */
+    topicAliasingOptions? : mqtt5.TopicAliasingOptions
+
+    /**
      * Options for the underlying websocket connection
      *
      * @group Browser-only
@@ -342,6 +350,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     private lastError? : Error;
     private reconnectionScheduler? : ReconnectionScheduler;
     private mqttJsConfig : mqtt.IClientOptions;
+    private topicAliasBindings : Map<number, string>;
 
     /**
      * Client constructor
@@ -354,6 +363,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         this.mqttJsConfig = mqtt_utils.create_mqtt_js_client_config_from_crt_client_config(this.config);
         this.state = Mqtt5ClientState.Stopped;
         this.lifecycleEventState = Mqtt5ClientLifecycleEventState.None;
+        this.topicAliasBindings = new Map<number, string>();
     }
 
     /**
@@ -517,6 +527,22 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         });
     }
 
+    private reset_topic_aliases() {
+        this.topicAliasBindings.clear();
+    }
+
+    private bind_topic_alias(alias: number, topic: string) {
+        this.topicAliasBindings.set(alias, topic);
+    }
+
+    private is_topic_alias_bound(alias: number, topic: string) {
+        if (!topic) {
+            return false;
+        }
+
+        return this.topicAliasBindings.get(alias) === topic;
+    }
+
     /**
      * Send a message to subscribing clients by queuing a PUBLISH packet to be sent to the server.
      *
@@ -536,6 +562,28 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 if (!packet) {
                     reject(new Error("Invalid publish packet"));
                     return;
+                }
+
+                /*
+                 * Out topic aliasing contract and mqtt-js's don't quite match, so we do some fixup here.
+                 *
+                 * In our manual mode, the contract is that you must *always* submit both the topic and the alias.
+                 *
+                 * In Mqtt-js's manual mode, the alias will only be used if it's been previously bound and you don't
+                 * submit an alias in the publish (this is not reasonable behavior, but it's not under out control).
+                 * So when we're in manual aliasing mode, we track all the current bindings and strip out the alias
+                 * when there's a match, signaling to mqtt-js that the alias binding should be used.
+                 */
+                if ((this.config.topicAliasingOptions?.outboundBehavior ?? OutboundTopicAliasBehaviorType.Default) == OutboundTopicAliasBehaviorType.Manual) {
+                    if (packet.topicAlias && this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connected) {
+                        if (this.is_topic_alias_bound(packet.topicAlias, packet.topicName)) {
+                            delete (packet.topicAlias);
+                        }
+
+                        this.bind_topic_alias(packet.topicAlias, packet.topicName);
+                    }
+                } else {
+                    delete (packet.topicAlias);
                 }
 
                 let publishOptions : mqtt.IClientPublishOptions = mqtt_utils.transform_crt_publish_to_mqtt_js_publish_options(packet);
@@ -808,6 +856,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
     private on_connection_success (connack: mqtt.IConnackPacket) {
         this.lifecycleEventState = Mqtt5ClientLifecycleEventState.Connected;
+        this.reset_topic_aliases();
 
         this.reconnectionScheduler?.onSuccessfulConnection();
 
