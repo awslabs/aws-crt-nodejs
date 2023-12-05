@@ -406,8 +406,9 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string, token_key_name? : string, token_value? : string) {
         this.is_using_custom_authorizer = true;
+        let uri_encoded_signature = iot_shared.canonicalizeCustomAuthTokenSignature(authorizer_signature);
         let username_string = iot_shared.populate_username_string_with_custom_authorizer(
-            "", username, authorizer_name, authorizer_signature, this.params.username, token_key_name, token_value);
+            "", username, authorizer_name, uri_encoded_signature, this.params.username, token_key_name, token_value);
         this.params.username = username_string;
         this.params.password = password;
         if (!this.params.use_websocket) {
