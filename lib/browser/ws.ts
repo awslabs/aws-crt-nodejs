@@ -170,7 +170,7 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
             const day = canonical_day(time);
             const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signingConfig.credentials.aws_access_id}` +
                 `%2F${day}%2F${region}%2F${signingConfig.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
-            const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
+            const url = new URL(`wss://${config.hostName}:${config.port}${path}?${query_params}`);
             return sign_url('GET', url, signingConfig, time, day);
 
         case mqtt5.Mqtt5WebsocketUrlFactoryType.Custom:
