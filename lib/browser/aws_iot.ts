@@ -29,7 +29,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             client_id: '',
             host_name: '',
             socket_options: new SocketOptions(),
-            port: 8883,
+            port: 443,
             clean_session: false,
             keep_alive: undefined,
             will: undefined,
