@@ -199,7 +199,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
             AwsIotMqtt5ClientConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
             new io.TlsContextOptions());
 
-        builder.customAuthConfig = customAuthConfig;
+        builder.customAuthConfig = iot_shared.canonicalizeCustomAuthConfig(customAuthConfig);
         builder.tlsContextOptions.alpn_list = ["mqtt"];
 
         return builder;
