@@ -49,6 +49,25 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
     await connection.disconnect();
 });
 
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('Aws Iot Core Mqtt over websockets with Signing Custom Auth Unencoded Signature - Connection Success', async () => {
+    let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
+    builder.with_custom_authorizer(
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_USERNAME,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_NAME,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_SIGNATURE_UNENCODED,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_PASSWORD,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_KEY_NAME,
+        test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_TOKEN,
+    )
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    let config = builder.build();
+    let client = new mqtt311.MqttClient();
+    let connection = client.new_connection(config);
+    await connection.connect();
+    await connection.disconnect();
+});
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);

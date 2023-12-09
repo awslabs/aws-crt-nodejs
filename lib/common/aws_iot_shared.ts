@@ -14,6 +14,7 @@
 
 import * as platform from "./platform";
 import * as mqtt5_packet from "./mqtt5_packet";
+import * as utils from "./utils";
 
 /**
  * A helper function to add parameters to the username in with_custom_authorizer function
@@ -161,6 +162,34 @@ export interface MqttConnectCustomAuthConfig {
      */
     tokenSignature?: string;
 };
+
+/** @internal */
+export function canonicalizeCustomAuthTokenSignature(signature?: string) : string | undefined {
+    if (signature === undefined || signature == null) {
+        return undefined;
+    }
+
+    let hasPercent = signature.indexOf("%") != -1;
+    if (hasPercent) {
+        return signature;
+    } else {
+        return encodeURIComponent(signature);
+    }
+}
+
+/** @internal */
+export function canonicalizeCustomAuthConfig(config: MqttConnectCustomAuthConfig) : MqttConnectCustomAuthConfig {
+    let processedConfig : MqttConnectCustomAuthConfig = {};
+
+    utils.set_defined_property(processedConfig, "authorizerName", config.authorizerName);
+    utils.set_defined_property(processedConfig, "username", config.username);
+    utils.set_defined_property(processedConfig, "password", config.password);
+    utils.set_defined_property(processedConfig, "tokenKeyName", config.tokenKeyName);
+    utils.set_defined_property(processedConfig, "tokenValue", config.tokenValue);
+    utils.set_defined_property(processedConfig, "tokenSignature", canonicalizeCustomAuthTokenSignature(config.tokenSignature));
+
+    return processedConfig;
+}
 
 /** @internal */
 function addParam(paramName: string, paramValue: string | undefined, paramSet: [string, string][]) : void {
