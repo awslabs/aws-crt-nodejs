@@ -112,8 +112,7 @@ export interface MqttConnectCustomAuthConfig {
     /**
      * Name of the custom authorizer to use.
      *
-     * Required if the endpoint does not have a default custom authorizer associated with it.  It is strongly suggested
-     * to URL-encode this value; the SDK will not do so for you.
+     * Required if the endpoint does not have a default custom authorizer associated with it.
      */
     authorizerName?: string;
 
@@ -140,8 +139,7 @@ export interface MqttConnectCustomAuthConfig {
     /**
      * Key used to extract the custom authorizer token from MQTT username query-string properties.
      *
-     * Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode this value; the
-     * SDK will not do so for you.
+     * Required if the custom authorizer has signing enabled.
      */
     tokenKeyName?: string;
 
@@ -157,23 +155,22 @@ export interface MqttConnectCustomAuthConfig {
      * The digital signature of the token value in the {@link tokenValue} property.  The signature must be based on
      * the private key associated with the custom authorizer.  The signature must be base64 encoded.
      *
-     * Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode this value; the
-     * SDK will not do so for you.
+     * Required if the custom authorizer has signing enabled.
      */
     tokenSignature?: string;
 };
 
 /** @internal */
-export function canonicalizeCustomAuthTokenSignature(signature?: string) : string | undefined {
-    if (signature === undefined || signature == null) {
+export function canonicalizeCustomAuthEncoding(value?: string) : string | undefined {
+    if (value === undefined || value == null) {
         return undefined;
     }
 
-    let hasPercent = signature.indexOf("%") != -1;
+    let hasPercent = value.indexOf("%") != -1;
     if (hasPercent) {
-        return signature;
+        return value;
     } else {
-        return encodeURIComponent(signature);
+        return encodeURIComponent(value);
     }
 }
 
@@ -181,12 +178,12 @@ export function canonicalizeCustomAuthTokenSignature(signature?: string) : strin
 export function canonicalizeCustomAuthConfig(config: MqttConnectCustomAuthConfig) : MqttConnectCustomAuthConfig {
     let processedConfig : MqttConnectCustomAuthConfig = {};
 
-    utils.set_defined_property(processedConfig, "authorizerName", config.authorizerName);
+    utils.set_defined_property(processedConfig, "authorizerName", canonicalizeCustomAuthEncoding(config.authorizerName));
     utils.set_defined_property(processedConfig, "username", config.username);
     utils.set_defined_property(processedConfig, "password", config.password);
-    utils.set_defined_property(processedConfig, "tokenKeyName", config.tokenKeyName);
+    utils.set_defined_property(processedConfig, "tokenKeyName", canonicalizeCustomAuthEncoding(config.tokenKeyName));
     utils.set_defined_property(processedConfig, "tokenValue", config.tokenValue);
-    utils.set_defined_property(processedConfig, "tokenSignature", canonicalizeCustomAuthTokenSignature(config.tokenSignature));
+    utils.set_defined_property(processedConfig, "tokenSignature", canonicalizeCustomAuthEncoding(config.tokenSignature));
 
     return processedConfig;
 }

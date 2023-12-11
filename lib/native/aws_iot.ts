@@ -393,22 +393,23 @@ export class AwsIotMqttConnectionConfigBuilder {
      *                            'x-amz-customauthorizer-signature' will not be added with the MQTT connection.
      *                            The signature must be based on the private key associated with the custom authorizer.
      *                            The signature must be base64 encoded.
-     *                            Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode
-     *                            this value; the SDK will not do so for you.
+     *                            Required if the custom authorizer has signing enabled.
      * @param password The password to use with the custom authorizer. If null is passed, then no password will
      *                 be set.
      * @param token_key_name Key used to extract the custom authorizer token from MQTT username query-string properties.
-     *                       Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode
-     *                       this value; the SDK will not do so for you.
+     *                       Required if the custom authorizer has signing enabled.
      * @param token_value An opaque token value.
      *                    Required if the custom authorizer has signing enabled. This value must be signed by the private
      *                    key associated with the custom authorizer and the result placed in the token_signature argument.
      */
     with_custom_authorizer(username : string, authorizer_name : string, authorizer_signature : string, password : string, token_key_name? : string, token_value? : string) {
         this.is_using_custom_authorizer = true;
-        let uri_encoded_signature = iot_shared.canonicalizeCustomAuthTokenSignature(authorizer_signature);
+        let uri_encoded_signature = iot_shared.canonicalizeCustomAuthEncoding(authorizer_signature);
+        let uri_encoded_token_key_name = iot_shared.canonicalizeCustomAuthEncoding(token_key_name);
+        let uri_encoded_authorizer_name = iot_shared.canonicalizeCustomAuthEncoding(authorizer_name);
+
         let username_string = iot_shared.populate_username_string_with_custom_authorizer(
-            "", username, authorizer_name, uri_encoded_signature, this.params.username, token_key_name, token_value);
+            "", username, uri_encoded_authorizer_name, uri_encoded_signature, this.params.username, uri_encoded_token_key_name, token_value);
         this.params.username = username_string;
         this.params.password = password;
         if (!this.params.use_websocket) {
