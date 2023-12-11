@@ -116,11 +116,11 @@ export function create_websocket_url(config: MqttConnectionConfig) {
         const day = canonical_day(time);
         const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signing_config.credentials.aws_access_id}` +
             `%2F${day}%2F${signing_config.credentials.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
-        const url = new URL(`wss://${config.host_name}${path}?${query_params}`);
+        const url = new URL(`wss://${config.host_name}:${config.port}${path}?${query_params}`);
         return sign_url('GET', url, signing_config, time, day);
     }
     else if (protocol === 'wss-custom-auth') {
-        return `wss://${config.host_name}/${path}`;
+        return `wss://${config.host_name}:${config.port}${path}`;
     }
     throw new URIError(`Invalid protocol requested: ${protocol}`);
 }
@@ -170,7 +170,7 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
             const day = canonical_day(time);
             const query_params = `X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${signingConfig.credentials.aws_access_id}` +
                 `%2F${day}%2F${region}%2F${signingConfig.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
-            const url = new URL(`wss://${config.hostName}${path}?${query_params}`);
+            const url = new URL(`wss://${config.hostName}:${config.port}${path}?${query_params}`);
             return sign_url('GET', url, signingConfig, time, day);
 
         case mqtt5.Mqtt5WebsocketUrlFactoryType.Custom:
