@@ -83,17 +83,11 @@ export function populate_username_string_with_custom_authorizer(
     }
     if (is_string_and_not_empty(input_signature) && input_signature) {
         username_string = add_to_username_parameter(username_string, input_signature, "x-amz-customauthorizer-signature=");
-        if ((is_string_and_not_empty(input_token_key_name) && input_token_key_name) || (is_string_and_not_empty(input_token_value) && input_token_value))
-        {
-            console.log("Warning: Signed custom authorizers with signature will not work without a token key name and " +
-                        "token value. Your connection may be rejected/stalled on the IoT Core side due to this. Please " +
-                        "set the token key name and token value to connect to a signed custom authorizer.");
-        }
     }
 
     if (is_string_and_not_empty(input_signature) || is_string_and_not_empty(input_token_value) || is_string_and_not_empty(input_token_key_name)) {
         if (!input_token_value || !input_token_key_name) {
-            throw new Error("Token-based custom authentication requires all token-related properties to be set");
+            throw new Error("Signing-based custom authentication requires all token-related properties to be set");
         }
         username_string = add_to_username_parameter(username_string, input_token_value, input_token_key_name + "=");
     }
