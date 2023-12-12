@@ -102,11 +102,11 @@ napi_value aws_napi_http_connection_manager_new(napi_env env, napi_callback_info
 
     napi_value node_port = *arg++;
     uint32_t port = 0;
-    if (napi_get_value_uint32(env, node_port, &port) || port > UINT16_MAX) {
-        napi_throw_type_error(env, NULL, "port must be a number between 0 and 65535");
+    if (napi_get_value_uint32(env, node_port, &port)) {
+        napi_throw_type_error(env, NULL, "port must be a number between 0 and 4294967296");
         goto cleanup;
     }
-    options.port = (uint16_t)port;
+    options.port = port;
 
     napi_value node_max_conns = *arg++;
     uint32_t max_connections = 0;

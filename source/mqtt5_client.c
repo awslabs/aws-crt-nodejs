@@ -1911,7 +1911,7 @@ static int s_init_client_configuration_from_js_client_configuration(
     PARSE_REQUIRED_NAPI_PROPERTY(
         AWS_NAPI_KEY_PORT,
         "s_init_client_configuration_from_js_client_configuration",
-        aws_napi_get_named_property_as_uint16(env, node_client_config, AWS_NAPI_KEY_PORT, &client_options->port),
+        aws_napi_get_named_property_as_uint32(env, node_client_config, AWS_NAPI_KEY_PORT, &client_options->port),
         {});
 
     /* optional config parameters */
