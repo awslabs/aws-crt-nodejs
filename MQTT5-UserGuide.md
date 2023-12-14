@@ -360,9 +360,9 @@ If your custom authenticator does not use signing, you don't specify anything re
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
 ```
 
-If your custom authorizer uses signing, you must specify the three signed token properties as well.  The token signature must be
-the URI-encoding of the base64 encoding of the digital signature of the token value via the private key associated with the public key
-that was registered with the custom authorizer.  It is your responsibility to URI-encode the token signature:
+If your custom authorizer uses signing, you must specify the three signed token properties as well.  The token signature should be
+the base64 encoding of the digital signature of the token value via the private key associated with the public key
+that was registered with the custom authorizer:
 
 ```typescript
     let customAuthConfig : MqttConnectCustomAuthConfig = {
@@ -371,7 +371,7 @@ that was registered with the custom authorizer.  It is your responsibility to UR
         password: <Binary data value of the password field to be passed to the authorizer lambda>,
         tokenKeyName: "<Name of the username query param that will contain the token value>",
         tokenValue: "<Value of the username query param that holds the token value that has been signed>",
-        tokenSignature: "<URI-encoded base64-encoded digital signature of tokenValue>"
+        tokenSignature: "<base64-encoded digital signature of tokenValue>"
     };
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
         "<account-specific endpoint>",
