@@ -9,7 +9,7 @@ import * as aws_iot_mqtt5 from "./aws_iot_mqtt5";
 import {v4 as uuid} from "uuid";
 import * as auth from "./auth";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvironmentCred())('Aws Iot Core Mqtt over websockets with environmental credentials - Connection Success', async () => {
     let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({

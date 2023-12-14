@@ -11,7 +11,7 @@ import {v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 

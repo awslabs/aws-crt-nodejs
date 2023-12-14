@@ -10,7 +10,7 @@ import * as io from "./io"
 import { v4 as uuid } from 'uuid';
 import {once} from "events";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
 

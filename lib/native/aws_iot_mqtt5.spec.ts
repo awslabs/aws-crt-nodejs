@@ -12,7 +12,7 @@ import * as auth from "./auth";
 import * as io from "./io";
 import {CRuntimeType, cRuntime} from "./binding"
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Aws Iot Core Direct Mqtt By File - Connection Success', async () => {
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(

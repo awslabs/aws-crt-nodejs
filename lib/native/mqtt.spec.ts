@@ -12,7 +12,7 @@ import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} 
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 import {once} from "events";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 async function test_connection(config: MqttConnectionConfig, client: MqttClient) {
     const connection = client.new_connection(config);

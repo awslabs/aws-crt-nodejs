@@ -13,6 +13,8 @@ import {once} from "events";
 import {cRuntime, CRuntimeType} from "./binding"
 import {newLiftedPromise} from "../common/promise";
 
+jest.setTimeout(30000);
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     builder.with_custom_authorizer(
