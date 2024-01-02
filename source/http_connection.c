@@ -69,7 +69,7 @@ napi_value aws_napi_http_proxy_options_new(napi_env env, napi_callback_info info
         napi_throw_type_error(env, NULL, "port must be a number");
         goto cleanup;
     });
-    binding->native.port = (uint16_t)port;
+    binding->native.port = port;
 
     napi_value node_auth_method = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_auth_method)) {
@@ -352,7 +352,7 @@ napi_value aws_napi_http_connection_new(napi_env env, napi_callback_info info) {
         napi_throw_type_error(env, NULL, "port must be a Number");
         goto argument_error;
     });
-    options.port = (uint16_t)port;
+    options.port = port;
 
     napi_value node_socket_options = *arg++;
     AWS_NAPI_CALL(env, napi_get_value_external(env, node_socket_options, (void **)&options.socket_options), {

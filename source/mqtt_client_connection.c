@@ -1013,7 +1013,7 @@ napi_value aws_napi_mqtt_client_connection_connect(napi_env env, napi_callback_i
     options.on_connection_complete = s_on_connected;
     options.ping_timeout_ms = ping_timeout;
     options.protocol_operation_timeout_ms = protocol_operation_timeout;
-    options.port = (uint16_t)port_number;
+    options.port = port_number;
 
     options.socket_options = socket_options;
     options.tls_options = binding->use_tls_options ? &binding->tls_options : NULL;
