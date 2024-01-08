@@ -64,6 +64,22 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Success Unencoded Signature', async () => {
+    let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
+        authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
+        username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
+        password: Buffer.from(test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_PASSWORD, "utf-8"),
+        tokenKeyName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_KEY_NAME,
+        tokenValue: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_TOKEN,
+        tokenSignature: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_SIGNATURE_UNENCODED
+    };
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
+        test_env.AWS_IOT_ENV.MQTT5_HOST,
+        customAuthConfig
+    );
+    await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+});
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Aws Iot Core Websocket by Sigv4 - Connection Success', async () => {
     let provider: auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newStatic(
         test_env.AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY,

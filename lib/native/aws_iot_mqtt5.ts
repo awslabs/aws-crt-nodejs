@@ -44,12 +44,6 @@ export interface WebsocketSigv4Config {
  * Builder pattern class to create an {@link Mqtt5ClientConfig} which can then be used to create
  * an {@link Mqtt5Client}, configured for use with AWS IoT.
  *
- * DEVELOPER PREVIEW DISCLAIMER
- *
- * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
- * preview window is especially valuable in shaping the final product.  During the preview period we may make
- * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
- *
  * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
  *
  * @category IoT
@@ -199,7 +193,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
             AwsIotMqtt5ClientConfigBuilder.DEFAULT_WEBSOCKET_MQTT_PORT,
             new io.TlsContextOptions());
 
-        builder.customAuthConfig = customAuthConfig;
+        builder.customAuthConfig = iot_shared.canonicalizeCustomAuthConfig(customAuthConfig);
         builder.tlsContextOptions.alpn_list = ["mqtt"];
 
         return builder;
