@@ -5,6 +5,7 @@
 
 import * as mqtt from "mqtt";
 import * as mqtt5 from "./mqtt5";
+import {InboundTopicAliasBehaviorType, OutboundTopicAliasBehaviorType} from "./mqtt5";
 import * as mqtt5_utils from "./mqtt5_utils";
 import * as mqtt_shared from "../common/mqtt_shared";
 
@@ -199,6 +200,8 @@ test('create_negotiated_settings empty connack, empty connect', async() => {
         sessionExpiryInterval: 0,
         receiveMaximumFromServer: 65535,
         maximumPacketSizeToServer: mqtt5_utils.MAXIMUM_PACKET_SIZE,
+        topicAliasMaximumToServer: 0,
+        topicAliasMaximumToClient: 0,
         serverKeepAlive: 1200,
         retainAvailable: true,
         wildcardSubscriptionsAvailable: true,
@@ -232,6 +235,8 @@ test('create_negotiated_settings empty connack, full connect', async() => {
         sessionExpiryInterval: 3600,
         receiveMaximumFromServer: 65535,
         maximumPacketSizeToServer: mqtt5_utils.MAXIMUM_PACKET_SIZE,
+        topicAliasMaximumToServer: 0,
+        topicAliasMaximumToClient: 0,
         serverKeepAlive: 1800,
         retainAvailable: true,
         wildcardSubscriptionsAvailable: true,
@@ -252,6 +257,7 @@ test('create_negotiated_settings full connack, empty connect', async() => {
         sessionPresent: false,
         reasonCode: mqtt5.ConnectReasonCode.Success,
         assignedClientIdentifier: "autoAssignedId",
+        topicAliasMaximum: 10,
         maximumQos : mqtt5.QoS.AtLeastOnce,
         sessionExpiryInterval : 120,
         receiveMaximum : 100,
@@ -270,6 +276,8 @@ test('create_negotiated_settings full connack, empty connect', async() => {
         sessionExpiryInterval: 120,
         receiveMaximumFromServer: 100,
         maximumPacketSizeToServer: 128 * 1024,
+        topicAliasMaximumToServer: 0,
+        topicAliasMaximumToClient: 0,
         serverKeepAlive: 600,
         retainAvailable: false,
         wildcardSubscriptionsAvailable: false,
@@ -288,6 +296,12 @@ test('create_negotiated_settings full connack, full connect', async() => {
             clientId: "myClientId",
             keepAliveIntervalSeconds: 1800,
             sessionExpiryIntervalSeconds: 3600
+        },
+        topicAliasingOptions: {
+            outboundBehavior: OutboundTopicAliasBehaviorType.LRU,
+            outboundCacheMaxSize: 7,
+            inboundBehavior: InboundTopicAliasBehaviorType.Enabled,
+            inboundCacheMaxSize: 5,
         }
     };
 
@@ -298,6 +312,7 @@ test('create_negotiated_settings full connack, full connect', async() => {
         sessionExpiryInterval : 1200,
         receiveMaximum : 100,
         maximumPacketSize : 128 * 1024,
+        topicAliasMaximum: 10,
         serverKeepAlive : 600,
         retainAvailable : false,
         wildcardSubscriptionsAvailable : false,
@@ -312,6 +327,8 @@ test('create_negotiated_settings full connack, full connect', async() => {
         sessionExpiryInterval: 1200,
         receiveMaximumFromServer: 100,
         maximumPacketSizeToServer: 128 * 1024,
+        topicAliasMaximumToServer: 7,
+        topicAliasMaximumToClient: 5,
         serverKeepAlive: 600,
         retainAvailable: false,
         wildcardSubscriptionsAvailable: false,

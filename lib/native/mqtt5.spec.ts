@@ -582,6 +582,14 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     expect(willReceived).toEqual(true);
 });
 
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Shared subscriptions test', async () => {
+    const config : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    const publisher : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+    const subscriber1 : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+    const subscriber2 : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+    await test_utils.doSharedSubscriptionsTest(publisher, subscriber1, subscriber2);
+});
+
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation failure - null subscribe', async () => {
     await test_utils.nullSubscribeTest(new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig()));
 });
@@ -611,7 +619,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await connectionSuccess;
 
-    let statistics : mqtt5.ClientStatistics = client.getQueueStatistics();
+    let statistics : mqtt5.ClientStatistics = client.getOperationalStatistics();
     expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
     expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
     // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
@@ -629,11 +637,91 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
     await setTimeout(()=>{}, 2000);
 
-    statistics = client.getQueueStatistics();
+    statistics = client.getOperationalStatistics();
     expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
     expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
     // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
     // TODO - find a way to test unacked operations reliably without worrying about socket speed.
+
+    client.stop();
+    await stopped;
+
+    client.close();
+});
+
+/* This test doesn't verify LRU aliasing it just gives some evidence that enabling LRU aliasing doesn't blow something up */
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with LRU aliasing', async () => {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    clientConfig.topicAliasingOptions = {
+        outboundBehavior : mqtt5.OutboundTopicAliasBehaviorType.LRU,
+        outboundCacheMaxSize : 10
+    };
+
+    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    let topic : string = `test-${uuid()}`;
+    let testPayload : Buffer = Buffer.from("Derp", "utf-8");
+    let qos : mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+});
+
+/* This test doesn't verify manual aliasing it just gives some evidence that enabling manual aliasing doesn't blow something up */
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with manual aliasing', async () => {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+    clientConfig.topicAliasingOptions = {
+        outboundBehavior : mqtt5.OutboundTopicAliasBehaviorType.Manual,
+        outboundCacheMaxSize : 10
+    };
+
+    let client : mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    let topic : string = `test-${uuid()}`;
+    let testPayload : Buffer = Buffer.from("Derp", "utf-8");
+    let qos : mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload,
+        topicAlias: 1
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: qos,
+        payload: testPayload,
+        topicAlias: 1
+    });
 
     client.stop();
     await stopped;

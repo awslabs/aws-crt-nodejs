@@ -2,7 +2,6 @@
 
 # Table of contents
 
-* [Developer Preview Disclaimer](#developer-preview-disclaimer)
 * [What's Different? (relative to the MQTT311 implementation)](#whats-different-relative-to-the-mqtt311-implementation)
   * [Major changes](#major-changes)
   * [Minor changes](#minor-changes)
@@ -36,14 +35,6 @@
 Complete API documentation for the CRT's MQTT5 client can be found for
 * [NodeJS](https://awslabs.github.io/aws-crt-nodejs/node/modules/mqtt5.html)
 * [Browser](https://awslabs.github.io/aws-crt-nodejs/browser/modules/mqtt5.html)
-
-## Developer Preview Disclaimer
-MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the preview window
-is especially valuable in shaping the final product.  During the preview period we may make backwards-incompatible changes to the
-public API, but in general, this is something we will try our best to avoid.
-
-The MQTT5 client cannot yet be used with the AWS IoT MQTT services (Shadow, Jobs, Identity).  We plan to
-address this in the near future.
 
 ## What's Different? (relative to the MQTT311 implementation)
 SDK MQTT5 support comes from a separate client implementation.  By doing so, we took the opportunity to incorporate
@@ -369,9 +360,9 @@ If your custom authenticator does not use signing, you don't specify anything re
     let client : Mqtt5Client = new mqtt5.Mqtt5Client(builder.build());
 ```
 
-If your custom authorizer uses signing, you must specify the three signed token properties as well.  The token signature must be
-the URI-encoding of the base64 encoding of the digital signature of the token value via the private key associated with the public key
-that was registered with the custom authorizer.  It is your responsibility to URI-encode the token signature:
+If your custom authorizer uses signing, you must specify the three signed token properties as well.  The token signature should be
+the base64 encoding of the digital signature of the token value via the private key associated with the public key
+that was registered with the custom authorizer:
 
 ```typescript
     let customAuthConfig : MqttConnectCustomAuthConfig = {
@@ -380,7 +371,7 @@ that was registered with the custom authorizer.  It is your responsibility to UR
         password: <Binary data value of the password field to be passed to the authorizer lambda>,
         tokenKeyName: "<Name of the username query param that will contain the token value>",
         tokenValue: "<Value of the username query param that holds the token value that has been signed>",
-        tokenSignature: "<URI-encoded base64-encoded digital signature of tokenValue>"
+        tokenSignature: "<base64-encoded digital signature of tokenValue>"
     };
     let builder = AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithCustomAuth(
         "<account-specific endpoint>",

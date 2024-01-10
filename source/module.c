@@ -50,8 +50,9 @@ AWS_STATIC_ASSERT(NAPI_VERSION >= 4);
 
 /* TODO:
  * Hardcoded enum value for `napi_no_external_buffers_allowed`.
- * The enum `napi_no_external_buffers_allowed` is introduced in node14.
- * Use it for external buffer related changes after bump to node 14 */
+ * The enum `napi_no_external_buffers_allowed` is introduced in node21 and backport
+ * to node 14.21.2, 16.19.0, 18.13.0.
+ * Use `napi_no_external_buffers_allowed` for external buffer related changes after bump to node 21 */
 #define NAPI_NO_EXTERNAL_BUFFER_ENUM_VALUE 22
 
 static bool s_tsfn_enabled = false;

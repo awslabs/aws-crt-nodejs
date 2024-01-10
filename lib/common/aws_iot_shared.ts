@@ -14,6 +14,7 @@
 
 import * as platform from "./platform";
 import * as mqtt5_packet from "./mqtt5_packet";
+import * as utils from "./utils";
 
 /**
  * A helper function to add parameters to the username in with_custom_authorizer function
@@ -80,20 +81,19 @@ export function populate_username_string_with_custom_authorizer(
     if (is_string_and_not_empty(input_authorizer) && input_authorizer) {
         username_string = add_to_username_parameter(username_string, input_authorizer, "x-amz-customauthorizer-name=");
     }
-    if (is_string_and_not_empty(input_signature) && input_signature) {
-        username_string = add_to_username_parameter(username_string, input_signature, "x-amz-customauthorizer-signature=");
-        if ((is_string_and_not_empty(input_token_key_name) && input_token_key_name) || (is_string_and_not_empty(input_token_value) && input_token_value))
-        {
-            console.log("Warning: Signed custom authorizers with signature will not work without a token key name and " +
-                        "token value. Your connection may be rejected/stalled on the IoT Core side due to this. Please " +
-                        "set the token key name and token value to connect to a signed custom authorizer.");
+
+    if (is_string_and_not_empty(input_signature) || is_string_and_not_empty(input_token_value) || is_string_and_not_empty(input_token_key_name)) {
+        if (!input_token_value || !input_token_key_name || !input_signature) {
+            throw new Error("Signing-based custom authentication requires all token-related properties to be set");
         }
     }
 
-    if (is_string_and_not_empty(input_signature) || is_string_and_not_empty(input_token_value) || is_string_and_not_empty(input_token_key_name)) {
-        if (!input_token_value || !input_token_key_name) {
-            throw new Error("Token-based custom authentication requires all token-related properties to be set");
-        }
+    if (is_string_and_not_empty(input_signature) && input_signature) {
+        username_string = add_to_username_parameter(username_string, input_signature, "x-amz-customauthorizer-signature=");
+    }
+
+    if (is_string_and_not_empty(input_token_value) && is_string_and_not_empty(input_token_key_name)) {
+        // @ts-ignore
         username_string = add_to_username_parameter(username_string, input_token_value, input_token_key_name + "=");
     }
 
@@ -156,11 +156,38 @@ export interface MqttConnectCustomAuthConfig {
      * The digital signature of the token value in the {@link tokenValue} property.  The signature must be based on
      * the private key associated with the custom authorizer.  The signature must be base64 encoded.
      *
-     * Required if the custom authorizer has signing enabled.  It is strongly suggested to URL-encode this value; the
-     * SDK will not do so for you.
+     * Required if the custom authorizer has signing enabled.
      */
     tokenSignature?: string;
 };
+
+/** @internal */
+export function canonicalizeCustomAuthTokenSignature(signature?: string) : string | undefined {
+    if (signature === undefined || signature == null) {
+        return undefined;
+    }
+
+    let hasPercent = signature.indexOf("%") != -1;
+    if (hasPercent) {
+        return signature;
+    } else {
+        return encodeURIComponent(signature);
+    }
+}
+
+/** @internal */
+export function canonicalizeCustomAuthConfig(config: MqttConnectCustomAuthConfig) : MqttConnectCustomAuthConfig {
+    let processedConfig : MqttConnectCustomAuthConfig = {};
+
+    utils.set_defined_property(processedConfig, "authorizerName", config.authorizerName);
+    utils.set_defined_property(processedConfig, "username", config.username);
+    utils.set_defined_property(processedConfig, "password", config.password);
+    utils.set_defined_property(processedConfig, "tokenKeyName", config.tokenKeyName);
+    utils.set_defined_property(processedConfig, "tokenValue", config.tokenValue);
+    utils.set_defined_property(processedConfig, "tokenSignature", canonicalizeCustomAuthTokenSignature(config.tokenSignature));
+
+    return processedConfig;
+}
 
 /** @internal */
 function addParam(paramName: string, paramValue: string | undefined, paramSet: [string, string][]) : void {
