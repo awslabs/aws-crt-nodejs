@@ -262,7 +262,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
 
-            let statistics = connection.getQueueStatistics();
+            let statistics = connection.getOperationalStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
             // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
@@ -276,7 +276,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
                 const unsubscribed = connection.unsubscribe(test_topic);
                 await expect(unsubscribed).resolves.toHaveProperty('packet_id');
 
-                statistics = connection.getQueueStatistics();
+                statistics = connection.getOperationalStatistics();
                 expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
                 expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
                 // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
@@ -307,7 +307,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         connection.on('connect', async (session_present) => {
             expect(session_present).toBeFalsy();
 
-            let statistics = connection.getQueueStatistics();
+            let statistics = connection.getOperationalStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
             expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(0);
             // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey
@@ -329,7 +329,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
             const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
             await expect(pub).resolves.toBeTruthy();
 
-            statistics = connection.getQueueStatistics();
+            statistics = connection.getOperationalStatistics();
             expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(1);
             expect(statistics.incompleteOperationSize).toBeLessThanOrEqual(test_topic.length + test_payload.length + 4);
             // Skip checking unacked operations - it heavily depends on socket speed and makes tests flakey

@@ -83,7 +83,7 @@ struct aws_event_stream_client_connection_binding {
      * Const post-creation.
      */
     struct aws_string *host;
-    uint16_t port;
+    uint32_t port;
     struct aws_socket_options socket_options;
     struct aws_tls_connection_options tls_connection_options;
     bool using_tls;
@@ -208,9 +208,6 @@ static void s_napi_event_stream_connection_on_connection_shutdown(
         }
 
         AWS_NAPI_CALL(env, napi_create_uint32(env, shutdown_data->error_code, &params[1]), { goto done; });
-
-        /* Unsure if the destruction of node_event_stream_client_connection_ref will impact the dispatch call */
-        binding->is_closed = true;
 
         AWS_NAPI_ENSURE(
             env,
@@ -900,7 +897,7 @@ static int s_init_event_stream_connection_configuration_from_js_connection_confi
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    if (aws_napi_get_named_property_as_uint16(
+    if (aws_napi_get_named_property_as_uint32(
             env, node_connection_options, AWS_EVENT_STREAM_PROPERTY_NAME_PORT, &binding->port) !=
         AWS_NGNPR_VALID_VALUE) {
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);

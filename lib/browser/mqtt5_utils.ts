@@ -7,6 +7,7 @@
 import * as mqtt from "mqtt";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as mqtt5 from "./mqtt5";
+import * as utils from "../common/utils";
 import { CrtError } from "./error";
 
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
@@ -16,17 +17,6 @@ export const DEFAULT_CONNECT_TIMEOUT_MS : number = 30000;
 export const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
 export const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
 export const DEFAULT_MIN_CONNECTED_TIME_TO_RESET_RECONNECT_DELAY_MS : number = 30000;
-
-/** @internal */
-function set_defined_property(object: any, propertyName: string, value: any) : boolean {
-    if (value === undefined || value == null) {
-        return false;
-    }
-
-    object[propertyName] = value;
-
-    return true;
-}
 
 /** @internal */
 export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.IConnackPacket) : mqtt5.ConnackPacket {
@@ -40,21 +30,21 @@ export function transform_mqtt_js_connack_to_crt_connack(mqtt_js_connack: mqtt.I
         reasonCode : mqtt_js_connack.reasonCode ?? mqtt5.ConnectReasonCode.Success
     };
 
-    set_defined_property(connack, "sessionExpiryInterval", mqtt_js_connack.properties?.sessionExpiryInterval);
-    set_defined_property(connack, "receiveMaximum", mqtt_js_connack.properties?.receiveMaximum);
-    set_defined_property(connack, "maximumQos", mqtt_js_connack.properties?.maximumQoS);
-    set_defined_property(connack, "retainAvailable", mqtt_js_connack.properties?.retainAvailable);
-    set_defined_property(connack, "maximumPacketSize", mqtt_js_connack.properties?.maximumPacketSize);
-    set_defined_property(connack, "assignedClientIdentifier", mqtt_js_connack.properties?.assignedClientIdentifier);
-    set_defined_property(connack, "topicAliasMaximum", mqtt_js_connack.properties?.topicAliasMaximum);
-    set_defined_property(connack, "reasonString", mqtt_js_connack.properties?.reasonString);
-    set_defined_property(connack, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(mqtt_js_connack.properties?.userProperties));
-    set_defined_property(connack, "wildcardSubscriptionsAvailable", mqtt_js_connack.properties?.wildcardSubscriptionAvailable);
-    set_defined_property(connack, "subscriptionIdentifiersAvailable", mqtt_js_connack.properties?.subscriptionIdentifiersAvailable);
-    set_defined_property(connack, "sharedSubscriptionsAvailable", mqtt_js_connack.properties?.sharedSubscriptionAvailable);
-    set_defined_property(connack, "serverKeepAlive", mqtt_js_connack.properties?.serverKeepAlive);
-    set_defined_property(connack, "responseInformation", mqtt_js_connack.properties?.responseInformation);
-    set_defined_property(connack, "serverReference", mqtt_js_connack.properties?.serverReference);
+    utils.set_defined_property(connack, "sessionExpiryInterval", mqtt_js_connack.properties?.sessionExpiryInterval);
+    utils.set_defined_property(connack, "receiveMaximum", mqtt_js_connack.properties?.receiveMaximum);
+    utils.set_defined_property(connack, "maximumQos", mqtt_js_connack.properties?.maximumQoS);
+    utils.set_defined_property(connack, "retainAvailable", mqtt_js_connack.properties?.retainAvailable);
+    utils.set_defined_property(connack, "maximumPacketSize", mqtt_js_connack.properties?.maximumPacketSize);
+    utils.set_defined_property(connack, "assignedClientIdentifier", mqtt_js_connack.properties?.assignedClientIdentifier);
+    utils.set_defined_property(connack, "topicAliasMaximum", mqtt_js_connack.properties?.topicAliasMaximum);
+    utils.set_defined_property(connack, "reasonString", mqtt_js_connack.properties?.reasonString);
+    utils.set_defined_property(connack, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(mqtt_js_connack.properties?.userProperties));
+    utils.set_defined_property(connack, "wildcardSubscriptionsAvailable", mqtt_js_connack.properties?.wildcardSubscriptionAvailable);
+    utils.set_defined_property(connack, "subscriptionIdentifiersAvailable", mqtt_js_connack.properties?.subscriptionIdentifiersAvailable);
+    utils.set_defined_property(connack, "sharedSubscriptionsAvailable", mqtt_js_connack.properties?.sharedSubscriptionAvailable);
+    utils.set_defined_property(connack, "serverKeepAlive", mqtt_js_connack.properties?.serverKeepAlive);
+    utils.set_defined_property(connack, "responseInformation", mqtt_js_connack.properties?.responseInformation);
+    utils.set_defined_property(connack, "serverReference", mqtt_js_connack.properties?.serverReference);
 
     return connack;
 }
@@ -73,6 +63,8 @@ export function create_negotiated_settings(config : mqtt5.Mqtt5ClientConfig, con
         sessionExpiryInterval: connack.sessionExpiryInterval ?? config.connectProperties?.sessionExpiryIntervalSeconds ?? 0,
         receiveMaximumFromServer: connack.receiveMaximum ?? DEFAULT_RECEIVE_MAXIMUM,
         maximumPacketSizeToServer: connack.maximumPacketSize ?? MAXIMUM_PACKET_SIZE,
+        topicAliasMaximumToServer: Math.min(config.topicAliasingOptions?.outboundCacheMaxSize ?? 0, connack.topicAliasMaximum ?? 0),
+        topicAliasMaximumToClient: config.topicAliasingOptions?.inboundCacheMaxSize ?? 0,
         serverKeepAlive: connack.serverKeepAlive ?? config.connectProperties?.keepAliveIntervalSeconds ?? mqtt_shared.DEFAULT_KEEP_ALIVE,
         retainAvailable: connack.retainAvailable ?? true,
         wildcardSubscriptionsAvailable: connack.wildcardSubscriptionsAvailable ?? true,
@@ -93,15 +85,15 @@ function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5.ConnectP
 
     let hasWillProperties : boolean = false;
     let willProperties : any = {};
-    hasWillProperties = set_defined_property(willProperties, "willDelayInterval", connectProperties.willDelayIntervalSeconds) || hasWillProperties;
+    hasWillProperties = utils.set_defined_property(willProperties, "willDelayInterval", connectProperties.willDelayIntervalSeconds) || hasWillProperties;
     if (crtWill.payloadFormat !== undefined) {
-        hasWillProperties = set_defined_property(willProperties, "payloadFormatIndicator", crtWill.payloadFormat == mqtt5.PayloadFormatIndicator.Utf8) || hasWillProperties;
+        hasWillProperties = utils.set_defined_property(willProperties, "payloadFormatIndicator", crtWill.payloadFormat == mqtt5.PayloadFormatIndicator.Utf8) || hasWillProperties;
     }
-    hasWillProperties = set_defined_property(willProperties, "messageExpiryInterval", crtWill.messageExpiryIntervalSeconds) || hasWillProperties;
-    hasWillProperties = set_defined_property(willProperties, "contentType", crtWill.contentType) || hasWillProperties;
-    hasWillProperties = set_defined_property(willProperties, "responseTopic", crtWill.responseTopic) || hasWillProperties;
-    hasWillProperties = set_defined_property(willProperties, "correlationData", crtWill.correlationData) || hasWillProperties;
-    hasWillProperties = set_defined_property(willProperties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(crtWill.userProperties)) || hasWillProperties;
+    hasWillProperties = utils.set_defined_property(willProperties, "messageExpiryInterval", crtWill.messageExpiryIntervalSeconds) || hasWillProperties;
+    hasWillProperties = utils.set_defined_property(willProperties, "contentType", crtWill.contentType) || hasWillProperties;
+    hasWillProperties = utils.set_defined_property(willProperties, "responseTopic", crtWill.responseTopic) || hasWillProperties;
+    hasWillProperties = utils.set_defined_property(willProperties, "correlationData", crtWill.correlationData) || hasWillProperties;
+    hasWillProperties = utils.set_defined_property(willProperties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(crtWill.userProperties)) || hasWillProperties;
 
     let will : any = {
         topic: crtWill.topicName,
@@ -204,32 +196,52 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
         connectTimeout: crtConfig.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
         clean: should_mqtt_js_use_clean_start(crtConfig.sessionBehavior),
         reconnectPeriod: maxDelay,
-        queueQoSZero : false,
         // @ts-ignore
         autoUseTopicAlias : false,
         // @ts-ignore
         autoAssignTopicAlias : false,
+        queueQoSZero : false,
         transformWsUrl: undefined, /* TODO */
         resubscribe : false
     };
+
+    let topic_aliasing_options = crtConfig.topicAliasingOptions;
+    if (topic_aliasing_options) {
+        switch (topic_aliasing_options.outboundBehavior ?? mqtt5.OutboundTopicAliasBehaviorType.Default) {
+            case mqtt5.OutboundTopicAliasBehaviorType.LRU:
+                // @ts-ignore
+                mqttJsClientConfig.autoUseTopicAlias = true;
+                // @ts-ignore
+                mqttJsClientConfig.autoAssignTopicAlias = true;
+                break;
+
+            case mqtt5.OutboundTopicAliasBehaviorType.Manual:
+                // @ts-ignore
+                mqttJsClientConfig.autoUseTopicAlias = true;
+                break;
+
+            default:
+                break;
+        }
+    }
 
     /*
      * If you leave clientId undefined, mqtt-js will make up some weird thing for you, but the intent is that it
      * should pass the empty client id so that the server assigns you one.
      */
-    set_defined_property(mqttJsClientConfig, "clientId", crtConfig.connectProperties?.clientId ?? "");
-    set_defined_property(mqttJsClientConfig, "username", crtConfig.connectProperties?.username);
-    set_defined_property(mqttJsClientConfig, "password", crtConfig.connectProperties?.password);
-    set_defined_property(mqttJsClientConfig, "will", create_mqtt_js_will_from_crt_config(crtConfig.connectProperties));
+    utils.set_defined_property(mqttJsClientConfig, "clientId", crtConfig.connectProperties?.clientId ?? "");
+    utils.set_defined_property(mqttJsClientConfig, "username", crtConfig.connectProperties?.username);
+    utils.set_defined_property(mqttJsClientConfig, "password", crtConfig.connectProperties?.password);
+    utils.set_defined_property(mqttJsClientConfig, "will", create_mqtt_js_will_from_crt_config(crtConfig.connectProperties));
 
     let hasProperties : boolean = false;
     let properties: any = {};
-    hasProperties = set_defined_property(properties, "sessionExpiryInterval", crtConfig.connectProperties?.sessionExpiryIntervalSeconds) || hasProperties;
-    hasProperties = set_defined_property(properties, "receiveMaximum", crtConfig.connectProperties?.receiveMaximum) || hasProperties;
-    hasProperties = set_defined_property(properties, "maximumPacketSize", crtConfig.connectProperties?.maximumPacketSizeBytes) || hasProperties;
-    hasProperties = set_defined_property(properties, "requestResponseInformation", crtConfig.connectProperties?.requestResponseInformation) || hasProperties;
-    hasProperties = set_defined_property(properties, "requestProblemInformation", crtConfig.connectProperties?.requestProblemInformation) || hasProperties;
-    hasProperties = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(crtConfig.connectProperties?.userProperties)) || hasProperties;
+    hasProperties = utils.set_defined_property(properties, "sessionExpiryInterval", crtConfig.connectProperties?.sessionExpiryIntervalSeconds) || hasProperties;
+    hasProperties = utils.set_defined_property(properties, "receiveMaximum", crtConfig.connectProperties?.receiveMaximum) || hasProperties;
+    hasProperties = utils.set_defined_property(properties, "maximumPacketSize", crtConfig.connectProperties?.maximumPacketSizeBytes) || hasProperties;
+    hasProperties = utils.set_defined_property(properties, "requestResponseInformation", crtConfig.connectProperties?.requestResponseInformation) || hasProperties;
+    hasProperties = utils.set_defined_property(properties, "requestProblemInformation", crtConfig.connectProperties?.requestProblemInformation) || hasProperties;
+    hasProperties = utils.set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(crtConfig.connectProperties?.userProperties)) || hasProperties;
 
     if (hasProperties) {
         mqttJsClientConfig["properties"] = properties;
@@ -300,10 +312,10 @@ export function transform_crt_disconnect_to_mqtt_js_disconnect(disconnect: mqtt5
     let properties = {};
     let propertiesValid : boolean = false;
 
-    propertiesValid = set_defined_property(properties, "sessionExpiryInterval", disconnect.sessionExpiryIntervalSeconds) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "reasonString", disconnect.reasonString) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(disconnect.userProperties)) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "serverReference", disconnect.serverReference) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "sessionExpiryInterval", disconnect.sessionExpiryIntervalSeconds) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "reasonString", disconnect.reasonString) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(disconnect.userProperties)) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "serverReference", disconnect.serverReference) || propertiesValid;
 
     let mqttJsDisconnect : mqtt.IDisconnectPacket = {
         cmd: 'disconnect',
@@ -329,10 +341,10 @@ export function transform_mqtt_js_disconnect_to_crt_disconnect(disconnect: mqtt.
         reasonCode : disconnect.reasonCode ?? mqtt5.DisconnectReasonCode.NormalDisconnection
     };
 
-    set_defined_property(crtDisconnect, "sessionExpiryIntervalSeconds", disconnect.properties?.sessionExpiryInterval);
-    set_defined_property(crtDisconnect, "reasonString", disconnect.properties?.reasonString);
-    set_defined_property(crtDisconnect, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(disconnect.properties?.userProperties));
-    set_defined_property(crtDisconnect, "serverReference", disconnect.properties?.serverReference);
+    utils.set_defined_property(crtDisconnect, "sessionExpiryIntervalSeconds", disconnect.properties?.sessionExpiryInterval);
+    utils.set_defined_property(crtDisconnect, "reasonString", disconnect.properties?.reasonString);
+    utils.set_defined_property(crtDisconnect, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(disconnect.properties?.userProperties));
+    utils.set_defined_property(crtDisconnect, "serverReference", disconnect.properties?.serverReference);
 
     return crtDisconnect;
 }
@@ -375,8 +387,8 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
         throw new CrtError("transform_crt_subscribe_to_mqtt_js_subscribe_options: subscribe not defined");
     }
 
-    propertiesValid = set_defined_property(properties, "subscriptionIdentifier", subscribe.subscriptionIdentifier) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(subscribe.userProperties)) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "subscriptionIdentifier", subscribe.subscriptionIdentifier) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(subscribe.userProperties)) || propertiesValid;
 
     let options : mqtt.IClientSubscribeOptions = {
         qos: 0
@@ -428,13 +440,14 @@ export function transform_crt_publish_to_mqtt_js_publish_options(publish: mqtt5.
     let propertiesValid : boolean = false;
 
     if (publish.payloadFormat !== undefined) {
-        propertiesValid = set_defined_property(properties, "payloadFormatIndicator", publish.payloadFormat == mqtt5.PayloadFormatIndicator.Utf8) || propertiesValid;
+        propertiesValid = utils.set_defined_property(properties, "payloadFormatIndicator", publish.payloadFormat == mqtt5.PayloadFormatIndicator.Utf8) || propertiesValid;
     }
-    propertiesValid = set_defined_property(properties, "messageExpiryInterval", publish.messageExpiryIntervalSeconds) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "responseTopic", publish.responseTopic) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "correlationData", publish.correlationData) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(publish.userProperties)) || propertiesValid;
-    propertiesValid = set_defined_property(properties, "contentType", publish.contentType) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "messageExpiryInterval", publish.messageExpiryIntervalSeconds) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "responseTopic", publish.responseTopic) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "correlationData", publish.correlationData) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(publish.userProperties)) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "contentType", publish.contentType) || propertiesValid;
+    propertiesValid = utils.set_defined_property(properties, "topicAlias", publish.topicAlias) || propertiesValid;
 
     let mqttJsPublish : mqtt.IClientPublishOptions = {
         qos: publish.qos,
@@ -465,13 +478,13 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
 
     if (publish.properties) {
         if (publish.properties.payloadFormatIndicator !== undefined) {
-            set_defined_property(crtPublish, "payloadFormat", publish.properties.payloadFormatIndicator ? mqtt5.PayloadFormatIndicator.Utf8 : mqtt5.PayloadFormatIndicator.Bytes);
+            utils.set_defined_property(crtPublish, "payloadFormat", publish.properties.payloadFormatIndicator ? mqtt5.PayloadFormatIndicator.Utf8 : mqtt5.PayloadFormatIndicator.Bytes);
         }
-        set_defined_property(crtPublish, "messageExpiryIntervalSeconds", publish.properties?.messageExpiryInterval);
-        set_defined_property(crtPublish, "responseTopic", publish.properties?.responseTopic);
-        set_defined_property(crtPublish, "correlationData", publish.properties?.correlationData);
-        set_defined_property(crtPublish, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(publish.properties?.userProperties));
-        set_defined_property(crtPublish, "contentType", publish.properties?.contentType);
+        utils.set_defined_property(crtPublish, "messageExpiryIntervalSeconds", publish.properties?.messageExpiryInterval);
+        utils.set_defined_property(crtPublish, "responseTopic", publish.properties?.responseTopic);
+        utils.set_defined_property(crtPublish, "correlationData", publish.properties?.correlationData);
+        utils.set_defined_property(crtPublish, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(publish.properties?.userProperties));
+        utils.set_defined_property(crtPublish, "contentType", publish.properties?.contentType);
 
         let subIds : number | number[] | undefined = publish.properties?.subscriptionIdentifier;
         let subIdsType : string = typeof subIds;
@@ -500,8 +513,8 @@ export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacke
     };
 
     if (puback.properties) {
-        set_defined_property(crtPuback, "reasonString", puback.properties?.reasonString);
-        set_defined_property(crtPuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(puback.properties?.userProperties));
+        utils.set_defined_property(crtPuback, "reasonString", puback.properties?.reasonString);
+        utils.set_defined_property(crtPuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(puback.properties?.userProperties));
     }
 
     return crtPuback;
@@ -517,7 +530,7 @@ export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubsc
     let properties = {};
     let propertiesValid : boolean = false;
 
-    propertiesValid = set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(unsubscribe.userProperties));
+    propertiesValid = utils.set_defined_property(properties, "userProperties", transform_crt_user_properties_to_mqtt_js_user_properties(unsubscribe.userProperties));
 
     let options : any = {};
 
@@ -552,8 +565,8 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
     }
 
     if (packet.properties) {
-        set_defined_property(crtUnsuback, "reasonString", packet.properties?.reasonString);
-        set_defined_property(crtUnsuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(packet.properties?.userProperties));
+        utils.set_defined_property(crtUnsuback, "reasonString", packet.properties?.reasonString);
+        utils.set_defined_property(crtUnsuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(packet.properties?.userProperties));
     }
 
     return crtUnsuback;

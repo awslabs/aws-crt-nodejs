@@ -6,12 +6,6 @@
 /**
  * Node.js specific MQTT5 client implementation
  *
- * DEVELOPER PREVIEW DISCLAIMER
- *
- * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
- * preview window is especially valuable in shaping the final product.  During the preview period we may make
- * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
- *
  * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
  *
  * @packageDocumentation
@@ -210,6 +204,13 @@ export interface Mqtt5ClientConfig {
     ackTimeoutSeconds? : number;
 
     /**
+     * Additional controls for client behavior with respect to topic alias usage.
+     *
+     * If this setting is left undefined, then topic aliasing behavior will be disabled.
+     */
+    topicAliasingOptions? : mqtt5.TopicAliasingOptions
+
+    /**
      * Client bootstrap to use.  In almost all cases, this can be left undefined.
      *
      * @group Node-only
@@ -260,12 +261,6 @@ export interface Mqtt5ClientConfig {
 
 /**
  * Node.js specific MQTT5 client implementation
- *
- * DEVELOPER PREVIEW DISCLAIMER
- *
- * MQTT5 support is currently in **developer preview**.  We encourage feedback at all times, but feedback during the
- * preview window is especially valuable in shaping the final product.  During the preview period we may make
- * backwards-incompatible changes to the public API, but in general, this is something we will try our best to avoid.
  *
  * Not all parts of the MQTT5 spec are supported. We currently do not support:
  *
@@ -426,8 +421,18 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @group Node-only
      */
-    getQueueStatistics() : ClientStatistics {
+    getOperationalStatistics() : ClientStatistics {
         return crt_native.mqtt5_client_get_queue_statistics(this.native_handle());
+    }
+
+    /**
+     * Queries a small set of numerical statistics about the current state of the client's operation queue
+     * @deprecated use getOperationalStatistics instead
+     *
+     * @group Node-only
+     */
+    getQueueStatistics() : ClientStatistics {
+        return this.getOperationalStatistics();
     }
 
     /**
