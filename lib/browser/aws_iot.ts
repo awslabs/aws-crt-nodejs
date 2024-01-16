@@ -11,7 +11,7 @@
 
 import { CredentialsProvider, StaticCredentialProvider} from "./auth"
 import { SocketOptions } from "./io";
-import { MqttConnectionConfig, MqttWill } from "./mqtt";
+import { MqttClientConnection, MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
 import * as iot_shared from "../common/aws_iot_shared"
 

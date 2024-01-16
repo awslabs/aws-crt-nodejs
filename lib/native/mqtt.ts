@@ -102,7 +102,7 @@ export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => 
  */
 export class MqttClient extends NativeResource {
     /**
-     * @param bootstrap The {@link ClientBootstrap} to use for socket connections.  Leave undefined to use the
+     * @param bootstrap The {@link io.ClientBootstrap} to use for socket connections.  Leave undefined to use the
      *          default system-wide bootstrap (recommended).
      */
     constructor(readonly bootstrap: io.ClientBootstrap | undefined = undefined) {
