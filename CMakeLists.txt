@@ -87,17 +87,8 @@ file(GLOB AWS_CRT_SRC
 
 
 if(MSVC)
-	set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-  	set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
-	set(NODE_RUNTIME "electron")
-	set(NODE_RUNTIMEVERSION "18.16.0")
-	set(NODE_RUNTIME "x64")
-        message(STATUS "It's MSVC, enable win_delay_load_hook")
-        set(node_host_binary node)
-        set(WIN_DELAY_LOAD_HOOK "source/win_delay_load_hook.cc")
-        add_compile_definitions(HOST_BINARY=\"${node_host_binary}${CMAKE_EXECUTABLE_SUFFIX}\")
 	add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC} ${CMAKE_JS_SRC})
-        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DELAYLOAD:node.exe")
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DELAYLOAD:node.exe")
 else()
     add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
 endif()
@@ -120,18 +111,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         $<INSTALL_INTERFACE:include>
         ${CMAKE_JS_INC})
 
-add_definitions(
-    -DV8_COMPRESS_POINTERS
-    -DV8_REVERSE_JSARGS
-    -DV8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-)
-
 aws_use_package(aws-c-http REQUIRED)
 aws_use_package(aws-c-mqtt REQUIRED)
 aws_use_package(aws-c-auth REQUIRED)
 aws_use_package(aws-checksums REQUIRED)
 aws_use_package(aws-c-event-stream REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS} msvcprt.lib msvcrt.lib vcruntime.lib ucrt.lib )
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} ${DEP_AWS_LIBS} )
 
 
 set(destination bin/${CMAKE_JS_PLATFORM}-${NODE_ARCH}-${AWS_C_RUNTIME})

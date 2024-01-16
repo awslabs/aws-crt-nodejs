@@ -56,5 +56,8 @@
     "crypto-js": "^4.2.0",
     "mqtt": "^4.3.7",
     "process": "^0.11.10"
+  },
+  "binary":{
+    "napi_version": 9
   }
 }
