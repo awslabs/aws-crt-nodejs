@@ -9,7 +9,7 @@
  * @packageDocumentation
  */
 
-import { MqttConnectionConfig, MqttWill} from "./mqtt";
+import { MqttClientConnection, MqttConnectionConfig, MqttWill} from "./mqtt";
 import { DEFAULT_RECONNECT_MIN_SEC, DEFAULT_RECONNECT_MAX_SEC} from "../common/mqtt"
 import * as io from "./io";
 import { TlsContextOptions } from "./io";
