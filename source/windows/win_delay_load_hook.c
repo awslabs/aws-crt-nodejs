@@ -18,7 +18,12 @@
 #    include <windows.h>
 
 /* keep the space to prevent formatters from reordering this with the Windows.h header. */
+
+/* Temporary disable the warning 4201 for nameless struct/union. delayimp.h uses nameless struct. */
+#    pragma warning(push)
+#    pragma warning(disable : 4201)
 #    include <delayimp.h>
+#    pragma warning(pop)
 #    include <string.h>
 
 FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli) {
