@@ -85,8 +85,17 @@ file(GLOB AWS_CRT_SRC
        "source/*.c"
 )
 
-add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
-aws_set_common_properties(${PROJECT_NAME})
+
+if(MSVC)
+    message(STATUS "It's MSVC, enable win_delay_load_hook on windows")
+    # CMAKE_JS provided the windows delay load hook in c++, set the file to use c++
+    set_source_files_properties(${CMAKE_JS_SRC} PROPERTIES LANGUAGE CXX )
+    add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC} ${CMAKE_JS_SRC})
+else()
+    add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
+endif()
+
+    aws_set_common_properties(${PROJECT_NAME})
 aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
 aws_add_sanitizers(${PROJECT_NAME})
 aws_split_debug_info(${PROJECT_NAME})
