@@ -87,10 +87,11 @@ file(GLOB AWS_CRT_SRC
 
 
 if(MSVC)
+    file(GLOB AWS_WINDOWS_SRC
+        "source/windows/*.c"
+    )
     message(STATUS "It's MSVC, enable win_delay_load_hook on windows")
-    # CMAKE_JS provided the windows delay load hook in c++, set the file to use c++
-    set_source_files_properties(${CMAKE_JS_SRC} PROPERTIES LANGUAGE CXX )
-    add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC} ${CMAKE_JS_SRC})
+    add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC} ${AWS_WINDOWS_SRC})
 else()
     add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
 endif()
