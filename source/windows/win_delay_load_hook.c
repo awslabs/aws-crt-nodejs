@@ -15,10 +15,11 @@
 #    ifndef WIN32_LEAN_AND_MEAN
 #        define WIN32_LEAN_AND_MEAN
 #    endif
+#    include <windows.h>
 
+/* keep the space to prevent formatters from reordering this with the Windows.h header. */
 #    include <delayimp.h>
 #    include <string.h>
-#    include <windows.h>
 
 FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli) {
     switch (dliNotify) {
