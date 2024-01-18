@@ -95,7 +95,7 @@ else()
     add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
 endif()
 
-    aws_set_common_properties(${PROJECT_NAME})
+aws_set_common_properties(${PROJECT_NAME})
 aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
 aws_add_sanitizers(${PROJECT_NAME})
 aws_split_debug_info(${PROJECT_NAME})
