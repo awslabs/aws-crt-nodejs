@@ -14,7 +14,7 @@ var client :mqtt5.Mqtt5Client | null;
 var qos0_topic = "test/topic/qos0";
 var qos1_topic = "test/topic/qos1";
 
-function createWindow () {
+async function createWindow () {
   win = new BrowserWindow({
     width: 800,
     height: 600,
@@ -24,6 +24,10 @@ function createWindow () {
   })
 
   win.loadFile('./index.html');
+
+  await PubSub5MtlsStart();
+  await PubSub5Stop();
+  app.quit();
 }
 
 app.whenReady().then(() => {
@@ -56,6 +60,7 @@ function console_render_log(msg: string)
   try
   {
     win?.webContents?.send('log', msg)
+    console.log(msg);
   }
   catch(error)
   {
