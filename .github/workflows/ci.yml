@@ -120,7 +120,7 @@ jobs:
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
     - name: run PubSub sample
       run: |
-        cd samples/node/pub_sub_electron_node
+        cd aws-crt-nodejs/samples/node/pub_sub_electron_node
         npm install .
         npm run build
         npm start
