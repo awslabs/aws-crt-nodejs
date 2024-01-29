@@ -55,7 +55,7 @@
 #    include <ctype.h>
 
 int strCaseInsensitiveCmp(char const *a, char const *b) {
-    int d = 0;
+    int d = 0, ca = '\0';
     do {
         int ca = (unsigned char)*a++;
         int cb = (unsigned char)*b++;
