@@ -52,7 +52,7 @@
 #    pragma warning(disable : 4201)
 #    include <delayimp.h>
 #    pragma warning(pop)
-#    include <string.h>
+#    include <ctype.h>
 
 int strCaseInsensitiveCmp(char const *a, char const *b) {
     int d = 0;
