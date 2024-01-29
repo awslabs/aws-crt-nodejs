@@ -38,7 +38,6 @@
 ** OTHER DEALINGS IN THE SOFTWARE.
 */
 
-
 #ifdef _MSC_VER
 
 #    ifndef WIN32_LEAN_AND_MEAN
@@ -55,17 +54,15 @@
 #    pragma warning(pop)
 #    include <string.h>
 
-int strCaseInsensitiveCmp(char const *a, char const *b)
-{
+int strCaseInsensitiveCmp(char const *a, char const *b) {
     int d = 0;
     do {
-        ca = (unsigned char) *a++;
-        cb = (unsigned char) *b++;
+        ca = (unsigned char)*a++;
+        cb = (unsigned char)*b++;
         d = tolower(ca) - tolower(cb);
-    }while(d!=0 && ca != '\0')
+    } while (d != 0 && ca != '\0');
     return d;
 }
-
 
 FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli) {
     switch (dliNotify) {
