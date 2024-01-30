@@ -139,6 +139,17 @@ jobs:
       run: |
         cd aws-crt-nodejs
         node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
+    - name: configure AWS credentials (PubSub)
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ env.CI_PUBSUB_ROLE }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+    - name: run PubSub sample
+      run: |
+        cd aws-crt-nodejs/samples/node/pub_sub_electron_node
+        npm install .
+        npm run build
+        npm start
 
   osx:
     runs-on: macos-12 # latest
