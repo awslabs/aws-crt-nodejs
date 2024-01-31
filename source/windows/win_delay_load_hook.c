@@ -45,8 +45,8 @@
 #    endif
 #    include <windows.h>
 
+/* 2024/01/30 Modified by Amazon - Begin */
 /* keep the space to prevent formatters from reordering this with the Windows.h header. */
-
 /* Temporary disable the warning 4201 for nameless struct/union. delayimp.h uses nameless struct. */
 #    pragma warning(push)
 #    pragma warning(disable : 4201)
@@ -64,7 +64,15 @@ int strCaseInsensitiveCmp(char const *a, char const *b) {
     return d;
 }
 
-FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli) {
+/* 2024/01/30 Modified by Amazon - End */
+
+
+FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
+
+    /* 2024/01/30 Modified by Amazon - Begin
+     * The function is modifed based on microsoft sample hook function
+     * https://learn.microsoft.com/en-us/cpp/build/reference/understanding-the-helper-function?view=msvc-170#sample-hook-function
+    */
     switch (dliNotify) {
         case dliNotePreLoadLibrary:
 
@@ -97,8 +105,9 @@ FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli) {
         default:
             return NULL;
     }
+    /* 2024/01/30 Modified by Amazon - End */
 }
 
-ExternC const PfnDliHook __pfnDliNotifyHook2 = delayHook;
+ExternC const PfnDliHook __pfnDliNotifyHook2 = load_exe_hook;
 
 #endif
