@@ -66,13 +66,13 @@ int strCaseInsensitiveCmp(char const *a, char const *b) {
 
 /* 2024/01/30 Modified by Amazon - End */
 
-
 FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
 
-    /* 2024/01/30 Modified by Amazon - Begin
+    /*
+     * 2024/01/30 Modified by Amazon - Begin
      * The function is modifed based on microsoft sample hook function
      * https://learn.microsoft.com/en-us/cpp/build/reference/understanding-the-helper-function?view=msvc-170#sample-hook-function
-    */
+     */
     switch (dliNotify) {
         case dliNotePreLoadLibrary:
 
