@@ -54,16 +54,6 @@
 #    pragma warning(pop)
 #    include <ctype.h>
 
-int strCaseInsensitiveCmp(char const *a, char const *b) {
-    int d = 0, ca = '\0';
-    do {
-        ca = (unsigned char)*a++;
-        int cb = (unsigned char)*b++;
-        d = tolower(ca) - tolower(cb);
-    } while (d != 0 && ca != '\0');
-    return d;
-}
-
 /* 2024/01/30 Modified by Amazon - End */
 
 FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
