@@ -54,8 +54,8 @@
 #    pragma warning(pop)
 #    include <ctype.h>
 
-#define NODE_EXECUTABLE "node.exe"
-#define LENGTH_OF_NODE_EXECUTABLE 8
+#    define NODE_EXECUTABLE "node.exe"
+#    define LENGTH_OF_NODE_EXECUTABLE 8
 /* 2024/01/30 Modified by Amazon - End */
 
 FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
