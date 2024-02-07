@@ -54,6 +54,8 @@
 #    pragma warning(pop)
 #    include <ctype.h>
 
+#define NODE_EXECUTABLE "node.exe"
+#define LENGTH_OF_NODE_EXECUTABLE 8
 /* 2024/01/30 Modified by Amazon - End */
 
 FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
@@ -69,7 +71,7 @@ FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
             // If you want to return control to the helper, return 0.
             // Otherwise, return your own HMODULE to be used by the
             // helper instead of having it call LoadLibrary itself.
-            if (strnicmp(pdli->szDll, "node.exe") != 0) {
+            if (strnicmp(pdli->szDll, NODE_EXECUTABLE, LENGTH_OF_NODE_EXECUTABLE) != 0) {
                 // return control if we are not loading node.exe
                 return NULL;
             }
