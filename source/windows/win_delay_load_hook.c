@@ -71,7 +71,7 @@ FARPROC WINAPI load_exe_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
             // If you want to return control to the helper, return 0.
             // Otherwise, return your own HMODULE to be used by the
             // helper instead of having it call LoadLibrary itself.
-            if (strnicmp(pdli->szDll, NODE_EXECUTABLE, LENGTH_OF_NODE_EXECUTABLE) != 0) {
+            if (_strnicmp(pdli->szDll, NODE_EXECUTABLE, LENGTH_OF_NODE_EXECUTABLE) != 0) {
                 // return control if we are not loading node.exe
                 return NULL;
             }
