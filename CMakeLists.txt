@@ -85,7 +85,17 @@ file(GLOB AWS_CRT_SRC
        "source/*.c"
 )
 
-add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
+
+if(MSVC)
+    file(GLOB AWS_WINDOWS_SRC
+        "source/windows/*.c"
+    )
+    message(STATUS "It's MSVC, enable win_delay_load_hook on windows")
+    add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC} ${AWS_WINDOWS_SRC})
+else()
+    add_library(${PROJECT_NAME} SHARED ${AWS_CRT_SRC})
+endif()
+
 aws_set_common_properties(${PROJECT_NAME})
 aws_prepare_symbol_visibility_args(${PROJECT_NAME} "AWS_CRT_NODEJS")
 aws_add_sanitizers(${PROJECT_NAME})
