@@ -226,10 +226,10 @@ export function create_mqtt_js_client_config_from_crt_client_config(crtConfig : 
     }
 
     /*
-     * If you leave clientId undefined, mqtt-js will make up some weird thing for you, but the intent is that it
-     * should pass the empty client id so that the server assigns you one.
+     * MQTT.js treats an undefined client id specially, and we want it to do so, otherwise it will refuse
+     * to connect with clean session false
      */
-    utils.set_defined_property(mqttJsClientConfig, "clientId", crtConfig.connectProperties?.clientId ?? "");
+    utils.set_defined_property(mqttJsClientConfig, "clientId", crtConfig.connectProperties?.clientId);
     utils.set_defined_property(mqttJsClientConfig, "username", crtConfig.connectProperties?.username);
     utils.set_defined_property(mqttJsClientConfig, "password", crtConfig.connectProperties?.password);
     utils.set_defined_property(mqttJsClientConfig, "will", create_mqtt_js_will_from_crt_config(crtConfig.connectProperties));
