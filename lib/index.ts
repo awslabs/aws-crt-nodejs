@@ -22,6 +22,7 @@ import * as io from './native/io';
 import * as iot from './native/iot';
 import * as mqtt from './native/mqtt';
 import * as mqtt5 from './native/mqtt5';
+import * as mqtt_request_response from './native/mqtt_request_response';
 import { ICrtError, CrtError } from './native/error';
 
 export {
@@ -36,6 +37,7 @@ export {
     iot,
     mqtt,
     mqtt5,
+    mqtt_request_response,
     platform,
     promise,
     resource_safety,
