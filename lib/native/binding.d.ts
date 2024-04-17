@@ -19,6 +19,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
+import { RequestResponseClient, RequestResponseClientOptions, StreamingOperation, StreamingOperationOptions } from './mqtt_request_response';
 
 
 /**
@@ -142,6 +143,38 @@ export function hmac_sha256_compute(secret: StringLike, data: StringLike, trunca
 export function checksums_crc32(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc32c(data: StringLike, previous?: number): number;
+
+/* MQTT Request-Response Client */
+
+/** @internal */
+export function mqtt_request_response_client_new_from_5(
+    client: RequestResponseClient,
+    protocolClient: NativeHandle,
+    options: RequestResponseClientOptions
+): NativeHandle;
+
+/** @internal */
+export function mqtt_request_response_client_new_from_311(
+    client: RequestResponseClient,
+    protocolClient: NativeHandle,
+    options: RequestResponseClientOptions
+): NativeHandle;
+
+/** @internal */
+export function mqtt_request_response_client_close(client: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_streaming_operation_new(
+    operation: StreamingOperation,
+    options: StreamingOperationOptions,
+    client: NativeHandle
+): NativeHandle;
+
+/** @internal */
+export function mqtt_streaming_operation_open(operation: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_streaming_operation_close(operation: NativeHandle) : void;
 
 /* MQTT5 Client */
 

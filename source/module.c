@@ -17,6 +17,7 @@
 #include "mqtt5_client.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
+#include "mqtt_request_response.h"
 
 #include <aws/cal/cal.h>
 
@@ -1367,6 +1368,13 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(io_input_stream_append)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_new)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_close)
+
+    /* MQTT Request Response */
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_new_from_5)
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_new_from_311)
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_close)
+    CREATE_AND_REGISTER_FN(mqtt_streaming_operation_open)
+    CREATE_AND_REGISTER_FN(mqtt_streaming_operation_close)
 
     /* MQTT5 Client */
     CREATE_AND_REGISTER_FN(mqtt5_client_new)

@@ -154,17 +154,20 @@ export interface StreamingOperationOptions {
 }
 
 /**
- *
+ * Shared interface for an AWS MQTT service streaming operation.  A streaming operation listens to messages on
+ * a particular topic, deserializes them using a service model, and emits the modeled data as Javascript events.
  */
 export interface IStreamingOperation {
 
     /**
-     *
+     * Triggers the streaming operation to start listening to the configured stream of events.  It is an error
+     * to open a streaming operation more than once.  You cannot re-open a closed streaming operation.
      */
     open() : void;
 
     /**
-     *
+     * Stops a streaming operation from listening to the configured stream of events.  It is an error to attempt to
+     * use the stream for anything further after calling close().
      */
     close(): void;
 }
@@ -191,18 +194,27 @@ export interface RequestResponseClientOptions {
 }
 
 /**
+ * Shared interface for MQTT-based request-response clients tuned for AWS MQTT services.
  *
+ * Supports streaming operations (listen to a stream of modeled events from an MQTT topic) and request-response
+ * operations (performs the subscribes, publish, and incoming publish correlation and error checking needed to
+ * perform simple request-response operations over MQTT).
  */
 export interface IRequestResponseClient {
 
     /**
+     * Shuts down the request-response client.  Closing a client will fail all incomplete requests and close all
+     * outstanding streaming operations.
      *
+     * It is not valid to invoke any further operations on the client after close() has been called.
      */
     close(): void;
 
     /**
+     * Creates a new streaming operation from a set of configuration options.  A streaming operation provides a
+     * mechanism for listening to a specific event stream from an AWS MQTT-based service.
      *
-     * @param streamOptions
+     * @param streamOptions configuration options for the streaming operation
      *
      * browser/node implementers are covariant by returning an implementation of IStreamingOperation.  This split
      * is necessary because event listening (which streaming operations need) cannot be modeled on an interface.
