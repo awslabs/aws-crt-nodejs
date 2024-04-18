@@ -50,6 +50,11 @@ struct mqtt_connection_binding {
     bool first_successfull_connection;
 };
 
+struct aws_mqtt_client_connection *aws_napi_get_mqtt_client_connection_from_binding(
+    struct mqtt_connection_binding *binding) {
+    return binding->connection;
+}
+
 static void s_mqtt_client_connection_release_threadsafe_function_on_failure(struct mqtt_connection_binding *binding) {
 
     if (binding->on_connection_failure != NULL) {

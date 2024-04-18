@@ -21,10 +21,12 @@ import {
     mqtt_request_response_client_close,
     mqtt_request_response_client_new_from_311,
     mqtt_request_response_client_new_from_5,
+    mqtt_request_response_client_submit_request,
     mqtt_streaming_operation_close,
     mqtt_streaming_operation_new,
     mqtt_streaming_operation_open
 } from "./binding";
+import { error_code_to_string } from "./io";
 
 export * from "../common/mqtt_request_response";
 
@@ -196,7 +198,27 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
         }
 
         return new Promise<mqtt_request_response.Response>((resolve, reject) => {
-            reject(new CrtError("NYI"));
+            function curriedPromiseCallback(errorCode: number, topic?: string, response?: ArrayBuffer){
+                return RequestResponseClient._s_on_request_completion(resolve, reject, errorCode, topic, response);
+            }
+
+            try {
+                mqtt_request_response_client_submit_request(this.native_handle(), requestOptions, curriedPromiseCallback);
+            } catch (e) {
+                reject(e);
+            }
         });
+    }
+
+    private static _s_on_request_completion(resolve : (value: (mqtt_request_response.Response | PromiseLike<mqtt_request_response.Response>)) => void, reject : (reason?: any) => void, errorCode: number, topic?: string, payload?: ArrayBuffer) {
+        if (errorCode == 0 && topic !== undefined && payload !== undefined) {
+            let response : mqtt_request_response.Response = {
+                payload : payload,
+                topic: topic,
+            }
+            resolve(response);
+        } else {
+            reject(error_code_to_string(errorCode));
+        }
     }
 }

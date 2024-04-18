@@ -20,6 +20,7 @@ import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
 import { RequestResponseClient, RequestResponseClientOptions, StreamingOperation, StreamingOperationOptions } from './mqtt_request_response';
+import * as mqtt_request_response from "../common/mqtt_request_response";
 
 
 /**
@@ -162,6 +163,9 @@ export function mqtt_request_response_client_new_from_311(
 
 /** @internal */
 export function mqtt_request_response_client_close(client: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_request_response_client_submit_request(client: NativeHandle, request_options: mqtt_request_response.RequestResponseOperationOptions, on_completion: (errorCode: number, topic?: string, response?: ArrayBuffer) => void) : void;
 
 /** @internal */
 export function mqtt_streaming_operation_new(

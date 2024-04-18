@@ -381,4 +381,29 @@ struct aws_napi_context {
         binding_name->function_name = NULL;                                                                            \
     }
 
+#define EXTRACT_REQUIRED_NAPI_PROPERTY(property_name, function_name, call_expression, success_block, void_handle)      \
+    {                                                                                                                  \
+        enum aws_napi_get_named_property_result gpr = call_expression;                                                 \
+        if (gpr == AWS_NGNPR_VALID_VALUE) {                                                                            \
+            success_block;                                                                                             \
+        } else if (gpr == AWS_NGNPR_INVALID_VALUE) {                                                                   \
+            AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "id=%p %s - %s: %s", ((void *)void_handle), function_name, "invalid value for property", property_name); \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        } else {                                                                                                       \
+            AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "id=%p %s - %s: %s", ((void *)void_handle), function_name, "failed to extract required property", property_name); \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        }                                                                                                              \
+    }
+
+#define EXTRACT_OPTIONAL_NAPI_PROPERTY(property_name, function_name, call_expression, success_block, void_handle)                   \
+    {                                                                                                                  \
+        enum aws_napi_get_named_property_result gpr = call_expression;                                                 \
+        if (gpr == AWS_NGNPR_VALID_VALUE) {                                                                            \
+            success_block;                                                                                             \
+        } else if (gpr == AWS_NGNPR_INVALID_VALUE) {                                                                   \
+                AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "id=%p %s - %s: %s", ((void *)void_handle), function_name, "invalid value for property", property_name); \
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);                                                        \
+        }                                                                                                              \
+    }
+
 #endif /* AWS_CRT_NODEJS_MODULE_H */

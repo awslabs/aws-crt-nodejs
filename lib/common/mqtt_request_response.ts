@@ -11,8 +11,8 @@ import {ICrtError} from "./error";
  */
 
 export type RequestPayload = string;
-export type ResponsePayload = Buffer;
-export type StreamingPayload = Buffer;
+export type ResponsePayload = ArrayBuffer;
+export type StreamingPayload = ArrayBuffer;
 
 /**
  * The type of change to the state of a streaming operation subscription

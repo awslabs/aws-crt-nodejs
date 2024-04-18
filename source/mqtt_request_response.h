@@ -20,4 +20,6 @@ napi_value aws_napi_mqtt_streaming_operation_open(napi_env env, napi_callback_in
 
 napi_value aws_napi_mqtt_streaming_operation_close(napi_env env, napi_callback_info info);
 
+napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, napi_callback_info info);
+
 #endif /* AWS_CRT_NODEJS_MQTT_REQUEST_RESPONSE_H */

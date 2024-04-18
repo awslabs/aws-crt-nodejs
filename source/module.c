@@ -1373,6 +1373,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(mqtt_request_response_client_new_from_5)
     CREATE_AND_REGISTER_FN(mqtt_request_response_client_new_from_311)
     CREATE_AND_REGISTER_FN(mqtt_request_response_client_close)
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_submit_request)
     CREATE_AND_REGISTER_FN(mqtt_streaming_operation_open)
     CREATE_AND_REGISTER_FN(mqtt_streaming_operation_close)
 
