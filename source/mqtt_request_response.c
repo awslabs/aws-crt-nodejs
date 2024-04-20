@@ -374,6 +374,10 @@ napi_value aws_napi_mqtt_request_response_client_close(napi_env env, napi_callba
     return NULL;
 }
 
+/*
+ * request-response binding that lives from the time a request is made until the request has been completed
+ * on the libuv thread.
+ */
 struct aws_napi_mqtt_request_binding {
     struct aws_allocator *allocator;
 
@@ -392,6 +396,12 @@ static void s_aws_napi_mqtt_request_binding_destroy(struct aws_napi_mqtt_request
     AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_completion);
 
     aws_byte_buf_clean_up(&binding->topic);
+
+    /*
+     * Under normal circumstances the payload is attached to an external and nulled out in the binding.  This
+     * handles the case where something goes wrong with the threadsafe function invoke, forcing us to clean up the
+     * payload ourselves.
+     */
     if (binding->payload) {
         aws_byte_buf_clean_up(binding->payload);
         aws_mem_release(binding->allocator, binding->payload);
@@ -421,8 +431,10 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
         napi_value params[3];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
+        // Arg 1: the error code
         AWS_NAPI_CALL(env, napi_create_uint32(env, binding->error_code, &params[0]), { goto done; });
 
+        // Arg 2: the topic or null on an error
         if (binding->topic.len > 0) {
             struct aws_byte_cursor topic_cursor = aws_byte_cursor_from_buf(&binding->topic);
             AWS_NAPI_CALL(
@@ -436,6 +448,7 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
             }
         }
 
+        // Arg 3: the payload or null on an error
         if (binding->payload != NULL) {
             AWS_NAPI_ENSURE(
                 env,
@@ -453,6 +466,10 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
             }
         }
 
+        /*
+         * If we reach here then the payload (if it exists) is now owned by the external arraybuffer value.
+         * Nulling the member here prevents a double-free from the extern finalizer and the binding destructor.
+         */
         binding->payload = NULL;
 
         AWS_NAPI_ENSURE(
@@ -487,6 +504,9 @@ static void s_on_request_complete(
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_completion, binding));
 }
 
+/*
+ * Temporary storage of napi binary/string data needed for request submission.
+ */
 struct aws_mqtt_request_response_storage {
     struct aws_mqtt_request_operation_options options;
 
@@ -503,6 +523,10 @@ static void s_cleanup_request_storage(struct aws_mqtt_request_response_storage *
     aws_byte_buf_clean_up(&storage->storage);
 }
 
+/*
+ * We initialize storage in two phases.  The first phase computes how much memory we need to allocate to stora all the
+ * data.  This structure tracks those numbers.
+ */
 struct aws_mqtt_request_response_storage_properties {
     size_t bytes_needed;
     size_t subscription_topic_filter_count;
@@ -516,6 +540,7 @@ static int s_compute_request_response_storage_properties(
     struct aws_mqtt_request_response_storage_properties *storage_properties) {
     AWS_ZERO_STRUCT(*storage_properties);
 
+    //  Step 1 - figure out how many subscription topic filters there are
     napi_value node_subscription_topic_filters = NULL;
     if (aws_napi_get_named_property(
             env, options, AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTERS, napi_object, &node_subscription_topic_filters) !=
@@ -546,6 +571,7 @@ static int s_compute_request_response_storage_properties(
 
     storage_properties->subscription_topic_filter_count = subscription_filter_count;
 
+    //  Step 2 - figure out how many response paths there are
     napi_value node_response_paths = NULL;
     if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_RESPONSE_PATHS, napi_object, &node_response_paths) !=
         AWS_NGNPR_VALID_VALUE) {
@@ -575,6 +601,8 @@ static int s_compute_request_response_storage_properties(
 
     storage_properties->response_path_count = response_path_count;
 
+    // Step 3 - Go through all the subscriptiojn topic filters, response paths, and options fields and add up
+    // the lengths of all the string and binary data fields.
     for (size_t i = 0; i < subscription_filter_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
@@ -724,6 +752,7 @@ static int s_initialize_request_storage_from_napi_options(
     AWS_ZERO_STRUCT(storage_properties);
 
     if (s_compute_request_response_storage_properties(env, options, log_context, &storage_properties)) {
+        // all failure paths in that function log the reason for failure already
         return AWS_OP_ERR;
     }
 
