@@ -20,8 +20,6 @@ static const char *AWS_NAPI_KEY_PAYLOAD = "payload";
 static const char *AWS_NAPI_KEY_CORRELATION_TOKEN = "correlationToken";
 static const char *AWS_NAPI_KEY_TOPIC = "topic";
 static const char *AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH = "correlationTokenJsonPath";
-static const char *AWS_NAPI_KEY_PUBLISH_TOPIC = "publishTopic";
-static const char *AWS_NAPI_KEY_CORRELATION_TOKEN = "correlationToken";
 
 struct aws_mqtt_request_response_client_binding {
     struct aws_allocator *allocator;
@@ -396,7 +394,7 @@ static void s_aws_napi_mqtt_request_binding_destroy(struct aws_napi_mqtt_request
     aws_byte_buf_clean_up(&binding->topic);
     if (binding->payload) {
         aws_byte_buf_clean_up(binding->payload);
-        aws_mem_release(allocator, binding->payload);
+        aws_mem_release(binding->allocator, binding->payload);
     }
 
     aws_mem_release(binding->allocator, binding);
@@ -443,8 +441,8 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
                 env,
                 aws_napi_create_external_arraybuffer(
                     env,
-                    binding->payload.buffer,
-                    binding->payload.len,
+                    binding->payload->buffer,
+                    binding->payload->len,
                     s_request_complete_external_arraybuffer_finalizer,
                     binding->payload,
                     &params[2]));
@@ -476,10 +474,12 @@ static void s_on_request_complete(
     struct aws_napi_mqtt_request_binding *binding = user_data;
 
     if (error_code == AWS_ERROR_SUCCESS) {
-        aws_byte_buf_init_copy_from_cursor(&binding->topic, response_topic);
+        AWS_FATAL_ASSERT(response_topic != NULL && payload != NULL);
+
+        aws_byte_buf_init_copy_from_cursor(&binding->topic, binding->allocator, *response_topic);
 
         binding->payload = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
-        aws_byte_buf_init_copy_from_cursor(binding->payload, payload);
+        aws_byte_buf_init_copy_from_cursor(binding->payload, binding->allocator, *payload);
     } else {
         binding->error_code = error_code;
     }
@@ -546,8 +546,8 @@ static int s_compute_request_response_storage_properties(
 
     storage_properties->subscription_topic_filter_count = subscription_filter_count;
 
-    napi_value response_paths = NULL;
-    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_RESPONSE_PATHS, napi_object, &response_paths) !=
+    napi_value node_response_paths = NULL;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_RESPONSE_PATHS, napi_object, &node_response_paths) !=
         AWS_NGNPR_VALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
@@ -556,7 +556,7 @@ static int s_compute_request_response_storage_properties(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    if (aws_napi_is_null_or_undefined(env, response_paths)) {
+    if (aws_napi_is_null_or_undefined(env, node_response_paths)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_compute_request_response_storage_properties - null response paths",
@@ -565,7 +565,7 @@ static int s_compute_request_response_storage_properties(
     }
 
     uint32_t response_path_count = 0;
-    AWS_NAPI_CALL(env, napi_get_array_length(env, response_paths, &response_path_count), {
+    AWS_NAPI_CALL(env, napi_get_array_length(env, node_response_paths, &response_path_count), {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_compute_request_response_storage_properties - response paths is not an array",
@@ -630,8 +630,11 @@ static int s_compute_request_response_storage_properties(
 
         napi_value node_correlation_token_json_path;
         if (aws_napi_get_named_property(
-                env, array_element, AWS_NAPI_CORRELATION_TOKEN_JSON_PATH, napi_string, &node_topic) ==
-            AWS_NGNPR_VALID_VALUE) {
+                env,
+                array_element,
+                AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH,
+                napi_string,
+                &node_correlation_token_json_path) == AWS_NGNPR_VALID_VALUE) {
             size_t json_path_length = 0;
             if (aws_napi_value_get_storage_length(env, node_correlation_token_json_path, &json_path_length)) {
                 AWS_LOGF_ERROR(
@@ -867,7 +870,7 @@ static int s_initialize_request_storage_from_napi_options(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    if (aws_napi_value_bytebuf_append(env, node_publish_topic, &storage->storage, &storage.options.publish_topic)) {
+    if (aws_napi_value_bytebuf_append(env, node_publish_topic, &storage->storage, &storage->options.publish_topic)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_initialize_request_storage_from_napi_options - failed append publish topic",
@@ -885,7 +888,7 @@ static int s_initialize_request_storage_from_napi_options(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage.options.serialized_request)) {
+    if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage->options.serialized_request)) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
             "id=%p s_initialize_request_storage_from_napi_options - failed append payload",
@@ -897,7 +900,7 @@ static int s_initialize_request_storage_from_napi_options(
     if (aws_napi_get_named_property(
             env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token) ==
         AWS_NGNPR_VALID_VALUE) {
-        if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage.options.correlation_token)) {
+        if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage->options.correlation_token)) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_initialize_request_storage_from_napi_options - failed to append correlation token",
@@ -906,7 +909,7 @@ static int s_initialize_request_storage_from_napi_options(
         }
     }
 
-    AWS_FATAL_ASSERT(&storage->storage->capacity == &storage->storage->len + 1);
+    AWS_FATAL_ASSERT(&storage->storage.capacity == &storage->storage.len + 1);
 
     return AWS_OP_SUCCESS;
 }
@@ -940,7 +943,7 @@ napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, na
 
     napi_value *arg = &node_args[0];
     napi_value node_binding = *arg++;
-    struct mqtt_request_response_client_binding *client_binding = NULL;
+    struct aws_mqtt_request_response_client_binding *client_binding = NULL;
     AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&client_binding), {
         napi_throw_error(
             env,
@@ -983,10 +986,10 @@ napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, na
         goto done;
     }
 
-    storage.options.completion_callback = s_on_request_complete;
-    storage.options.user_data = request_binding;
+    request_storage.options.completion_callback = s_on_request_complete;
+    request_storage.options.user_data = request_binding;
 
-    result = aws_mqtt_request_response_client_submit_request(client_binding->client, &storage.options);
+    result = aws_mqtt_request_response_client_submit_request(client_binding->client, &request_storage.options);
     if (result == AWS_OP_ERR) {
         napi_throw_error(
             env,

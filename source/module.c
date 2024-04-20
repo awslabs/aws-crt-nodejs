@@ -743,15 +743,15 @@ int aws_napi_value_bytebuf_append(
     AWS_NAPI_CALL(env, napi_typeof(env, value, &type), { return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); });
 
     size_t open_bytes = output_buffer->capacity - output_buffer->len;
-    uint8_t *open_space = output_buffer->ptr + output_buffer->len;
+    uint8_t *open_space = output_buffer->buffer + output_buffer->len;
 
     if (type == napi_string) {
         size_t bytes_written = 0;
-        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, open_space, open_bytes, &bytes_written), {
+        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, (char *)open_space, open_bytes, &bytes_written), {
             return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
         });
         if (bytes_written > 0) {
-            bytes_written_cursor->ptr = open_bytes;
+            bytes_written_cursor->ptr = open_space;
             bytes_written_cursor->len = bytes_written;
             output_buffer->len += bytes_written;
         }
