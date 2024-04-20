@@ -13,6 +13,15 @@
 static const char *AWS_NAPI_KEY_MAX_REQUEST_RESPONSE_SUBSCRIPTIONS = "maxRequestResponseSubscriptions";
 static const char *AWS_NAPI_KEY_MAX_STREAMING_SUBSCRIPTIONS = "maxStreamingSubscriptions";
 static const char *AWS_NAPI_KEY_OPERATION_TIMEOUT_IN_SECONDS = "operationTimeoutInSeconds";
+static const char *AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTERS = "subscriptionTopicFilters";
+static const char *AWS_NAPI_KEY_RESPONSE_PATHS = "responsePaths";
+static const char *AWS_NAPI_KEY_PUBLISH_TOPIC = "publishTopic";
+static const char *AWS_NAPI_KEY_PAYLOAD = "payload";
+static const char *AWS_NAPI_KEY_CORRELATION_TOKEN = "correlationToken";
+static const char *AWS_NAPI_KEY_TOPIC = "topic";
+static const char *AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH = "correlationTokenJsonPath";
+static const char *AWS_NAPI_KEY_PUBLISH_TOPIC = "publishTopic";
+static const char *AWS_NAPI_KEY_CORRELATION_TOKEN = "correlationToken";
 
 struct aws_mqtt_request_response_client_binding {
     struct aws_allocator *allocator;
@@ -418,18 +427,18 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
 
         if (binding->topic.len > 0) {
             struct aws_byte_cursor topic_cursor = aws_byte_cursor_from_buf(&binding->topic);
-            AWS_NAPI_CALL(env, napi_create_string_utf8(env, (const char *)(topic_cursor.ptr), topic_cursor.len, &params[1]), {
-                goto done;
-            });
+            AWS_NAPI_CALL(
+                env, napi_create_string_utf8(env, (const char *)(topic_cursor.ptr), topic_cursor.len, &params[1]), {
+                    goto done;
+                });
         } else {
-            if (napi_get_undefined(env, &params[1]) != napi_ok) {
-                AWS_LOGF_ERROR(
-                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_request_complete - could not get undefined napi value");
+            if (napi_get_null(env, &params[1]) != napi_ok) {
+                AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_request_complete - could not get null napi value");
                 goto done;
             }
         }
 
-        if (binding->payload.len > 0) {
+        if (binding->payload != NULL) {
             AWS_NAPI_ENSURE(
                 env,
                 aws_napi_create_external_arraybuffer(
@@ -437,12 +446,11 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
                     binding->payload.buffer,
                     binding->payload.len,
                     s_request_complete_external_arraybuffer_finalizer,
-                    args->payload,
+                    binding->payload,
                     &params[2]));
         } else {
-            if (napi_get_undefined(env, &params[2]) != napi_ok) {
-                AWS_LOGF_ERROR(
-                    AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_request_complete - could not get undefined napi value");
+            if (napi_get_null(env, &params[2]) != napi_ok) {
+                AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "s_napi_on_request_complete - could not get null napi value");
                 goto done;
             }
         }
@@ -451,8 +459,7 @@ static void s_napi_on_request_complete(napi_env env, napi_value function, void *
 
         AWS_NAPI_ENSURE(
             env,
-            aws_napi_dispatch_threadsafe_function(
-                env, binding->on_completion, NULL, function, num_params, params));
+            aws_napi_dispatch_threadsafe_function(env, binding->on_completion, NULL, function, num_params, params));
     }
 
 done:
@@ -460,10 +467,541 @@ done:
     s_aws_napi_mqtt_request_binding_destroy(binding);
 }
 
-napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, napi_callback_info info) {
-    (void)info;
+static void s_on_request_complete(
+    const struct aws_byte_cursor *response_topic,
+    const struct aws_byte_cursor *payload,
+    int error_code,
+    void *user_data) {
 
-    napi_throw_error(env, NULL, "aws_napi_mqtt_request_response_client_submit_request - NYI");
+    struct aws_napi_mqtt_request_binding *binding = user_data;
+
+    if (error_code == AWS_ERROR_SUCCESS) {
+        aws_byte_buf_init_copy_from_cursor(&binding->topic, response_topic);
+
+        binding->payload = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
+        aws_byte_buf_init_copy_from_cursor(binding->payload, payload);
+    } else {
+        binding->error_code = error_code;
+    }
+
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_completion, binding));
+}
+
+struct aws_mqtt_request_response_storage {
+    struct aws_mqtt_request_operation_options options;
+
+    struct aws_array_list subscription_topic_filters;
+    struct aws_array_list response_paths;
+
+    struct aws_byte_buf storage;
+};
+
+static void s_cleanup_request_storage(struct aws_mqtt_request_response_storage *storage) {
+    aws_array_list_clean_up(&storage->subscription_topic_filters);
+    aws_array_list_clean_up(&storage->response_paths);
+
+    aws_byte_buf_clean_up(&storage->storage);
+}
+
+struct aws_mqtt_request_response_storage_properties {
+    size_t bytes_needed;
+    size_t subscription_topic_filter_count;
+    size_t response_path_count;
+};
+
+static int s_compute_request_response_storage_properties(
+    napi_env env,
+    napi_value options,
+    void *log_context,
+    struct aws_mqtt_request_response_storage_properties *storage_properties) {
+    AWS_ZERO_STRUCT(*storage_properties);
+
+    napi_value node_subscription_topic_filters = NULL;
+    if (aws_napi_get_named_property(
+            env, options, AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTERS, napi_object, &node_subscription_topic_filters) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - missing subscription topic filters",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (aws_napi_is_null_or_undefined(env, node_subscription_topic_filters)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - null subscription topic filters",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    uint32_t subscription_filter_count = 0;
+    AWS_NAPI_CALL(env, napi_get_array_length(env, node_subscription_topic_filters, &subscription_filter_count), {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - subscription topic filters is not an array",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    });
+
+    storage_properties->subscription_topic_filter_count = subscription_filter_count;
+
+    napi_value response_paths = NULL;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_RESPONSE_PATHS, napi_object, &response_paths) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - missing response paths",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (aws_napi_is_null_or_undefined(env, response_paths)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - null response paths",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    uint32_t response_path_count = 0;
+    AWS_NAPI_CALL(env, napi_get_array_length(env, response_paths, &response_path_count), {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - response paths is not an array",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    });
+
+    storage_properties->response_path_count = response_path_count;
+
+    for (size_t i = 0; i < subscription_filter_count; ++i) {
+        napi_value array_element;
+        AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - failed to get subscription topic filter entry",
+                log_context);
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        size_t filter_length = 0;
+        if (aws_napi_value_get_storage_length(env, array_element, &filter_length)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - failed to get subscription topic filter length",
+                log_context);
+            return AWS_OP_ERR;
+        };
+
+        storage_properties->bytes_needed += filter_length;
+    }
+
+    for (size_t i = 0; i < response_path_count; ++i) {
+        napi_value array_element;
+        AWS_NAPI_CALL(env, napi_get_element(env, node_response_paths, i, &array_element), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - failed to get response path entry",
+                log_context);
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        napi_value node_topic;
+        if (aws_napi_get_named_property(env, array_element, AWS_NAPI_KEY_TOPIC, napi_string, &node_topic) !=
+            AWS_NGNPR_VALID_VALUE) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - failed to get response path topic",
+                log_context);
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        }
+
+        size_t topic_length = 0;
+        if (aws_napi_value_get_storage_length(env, node_topic, &topic_length)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - failed compute response path topic length",
+                log_context);
+            return AWS_OP_ERR;
+        }
+
+        storage_properties->bytes_needed += topic_length;
+
+        napi_value node_correlation_token_json_path;
+        if (aws_napi_get_named_property(
+                env, array_element, AWS_NAPI_CORRELATION_TOKEN_JSON_PATH, napi_string, &node_topic) ==
+            AWS_NGNPR_VALID_VALUE) {
+            size_t json_path_length = 0;
+            if (aws_napi_value_get_storage_length(env, node_correlation_token_json_path, &json_path_length)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "id=%p s_compute_request_response_storage_properties - failed to compute response path correlation "
+                    "token json path length",
+                    log_context);
+                return AWS_OP_ERR;
+            }
+
+            storage_properties->bytes_needed += json_path_length;
+        }
+    }
+
+    napi_value node_publish_topic;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PUBLISH_TOPIC, napi_string, &node_publish_topic) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - failed to get publish topic",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    size_t publish_topic_length = 0;
+    if (aws_napi_value_get_storage_length(env, node_publish_topic, &publish_topic_length)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - failed to compute publish topic length",
+            log_context);
+        return AWS_OP_ERR;
+    }
+
+    storage_properties->bytes_needed += publish_topic_length;
+
+    napi_value node_payload;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PAYLOAD, napi_string, &node_payload) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - failed to get payload",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    size_t payload_length = 0;
+    if (aws_napi_value_get_storage_length(env, node_payload, &payload_length)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_request_response_storage_properties - failed to compute payload length",
+            log_context);
+        return AWS_OP_ERR;
+    }
+
+    storage_properties->bytes_needed += payload_length;
+
+    napi_value node_correlation_token;
+    if (aws_napi_get_named_property(
+            env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token) ==
+        AWS_NGNPR_VALID_VALUE) {
+        size_t correlation_token_length = 0;
+        if (aws_napi_value_get_storage_length(env, node_correlation_token, &correlation_token_length)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - failed to compute correlation token length",
+                log_context);
+            return AWS_OP_ERR;
+        }
+
+        storage_properties->bytes_needed += correlation_token_length;
+    }
+
+    /* extracting a string value ends up writing the null terminator, so add sufficient padding */
+    storage_properties->bytes_needed += 1;
+
+    return AWS_OP_SUCCESS;
+}
+
+static int s_initialize_request_storage_from_napi_options(
+    struct aws_mqtt_request_response_storage *storage,
+    napi_env env,
+    napi_value options,
+    void *log_context) {
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    struct aws_mqtt_request_response_storage_properties storage_properties;
+    AWS_ZERO_STRUCT(storage_properties);
+
+    if (s_compute_request_response_storage_properties(env, options, log_context, &storage_properties)) {
+        return AWS_OP_ERR;
+    }
+
+    if (storage_properties.subscription_topic_filter_count == 0) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - empty subscription topic filters array",
+            (void *)log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (storage_properties.response_path_count == 0) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - empty response paths array",
+            (void *)log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    aws_byte_buf_init(&storage->storage, allocator, storage_properties.bytes_needed);
+    aws_array_list_init_dynamic(
+        &storage->subscription_topic_filters,
+        allocator,
+        storage_properties.subscription_topic_filter_count,
+        sizeof(struct aws_byte_cursor));
+    aws_array_list_init_dynamic(
+        &storage->response_paths,
+        allocator,
+        storage_properties.response_path_count,
+        sizeof(struct aws_mqtt_request_operation_response_path));
+
+    napi_value node_subscription_topic_filters = NULL;
+    if (aws_napi_get_named_property(
+            env, options, AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTERS, napi_object, &node_subscription_topic_filters) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - missing subscription topic filters",
+            (void *)log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    for (size_t i = 0; i < storage_properties.subscription_topic_filter_count; ++i) {
+        napi_value array_element;
+        AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_initialize_request_storage_from_napi_options - failed to get subscription topic filter "
+                "element",
+                (void *)log_context);
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        struct aws_byte_cursor bytes_written;
+        if (aws_napi_value_bytebuf_append(env, array_element, &storage->storage, &bytes_written)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_initialize_request_storage_from_napi_options - failed to append subscription topic filter",
+                (void *)log_context);
+            return AWS_OP_ERR;
+        }
+
+        aws_array_list_push_back(&storage->subscription_topic_filters, &bytes_written);
+    }
+
+    storage->options.subscription_topic_filters = storage->subscription_topic_filters.data;
+    storage->options.subscription_topic_filter_count = storage_properties.subscription_topic_filter_count;
+
+    napi_value node_response_paths = NULL;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_RESPONSE_PATHS, napi_object, &node_response_paths) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - missing response paths",
+            (void *)log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    for (size_t i = 0; i < storage_properties.response_path_count; ++i) {
+        napi_value response_path_element;
+        AWS_NAPI_CALL(env, napi_get_element(env, node_response_paths, i, &response_path_element), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_initialize_request_storage_from_napi_options - failed to get response path element",
+                (void *)log_context);
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        struct aws_mqtt_request_operation_response_path response_path;
+        AWS_ZERO_STRUCT(response_path);
+
+        napi_value node_topic;
+        if (aws_napi_get_named_property(env, response_path_element, AWS_NAPI_KEY_TOPIC, napi_string, &node_topic) !=
+            AWS_NGNPR_VALID_VALUE) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_initialize_request_storage_from_napi_options - failed to get response path topic",
+                log_context);
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        }
+
+        if (aws_napi_value_bytebuf_append(env, node_topic, &storage->storage, &response_path.topic)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_initialize_request_storage_from_napi_options - failed to append response path topic",
+                log_context);
+            return AWS_OP_ERR;
+        }
+
+        napi_value node_correlation_token_json_path;
+        if (aws_napi_get_named_property(
+                env,
+                response_path_element,
+                AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH,
+                napi_string,
+                &node_correlation_token_json_path) == AWS_NGNPR_VALID_VALUE) {
+            if (aws_napi_value_bytebuf_append(
+                    env,
+                    node_correlation_token_json_path,
+                    &storage->storage,
+                    &response_path.correlation_token_json_path)) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "id=%p s_initialize_request_storage_from_napi_options - failed to append response path correlation "
+                    "token json path",
+                    log_context);
+                return AWS_OP_ERR;
+            }
+        }
+
+        aws_array_list_push_back(&storage->response_paths, &response_path);
+    }
+
+    storage->options.response_paths = storage->response_paths.data;
+    storage->options.response_path_count = storage_properties.response_path_count;
+
+    napi_value node_publish_topic;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PUBLISH_TOPIC, napi_string, &node_publish_topic) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - failed to get publish topic",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (aws_napi_value_bytebuf_append(env, node_publish_topic, &storage->storage, &storage.options.publish_topic)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - failed append publish topic",
+            log_context);
+        return AWS_OP_ERR;
+    }
+
+    napi_value node_payload;
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PAYLOAD, napi_string, &node_payload) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - failed to get payload",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage.options.serialized_request)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_request_storage_from_napi_options - failed append payload",
+            log_context);
+        return AWS_OP_ERR;
+    }
+
+    napi_value node_correlation_token;
+    if (aws_napi_get_named_property(
+            env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token) ==
+        AWS_NGNPR_VALID_VALUE) {
+        if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage.options.correlation_token)) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_initialize_request_storage_from_napi_options - failed to append correlation token",
+                log_context);
+            return AWS_OP_ERR;
+        }
+    }
+
+    AWS_FATAL_ASSERT(&storage->storage->capacity == &storage->storage->len + 1);
+
+    return AWS_OP_SUCCESS;
+}
+
+napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, napi_callback_info info) {
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    int result = AWS_OP_ERR;
+
+    struct aws_mqtt_request_response_storage request_storage;
+    AWS_ZERO_STRUCT(request_storage);
+
+    struct aws_napi_mqtt_request_binding *request_binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_napi_mqtt_request_binding));
+    request_binding->allocator = allocator;
+
+    napi_value node_args[3];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_request_response_client_submit_request - failed to retrieve callback information");
+        goto done;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_request_response_client_submit_request - needs exactly 3 arguments");
+        goto done;
+    }
+
+    napi_value *arg = &node_args[0];
+    napi_value node_binding = *arg++;
+    struct mqtt_request_response_client_binding *client_binding = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&client_binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_request_response_client_submit_request - failed to extract binding from external");
+        goto done;
+    });
+
+    napi_value node_options = *arg++;
+    if (s_initialize_request_storage_from_napi_options(&request_storage, env, node_options, client_binding->client)) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_request_response_client_submit_request - failed to initialize request options from napi "
+            "options");
+        goto done;
+    }
+
+    napi_value node_on_completion = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_on_completion)) {
+        AWS_NAPI_CALL(
+            env,
+            aws_napi_create_threadsafe_function(
+                env,
+                node_on_completion,
+                "aws_mqtt_request_response_client_on_completion",
+                s_napi_on_request_complete,
+                request_binding,
+                &request_binding->on_completion),
+            {
+                napi_throw_error(
+                    env,
+                    NULL,
+                    "aws_napi_mqtt_request_response_client_submit_request - failed to create completion callback");
+                goto done;
+            });
+    } else {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt_request_response_client_submit_request - invalid completion callback");
+        goto done;
+    }
+
+    storage.options.completion_callback = s_on_request_complete;
+    storage.options.user_data = request_binding;
+
+    result = aws_mqtt_request_response_client_submit_request(client_binding->client, &storage.options);
+    if (result == AWS_OP_ERR) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_request_response_client_submit_request - failure invoking native client submit_request");
+    }
+
+done:
+
+    s_cleanup_request_storage(&request_storage);
+
+    if (result == AWS_OP_ERR) {
+        s_aws_napi_mqtt_request_binding_destroy(request_binding);
+    }
+
     return NULL;
 }
 

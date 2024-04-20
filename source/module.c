@@ -688,6 +688,116 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
     return napi_invalid_arg;
 }
 
+int aws_napi_value_get_storage_length(napi_env env, napi_value value, size_t *storage_length) {
+
+    napi_valuetype type = napi_undefined;
+    AWS_NAPI_CALL(env, napi_typeof(env, value, &type), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (type == napi_string) {
+        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, NULL, 0, storage_length), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        return AWS_OP_SUCCESS;
+    } else if (type == napi_object) {
+        /* Try ArrayBuffer */
+        bool is_array_buffer = false;
+        AWS_NAPI_CALL(env, napi_is_arraybuffer(env, value, &is_array_buffer), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_array_buffer) {
+            void *buffer = NULL;
+            AWS_NAPI_CALL(env, napi_get_arraybuffer_info(env, value, &buffer, storage_length), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            return AWS_OP_SUCCESS;
+        }
+
+        /* Try DataView */
+        bool is_data_view = false;
+        AWS_NAPI_CALL(env, napi_is_dataview(env, value, &is_data_view), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_data_view) {
+            AWS_NAPI_CALL(env, napi_get_dataview_info(env, value, storage_length, NULL, NULL, NULL), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            return AWS_OP_SUCCESS;
+        }
+    }
+
+    return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+}
+
+int aws_napi_value_bytebuf_append(
+    napi_env env,
+    napi_value value,
+    struct aws_byte_buf *output_buffer,
+    struct aws_byte_cursor *bytes_written_cursor) {
+
+    AWS_ZERO_STRUCT(*bytes_written_cursor);
+
+    napi_valuetype type = napi_undefined;
+    AWS_NAPI_CALL(env, napi_typeof(env, value, &type), { return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); });
+
+    size_t open_bytes = output_buffer->capacity - output_buffer->len;
+    uint8_t *open_space = output_buffer->ptr + output_buffer->len;
+
+    if (type == napi_string) {
+        size_t bytes_written = 0;
+        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, open_space, open_bytes, &bytes_written), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (bytes_written > 0) {
+            bytes_written_cursor->ptr = open_bytes;
+            bytes_written_cursor->len = bytes_written;
+            output_buffer->len += bytes_written;
+        }
+
+        return AWS_OP_SUCCESS;
+    } else if (type == napi_object) {
+        /* Try ArrayBuffer */
+        bool is_array_buffer = false;
+        AWS_NAPI_CALL(env, napi_is_arraybuffer(env, value, &is_array_buffer), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_array_buffer) {
+            void *buffer = NULL;
+            size_t buffer_length = 0;
+            AWS_NAPI_CALL(env, napi_get_arraybuffer_info(env, value, &buffer, &buffer_length), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            bytes_written_cursor->ptr = buffer;
+            bytes_written_cursor->len = buffer_length;
+
+            return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
+        }
+
+        /* Try DataView */
+        bool is_data_view = false;
+        AWS_NAPI_CALL(env, napi_is_dataview(env, value, &is_data_view), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_data_view) {
+            void *buffer = NULL;
+            size_t buffer_length = 0;
+            AWS_NAPI_CALL(env, napi_get_dataview_info(env, value, &buffer_length, &buffer, NULL, NULL), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            bytes_written_cursor->ptr = buffer;
+            bytes_written_cursor->len = buffer_length;
+
+            return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
+        }
+    }
+
+    return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+}
+
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str) {
 
     struct aws_byte_buf temp_buf;
