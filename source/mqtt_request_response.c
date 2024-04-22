@@ -107,7 +107,7 @@ static int s_aws_init_request_response_options_from_napi_value(
     return AWS_OP_SUCCESS;
 }
 
-napi_value aws_napi_request_mqtt_response_client_new_from_5(napi_env env, napi_callback_info info) {
+napi_value aws_napi_mqtt_request_response_client_new_from_5(napi_env env, napi_callback_info info) {
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
@@ -929,7 +929,8 @@ static int s_initialize_request_storage_from_napi_options(
     if (aws_napi_get_named_property(
             env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token) ==
         AWS_NGNPR_VALID_VALUE) {
-        if (aws_napi_value_bytebuf_append(env, node_payload, &storage->storage, &storage->options.correlation_token)) {
+        if (aws_napi_value_bytebuf_append(
+                env, node_correlation_token, &storage->storage, &storage->options.correlation_token)) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_initialize_request_storage_from_napi_options - failed to append correlation token",
@@ -938,7 +939,7 @@ static int s_initialize_request_storage_from_napi_options(
         }
     }
 
-    AWS_FATAL_ASSERT(&storage->storage.capacity == &storage->storage.len + 1);
+    AWS_FATAL_ASSERT(storage->storage.capacity == storage->storage.len + 1);
 
     return AWS_OP_SUCCESS;
 }

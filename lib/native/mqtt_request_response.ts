@@ -17,15 +17,7 @@ import {Mqtt5Client} from "./mqtt5";
 import * as mqtt_request_response from "../common/mqtt_request_response";
 import {NativeResourceMixin} from "./native_resource";
 import {BufferedEventEmitter} from "../common/event";
-import {
-    mqtt_request_response_client_close,
-    mqtt_request_response_client_new_from_311,
-    mqtt_request_response_client_new_from_5,
-    mqtt_request_response_client_submit_request,
-    mqtt_streaming_operation_close,
-    mqtt_streaming_operation_new,
-    mqtt_streaming_operation_open
-} from "./binding";
+import crt_native from './binding';
 import { error_code_to_string } from "./io";
 
 export * from "../common/mqtt_request_response";
@@ -46,7 +38,7 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
 
     static new(options: mqtt_request_response.StreamingOperationOptions, client: RequestResponseClient) : StreamingOperation {
         let operation = new StreamingOperation();
-        operation._super(mqtt_streaming_operation_new(operation, options, client.native_handle()));
+        operation._super(crt_native.mqtt_streaming_operation_new(operation, options, client.native_handle()));
 
         return operation;
     }
@@ -65,7 +57,7 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
         }
 
         this.state = StreamingOperationState.Open;
-        mqtt_streaming_operation_open(this.native_handle());
+        crt_native.mqtt_streaming_operation_open(this.native_handle());
     }
 
     /**
@@ -75,7 +67,7 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
     close(): void {
         if (this.state != StreamingOperationState.Closed) {
             this.state = StreamingOperationState.Closed;
-            mqtt_streaming_operation_close(this.native_handle());
+            crt_native.mqtt_streaming_operation_close(this.native_handle());
         }
     }
 
@@ -135,7 +127,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      */
     static newFromMqtt5(protocolClient: Mqtt5Client, options: mqtt_request_response.RequestResponseClientOptions): RequestResponseClient {
         let client = new RequestResponseClient();
-        client._super(mqtt_request_response_client_new_from_5(client, protocolClient.native_handle(), options));
+        client._super(crt_native.mqtt_request_response_client_new_from_5(client, protocolClient.native_handle(), options));
 
         return client;
     }
@@ -148,7 +140,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      */
     static newFromMqtt311(protocolClient: MqttClientConnection, options: mqtt_request_response.RequestResponseClientOptions) : RequestResponseClient {
         let client = new RequestResponseClient();
-        client._super(mqtt_request_response_client_new_from_311(client, protocolClient.native_handle(), options));
+        client._super(crt_native.mqtt_request_response_client_new_from_311(client, protocolClient.native_handle(), options));
 
         return client;
     }
@@ -162,7 +154,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
     close(): void {
         if (this.state != RequestResponseClientState.Closed) {
             this.state = RequestResponseClientState.Closed;
-            mqtt_request_response_client_close(this.native_handle());
+            crt_native.mqtt_request_response_client_close(this.native_handle());
         }
     }
 
@@ -203,7 +195,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
             }
 
             try {
-                mqtt_request_response_client_submit_request(this.native_handle(), requestOptions, curriedPromiseCallback);
+                crt_native.mqtt_request_response_client_submit_request(this.native_handle(), requestOptions, curriedPromiseCallback);
             } catch (e) {
                 reject(e);
             }
