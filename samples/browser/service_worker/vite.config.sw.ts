@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   build: {
     outDir: 'public',
+    minify: false,
     lib: {
       entry: 'src/service-worker.ts',
       name: "service-worker",

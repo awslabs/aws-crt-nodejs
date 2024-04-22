@@ -13,7 +13,9 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-
+    "paths": {
+      "aws-crt": ["./node_modules/aws-crt/dist.browser/browser"]
+    },
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

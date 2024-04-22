@@ -1,4 +1,6 @@
-# AWS IOT Service Worker minimal repro
+# Service Worker
+
+The sample is a minimal sample for service worker with aws-crt library. As the service worker is not currently supported by aws-crt.
 
 ## Setup
 1. `yarn`

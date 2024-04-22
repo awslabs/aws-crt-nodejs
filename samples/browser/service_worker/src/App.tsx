@@ -5,7 +5,7 @@ function App() {
     let registration: ServiceWorkerRegistration | undefined;
     async function registerServiceWorker() {
       // Register service worker
-      navigator.serviceWorker.register("/service-worker.js");
+      navigator.serviceWorker.register("./service-worker.js");
 
       // Get registration
       registration = await navigator.serviceWorker.ready;
@@ -16,7 +16,12 @@ function App() {
         );
       }
     }
-
+    // Clean up the service worker before register the new one
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+          registration.unregister();
+      }
+     });
     registerServiceWorker();
 
     return () => {
@@ -26,7 +31,7 @@ function App() {
 
   return (
     <>
-      <div>The UI is not actually used</div>
+      <div>Please checkout the "Developer Tools" for console messages.</div>
     </>
   );
 }
