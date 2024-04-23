@@ -24,6 +24,7 @@
         "invalidLink" : true
     },
     "treatWarningsAsErrors" : true,
+    "plugin": ["typedoc-plugin-merge-modules"],
     "mergeModulesMergeMode": "module"
 }
 
