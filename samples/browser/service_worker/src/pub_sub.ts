@@ -39,6 +39,7 @@ function createClient() : mqtt5.Mqtt5Client {
 
 export async function setupConnection() {
 
+    if(client != undefined) return;
     /** Set up the credentialsProvider */
     client = createClient();
 
@@ -60,6 +61,7 @@ export async function setupConnection() {
 
 export async function Mqtt5ClientPublish()
 {
+    await setupConnection()
     if (!client)
     {
         console.log("[Warning] Client has not been setup.")
