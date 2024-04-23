@@ -15,7 +15,7 @@ const test_topic = "hello/world/qos0"
 function createClient() : mqtt5.Mqtt5Client {
 
     let customAuthConfig : MqttConnectCustomAuthConfig = {
-        authorizerName: settings.AUTHORIZFER_NAME,
+        authorizerName: settings.AUTHORIZER_NAME,
         username: settings.USERNAME,
         password: settings.PASSWORD
     };
