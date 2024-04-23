@@ -10,11 +10,11 @@ import process from 'process';
 if (typeof self !== 'undefined') {
     (self as any).Buffer = buffer.Buffer;
     (self as any).process = process;
-}
 
-if (typeof self.window !== 'undefined') {
-    // NodeJS global shim workaround for Angular
-    (window as any).global = window;
+    if (typeof self.window !== 'undefined') {
+        // NodeJS global shim workaround for Angular
+        (window as any).global = window;
+    }
 }
 
 export { };
