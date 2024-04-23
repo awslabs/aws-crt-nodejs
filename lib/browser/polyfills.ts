@@ -7,12 +7,12 @@ import process from 'process';
 
 // Workaround to get mqtt-js working with Webpack 5
 
-if (self) {
+if (typeof self !== 'undefined') {
     (self as any).Buffer = buffer.Buffer;
     (self as any).process = process;
 }
 
-if (self.window) {
+if (typeof self.window !== 'undefined') {
     // NodeJS global shim workaround for Angular
     (window as any).global = window;
 }
