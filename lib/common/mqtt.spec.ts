@@ -9,7 +9,7 @@ import * as test_env from "@test/test_env"
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
-import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
+import { fromUtf8 } from '@smithy/util-utf8';
 import {once} from "events";
 
 jest.setTimeout(10000);

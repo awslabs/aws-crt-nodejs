@@ -29,7 +29,7 @@ import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
 import * as axios from "axios";
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
-import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
+import { fromUtf8 } from '@smithy/util-utf8';
 
 /**
  * A collection of HTTP headers

@@ -12,7 +12,7 @@
  */
 
 import * as Crypto from "crypto-js";
-import { fromUtf8 } from "@aws-sdk/util-utf8-browser";
+import { fromUtf8 } from "@smithy/util-utf8";
 import { Hashable } from "../common/crypto";
 
 export { Hashable } from "../common/crypto";
