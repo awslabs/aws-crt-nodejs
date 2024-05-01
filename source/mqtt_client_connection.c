@@ -52,6 +52,10 @@ struct mqtt_connection_binding {
 
 struct aws_mqtt_client_connection *aws_napi_get_mqtt_client_connection_from_binding(
     struct mqtt_connection_binding *binding) {
+    if (binding == NULL) {
+        return NULL;
+    }
+
     return binding->connection;
 }
 

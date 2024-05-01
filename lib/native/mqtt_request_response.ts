@@ -126,6 +126,10 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      * @param options configuration options for the desired request-response client
      */
     static newFromMqtt5(protocolClient: Mqtt5Client, options: mqtt_request_response.RequestResponseClientOptions): RequestResponseClient {
+        if (!protocolClient) {
+            throw new CrtError("protocol client is null");
+        }
+
         let client = new RequestResponseClient();
         client._super(crt_native.mqtt_request_response_client_new_from_5(client, protocolClient.native_handle(), options));
 
@@ -139,6 +143,10 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      * @param options configuration options for the desired request-response client
      */
     static newFromMqtt311(protocolClient: MqttClientConnection, options: mqtt_request_response.RequestResponseClientOptions) : RequestResponseClient {
+        if (!protocolClient) {
+            throw new CrtError("protocol client is null");
+        }
+
         let client = new RequestResponseClient();
         client._super(crt_native.mqtt_request_response_client_new_from_311(client, protocolClient.native_handle(), options));
 

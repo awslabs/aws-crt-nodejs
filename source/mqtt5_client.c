@@ -142,6 +142,10 @@ struct aws_mqtt5_client_binding {
 };
 
 struct aws_mqtt5_client *aws_napi_get_mqtt5_client_from_binding(struct aws_mqtt5_client_binding *binding) {
+    if (binding == NULL) {
+        return NULL;
+    }
+
     return binding->client;
 }
 

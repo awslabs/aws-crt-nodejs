@@ -160,7 +160,7 @@ napi_value aws_napi_mqtt_request_response_client_new_from_5(napi_env env, napi_c
     struct aws_mqtt5_client *protocol_client = NULL;
     napi_value node_mqtt5_client_handle = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_mqtt5_client_handle)) {
-        napi_throw_error(env, NULL, "aws_napi_request_mqtt_response_client_new_from_5 - JS protocol client is null");
+        napi_throw_error(env, NULL, "aws_napi_request_mqtt_response_client_new_from_5 - invalid protocol client");
         goto done;
     }
 
@@ -170,7 +170,7 @@ napi_value aws_napi_mqtt_request_response_client_new_from_5(napi_env env, napi_c
     protocol_client = aws_napi_get_mqtt5_client_from_binding(mqtt5_client_binding);
     if (protocol_client == NULL) {
         napi_throw_error(
-            env, NULL, "aws_napi_request_mqtt_response_client_new_from_5 - native protocol client is null");
+            env, NULL, "aws_napi_request_mqtt_response_client_new_from_5 - could not extract native protocol client");
         goto done;
     }
 
@@ -186,8 +186,7 @@ napi_value aws_napi_mqtt_request_response_client_new_from_5(napi_env env, napi_c
     AWS_ZERO_STRUCT(client_options);
 
     if (s_aws_init_request_response_options_from_napi_value(&client_options, env, node_client_config, NULL)) {
-        napi_throw_error(
-            env, NULL, "aws_napi_request_mqtt_response_client_new_from_5 - failed to build configuration options");
+        napi_throw_error(env, NULL, "aws_napi_request_mqtt_response_client_new_from_5 - invalid configuration options");
         goto done;
     }
 
@@ -268,7 +267,7 @@ napi_value aws_napi_mqtt_request_response_client_new_from_311(napi_env env, napi
     struct aws_mqtt_client_connection *protocol_client = NULL;
     napi_value node_mqtt_client_connection_handle = *arg++;
     if (aws_napi_is_null_or_undefined(env, node_mqtt_client_connection_handle)) {
-        napi_throw_error(env, NULL, "aws_napi_mqtt_request_response_client_new_from_311 - JS protocol client is null");
+        napi_throw_error(env, NULL, "aws_napi_mqtt_request_response_client_new_from_311 - invalid protocol client");
         goto done;
     }
 
@@ -278,7 +277,7 @@ napi_value aws_napi_mqtt_request_response_client_new_from_311(napi_env env, napi
     protocol_client = aws_napi_get_mqtt_client_connection_from_binding(mqtt_client_connection_binding);
     if (protocol_client == NULL) {
         napi_throw_error(
-            env, NULL, "aws_napi_mqtt_request_response_client_new_from_311 - native protocol client is null");
+            env, NULL, "aws_napi_mqtt_request_response_client_new_from_311 - could not extract native protocol client");
         goto done;
     }
 
@@ -295,7 +294,7 @@ napi_value aws_napi_mqtt_request_response_client_new_from_311(napi_env env, napi
 
     if (s_aws_init_request_response_options_from_napi_value(&client_options, env, node_client_config, NULL)) {
         napi_throw_error(
-            env, NULL, "aws_napi_mqtt_request_response_client_new_from_311 - failed to build configuration options");
+            env, NULL, "aws_napi_mqtt_request_response_client_new_from_311 - invalid configuration options");
         goto done;
     }
 
