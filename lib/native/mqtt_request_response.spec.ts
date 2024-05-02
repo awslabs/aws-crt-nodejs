@@ -576,3 +576,73 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNa
         return new_options;
     });
 });
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Null Subscription Topic Filters', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.subscriptionTopicFilters = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Subscription Topic Filters Not An Array', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.subscriptionTopicFilters = "null";
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Subscription Topic Filters Empty', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.subscriptionTopicFilters = [];
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure No Response Paths', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.responsePaths;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Null Response Paths', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Paths Not An Array', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths = "null";
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Paths Empty', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths = [];
+
+        return new_options;
+    });
+});
