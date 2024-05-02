@@ -197,6 +197,10 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
             throw new CrtError("MQTT request-response client has already been closed");
         }
 
+        if (!requestOptions) {
+            throw new CrtError("null request options");
+        }
+
         return new Promise<mqtt_request_response.Response>((resolve, reject) => {
             function curriedPromiseCallback(errorCode: number, topic?: string, response?: ArrayBuffer){
                 return RequestResponseClient._s_on_request_completion(resolve, reject, errorCode, topic, response);

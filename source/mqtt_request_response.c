@@ -656,14 +656,16 @@ static int s_compute_request_response_storage_properties(
         storage_properties->bytes_needed += topic_length;
 
         napi_value node_correlation_token_json_path;
-        if (aws_napi_get_named_property(
-                env,
-                array_element,
-                AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH,
-                napi_string,
-                &node_correlation_token_json_path) == AWS_NGNPR_VALID_VALUE) {
+        enum aws_napi_get_named_property_result gpr = aws_napi_get_named_property(
+            env,
+            array_element,
+            AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH,
+            napi_string,
+            &node_correlation_token_json_path);
+        if (gpr != AWS_NGNPR_NO_VALUE) {
             size_t json_path_length = 0;
-            if (aws_napi_value_get_storage_length(env, node_correlation_token_json_path, &json_path_length)) {
+            if (gpr == AWS_NGNPR_INVALID_VALUE ||
+                aws_napi_value_get_storage_length(env, node_correlation_token_json_path, &json_path_length)) {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "id=%p s_compute_request_response_storage_properties - failed to compute response path correlation "
@@ -719,11 +721,12 @@ static int s_compute_request_response_storage_properties(
     storage_properties->bytes_needed += payload_length;
 
     napi_value node_correlation_token;
-    if (aws_napi_get_named_property(
-            env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token) ==
-        AWS_NGNPR_VALID_VALUE) {
+    enum aws_napi_get_named_property_result ct_gpr =
+        aws_napi_get_named_property(env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token);
+    if (ct_gpr != AWS_NGNPR_NO_VALUE) {
         size_t correlation_token_length = 0;
-        if (aws_napi_value_get_storage_length(env, node_correlation_token, &correlation_token_length)) {
+        if (ct_gpr == AWS_NGNPR_INVALID_VALUE ||
+            aws_napi_value_get_storage_length(env, node_correlation_token, &correlation_token_length)) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_compute_request_response_storage_properties - failed to compute correlation token length",
@@ -983,10 +986,7 @@ napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, na
 
     napi_value node_options = *arg++;
     if (s_initialize_request_storage_from_napi_options(&request_storage, env, node_options, client_binding->client)) {
-        napi_throw_error(
-            env,
-            NULL,
-            "aws_napi_mqtt_request_response_client_submit_request - invalid request options");
+        napi_throw_error(env, NULL, "aws_napi_mqtt_request_response_client_submit_request - invalid request options");
         goto done;
     }
 

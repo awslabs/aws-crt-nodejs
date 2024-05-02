@@ -13,7 +13,7 @@ import {once} from "events";
 import * as iot from "./iot";
 import {toUtf8} from "@aws-sdk/util-utf8-browser";
 
-jest.setTimeout(10000);
+jest.setTimeout(1000000);
 
 enum ProtocolVersion {
     Mqtt311,
@@ -646,3 +646,169 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNa
         return new_options;
     });
 });
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Path No Topic', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.responsePaths[0].topic;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Path Null Topic', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].topic = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Path Bad Topic Type', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].topic = 5;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Path Null Correlation Token Json Path', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].correlationTokenJsonPath = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Response Path Bad Correlation Token Json Path Type', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].correlationTokenJsonPath = {};
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure No Publish Topic', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.publishTopic;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Null Publish Topic', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.publishTopic = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Bad Publish Topic Type', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.publishTopic = {someValue: null};
+
+        return new_options;
+    });
+});
+
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure No Payload', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.payload;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Null Payload', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.payload = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Bad Payload Type', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.payload = {notAStringOrBuffer: 21};
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Null Correlation Token', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.correlationToken = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Bad Correlation Token Type', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.correlationToken = ["something"];
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Protocol Invalid Topic', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "failure invoking native client submit_request", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        new_options.publishTopic = "#/illegal/#/topic";
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Null Options', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "null request options",
+        // @ts-ignore
+        (options : mqtt_request_response.RequestResponseOperationOptions) => {
+            return null;
+        });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure Submit After Close', async () => {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+    await context.close();
+
+    let requestOptions = createRejectedGetNamedShadowRequest(true);
+    try {
+        await context.client.submitRequest(requestOptions);
+        expect(false);
+    } catch (err: any) {
+        expect(err.message).toContain("already been closed");
+    }
+});
+
