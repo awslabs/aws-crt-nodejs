@@ -546,3 +546,33 @@ test('Client creation failure null protocol client mqtt5', async() => {
     // @ts-ignore
     expect(() => {mqtt_request_response.RequestResponseClient.newFromMqtt5(null, config)}).toThrow("protocol client is null");
 });
+
+async function do_get_named_shadow_failure_invalid_test(useCorrelationToken: boolean, expected_error_substring: string, options_mutator: (options: mqtt_request_response.RequestResponseOperationOptions) => mqtt_request_response.RequestResponseOperationOptions) : Promise<void> {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+
+    let requestOptions = createRejectedGetNamedShadowRequest(useCorrelationToken);
+
+    let responsePromise = context.client.submitRequest(options_mutator(requestOptions));
+    try {
+        await responsePromise;
+        expect(false);
+    } catch (err: any) {
+        expect(err.message).toContain(expected_error_substring);
+    }
+
+    await context.close();
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNamedShadow Failure No Subscription Topic Filters', async () => {
+    await do_get_named_shadow_failure_invalid_test(true, "invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.subscriptionTopicFilters;
+
+        return new_options;
+    });
+});

@@ -986,8 +986,7 @@ napi_value aws_napi_mqtt_request_response_client_submit_request(napi_env env, na
         napi_throw_error(
             env,
             NULL,
-            "aws_napi_mqtt_request_response_client_submit_request - failed to initialize request options from napi "
-            "options");
+            "aws_napi_mqtt_request_response_client_submit_request - invalid request options");
         goto done;
     }
 
