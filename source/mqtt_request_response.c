@@ -1080,6 +1080,8 @@ struct aws_request_response_streaming_operation_binding {
 
     napi_threadsafe_function on_subscription_status_changed;
     napi_threadsafe_function on_incoming_publish;
+
+    bool is_closed;
 };
 
 static void s_aws_request_response_streaming_operation_binding_on_zero(void *context) {
@@ -1122,9 +1124,7 @@ static void s_streaming_operation_close(
         return;
     }
 
-    if (binding->streaming_operation == NULL) {
-        return;
-    }
+    binding->is_closed = true;
 
     napi_ref node_streaming_operation_external_ref = binding->node_streaming_operation_external_ref;
     binding->node_streaming_operation_external_ref = NULL;
@@ -1184,20 +1184,137 @@ static void s_mqtt_streaming_operation_on_subscription_status_changed(
     (void)user_data;
 }
 
+struct on_incoming_publish_user_data {
+    struct aws_allocator *allocator;
+
+    struct aws_request_response_streaming_operation_binding *binding_ref;
+    struct aws_byte_buf *payload;
+};
+
+static void s_on_incoming_publish_user_data_destroy(struct on_incoming_publish_user_data *user_data) {
+    if (user_data == NULL) {
+        return;
+    }
+
+    user_data->binding_ref = s_aws_request_response_streaming_operation_binding_release(user_data->binding_ref);
+
+    if (user_data->payload != NULL) {
+        aws_byte_buf_clean_up(user_data->payload);
+        aws_mem_release(user_data->allocator, user_data->payload);
+    }
+
+    aws_mem_release(user_data->allocator, user_data);
+}
+
+static struct on_incoming_publish_user_data *s_on_incoming_publish_user_data_new(
+    struct aws_request_response_streaming_operation_binding *binding,
+    struct aws_byte_cursor payload) {
+
+    struct on_incoming_publish_user_data *user_data =
+        aws_mem_calloc(binding->allocator, 1, sizeof(struct on_incoming_publish_user_data));
+    user_data->allocator = binding->allocator;
+
+
+    user_data->payload = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
+    if (aws_byte_buf_init_copy_from_cursor(user_data->payload, binding->allocator, payload)) {
+        goto error;
+    }
+
+    user_data->binding_ref = s_aws_request_response_streaming_operation_binding_acquire(binding);
+
+    return user_data;
+
+error:
+
+    s_on_incoming_publish_user_data_destroy(user_data);
+
+    return NULL;
+}
+
+static int s_aws_create_napi_value_from_incoming_publish_event(
+    napi_env env,
+    struct on_incoming_publish_user_data *publish_event,
+    napi_value *napi_publish_event_out) {
+
+    if (env == NULL) {
+        return aws_raise_error(AWS_CRT_NODEJS_ERROR_THREADSAFE_FUNCTION_NULL_NAPI_ENV);
+    }
+
+    napi_value napi_event = NULL;
+    AWS_NAPI_CALL(
+        env, napi_create_object(env, &napi_event), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (aws_napi_attach_object_property_binary_as_finalizable_external(
+            napi_event, env, AWS_NAPI_KEY_PAYLOAD, publish_event->payload)) {
+        return AWS_OP_ERR;
+    }
+
+    /* the extern's finalizer is now responsible for cleaning up the buffer */
+    publish_event->payload = NULL;
+
+    *napi_publish_event_out = napi_event;
+
+    return AWS_OP_SUCCESS;
+}
+
 static void s_napi_mqtt_streaming_operation_on_incoming_publish(
     napi_env env,
     napi_value function,
     void *context,
     void *user_data) {
-    (void)env;
-    (void)function;
+
     (void)context;
-    (void)user_data;
+
+    struct on_incoming_publish_user_data *publish_event = user_data;
+    struct aws_request_response_streaming_operation_binding *binding = publish_event->binding_ref;
+
+    if (env && !binding->is_closed) {
+        napi_value params[2];
+        const size_t num_params = AWS_ARRAY_SIZE(params);
+
+        /*
+         * If we can't resolve the weak ref to the event stream, then it's been garbage collected and we
+         * should not do anything.
+         */
+        params[0] = NULL;
+        if (napi_get_reference_value(env, binding->node_streaming_operation_ref, &params[0]) != napi_ok ||
+            params[0] == NULL) {
+            AWS_LOGF_INFO(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_mqtt_streaming_operation_on_incoming_publish - streaming operation node wrapper no "
+                "longer resolvable");
+            goto done;
+        }
+
+        if (s_aws_create_napi_value_from_incoming_publish_event(env, publish_event, &params[1])) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_mqtt_streaming_operation_on_incoming_publish - failed to create JS representation of incoming "
+                "publish");
+            goto done;
+        }
+
+        AWS_NAPI_ENSURE(
+            env,
+            aws_napi_dispatch_threadsafe_function(env, binding->on_incoming_publish, NULL, function, num_params, params));
+    }
+
+done:
+
+    s_on_incoming_publish_user_data_destroy(publish_event);
 }
 
 static void s_mqtt_streaming_operation_on_incoming_publish(struct aws_byte_cursor payload, void *user_data) {
-    (void)payload;
-    (void)user_data;
+    struct aws_request_response_streaming_operation_binding *binding = user_data;
+
+    struct on_incoming_publish_user_data *incoming_publish_ud =
+        s_on_incoming_publish_user_data_new(binding, payload);
+    if (incoming_publish_ud == NULL) {
+        return;
+    }
+
+    /* queue a callback in node's libuv thread */
+    AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_incoming_publish, incoming_publish_ud));
 }
 
 static void s_mqtt_streaming_operation_terminated_fn(void *user_data) {
@@ -1481,8 +1598,7 @@ napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_inf
 
 post_ref_error:
 
-    napi_delete_reference(env, binding->node_streaming_operation_ref);
-    binding->node_streaming_operation_ref = NULL;
+    s_streaming_operation_close(binding, env);
 
 done:
 

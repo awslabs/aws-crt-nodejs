@@ -12,6 +12,7 @@ import {v4 as uuid} from "uuid";
 import {once} from "events";
 import * as iot from "./iot";
 import {toUtf8} from "@aws-sdk/util-utf8-browser";
+import {StreamingOperationOptions} from "./mqtt_request_response";
 
 jest.setTimeout(1000000);
 
@@ -810,5 +811,23 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNa
     } catch (err: any) {
         expect(err.message).toContain("already been closed");
     }
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Open/Close MQTT5', async () => {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update/delta"
+    }
+
+    let stream = context.client.createStream(streaming_options);
+    stream.open();
+    stream.close();
+
+    await context.close();
 });
 
