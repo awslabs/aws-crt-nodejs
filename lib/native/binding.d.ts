@@ -19,7 +19,14 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
-import { RequestResponseClient, RequestResponseClientOptions, StreamingOperation, StreamingOperationOptions } from './mqtt_request_response';
+import {
+    IncomingPublishEvent,
+    RequestResponseClient,
+    RequestResponseClientOptions,
+    StreamingOperation,
+    StreamingOperationOptions,
+    SubscriptionStatusEventType
+} from './mqtt_request_response';
 import * as mqtt_request_response from "../common/mqtt_request_response";
 
 
@@ -171,7 +178,9 @@ export function mqtt_request_response_client_submit_request(client: NativeHandle
 export function mqtt_streaming_operation_new(
     operation: StreamingOperation,
     options: StreamingOperationOptions,
-    client: NativeHandle
+    client: NativeHandle,
+    on_subscription_status_update_handler: (streamingOperation: StreamingOperation, type: SubscriptionStatusEventType, error_code: number) => void,
+    on_incoming_publish_handler: (streamingOperation: StreamingOperation, publishEvent: IncomingPublishEvent) => void,
 ): NativeHandle;
 
 /** @internal */

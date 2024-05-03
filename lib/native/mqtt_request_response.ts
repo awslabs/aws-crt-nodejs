@@ -38,7 +38,16 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
 
     static new(options: mqtt_request_response.StreamingOperationOptions, client: RequestResponseClient) : StreamingOperation {
         let operation = new StreamingOperation();
-        operation._super(crt_native.mqtt_streaming_operation_new(operation, options, client.native_handle()));
+        operation._super(crt_native.mqtt_streaming_operation_new(
+            operation,
+            options,
+            client.native_handle(),
+            (streamingOperation: StreamingOperation, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => {
+                StreamingOperation._s_on_subscription_status_update(operation, type, error_code);
+            },
+            (streamingOperation: StreamingOperation, publishEvent: mqtt_request_response.IncomingPublishEvent) => {
+                StreamingOperation._s_on_incoming_publish(operation, publishEvent);
+            }));
 
         return operation;
     }
@@ -96,6 +105,26 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
         return this;
+    }
+
+    private static _s_on_subscription_status_update(streamingOperation: StreamingOperation, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) : void {
+        let statusEvent : mqtt_request_response.SubscriptionStatusEvent = {
+            type: type
+        };
+
+        if (error_code != 0) {
+            statusEvent.error = new CrtError(error_code)
+        }
+
+        process.nextTick(() => {
+            streamingOperation.emit(StreamingOperation.SUBSCRIPTION_STATUS, statusEvent);
+        });
+    }
+
+    private static _s_on_incoming_publish(streamingOperation: StreamingOperation, publishEvent: mqtt_request_response.IncomingPublishEvent) : void {
+        process.nextTick(() => {
+            streamingOperation.emit(StreamingOperation.INCOMING_PUBLISH, publishEvent);
+        });
     }
 }
 

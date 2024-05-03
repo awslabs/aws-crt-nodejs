@@ -8,6 +8,7 @@
 #include "mqtt5_client.h"
 #include "mqtt_client_connection.h"
 
+#include <aws/common/ref_count.h>
 #include <aws/mqtt/request-response/request_response_client.h>
 
 static const char *AWS_NAPI_KEY_MAX_REQUEST_RESPONSE_SUBSCRIPTIONS = "maxRequestResponseSubscriptions";
@@ -20,6 +21,7 @@ static const char *AWS_NAPI_KEY_PAYLOAD = "payload";
 static const char *AWS_NAPI_KEY_CORRELATION_TOKEN = "correlationToken";
 static const char *AWS_NAPI_KEY_TOPIC = "topic";
 static const char *AWS_NAPI_KEY_CORRELATION_TOKEN_JSON_PATH = "correlationTokenJsonPath";
+static const char *AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTER = "subscriptionTopicFilter";
 
 struct aws_mqtt_request_response_client_binding {
     struct aws_allocator *allocator;
@@ -1036,23 +1038,513 @@ done:
     return NULL;
 }
 
-napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_info info) {
-    (void)info;
+///////////////////////////////////////////////////////////////////////////////////////////
 
-    napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - NYI");
+struct aws_request_response_streaming_operation_binding {
+    struct aws_allocator *allocator;
+
+    /*
+     * May only be accessed from within the libuv thread.
+     */
+    struct aws_mqtt_rr_client_operation *streaming_operation;
+
+    /*
+     * +1 from successful new -> termination callback
+     * +1 for every in-flight callback from client event loop thread to lib uv thread
+     */
+    struct aws_ref_count ref_count;
+
+    /*
+     * Single count ref to the JS streaming operation object.
+     */
+    napi_ref node_streaming_operation_ref;
+
+    /*
+     * Single count ref to the node external managed by the binding.
+     */
+    napi_ref node_streaming_operation_external_ref;
+
+    napi_threadsafe_function on_subscription_status_changed;
+    napi_threadsafe_function on_incoming_publish;
+};
+
+static void s_aws_request_response_streaming_operation_binding_on_zero(void *context) {
+    if (context == NULL) {
+        return;
+    }
+
+    struct aws_request_response_streaming_operation_binding *binding = context;
+
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_subscription_status_changed);
+    AWS_CLEAN_THREADSAFE_FUNCTION(binding, on_incoming_publish);
+
+    aws_mem_release(binding->allocator, binding);
+}
+
+static struct aws_request_response_streaming_operation_binding *
+    s_aws_request_response_streaming_operation_binding_acquire(
+        struct aws_request_response_streaming_operation_binding *binding) {
+    if (binding != NULL) {
+        aws_ref_count_acquire(&binding->ref_count);
+    }
+
+    return binding;
+}
+
+static struct aws_request_response_streaming_operation_binding *
+    s_aws_request_response_streaming_operation_binding_release(
+        struct aws_request_response_streaming_operation_binding *binding) {
+    if (binding != NULL) {
+        aws_ref_count_release(&binding->ref_count);
+    }
+
     return NULL;
 }
 
-napi_value aws_napi_mqtt_streaming_operation_open(napi_env env, napi_callback_info info) {
-    (void)info;
+static void s_streaming_operation_close(
+    struct aws_request_response_streaming_operation_binding *binding,
+    napi_env env) {
+    if (binding == NULL) {
+        return;
+    }
 
-    napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_open - NYI");
+    if (binding->streaming_operation == NULL) {
+        return;
+    }
+
+    napi_ref node_streaming_operation_external_ref = binding->node_streaming_operation_external_ref;
+    binding->node_streaming_operation_external_ref = NULL;
+
+    napi_ref node_streaming_operation_ref = binding->node_streaming_operation_ref;
+    binding->node_streaming_operation_ref = NULL;
+
+    if (node_streaming_operation_external_ref != NULL) {
+        napi_delete_reference(env, node_streaming_operation_external_ref);
+    }
+
+    if (node_streaming_operation_ref != NULL) {
+        napi_delete_reference(env, node_streaming_operation_ref);
+    }
+
+    aws_mqtt_rr_client_operation_release(binding->streaming_operation);
+    binding->streaming_operation = NULL;
+}
+
+static void s_aws_mqtt_request_response_streaming_operation_extern_finalize(
+    napi_env env,
+    void *finalize_data,
+    void *finalize_hint) {
+    (void)finalize_hint;
+    (void)env;
+
+    struct aws_request_response_streaming_operation_binding *binding = finalize_data;
+
+    AWS_LOGF_INFO(
+        AWS_LS_NODEJS_CRT_GENERAL,
+        "id=%p s_aws_mqtt_request_response_streaming_operation_extern_finalize - node wrapper is being finalized",
+        (void *)binding->streaming_operation);
+
+    if (binding->streaming_operation != NULL) {
+        aws_mqtt_rr_client_operation_release(binding->streaming_operation);
+        binding->streaming_operation = NULL;
+    }
+}
+
+static void s_napi_mqtt_streaming_operation_on_subscription_status_changed(
+    napi_env env,
+    napi_value function,
+    void *context,
+    void *user_data) {
+    (void)env;
+    (void)function;
+    (void)context;
+    (void)user_data;
+}
+
+static void s_mqtt_streaming_operation_on_subscription_status_changed(
+    enum aws_rr_streaming_subscription_event_type status,
+    int error_code,
+    void *user_data) {
+    (void)status;
+    (void)error_code;
+    (void)user_data;
+}
+
+static void s_napi_mqtt_streaming_operation_on_incoming_publish(
+    napi_env env,
+    napi_value function,
+    void *context,
+    void *user_data) {
+    (void)env;
+    (void)function;
+    (void)context;
+    (void)user_data;
+}
+
+static void s_mqtt_streaming_operation_on_incoming_publish(struct aws_byte_cursor payload, void *user_data) {
+    (void)payload;
+    (void)user_data;
+}
+
+static void s_mqtt_streaming_operation_terminated_fn(void *user_data) {
+    struct aws_request_response_streaming_operation_binding *binding = user_data;
+    if (binding == NULL) {
+        return;
+    }
+
+    s_aws_request_response_streaming_operation_binding_release(binding);
+}
+
+/*
+ * Temporary storage of napi binary/string data needed for request submission.
+ */
+struct aws_mqtt_streaming_operation_options_storage {
+    struct aws_byte_cursor topic_filter;
+
+    struct aws_byte_buf storage;
+};
+
+static void s_cleanup_streaming_operation_storage(struct aws_mqtt_streaming_operation_options_storage *storage) {
+    aws_byte_buf_clean_up(&storage->storage);
+}
+
+/*
+ * We initialize storage in two phases.  The first phase computes how much memory we need to allocate to store all the
+ * data.  This structure tracks those numbers.
+ */
+struct aws_mqtt_streaming_operation_storage_properties {
+    size_t bytes_needed;
+};
+
+static int s_compute_streaming_operation_storage_properties(
+    napi_env env,
+    napi_value options,
+    void *log_context,
+    struct aws_mqtt_streaming_operation_storage_properties *storage_properties) {
+    AWS_ZERO_STRUCT(*storage_properties);
+
+    napi_value node_subscription_topic_filter;
+    if (aws_napi_get_named_property(
+            env, options, AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTER, napi_string, &node_subscription_topic_filter) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_streaming_operation_storage_properties - failed to get subscription topic filter",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    size_t subscription_topic_filter_length = 0;
+    if (aws_napi_value_get_storage_length(env, node_subscription_topic_filter, &subscription_topic_filter_length)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_compute_streaming_operation_storage_properties - failed to compute subscription topic filter "
+            "length",
+            log_context);
+        return AWS_OP_ERR;
+    }
+
+    storage_properties->bytes_needed += subscription_topic_filter_length;
+
+    /* extracting a string value ends up writing the null terminator, so add sufficient padding */
+    storage_properties->bytes_needed += 1;
+
+    return AWS_OP_SUCCESS;
+}
+
+static int s_initialize_streaming_operation_storage_from_napi_options(
+    struct aws_mqtt_streaming_operation_options_storage *storage,
+    napi_env env,
+    napi_value options,
+    void *log_context) {
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    struct aws_mqtt_streaming_operation_storage_properties storage_properties;
+    AWS_ZERO_STRUCT(storage_properties);
+
+    if (s_compute_streaming_operation_storage_properties(env, options, log_context, &storage_properties)) {
+        // all failure paths in that function log the reason for failure already
+        return AWS_OP_ERR;
+    }
+
+    aws_byte_buf_init(&storage->storage, allocator, storage_properties.bytes_needed);
+
+    napi_value node_subscription_topic_filter;
+    if (aws_napi_get_named_property(
+            env, options, AWS_NAPI_KEY_SUBSCRIPTION_TOPIC_FILTER, napi_string, &node_subscription_topic_filter) !=
+        AWS_NGNPR_VALID_VALUE) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_streaming_operation_storage_from_napi_options - failed to get subscription topic "
+            "filter",
+            log_context);
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (aws_napi_value_bytebuf_append(env, node_subscription_topic_filter, &storage->storage, &storage->topic_filter)) {
+        AWS_LOGF_ERROR(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "id=%p s_initialize_streaming_operation_storage_from_napi_options - failed append subscription topic "
+            "filter",
+            log_context);
+        return AWS_OP_ERR;
+    }
+
+    AWS_FATAL_ASSERT(storage->storage.capacity == storage->storage.len + 1);
+
+    return AWS_OP_SUCCESS;
+}
+
+napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_info info) {
+    napi_value node_args[5];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - needs exactly 5 arguments");
+        return NULL;
+    }
+
+    napi_value node_streaming_operation_ref = NULL;
+    napi_value node_external = NULL;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
+
+    struct aws_request_response_streaming_operation_binding *binding =
+        aws_mem_calloc(allocator, 1, sizeof(struct aws_request_response_streaming_operation_binding));
+    binding->allocator = allocator;
+    aws_ref_count_init(&binding->ref_count, binding, s_aws_request_response_streaming_operation_binding_on_zero);
+
+    AWS_NAPI_CALL(
+        env,
+        napi_create_external(
+            env, binding, s_aws_mqtt_request_response_streaming_operation_extern_finalize, NULL, &node_external),
+        {
+            napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - Failed to create n-api external");
+            s_aws_request_response_streaming_operation_binding_release(binding);
+            goto done;
+        });
+
+    /*
+     * From here on out, a failure will lead the external to getting finalized by node, which in turn will lead the
+     * binding to getting cleaned up.
+     */
+
+    /* Arg #1: the js stream */
+    napi_value node_streaming_operation = *arg++;
+    if (aws_napi_is_null_or_undefined(env, node_streaming_operation)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt_streaming_operation_new - Required streaming operation parameter is null");
+        goto done;
+    }
+
+    AWS_NAPI_CALL(
+        env, napi_create_reference(env, node_streaming_operation, 1, &binding->node_streaming_operation_ref), {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_mqtt_streaming_operation_new - Failed to create reference to node streaming operation");
+            goto done;
+        });
+
+    /* the reference to the JS streaming operation was successfully created.  From now on, any failure needs to undo it.
+     */
+
+    /* Arg #2: the request response client to create a streaming operation from */
+    struct aws_mqtt_request_response_client_binding *client_binding = NULL;
+    napi_value node_client_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_client_binding, (void **)&client_binding), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - Failed to extract client binding");
+        goto post_ref_error;
+    });
+
+    if (client_binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - client binding was null");
+        goto post_ref_error;
+    }
+
+    if (client_binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - native client is null");
+        goto post_ref_error;
+    }
+
+    /* Arg #3: streaming operation options */
+    napi_value node_streaming_operation_config = *arg++;
+    if (aws_napi_is_null_or_undefined(env, node_streaming_operation_config)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - required configuration parameter is null");
+        goto post_ref_error;
+    }
+
+    struct aws_mqtt_streaming_operation_options_storage streaming_operation_options;
+    AWS_ZERO_STRUCT(streaming_operation_options);
+
+    if (s_initialize_streaming_operation_storage_from_napi_options(
+            &streaming_operation_options, env, node_streaming_operation_config, client_binding->client)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - invalid configuration options");
+        goto post_ref_error;
+    }
+
+    /* Arg #4: subscription status event callback */
+    napi_value on_subscription_status_changed_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_subscription_status_changed_handler)) {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_streaming_operation_new - required on_subscription_status_changed event handler is null");
+        goto post_ref_error;
+    }
+
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            on_subscription_status_changed_handler,
+            "aws_mqtt_streaming_operation_on_subscription_status_changed",
+            s_napi_mqtt_streaming_operation_on_subscription_status_changed,
+            NULL,
+            &binding->on_subscription_status_changed),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_mqtt_streaming_operation_new - failed to initialize on_subscription_status_changed "
+                "threadsafe function");
+            goto post_ref_error;
+        });
+
+    /* Arg #5: incoming publish callback */
+    napi_value on_incoming_publish_handler = *arg++;
+    if (aws_napi_is_null_or_undefined(env, on_incoming_publish_handler)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt_streaming_operation_new - required on_incoming_publish event handler is null");
+        goto post_ref_error;
+    }
+
+    AWS_NAPI_CALL(
+        env,
+        aws_napi_create_threadsafe_function(
+            env,
+            on_incoming_publish_handler,
+            "aws_mqtt_streaming_operation_on_incoming_publish",
+            s_napi_mqtt_streaming_operation_on_incoming_publish,
+            NULL,
+            &binding->on_incoming_publish),
+        {
+            napi_throw_error(
+                env,
+                NULL,
+                "aws_napi_mqtt_streaming_operation_new - failed to initialize on_incoming_publish threadsafe function");
+            goto post_ref_error;
+        });
+
+    struct aws_mqtt_streaming_operation_options operation_options = {
+        .topic_filter = streaming_operation_options.topic_filter,
+        .subscription_status_callback = s_mqtt_streaming_operation_on_subscription_status_changed,
+        .incoming_publish_callback = s_mqtt_streaming_operation_on_incoming_publish,
+        .terminated_callback = s_mqtt_streaming_operation_terminated_fn,
+        .user_data = binding,
+    };
+
+    binding->streaming_operation =
+        aws_mqtt_request_response_client_create_streaming_operation(client_binding->client, &operation_options);
+    if (binding->streaming_operation == NULL) {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt_streaming_operation_new - Failed to create native streaming operation");
+        goto post_ref_error;
+    }
+
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_streaming_operation_ref), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt_streaming_operation_new - Failed to create one count reference to napi external");
+        goto post_ref_error;
+    });
+
+    node_streaming_operation_ref = node_external;
+    goto done;
+
+post_ref_error:
+
+    napi_delete_reference(env, binding->node_streaming_operation_ref);
+    binding->node_streaming_operation_ref = NULL;
+
+done:
+
+    return node_streaming_operation_ref;
+}
+
+napi_value aws_napi_mqtt_streaming_operation_open(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_open - Failed to extract parameter array");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_open - needs exactly 1 arguments");
+        return NULL;
+    }
+
+    struct aws_request_response_streaming_operation_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_streaming_operation_open - Failed to extract stream binding from first "
+            "argument");
+        return NULL;
+    });
+
+    if (binding == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_open - binding is null");
+        return NULL;
+    }
+
+    if (binding->streaming_operation == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_open - streaming operation is null");
+        return NULL;
+    }
+
+    if (aws_mqtt_rr_client_operation_activate(binding->streaming_operation)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt_streaming_operation_open - streaming operation activation failed synchronously");
+        return NULL;
+    }
+
     return NULL;
 }
 
 napi_value aws_napi_mqtt_streaming_operation_close(napi_env env, napi_callback_info info) {
-    (void)info;
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_close - Failed to retrieve arguments");
+        return NULL;
+    });
 
-    napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_close - NYI");
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_close - needs exactly 1 argument");
+        return NULL;
+    }
+
+    struct aws_request_response_streaming_operation_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt_streaming_operation_close - Failed to extract streaming operation binding from first "
+            "argument");
+        return NULL;
+    });
+
+    s_streaming_operation_close(binding, env);
+
     return NULL;
 }
