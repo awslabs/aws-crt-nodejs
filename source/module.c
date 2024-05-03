@@ -750,11 +750,11 @@ int aws_napi_value_bytebuf_append(
         AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, (char *)open_space, open_bytes, &bytes_written), {
             return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
         });
-        if (bytes_written > 0) {
-            bytes_written_cursor->ptr = open_space;
-            bytes_written_cursor->len = bytes_written;
-            output_buffer->len += bytes_written;
-        }
+
+        /* technically, we might have been truncated, but there's no way to tell */
+        bytes_written_cursor->ptr = open_space;
+        bytes_written_cursor->len = bytes_written;
+        output_buffer->len += bytes_written;
 
         return AWS_OP_SUCCESS;
     } else if (type == napi_object) {
