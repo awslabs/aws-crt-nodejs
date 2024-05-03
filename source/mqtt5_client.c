@@ -141,6 +141,14 @@ struct aws_mqtt5_client_binding {
     napi_threadsafe_function transform_websocket;
 };
 
+struct aws_mqtt5_client *aws_napi_get_mqtt5_client_from_binding(struct aws_mqtt5_client_binding *binding) {
+    if (binding == NULL) {
+        return NULL;
+    }
+
+    return binding->client;
+}
+
 static void s_aws_mqtt5_client_binding_destroy(struct aws_mqtt5_client_binding *binding) {
     if (binding == NULL) {
         return;
