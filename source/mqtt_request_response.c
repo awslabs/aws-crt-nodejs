@@ -666,8 +666,15 @@ static int s_compute_request_response_storage_properties(
             &node_correlation_token_json_path);
         if (gpr != AWS_NGNPR_NO_VALUE) {
             size_t json_path_length = 0;
-            if (gpr == AWS_NGNPR_INVALID_VALUE ||
-                aws_napi_value_get_storage_length(env, node_correlation_token_json_path, &json_path_length)) {
+            if (gpr == AWS_NGNPR_INVALID_VALUE) {
+                AWS_LOGF_ERROR(
+                    AWS_LS_NODEJS_CRT_GENERAL,
+                    "id=%p s_compute_request_response_storage_properties - response path correlation "
+                    "token json path has invalid type",
+                    log_context);
+                return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+            }
+            if (aws_napi_value_get_storage_length(env, node_correlation_token_json_path, &json_path_length)) {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "id=%p s_compute_request_response_storage_properties - failed to compute response path correlation "
@@ -727,8 +734,15 @@ static int s_compute_request_response_storage_properties(
         aws_napi_get_named_property(env, options, AWS_NAPI_KEY_CORRELATION_TOKEN, napi_string, &node_correlation_token);
     if (ct_gpr != AWS_NGNPR_NO_VALUE) {
         size_t correlation_token_length = 0;
-        if (ct_gpr == AWS_NGNPR_INVALID_VALUE ||
-            aws_napi_value_get_storage_length(env, node_correlation_token, &correlation_token_length)) {
+        if (ct_gpr == AWS_NGNPR_INVALID_VALUE) {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "id=%p s_compute_request_response_storage_properties - invalid correlation token",
+                log_context);
+            return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+        }
+
+        if (aws_napi_value_get_storage_length(env, node_correlation_token, &correlation_token_length)) {
             AWS_LOGF_ERROR(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "id=%p s_compute_request_response_storage_properties - failed to compute correlation token length",

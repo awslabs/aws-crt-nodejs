@@ -7,7 +7,7 @@ import {ICrtError} from "./error";
 
 /**
  * @packageDocumentation
- * @module mqtt_request_respobse
+ * @module mqtt_request_response
  */
 
 export type RequestPayload = string;
