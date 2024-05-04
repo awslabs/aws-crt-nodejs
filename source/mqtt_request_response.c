@@ -1198,12 +1198,6 @@ static struct on_subscription_status_changed_user_data *s_on_subscription_status
     user_data->binding_ref = s_aws_request_response_streaming_operation_binding_acquire(binding);
 
     return user_data;
-
-error:
-
-    s_on_subscription_status_changed_user_data_destroy(user_data);
-
-    return NULL;
 }
 
 static void s_napi_mqtt_streaming_operation_on_subscription_status_changed(
@@ -1214,7 +1208,7 @@ static void s_napi_mqtt_streaming_operation_on_subscription_status_changed(
 
     (void)context;
 
-    struct on_subscription_status - changed_user_data *status_event = user_data;
+    struct on_subscription_status_changed_user_data *status_event = user_data;
     struct aws_request_response_streaming_operation_binding *binding = status_event->binding_ref;
 
     if (env && !binding->is_closed) {
@@ -1238,7 +1232,7 @@ static void s_napi_mqtt_streaming_operation_on_subscription_status_changed(
             goto done;
         });
 
-        if (error_code == AWS_ERROR_SUCCESS) {
+        if (status_event->error_code == AWS_ERROR_SUCCESS) {
             AWS_NAPI_CALL(env, napi_get_null(env, &params[2]), {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
@@ -1246,7 +1240,7 @@ static void s_napi_mqtt_streaming_operation_on_subscription_status_changed(
                 goto done;
             });
         } else {
-            AWS_NAPI_CALL(env, napi_create_int32(env, (int)status_event->error_code, &params[2]), {
+            AWS_NAPI_CALL(env, napi_create_int32(env, status_event->error_code, &params[2]), {
                 AWS_LOGF_ERROR(
                     AWS_LS_NODEJS_CRT_GENERAL,
                     "s_napi_mqtt_streaming_operation_on_subscription_status_changed - failed to create error code "
@@ -1539,6 +1533,9 @@ napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_inf
         return NULL;
     }
 
+    struct aws_mqtt_streaming_operation_options_storage streaming_operation_options;
+    AWS_ZERO_STRUCT(streaming_operation_options);
+
     napi_value node_streaming_operation_ref = NULL;
     napi_value node_external = NULL;
     struct aws_allocator *allocator = aws_napi_get_allocator();
@@ -1607,9 +1604,6 @@ napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_inf
         napi_throw_error(env, NULL, "aws_napi_mqtt_streaming_operation_new - required configuration parameter is null");
         goto post_ref_error;
     }
-
-    struct aws_mqtt_streaming_operation_options_storage streaming_operation_options;
-    AWS_ZERO_STRUCT(streaming_operation_options);
 
     if (s_initialize_streaming_operation_storage_from_napi_options(
             &streaming_operation_options, env, node_streaming_operation_config, client_binding->client)) {
@@ -1700,6 +1694,8 @@ post_ref_error:
     s_streaming_operation_close(binding, env);
 
 done:
+
+    s_cleanup_streaming_operation_storage(&streaming_operation_options);
 
     return node_streaming_operation_ref;
 }
