@@ -40,8 +40,8 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
         let operation = new StreamingOperation();
         operation._super(crt_native.mqtt_streaming_operation_new(
             operation,
-            options,
             client.native_handle(),
+            options,
             (streamingOperation: StreamingOperation, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => {
                 StreamingOperation._s_on_subscription_status_update(operation, type, error_code);
             },
