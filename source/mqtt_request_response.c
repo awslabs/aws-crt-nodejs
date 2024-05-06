@@ -1232,22 +1232,13 @@ static void s_napi_mqtt_streaming_operation_on_subscription_status_changed(
             goto done;
         });
 
-        if (status_event->error_code == AWS_ERROR_SUCCESS) {
-            AWS_NAPI_CALL(env, napi_get_null(env, &params[2]), {
-                AWS_LOGF_ERROR(
-                    AWS_LS_NODEJS_CRT_GENERAL,
-                    "s_napi_mqtt_streaming_operation_on_subscription_status_changed - failed to get global null");
-                goto done;
-            });
-        } else {
-            AWS_NAPI_CALL(env, napi_create_int32(env, status_event->error_code, &params[2]), {
-                AWS_LOGF_ERROR(
-                    AWS_LS_NODEJS_CRT_GENERAL,
-                    "s_napi_mqtt_streaming_operation_on_subscription_status_changed - failed to create error code "
-                    "value");
-                goto done;
-            });
-        }
+        AWS_NAPI_CALL(env, napi_create_int32(env, status_event->error_code, &params[2]), {
+            AWS_LOGF_ERROR(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "s_napi_mqtt_streaming_operation_on_subscription_status_changed - failed to create error code "
+                "value");
+            goto done;
+        });
 
         AWS_NAPI_ENSURE(
             env,

@@ -12,7 +12,8 @@ import {v4 as uuid} from "uuid";
 import {once} from "events";
 import * as iot from "./iot";
 import {toUtf8} from "@aws-sdk/util-utf8-browser";
-import {StreamingOperationOptions} from "./mqtt_request_response";
+import {StreamingOperationOptions, SubscriptionStatusEvent} from "./mqtt_request_response";
+import {newLiftedPromise} from "../common/promise";
 
 jest.setTimeout(1000000);
 
@@ -25,9 +26,11 @@ interface TestingOptions {
     version: ProtocolVersion,
     timeoutSeconds?: number,
     startOffline?: boolean,
+    builder_mutator5?: (builder: iot.AwsIotMqtt5ClientConfigBuilder) => iot.AwsIotMqtt5ClientConfigBuilder,
+    builder_mutator311?: (builder: iot.AwsIotMqttConnectionConfigBuilder) => iot.AwsIotMqttConnectionConfigBuilder,
 }
 
-function build_protocol_client_mqtt5() : mqtt5.Mqtt5Client {
+function build_protocol_client_mqtt5(builder_mutator?: (builder: iot.AwsIotMqtt5ClientConfigBuilder) => iot.AwsIotMqtt5ClientConfigBuilder) : mqtt5.Mqtt5Client {
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
         test_env.AWS_IOT_ENV.MQTT5_HOST,
         test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
@@ -39,13 +42,21 @@ function build_protocol_client_mqtt5() : mqtt5.Mqtt5Client {
         keepAliveIntervalSeconds: 1200,
     });
 
+    if (builder_mutator) {
+        builder = builder_mutator(builder);
+    }
+
     return new mqtt5.Mqtt5Client(builder.build());
 }
 
-function build_protocol_client_mqtt311() : mqtt311.MqttClientConnection {
+function build_protocol_client_mqtt311(builder_mutator?: (builder: iot.AwsIotMqttConnectionConfigBuilder) => iot.AwsIotMqttConnectionConfigBuilder) : mqtt311.MqttClientConnection {
     let builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(test_env.AWS_IOT_ENV.MQTT5_RSA_CERT, test_env.AWS_IOT_ENV.MQTT5_RSA_KEY);
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT5_HOST); // yes, 5 not 3
     builder.with_client_id(uuid());
+
+    if (builder_mutator) {
+        builder = builder_mutator(builder);
+    }
 
     let client = new mqtt311.MqttClient();
     return client.new_connection(builder.build());
@@ -93,9 +104,26 @@ class TestingContext {
         }
     }
 
+    async publishProtocolClient(topic: string, payload: ArrayBuffer) {
+        if (this.mqtt5Client) {
+            await this.mqtt5Client.publish({
+                topicName: topic,
+                qos: mqtt5.QoS.AtLeastOnce,
+                payload: payload,
+            });
+        }
+
+        if (this.mqtt311Client) {
+            await this.mqtt311Client.publish(topic, payload, mqtt311.QoS.AtLeastOnce);
+        }
+    }
+
     constructor(options: TestingOptions) {
         if (options.version == ProtocolVersion.Mqtt5) {
-            this.mqtt5Client = build_protocol_client_mqtt5();
+            this.mqtt5Client = build_protocol_client_mqtt5(options.builder_mutator5);
+            this.mqtt5Client.on("connectionSuccess", (event) => {
+                console.log("Derp");
+            })
 
             let rrOptions : mqtt_request_response.RequestResponseClientOptions = {
                 maxRequestResponseSubscriptions : 6,
@@ -105,7 +133,7 @@ class TestingContext {
 
             this.client = mqtt_request_response.RequestResponseClient.newFromMqtt5(this.mqtt5Client, rrOptions);
         } else {
-            this.mqtt311Client = build_protocol_client_mqtt311();
+            this.mqtt311Client = build_protocol_client_mqtt311(options.builder_mutator311);
 
             let rrOptions : mqtt_request_response.RequestResponseClientOptions = {
                 maxRequestResponseSubscriptions : 6,
@@ -812,10 +840,10 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNa
         expect(err.message).toContain("already been closed");
     }
 });
-
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Open/Close MQTT5', async () => {
+/*
+async function do_streaming_operation_new_open_close_test(version: ProtocolVersion) {
     let context = new TestingContext({
-        version: ProtocolVersion.Mqtt5
+        version: version
     });
 
     await context.open();
@@ -829,5 +857,118 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Shado
     stream.close();
 
     await context.close();
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Open/Close MQTT5', async () => {
+    await do_streaming_operation_new_open_close_test(ProtocolVersion.Mqtt5);
 });
 
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Open/Close MQTT311', async () => {
+    await do_streaming_operation_new_open_close_test(ProtocolVersion.Mqtt311);
+});
+
+async function do_streaming_operation_incoming_publish_test(version: ProtocolVersion) {
+    let context = new TestingContext({
+        version: version
+    });
+
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let stream = context.client.createStream(streaming_options);
+    let publish_received_promise = once(stream, mqtt_request_response.StreamingOperation.INCOMING_PUBLISH);
+
+    stream.open();
+
+    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    await context.publishProtocolClient(topic_filter, payload);
+
+    let incoming_publish : mqtt_request_response.IncomingPublishEvent = (await publish_received_promise)[0];
+
+    expect(Buffer.from(incoming_publish.payload as ArrayBuffer)).toEqual(payload);
+
+    stream.close();
+
+    await context.close();
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT5', async () => {
+    await do_streaming_operation_incoming_publish_test(ProtocolVersion.Mqtt5);
+});
+
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT311', async () => {
+    await do_streaming_operation_incoming_publish_test(ProtocolVersion.Mqtt311);
+});
+*/
+
+import * as io from "./io";
+
+async function do_streaming_operation_subscription_events_test(options: TestingOptions) {
+    io.enable_logging(io.LogLevel.TRACE);
+
+    let context = new TestingContext(options);
+
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let events : Array<SubscriptionStatusEvent> = [];
+    let allEventsPromise = newLiftedPromise<void>();
+    let stream = context.client.createStream(streaming_options);
+    stream.addListener("subscriptionStatus", (eventData) => {
+        events.push(eventData);
+
+        if (events.length === 3) {
+            allEventsPromise.resolve();
+        }
+    });
+
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperation.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    let protocolClient = context.mqtt5Client;
+    if (protocolClient) {
+        let stopped = once(protocolClient, mqtt5.Mqtt5Client.STOPPED);
+        protocolClient.stop();
+        await stopped;
+
+        let started = once(protocolClient, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+        protocolClient.start();
+        await started;
+    }
+
+    await allEventsPromise.promise;
+
+    expect(events[0].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(events[0].error).toBeUndefined();
+    expect(events[1].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionLost);
+    //expect(events[1].error).toBeDefined();
+    expect(events[2].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(events[2].error).toBeUndefined();
+
+    stream.close();
+
+    await context.close();
+}
+
+test('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', async () => {
+
+    await do_streaming_operation_subscription_events_test({
+        version: ProtocolVersion.Mqtt5,
+        builder_mutator5: (builder) => {
+            builder.withSessionBehavior(mqtt5.ClientSessionBehavior.Clean);
+            return builder;
+        }
+    });
+});
