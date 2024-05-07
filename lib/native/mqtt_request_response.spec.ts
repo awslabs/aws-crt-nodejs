@@ -15,7 +15,7 @@ import {toUtf8} from "@aws-sdk/util-utf8-browser";
 import {StreamingOperationOptions, SubscriptionStatusEvent} from "./mqtt_request_response";
 import {newLiftedPromise} from "../common/promise";
 
-jest.setTimeout(1000000);
+jest.setTimeout(10000);
 
 enum ProtocolVersion {
     Mqtt311,
@@ -121,9 +121,6 @@ class TestingContext {
     constructor(options: TestingOptions) {
         if (options.version == ProtocolVersion.Mqtt5) {
             this.mqtt5Client = build_protocol_client_mqtt5(options.builder_mutator5);
-            this.mqtt5Client.on("connectionSuccess", (event) => {
-                console.log("Derp");
-            })
 
             let rrOptions : mqtt_request_response.RequestResponseClientOptions = {
                 maxRequestResponseSubscriptions : 6,
@@ -840,7 +837,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('GetNa
         expect(err.message).toContain("already been closed");
     }
 });
-/*
+
 async function do_streaming_operation_new_open_close_test(version: ProtocolVersion) {
     let context = new TestingContext({
         version: version
@@ -904,13 +901,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Shado
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT311', async () => {
     await do_streaming_operation_incoming_publish_test(ProtocolVersion.Mqtt311);
 });
-*/
-
-import * as io from "./io";
 
 async function do_streaming_operation_subscription_events_test(options: TestingOptions) {
-    io.enable_logging(io.LogLevel.TRACE);
-
     let context = new TestingContext(options);
 
     await context.open();
@@ -953,7 +945,7 @@ async function do_streaming_operation_subscription_events_test(options: TestingO
     expect(events[0].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(events[0].error).toBeUndefined();
     expect(events[1].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionLost);
-    //expect(events[1].error).toBeDefined();
+    expect(events[1].error).toBeUndefined();
     expect(events[2].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(events[2].error).toBeUndefined();
 
@@ -962,7 +954,8 @@ async function do_streaming_operation_subscription_events_test(options: TestingO
     await context.close();
 }
 
-test('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', async () => {
+// We only have a 5-based test because there's no way to stop the 311 client without destroying it in the process.
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', async () => {
 
     await do_streaming_operation_subscription_events_test({
         version: ProtocolVersion.Mqtt5,
@@ -971,4 +964,81 @@ test('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', asyn
             return builder;
         }
     });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Failure Reopen', async () => {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let stream = context.client.createStream(streaming_options);
+
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperation.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    stream.open();
+
+    stream.close();
+
+    // multi-opening or multi-closing are fine, but opening after a close is not
+    expect(() => {stream.open()}).toThrow();
+
+    stream.close();
+
+    await context.close();
+});
+
+async function do_invalid_streaming_operation_config_test(config: StreamingOperationOptions, expected_error: string) {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+
+    expect(() => {
+        // @ts-ignore
+        context.client.createStream(config)
+    }).toThrow(expected_error);
+
+    await context.close();
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Creation Failure Null Options', async () => {
+    // @ts-ignore
+    await do_invalid_streaming_operation_config_test(null, "invalid configuration");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Creation Failure Undefined Options', async () => {
+    // @ts-ignore
+    await do_invalid_streaming_operation_config_test(undefined, "invalid configuration");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Creation Failure Null Filter', async () => {
+    await do_invalid_streaming_operation_config_test({
+        // @ts-ignore
+        subscriptionTopicFilter : null,
+    }, "invalid configuration");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Creation Failure Invalid Filter Type', async () => {
+    await do_invalid_streaming_operation_config_test({
+        // @ts-ignore
+        subscriptionTopicFilter : 5,
+    }, "invalid configuration");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Creation Failure Invalid Filter Value', async () => {
+    await do_invalid_streaming_operation_config_test({
+        subscriptionTopicFilter : "#/hello/#",
+    }, "Failed to create");
 });

@@ -37,6 +37,10 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
     private state = StreamingOperationState.None;
 
     static new(options: mqtt_request_response.StreamingOperationOptions, client: RequestResponseClient) : StreamingOperation {
+        if (!options) {
+            throw new CrtError("invalid configuration for streaming operation");
+        }
+
         let operation = new StreamingOperation();
         operation._super(crt_native.mqtt_streaming_operation_new(
             operation,
@@ -57,16 +61,16 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
     }
 
     /**
-     * Triggers the streaming operation to start listening to the configured stream of events.  It is an error
-     * to open a streaming operation more than once or re-open a closed streaming operation.
+     * Triggers the streaming operation to start listening to the configured stream of events.  Has no effect on an
+     * already-open operation.  It is an error to attempt to re-open a closed streaming operation.
      */
     open() : void {
-        if (this.state != StreamingOperationState.None) {
+        if (this.state == StreamingOperationState.None) {
+            this.state = StreamingOperationState.Open;
+            crt_native.mqtt_streaming_operation_open(this.native_handle());
+        } else if (this.state != StreamingOperationState.Open) {
             throw new CrtError("MQTT streaming operation not in an openable state");
         }
-
-        this.state = StreamingOperationState.Open;
-        crt_native.mqtt_streaming_operation_open(this.native_handle());
     }
 
     /**
