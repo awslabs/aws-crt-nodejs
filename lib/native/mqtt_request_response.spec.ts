@@ -878,9 +878,12 @@ async function do_streaming_operation_incoming_publish_test(version: ProtocolVer
 
     let stream = context.client.createStream(streaming_options);
     let publish_received_promise = once(stream, mqtt_request_response.StreamingOperation.INCOMING_PUBLISH);
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperation.SUBSCRIPTION_STATUS);
 
     stream.open();
 
+    await initialSubscriptionComplete;
+    
     let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
     await context.publishProtocolClient(topic_filter, payload);
 
