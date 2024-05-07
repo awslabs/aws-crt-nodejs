@@ -877,8 +877,8 @@ async function do_streaming_operation_incoming_publish_test(version: ProtocolVer
     }
 
     let stream = context.client.createStream(streaming_options);
-    let publish_received_promise = once(stream, mqtt_request_response.StreamingOperation.INCOMING_PUBLISH);
-    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperation.SUBSCRIPTION_STATUS);
+    let publish_received_promise = once(stream, mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH);
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
 
     stream.open();
 
@@ -926,7 +926,7 @@ async function do_streaming_operation_subscription_events_test(options: TestingO
         }
     });
 
-    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperation.SUBSCRIPTION_STATUS);
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
 
     stream.open();
 
@@ -983,7 +983,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Strea
 
     let stream = context.client.createStream(streaming_options);
 
-    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperation.SUBSCRIPTION_STATUS);
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
 
     stream.open();
 
@@ -999,6 +999,35 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Strea
     stream.close();
 
     await context.close();
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Streaming Operation Auto Close', async () => {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let stream = context.client.createStream(streaming_options);
+
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    stream.open();
+
+    await context.close();
+
+    // Closing the client should close the operation automatically; verify that by verifying that open now generates
+    // an exception
+    expect(() => {stream.open()}).toThrow();
 });
 
 async function do_invalid_streaming_operation_config_test(config: StreamingOperationOptions, expected_error: string) {

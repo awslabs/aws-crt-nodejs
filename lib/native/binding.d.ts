@@ -23,7 +23,7 @@ import {
     IncomingPublishEvent,
     RequestResponseClient,
     RequestResponseClientOptions,
-    StreamingOperation,
+    StreamingOperationBase,
     StreamingOperationOptions,
     SubscriptionStatusEventType
 } from './mqtt_request_response';
@@ -176,11 +176,11 @@ export function mqtt_request_response_client_submit_request(client: NativeHandle
 
 /** @internal */
 export function mqtt_streaming_operation_new(
-    operation: StreamingOperation,
+    operation: StreamingOperationBase,
     client: NativeHandle,
     options: StreamingOperationOptions,
-    on_subscription_status_update_handler: (streamingOperation: StreamingOperation, type: SubscriptionStatusEventType, error_code: number) => void,
-    on_incoming_publish_handler: (streamingOperation: StreamingOperation, publishEvent: IncomingPublishEvent) => void,
+    on_subscription_status_update_handler: (streamingOperation: StreamingOperationBase, type: SubscriptionStatusEventType, error_code: number) => void,
+    on_incoming_publish_handler: (streamingOperation: StreamingOperationBase, publishEvent: IncomingPublishEvent) => void,
 ): NativeHandle;
 
 /** @internal */
