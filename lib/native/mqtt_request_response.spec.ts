@@ -883,7 +883,7 @@ async function do_streaming_operation_incoming_publish_test(version: ProtocolVer
     stream.open();
 
     await initialSubscriptionComplete;
-    
+
     let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
     await context.publishProtocolClient(topic_filter, payload);
 

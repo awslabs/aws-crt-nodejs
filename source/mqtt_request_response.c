@@ -1252,14 +1252,14 @@ done:
 }
 
 static void s_mqtt_streaming_operation_on_subscription_status_changed(
-    enum aws_rr_streaming_subscription_event_type status,
+    enum aws_rr_streaming_subscription_event_type event_type,
     int error_code,
     void *user_data) {
 
     struct aws_request_response_streaming_operation_binding *binding = user_data;
 
     struct on_subscription_status_changed_user_data *status_changed_ud =
-        s_on_subscription_status_changed_user_data_new(binding, status, error_code);
+        s_on_subscription_status_changed_user_data_new(binding, event_type, error_code);
     if (status_changed_ud == NULL) {
         return;
     }
