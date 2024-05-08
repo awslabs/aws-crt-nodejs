@@ -256,7 +256,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
 
     /**
      *
-     * Adds a streaming operation to the set of unclosed operations that will be closed automatically when the
+     * Adds a streaming operation to the set of operations that will be closed automatically when the
      * client is closed.
      *
      * @internal
@@ -271,7 +271,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
 
     /**
      *
-     * Removes a streaming operation from the set of unclosed operations that will be closed automatically when the
+     * Removes a streaming operation from the set of operations that will be closed automatically when the
      * client is closed.
      *
      * @internal
