@@ -741,10 +741,9 @@ int aws_napi_value_get_storage_length(napi_env env, napi_value value, size_t *st
         if (is_typed_array) {
             napi_typedarray_type array_type = napi_uint8_array;
             size_t length = 0;
-            AWS_NAPI_CALL(
-                env, napi_get_typedarray_info(env, value, &array_type, &length, NULL, NULL, NULL), {
-                    return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
-                });
+            AWS_NAPI_CALL(env, napi_get_typedarray_info(env, value, &array_type, &length, NULL, NULL, NULL), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
 
             size_t element_size = 0;
             if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
