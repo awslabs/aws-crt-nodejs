@@ -602,7 +602,7 @@ static int s_compute_request_response_storage_properties(
 
     storage_properties->response_path_count = response_path_count;
 
-    // Step 3 - Go through all the subscriptiojn topic filters, response paths, and options fields and add up
+    // Step 3 - Go through all the subscription topic filters, response paths, and options fields and add up
     // the lengths of all the string and binary data fields.
     for (size_t i = 0; i < subscription_filter_count; ++i) {
         napi_value array_element;
@@ -709,7 +709,7 @@ static int s_compute_request_response_storage_properties(
     storage_properties->bytes_needed += publish_topic_length;
 
     napi_value node_payload;
-    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PAYLOAD, napi_string, &node_payload) !=
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PAYLOAD, napi_undefined, &node_payload) !=
         AWS_NGNPR_VALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,
@@ -926,7 +926,7 @@ static int s_initialize_request_storage_from_napi_options(
     }
 
     napi_value node_payload;
-    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PAYLOAD, napi_string, &node_payload) !=
+    if (aws_napi_get_named_property(env, options, AWS_NAPI_KEY_PAYLOAD, napi_undefined, &node_payload) !=
         AWS_NGNPR_VALID_VALUE) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL,

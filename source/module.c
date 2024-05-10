@@ -597,6 +597,35 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_lengt
     return result;
 }
 
+static int s_typed_array_element_type_to_byte_length(napi_typedarray_type type, size_t *element_length) {
+    switch (type) {
+        case napi_int8_array:
+        case napi_uint8_array:
+        case napi_uint8_clamped_array:
+            *element_length = 1;
+            return AWS_OP_SUCCESS;
+
+        case napi_int16_array:
+        case napi_uint16_array:
+            *element_length = 2;
+            return AWS_OP_SUCCESS;
+
+        case napi_int32_array:
+        case napi_uint32_array:
+        case napi_float32_array:
+            *element_length = 4;
+            return AWS_OP_SUCCESS;
+
+        case napi_float64_array:
+        case 9:  /*napi_bigint64_array */
+        case 10: /*napi_biguint64_array*/
+            *element_length = 8;
+            return AWS_OP_SUCCESS;
+    }
+
+    return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+}
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
     AWS_ASSERT(buf);
@@ -651,33 +680,10 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
                 });
 
             size_t element_size = 0;
-
-            /* whoever added napi_bigint64_array to the node api deserves a good thrashing!!!! */
-            int type_hack = array_type;
-            switch (type_hack) {
-                case napi_int8_array:
-                case napi_uint8_array:
-                case napi_uint8_clamped_array:
-                    element_size = 1;
-                    break;
-
-                case napi_int16_array:
-                case napi_uint16_array:
-                    element_size = 2;
-                    break;
-
-                case napi_int32_array:
-                case napi_uint32_array:
-                case napi_float32_array:
-                    element_size = 4;
-                    break;
-
-                case napi_float64_array:
-                case 9:  /*napi_bigint64_array */
-                case 10: /*napi_biguint64_array*/
-                    element_size = 8;
-                    break;
+            if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
+                return napi_invalid_arg;
             }
+
             buf->len = length * element_size;
             buf->capacity = buf->len;
 
@@ -723,6 +729,29 @@ int aws_napi_value_get_storage_length(napi_env env, napi_value value, size_t *st
             AWS_NAPI_CALL(env, napi_get_dataview_info(env, value, storage_length, NULL, NULL, NULL), {
                 return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
             });
+
+            return AWS_OP_SUCCESS;
+        }
+
+        /* Try TypedArray */
+        bool is_typed_array = false;
+        AWS_NAPI_CALL(env, napi_is_typedarray(env, value, &is_typed_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_typed_array) {
+            napi_typedarray_type array_type = napi_uint8_array;
+            size_t length = 0;
+            AWS_NAPI_CALL(
+                env, napi_get_typedarray_info(env, value, &array_type, &length, NULL, NULL, NULL), {
+                    return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+                });
+
+            size_t element_size = 0;
+            if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
+                return napi_invalid_arg;
+            }
+
+            *storage_length = length * element_size;
 
             return AWS_OP_SUCCESS;
         }
@@ -790,6 +819,30 @@ int aws_napi_value_bytebuf_append(
 
             bytes_written_cursor->ptr = buffer;
             bytes_written_cursor->len = buffer_length;
+
+            return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
+        }
+
+        bool is_typed_array = false;
+        AWS_NAPI_CALL(env, napi_is_typedarray(env, value, &is_typed_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_typed_array) {
+            napi_typedarray_type array_type = napi_uint8_array;
+            size_t length = 0;
+            uint8_t *buffer = NULL;
+            AWS_NAPI_CALL(
+                env, napi_get_typedarray_info(env, value, &array_type, &length, (void **)&buffer, NULL, NULL), {
+                    return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+                });
+
+            size_t element_size = 0;
+            if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
+                return napi_invalid_arg;
+            }
+
+            bytes_written_cursor->ptr = buffer;
+            bytes_written_cursor->len = element_size * length;
 
             return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
         }

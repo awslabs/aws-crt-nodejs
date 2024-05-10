@@ -179,7 +179,7 @@ function createRejectedGetNamedShadowRequest(addCorelationToken: boolean) : mqtt
             topic: "$aws/things/NoSuchThing/shadow/name/Derp/get/rejected",
         }],
         publishTopic: "$aws/things/NoSuchThing/shadow/name/Derp/get",
-        payload: `{}`,
+        payload: Buffer.from("{}", "utf-8"),
     }
 
     if (addCorelationToken) {
@@ -192,7 +192,7 @@ function createRejectedGetNamedShadowRequest(addCorelationToken: boolean) : mqtt
             topic: "$aws/things/NoSuchThing/shadow/name/Derp/get/rejected",
             correlationTokenJsonPath: "clientToken",
         }];
-        requestOptions.payload = `{\"clientToken\":\"${correlationToken}\"}`;
+        requestOptions.payload = Buffer.from(`{\"clientToken\":\"${correlationToken}\"}`);
         requestOptions.correlationToken = correlationToken;
     }
 
@@ -246,7 +246,7 @@ function createAcceptedUpdateNamedShadowRequest(addCorelationToken: boolean) : m
             topic: "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update/rejected",
         }],
         publishTopic: "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update",
-        payload: ``,
+        payload: Buffer.from("", "utf-8"),
     }
 
     let desired_state = `{\"magic\":\"${uuid()}\"}`;
@@ -257,9 +257,9 @@ function createAcceptedUpdateNamedShadowRequest(addCorelationToken: boolean) : m
         requestOptions.responsePaths[0].correlationTokenJsonPath = "clientToken";
         requestOptions.responsePaths[1].correlationTokenJsonPath = "clientToken";
         requestOptions.correlationToken = correlationToken;
-        requestOptions.payload = `{\"clientToken\":\"${correlationToken}\",\"state\":{\"desired\":${desired_state}}}`;
+        requestOptions.payload = Buffer.from(`{\"clientToken\":\"${correlationToken}\",\"state\":{\"desired\":${desired_state}}}`);
     } else {
-        requestOptions.payload = `{\"state\":{\"desired\":${desired_state}}}`;
+        requestOptions.payload = Buffer.from(`{\"state\":{\"desired\":${desired_state}}}`);
     }
 
     return requestOptions;
