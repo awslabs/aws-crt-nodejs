@@ -1845,7 +1845,6 @@ napi_value aws_napi_event_stream_client_stream_new(napi_env env, napi_callback_i
     aws_ref_count_init(&binding->ref_count, binding, s_aws_event_stream_client_stream_binding_on_zero);
 
     AWS_NAPI_CALL(env, napi_create_external(env, binding, NULL, NULL, &node_external), {
-        aws_mem_release(allocator, binding);
         napi_throw_error(env, NULL, "aws_napi_event_stream_client_stream_new - Failed to create n-api external");
         s_aws_event_stream_client_stream_binding_release(binding);
         goto done;

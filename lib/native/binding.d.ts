@@ -19,8 +19,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
-import { RequestResponseClient, RequestResponseClientOptions, StreamingOperation, StreamingOperationOptions } from './mqtt_request_response';
-import * as mqtt_request_response from "../common/mqtt_request_response";
+import * as mqtt_request_response from "../native/mqtt_request_response";
 
 
 /**
@@ -149,16 +148,16 @@ export function checksums_crc32c(data: StringLike, previous?: number): number;
 
 /** @internal */
 export function mqtt_request_response_client_new_from_5(
-    client: RequestResponseClient,
+    client: mqtt_request_response.RequestResponseClient,
     protocolClient: NativeHandle,
-    options: RequestResponseClientOptions
+    options: mqtt_request_response.RequestResponseClientOptions
 ): NativeHandle;
 
 /** @internal */
 export function mqtt_request_response_client_new_from_311(
-    client: RequestResponseClient,
+    client: mqtt_request_response.RequestResponseClient,
     protocolClient: NativeHandle,
-    options: RequestResponseClientOptions
+    options: mqtt_request_response.RequestResponseClientOptions
 ): NativeHandle;
 
 /** @internal */
@@ -169,9 +168,11 @@ export function mqtt_request_response_client_submit_request(client: NativeHandle
 
 /** @internal */
 export function mqtt_streaming_operation_new(
-    operation: StreamingOperation,
-    options: StreamingOperationOptions,
-    client: NativeHandle
+    operation: mqtt_request_response.StreamingOperationBase,
+    client: NativeHandle,
+    options: mqtt_request_response.StreamingOperationOptions,
+    on_subscription_status_update_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => void,
+    on_incoming_publish_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, publishEvent: mqtt_request_response.IncomingPublishEvent) => void,
 ): NativeHandle;
 
 /** @internal */
