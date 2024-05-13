@@ -1158,10 +1158,7 @@ static void s_aws_mqtt_request_response_streaming_operation_extern_finalize(
         "id=%p s_aws_mqtt_request_response_streaming_operation_extern_finalize - node wrapper is being finalized",
         (void *)binding->streaming_operation);
 
-    if (binding->streaming_operation != NULL) {
-        aws_mqtt_rr_client_operation_release(binding->streaming_operation);
-        binding->streaming_operation = NULL;
-    }
+    s_aws_request_response_streaming_operation_binding_release(binding);
 }
 
 struct on_subscription_status_changed_user_data {
@@ -1568,8 +1565,17 @@ napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_inf
             goto done;
         });
 
-    /* the reference to the JS streaming operation was successfully created.  From now on, any failure needs to undo it.
+    /*
+     * the reference to the JS streaming operation was successfully created.  From now on, any failure needs to undo it.
+     * All paths now require close, either as an error path (post_ref_error) or success (user must call).  For this
+     * reason bump the binding ref count to two, so that both a close and an extern finalize must take place.
+     *
+     * close releases the native stream, and its termination callback leads to one decref
+     * extern finalize leads to the other decref
+     *
+     * In progress callbacks continue to use inc/dec to bracket their (brief) lifetimes.
      */
+    s_aws_request_response_streaming_operation_binding_acquire(binding);
 
     /* Arg #2: the request response client to create a streaming operation from */
     struct aws_mqtt_request_response_client_binding *client_binding = NULL;
@@ -1671,7 +1677,7 @@ napi_value aws_napi_mqtt_streaming_operation_new(napi_env env, napi_callback_inf
         goto post_ref_error;
     }
 
-    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_streaming_operation_ref), {
+    AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_streaming_operation_external_ref), {
         napi_throw_error(
             env, NULL, "aws_napi_mqtt_streaming_operation_new - Failed to create one count reference to napi external");
         goto post_ref_error;
