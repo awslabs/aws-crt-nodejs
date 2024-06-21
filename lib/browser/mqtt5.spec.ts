@@ -20,7 +20,7 @@ function createBrowserSpecificTestConfig (testType: test_utils.SuccessfulConnect
 
     if (test_utils.ClientEnvironmentalConfig.doesTestUseProxy(testType)) {
         let urlOptions: url.UrlWithStringQuery = url.parse(`http://${test_utils.ClientEnvironmentalConfig.PROXY_HOST}:${test_utils.ClientEnvironmentalConfig.PROXY_PORT}`);
-        let agent: HttpsProxyAgent  = new HttpsProxyAgent(urlOptions.href!);
+        let agent: HttpsProxyAgent  = new HttpsProxyAgent(urlOptions);
 
         wsOptions.agent = agent;
     }
@@ -47,7 +47,7 @@ function createBrowserSpecificTestConfig (testType: test_utils.SuccessfulConnect
 function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
 
     let urlOptions: url.UrlWithStringQuery = url.parse(`http://${test_utils.ClientEnvironmentalConfig.PROXY_HOST}:${test_utils.ClientEnvironmentalConfig.PROXY_PORT}`);
-    let agent: HttpsProxyAgent  = new HttpsProxyAgent(urlOptions.href!);
+    let agent: HttpsProxyAgent  = new HttpsProxyAgent(urlOptions);
 
     return {
         hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_HOST,
