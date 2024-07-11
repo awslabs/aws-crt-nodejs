@@ -395,14 +395,13 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Gets the first value for the given name, ignoring any additional values
-     * @param name - The header name to look for
-     * @param default_value - Value returned if no values are found for the given name
+     * @param key - The header name to look for
      * @return The first header value, or default if no values exist
      */
     public get(key: string): string;
     /**
      * Get the list of values for the given name
-     * @param name - The header name to look for
+     * @param key - The header name to look for
      * @return List of values, or empty list if none exist
      */
     public get_values(key: string): string[];
@@ -420,27 +419,27 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Add a name/value pair
-     * @param name - The header name
+     * @param key - The header name
      * @param value - The header value
     */
     public add(key: string, value: string): void;
 
     /**
      * Set a name/value pair, replacing any existing values for the name
-     * @param name - The header name
+     * @param key - The header name
      * @param value - The header value
     */
     public set(key: string, value: string): void;
 
     /**
      * Removes all values for the given name
-     * @param name - The header to remove all values for
+     * @param key - The header to remove all values for
      */
     public remove(key: string): void;
 
     /**
      * Removes a specific name/value pair
-     * @param name - The header name to remove
+     * @param key - The header name to remove
      * @param value - The header value to remove
      */
     public remove_value(key: string, value: string): void;

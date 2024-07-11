@@ -641,7 +641,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
     let payload : string = "";
     if (response.payload !== undefined) {
         var decoder = new TextDecoder();
-        payload = decoder.decode(Buffer.from(response.payload));
+        payload = decoder.decode(Buffer.from(response.payload as ArrayBuffer));
     }
     expect(payload).toEqual(payloadAsString);
 
@@ -677,7 +677,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
     let payload : string = "";
     if (response.payload !== undefined) {
         var decoder = new TextDecoder();
-        payload = decoder.decode(Buffer.from(response.payload));
+        payload = decoder.decode(Buffer.from(response.payload as ArrayBuffer));
     }
     expect(payload).toEqual(payloadAsString);
 

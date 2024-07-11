@@ -431,7 +431,7 @@ export interface IMqtt5Client {
      * This is an asynchronous operation.  Once the process completes, no further events will be emitted until the client
      * has {@link start} invoked.
      *
-     * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
+     * @param packet (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
     stop(packet?: mqtt5_packet.DisconnectPacket) : void;
 

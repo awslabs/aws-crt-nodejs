@@ -300,7 +300,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * Configure the max reconnection period (in second). The reconnection period will
      * be set in range of [reconnect_min_sec,reconnect_max_sec].
-     * @param reconnect_max_sec max reconnection period
+     * @param max_sec max reconnection period
      */
     with_reconnect_max_sec(max_sec: number) {
         this.params.reconnect_max_sec = max_sec;
@@ -310,7 +310,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * Configure the min reconnection period (in second). The reconnection period will
      * be set in range of [reconnect_min_sec,reconnect_max_sec].
-     * @param reconnect_min_sec min reconnection period
+     * @param min_sec min reconnection period
      */
     with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
