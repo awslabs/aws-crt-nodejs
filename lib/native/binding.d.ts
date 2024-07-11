@@ -19,8 +19,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
-import { RequestResponseClient, RequestResponseClientOptions, StreamingOperation, StreamingOperationOptions } from './mqtt_request_response';
-import * as mqtt_request_response from "../common/mqtt_request_response";
+import * as mqtt_request_response from "../native/mqtt_request_response";
 
 
 /**
@@ -149,16 +148,16 @@ export function checksums_crc32c(data: StringLike, previous?: number): number;
 
 /** @internal */
 export function mqtt_request_response_client_new_from_5(
-    client: RequestResponseClient,
+    client: mqtt_request_response.RequestResponseClient,
     protocolClient: NativeHandle,
-    options: RequestResponseClientOptions
+    options: mqtt_request_response.RequestResponseClientOptions
 ): NativeHandle;
 
 /** @internal */
 export function mqtt_request_response_client_new_from_311(
-    client: RequestResponseClient,
+    client: mqtt_request_response.RequestResponseClient,
     protocolClient: NativeHandle,
-    options: RequestResponseClientOptions
+    options: mqtt_request_response.RequestResponseClientOptions
 ): NativeHandle;
 
 /** @internal */
@@ -169,9 +168,11 @@ export function mqtt_request_response_client_submit_request(client: NativeHandle
 
 /** @internal */
 export function mqtt_streaming_operation_new(
-    operation: StreamingOperation,
-    options: StreamingOperationOptions,
-    client: NativeHandle
+    operation: mqtt_request_response.StreamingOperationBase,
+    client: NativeHandle,
+    options: mqtt_request_response.StreamingOperationOptions,
+    on_subscription_status_update_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => void,
+    on_incoming_publish_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, publishEvent: mqtt_request_response.IncomingPublishEvent) => void,
 ): NativeHandle;
 
 /** @internal */
@@ -394,14 +395,13 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Gets the first value for the given name, ignoring any additional values
-     * @param name - The header name to look for
-     * @param default_value - Value returned if no values are found for the given name
+     * @param key - The header name to look for
      * @return The first header value, or default if no values exist
      */
     public get(key: string): string;
     /**
      * Get the list of values for the given name
-     * @param name - The header name to look for
+     * @param key - The header name to look for
      * @return List of values, or empty list if none exist
      */
     public get_values(key: string): string[];
@@ -419,27 +419,27 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Add a name/value pair
-     * @param name - The header name
+     * @param key - The header name
      * @param value - The header value
     */
     public add(key: string, value: string): void;
 
     /**
      * Set a name/value pair, replacing any existing values for the name
-     * @param name - The header name
+     * @param key - The header name
      * @param value - The header value
     */
     public set(key: string, value: string): void;
 
     /**
      * Removes all values for the given name
-     * @param name - The header to remove all values for
+     * @param key - The header to remove all values for
      */
     public remove(key: string): void;
 
     /**
      * Removes a specific name/value pair
-     * @param name - The header name to remove
+     * @param key - The header name to remove
      * @param value - The header value to remove
      */
     public remove_value(key: string, value: string): void;

@@ -32,32 +32,49 @@ enum StreamingOperationState {
  * An AWS MQTT service streaming operation.  A streaming operation listens to messages on
  * a particular topic, deserializes them using a service model, and emits the modeled data as Javascript events.
  */
-export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter) implements mqtt_request_response.IStreamingOperation {
+export class StreamingOperationBase extends NativeResourceMixin(BufferedEventEmitter) implements mqtt_request_response.IStreamingOperation {
 
+    private client: RequestResponseClient;
     private state = StreamingOperationState.None;
 
-    static new(options: mqtt_request_response.StreamingOperationOptions, client: RequestResponseClient) : StreamingOperation {
-        let operation = new StreamingOperation();
-        operation._super(crt_native.mqtt_streaming_operation_new(operation, options, client.native_handle()));
+    static new(options: mqtt_request_response.StreamingOperationOptions, client: RequestResponseClient) : StreamingOperationBase {
+        if (!options) {
+            throw new CrtError("invalid configuration for streaming operation");
+        }
+
+        let operation = new StreamingOperationBase(client);
+        operation._super(crt_native.mqtt_streaming_operation_new(
+            operation,
+            client.native_handle(),
+            options,
+            (streamingOperation: StreamingOperationBase, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => {
+                StreamingOperationBase._s_on_subscription_status_update(operation, type, error_code);
+            },
+            (streamingOperation: StreamingOperationBase, publishEvent: mqtt_request_response.IncomingPublishEvent) => {
+                StreamingOperationBase._s_on_incoming_publish(operation, publishEvent);
+            }));
+
+        client.registerUnclosedStreamingOperation(operation);
 
         return operation;
     }
 
-    private constructor() {
+    private constructor(client: RequestResponseClient) {
         super();
+        this.client = client;
     }
 
     /**
-     * Triggers the streaming operation to start listening to the configured stream of events.  It is an error
-     * to open a streaming operation more than once or re-open a closed streaming operation.
+     * Triggers the streaming operation to start listening to the configured stream of events.  Has no effect on an
+     * already-open operation.  It is an error to attempt to re-open a closed streaming operation.
      */
     open() : void {
-        if (this.state != StreamingOperationState.None) {
+        if (this.state == StreamingOperationState.None) {
+            this.state = StreamingOperationState.Open;
+            crt_native.mqtt_streaming_operation_open(this.native_handle());
+        } else if (this.state != StreamingOperationState.Open) {
             throw new CrtError("MQTT streaming operation not in an openable state");
         }
-
-        this.state = StreamingOperationState.Open;
-        crt_native.mqtt_streaming_operation_open(this.native_handle());
     }
 
     /**
@@ -66,6 +83,7 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
      */
     close(): void {
         if (this.state != StreamingOperationState.Closed) {
+            this.client.unregisterUnclosedStreamingOperation(this);
             this.state = StreamingOperationState.Closed;
             crt_native.mqtt_streaming_operation_close(this.native_handle());
         }
@@ -97,6 +115,26 @@ export class StreamingOperation extends NativeResourceMixin(BufferedEventEmitter
         super.on(event, listener);
         return this;
     }
+
+    private static _s_on_subscription_status_update(streamingOperation: StreamingOperationBase, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) : void {
+        let statusEvent : mqtt_request_response.SubscriptionStatusEvent = {
+            type: type
+        };
+
+        if (error_code != 0) {
+            statusEvent.error = new CrtError(error_code)
+        }
+
+        process.nextTick(() => {
+            streamingOperation.emit(StreamingOperationBase.SUBSCRIPTION_STATUS, statusEvent);
+        });
+    }
+
+    private static _s_on_incoming_publish(streamingOperation: StreamingOperationBase, publishEvent: mqtt_request_response.IncomingPublishEvent) : void {
+        process.nextTick(() => {
+            streamingOperation.emit(StreamingOperationBase.INCOMING_PUBLISH, publishEvent);
+        });
+    }
 }
 
 enum RequestResponseClientState {
@@ -113,7 +151,8 @@ enum RequestResponseClientState {
  */
 export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmitter) implements mqtt_request_response.IRequestResponseClient {
 
-    state: RequestResponseClientState = RequestResponseClientState.Ready;
+    private state: RequestResponseClientState = RequestResponseClientState.Ready;
+    private unclosedOperations? : Set<StreamingOperationBase> = new Set<StreamingOperationBase>();
 
     private constructor() {
         super();
@@ -162,6 +201,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
     close(): void {
         if (this.state != RequestResponseClientState.Closed) {
             this.state = RequestResponseClientState.Closed;
+            this.closeStreamingOperations();
             crt_native.mqtt_request_response_client_close(this.native_handle());
         }
     }
@@ -172,12 +212,12 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      *
      * @param streamOptions configuration options for the streaming operation
      */
-    createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : StreamingOperation {
+    createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : StreamingOperationBase {
         if (this.state == RequestResponseClientState.Closed) {
             throw new CrtError("MQTT request-response client has already been closed");
         }
 
-        return StreamingOperation.new(streamOptions, this);
+        return StreamingOperationBase.new(streamOptions, this);
     }
 
     /**
@@ -212,6 +252,48 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
                 reject(e);
             }
         });
+    }
+
+    /**
+     *
+     * Adds a streaming operation to the set of operations that will be closed automatically when the
+     * client is closed.
+     *
+     * @internal
+     *
+     * @param operation streaming operation to add
+     */
+    registerUnclosedStreamingOperation(operation: StreamingOperationBase) : void {
+        if (this.unclosedOperations) {
+            this.unclosedOperations.add(operation);
+        }
+    }
+
+    /**
+     *
+     * Removes a streaming operation from the set of operations that will be closed automatically when the
+     * client is closed.
+     *
+     * @internal
+     *
+     * @param operation streaming operation to remove
+     */
+    unregisterUnclosedStreamingOperation(operation: StreamingOperationBase) : void {
+        if (this.unclosedOperations) {
+            this.unclosedOperations.delete(operation);
+        }
+    }
+
+    private closeStreamingOperations() : void {
+        if (this.unclosedOperations) {
+            // swap out the set so that calls to unregisterUnclosedStreamingOperation do not mess with things mid-iteration
+            let unclosedOperations = this.unclosedOperations;
+            this.unclosedOperations = undefined;
+
+            for (const operation of unclosedOperations) {
+                operation.close();
+            }
+        }
     }
 
     private static _s_on_request_completion(resolve : (value: (mqtt_request_response.Response | PromiseLike<mqtt_request_response.Response>)) => void, reject : (reason?: any) => void, errorCode: number, topic?: string, payload?: ArrayBuffer) {
