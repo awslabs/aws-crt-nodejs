@@ -633,6 +633,15 @@ export class MqttClientConnection extends BufferedEventEmitter {
         });
     }
 
+    /**
+     * Queries whether the client is currently connected
+     *
+     * @returns whether the client is currently connected
+     */
+    isConnected() : boolean {
+        return this.currentState == MqttBrowserClientState.Connected;
+    }
+
     private on_connect = (connack: mqtt.IConnackPacket) => {
         this.on_online(connack.sessionPresent);
     }

@@ -21,6 +21,7 @@ import * as http from './browser/http';
 import * as crypto from './browser/crypto';
 import * as iot from './browser/iot';
 import * as auth from './browser/auth';
+import * as mqtt_request_response from './browser/mqtt_request_response';
 import { ICrtError, CrtError } from './browser/error';
 
 export {
@@ -31,6 +32,7 @@ export {
     io,
     iot,
     mqtt,
+    mqtt_request_response,
     mqtt5,
     platform,
     promise,
