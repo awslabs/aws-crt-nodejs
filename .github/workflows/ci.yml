@@ -129,8 +129,21 @@ jobs:
         cd aws-crt-nodejs
         node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
 
-  osx:
-    runs-on: macos-12 # latest
+  macos:
+    runs-on: macos-14 # latest
+    steps:
+    - name: Build ${{ env.PACKAGE_NAME }} + consumers
+      run: |
+        python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
+        chmod a+x builder
+        ./builder build -p ${{ env.PACKAGE_NAME }} --spec=downstream
+    - name: Check backward compatibility for Macos
+      run: |
+        cd aws-crt-nodejs
+        python3 codebuild/macos_compatibility_check.py arm64
+
+  macos-x64:
+    runs-on: macos-14-large # latest
     steps:
     - name: Build ${{ env.PACKAGE_NAME }} + consumers
       run: |
