@@ -12,4 +12,3 @@
  */
 
 export * from "../common/mqtt_request_response";
-export * from "./mqtt_request_response/request_response_client";
