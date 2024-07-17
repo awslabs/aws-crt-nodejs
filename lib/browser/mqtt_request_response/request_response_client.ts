@@ -19,7 +19,7 @@ import * as mqtt311 from "../mqtt";
 export class RequestResponseClient implements mqtt_request_response.IRequestResponseClient {
 
     // @ts-ignore
-    private constructor(private adapter : protocol_adapter.ProtocolAdapter, private options: mqtt_request_response.RequestResponseClientOptions) {
+    private constructor(private adapter : protocol_adapter.ProtocolClientAdapter, private options: mqtt_request_response.RequestResponseClientOptions) {
     }
 
     /**
@@ -37,7 +37,7 @@ export class RequestResponseClient implements mqtt_request_response.IRequestResp
             throw new CrtError("options are null");
         }
 
-        let adapter = protocol_adapter.ProtocolAdapter.newFrom5(protocolClient);
+        let adapter = protocol_adapter.ProtocolClientAdapter.newFrom5(protocolClient);
         let client = new RequestResponseClient(adapter, options);
 
         return client;
@@ -58,7 +58,7 @@ export class RequestResponseClient implements mqtt_request_response.IRequestResp
             throw new CrtError("options are null");
         }
 
-        let adapter = protocol_adapter.ProtocolAdapter.newFrom311(protocolClient);
+        let adapter = protocol_adapter.ProtocolClientAdapter.newFrom311(protocolClient);
         let client = new RequestResponseClient(adapter, options);
 
         return client;
