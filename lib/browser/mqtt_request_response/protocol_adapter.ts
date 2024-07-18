@@ -80,6 +80,7 @@ export type ConnectionStatusEventListener = (event: ConnectionStatusEvent) => vo
  */
 export class ProtocolClientAdapter extends BufferedEventEmitter {
 
+    private closed: boolean;
     private client5?: mqtt5.Mqtt5Client;
     private client311?: mqtt311.MqttClientConnection;
     private connectionState: ConnectionState;
@@ -118,6 +119,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         super();
 
         this.connectionState = ConnectionState.DISCONNECTED;
+        this.closed = false;
     }
 
     public static newFrom5(client: mqtt5.Mqtt5Client) : ProtocolClientAdapter {
@@ -139,12 +141,16 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt311.MqttClientConnection.CONNECTION_SUCCESS, adapter.connectionSuccessListener311);
         client.addListener(mqtt311.MqttClientConnection.DISCONNECT, adapter.disconnectionListener311);
-        adapter.connectionState = client.isConnected() ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED;
+        adapter.connectionState = client.is_connected() ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED;
 
         return adapter;
     }
 
     public close() : void {
+        if (this.closed) {
+            return;
+        }
+
         if (this.client5) {
             this.client5.removeListener(mqtt5.Mqtt5Client.CONNECTION_SUCCESS, this.connectionSuccessListener5);
             this.client5.removeListener(mqtt5.Mqtt5Client.DISCONNECTION, this.disconnectionListener5);
@@ -159,6 +165,11 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     }
 
     public publish(publishOptions : PublishOptions) : void {
+
+        if (this.closed) {
+            throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
+        }
+
         var publishResult: PublishCompletionEvent | undefined = undefined;
 
         setImmediate(async () => {
@@ -231,6 +242,11 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     }
 
     public subscribe(subscribeOptions: SubscribeOptions) : void {
+
+        if (this.closed) {
+            throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
+        }
+
         var subscribeResult: SubscribeCompletionEvent | undefined = undefined;
 
         setImmediate(async () => {
@@ -312,6 +328,11 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     }
 
     public unsubscribe(unsubscribeOptions: UnsubscribeOptions) : void {
+
+        if (this.closed) {
+            throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
+        }
+
         var unsubscribeResult: UnsubscribeCompletionEvent | undefined = undefined;
 
         setImmediate(async () => {
@@ -388,6 +409,10 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     }
 
     public getConnectionState() : ConnectionState {
+        if (this.closed) {
+            throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
+        }
+
         return this.connectionState;
     }
 
@@ -421,6 +446,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     private static ILLEGAL_ADAPTER_STATE = "Illegal Adapter State";
 
     private static OPERATION_TIMEOUT = "Operation Timeout";
+
+    private static ADAPTER_CLOSED = "Protocol Client Adapter Closed";
 
     private static isUnsubackReasonCodeRetryable(reasonCode: mqtt5.UnsubackReasonCode) : boolean {
         switch (reasonCode) {

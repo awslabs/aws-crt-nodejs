@@ -638,7 +638,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *
      * @returns whether the client is currently connected
      */
-    isConnected() : boolean {
+    is_connected() : boolean {
         return this.currentState == MqttBrowserClientState.Connected;
     }
 
