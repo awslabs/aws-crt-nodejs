@@ -4,6 +4,7 @@ module.exports = {
     testMatch: [
         '<rootDir>/lib/common/*.spec.ts',
         '<rootDir>/lib/browser/*.spec.ts',
+        '<rootDir>/lib/browser/mqtt_request_response/*.spec.ts'
     ],
     preset: 'jest-puppeteer',
     globals: {
