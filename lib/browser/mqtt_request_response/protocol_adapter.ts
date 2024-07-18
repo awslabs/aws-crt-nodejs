@@ -151,6 +151,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
             return;
         }
 
+        this.closed = true;
+
         if (this.client5) {
             this.client5.removeListener(mqtt5.Mqtt5Client.CONNECTION_SUCCESS, this.connectionSuccessListener5);
             this.client5.removeListener(mqtt5.Mqtt5Client.DISCONNECTION, this.disconnectionListener5);

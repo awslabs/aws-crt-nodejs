@@ -474,3 +474,36 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
 });
 
 // There's no straightforward, reliable way to generate publish failures against IoT Core, so no failure tests
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvironmentCred())('Protocol Adapter Use After Close', async () => {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+    await context.close();
+
+    var encoder = new TextEncoder();
+    let payload: ArrayBuffer = encoder.encode("A payload");
+    let completionData = 42;
+    let publishOptions = {
+        topic: "a/b/c",
+        payload: payload,
+        timeoutInSeconds: .001,
+        completionData: completionData,
+    };
+    expect(() => { context.adapter.publish(publishOptions); }).toThrow();
+
+    let unsubscribeOptions ={
+        topicFilter: "a/b/c",
+        timeoutInSeconds: 30
+    };
+    expect(() => { context.adapter.unsubscribe(unsubscribeOptions); }).toThrow();
+
+    let subscribeOptions ={
+        topicFilter: "a/b/c",
+        timeoutInSeconds: 30
+    };
+    expect(() => { context.adapter.subscribe(subscribeOptions); }).toThrow();
+
+});
