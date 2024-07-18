@@ -49,6 +49,7 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
+    "ws": "^8.17.1", // @httptoolkit/websocket-stream nested ws * dependencies need to use this version or higher.
     "@aws-sdk/util-utf8-browser": "^3.259.0",
     "@httptoolkit/websocket-stream": "^6.0.1",
     "axios": "^1.7.2",
