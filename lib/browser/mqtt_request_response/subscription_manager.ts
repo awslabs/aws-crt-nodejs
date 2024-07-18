@@ -74,13 +74,13 @@ export enum SubscriptionType {
 }
 
 export interface AcquireSubscriptionConfig {
-    topicFilters: [string],
+    topicFilters: Array<string>,
     operationId: number,
     type: SubscriptionType,
 }
 
 export interface ReleaseSubscriptionsConfig {
-    topicFilters: [string],
+    topicFilters: Array<string>,
     operationId: number,
 }
 
