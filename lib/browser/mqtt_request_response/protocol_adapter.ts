@@ -59,9 +59,9 @@ export interface UnsubscribeCompletionEvent {
 export type UnsubscribeCompletionEventListener = (event: UnsubscribeCompletionEvent) => void;
 
 export enum ConnectionState {
-    CONNECTED = 0,
-    DISCONNECTED = 1,
-};
+    Connected = 0,
+    Disconnected = 1,
+}
 
 export interface ConnectionStatusEvent {
     status: ConnectionState,
@@ -86,39 +86,39 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     private connectionState: ConnectionState;
 
     private connectionSuccessListener5 : mqtt5.ConnectionSuccessEventListener = (event : mqtt5.ConnectionSuccessEvent) => {
-        this.connectionState = ConnectionState.CONNECTED;
+        this.connectionState = ConnectionState.Connected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.CONNECTED,
+            status: ConnectionState.Connected,
             joinedSession: event.connack.sessionPresent,
         })});
     };
 
     private disconnectionListener5 : mqtt5.DisconnectionEventListener = (event : mqtt5.DisconnectionEvent) => {
-        this.connectionState = ConnectionState.DISCONNECTED;
+        this.connectionState = ConnectionState.Disconnected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.DISCONNECTED,
+            status: ConnectionState.Disconnected,
         })});
     };
 
     private connectionSuccessListener311 : mqtt311.MqttConnectionSuccess = (event : mqtt311.OnConnectionSuccessResult) => {
-        this.connectionState = ConnectionState.CONNECTED;
+        this.connectionState = ConnectionState.Connected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.CONNECTED,
+            status: ConnectionState.Connected,
             joinedSession: event.session_present,
         })});
     };
 
     private disconnectionListener311 : mqtt311.MqttConnectionDisconnected = () => {
-        this.connectionState = ConnectionState.DISCONNECTED;
+        this.connectionState = ConnectionState.Disconnected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.DISCONNECTED,
+            status: ConnectionState.Disconnected,
         })});
     };
 
     private constructor() {
         super();
 
-        this.connectionState = ConnectionState.DISCONNECTED;
+        this.connectionState = ConnectionState.Disconnected;
         this.closed = false;
     }
 
@@ -129,7 +129,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt5.Mqtt5Client.CONNECTION_SUCCESS, adapter.connectionSuccessListener5);
         client.addListener(mqtt5.Mqtt5Client.DISCONNECTION, adapter.disconnectionListener5);
-        adapter.connectionState = client.isConnected() ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED;
+        adapter.connectionState = client.isConnected() ? ConnectionState.Connected : ConnectionState.Disconnected;
 
         return adapter;
     }
@@ -141,7 +141,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt311.MqttClientConnection.CONNECTION_SUCCESS, adapter.connectionSuccessListener311);
         client.addListener(mqtt311.MqttClientConnection.DISCONNECT, adapter.disconnectionListener311);
-        adapter.connectionState = client.is_connected() ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED;
+        adapter.connectionState = client.is_connected() ? ConnectionState.Connected : ConnectionState.Disconnected;
 
         return adapter;
     }

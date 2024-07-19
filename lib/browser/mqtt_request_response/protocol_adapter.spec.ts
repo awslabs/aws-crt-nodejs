@@ -353,11 +353,11 @@ async function do_get_connection_state_test(version: ProtocolVersion) {
         version: version
     });
 
-    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.DISCONNECTED);
+    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.Disconnected);
 
     await context.open();
 
-    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.CONNECTED);
+    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.Connected);
 
     await context.close();
 }
@@ -380,7 +380,7 @@ async function do_connection_event_test(version: ProtocolVersion) {
     await context.open();
 
     let connection_event1 : protocol_adapter.ConnectionStatusEvent = (await event1_promise)[0];
-    expect(connection_event1.status).toEqual(protocol_adapter.ConnectionState.CONNECTED);
+    expect(connection_event1.status).toEqual(protocol_adapter.ConnectionState.Connected);
     expect(connection_event1.joinedSession).toEqual(false);
 
     let event2_promise = once(context.adapter, protocol_adapter.ProtocolClientAdapter.CONNECTION_STATUS);
@@ -388,7 +388,7 @@ async function do_connection_event_test(version: ProtocolVersion) {
     await context.stopProtocolClient();
 
     let connection_event2 : protocol_adapter.ConnectionStatusEvent = (await event2_promise)[0];
-    expect(connection_event2.status).toEqual(protocol_adapter.ConnectionState.DISCONNECTED);
+    expect(connection_event2.status).toEqual(protocol_adapter.ConnectionState.Disconnected);
 }
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvironmentCred())('Protocol Adapter Connection Event Sequence - Mqtt5', async () => {
