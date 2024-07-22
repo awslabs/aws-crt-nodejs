@@ -21,9 +21,9 @@
 
 import crt_native from './binding';
 import { NativeResource } from "./native_resource";
-import { TlsVersion, SocketType, SocketDomain } from '../common/io';
+import { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
-export { TlsVersion, SocketType, SocketDomain } from '../common/io';
+export { LogLevel, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { CrtError } from './error';
 
 /**
@@ -57,27 +57,6 @@ export function error_code_to_name(error_code: number): string {
 }
 
 /**
- * The amount of detail that will be logged
- * @category Logging
- */
-export enum LogLevel {
-    /** No logging whatsoever. Equivalent to never calling {@link enable_logging}. */
-    NONE = 0,
-    /** Only fatals. In practice, this will not do much, as the process will log and then crash (intentionally) if a fatal condition occurs */
-    FATAL = 1,
-    /** Only errors */
-    ERROR = 2,
-    /** Only warnings and errors */
-    WARN = 3,
-    /** Information about connection/stream creation/destruction events */
-    INFO = 4,
-    /** Enough information to debug the chain of events a given network connection encounters */
-    DEBUG = 5,
-    /** Everything. Only use this if you really need to know EVERY single call */
-    TRACE = 6
-}
-
-/**
  * Enables logging of the native AWS CRT libraries.
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
@@ -86,6 +65,7 @@ export enum LogLevel {
  */
 export function enable_logging(level: LogLevel) {
     crt_native.io_logging_enable(level);
+    setLogLevel(level);
 }
 
 /**
