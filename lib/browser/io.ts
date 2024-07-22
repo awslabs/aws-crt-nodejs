@@ -19,7 +19,7 @@
  * @mergeTarget
  */
 
-export { LogLevel, TlsVersion, SocketType, SocketDomain } from "../common/io";
+export { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from "../common/io";
 import { setLogLevel, LogLevel, SocketType, SocketDomain } from "../common/io";
 
 /**
