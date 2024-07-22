@@ -23,6 +23,7 @@ import crt_native from './binding';
 import { NativeResource } from "./native_resource";
 import { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
+// Do not re-export the logging functions in common; they are package-private
 export { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { CrtError } from './error';
 
