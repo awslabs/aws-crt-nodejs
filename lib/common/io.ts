@@ -87,9 +87,20 @@ export enum LogLevel {
 
 let logLevel : LogLevel = LogLevel.NONE;
 
+/**
+ * Sets the amount of detail that will be logged
+ * @param level - maximum level of logging detail.  Log invocations at a higher level of detail will be ignord.
+ *
+ * @category Logging
+ */
 export function setLogLevel(level: LogLevel) {
     logLevel = level;
 }
+
+/*
+ * The logging API is exported to library-internal, but stays private beyond the package boundary, so the following API
+ * decisions are not binding.
+ */
 
 export type LogLineGenerator = () => string;
 
