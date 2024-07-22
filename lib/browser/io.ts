@@ -19,8 +19,10 @@
  * @mergeTarget
  */
 
-export { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from "../common/io";
 import { setLogLevel, LogLevel, SocketType, SocketDomain } from "../common/io";
+// Do not re-export the logging functions in common; they are package-private
+export { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from "../common/io";
+
 
 /**
  * @return false, as ALPN is not configurable from the browser
