@@ -19,8 +19,10 @@
  * @mergeTarget
  */
 
-export { TlsVersion, SocketType, SocketDomain } from "../common/io";
-import { SocketType, SocketDomain } from "../common/io";
+import { setLogLevel, LogLevel, SocketType, SocketDomain } from "../common/io";
+// Do not re-export the logging functions in common; they are package-private
+export { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from "../common/io";
+
 
 /**
  * @return false, as ALPN is not configurable from the browser
@@ -111,4 +113,8 @@ export class SocketOptions {
         public keep_alive_timeout_sec = 0,
         public keep_alive_max_failed_probes = 0) {
     }
+}
+
+export function enable_logging(level: LogLevel) {
+    setLogLevel(level);
 }
