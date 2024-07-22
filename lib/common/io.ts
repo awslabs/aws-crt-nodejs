@@ -102,58 +102,56 @@ export function setLogLevel(level: LogLevel) {
  * decisions are not binding.
  */
 
-export type LogLineGenerator = () => string;
-
-export function logFatal(subject: string, generator: LogLineGenerator) {
+export function logFatal(subject: string, logLine: string) {
     if (logLevel < LogLevel.FATAL) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[FATAL] [${currentTime}] [${subject}] - ${generator()}`);
+    console.log(`[FATAL] [${currentTime}] [${subject}] - ${logLine}`);
 }
 
-export function logError(subject: string, generator: LogLineGenerator) {
+export function logError(subject: string, logLine: string) {
     if (logLevel < LogLevel.ERROR) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[ERROR] [${currentTime}] [${subject}] - ${generator()}`);
+    console.log(`[ERROR] [${currentTime}] [${subject}] - ${logLine}`);
 }
 
-export function logWarn(subject: string, generator: LogLineGenerator) {
+export function logWarn(subject: string, logLine: string) {
     if (logLevel < LogLevel.WARN) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[WARN] [${currentTime}] [${subject}] - ${generator()}`);
+    console.log(`[WARN] [${currentTime}] [${subject}] - ${logLine}`);
 }
 
-export function logInfo(subject: string, generator: LogLineGenerator) {
+export function logInfo(subject: string, logLine: string) {
     if (logLevel < LogLevel.INFO) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[INFO] [${currentTime}] [${subject}] - ${generator()}`);
+    console.log(`[INFO] [${currentTime}] [${subject}] - ${logLine}`);
 }
 
-export function logDebug(subject: string, generator: LogLineGenerator) {
+export function logDebug(subject: string, logLine: string) {
     if (logLevel < LogLevel.DEBUG) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[DEBUG] [${currentTime}] [${subject}] - ${generator()}`);
+    console.log(`[DEBUG] [${currentTime}] [${subject}] - ${logLine}`);
 }
 
-export function logTrace(subject: string, generator: LogLineGenerator) {
+export function logTrace(subject: string, logLine: string) {
     if (logLevel < LogLevel.TRACE) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[TRACE] [${currentTime}] [${subject}] - ${generator()}`);
+    console.log(`[TRACE] [${currentTime}] [${subject}] - ${logLine}`);
 }
