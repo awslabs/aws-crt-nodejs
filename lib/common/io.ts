@@ -89,7 +89,7 @@ let logLevel : LogLevel = LogLevel.NONE;
 
 /**
  * Sets the amount of detail that will be logged
- * @param level - maximum level of logging detail.  Log invocations at a higher level of detail will be ignord.
+ * @param level - maximum level of logging detail.  Log invocations at a higher level of detail will be ignored.
  *
  * @category Logging
  */
