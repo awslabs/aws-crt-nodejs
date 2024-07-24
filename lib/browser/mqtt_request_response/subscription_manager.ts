@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
 import * as protocol_adapter from "./protocol_adapter";
 import * as io from "../../common/io";
@@ -171,6 +170,7 @@ interface SubscriptionStats {
 export class SubscriptionManager extends BufferedEventEmitter {
     private static logSubject : string = "SubscriptionManager";
 
+    private closed: boolean = false;
     private records: Map<string, SubscriptionRecord>;
 
     constructor(private adapter: protocol_adapter.ProtocolClientAdapter, private options: SubscriptionManagerConfig) {
@@ -184,10 +184,16 @@ export class SubscriptionManager extends BufferedEventEmitter {
     }
 
     close() {
-        throw new CrtError("Unimplemented");
+        this.closed = true;
+
+        this.unsubscribeAll();
     }
 
     acquireSubscription(options: AcquireSubscriptionConfig) : AcquireSubscriptionResult {
+        if (this.closed) {
+            return AcquireSubscriptionResult.Failure;
+        }
+
         if (options.topicFilters.length == 0) {
             return AcquireSubscriptionResult.Failure;
         }
@@ -276,7 +282,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
                 // @ts-ignore
                 this.activateSubscription(existingRecord);
             } catch (err) {
-                io.logError(SubscriptionManager.logSubject, `acquire subscription for operation '${options.operationId}' failed subscription activation: ${err.toString()}`);
+                io.logError(SubscriptionManager.logSubject, `acquire subscription for operation '${options.operationId}' failed subscription activation: ${(err as Error).toString()}`);
                 return AcquireSubscriptionResult.Failure;
             }
         }
@@ -286,12 +292,20 @@ export class SubscriptionManager extends BufferedEventEmitter {
     }
 
     releaseSubscription(options: ReleaseSubscriptionsConfig) {
+        if (this.closed) {
+            return;
+        }
+
         for (let topicFilter of options.topicFilters) {
             this.removeSubscriptionListener(topicFilter, options.operationId);
         }
     }
 
     purge() {
+        if (this.closed) {
+            return;
+        }
+
         io.logDebug(SubscriptionManager.logSubject, `purging unused subscriptions`);
         let toRemove : Array<string> = new Array<string>();
         for (let [_, record] of this.records) {
@@ -383,7 +397,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
                 timeoutInSeconds: this.options.operationTimeoutInSeconds
             });
         } catch (err) {
-            io.logError(SubscriptionManager.logSubject, `synchronous unsubscribe failure for '${record.topicFilter}': ${err.toString()}`);
+            io.logError(SubscriptionManager.logSubject, `synchronous unsubscribe failure for '${record.topicFilter}': ${(err as Error).toString()}`);
             return;
         }
 
@@ -485,7 +499,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
 
             record.pendingAction = SubscriptionPendingAction.Subscribing;
         } catch (err) {
-            io.logError(SubscriptionManager.logSubject, `synchronous failure subscribing to '${record.topicFilter}': ${err.toString()}`);
+            io.logError(SubscriptionManager.logSubject, `synchronous failure subscribing to '${record.topicFilter}': ${(err as Error).toString()}`);
 
             if (record.type == SubscriptionType.RequestResponse) {
                 this.emitEvents(record, SubscriptionEventType.SubscribeFailure);
@@ -514,9 +528,12 @@ export class SubscriptionManager extends BufferedEventEmitter {
             record.status = SubscriptionStatus.Subscribed;
             this.emitEvents(record, SubscriptionEventType.StreamingSubscriptionEstablished);
         } else {
-            // TODO: any way to get retryable from the subscribe failure?
-            record.poisoned = true;
-            this.emitEvents(record, SubscriptionEventType.StreamingSubscriptionHalted);
+            if (event.retryable) {
+                this.activateSubscription(record);
+            } else {
+                record.poisoned = true;
+                this.emitEvents(record, SubscriptionEventType.StreamingSubscriptionHalted);
+            }
         }
     }
 

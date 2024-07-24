@@ -40,7 +40,8 @@ export interface SubscribeOptions {
 
 export interface SubscribeCompletionEvent {
     topicFilter: string,
-    err?: ICrtError
+    err?: ICrtError,
+    retryable?: boolean,
 }
 
 export type SubscribeCompletionEventListener = (event: SubscribeCompletionEvent) => void;
@@ -270,8 +271,10 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                                 topicFilter: subscribeOptions.topicFilter,
                             };
 
-                            if (!mqtt5.isSuccessfulSubackReasonCode(suback.reasonCodes[0])) {
+                            let reasonCode = suback.reasonCodes[0];
+                            if (!mqtt5.isSuccessfulSubackReasonCode(reasonCode)) {
                                 subscribeResult.err = new CrtError(ProtocolClientAdapter.FAILING_SUBACK_REASON_CODE);
+                                subscribeResult.retryable = ProtocolClientAdapter.isSubackReasonCodeRetryable(reasonCode);
                             }
                         }
                     },
@@ -279,7 +282,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                         if (!subscribeResult) {
                             subscribeResult = {
                                 topicFilter: subscribeOptions.topicFilter,
-                                err: err
+                                err: err,
+                                retryable: false
                             };
                         }
                     }
@@ -294,8 +298,10 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
                             if (response.qos >= 128) {
                                 subscribeResult.err = new CrtError(ProtocolClientAdapter.FAILING_SUBACK_REASON_CODE);
+                                subscribeResult.retryable = true;
                             } else if (response.error_code) {
                                 subscribeResult.err = new CrtError("Internal Error");
+                                subscribeResult.retryable = true;
                             }
                         }
                     },
@@ -303,7 +309,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                         if (!subscribeResult) {
                             subscribeResult = {
                                 topicFilter: subscribeOptions.topicFilter,
-                                err: err
+                                err: err,
+                                retryable: false,
                             };
                         }
                     }
@@ -317,7 +324,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                         if (!subscribeResult) {
                             subscribeResult = {
                                 topicFilter: subscribeOptions.topicFilter,
-                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT)
+                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT),
+                                retryable: true,
                             };
                         }
                     },
@@ -364,7 +372,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                             unsubscribeResult = {
                                 topicFilter: unsubscribeOptions.topicFilter,
                                 err: err,
-                                retryable: false, // TODO: reevaluate if we can do anything here
+                                retryable: false,
                             }
                         }
                     }
@@ -383,7 +391,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                             unsubscribeResult = {
                                 topicFilter: unsubscribeOptions.topicFilter,
                                 err: err,
-                                retryable: false, // TODO: reevaluate
+                                retryable: false,
                             };
                         }
                     }
@@ -455,6 +463,19 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         switch (reasonCode) {
             case mqtt5.UnsubackReasonCode.UnspecifiedError:
             case mqtt5.UnsubackReasonCode.ImplementationSpecificError:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static isSubackReasonCodeRetryable(reasonCode: mqtt5.SubackReasonCode) : boolean {
+        switch (reasonCode) {
+            case mqtt5.SubackReasonCode.UnspecifiedError:
+            case mqtt5.SubackReasonCode.PacketIdentifierInUse:
+            case mqtt5.SubackReasonCode.ImplementationSpecificError:
+            case mqtt5.SubackReasonCode.QuotaExceeded:
                 return true;
 
             default:
