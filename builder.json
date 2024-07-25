@@ -3,7 +3,7 @@
     "+imports": [
         "node-14",
         "JDK8",
-        "AWSLCImport"
+        "aws-lc"
     ],
     "+packages": [
         "maven"
