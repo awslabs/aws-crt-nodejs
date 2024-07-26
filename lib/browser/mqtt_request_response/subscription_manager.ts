@@ -14,7 +14,8 @@ import * as io from "../../common/io";
  *
  */
 
-enum SubscriptionEventType {
+// exported for tests only
+export enum SubscriptionEventType {
     SubscribeSuccess,
     SubscribeFailure,
     SubscriptionEnded,
@@ -319,12 +320,12 @@ export class SubscriptionManager extends BufferedEventEmitter {
                 this.unsubscribe(record, false);
             }
 
-            if (record.status == SubscriptionStatus.Subscribed && record.pendingAction == SubscriptionPendingAction.Nothing) {
+            if (record.status == SubscriptionStatus.NotSubscribed && record.pendingAction == SubscriptionPendingAction.Nothing) {
                 toRemove.push(record.topicFilter);
             }
         }
 
-        for (let topicFilter in toRemove) {
+        for (let topicFilter of toRemove) {
             io.logDebug(SubscriptionManager.logSubject, `deleting subscription '${topicFilter}'`);
             this.records.delete(topicFilter);
         }
