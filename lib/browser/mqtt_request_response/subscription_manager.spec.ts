@@ -1970,3 +1970,191 @@ test('Subscription Manager - Close while request-response subscribing and offlin
 test('Subscription Manager - Close while streaming subscribing and offline triggers unsubscribe', async () => {
     await closeTest(subscription_manager.SubscriptionType.EventStream, false, false);
 });
+
+async function noSessionSubscriptionEndedTest(offlineWhileUnsubscribing: boolean) {
+    let adapter = new MockProtocolAdapter();
+    adapter.connect();
+
+    // @ts-ignore
+    let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
+
+    let filter1 = "a/b/+";
+    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+        {
+            methodName: 'subscribe',
+            args: {
+                topicFilter: filter1,
+                timeoutInSeconds: 30
+            }
+        },
+        {
+            methodName: 'unsubscribe',
+            args: {
+                topicFilter: filter1,
+                timeoutInSeconds: 30
+            }
+        },
+    );
+
+    expect(subscriptionManager.acquireSubscription({
+        operationId: 1,
+        type: subscription_manager.SubscriptionType.RequestResponse,
+        topicFilters: [filter1]
+    })).toEqual(subscription_manager.AcquireSubscriptionResult.Subscribing);
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0,1));
+
+    adapter.completeSubscribe(filter1);
+
+    if (offlineWhileUnsubscribing) {
+        subscriptionManager.releaseSubscription({
+            operationId: 1,
+            topicFilters: [filter1]
+        });
+
+        subscriptionManager.purge();
+
+        expect(adapter.getApiCalls()).toEqual(expectedApiCalls);
+    }
+
+    let subscriptionEndedPromise = once(subscriptionManager, subscription_manager.SubscriptionManager.SUBSCRIPTION_ENDED);
+
+    adapter.disconnect();
+    adapter.connect();
+
+    if (!offlineWhileUnsubscribing) {
+        let subscriptionEnded = (await subscriptionEndedPromise)[0];
+        expect(subscriptionEnded.topicFilter).toEqual(filter1);
+    }
+
+    let reaquire: subscription_manager.AcquireSubscriptionConfig = {
+        operationId: 2,
+        type: subscription_manager.SubscriptionType.RequestResponse,
+        topicFilters : [filter1],
+    };
+
+    if (offlineWhileUnsubscribing) {
+        expect(subscriptionManager.acquireSubscription(reaquire)).toEqual(subscription_manager.AcquireSubscriptionResult.Blocked);
+
+        adapter.completeUnsubscribe(filter1, new CrtError("timeout"));
+    }
+
+    expect(subscriptionManager.acquireSubscription(reaquire)).toEqual(subscription_manager.AcquireSubscriptionResult.Subscribing);
+}
+
+test('Subscription Manager - Subscribed Session Rejoin Failure triggers subscription ended', async () => {
+    await noSessionSubscriptionEndedTest(false);
+});
+
+test('Subscription Manager - Subscribed Session Rejoin Failure while unsubscribing triggers subscription ended', async () => {
+    await noSessionSubscriptionEndedTest(true);
+});
+
+test('Subscription Manager - Subscribed Streaming Session Rejoin Failure triggers resubscribe and emits SubscriptionLost', async () => {
+    let adapter = new MockProtocolAdapter();
+    adapter.connect();
+
+    // @ts-ignore
+    let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
+
+    let filter1 = "a/b/+";
+    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+        {
+            methodName: 'subscribe',
+            args: {
+                topicFilter: filter1,
+                timeoutInSeconds: 30
+            }
+        },
+        {
+            methodName: 'subscribe',
+            args: {
+                topicFilter: filter1,
+                timeoutInSeconds: 30
+            }
+        },
+    );
+
+    expect(subscriptionManager.acquireSubscription({
+        operationId: 1,
+        type: subscription_manager.SubscriptionType.EventStream,
+        topicFilters: [filter1]
+    })).toEqual(subscription_manager.AcquireSubscriptionResult.Subscribing);
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0,1));
+
+    adapter.completeSubscribe(filter1);
+
+    let subscriptionLostPromise = once(subscriptionManager, subscription_manager.SubscriptionManager.STREAMING_SUBSCRIPTION_LOST);
+
+    adapter.disconnect();
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0,1));
+
+    adapter.connect();
+
+    let subscriptionLost = (await subscriptionLostPromise)[0];
+    expect(subscriptionLost.topicFilter).toEqual(filter1);
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls);
+});
+
+async function doPurgeTest(subscriptionType: subscription_manager.SubscriptionType) {
+    let adapter = new MockProtocolAdapter();
+    adapter.connect();
+
+    // @ts-ignore
+    let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
+
+    let filter1 = "a/b/+";
+    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+        {
+            methodName: 'subscribe',
+            args: {
+                topicFilter: filter1,
+                timeoutInSeconds: 30
+            }
+        },
+        {
+            methodName: 'unsubscribe',
+            args: {
+                topicFilter: filter1,
+                timeoutInSeconds: 30
+            }
+        },
+    );
+
+    expect(subscriptionManager.acquireSubscription({
+        operationId: 1,
+        type: subscription_manager.SubscriptionType.EventStream,
+        topicFilters: [filter1]
+    })).toEqual(subscription_manager.AcquireSubscriptionResult.Subscribing);
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0,1));
+
+    adapter.completeSubscribe(filter1);
+
+    let subscriptionOrphanedPromise = once(subscriptionManager, subscription_manager.SubscriptionManager.SUBSCRIPTION_ORPHANED);
+
+    subscriptionManager.releaseSubscription({
+        operationId: 1,
+        topicFilters: [filter1],
+    });
+
+    let subscriptionOrphaned = (await subscriptionOrphanedPromise)[0];
+    expect(subscriptionOrphaned.topicFilter).toEqual(filter1);
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0,1));
+
+    subscriptionManager.purge();
+
+    expect(adapter.getApiCalls()).toEqual(expectedApiCalls);
+}
+
+test('Subscription Manager - Subscribed RequestResponse emits orphaned event on release', async () => {
+    await doPurgeTest(subscription_manager.SubscriptionType.RequestResponse);
+});
+
+test('Subscription Manager - Subscribed Streaming emits orphaned event on release', async () => {
+    await doPurgeTest(subscription_manager.SubscriptionType.EventStream);
+});
