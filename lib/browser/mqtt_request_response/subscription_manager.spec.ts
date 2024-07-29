@@ -4,142 +4,14 @@
  */
 
 
-import * as protocol_adapter from './protocol_adapter';
-import {BufferedEventEmitter} from "../../common/event";
 import * as subscription_manager from "./subscription_manager";
 import {once} from "events";
 import {newLiftedPromise} from "../../common/promise";
-import {ICrtError} from "../../common/error";
 import {CrtError} from "../error";
-
+import * as protocol_adapter_mock from "./protocol_adapter_mock";
 
 jest.setTimeout(10000);
 
-interface ProtocolAdapterApiCall {
-    methodName: string;
-    args: any;
-}
-
-interface MockProtocolAdapterOptions {
-    subscribeHandler?: (subscribeOptions: protocol_adapter.SubscribeOptions) => void,
-    unsubscribeHandler?: (unsubscribeOptions: protocol_adapter.UnsubscribeOptions) => void,
-}
-
-class MockProtocolAdapter extends BufferedEventEmitter {
-
-    private apiCalls: Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>();
-    private connectionState: protocol_adapter.ConnectionState = protocol_adapter.ConnectionState.Disconnected;
-
-    constructor(private options?: MockProtocolAdapterOptions) {
-        super();
-    }
-
-    // ProtocolAdapter API
-    close() : void {
-
-    }
-
-    publish(publishOptions : protocol_adapter.PublishOptions) : void {
-        this.apiCalls.push({
-            methodName: "publish",
-            args: publishOptions
-        });
-    }
-
-    subscribe(subscribeOptions : protocol_adapter.SubscribeOptions) : void {
-        this.apiCalls.push({
-            methodName: "subscribe",
-            args: subscribeOptions
-        });
-
-        if (this.options && this.options.subscribeHandler) {
-            this.options.subscribeHandler(subscribeOptions);
-        }
-    }
-
-    unsubscribe(unsubscribeOptions : protocol_adapter.UnsubscribeOptions) : void {
-        this.apiCalls.push({
-            methodName: "unsubscribe",
-            args: unsubscribeOptions
-        });
-
-        if (this.options && this.options.unsubscribeHandler) {
-            this.options.unsubscribeHandler(unsubscribeOptions);
-        }
-    }
-
-    // Internal Testing API
-    connect(joinedSession?: boolean) : void {
-        if (this.connectionState === protocol_adapter.ConnectionState.Disconnected) {
-            this.connectionState = protocol_adapter.ConnectionState.Connected;
-
-            this.emit('connectionStatus', {
-                status: protocol_adapter.ConnectionState.Connected,
-                joinedSession: joinedSession
-            });
-        }
-    }
-
-    disconnect() : void {
-        if (this.connectionState === protocol_adapter.ConnectionState.Connected) {
-            this.connectionState = protocol_adapter.ConnectionState.Disconnected;
-
-            this.emit('connectionStatus', {
-                status: protocol_adapter.ConnectionState.Disconnected,
-            });
-        }
-    }
-
-    getApiCalls(): Array<ProtocolAdapterApiCall> {
-        return this.apiCalls;
-    }
-
-    getConnectionState() : protocol_adapter.ConnectionState {
-        return this.connectionState;
-    }
-
-    completeSubscribe(topicFilter: string, err?: ICrtError, retryable?: boolean) : void {
-        let event : protocol_adapter.SubscribeCompletionEvent = {
-            topicFilter: topicFilter
-        };
-        if (err !== undefined) {
-            event.err = err;
-        }
-        if (retryable !== undefined) {
-            event.retryable = retryable;
-        }
-
-        this.emit(protocol_adapter.ProtocolClientAdapter.SUBSCRIBE_COMPLETION, event);
-    }
-
-    completeUnsubscribe(topicFilter: string, err?: ICrtError, retryable?: boolean) : void {
-        let event : protocol_adapter.UnsubscribeCompletionEvent = {
-            topicFilter: topicFilter
-        };
-        if (err !== undefined) {
-            event.err = err;
-        }
-        if (retryable !== undefined) {
-            event.retryable = retryable;
-        }
-
-        this.emit(protocol_adapter.ProtocolClientAdapter.UNSUBSCRIBE_COMPLETION, event);
-    }
-
-    // Events
-    on(event: 'publishCompletion', listener: protocol_adapter.PublishCompletionEventListener): this;
-
-    on(event: 'subscribeCompletion', listener: protocol_adapter.SubscribeCompletionEventListener): this;
-
-    on(event: 'unsubscribeCompletion', listener: protocol_adapter.UnsubscribeCompletionEventListener): this;
-
-    on(event: 'connectionStatus', listener: protocol_adapter.ConnectionStatusEventListener): this;
-
-    on(event: string | symbol, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        return this;
-    }
-}
 
 function createBasicSubscriptionManagerConfig() : subscription_manager.SubscriptionManagerConfig {
     return {
@@ -150,7 +22,7 @@ function createBasicSubscriptionManagerConfig() : subscription_manager.Subscript
 }
 
 test('Subscription Manager - Acquire Subscribing Success', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -159,7 +31,7 @@ test('Subscription Manager - Acquire Subscribing Success', async () => {
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
     let filter3 = "a/b/events";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -231,7 +103,7 @@ test('Subscription Manager - Acquire Subscribing Success', async () => {
 });
 
 test('Subscription Manager - Acquire Multiple Subscribing Success', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -239,7 +111,7 @@ test('Subscription Manager - Acquire Multiple Subscribing Success', async () => 
 
     let filter1 = "a/b/accepted";
     let filter2 = "a/b/rejected";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -292,7 +164,7 @@ test('Subscription Manager - Acquire Multiple Subscribing Success', async () => 
 });
 
 test('Subscription Manager - Acquire Existing Subscribing', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -300,7 +172,7 @@ test('Subscription Manager - Acquire Existing Subscribing', async () => {
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -347,7 +219,7 @@ test('Subscription Manager - Acquire Existing Subscribing', async () => {
 });
 
 test('Subscription Manager - Acquire Multi Existing Subscribing', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -355,7 +227,7 @@ test('Subscription Manager - Acquire Multi Existing Subscribing', async () => {
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -390,7 +262,7 @@ test('Subscription Manager - Acquire Multi Existing Subscribing', async () => {
 });
 
 test('Subscription Manager - Acquire Multi Partially Subscribed', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -398,7 +270,7 @@ test('Subscription Manager - Acquire Multi Partially Subscribed', async () => {
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -433,7 +305,7 @@ test('Subscription Manager - Acquire Multi Partially Subscribed', async () => {
 });
 
 test('Subscription Manager - Acquire Subscribed Success', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -441,7 +313,7 @@ test('Subscription Manager - Acquire Subscribed Success', async () => {
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -505,7 +377,7 @@ test('Subscription Manager - Acquire Subscribed Success', async () => {
 });
 
 test('Subscription Manager - Acquire Multi Subscribed Success', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -513,7 +385,7 @@ test('Subscription Manager - Acquire Multi Subscribed Success', async () => {
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -571,7 +443,7 @@ test('Subscription Manager - Acquire Multi Subscribed Success', async () => {
 });
 
 test('Subscription Manager - Acquire Request-Response Blocked', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -581,7 +453,7 @@ test('Subscription Manager - Acquire Request-Response Blocked', async () => {
     let filter2 = "hello/world";
     let filter3 = "fail/ure";
 
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -624,7 +496,7 @@ test('Subscription Manager - Acquire Request-Response Blocked', async () => {
 });
 
 test('Subscription Manager - Acquire Multi Request-Response Partial Blocked', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -634,7 +506,7 @@ test('Subscription Manager - Acquire Multi Request-Response Partial Blocked', as
     let filter2 = "hello/world";
     let filter3 = "fail/ure";
 
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -662,7 +534,7 @@ test('Subscription Manager - Acquire Multi Request-Response Partial Blocked', as
 });
 
 test('Subscription Manager - Acquire Streaming Blocked', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -671,7 +543,7 @@ test('Subscription Manager - Acquire Streaming Blocked', async () => {
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
 
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -727,7 +599,7 @@ test('Subscription Manager - Acquire Streaming Blocked', async () => {
 });
 
 test('Subscription Manager - Acquire Multi Streaming Blocked', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -740,7 +612,7 @@ test('Subscription Manager - Acquire Multi Streaming Blocked', async () => {
     let filter2 = "hello/world";
     let filter3 = "foo/bar";
 
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -796,7 +668,7 @@ test('Subscription Manager - Acquire Multi Streaming Blocked', async () => {
 });
 
 test('Subscription Manager - Acquire Streaming NoCapacity, None Allowed', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -807,7 +679,7 @@ test('Subscription Manager - Acquire Streaming NoCapacity, None Allowed', async 
 
     let filter1 = "a/b/+";
 
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>();
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>();
 
     expect(subscriptionManager.acquireSubscription({
         operationId: 1,
@@ -819,7 +691,7 @@ test('Subscription Manager - Acquire Streaming NoCapacity, None Allowed', async 
 });
 
 test('Subscription Manager - Acquire Streaming NoCapacity, Too Many', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -847,7 +719,7 @@ test('Subscription Manager - Acquire Streaming NoCapacity, Too Many', async () =
 });
 
 test('Subscription Manager - Acquire Multi Streaming NoCapacity', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -860,7 +732,7 @@ test('Subscription Manager - Acquire Multi Streaming NoCapacity', async () => {
     let filter2 = "hello/world";
     let filter3 = "foo/bar";
 
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -896,7 +768,7 @@ test('Subscription Manager - Acquire Multi Streaming NoCapacity', async () => {
 });
 
 test('Subscription Manager - Acquire Failure Mixed Subscription Types', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -921,7 +793,7 @@ test('Subscription Manager - Acquire Failure Mixed Subscription Types', async ()
 });
 
 test('Subscription Manager - Acquire Multi Failure Mixed Subscription Types', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -947,7 +819,7 @@ test('Subscription Manager - Acquire Multi Failure Mixed Subscription Types', as
 });
 
 test('Subscription Manager - Acquire Failure Poisoned', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -978,83 +850,18 @@ test('Subscription Manager - Acquire Failure Poisoned', async () => {
     })).toEqual(subscription_manager.AcquireSubscriptionResult.Failure);
 });
 
-interface SubscriptionManagerEvent {
-    type: subscription_manager.SubscriptionEventType,
-    data: any,
-};
 
-function subscriptionManagerEventSequenceContainsEvent(eventSequence: SubscriptionManagerEvent[], expectedEvent: SubscriptionManagerEvent) : boolean {
-    for (let event of eventSequence) {
-        if (event.type !== expectedEvent.type) {
-            continue;
-        }
-
-        if (expectedEvent.data.hasOwnProperty('operationId')) {
-            if (!event.data.hasOwnProperty('operationId') || expectedEvent.data.operationId !== event.data.operationId) {
-                continue;
-            }
-        }
-
-        if (expectedEvent.data.hasOwnProperty('topicFilter')) {
-            if (!event.data.hasOwnProperty('topicFilter') || expectedEvent.data.topicFilter !== event.data.topicFilter) {
-                continue;
-            }
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-function subscriptionManagerEventSequenceContainsEvents(eventSequence: SubscriptionManagerEvent[], expectedEvents: SubscriptionManagerEvent[]) : boolean {
-    for (let expectedEvent of expectedEvents) {
-        if (!subscriptionManagerEventSequenceContainsEvent(eventSequence, expectedEvent)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-function protocolAdapterApiCallSequenceContainsApiCall(apiCallSequence: ProtocolAdapterApiCall[], expectedApiCall: ProtocolAdapterApiCall) : boolean {
-    for (let apiCall of apiCallSequence) {
-        if (apiCall.methodName !== expectedApiCall.methodName) {
-            continue;
-        }
-
-        if (expectedApiCall.args.hasOwnProperty('topicFilter')) {
-            if (!apiCall.args.hasOwnProperty('topicFilter') || expectedApiCall.args.topicFilter !== apiCall.args.topicFilter) {
-                continue;
-            }
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-function protocolAdapterApiCallSequenceContainsApiCalls(apiCallSequence: ProtocolAdapterApiCall[], expectedApiCalls: ProtocolAdapterApiCall[]) : boolean {
-    for (let expectedApiCall of expectedApiCalls) {
-        if (!protocolAdapterApiCallSequenceContainsApiCall(apiCallSequence, expectedApiCall)) {
-            return false;
-        }
-    }
-
-    return true;
-}
 
 
 test('Subscription Manager - RequestResponse Multi Acquire/Release triggers Unsubscribe', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/accepted";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1072,7 +879,7 @@ test('Subscription Manager - RequestResponse Multi Acquire/Release triggers Unsu
     );
 
     let allPromise = newLiftedPromise<void>();
-    let events = new Array<SubscriptionManagerEvent>();
+    let events = new Array<protocol_adapter_mock.SubscriptionManagerEvent>();
     subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIBE_SUCCESS, (event) => {
         events.push({
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
@@ -1099,7 +906,7 @@ test('Subscription Manager - RequestResponse Multi Acquire/Release triggers Unsu
 
     await allPromise.promise;
 
-    let expectedSubscribeSuccesses : SubscriptionManagerEvent[] = [
+    let expectedSubscribeSuccesses : protocol_adapter_mock.SubscriptionManagerEvent[] = [
         {
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
             data: {
@@ -1116,7 +923,7 @@ test('Subscription Manager - RequestResponse Multi Acquire/Release triggers Unsu
         }
     ];
 
-    expect(subscriptionManagerEventSequenceContainsEvents(events, expectedSubscribeSuccesses)).toBeTruthy();
+    expect(protocol_adapter_mock.subscriptionManagerEventSequenceContainsEvents(events, expectedSubscribeSuccesses)).toBeTruthy();
     expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0, 1));
 
     subscriptionManager.releaseSubscription({
@@ -1141,7 +948,7 @@ test('Subscription Manager - RequestResponse Multi Acquire/Release triggers Unsu
 });
 
 test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -1149,7 +956,7 @@ test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes',
 
     let filter1 = "a/b/accepted";
     let filter2 = "a/b/rejected";
-    let expectedSubscribes : ProtocolAdapterApiCall[] = [
+    let expectedSubscribes : protocol_adapter_mock.ProtocolAdapterApiCall[] = [
         {
             methodName: 'subscribe',
             args: {
@@ -1166,7 +973,7 @@ test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes',
         },
     ];
 
-    let expectedUnsubscribes : ProtocolAdapterApiCall[] = [
+    let expectedUnsubscribes : protocol_adapter_mock.ProtocolAdapterApiCall[] = [
         {
             methodName: 'unsubscribe',
             args: {
@@ -1184,7 +991,7 @@ test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes',
     ];
 
     let allSubscribedPromise = newLiftedPromise<void>();
-    let events = new Array<SubscriptionManagerEvent>();
+    let events = new Array<protocol_adapter_mock.SubscriptionManagerEvent>();
     subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIBE_SUCCESS, (event) => {
         events.push({
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
@@ -1212,7 +1019,7 @@ test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes',
 
     await allSubscribedPromise.promise;
 
-    let expectedSubscribeSuccesses : SubscriptionManagerEvent[] = [
+    let expectedSubscribeSuccesses : protocol_adapter_mock.SubscriptionManagerEvent[] = [
         {
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
             data: {
@@ -1243,8 +1050,8 @@ test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes',
         },
     ];
 
-    expect(subscriptionManagerEventSequenceContainsEvents(events, expectedSubscribeSuccesses)).toBeTruthy();
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedSubscribes)).toBeTruthy();
+    expect(protocol_adapter_mock.subscriptionManagerEventSequenceContainsEvents(events, expectedSubscribeSuccesses)).toBeTruthy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedSubscribes)).toBeTruthy();
 
     subscriptionManager.releaseSubscription({
         operationId: 1,
@@ -1253,29 +1060,29 @@ test('Subscription Manager - Multi Acquire/Release Multi triggers Unsubscribes',
 
     subscriptionManager.purge();
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeFalsy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeFalsy();
 
     subscriptionManager.releaseSubscription({
         operationId: 2,
         topicFilters: [filter1, filter2]
     });
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeFalsy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeFalsy();
 
     subscriptionManager.purge();
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeTruthy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeTruthy();
 });
 
 test('Subscription Manager - Streaming Multi Acquire/Release triggers Unsubscribe', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/accepted";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1293,7 +1100,7 @@ test('Subscription Manager - Streaming Multi Acquire/Release triggers Unsubscrib
     );
 
     let allPromise = newLiftedPromise<void>();
-    let events = new Array<SubscriptionManagerEvent>();
+    let events = new Array<protocol_adapter_mock.SubscriptionManagerEvent>();
     subscriptionManager.addListener(subscription_manager.SubscriptionManager.STREAMING_SUBSCRIPTION_ESTABLISHED, (event) => {
         events.push({
             type: subscription_manager.SubscriptionEventType.StreamingSubscriptionEstablished,
@@ -1320,7 +1127,7 @@ test('Subscription Manager - Streaming Multi Acquire/Release triggers Unsubscrib
 
     await allPromise.promise;
 
-    let expectedStreamingSubscriptionEstablishments : SubscriptionManagerEvent[] = [
+    let expectedStreamingSubscriptionEstablishments : protocol_adapter_mock.SubscriptionManagerEvent[] = [
         {
             type: subscription_manager.SubscriptionEventType.StreamingSubscriptionEstablished,
             data: {
@@ -1337,7 +1144,7 @@ test('Subscription Manager - Streaming Multi Acquire/Release triggers Unsubscrib
         }
     ];
 
-    expect(subscriptionManagerEventSequenceContainsEvents(events, expectedStreamingSubscriptionEstablishments)).toBeTruthy();
+    expect(protocol_adapter_mock.subscriptionManagerEventSequenceContainsEvents(events, expectedStreamingSubscriptionEstablishments)).toBeTruthy();
     expect(adapter.getApiCalls()).toEqual(expectedApiCalls.slice(0, 1));
 
     subscriptionManager.releaseSubscription({
@@ -1362,7 +1169,7 @@ test('Subscription Manager - Streaming Multi Acquire/Release triggers Unsubscrib
 });
 
 async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
@@ -1371,7 +1178,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
     let filter1 = "a/b/accepted";
     let filter2 = "a/b/rejected";
     let filter3 = "hello/world";
-    let expectedSubscribes : ProtocolAdapterApiCall[] = [
+    let expectedSubscribes : protocol_adapter_mock.ProtocolAdapterApiCall[] = [
         {
             methodName: 'subscribe',
             args: {
@@ -1396,7 +1203,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
         }
     };
 
-    let expectedUnsubscribes : ProtocolAdapterApiCall[] = [
+    let expectedUnsubscribes : protocol_adapter_mock.ProtocolAdapterApiCall[] = [
         {
             methodName: 'unsubscribe',
             args: {
@@ -1407,7 +1214,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
     ];
 
     let allSubscribedPromise = newLiftedPromise<void>();
-    let events = new Array<SubscriptionManagerEvent>();
+    let events = new Array<protocol_adapter_mock.SubscriptionManagerEvent>();
     subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIBE_SUCCESS, (event) => {
         events.push({
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
@@ -1441,7 +1248,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
 
     await allSubscribedPromise.promise;
 
-    let expectedSubscribeSuccesses : SubscriptionManagerEvent[] = [
+    let expectedSubscribeSuccesses : protocol_adapter_mock.SubscriptionManagerEvent[] = [
         {
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
             data: {
@@ -1458,8 +1265,8 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
         },
     ];
 
-    expect(subscriptionManagerEventSequenceContainsEvents(events, expectedSubscribeSuccesses)).toBeTruthy();
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedSubscribes)).toBeTruthy();
+    expect(protocol_adapter_mock.subscriptionManagerEventSequenceContainsEvents(events, expectedSubscribeSuccesses)).toBeTruthy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedSubscribes)).toBeTruthy();
 
     expect(subscriptionManager.acquireSubscription({
         operationId: 3,
@@ -1478,7 +1285,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
         topicFilters: [filter3]
     })).toEqual(subscription_manager.AcquireSubscriptionResult.Blocked);
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeFalsy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeFalsy();
 
     subscriptionManager.purge();
 
@@ -1488,7 +1295,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
         topicFilters: [filter3]
     })).toEqual(subscription_manager.AcquireSubscriptionResult.Blocked);
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeTruthy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedUnsubscribes)).toBeTruthy();
 
     if (shouldUnsubscribeSucceed) {
         adapter.completeUnsubscribe(filter1);
@@ -1496,7 +1303,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
         adapter.completeUnsubscribe(filter1, new CrtError("Help"));
     }
 
-    expect(protocolAdapterApiCallSequenceContainsApiCall(adapter.getApiCalls(), blockedSubscribe)).toBeFalsy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCall(adapter.getApiCalls(), blockedSubscribe)).toBeFalsy();
 
     subscriptionManager.purge();
 
@@ -1507,7 +1314,7 @@ async function doUnsubscribeMakesRoomTest(shouldUnsubscribeSucceed: boolean) {
         topicFilters: [filter3]
     })).toEqual(expectedAcquireResult);
 
-    expect(protocolAdapterApiCallSequenceContainsApiCall(adapter.getApiCalls(), blockedSubscribe)).toEqual(shouldUnsubscribeSucceed);
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCall(adapter.getApiCalls(), blockedSubscribe)).toEqual(shouldUnsubscribeSucceed);
 }
 
 test('Subscription Manager - Successful Unsubscribe Frees Subscription Space', async () => {
@@ -1519,7 +1326,7 @@ test('Subscription Manager - Unsuccessful Unsubscribe Does Not Free Subscription
 });
 
 test('Subscription Manager - Synchronous RequestResponse Subscribe Failure causes acquire failure', async () => {
-    let adapter = new MockProtocolAdapter({
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter({
         subscribeHandler: (subscribeOptions) => { throw new CrtError("Bad"); }
     });
     adapter.connect();
@@ -1528,7 +1335,7 @@ test('Subscription Manager - Synchronous RequestResponse Subscribe Failure cause
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1550,7 +1357,7 @@ test('Subscription Manager - Synchronous RequestResponse Subscribe Failure cause
 test('Subscription Manager - Synchronous Streaming Subscribe Failure causes acquire failure and poisons future acquires', async () => {
     let attemptNumber = 0;
 
-    let adapter = new MockProtocolAdapter({
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter({
         subscribeHandler: (subscribeOptions) => {
             attemptNumber++;
             if (attemptNumber == 1) {
@@ -1564,7 +1371,7 @@ test('Subscription Manager - Synchronous Streaming Subscribe Failure causes acqu
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1594,14 +1401,14 @@ test('Subscription Manager - Synchronous Streaming Subscribe Failure causes acqu
 });
 
 test('Subscription Manager - RequestResponse Acquire Subscribe with error emits SubscribeFailed', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1628,14 +1435,14 @@ test('Subscription Manager - RequestResponse Acquire Subscribe with error emits 
 });
 
 test('Subscription Manager - Streaming Acquire Subscribe with retryable error triggers resubscribe', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1682,13 +1489,13 @@ function getExpectedEventTypeForOfflineAcquireOnlineTest(subscriptionType: subsc
 }
 
 async function offlineAcquireOnlineTest(subscriptionType: subscription_manager.SubscriptionType, shouldSubscribeSucceed: boolean) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1711,7 +1518,7 @@ async function offlineAcquireOnlineTest(subscriptionType: subscription_manager.S
     expect(adapter.getApiCalls()).toEqual(expectedApiCalls);
 
     let anyPromise = newLiftedPromise<void>();
-    let events = new Array<SubscriptionManagerEvent>();
+    let events = new Array<protocol_adapter_mock.SubscriptionManagerEvent>();
     subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIBE_SUCCESS, (event) => {
         events.push({
             type: subscription_manager.SubscriptionEventType.SubscribeSuccess,
@@ -1772,14 +1579,14 @@ test('Subscription Manager - Streaming Acquire While Offline, Going online trigg
 });
 
 async function offlineAcquireReleaseOnlineTest(subscriptionType: subscription_manager.SubscriptionType) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world"
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1826,7 +1633,7 @@ test('Subscription Manager - Streaming Acquire-Release While Offline, Going onli
 });
 
 async function acquireOfflineReleaseAcquireOnlineTest(subscriptionType: subscription_manager.SubscriptionType) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     let config = createBasicSubscriptionManagerConfig();
@@ -1837,7 +1644,7 @@ async function acquireOfflineReleaseAcquireOnlineTest(subscriptionType: subscrip
 
     let filter1 = "a/b/+";
     let filter2 = "hello/world";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1886,11 +1693,11 @@ async function acquireOfflineReleaseAcquireOnlineTest(subscriptionType: subscrip
         topicFilters: [filter2]
     })).toEqual(subscription_manager.AcquireSubscriptionResult.Subscribing);
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedApiCalls)).toBeFalsy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedApiCalls)).toBeFalsy();
 
     adapter.connect(true);
 
-    expect(protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedApiCalls)).toBeTruthy();
+    expect(protocol_adapter_mock.protocolAdapterApiCallSequenceContainsApiCalls(adapter.getApiCalls(), expectedApiCalls)).toBeTruthy();
 }
 
 test('Subscription Manager - RequestResponse Release-Acquire2 while offline, Going online triggers Unsubscribe and Subscribe', async () => {
@@ -1902,14 +1709,14 @@ test('Subscription Manager - Streaming Release-Acquire2 while offline, Going onl
 });
 
 async function closeTest(subscriptionType: subscription_manager.SubscriptionType, completeSubscribe: boolean, closeWhileConnected: boolean) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -1972,14 +1779,14 @@ test('Subscription Manager - Close while streaming subscribing and offline trigg
 });
 
 async function noSessionSubscriptionEndedTest(offlineWhileUnsubscribing: boolean) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -2051,14 +1858,14 @@ test('Subscription Manager - Subscribed Session Rejoin Failure while unsubscribi
 });
 
 test('Subscription Manager - Subscribed Streaming Session Rejoin Failure triggers resubscribe and emits SubscriptionLost', async () => {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
@@ -2100,14 +1907,14 @@ test('Subscription Manager - Subscribed Streaming Session Rejoin Failure trigger
 });
 
 async function doPurgeTest(subscriptionType: subscription_manager.SubscriptionType) {
-    let adapter = new MockProtocolAdapter();
+    let adapter = new protocol_adapter_mock.MockProtocolAdapter();
     adapter.connect();
 
     // @ts-ignore
     let subscriptionManager = new subscription_manager.SubscriptionManager(adapter, createBasicSubscriptionManagerConfig());
 
     let filter1 = "a/b/+";
-    let expectedApiCalls : Array<ProtocolAdapterApiCall> = new Array<ProtocolAdapterApiCall>(
+    let expectedApiCalls : Array<protocol_adapter_mock.ProtocolAdapterApiCall> = new Array<protocol_adapter_mock.ProtocolAdapterApiCall>(
         {
             methodName: 'subscribe',
             args: {
