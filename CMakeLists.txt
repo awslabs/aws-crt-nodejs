@@ -43,7 +43,7 @@ if (BUILD_DEPS)
 
     add_subdirectory(crt/aws-c-common)
     if (UNIX AND NOT APPLE)
-        set(SEARCH_LIBCRYPTO OFF)
+        set(SEARCH_LIBCRYPTO ON)
         set(DISABLE_GO ON)
         set(DISABLE_PERL ON)
         set(BUILD_LIBSSL OFF)
