@@ -2,8 +2,7 @@
     "name": "aws-crt-nodejs",
     "+imports": [
         "node-14",
-        "JDK8",
-        "aws-lc"
+        "JDK8"
     ],
     "+packages": [
         "maven"
@@ -74,7 +73,7 @@
             "enabled": false
         }
     },
-    "upstream": [],
+    "upstream": [{ "name": "aws-lc"}],
     "downstream": [],
     "pre_build_steps": [
         [
