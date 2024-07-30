@@ -7,6 +7,8 @@ if (NOT CMAKE_JS_PLATFORM)
     message(FATAL_ERROR "CMAKE_JS_PLATFORM must be set")
 endif()
 
+message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
+
 include(CTest)
 
 # ensure that the release build has symbols
@@ -50,6 +52,9 @@ if (BUILD_DEPS)
         add_subdirectory(crt/aws-lc)
         set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
         add_subdirectory(crt/s2n)
+        message(STATUS "Here")
+        add_dependencies(s2n aws-lc)
+        target_link_libraries(s2n ${install_dir}/lib/libcrypto.a)
     endif()
 
     add_subdirectory(crt/aws-c-sdkutils)
