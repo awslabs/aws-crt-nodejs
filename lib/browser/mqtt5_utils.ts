@@ -403,6 +403,25 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
 }
 
 /** @internal **/
+export function transform_mqtt_js_suback_to_crt_suback(mqttJsSuback: mqtt_packet.ISubackPacket) : mqtt5.SubackPacket {
+    if (!mqttJsSuback) {
+        throw new CrtError("transform_mqtt_js_suback_to_crt_suback: mqttJsSuback not defined");
+    }
+
+    let crtSuback : mqtt5.SubackPacket = {
+        type: mqtt5.PacketType.Suback,
+        reasonCodes : mqttJsSuback.granted.map((value, index, array) : mqtt5.SubackReasonCode => { return value as mqtt5.SubackReasonCode; }),
+    };
+
+    if (mqttJsSuback.properties) {
+        utils.set_defined_property(crtSuback, "reasonString", mqttJsSuback.properties?.reasonString);
+        utils.set_defined_property(crtSuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(mqttJsSuback.properties?.userProperties));
+    }
+
+    return crtSuback;
+}
+
+/** @internal **/
 export function transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted: mqtt.ISubscriptionGrant[]) : mqtt5.SubackPacket {
 
     if (subscriptionsGranted == null || subscriptionsGranted == undefined) {
@@ -549,20 +568,9 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt_packet.I
         throw new CrtError("transform_mqtt_js_unsuback_to_crt_unsuback: packet not defined");
     }
 
-    let reasonCodes : number | number[] | undefined = packet.reasonCode;
-
-    let codes : number[];
-    if (Array.isArray(reasonCodes)) {
-        codes = reasonCodes;
-    } else if (typeof reasonCodes == 'number') {
-        codes = [reasonCodes];
-    } else {
-        codes = [];
-    }
-
     let crtUnsuback : mqtt5.UnsubackPacket = {
         type: mqtt5.PacketType.Unsuback,
-        reasonCodes : codes
+        reasonCodes : packet.granted
     }
 
     if (packet.properties) {

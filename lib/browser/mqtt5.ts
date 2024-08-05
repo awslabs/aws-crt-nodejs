@@ -447,14 +447,19 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 let subOptions: mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(packet);
 
                 // @ts-ignore
-                this.browserClient.subscribe(subMap, subOptions, (error, grants) => {
+                this.browserClient.subscribe(subMap, subOptions, (error, grants, suback) => {
                     if (error) {
                         reject(error);
                         return;
                     }
 
-                    const suback: mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(grants ?? []);
-                    resolve(suback);
+                    if (suback) {
+                        const crtSubackFromMqttjsSuback = mqtt_utils.transform_mqtt_js_suback_to_crt_suback(suback);
+                        resolve(crtSubackFromMqttjsSuback);
+                    } else {
+                        const crtSubackFromGrants: mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(grants ?? []);
+                        resolve(crtSubackFromGrants);
+                    }
                 });
             } catch (err) {
                 reject(err);
