@@ -13,6 +13,7 @@
  */
 
 import * as mqtt from "mqtt";
+import * as mqtt_packet from "mqtt-packet";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
@@ -36,7 +37,7 @@ import {
     OnConnectionFailedResult,
     OnConnectionClosedResult
 } from "../common/mqtt";
-import { normalize_payload } from "../common/mqtt_shared";
+import {normalize_payload, normalize_payload_to_buffer} from "../common/mqtt_shared";
 
 export {
     QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
@@ -310,7 +311,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const will = this.config.will ? {
             topic: this.config.will.topic,
-            payload: normalize_payload(this.config.will.payload),
+            payload: normalize_payload_to_buffer(this.config.will.payload),
             qos: this.config.will.qos,
             retain: this.config.will.retain,
         } : undefined;
@@ -576,7 +577,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     return this.on_error(error);
                 }
                 const sub = (packet as mqtt.ISubscriptionGrant[])[0];
-                resolve({ topic: sub.topic, qos: sub.qos });
+                // MV TOFIX: 128 can be passed here and is not modeled in QoS
+                resolve({ topic: sub.topic, qos: sub.qos as QoS });
             });
         });
     }
@@ -603,7 +605,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 }
                 resolve({
                     packet_id: packet
-                        ? (packet as mqtt.IUnsubackPacket).messageId
+                        ? (packet as mqtt_packet.IUnsubackPacket).messageId
                         : undefined,
                 });
             });
