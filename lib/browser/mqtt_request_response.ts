@@ -19,7 +19,6 @@ import * as mqtt_request_response from "../common/mqtt_request_response";
 import * as mqtt_request_response_internal from "../common/mqtt_request_response_internal";
 import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
-import {IStreamingOperation, StreamingOperationOptions} from "../common/mqtt_request_response";
 import {LiftedPromise, newLiftedPromise} from "../common/promise";
 
 export * from "../common/mqtt_request_response";
@@ -71,7 +70,7 @@ interface StreamingOperation extends Operation {
 
 interface ResponsePathEntry {
     refCount: number,
-    correlationTokenPath: string,
+    correlationTokenPath?: string[],
 }
 
 interface ServiceTaskWrapper {
@@ -105,8 +104,12 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
     private constructor(protocolClientAdapter: protocol_client_adapter.ProtocolClientAdapter, options: mqtt_request_response.RequestResponseClientOptions) {
         super();
 
-        this.protocolClientAdapter = protocolClientAdapter;
         this.operationTimeoutInSeconds = options.operationTimeoutInSeconds ?? 60;
+        this.protocolClientAdapter = protocolClientAdapter;
+
+        this.protocolClientAdapter.addListener(protocol_client_adapter.ProtocolClientAdapter.PUBLISH_COMPLETION, this.handlePublishCompletionEvent.bind(this));
+        this.protocolClientAdapter.addListener(protocol_client_adapter.ProtocolClientAdapter.CONNECTION_STATUS, this.handleConnectionStatusEvent.bind(this));
+        this.protocolClientAdapter.addListener(protocol_client_adapter.ProtocolClientAdapter.INCOMING_PUBLISH, this.handleIncomingPublishEvent.bind(this));
 
         let config : subscription_manager.SubscriptionManagerConfig = {
             maxRequestResponseSubscriptions: options.maxRequestResponseSubscriptions,
@@ -115,7 +118,6 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
 
         this.subscriptionManager = new subscription_manager.SubscriptionManager(protocolClientAdapter, config);
-
     }
 
     /**
@@ -162,6 +164,9 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         if (this.state != mqtt_request_response_internal.RequestResponseClientState.Closed) {
             this.state = mqtt_request_response_internal.RequestResponseClientState.Closed;
             this.closeAllOperations();
+
+            this.protocolClientAdapter.close();
+            this.subscriptionManager.close();
         }
     }
 
@@ -221,13 +226,139 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
      * browser/node implementers are covariant by returning an implementation of IStreamingOperation.  This split
      * is necessary because event listening (which streaming operations need) cannot be modeled on an interface.
      */
-    createStream(streamOptions: StreamingOperationOptions) : IStreamingOperation {
+    createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : mqtt_request_response.IStreamingOperation {
         // NYI
         throw new CrtError("NYI");
     }
 
-    private service() {
+    private canOperationDequeue(operation: Operation) : boolean {
+        if (operation.type != OperationType.RequestResponse) {
+            return true;
+        }
 
+        let rrOperation = operation as RequestResponseOperation;
+        let correlationToken = rrOperation.options.correlationToken ?? "";
+
+        return !this.operationsByCorrelationToken.has(correlationToken);
+    }
+
+    private static buildSuscriptionListFromOperation(operation : Operation) : string[] {
+        if (operation.type == OperationType.RequestResponse) {
+            let rrOperation = operation as RequestResponseOperation;
+            return rrOperation.options.subscriptionTopicFilters;
+        } else {
+            let streamingOperation = operation as StreamingOperation;
+            return new Array(streamingOperation.options.subscriptionTopicFilter);
+        }
+    }
+
+    private addOperationToInProgressTables(operation: Operation) {
+        if (operation.type == OperationType.Streaming) {
+            let streamingOperation = operation as StreamingOperation;
+            let filter = streamingOperation.options.subscriptionTopicFilter;
+            let existingSet = this.streamingOperationsByTopicFilter.get(filter);
+            if (!existingSet) {
+                existingSet = new Set<number>();
+                this.streamingOperationsByTopicFilter.set(filter, existingSet);
+            }
+
+            existingSet.add(operation.id);
+        } else {
+            let rrOperation = operation as RequestResponseOperation;
+
+            this.operationsByCorrelationToken.set(rrOperation.options.correlationToken ?? "", operation.id);
+
+            for (let path of rrOperation.options.responsePaths) {
+                let existingEntry = this.correlationTokenPathsByResponsePaths.get(path.topic);
+                if (!existingEntry) {
+                    existingEntry = {
+                        refCount: 0
+                    };
+
+                    if (path.correlationTokenJsonPath) {
+                        existingEntry.correlationTokenPath = path.correlationTokenJsonPath.split('.');
+                    }
+
+                    this.correlationTokenPathsByResponsePaths.set(path.topic, existingEntry);
+                }
+
+                existingEntry.refCount++;
+            }
+        }
+    }
+
+    private makeOperationRequest(operation : RequestResponseOperation) : void {
+        try {
+            let requestOptions = {
+                topic: operation.options.publishTopic,
+                payload: operation.options.payload,
+                timeoutInSeconds: this.operationTimeoutInSeconds,
+                completionData: operation.id
+            };
+
+            this.protocolClientAdapter.publish(requestOptions);
+
+            operation.state = OperationState.PendingResponse;
+        } catch (err) {
+            this.completeOperationWithError(operation.id, new CrtError(`Publish error: "${JSON.stringify(err)}"`));
+            return;
+        }
+    }
+
+    private handleAcquireSubscriptionResult(operation: Operation, result: subscription_manager.AcquireSubscriptionResult) {
+        if (result == subscription_manager.AcquireSubscriptionResult.Failure || result == subscription_manager.AcquireSubscriptionResult.NoCapacity) {
+            this.completeOperationWithError(operation.id, new CrtError(`Acquire subscription error: ${subscription_manager.acquireSubscriptionResultToString(result)}`));
+            return;
+        }
+
+        this.addOperationToInProgressTables(operation);
+
+        if (result == subscription_manager.AcquireSubscriptionResult.Subscribing) {
+            operation.state = OperationState.PendingSubscription;
+            return;
+        }
+
+        if (operation.type == OperationType.Streaming) {
+            operation.state = OperationState.Subscribed;
+            // NYI - emit streaming operation subscription established event
+        } else {
+            this.makeOperationRequest(operation as RequestResponseOperation);
+        }
+    }
+
+    private service() {
+        this.serviceTask = undefined;
+
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        while (this.operationQueue.length > 0) {
+            let headId = this.operationQueue[0];
+            let operation = this.operations.get(headId);
+            if (!operation) {
+                this.operationQueue.shift();
+                continue;
+            }
+
+            if (!this.canOperationDequeue(operation)) {
+                break;
+            }
+
+            let acquireOptions : subscription_manager.AcquireSubscriptionConfig = {
+                topicFilters: RequestResponseClient.buildSuscriptionListFromOperation(operation),
+                operationId: headId,
+                type: (operation.type == OperationType.RequestResponse) ? subscription_manager.SubscriptionType.RequestResponse : subscription_manager.SubscriptionType.EventStream,
+            };
+
+            let acquireResult = this.subscriptionManager.acquireSubscription(acquireOptions);
+            if (acquireResult == subscription_manager.AcquireSubscriptionResult.Blocked) {
+                break;
+            }
+
+            this.operationQueue.shift();
+            this.handleAcquireSubscriptionResult(operation, acquireResult);
+        }
     }
 
     private clearServiceTask() {
@@ -339,6 +470,23 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         promise.reject(err);
     }
 
+    private haltStreamingOperationWithError(id: number, err: CrtError) {
+        throw new CrtError("NYI");
+    }
+
+    private completeOperationWithError(id: number, err: CrtError) {
+        let operation = this.operations.get(id);
+        if (!operation) {
+            return;
+        }
+
+        if (operation.type == OperationType.RequestResponse) {
+            this.completeRequestResponseOperationWithError(id, err);
+        } else {
+            this.haltStreamingOperationWithError(id, err);
+        }
+    }
+
     private completeRequestResponseOperationWithResponse(id: number, responseTopic: string, payload: Buffer) {
         let operation = this.operations.get(id);
         if (!operation) {
@@ -358,5 +506,69 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             topic: responseTopic,
             payload: payload
         });
+    }
+
+    private handlePublishCompletionEvent(event: protocol_client_adapter.PublishCompletionEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        if (event.err) {
+            let id = event.completionData as number;
+            this.completeOperationWithError(id, event.err as CrtError);
+        }
+    }
+
+    private handleConnectionStatusEvent(event: protocol_client_adapter.ConnectionStatusEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        if (event.status == protocol_client_adapter.ConnectionState.Connected && this.operationQueue.length > 0) {
+            this.wakeServiceTask();
+        }
+    }
+
+    private handleIncomingPublishEvent(event: protocol_client_adapter.IncomingPublishEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        let responsePathEntry = this.correlationTokenPathsByResponsePaths.get(event.topic);
+        if (!responsePathEntry) {
+            return;
+        }
+
+        try {
+            let correlationToken : string | undefined = undefined;
+
+            if (!responsePathEntry.correlationTokenPath) {
+                correlationToken = "";
+            } else {
+                let payloadAsString = new TextDecoder().decode(new Uint8Array(event.payload));
+                let payloadAsJson = JSON.parse(payloadAsString);
+                let segmentValue : any = payloadAsJson;
+                for (let segment of responsePathEntry.correlationTokenPath) {
+                    ??;
+                }
+
+                if (segmentValue && typeof(segmentValue) === "string") {
+                    correlationToken = segmentValue as string;
+                }
+            }
+
+            if (!correlationToken) {
+                return;
+            }
+
+            let id = this.operationsByCorrelationToken.get(correlationToken);
+            if (!id) {
+                return;
+            }
+
+            this.completeRequestResponseOperationWithResponse(id, event.topic, event.payload);
+        } catch (err) {
+            ;
+        }
     }
 }
