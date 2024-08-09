@@ -53,7 +53,6 @@ if (BUILD_DEPS)
                 -DDISABLE_PERL=ON
                 -DBUILD_LIBSSL=OFF
                 -DBUILD_TESTING=OFF
-                -DCMAKE_C_FLAGS=${AWS_LC_CMAKE_C_FLAGS}
         )
         set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
         add_subdirectory(crt/s2n)
