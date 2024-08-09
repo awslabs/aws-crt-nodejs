@@ -70,10 +70,7 @@
         "macos": {
             "architectures": {
                 "arm64": {
-                    "!imports": [
-                        "node-16",
-                        "JDK8"
-                    ]
+                    "!imports": [ "node-16" ]
                 }
             }
         }
