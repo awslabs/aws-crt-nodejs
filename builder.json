@@ -66,6 +66,16 @@
         "al2012": {
             "!packages": [],
             "!imports": [ "node-14" ]
+        },
+        "macos": {
+            "architectures": {
+                "arm64": {
+                    "!imports": [
+                        "node-16",
+                        "JDK8"
+                    ]
+                }
+            }
         }
     },
     "targets": {
