@@ -20,6 +20,8 @@ import * as mqtt_request_response_internal from "../common/mqtt_request_response
 import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
 import {LiftedPromise, newLiftedPromise} from "../common/promise";
+import * as io from "../common/io";
+import {acquireSubscriptionResultToString} from "./mqtt_request_response/subscription_manager";
 
 export * from "../common/mqtt_request_response";
 
@@ -44,6 +46,27 @@ enum OperationState {
 
     /* (request only) the operation's destroy task has been scheduled but not yet executed */
     PendingDestroy,
+}
+
+function operationStateToString(state: OperationState) {
+    switch(state) {
+        case OperationState.None:
+            return "None";
+        case OperationState.Queued:
+            return "Queued";
+        case OperationState.PendingSubscription:
+            return "PendingSubscription";
+        case OperationState.PendingResponse:
+            return "PendingResponse";
+        case OperationState.Subscribed:
+            return "Subscribed";
+        case OperationState.Terminal:
+            return "Terminal";
+        case OperationState.PendingDestroy:
+            return "PendingDestroy";
+        default:
+            return "Unknown";
+    }
 }
 
 enum OperationType {
@@ -75,7 +98,7 @@ interface ResponsePathEntry {
 
 interface ServiceTaskWrapper {
     serviceTask : ReturnType<typeof setTimeout>;
-    nextserviceTime : number;
+    nextServiceTime : number;
 }
 
 /**
@@ -87,7 +110,9 @@ interface ServiceTaskWrapper {
  */
 export class RequestResponseClient extends BufferedEventEmitter implements mqtt_request_response.IRequestResponseClient {
 
-    private operationTimeoutInSeconds: number;
+    private static logSubject = "RequestResponseClient";
+
+    private readonly operationTimeoutInSeconds: number;
     private nextOperationId : number = 1;
     private protocolClientAdapter : protocol_client_adapter.ProtocolClientAdapter;
     private subscriptionManager : subscription_manager.SubscriptionManager;
@@ -101,7 +126,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
     private operationQueue : Array<number> = new Array<number>;
 
-    private constructor(protocolClientAdapter: protocol_client_adapter.ProtocolClientAdapter, options: mqtt_request_response.RequestResponseClientOptions) {
+    constructor(protocolClientAdapter: protocol_client_adapter.ProtocolClientAdapter, options: mqtt_request_response.RequestResponseClientOptions) {
         super();
 
         this.operationTimeoutInSeconds = options.operationTimeoutInSeconds ?? 60;
@@ -118,6 +143,15 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
 
         this.subscriptionManager = new subscription_manager.SubscriptionManager(protocolClientAdapter, config);
+
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIBE_SUCCESS, this.handleSubscribeSuccessEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIBE_FAILURE, this.handleSubscribeFailureEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIPTION_ENDED, this.handleSubscriptionEndedEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.STREAMING_SUBSCRIPTION_ESTABLISHED, this.handleStreamingSubscriptionEstablishedEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.STREAMING_SUBSCRIPTION_LOST, this.handleStreamingSubscriptionLostEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.STREAMING_SUBSCRIPTION_HALTED, this.handleStreamingSubscriptionHaltedEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.SUBSCRIPTION_ORPHANED, this.handleSubscriptionOrphanedEvent.bind(this));
+        this.subscriptionManager.addListener(subscription_manager.SubscriptionManager.UNSUBSCRIBE_COMPLETE, this.handleUnsubscribeCompleteEvent.bind(this));
     }
 
     /**
@@ -162,6 +196,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
      */
     close(): void {
         if (this.state != mqtt_request_response_internal.RequestResponseClientState.Closed) {
+            io.logInfo(RequestResponseClient.logSubject, `closing MQTT RequestResponseClient`);
             this.state = mqtt_request_response_internal.RequestResponseClientState.Closed;
             this.closeAllOperations();
 
@@ -214,6 +249,8 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         this.wakeServiceTask();
 
+        io.logInfo(RequestResponseClient.logSubject, `request-response operation with id "${id}" submitted to operation queue`);
+
         return resultPromise.promise;
     }
 
@@ -260,13 +297,19 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             if (!existingSet) {
                 existingSet = new Set<number>();
                 this.streamingOperationsByTopicFilter.set(filter, existingSet);
+
+                io.logDebug(RequestResponseClient.logSubject, `adding topic filter "${filter}" to streaming subscriptions table`);
             }
 
             existingSet.add(operation.id);
+            io.logDebug(RequestResponseClient.logSubject, `adding operation ${operation.id} to streaming subscriptions table under topic filter "${filter}"`);
         } else {
             let rrOperation = operation as RequestResponseOperation;
 
-            this.operationsByCorrelationToken.set(rrOperation.options.correlationToken ?? "", operation.id);
+            let correlationToken = rrOperation.options.correlationToken ?? "";
+            this.operationsByCorrelationToken.set(correlationToken, operation.id);
+
+            io.logDebug(RequestResponseClient.logSubject, `operation ${operation.id} registered with correlation token "${correlationToken}"`);
 
             for (let path of rrOperation.options.responsePaths) {
                 let existingEntry = this.correlationTokenPathsByResponsePaths.get(path.topic);
@@ -280,28 +323,13 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
                     }
 
                     this.correlationTokenPathsByResponsePaths.set(path.topic, existingEntry);
+
+                    io.logDebug(RequestResponseClient.logSubject, `adding response path "${path.topic}" to response path table`);
                 }
 
                 existingEntry.refCount++;
+                io.logDebug(RequestResponseClient.logSubject, `operation ${operation.id} adding reference to response path "${path.topic}"`);
             }
-        }
-    }
-
-    private makeOperationRequest(operation : RequestResponseOperation) : void {
-        try {
-            let requestOptions = {
-                topic: operation.options.publishTopic,
-                payload: operation.options.payload,
-                timeoutInSeconds: this.operationTimeoutInSeconds,
-                completionData: operation.id
-            };
-
-            this.protocolClientAdapter.publish(requestOptions);
-
-            operation.state = OperationState.PendingResponse;
-        } catch (err) {
-            this.completeOperationWithError(operation.id, new CrtError(`Publish error: "${JSON.stringify(err)}"`));
-            return;
         }
     }
 
@@ -314,15 +342,15 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         this.addOperationToInProgressTables(operation);
 
         if (result == subscription_manager.AcquireSubscriptionResult.Subscribing) {
-            operation.state = OperationState.PendingSubscription;
+            this.changeOperationState(operation, OperationState.PendingSubscription);
             return;
         }
 
         if (operation.type == OperationType.Streaming) {
-            operation.state = OperationState.Subscribed;
+            this.changeOperationState(operation, OperationState.Subscribed);
             // NYI - emit streaming operation subscription established event
         } else {
-            this.makeOperationRequest(operation as RequestResponseOperation);
+            this.applyRequestResponsePublish(operation as RequestResponseOperation);
         }
     }
 
@@ -333,6 +361,9 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             return;
         }
 
+        this.subscriptionManager.purge();
+
+        io.logDebug(RequestResponseClient.logSubject, `servicing operation queue with ${this.operationQueue.length} entries`);
         while (this.operationQueue.length > 0) {
             let headId = this.operationQueue[0];
             let operation = this.operations.get(headId);
@@ -342,6 +373,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             }
 
             if (!this.canOperationDequeue(operation)) {
+                io.logDebug(RequestResponseClient.logSubject, `operation ${headId} cannot be dequeued`);
                 break;
             }
 
@@ -352,6 +384,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             };
 
             let acquireResult = this.subscriptionManager.acquireSubscription(acquireOptions);
+            io.logDebug(RequestResponseClient.logSubject, `servicing queued operation ${operation.id} yielded acquire subscription result of "${acquireSubscriptionResultToString(acquireResult)}"`);
             if (acquireResult == subscription_manager.AcquireSubscriptionResult.Blocked) {
                 break;
             }
@@ -370,7 +403,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
     private tryScheduleServiceTask(serviceTime: number) {
         if (this.serviceTask) {
-            if (serviceTime >= this.serviceTask.nextserviceTime) {
+            if (serviceTime >= this.serviceTask.nextServiceTime) {
                 return;
             }
 
@@ -380,8 +413,10 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         let futureMs = Math.max(0, Date.now() - serviceTime);
         this.serviceTask = {
             serviceTask: setTimeout(() => { this.service(); }, futureMs),
-            nextserviceTime: serviceTime,
+            nextServiceTime: serviceTime,
         }
+
+        io.logDebug(RequestResponseClient.logSubject, `service task scheduled for execution in ${futureMs} MS`);
     }
 
     private wakeServiceTask() : void {
@@ -399,11 +434,13 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
 
         operationSet.delete(id);
+        io.logDebug(RequestResponseClient.logSubject, `removed operation ${id} from streaming topic filter table entry for "${topicFilter}"`);
         if (operationSet.size > 0) {
             return;
         }
 
         this.streamingOperationsByTopicFilter.delete(topicFilter);
+        io.logDebug(RequestResponseClient.logSubject, `removed streaming topic filter table entry for "${topicFilter}"`);
     }
 
     private decRefResponsePaths(topic: string) {
@@ -413,12 +450,15 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
 
         pathEntry.refCount--;
+        io.logDebug(RequestResponseClient.logSubject, `dec-refing response path entry for "${topic}", ${pathEntry.refCount} references left`);
         if (pathEntry.refCount < 1) {
+            io.logDebug(RequestResponseClient.logSubject, `removing response path entry for "${topic}"`);
             this.correlationTokenPathsByResponsePaths.delete(topic);
         }
     }
 
     private removeRequestResponseOperation(operation: RequestResponseOperation) {
+        io.logDebug(RequestResponseClient.logSubject, `removing request-response operation ${operation.id} from client state`);
         this.operations.delete(operation.id);
 
         if (operation.inClientTables) {
@@ -429,14 +469,27 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             let correlationToken = operation.options.correlationToken ?? "";
             this.operationsByCorrelationToken.delete(correlationToken);
         }
+
+        let releaseOptions : subscription_manager.ReleaseSubscriptionsConfig = {
+            topicFilters: operation.options.subscriptionTopicFilters,
+            operationId: operation.id,
+        };
+        this.subscriptionManager.releaseSubscription(releaseOptions);
     }
 
     private removeStreamingOperation(operation: StreamingOperation) {
+        io.logDebug(RequestResponseClient.logSubject, `removing streaming operation ${operation.id} from client state`);
         this.operations.delete(operation.id);
 
         if (operation.inClientTables) {
             this.removeStreamingOperationFromTopicFilterSet(operation.options.subscriptionTopicFilter, operation.id);
         }
+
+        let releaseOptions : subscription_manager.ReleaseSubscriptionsConfig = {
+            topicFilters: new Array<string>(operation.options.subscriptionTopicFilter),
+            operationId: operation.id,
+        };
+        this.subscriptionManager.releaseSubscription(releaseOptions);
     }
 
     private removeOperation(id: number) {
@@ -458,6 +511,10 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             return;
         }
 
+        io.logInfo(RequestResponseClient.logSubject, `request-response operation ${id} completed with error: "${JSON.stringify(err)}"`);
+
+        this.removeOperation(id);
+
         if (operation.type != OperationType.RequestResponse) {
             return;
         }
@@ -465,12 +522,17 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         let rrOperation = operation as RequestResponseOperation;
         let promise = rrOperation.resultPromise;
 
-        this.removeOperation(id);
-
         promise.reject(err);
     }
 
     private haltStreamingOperationWithError(id: number, err: CrtError) {
+        let operation = this.operations.get(id);
+        if (!operation) {
+            return;
+        }
+
+        io.logInfo(RequestResponseClient.logSubject, `streaming operation ${id} halted with error: "${JSON.stringify(err)}"`);
+
         throw new CrtError("NYI");
     }
 
@@ -487,11 +549,15 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
     }
 
-    private completeRequestResponseOperationWithResponse(id: number, responseTopic: string, payload: Buffer) {
+    private completeRequestResponseOperationWithResponse(id: number, responseTopic: string, payload: ArrayBuffer) {
         let operation = this.operations.get(id);
         if (!operation) {
             return;
         }
+
+        io.logInfo(RequestResponseClient.logSubject, `request-response operation ${id} successfully completed with response"`);
+
+        this.removeOperation(id);
 
         if (operation.type != OperationType.RequestResponse) {
             return;
@@ -499,8 +565,6 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         let rrOperation = operation as RequestResponseOperation;
         let promise = rrOperation.resultPromise;
-
-        this.removeOperation(id);
 
         promise.resolve({
             topic: responseTopic,
@@ -513,9 +577,11 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             return;
         }
 
+        let id = event.completionData as number;
         if (event.err) {
-            let id = event.completionData as number;
-            this.completeOperationWithError(id, event.err as CrtError);
+            this.completeRequestResponseOperationWithError(id, event.err as CrtError);
+        } else {
+            io.logDebug(RequestResponseClient.logSubject, `request-response operation ${id} successfully published request payload"`);
         }
     }
 
@@ -529,13 +595,15 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
     }
 
-    private handleIncomingPublishEvent(event: protocol_client_adapter.IncomingPublishEvent) {
-        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
-            return;
-        }
+    private handleIncomingPublishEventStreaming(event: protocol_client_adapter.IncomingPublishEvent, operations: Set<number>) {
+        // NYI
+    }
 
-        let responsePathEntry = this.correlationTokenPathsByResponsePaths.get(event.topic);
-        if (!responsePathEntry) {
+    private handleIncomingPublishEventRequestResponse(event: protocol_client_adapter.IncomingPublishEvent, responsePathEntry: ResponsePathEntry) {
+
+        io.logDebug(RequestResponseClient.logSubject, `processing incoming publish event on response path topic "${event.topic}"`);
+        if (!event.payload) {
+            io.logError(RequestResponseClient.logSubject, `incoming publish on response path topic "${event.topic}" has no payload`);
             return;
         }
 
@@ -549,7 +617,13 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
                 let payloadAsJson = JSON.parse(payloadAsString);
                 let segmentValue : any = payloadAsJson;
                 for (let segment of responsePathEntry.correlationTokenPath) {
-                    ??;
+                    let segmentPropertyValue = segmentValue[segment];
+                    if (!segmentPropertyValue) {
+                        io.logError(RequestResponseClient.logSubject, `incoming publish on response path topic "${event.topic}" does not have a correlation token at the expected JSON path`);
+                        break;
+                    }
+
+                    segmentValue = segmentValue[segment];
                 }
 
                 if (segmentValue && typeof(segmentValue) === "string") {
@@ -558,17 +632,144 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             }
 
             if (!correlationToken) {
+                io.logError(RequestResponseClient.logSubject, `A valid correlation token could not be inferred for incoming publish on response path topic "${event.topic}"`);
                 return;
             }
 
             let id = this.operationsByCorrelationToken.get(correlationToken);
             if (!id) {
+                io.logDebug(RequestResponseClient.logSubject, `incoming publish on response path topic "${event.topic}" with correlation token "${correlationToken}" does not have an originating request entry`);
                 return;
             }
 
             this.completeRequestResponseOperationWithResponse(id, event.topic, event.payload);
         } catch (err) {
-            ;
+            io.logError(RequestResponseClient.logSubject, `incoming publish on response path topic "${event.topic}" triggered exception: ${JSON.stringify(err)}`);
+        }
+    }
+
+    private handleIncomingPublishEvent(event: protocol_client_adapter.IncomingPublishEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        let responsePathEntry = this.correlationTokenPathsByResponsePaths.get(event.topic);
+        if (responsePathEntry) {
+            this.handleIncomingPublishEventRequestResponse(event, responsePathEntry);
+        }
+
+        let streamingOperationSet = this.streamingOperationsByTopicFilter.get(event.topic);
+        if (streamingOperationSet) {
+            this.handleIncomingPublishEventStreaming(event, streamingOperationSet);
+        }
+    }
+
+    private handleSubscribeSuccessEvent(event: subscription_manager.SubscribeSuccessEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        io.logDebug(RequestResponseClient.logSubject, `subscribe success event received for operation ${event.operationId} using topic filter "${event.topicFilter}"`);
+        let operation = this.operations.get(event.operationId);
+        if (!operation) {
+            return;
+        }
+
+        let rrOperation = operation as RequestResponseOperation;
+        rrOperation.pendingSubscriptionCount--;
+        if (rrOperation.pendingSubscriptionCount === 0) {
+            this.applyRequestResponsePublish(rrOperation);
+        } else {
+            io.logDebug(RequestResponseClient.logSubject, `operation ${event.operationId} has ${rrOperation.pendingSubscriptionCount} pending subscriptions left`);
+        }
+    }
+
+    private handleSubscribeFailureEvent(event: subscription_manager.SubscribeFailureEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        io.logDebug(RequestResponseClient.logSubject, `subscribe failure event received for operation ${event.operationId} using topic filter "${event.topicFilter}"`);
+        this.completeRequestResponseOperationWithError(event.operationId, new CrtError("Subscribe Failure"));
+    }
+
+    private handleSubscriptionEndedEvent(event: subscription_manager.SubscriptionEndedEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        io.logDebug(RequestResponseClient.logSubject, `subscription ended event received for operation ${event.operationId} using topic filter "${event.topicFilter}"`);
+        this.completeRequestResponseOperationWithError(event.operationId, new CrtError("Subscription Ended Early"));
+    }
+
+    private handleStreamingSubscriptionEstablishedEvent(event: subscription_manager.StreamingSubscriptionEstablishedEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        // NYI
+    }
+
+    private handleStreamingSubscriptionLostEvent(event: subscription_manager.StreamingSubscriptionLostEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        // NYI
+    }
+
+    private handleStreamingSubscriptionHaltedEvent(event: subscription_manager.StreamingSubscriptionHaltedEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        // NYI
+    }
+
+    private handleSubscriptionOrphanedEvent(event: subscription_manager.SubscriptionOrphanedEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        io.logDebug(RequestResponseClient.logSubject, `subscription orphaned event received for topic filter "${event.topicFilter}"`);
+        this.wakeServiceTask();
+    }
+
+    private handleUnsubscribeCompleteEvent(event: subscription_manager.UnsubscribeCompleteEvent) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        io.logDebug(RequestResponseClient.logSubject, `unsubscribe completion event received for topic filter "${event.topicFilter}"`);
+        this.wakeServiceTask();
+    }
+
+    private changeOperationState(operation: Operation, state: OperationState) {
+        if (state == operation.state) {
+            return;
+        }
+
+        io.logDebug(RequestResponseClient.logSubject, `operation ${operation.id} changing state from "${operationStateToString(operation.state)}" to "${operationStateToString(state)}"`);
+
+        operation.state = state;
+    }
+
+    private applyRequestResponsePublish(operation: RequestResponseOperation) {
+        let publishOptions = {
+            topic: operation.options.publishTopic,
+            payload: operation.options.payload,
+            timeoutInSeconds: this.operationTimeoutInSeconds,
+            completionData: operation.id
+        };
+
+        try {
+            io.logDebug(RequestResponseClient.logSubject, `submitting publish for request-response operation ${operation.id}`);
+            this.protocolClientAdapter.publish(publishOptions);
+            this.changeOperationState(operation, OperationState.PendingResponse);
+        } catch (err) {
+            let errorStringified = JSON.stringify(err);
+            this.completeRequestResponseOperationWithError(operation.id, new CrtError(`Publish error: "${errorStringified}"`));
+            io.logError(RequestResponseClient.logSubject, `request-response operation ${operation.id} synchronously failed publish step due to error: ${errorStringified}`);
         }
     }
 }

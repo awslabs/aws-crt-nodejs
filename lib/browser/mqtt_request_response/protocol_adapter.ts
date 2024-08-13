@@ -15,7 +15,6 @@ import * as mqtt311 from "../mqtt";
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_request_response from "../../common/mqtt_request_response";
 import {BufferedEventEmitter} from "../../common/event";
-import {MessageReceivedEventListener} from "../mqtt5";
 import {QoS} from "../mqtt";
 
 
