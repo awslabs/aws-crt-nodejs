@@ -44,14 +44,14 @@
     "ts-jest": "^27.0.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-merge-modules": "^5.1.0",
-    "typescript": "^5.4.5",
+    "typescript": "5.4.5",
     "uuid": "^10.0.0",
     "yargs": "^17.7.2"
   },
   "dependencies": {
     "@aws-sdk/util-utf8-browser": "^3.259.0",
     "@httptoolkit/websocket-stream": "^6.0.1",
-    "axios": "^1.7.2",
+    "axios": "^1.7.4",
     "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
     "mqtt": "^4.3.8",
