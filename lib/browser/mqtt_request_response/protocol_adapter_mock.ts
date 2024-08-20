@@ -8,6 +8,7 @@ import * as protocol_adapter from "./protocol_adapter";
 import {BufferedEventEmitter} from "../../common/event";
 import {ICrtError} from "../../common/error";
 import * as subscription_manager from "./subscription_manager";
+import {IncomingPublishEventListener} from "./protocol_adapter";
 
 
 export interface ProtocolAdapterApiCall {
@@ -16,8 +17,9 @@ export interface ProtocolAdapterApiCall {
 }
 
 export interface MockProtocolAdapterOptions {
-    subscribeHandler?: (subscribeOptions: protocol_adapter.SubscribeOptions) => void,
-    unsubscribeHandler?: (unsubscribeOptions: protocol_adapter.UnsubscribeOptions) => void,
+    subscribeHandler?: (adapter: MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions) => void,
+    unsubscribeHandler?: (adapter: MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions) => void,
+    publishHandler?: (adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions) => void,
 }
 
 export class MockProtocolAdapter extends BufferedEventEmitter {
@@ -39,6 +41,10 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
             methodName: "publish",
             args: publishOptions
         });
+
+        if (this.options && this.options.publishHandler) {
+            this.options.publishHandler(this, publishOptions);
+        }
     }
 
     subscribe(subscribeOptions : protocol_adapter.SubscribeOptions) : void {
@@ -48,7 +54,7 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
         });
 
         if (this.options && this.options.subscribeHandler) {
-            this.options.subscribeHandler(subscribeOptions);
+            this.options.subscribeHandler(this, subscribeOptions);
         }
     }
 
@@ -59,7 +65,7 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
         });
 
         if (this.options && this.options.unsubscribeHandler) {
-            this.options.unsubscribeHandler(unsubscribeOptions);
+            this.options.unsubscribeHandler(this, unsubscribeOptions);
         }
     }
 
@@ -104,6 +110,7 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
             event.retryable = retryable;
         }
 
+        // TODO - rework tests to pass with deferred event emission
         this.emit(protocol_adapter.ProtocolClientAdapter.SUBSCRIBE_COMPLETION, event);
     }
 
@@ -118,7 +125,29 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
             event.retryable = retryable;
         }
 
+        // TODO - rework tests to pass with deferred event emission
         this.emit(protocol_adapter.ProtocolClientAdapter.UNSUBSCRIBE_COMPLETION, event);
+    }
+
+    completePublish(completionData: any, err?: ICrtError) : void {
+        let event : protocol_adapter.PublishCompletionEvent = {
+            completionData: completionData
+        };
+
+        if (err) {
+            event.err = err;
+        }
+
+        this.emit(protocol_adapter.ProtocolClientAdapter.PUBLISH_COMPLETION, event);
+    }
+
+    triggerIncomingPublish(topic: string, payload: ArrayBuffer) : void {
+        let event : protocol_adapter.IncomingPublishEvent = {
+            topic : topic,
+            payload: payload
+        };
+
+        this.emit(protocol_adapter.ProtocolClientAdapter.INCOMING_PUBLISH, event);
     }
 
     // Events
@@ -129,6 +158,8 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
     on(event: 'unsubscribeCompletion', listener: protocol_adapter.UnsubscribeCompletionEventListener): this;
 
     on(event: 'connectionStatus', listener: protocol_adapter.ConnectionStatusEventListener): this;
+
+    on(event: 'incomingPublish', listener: IncomingPublishEventListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);

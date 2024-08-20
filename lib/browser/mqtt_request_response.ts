@@ -22,6 +22,7 @@ import {CrtError} from "./error";
 import {LiftedPromise, newLiftedPromise} from "../common/promise";
 import * as io from "../common/io";
 import {acquireSubscriptionResultToString} from "./mqtt_request_response/subscription_manager";
+import * as mqtt_shared from "../common/mqtt_shared";
 
 export * from "../common/mqtt_request_response";
 
@@ -218,18 +219,23 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
      * client, one layer up), such a payload may actually indicate a failure.
      */
     async submitRequest(requestOptions: mqtt_request_response.RequestResponseOperationOptions): Promise<mqtt_request_response.Response> {
+        let resultPromise : LiftedPromise<mqtt_request_response.Response> = newLiftedPromise();
+
         if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
-            throw new CrtError("MQTT request-response client has already been closed");
+            resultPromise.reject(new CrtError("MQTT request-response client has already been closed"));
+            return resultPromise.promise;
         }
 
-        if (!requestOptions) {
-            throw new CrtError("null request options");
+        try {
+            validateRequestOptions(requestOptions);
+        } catch (err) {
+            resultPromise.reject(err);
+            return resultPromise.promise;
         }
 
         let id = this.nextOperationId;
         this.nextOperationId++;
 
-        let resultPromise : LiftedPromise<mqtt_request_response.Response> = newLiftedPromise();
         let operation : RequestResponseOperation = {
             id: id,
             type: OperationType.RequestResponse,
@@ -244,7 +250,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         this.operationQueue.push(id);
 
         setTimeout(() => {
-            this.completeRequestResponseOperationWithError(id, new CrtError("Operation Timeout"));
+            this.completeRequestResponseOperationWithError(id, new CrtError("Operation timeout"));
         }, this.operationTimeoutInSeconds * 1000)
 
         this.wakeServiceTask();
@@ -424,7 +430,10 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
     }
 
     private closeAllOperations() : void {
-        // NYI
+        let operations = Array.from(this.operations).map(([key, value]) => key);
+        for (let id of operations) {
+            this.completeOperationWithError(id, new CrtError("Request-response client closed"));
+        }
     }
 
     private removeStreamingOperationFromTopicFilterSet(topicFilter: string, id: number) {
@@ -770,6 +779,84 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             let errorStringified = JSON.stringify(err);
             this.completeRequestResponseOperationWithError(operation.id, new CrtError(`Publish error: "${errorStringified}"`));
             io.logError(RequestResponseClient.logSubject, `request-response operation ${operation.id} synchronously failed publish step due to error: ${errorStringified}`);
+        }
+    }
+}
+
+function validateResponsePath(responsePath: mqtt_request_response.ResponsePath) {
+    if (!mqtt_shared.isValidTopic(responsePath.topic)) {
+        throw new CrtError(`"${JSON.stringify(responsePath.topic)})" is not a valid topic`);
+    }
+
+    if (responsePath.correlationTokenJsonPath) {
+        if (typeof(responsePath.correlationTokenJsonPath) !== 'string') {
+            throw new CrtError(`"${JSON.stringify(responsePath.correlationTokenJsonPath)})" is not a valid correlation token path`);
+        }
+    }
+}
+
+function validateRequestOptions(requestOptions: mqtt_request_response.RequestResponseOperationOptions) {
+    if (!requestOptions) {
+        throw new CrtError("Invalid request options - null options");
+    }
+
+    if (!requestOptions.subscriptionTopicFilters) {
+        throw new CrtError("Invalid request options - null subscriptionTopicFilters");
+    }
+
+    if (!Array.isArray(requestOptions.subscriptionTopicFilters)) {
+        throw new CrtError("Invalid request options - subscriptionTopicFilters is not an array");
+    }
+
+    if (requestOptions.subscriptionTopicFilters.length === 0) {
+        throw new CrtError("Invalid request options - subscriptionTopicFilters is empty");
+    }
+
+    for (const topicFilter of requestOptions.subscriptionTopicFilters) {
+        if (!mqtt_shared.isValidTopicFilter(topicFilter)) {
+            throw new CrtError(`Invalid request options - "${JSON.stringify(topicFilter)}" is not a valid topic filter`);
+        }
+    }
+
+    if (!requestOptions.responsePaths) {
+        throw new CrtError("Invalid request options - null responsePaths");
+    }
+
+    if (!Array.isArray(requestOptions.responsePaths)) {
+        throw new CrtError("Invalid request options - responsePaths is not an array");
+    }
+
+    if (requestOptions.responsePaths.length === 0) {
+        throw new CrtError("Invalid request options - responsePaths is empty");
+    }
+
+    for (const responsePath of requestOptions.responsePaths) {
+        try {
+            validateResponsePath(responsePath);
+        } catch (err) {
+            throw new CrtError(`Invalid request options - invalid response path: ${JSON.stringify(err)}`);
+        }
+    }
+
+    if (!requestOptions.publishTopic) {
+        throw new CrtError("Invalid request options - null publishTopic");
+    }
+
+    if (!mqtt_shared.isValidTopic(requestOptions.publishTopic)) {
+        throw new CrtError(`Invalid request options - "${JSON.stringify(requestOptions.publishTopic)}" is not a valid topic`);
+    }
+
+    if (!requestOptions.payload) {
+        throw new CrtError("Invalid request options - null payload");
+    }
+
+    if (requestOptions.payload.byteLength == 0) {
+        throw new CrtError("Invalid request options - empty payload");
+    }
+
+    if (requestOptions.correlationToken) {
+        if (typeof(requestOptions.correlationToken) !== 'string') {
+            throw new CrtError("Invalid request options - correlationToken is not a string");
         }
     }
 }
