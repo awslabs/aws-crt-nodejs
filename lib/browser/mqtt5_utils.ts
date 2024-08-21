@@ -98,7 +98,7 @@ function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5.ConnectP
 
     let will : any = {
         topic: crtWill.topicName,
-        payload: crtWill.payload ?? "",
+        payload: crtWill.payload ?? mqtt_shared.normalize_payload_to_buffer(""),
         qos: crtWill.qos,
         retain: crtWill.retain ?? false
     };
