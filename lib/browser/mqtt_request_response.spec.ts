@@ -674,8 +674,176 @@ test('request-response failure - non-matching correlation token', async () => {
     await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerNonMatchingCorrelationToken);
 });
 
-/*
+interface TestOperationDefinition {
+    topicPrefix: string,
+    uniqueRequestPayload: string,
+    correlationToken?: string,
+}
 
-add_test_case(rrc_request_response_multi_operation_sequence)
+interface RequestSequenceContext {
+    responseMap: Map<string, TestOperationDefinition>
+}
 
- */
+function makeTestRequest(definition: TestOperationDefinition): mqtt_request_response.RequestResponseOperationOptions {
+    let encoder = new TextEncoder();
+
+    let baseResponseAsObject : any = {};
+    baseResponseAsObject["requestPayload"] = definition.uniqueRequestPayload;
+    if (definition.correlationToken) {
+        baseResponseAsObject[DEFAULT_CORRELATION_TOKEN_PATH] = definition.correlationToken;
+    }
+
+    let options : mqtt_request_response.RequestResponseOperationOptions = {
+        subscriptionTopicFilters : new Array<string>(`${definition.topicPrefix}/+`),
+        responsePaths: new Array<mqtt_request_response.ResponsePath>({
+            topic: `${definition.topicPrefix}/accepted`
+        }, {
+            topic: `${definition.topicPrefix}/rejected`
+        }),
+        publishTopic: `${definition.topicPrefix}/operation`,
+        payload: encoder.encode(JSON.stringify(baseResponseAsObject)),
+    };
+
+    if (definition.correlationToken) {
+        options.responsePaths[0].correlationTokenJsonPath = DEFAULT_CORRELATION_TOKEN_PATH;
+        options.responsePaths[1].correlationTokenJsonPath = DEFAULT_CORRELATION_TOKEN_PATH;
+        options.correlationToken = definition.correlationToken;
+    }
+
+    return options;
+}
+
+function mockPublishSuccessHandlerSequence(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    let publishHandlerContext = context as RequestSequenceContext;
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData);
+
+        let decoder = new TextDecoder();
+        let payloadAsString = decoder.decode(publishOptions.payload);
+
+        let payloadAsObject: any = JSON.parse(payloadAsString);
+        let token : string | undefined = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
+
+        let uniquenessValue = payloadAsObject["requestPayload"] as string;
+        let definition = publishHandlerContext.responseMap.get(uniquenessValue);
+        if (!definition) {
+            return;
+        }
+
+        let responsePayload : any = {
+            requestPayload: uniquenessValue
+        };
+        if (token) {
+            responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = token; // skip the first character
+        }
+
+        let encoder = new TextEncoder();
+        let responsePayloadAsString = JSON.stringify(responsePayload);
+        adapter.triggerIncomingPublish(`${definition.topicPrefix}/accepted`, encoder.encode(responsePayloadAsString));
+    });
+}
+
+test('request-response success - multi operation sequence', async () => {
+    let operations : Array<TestOperationDefinition> = new Array<TestOperationDefinition>(
+        {
+            topicPrefix: "test",
+            uniqueRequestPayload: "1",
+            correlationToken: "token1",
+        },
+        {
+            topicPrefix: "test",
+            uniqueRequestPayload: "2",
+            correlationToken: "token2",
+        },
+        {
+            topicPrefix: "test2",
+            uniqueRequestPayload: "3",
+            correlationToken: "token3",
+        },
+        {
+            topicPrefix: "interrupting/cow",
+            uniqueRequestPayload: "4",
+            correlationToken: "moo",
+        },
+        {
+            topicPrefix: "test",
+            uniqueRequestPayload: "5",
+            correlationToken: "token4",
+        },
+        {
+            topicPrefix: "test2",
+            uniqueRequestPayload: "6",
+            correlationToken: "token5",
+        },
+        {
+            topicPrefix: "provision",
+            uniqueRequestPayload: "7",
+        },
+        {
+            topicPrefix: "provision",
+            uniqueRequestPayload: "8",
+        },
+        {
+            topicPrefix: "create-keys-and-cert",
+            uniqueRequestPayload: "9",
+        },
+        {
+            topicPrefix: "test",
+            uniqueRequestPayload: "10",
+            correlationToken: "token6",
+        },
+        {
+            topicPrefix: "test2",
+            uniqueRequestPayload: "11",
+            correlationToken: "token7",
+        },
+        {
+            topicPrefix: "provision",
+            uniqueRequestPayload: "12",
+        },
+    );
+
+    let responseMap = operations.reduce(function(map, def) {
+        map.set(def.uniqueRequestPayload, def);
+        return map;
+    }, new Map<string, TestOperationDefinition>());
+
+    let publishHandlerContext : RequestSequenceContext = {
+        responseMap: responseMap
+    }
+
+    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
+        subscribeHandler: mockSubscribeSuccessHandler,
+        unsubscribeHandler: mockUnsubscribeSuccessHandler,
+        publishHandler: mockPublishSuccessHandlerSequence,
+        publishHandlerContext: publishHandlerContext
+    };
+
+    let context = createTestContext({
+        adapterOptions: adapterOptions
+    });
+
+    context.adapter.connect();
+
+    let promises = new Array<Promise<mqtt_request_response.Response>>();
+    for (let operation of operations) {
+        let request = makeTestRequest(operation);
+        promises.push(context.client.submitRequest(request));
+    }
+
+    for (const [i, promise] of promises.entries()) {
+        let definition = operations[i];
+        let response = await promise;
+
+        expect(response.topic).toEqual(`${definition.topicPrefix}/accepted`);
+
+        let decoder = new TextDecoder();
+        let payloadAsString = decoder.decode(response.payload);
+        let payloadAsObject = JSON.parse(payloadAsString);
+        let originalRequestPayload = payloadAsObject["requestPayload"] as string;
+
+        expect(definition.uniqueRequestPayload).toEqual(originalRequestPayload);
+    }
+
+    cleanupTestContext(context);
+});
