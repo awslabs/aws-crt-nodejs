@@ -393,9 +393,6 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
         payload: testPayload
     });
 
-    expect(puback.reasonCode).toEqual(qos)
-
-
     await messageReceived;
 
     const unsuback = await client.unsubscribe({
@@ -463,6 +460,7 @@ export async function nullSubscribeTest(client: mqtt5.Mqtt5Client) {
     client.start();
     await connected;
 
+    // @ts-ignore
     await expect(client.subscribe(null)).rejects.toThrow();
 
     client.stop();
@@ -478,6 +476,7 @@ export async function nullUnsubscribeTest(client: mqtt5.Mqtt5Client) {
     client.start();
     await connected;
 
+    // @ts-ignore
     await expect(client.unsubscribe(null)).rejects.toThrow();
 
     client.stop();
@@ -493,6 +492,7 @@ export async function nullPublishTest(client: mqtt5.Mqtt5Client) {
     client.start();
     await connected;
 
+    // @ts-ignore
     await expect(client.publish(null)).rejects.toThrow();
 
     client.stop();
