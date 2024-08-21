@@ -337,6 +337,8 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
                 io.logDebug(RequestResponseClient.logSubject, `operation ${operation.id} adding reference to response path "${path.topic}"`);
             }
         }
+
+        operation.inClientTables = true;
     }
 
     private handleAcquireSubscriptionResult(operation: Operation, result: subscription_manager.AcquireSubscriptionResult) {
@@ -640,7 +642,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
                 }
             }
 
-            if (!correlationToken) {
+            if (correlationToken === undefined) {
                 io.logError(RequestResponseClient.logSubject, `A valid correlation token could not be inferred for incoming publish on response path topic "${event.topic}"`);
                 return;
             }
@@ -699,7 +701,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         }
 
         io.logDebug(RequestResponseClient.logSubject, `subscribe failure event received for operation ${event.operationId} using topic filter "${event.topicFilter}"`);
-        this.completeRequestResponseOperationWithError(event.operationId, new CrtError("Subscribe Failure"));
+        this.completeRequestResponseOperationWithError(event.operationId, new CrtError("Subscribe failure"));
     }
 
     private handleSubscriptionEndedEvent(event: subscription_manager.SubscriptionEndedEvent) {

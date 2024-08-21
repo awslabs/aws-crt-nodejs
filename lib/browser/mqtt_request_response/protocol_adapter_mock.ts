@@ -17,9 +17,12 @@ export interface ProtocolAdapterApiCall {
 }
 
 export interface MockProtocolAdapterOptions {
-    subscribeHandler?: (adapter: MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions) => void,
-    unsubscribeHandler?: (adapter: MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions) => void,
-    publishHandler?: (adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions) => void,
+    subscribeHandler?: (adapter: MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) => void,
+    subscribeHandlerContext?: any,
+    unsubscribeHandler?: (adapter: MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions, context?: any) => void,
+    unsubscribeHandlerContext?: any,
+    publishHandler?: (adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) => void,
+    publishHandlerContext?: any,
 }
 
 export class MockProtocolAdapter extends BufferedEventEmitter {
@@ -43,7 +46,7 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
         });
 
         if (this.options && this.options.publishHandler) {
-            this.options.publishHandler(this, publishOptions);
+            this.options.publishHandler(this, publishOptions, this.options.publishHandlerContext);
         }
     }
 
@@ -54,7 +57,7 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
         });
 
         if (this.options && this.options.subscribeHandler) {
-            this.options.subscribeHandler(this, subscribeOptions);
+            this.options.subscribeHandler(this, subscribeOptions, this.options.subscribeHandlerContext);
         }
     }
 
@@ -65,7 +68,7 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
         });
 
         if (this.options && this.options.unsubscribeHandler) {
-            this.options.unsubscribeHandler(this, unsubscribeOptions);
+            this.options.unsubscribeHandler(this, unsubscribeOptions,this.options.unsubscribeHandlerContext);
         }
     }
 

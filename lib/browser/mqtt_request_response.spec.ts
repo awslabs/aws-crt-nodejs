@@ -6,6 +6,7 @@
 import * as protocol_adapter_mock from "./mqtt_request_response/protocol_adapter_mock";
 import * as mqtt_request_response from "./mqtt_request_response";
 import * as protocol_adapter from "./mqtt_request_response/protocol_adapter";
+import { CrtError } from "./error";
 import {MockProtocolAdapter} from "./mqtt_request_response/protocol_adapter_mock";
 
 jest.setTimeout(1000000);
@@ -315,15 +316,21 @@ test('request-response failure - timeout', async () => {
     cleanupTestContext(context);
 });
 
-function mockSubscribeSuccessHandler(adapter: MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions) {
+function mockSubscribeSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
     setImmediate(() => { adapter.completeSubscribe(subscribeOptions.topicFilter); });
 }
 
-function mockUnsubscribeSuccessHandler(adapter: MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions) {
+function mockUnsubscribeSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions, context?: any) {
     setImmediate(() => { adapter.completeUnsubscribe(unsubscribeOptions.topicFilter); });
 }
 
-function mockPublishSuccessHandler(responseTopic: string, responsePayload: any, adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions) {
+interface PublishHandlerContext {
+    responseTopic: string,
+    responsePayload: any
+}
+
+function mockPublishSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    let publishHandlerContext = context as PublishHandlerContext;
     setImmediate(() => {
         adapter.completePublish(publishOptions.completionData);
 
@@ -331,19 +338,25 @@ function mockPublishSuccessHandler(responseTopic: string, responsePayload: any, 
         let payloadAsString = decoder.decode(publishOptions.payload);
         let payloadAsObject: any = JSON.parse(payloadAsString);
 
-        responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
+        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
 
         let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(responsePayload);
-        adapter.triggerIncomingPublish(responseTopic, encoder.encode(responsePayloadAsString));
+        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
+        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
     });
 }
 
-async function do_request_response_single_success_test(responsePath: string) {
+async function do_request_response_single_success_test(responsePath: string, multiSubscribe: boolean) {
+    let publishHandlerContext : PublishHandlerContext = {
+        responseTopic: responsePath,
+        responsePayload: {}
+    }
+
     let adapterOptions : protocol_adapter_mock.MockProtocolAdapterOptions = {
         subscribeHandler: mockSubscribeSuccessHandler,
         unsubscribeHandler: mockUnsubscribeSuccessHandler,
-        publishHandler: (adapter, publishOptions) => { mockPublishSuccessHandler(responsePath, {}, adapter, publishOptions); },
+        publishHandler: mockPublishSuccessHandler,
+        publishHandlerContext: publishHandlerContext
     };
 
     let context = createTestContext({
@@ -352,7 +365,12 @@ async function do_request_response_single_success_test(responsePath: string) {
 
     context.adapter.connect();
 
-    let responsePromise = context.client.submitRequest(makeGoodRequest());
+    let request = makeGoodRequest();
+    if (multiSubscribe) {
+        request.subscriptionTopicFilters = new Array<string>(DEFAULT_ACCEPTED_PATH, DEFAULT_REJECTED_PATH);
+    }
+
+    let responsePromise = context.client.submitRequest(request);
     let response = await responsePromise;
 
     expect(response.topic).toEqual(responsePath);
@@ -364,26 +382,300 @@ async function do_request_response_single_success_test(responsePath: string) {
 }
 
 test('request-response success - accepted response path', async () => {
-    await do_request_response_single_success_test(DEFAULT_ACCEPTED_PATH);
+    await do_request_response_single_success_test(DEFAULT_ACCEPTED_PATH, false);
+});
+
+test('request-response success - multi-sub accepted response path', async () => {
+    await do_request_response_single_success_test(DEFAULT_ACCEPTED_PATH, true);
 });
 
 test('request-response success - rejected response path', async () => {
-    await do_request_response_single_success_test(DEFAULT_REJECTED_PATH);
+    await do_request_response_single_success_test(DEFAULT_REJECTED_PATH, false);
+});
+
+test('request-response success - multi-sub rejected response path', async () => {
+    await do_request_response_single_success_test(DEFAULT_REJECTED_PATH, true);
+});
+
+function mockPublishSuccessHandlerNoToken(responseTopic: string, responsePayload: any, adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData);
+        adapter.triggerIncomingPublish(responseTopic, publishOptions.payload);
+    });
+}
+
+async function do_request_response_success_empty_correlation_token(responsePath: string, count: number) {
+    let adapterOptions : protocol_adapter_mock.MockProtocolAdapterOptions = {
+        subscribeHandler: mockSubscribeSuccessHandler,
+        unsubscribeHandler: mockUnsubscribeSuccessHandler,
+        publishHandler: (adapter, publishOptions, context) => { mockPublishSuccessHandlerNoToken(responsePath, {}, adapter, publishOptions, context); },
+    };
+
+    let context = createTestContext({
+        adapterOptions: adapterOptions,
+    });
+
+    context.adapter.connect();
+
+    let encoder = new TextEncoder();
+
+    let promises = new Array<Promise<mqtt_request_response.Response>>();
+    for (let i = 0; i < count; i++) {
+        let request = makeGoodRequest();
+        delete request.correlationToken;
+        delete request.responsePaths[0].correlationTokenJsonPath;
+        delete request.responsePaths[1].correlationTokenJsonPath;
+
+        request.payload = encoder.encode(JSON.stringify({
+            requestNumber: `${i}`
+        }));
+
+        promises.push(context.client.submitRequest(request));
+    }
+
+    for (const [i, promise] of promises.entries()) {
+        let response = await promise;
+
+        expect(response.topic).toEqual(responsePath);
+
+        let decoder = new TextDecoder();
+        expect(decoder.decode(response.payload)).toEqual(JSON.stringify({requestNumber:`${i}`}));
+    }
+
+    cleanupTestContext(context);
+}
+
+test('request-response success - accepted response path no correlation token', async () => {
+    await do_request_response_success_empty_correlation_token(DEFAULT_ACCEPTED_PATH, 1);
+});
+
+test('request-response success - accepted response path no correlation token sequence', async () => {
+    await do_request_response_success_empty_correlation_token(DEFAULT_ACCEPTED_PATH, 5);
+});
+
+test('request-response success - rejected response path no correlation token', async () => {
+    await do_request_response_success_empty_correlation_token(DEFAULT_REJECTED_PATH, 1);
+});
+
+test('request-response success - rejected response path no correlation token sequence', async () => {
+    await do_request_response_success_empty_correlation_token(DEFAULT_REJECTED_PATH, 5);
+});
+
+interface FailingSubscribeContext {
+    startFailingIndex: number,
+    subscribesSeen: number
+}
+
+function mockSubscribeFailureHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
+    let subscribeContext = context as FailingSubscribeContext;
+
+    if (subscribeContext.subscribesSeen >= subscribeContext.startFailingIndex) {
+        setImmediate(() => {
+            adapter.completeSubscribe(subscribeOptions.topicFilter, new CrtError("Nope"));
+        });
+    } else {
+        setImmediate(() => {
+            adapter.completeSubscribe(subscribeOptions.topicFilter);
+        });
+    }
+
+    subscribeContext.subscribesSeen++;
+}
+
+async function do_request_response_failure_subscribe(failSecondSubscribe: boolean) {
+
+    let subscribeContext : FailingSubscribeContext = {
+        startFailingIndex : failSecondSubscribe ? 1 : 0,
+        subscribesSeen : 0,
+    };
+
+    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
+        subscribeHandler: mockSubscribeFailureHandler,
+        subscribeHandlerContext: subscribeContext,
+        unsubscribeHandler: mockUnsubscribeSuccessHandler,
+    };
+
+    let context = createTestContext({
+        adapterOptions: adapterOptions,
+    });
+
+    context.adapter.connect();
+
+    let request = makeGoodRequest();
+    if (failSecondSubscribe) {
+        request.subscriptionTopicFilters = new Array<string>(DEFAULT_ACCEPTED_PATH, DEFAULT_REJECTED_PATH);
+    }
+
+    try {
+        await context.client.submitRequest(request);
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("Subscribe failure");
+    }
+
+    cleanupTestContext(context);
+}
+
+
+test('request-response failure - subscribe failure', async () => {
+    await do_request_response_failure_subscribe(false);
+});
+
+test('request-response failure - second subscribe failure', async () => {
+    await do_request_response_failure_subscribe(true);
+});
+
+function mockPublishFailureHandlerAck(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData, new CrtError("Publish failure - No can do"));
+    });
+}
+
+test('request-response failure - publish failure', async () => {
+    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
+        subscribeHandler: mockSubscribeSuccessHandler,
+        unsubscribeHandler: mockUnsubscribeSuccessHandler,
+        publishHandler: mockPublishFailureHandlerAck,
+    };
+
+    let context = createTestContext({
+        adapterOptions: adapterOptions,
+    });
+
+    context.adapter.connect();
+
+    let request = makeGoodRequest();
+
+    try {
+        await context.client.submitRequest(request);
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("Publish failure");
+    }
+
+    cleanupTestContext(context);
+});
+
+async function doRequestResponseFailureByTimeoutDueToResponseTest(publishHandler: (adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) => void) {
+    let publishHandlerContext : PublishHandlerContext = {
+        responseTopic: DEFAULT_ACCEPTED_PATH,
+        responsePayload: {}
+    }
+
+    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
+        subscribeHandler: mockSubscribeSuccessHandler,
+        unsubscribeHandler: mockUnsubscribeSuccessHandler,
+        publishHandler: publishHandler,
+        publishHandlerContext: publishHandlerContext
+    };
+
+    let context = createTestContext({
+        adapterOptions: adapterOptions,
+        clientOptions: {
+            maxRequestResponseSubscriptions: 4,
+            maxStreamingSubscriptions: 2,
+            operationTimeoutInSeconds: 2, // need a quick timeout
+        }
+    });
+
+    context.adapter.connect();
+
+    let request = makeGoodRequest();
+
+    try {
+        await context.client.submitRequest(request);
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("timeout");
+    }
+
+    cleanupTestContext(context);
+}
+
+function mockPublishFailureHandlerInvalidResponse(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    let publishHandlerContext = context as PublishHandlerContext;
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData);
+
+        let decoder = new TextDecoder();
+        let payloadAsString = decoder.decode(publishOptions.payload);
+        let payloadAsObject: any = JSON.parse(payloadAsString);
+
+        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
+
+        let encoder = new TextEncoder();
+        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
+        // drop the closing bracket to create a JSON deserialization error
+        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString.slice(0, responsePayloadAsString.length - 1)));
+    });
+}
+
+test('request-response failure - invalid response payload', async () => {
+    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerInvalidResponse);
+});
+
+function mockPublishFailureHandlerMissingCorrelationToken(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    let publishHandlerContext = context as PublishHandlerContext;
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData);
+
+        let encoder = new TextEncoder();
+        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
+        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
+    });
+}
+
+test('request-response failure - missing correlation token', async () => {
+    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerMissingCorrelationToken);
+});
+
+function mockPublishFailureHandlerInvalidCorrelationTokenType(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    let publishHandlerContext = context as PublishHandlerContext;
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData);
+
+        let decoder = new TextDecoder();
+        let payloadAsString = decoder.decode(publishOptions.payload);
+        let payloadAsObject: any = JSON.parse(payloadAsString);
+        let tokenAsString = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH] as string;
+        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = parseInt(tokenAsString, 10);
+
+        let encoder = new TextEncoder();
+        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
+        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
+    });
+}
+
+test('request-response failure - invalid correlation token type', async () => {
+    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerInvalidCorrelationTokenType);
+});
+
+function mockPublishFailureHandlerNonMatchingCorrelationToken(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
+    let publishHandlerContext = context as PublishHandlerContext;
+    setImmediate(() => {
+        adapter.completePublish(publishOptions.completionData);
+
+        let decoder = new TextDecoder();
+        let payloadAsString = decoder.decode(publishOptions.payload);
+        let payloadAsObject: any = JSON.parse(payloadAsString);
+        let token = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH] as string;
+        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = token.substring(1); // skip the first character
+
+        let encoder = new TextEncoder();
+        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
+        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
+    });
+}
+
+test('request-response failure - non-matching correlation token', async () => {
+    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerNonMatchingCorrelationToken);
 });
 
 /*
 
-add_test_case(rrc_request_response_multi_sub_success_response_path_accepted)
-add_test_case(rrc_request_response_multi_sub_success_response_path_rejected)
-add_test_case(rrc_request_response_success_empty_correlation_token)
-add_test_case(rrc_request_response_success_empty_correlation_token_sequence)
-add_test_case(rrc_request_response_subscribe_failure)
-add_test_case(rrc_request_response_multi_subscribe_failure)
-add_test_case(rrc_request_response_failure_puback_reason_code)
-add_test_case(rrc_request_response_failure_invalid_payload)
-add_test_case(rrc_request_response_failure_missing_correlation_token)
-add_test_case(rrc_request_response_failure_invalid_correlation_token_type)
-add_test_case(rrc_request_response_failure_non_matching_correlation_token)
 add_test_case(rrc_request_response_multi_operation_sequence)
 
  */
