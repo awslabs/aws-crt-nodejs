@@ -385,7 +385,7 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
         ]
     });
 
-    expect(suback.qos).toEqual(mqtt5.QoS.AtLeastOnce)
+    expect(suback.reasonCodes).toEqual([mqtt5.QoS.AtLeastOnce])
 
     const puback = await client.publish({
         topicName: topic,
@@ -393,7 +393,7 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
         payload: testPayload
     });
 
-    expect(puback.qos).toEqual(qos)
+    expect(puback.reasonCode).toEqual(qos)
 
 
     await messageReceived;
