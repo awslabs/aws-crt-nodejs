@@ -446,7 +446,6 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 let subMap: mqtt.ISubscriptionMap = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscription_map(packet);
                 let subOptions: mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(packet);
 
-                // @ts-ignore
                 this.browserClient.subscribe(subMap, subOptions, (error, grants, suback) => {
                     if (error) {
                         reject(error);
@@ -492,7 +491,6 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 let unsubOptions: Object = mqtt_utils.transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(packet);
 
                 // TODO: fix if PR accepted
-                // @ts-ignore
                 this.browserClient.unsubscribe(topicFilters, unsubOptions, (error, packet) => {
                     if (error) {
                         reject(error);

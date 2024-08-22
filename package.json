@@ -28,7 +28,7 @@
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^27.0.1",
-    "@types/node": "^10.17.54",
+    "@types/node": "^14.18.63",
     "@types/prettier": "2.6.0",
     "@types/puppeteer": "^5.4.7",
     "@types/uuid": "^3.4.13",

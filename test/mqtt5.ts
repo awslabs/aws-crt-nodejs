@@ -379,11 +379,13 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
 
     await connectionSuccess;
 
-    await client.subscribe({
+    const suback = await client.subscribe({
         subscriptions: [
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+
+    expect(suback.reasonCodes).toEqual([mqtt5.QoS.AtLeastOnce])
 
     await client.publish({
         topicName: topic,
@@ -393,9 +395,11 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
 
     await messageReceived;
 
-    await client.unsubscribe({
+    const unsuback = await client.unsubscribe({
         topicFilters: [ topic ]
     });
+
+    expect(unsuback.reasonCodes).toEqual([mqtt5.UnsubackReasonCode.Success])
 
     await client.publish({
         topicName: topic,
