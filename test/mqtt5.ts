@@ -399,7 +399,7 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
         topicFilters: [ topic ]
     });
 
-    expect(unsuback.reasonCodes).toEqual([qos])
+    expect(unsuback.reasonCodes).toEqual([mqtt5.UnsubackReasonCode.Success])
 
     await client.publish({
         topicName: topic,
