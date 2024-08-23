@@ -102,6 +102,44 @@ interface ServiceTaskWrapper {
     nextServiceTime : number;
 }
 
+function areClientOptionsValid(options: mqtt_request_response.RequestResponseClientOptions) : boolean {
+    if (!options) {
+        return false;
+    }
+
+    if (!options.maxRequestResponseSubscriptions) {
+        return false;
+    }
+
+    if (!Number.isInteger(options.maxRequestResponseSubscriptions)) {
+        return false;
+    }
+
+    if (options.maxRequestResponseSubscriptions < 2) {
+        return false;
+    }
+
+    if (!options.maxStreamingSubscriptions) {
+        return false;
+    }
+
+    if (!Number.isInteger(options.maxStreamingSubscriptions)) {
+        return false;
+    }
+
+    if (options.operationTimeoutInSeconds) {
+        if (!Number.isInteger(options.operationTimeoutInSeconds)) {
+            return false;
+        }
+
+        if (options.operationTimeoutInSeconds <= 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /**
  * Native implementation of an MQTT-based request-response client tuned for AWS MQTT services.
  *
@@ -128,6 +166,10 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
     private operationQueue : Array<number> = new Array<number>;
 
     constructor(protocolClientAdapter: protocol_client_adapter.ProtocolClientAdapter, options: mqtt_request_response.RequestResponseClientOptions) {
+        if (!areClientOptionsValid(options)) {
+            throw new CrtError("Invalid client options passed to RequestResponseClient constructor");
+        }
+
         super();
 
         this.operationTimeoutInSeconds = options.operationTimeoutInSeconds ?? 60;
@@ -860,5 +902,7 @@ function validateRequestOptions(requestOptions: mqtt_request_response.RequestRes
         if (typeof(requestOptions.correlationToken) !== 'string') {
             throw new CrtError("Invalid request options - correlationToken is not a string");
         }
+    } else if (requestOptions.correlationToken === null) {
+        throw new CrtError("Invalid request options - correlationToken null");
     }
 }

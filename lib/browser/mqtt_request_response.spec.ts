@@ -3,847 +3,599 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import * as protocol_adapter_mock from "./mqtt_request_response/protocol_adapter_mock";
+
+import * as auth from "./auth";
+import * as test_env from "@test/test_env"
+import * as aws_iot_311 from "./aws_iot";
+import * as aws_iot_5 from "./aws_iot_mqtt5";
+//import * as mqtt5 from "./mqtt5";
 import * as mqtt_request_response from "./mqtt_request_response";
-import * as protocol_adapter from "./mqtt_request_response/protocol_adapter";
-import { CrtError } from "./error";
-import {MockProtocolAdapter} from "./mqtt_request_response/protocol_adapter_mock";
+//import {v4 as uuid} from "uuid";
+//import {once} from "events";
+import * as mrr_test from "@test/mqtt_request_response";
+import {v4 as uuid} from "uuid";
 
-jest.setTimeout(1000000);
+jest.setTimeout(10000);
 
-interface TestContextOptions {
-    clientOptions?: mqtt_request_response.RequestResponseClientOptions,
-    adapterOptions?: protocol_adapter_mock.MockProtocolAdapterOptions
-}
-
-interface TestContext {
-    client : mqtt_request_response.RequestResponseClient,
-    adapter: protocol_adapter_mock.MockProtocolAdapter
-}
-
-function createTestContext(options? : TestContextOptions) : TestContext {
-    let adapter = new protocol_adapter_mock.MockProtocolAdapter(options?.adapterOptions);
-
-    var clientOptions : mqtt_request_response.RequestResponseClientOptions = options?.clientOptions ?? {
-        maxRequestResponseSubscriptions: 4,
-        maxStreamingSubscriptions: 2,
-        operationTimeoutInSeconds: 600,
+function createClientBuilder5() : aws_iot_5.AwsIotMqtt5ClientConfigBuilder {
+    let credentials : auth.AWSCredentials = {
+        aws_region: test_env.AWS_IOT_ENV.MQTT5_REGION,
+        aws_access_id: test_env.AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY,
+        aws_secret_key: test_env.AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY,
     };
 
-    // @ts-ignore
-    let client = new mqtt_request_response.RequestResponseClient(adapter, clientOptions);
-
-    return {
-        client: client,
-        adapter: adapter
-    };
-}
-
-function cleanupTestContext(context: TestContext) {
-    context.client.close();
-}
-
-test('create/destroy', async () => {
-    let context = createTestContext();
-    cleanupTestContext(context);
-});
-
-async function doRequestResponseValidationFailureTest(request: mqtt_request_response.RequestResponseOperationOptions, errorSubstring: string) {
-    let context = createTestContext();
-
-    context.adapter.connect();
-
-    try {
-        await context.client.submitRequest(request);
-        expect(false);
-    } catch (err: any) {
-        expect(err.message).toContain(errorSubstring);
+    if (test_env.AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN) {
+        credentials.aws_sts_token = test_env.AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN;
     }
 
-    cleanupTestContext(context);
+    let provider = new auth.StaticCredentialProvider(credentials);
+
+    let builder = aws_iot_5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(test_env.AWS_IOT_ENV.MQTT5_HOST, {
+        credentialsProvider: provider,
+        region: test_env.AWS_IOT_ENV.MQTT5_REGION
+    });
+
+    return builder;
 }
 
-const DEFAULT_ACCEPTED_PATH = "a/b/accepted";
-const DEFAULT_REJECTED_PATH = "a/b/rejected";
-const DEFAULT_CORRELATION_TOKEN_PATH = "token";
-const DEFAULT_CORRELATION_TOKEN = "abcd";
+function createClientBuilder311() : aws_iot_311.AwsIotMqttConnectionConfigBuilder {
+    let builder = aws_iot_311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
 
-function makeGoodRequest() : mqtt_request_response.RequestResponseOperationOptions {
-    var encoder = new TextEncoder();
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT5_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+    builder.with_credentials(
+        test_env.AWS_IOT_ENV.MQTT5_REGION,
+        test_env.AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY,
+        test_env.AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY,
+        test_env.AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN
+    );
 
-    return {
-        subscriptionTopicFilters : new Array<string>("a/b/+"),
-        responsePaths: new Array<mqtt_request_response.ResponsePath>({
-                topic: DEFAULT_ACCEPTED_PATH,
-                correlationTokenJsonPath: DEFAULT_CORRELATION_TOKEN_PATH
-            }, {
-                topic: DEFAULT_REJECTED_PATH,
-                correlationTokenJsonPath: DEFAULT_CORRELATION_TOKEN_PATH
-            }),
-        publishTopic: "a/b/derp",
-        payload: encoder.encode(JSON.stringify({
-            token: DEFAULT_CORRELATION_TOKEN
-        })),
-        correlationToken: DEFAULT_CORRELATION_TOKEN
+    return builder;
+}
+
+function initClientBuilderFactories() {
+    // @ts-ignore
+    mrr_test.setClientBuilderFactories(createClientBuilder5, createClientBuilder311);
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Create Destroy Mqtt5', async () => {
+    initClientBuilderFactories();
+    let context = new mrr_test.TestingContext({
+        version: mrr_test.ProtocolVersion.Mqtt5
+    });
+    await context.open();
+
+    await context.close();
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Create Destroy Mqtt311', async () => {
+    initClientBuilderFactories();
+    let context = new mrr_test.TestingContext({
+        version: mrr_test.ProtocolVersion.Mqtt311
+    });
+    await context.open();
+
+    await context.close();
+});
+
+
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected Mqtt5', async () => {
+    initClientBuilderFactories();
+    await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt5, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected Mqtt311', async () => {
+    await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt311, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected No CorrelationToken Mqtt5', async () => {
+    await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt5, false);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected No CorrelationToken Mqtt311', async () => {
+    await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt311, false);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted Mqtt5', async () => {
+    await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt5, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted Mqtt311', async () => {
+    await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt311, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted No CorrelationToken Mqtt5', async () => {
+    await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt5, false);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted No CorrelationToken Mqtt311', async () => {
+    await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt311, false);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout Mqtt5', async () => {
+    await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt5, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout Mqtt311', async () => {
+    await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt311, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout No CorrelationToken Mqtt5', async () => {
+    await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt5, false);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout No CorrelationToken Mqtt311', async () => {
+    await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt311, false);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure On Close Mqtt5', async () => {
+    await mrr_test.do_get_named_shadow_failure_on_close_test(mrr_test.ProtocolVersion.Mqtt5, "closed");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure On Close Mqtt311', async () => {
+    await mrr_test.do_get_named_shadow_failure_on_close_test(mrr_test.ProtocolVersion.Mqtt311, "closed");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure zero max request response subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_no_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure zero max request response subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_no_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure invalid max request response subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_invalid_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure invalid max request response subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_invalid_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined config mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_undefined_config, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined config mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_undefined_config, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max request response subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_undefined_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max request response subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_undefined_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max request response subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_null_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max request response subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_null_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max request response subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_missing_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max request response subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_missing_max_request_response_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max streaming subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_undefined_max_streaming_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max streaming subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_undefined_max_streaming_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max streaming subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_null_max_streaming_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max streaming subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_null_max_streaming_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_missing_max_streaming_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_missing_max_streaming_subscriptions, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt5', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_invalid_operation_timeout, "Invalid client options");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt311', async() => {
+    mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_invalid_operation_timeout, "Invalid client options");
+});
+
+
+test('Client creation failure null protocol client mqtt311', async() => {
+    let config : mqtt_request_response.RequestResponseClientOptions = {
+        maxRequestResponseSubscriptions: 2,
+        maxStreamingSubscriptions : 2,
+        operationTimeoutInSeconds : 5,
     };
-}
-
-test('request-response validation failure - null options', async () => {
-    // @ts-ignore
-    let requestOptions : mqtt_request_response.RequestResponseOperationOptions = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
-});
-
-test('request-response validation failure - null response paths', async () => {
-    let requestOptions = makeGoodRequest();
 
     // @ts-ignore
-    requestOptions.responsePaths = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+    expect(() => {mqtt_request_response.RequestResponseClient.newFromMqtt311(null, config)}).toThrow("protocol client is null");
 });
 
-test('request-response validation failure - no response paths', async () => {
-    let requestOptions = makeGoodRequest();
-
-    requestOptions.responsePaths = new Array<mqtt_request_response.ResponsePath>();
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
-});
-
-test('request-response validation failure - null response topic', async () => {
-    let requestOptions = makeGoodRequest();
+test('Client creation failure null protocol client mqtt5', async() => {
+    let config : mqtt_request_response.RequestResponseClientOptions = {
+        maxRequestResponseSubscriptions: 2,
+        maxStreamingSubscriptions : 2,
+        operationTimeoutInSeconds : 5,
+    };
 
     // @ts-ignore
-    requestOptions.responsePaths[0].topic = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+    expect(() => {mqtt_request_response.RequestResponseClient.newFromMqtt5(null, config)}).toThrow("protocol client is null");
 });
 
-test('request-response validation failure - response topic bad type', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Subscription Topic Filters', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.subscriptionTopicFilters;
 
-    // @ts-ignore
-    requestOptions.responsePaths[0].topic = 5;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - empty response topic', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Subscription Topic Filters', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.subscriptionTopicFilters = null;
 
-    requestOptions.responsePaths[0].topic = "";
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - invalid response topic', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Subscription Topic Filters Not An Array', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.subscriptionTopicFilters = "null";
 
-    requestOptions.responsePaths[0].topic = "a/#/b";
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - correlation token path bad type', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Subscription Topic Filters Empty', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.subscriptionTopicFilters = [];
 
-    // @ts-ignore
-    requestOptions.responsePaths[0].correlationTokenJsonPath = 5;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - null publish topic', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Response Paths', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.responsePaths;
 
-    // @ts-ignore
-    requestOptions.publishTopic = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - publish topic bad type', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Response Paths', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths = null;
 
-    // @ts-ignore
-    requestOptions.publishTopic = 5;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - empty publish topic', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Paths Not An Array', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths = "null";
 
-    requestOptions.publishTopic = "";
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - invalid publish topic', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Paths Empty', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths = [];
 
-    requestOptions.publishTopic = "a/+";
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - null subscription topic filters', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path No Topic', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.responsePaths[0].topic;
 
-    // @ts-ignore
-    requestOptions.subscriptionTopicFilters = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - no subscription topic filters', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Null Topic', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].topic = null;
 
-    requestOptions.subscriptionTopicFilters = new Array<string>();
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - null subscription topic filter', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Bad Topic Type', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].topic = 5;
 
-    // @ts-ignore
-    requestOptions.subscriptionTopicFilters[0] = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - subscription topic filter bad type', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Null Correlation Token Json Path', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].correlationTokenJsonPath = null;
 
-    // @ts-ignore
-    requestOptions.subscriptionTopicFilters[0] = 5;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - empty subscription topic filter', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Bad Correlation Token Json Path Type', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.responsePaths[0].correlationTokenJsonPath = {};
 
-    requestOptions.subscriptionTopicFilters[0] = "";
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - invalid subscription topic filter', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Publish Topic', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.publishTopic;
 
-    requestOptions.subscriptionTopicFilters[0] = "#/a/b";
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - null payload', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Publish Topic', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.publishTopic = null;
 
-    // @ts-ignore
-    requestOptions.payload = null;
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response validation failure - empty payload', async () => {
-    let requestOptions = makeGoodRequest();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Bad Publish Topic Type', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.publishTopic = {someValue: null};
 
-    let encoder = new TextEncoder();
-    requestOptions.payload = encoder.encode("");
-
-    await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
+        return new_options;
+    });
 });
 
-test('request-response failure - interrupted by close', async () => {
-    let context = createTestContext();
 
-    context.adapter.connect();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Payload', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        delete new_options.payload;
 
-    let responsePromise = context.client.submitRequest(makeGoodRequest());
+        return new_options;
+    });
+});
 
-    context.client.close();
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Payload', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.payload = null;
 
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Correlation Token', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.correlationToken = null;
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Bad Correlation Token Type', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        // @ts-ignore
+        new_options.correlationToken = ["something"];
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Protocol Invalid Topic', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
+        let new_options = options;
+        new_options.publishTopic = "#/illegal/#/topic";
+
+        return new_options;
+    });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Options', async () => {
+    await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options",
+        // @ts-ignore
+        (options : mqtt_request_response.RequestResponseOperationOptions) => {
+            return null;
+        });
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Submit After Close', async () => {
+    let context = new mrr_test.TestingContext({
+        version: mrr_test.ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+    await context.close();
+
+    let requestOptions = mrr_test.createRejectedGetNamedShadowRequest(true);
     try {
-        await responsePromise;
-        expect(false);
-    } catch (err: any) {
-        expect(err.message).toContain("client closed");
-    }
-
-    cleanupTestContext(context);
-});
-
-test('request-response failure - client closed', async () => {
-    let context = createTestContext();
-
-    context.adapter.connect();
-    context.client.close();
-
-    try {
-        await context.client.submitRequest(makeGoodRequest());
+        await context.client.submitRequest(requestOptions);
         expect(false);
     } catch (err: any) {
         expect(err.message).toContain("already been closed");
     }
-
-    cleanupTestContext(context);
 });
 
-test('request-response failure - timeout', async () => {
-    let clientOptions = {
-        maxRequestResponseSubscriptions: 4,
-        maxStreamingSubscriptions: 2,
-        operationTimeoutInSeconds: 2
-    };
-
-    let context = createTestContext({
-        clientOptions: clientOptions
-    });
-
-    context.adapter.connect();
-
-    try {
-        await context.client.submitRequest(makeGoodRequest());
-        expect(false);
-    } catch (err: any) {
-        expect(err.message).toContain("timeout");
-    }
-
-    cleanupTestContext(context);
+//////////////////////////////////////////////
+// Streaming Ops NYI
+/*
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Open/Close MQTT5', async () => {
+    await mrr_test.do_streaming_operation_new_open_close_test(mrr_test.ProtocolVersion.Mqtt5);
 });
 
-function mockSubscribeSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
-    setImmediate(() => { adapter.completeSubscribe(subscribeOptions.topicFilter); });
-}
-
-function mockUnsubscribeSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions, context?: any) {
-    setImmediate(() => { adapter.completeUnsubscribe(unsubscribeOptions.topicFilter); });
-}
-
-interface PublishHandlerContext {
-    responseTopic: string,
-    responsePayload: any
-}
-
-function mockPublishSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-
-        let decoder = new TextDecoder();
-        let payloadAsString = decoder.decode(publishOptions.payload);
-        let payloadAsObject: any = JSON.parse(payloadAsString);
-
-        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
-
-        let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
-        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
-    });
-}
-
-async function do_request_response_single_success_test(responsePath: string, multiSubscribe: boolean) {
-    let publishHandlerContext : PublishHandlerContext = {
-        responseTopic: responsePath,
-        responsePayload: {}
-    }
-
-    let adapterOptions : protocol_adapter_mock.MockProtocolAdapterOptions = {
-        subscribeHandler: mockSubscribeSuccessHandler,
-        unsubscribeHandler: mockUnsubscribeSuccessHandler,
-        publishHandler: mockPublishSuccessHandler,
-        publishHandlerContext: publishHandlerContext
-    };
-
-    let context = createTestContext({
-        adapterOptions: adapterOptions,
-    });
-
-    context.adapter.connect();
-
-    let request = makeGoodRequest();
-    if (multiSubscribe) {
-        request.subscriptionTopicFilters = new Array<string>(DEFAULT_ACCEPTED_PATH, DEFAULT_REJECTED_PATH);
-    }
-
-    let responsePromise = context.client.submitRequest(request);
-    let response = await responsePromise;
-
-    expect(response.topic).toEqual(responsePath);
-
-    let decoder = new TextDecoder();
-    expect(decoder.decode(response.payload)).toEqual(JSON.stringify({token:DEFAULT_CORRELATION_TOKEN}));
-
-    cleanupTestContext(context);
-}
-
-test('request-response success - accepted response path', async () => {
-    await do_request_response_single_success_test(DEFAULT_ACCEPTED_PATH, false);
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Open/Close MQTT311', async () => {
+    await mrr_test.do_streaming_operation_new_open_close_test(mrr_test.ProtocolVersion.Mqtt311);
 });
 
-test('request-response success - multi-sub accepted response path', async () => {
-    await do_request_response_single_success_test(DEFAULT_ACCEPTED_PATH, true);
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT5', async () => {
+    await mrr_test.do_streaming_operation_incoming_publish_test(mrr_test.ProtocolVersion.Mqtt5);
 });
 
-test('request-response success - rejected response path', async () => {
-    await do_request_response_single_success_test(DEFAULT_REJECTED_PATH, false);
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT311', async () => {
+    await mrr_test.do_streaming_operation_incoming_publish_test(mrr_test.ProtocolVersion.Mqtt311);
 });
 
-test('request-response success - multi-sub rejected response path', async () => {
-    await do_request_response_single_success_test(DEFAULT_REJECTED_PATH, true);
-});
+// We only have a 5-based test because there's no way to stop the 311 client without destroying it in the process.
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', async () => {
 
-function mockPublishSuccessHandlerNoToken(responseTopic: string, responsePayload: any, adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-        adapter.triggerIncomingPublish(responseTopic, publishOptions.payload);
-    });
-}
-
-async function do_request_response_success_empty_correlation_token(responsePath: string, count: number) {
-    let adapterOptions : protocol_adapter_mock.MockProtocolAdapterOptions = {
-        subscribeHandler: mockSubscribeSuccessHandler,
-        unsubscribeHandler: mockUnsubscribeSuccessHandler,
-        publishHandler: (adapter, publishOptions, context) => { mockPublishSuccessHandlerNoToken(responsePath, {}, adapter, publishOptions, context); },
-    };
-
-    let context = createTestContext({
-        adapterOptions: adapterOptions,
-    });
-
-    context.adapter.connect();
-
-    let encoder = new TextEncoder();
-
-    let promises = new Array<Promise<mqtt_request_response.Response>>();
-    for (let i = 0; i < count; i++) {
-        let request = makeGoodRequest();
-        delete request.correlationToken;
-        delete request.responsePaths[0].correlationTokenJsonPath;
-        delete request.responsePaths[1].correlationTokenJsonPath;
-
-        request.payload = encoder.encode(JSON.stringify({
-            requestNumber: `${i}`
-        }));
-
-        promises.push(context.client.submitRequest(request));
-    }
-
-    for (const [i, promise] of promises.entries()) {
-        let response = await promise;
-
-        expect(response.topic).toEqual(responsePath);
-
-        let decoder = new TextDecoder();
-        expect(decoder.decode(response.payload)).toEqual(JSON.stringify({requestNumber:`${i}`}));
-    }
-
-    cleanupTestContext(context);
-}
-
-test('request-response success - accepted response path no correlation token', async () => {
-    await do_request_response_success_empty_correlation_token(DEFAULT_ACCEPTED_PATH, 1);
-});
-
-test('request-response success - accepted response path no correlation token sequence', async () => {
-    await do_request_response_success_empty_correlation_token(DEFAULT_ACCEPTED_PATH, 5);
-});
-
-test('request-response success - rejected response path no correlation token', async () => {
-    await do_request_response_success_empty_correlation_token(DEFAULT_REJECTED_PATH, 1);
-});
-
-test('request-response success - rejected response path no correlation token sequence', async () => {
-    await do_request_response_success_empty_correlation_token(DEFAULT_REJECTED_PATH, 5);
-});
-
-interface FailingSubscribeContext {
-    startFailingIndex: number,
-    subscribesSeen: number
-}
-
-function mockSubscribeFailureHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
-    let subscribeContext = context as FailingSubscribeContext;
-
-    if (subscribeContext.subscribesSeen >= subscribeContext.startFailingIndex) {
-        setImmediate(() => {
-            adapter.completeSubscribe(subscribeOptions.topicFilter, new CrtError("Nope"));
-        });
-    } else {
-        setImmediate(() => {
-            adapter.completeSubscribe(subscribeOptions.topicFilter);
-        });
-    }
-
-    subscribeContext.subscribesSeen++;
-}
-
-async function do_request_response_failure_subscribe(failSecondSubscribe: boolean) {
-
-    let subscribeContext : FailingSubscribeContext = {
-        startFailingIndex : failSecondSubscribe ? 1 : 0,
-        subscribesSeen : 0,
-    };
-
-    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
-        subscribeHandler: mockSubscribeFailureHandler,
-        subscribeHandlerContext: subscribeContext,
-        unsubscribeHandler: mockUnsubscribeSuccessHandler,
-    };
-
-    let context = createTestContext({
-        adapterOptions: adapterOptions,
-    });
-
-    context.adapter.connect();
-
-    let request = makeGoodRequest();
-    if (failSecondSubscribe) {
-        request.subscriptionTopicFilters = new Array<string>(DEFAULT_ACCEPTED_PATH, DEFAULT_REJECTED_PATH);
-    }
-
-    try {
-        await context.client.submitRequest(request);
-        expect(false);
-    } catch (e) {
-        let err = e as Error;
-        expect(err.message).toContain("Subscribe failure");
-    }
-
-    cleanupTestContext(context);
-}
-
-
-test('request-response failure - subscribe failure', async () => {
-    await do_request_response_failure_subscribe(false);
-});
-
-test('request-response failure - second subscribe failure', async () => {
-    await do_request_response_failure_subscribe(true);
-});
-
-function mockPublishFailureHandlerAck(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData, new CrtError("Publish failure - No can do"));
-    });
-}
-
-test('request-response failure - publish failure', async () => {
-    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
-        subscribeHandler: mockSubscribeSuccessHandler,
-        unsubscribeHandler: mockUnsubscribeSuccessHandler,
-        publishHandler: mockPublishFailureHandlerAck,
-    };
-
-    let context = createTestContext({
-        adapterOptions: adapterOptions,
-    });
-
-    context.adapter.connect();
-
-    let request = makeGoodRequest();
-
-    try {
-        await context.client.submitRequest(request);
-        expect(false);
-    } catch (e) {
-        let err = e as Error;
-        expect(err.message).toContain("Publish failure");
-    }
-
-    cleanupTestContext(context);
-});
-
-async function doRequestResponseFailureByTimeoutDueToResponseTest(publishHandler: (adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) => void) {
-    let publishHandlerContext : PublishHandlerContext = {
-        responseTopic: DEFAULT_ACCEPTED_PATH,
-        responsePayload: {}
-    }
-
-    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
-        subscribeHandler: mockSubscribeSuccessHandler,
-        unsubscribeHandler: mockUnsubscribeSuccessHandler,
-        publishHandler: publishHandler,
-        publishHandlerContext: publishHandlerContext
-    };
-
-    let context = createTestContext({
-        adapterOptions: adapterOptions,
-        clientOptions: {
-            maxRequestResponseSubscriptions: 4,
-            maxStreamingSubscriptions: 2,
-            operationTimeoutInSeconds: 2, // need a quick timeout
+    await mrr_test.do_streaming_operation_subscription_events_test({
+        version: mrr_test.ProtocolVersion.Mqtt5,
+        builder_mutator5: (builder) => {
+            builder.withSessionBehavior(mqtt5.ClientSessionBehavior.Clean);
+            return builder;
         }
     });
-
-    context.adapter.connect();
-
-    let request = makeGoodRequest();
-
-    try {
-        await context.client.submitRequest(request);
-        expect(false);
-    } catch (e) {
-        let err = e as Error;
-        expect(err.message).toContain("timeout");
-    }
-
-    cleanupTestContext(context);
-}
-
-function mockPublishFailureHandlerInvalidResponse(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-
-        let decoder = new TextDecoder();
-        let payloadAsString = decoder.decode(publishOptions.payload);
-        let payloadAsObject: any = JSON.parse(payloadAsString);
-
-        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
-
-        let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
-        // drop the closing bracket to create a JSON deserialization error
-        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString.slice(0, responsePayloadAsString.length - 1)));
-    });
-}
-
-test('request-response failure - invalid response payload', async () => {
-    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerInvalidResponse);
 });
 
-function mockPublishFailureHandlerMissingCorrelationToken(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-
-        let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
-        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Failure Reopen', async () => {
+    let context = new mrr_test.TestingContext({
+        version: mrr_test.ProtocolVersion.Mqtt5
     });
-}
 
-test('request-response failure - missing correlation token', async () => {
-    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerMissingCorrelationToken);
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : mqtt_request_response.StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let stream = context.client.createStream(streaming_options);
+
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    stream.open();
+
+    stream.close();
+
+    // multi-opening or multi-closing are fine, but opening after a close is not
+    expect(() => {stream.open()}).toThrow();
+
+    stream.close();
+
+    await context.close();
 });
 
-function mockPublishFailureHandlerInvalidCorrelationTokenType(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-
-        let decoder = new TextDecoder();
-        let payloadAsString = decoder.decode(publishOptions.payload);
-        let payloadAsObject: any = JSON.parse(payloadAsString);
-        let tokenAsString = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH] as string;
-        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = parseInt(tokenAsString, 10);
-
-        let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
-        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Auto Close', async () => {
+    let context = new mrr_test.TestingContext({
+        version: mrr_test.ProtocolVersion.Mqtt5
     });
-}
 
-test('request-response failure - invalid correlation token type', async () => {
-    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerInvalidCorrelationTokenType);
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : mqtt_request_response.StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let stream = context.client.createStream(streaming_options);
+
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    stream.open();
+
+    await context.close();
+
+    // Closing the client should close the operation automatically; verify that by verifying that open now generates
+    // an exception
+    expect(() => {stream.open()}).toThrow();
 });
 
-function mockPublishFailureHandlerNonMatchingCorrelationToken(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-
-        let decoder = new TextDecoder();
-        let payloadAsString = decoder.decode(publishOptions.payload);
-        let payloadAsObject: any = JSON.parse(payloadAsString);
-        let token = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH] as string;
-        publishHandlerContext.responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = token.substring(1); // skip the first character
-
-        let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(publishHandlerContext.responsePayload);
-        adapter.triggerIncomingPublish(publishHandlerContext.responseTopic, encoder.encode(responsePayloadAsString));
-    });
-}
-
-test('request-response failure - non-matching correlation token', async () => {
-    await doRequestResponseFailureByTimeoutDueToResponseTest(mockPublishFailureHandlerNonMatchingCorrelationToken);
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Null Options', async () => {
+    // @ts-ignore
+    await mrr_test.do_invalid_streaming_operation_config_test(null, "invalid configuration");
 });
 
-interface TestOperationDefinition {
-    topicPrefix: string,
-    uniqueRequestPayload: string,
-    correlationToken?: string,
-}
-
-interface RequestSequenceContext {
-    responseMap: Map<string, TestOperationDefinition>
-}
-
-function makeTestRequest(definition: TestOperationDefinition): mqtt_request_response.RequestResponseOperationOptions {
-    let encoder = new TextEncoder();
-
-    let baseResponseAsObject : any = {};
-    baseResponseAsObject["requestPayload"] = definition.uniqueRequestPayload;
-    if (definition.correlationToken) {
-        baseResponseAsObject[DEFAULT_CORRELATION_TOKEN_PATH] = definition.correlationToken;
-    }
-
-    let options : mqtt_request_response.RequestResponseOperationOptions = {
-        subscriptionTopicFilters : new Array<string>(`${definition.topicPrefix}/+`),
-        responsePaths: new Array<mqtt_request_response.ResponsePath>({
-            topic: `${definition.topicPrefix}/accepted`
-        }, {
-            topic: `${definition.topicPrefix}/rejected`
-        }),
-        publishTopic: `${definition.topicPrefix}/operation`,
-        payload: encoder.encode(JSON.stringify(baseResponseAsObject)),
-    };
-
-    if (definition.correlationToken) {
-        options.responsePaths[0].correlationTokenJsonPath = DEFAULT_CORRELATION_TOKEN_PATH;
-        options.responsePaths[1].correlationTokenJsonPath = DEFAULT_CORRELATION_TOKEN_PATH;
-        options.correlationToken = definition.correlationToken;
-    }
-
-    return options;
-}
-
-function mockPublishSuccessHandlerSequence(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    let publishHandlerContext = context as RequestSequenceContext;
-    setImmediate(() => {
-        adapter.completePublish(publishOptions.completionData);
-
-        let decoder = new TextDecoder();
-        let payloadAsString = decoder.decode(publishOptions.payload);
-
-        let payloadAsObject: any = JSON.parse(payloadAsString);
-        let token : string | undefined = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
-
-        let uniquenessValue = payloadAsObject["requestPayload"] as string;
-        let definition = publishHandlerContext.responseMap.get(uniquenessValue);
-        if (!definition) {
-            return;
-        }
-
-        let responsePayload : any = {
-            requestPayload: uniquenessValue
-        };
-        if (token) {
-            responsePayload[DEFAULT_CORRELATION_TOKEN_PATH] = token; // skip the first character
-        }
-
-        let encoder = new TextEncoder();
-        let responsePayloadAsString = JSON.stringify(responsePayload);
-        adapter.triggerIncomingPublish(`${definition.topicPrefix}/accepted`, encoder.encode(responsePayloadAsString));
-    });
-}
-
-test('request-response success - multi operation sequence', async () => {
-    let operations : Array<TestOperationDefinition> = new Array<TestOperationDefinition>(
-        {
-            topicPrefix: "test",
-            uniqueRequestPayload: "1",
-            correlationToken: "token1",
-        },
-        {
-            topicPrefix: "test",
-            uniqueRequestPayload: "2",
-            correlationToken: "token2",
-        },
-        {
-            topicPrefix: "test2",
-            uniqueRequestPayload: "3",
-            correlationToken: "token3",
-        },
-        {
-            topicPrefix: "interrupting/cow",
-            uniqueRequestPayload: "4",
-            correlationToken: "moo",
-        },
-        {
-            topicPrefix: "test",
-            uniqueRequestPayload: "5",
-            correlationToken: "token4",
-        },
-        {
-            topicPrefix: "test2",
-            uniqueRequestPayload: "6",
-            correlationToken: "token5",
-        },
-        {
-            topicPrefix: "provision",
-            uniqueRequestPayload: "7",
-        },
-        {
-            topicPrefix: "provision",
-            uniqueRequestPayload: "8",
-        },
-        {
-            topicPrefix: "create-keys-and-cert",
-            uniqueRequestPayload: "9",
-        },
-        {
-            topicPrefix: "test",
-            uniqueRequestPayload: "10",
-            correlationToken: "token6",
-        },
-        {
-            topicPrefix: "test2",
-            uniqueRequestPayload: "11",
-            correlationToken: "token7",
-        },
-        {
-            topicPrefix: "provision",
-            uniqueRequestPayload: "12",
-        },
-    );
-
-    let responseMap = operations.reduce(function(map, def) {
-        map.set(def.uniqueRequestPayload, def);
-        return map;
-    }, new Map<string, TestOperationDefinition>());
-
-    let publishHandlerContext : RequestSequenceContext = {
-        responseMap: responseMap
-    }
-
-    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
-        subscribeHandler: mockSubscribeSuccessHandler,
-        unsubscribeHandler: mockUnsubscribeSuccessHandler,
-        publishHandler: mockPublishSuccessHandlerSequence,
-        publishHandlerContext: publishHandlerContext
-    };
-
-    let context = createTestContext({
-        adapterOptions: adapterOptions
-    });
-
-    context.adapter.connect();
-
-    let promises = new Array<Promise<mqtt_request_response.Response>>();
-    for (let operation of operations) {
-        let request = makeTestRequest(operation);
-        promises.push(context.client.submitRequest(request));
-    }
-
-    for (const [i, promise] of promises.entries()) {
-        let definition = operations[i];
-        let response = await promise;
-
-        expect(response.topic).toEqual(`${definition.topicPrefix}/accepted`);
-
-        let decoder = new TextDecoder();
-        let payloadAsString = decoder.decode(response.payload);
-        let payloadAsObject = JSON.parse(payloadAsString);
-        let originalRequestPayload = payloadAsObject["requestPayload"] as string;
-
-        expect(definition.uniqueRequestPayload).toEqual(originalRequestPayload);
-    }
-
-    cleanupTestContext(context);
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Undefined Options', async () => {
+    // @ts-ignore
+    await mrr_test.do_invalid_streaming_operation_config_test(undefined, "invalid configuration");
 });
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Null Filter', async () => {
+    await mrr_test.do_invalid_streaming_operation_config_test({
+        // @ts-ignore
+        subscriptionTopicFilter : null,
+    }, "invalid configuration");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Invalid Filter Type', async () => {
+    await mrr_test.do_invalid_streaming_operation_config_test({
+        // @ts-ignore
+        subscriptionTopicFilter : 5,
+    }, "invalid configuration");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Invalid Filter Value', async () => {
+    await mrr_test.do_invalid_streaming_operation_config_test({
+        subscriptionTopicFilter : "#/hello/#",
+    }, "Failed to create");
+});
+
+
+ */

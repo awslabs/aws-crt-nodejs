@@ -227,15 +227,17 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      * client, one layer up), such a payload may actually indicate a failure.
      */
     async submitRequest(requestOptions: mqtt_request_response.RequestResponseOperationOptions): Promise<mqtt_request_response.Response> {
-        if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
-            throw new CrtError("MQTT request-response client has already been closed");
-        }
-
-        if (!requestOptions) {
-            throw new CrtError("null request options");
-        }
-
         return new Promise<mqtt_request_response.Response>((resolve, reject) => {
+            if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
+                reject(new CrtError("MQTT request-response client has already been closed"));
+                return;
+            }
+
+            if (!requestOptions) {
+                reject(new CrtError("null request options"));
+                return;
+            }
+
             function curriedPromiseCallback(errorCode: number, topic?: string, response?: ArrayBuffer){
                 return RequestResponseClient._s_on_request_completion(resolve, reject, errorCode, topic, response);
             }
@@ -298,7 +300,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
             }
             resolve(response);
         } else {
-            reject(error_code_to_string(errorCode));
+            reject(new CrtError(error_code_to_string(errorCode)));
         }
     }
 }
