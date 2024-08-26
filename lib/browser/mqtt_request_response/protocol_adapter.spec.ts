@@ -27,12 +27,22 @@ interface TestingOptions {
     builder_mutator311?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder,
 }
 
-function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) => aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) : mqtt5.Mqtt5Client {
-    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
+function getTestingCredentials() : auth.AWSCredentials {
+    let credentials : auth.AWSCredentials = {
         aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
         aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
         aws_region: "us-east-1"
-    });
+    };
+
+    if (test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN !== "") {
+        credentials.aws_sts_token = test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN;
+    }
+
+    return credentials;
+}
+
+function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) => aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) : mqtt5.Mqtt5Client {
+    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider(getTestingCredentials());
 
     let builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
@@ -56,11 +66,7 @@ function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.A
 }
 
 function build_protocol_client_mqtt311(builder_mutator?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) : mqtt311.MqttClientConnection {
-    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
-        aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
-        aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
-        aws_region: "us-east-1"
-    });
+    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider(getTestingCredentials());
 
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     builder.with_credential_provider(provider);
@@ -353,11 +359,11 @@ async function do_get_connection_state_test(version: ProtocolVersion) {
         version: version
     });
 
-    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.DISCONNECTED);
+    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.Disconnected);
 
     await context.open();
 
-    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.CONNECTED);
+    expect(context.adapter.getConnectionState()).toEqual(protocol_adapter.ConnectionState.Connected);
 
     await context.close();
 }
@@ -380,7 +386,7 @@ async function do_connection_event_test(version: ProtocolVersion) {
     await context.open();
 
     let connection_event1 : protocol_adapter.ConnectionStatusEvent = (await event1_promise)[0];
-    expect(connection_event1.status).toEqual(protocol_adapter.ConnectionState.CONNECTED);
+    expect(connection_event1.status).toEqual(protocol_adapter.ConnectionState.Connected);
     expect(connection_event1.joinedSession).toEqual(false);
 
     let event2_promise = once(context.adapter, protocol_adapter.ProtocolClientAdapter.CONNECTION_STATUS);
@@ -388,7 +394,7 @@ async function do_connection_event_test(version: ProtocolVersion) {
     await context.stopProtocolClient();
 
     let connection_event2 : protocol_adapter.ConnectionStatusEvent = (await event2_promise)[0];
-    expect(connection_event2.status).toEqual(protocol_adapter.ConnectionState.DISCONNECTED);
+    expect(connection_event2.status).toEqual(protocol_adapter.ConnectionState.Disconnected);
 }
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvironmentCred())('Protocol Adapter Connection Event Sequence - Mqtt5', async () => {

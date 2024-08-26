@@ -40,7 +40,8 @@ export interface SubscribeOptions {
 
 export interface SubscribeCompletionEvent {
     topicFilter: string,
-    err?: ICrtError
+    err?: ICrtError,
+    retryable?: boolean,
 }
 
 export type SubscribeCompletionEventListener = (event: SubscribeCompletionEvent) => void;
@@ -59,9 +60,9 @@ export interface UnsubscribeCompletionEvent {
 export type UnsubscribeCompletionEventListener = (event: UnsubscribeCompletionEvent) => void;
 
 export enum ConnectionState {
-    CONNECTED = 0,
-    DISCONNECTED = 1,
-};
+    Connected = 0,
+    Disconnected = 1,
+}
 
 export interface ConnectionStatusEvent {
     status: ConnectionState,
@@ -86,39 +87,39 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     private connectionState: ConnectionState;
 
     private connectionSuccessListener5 : mqtt5.ConnectionSuccessEventListener = (event : mqtt5.ConnectionSuccessEvent) => {
-        this.connectionState = ConnectionState.CONNECTED;
+        this.connectionState = ConnectionState.Connected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.CONNECTED,
+            status: ConnectionState.Connected,
             joinedSession: event.connack.sessionPresent,
         })});
     };
 
     private disconnectionListener5 : mqtt5.DisconnectionEventListener = (event : mqtt5.DisconnectionEvent) => {
-        this.connectionState = ConnectionState.DISCONNECTED;
+        this.connectionState = ConnectionState.Disconnected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.DISCONNECTED,
+            status: ConnectionState.Disconnected,
         })});
     };
 
     private connectionSuccessListener311 : mqtt311.MqttConnectionSuccess = (event : mqtt311.OnConnectionSuccessResult) => {
-        this.connectionState = ConnectionState.CONNECTED;
+        this.connectionState = ConnectionState.Connected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.CONNECTED,
+            status: ConnectionState.Connected,
             joinedSession: event.session_present,
         })});
     };
 
     private disconnectionListener311 : mqtt311.MqttConnectionDisconnected = () => {
-        this.connectionState = ConnectionState.DISCONNECTED;
+        this.connectionState = ConnectionState.Disconnected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.DISCONNECTED,
+            status: ConnectionState.Disconnected,
         })});
     };
 
     private constructor() {
         super();
 
-        this.connectionState = ConnectionState.DISCONNECTED;
+        this.connectionState = ConnectionState.Disconnected;
         this.closed = false;
     }
 
@@ -129,7 +130,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt5.Mqtt5Client.CONNECTION_SUCCESS, adapter.connectionSuccessListener5);
         client.addListener(mqtt5.Mqtt5Client.DISCONNECTION, adapter.disconnectionListener5);
-        adapter.connectionState = client.isConnected() ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED;
+        adapter.connectionState = client.isConnected() ? ConnectionState.Connected : ConnectionState.Disconnected;
 
         return adapter;
     }
@@ -141,7 +142,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt311.MqttClientConnection.CONNECTION_SUCCESS, adapter.connectionSuccessListener311);
         client.addListener(mqtt311.MqttClientConnection.DISCONNECT, adapter.disconnectionListener311);
-        adapter.connectionState = client.is_connected() ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED;
+        adapter.connectionState = client.is_connected() ? ConnectionState.Connected : ConnectionState.Disconnected;
 
         return adapter;
     }
@@ -270,8 +271,10 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                                 topicFilter: subscribeOptions.topicFilter,
                             };
 
-                            if (!mqtt5.isSuccessfulSubackReasonCode(suback.reasonCodes[0])) {
+                            let reasonCode = suback.reasonCodes[0];
+                            if (!mqtt5.isSuccessfulSubackReasonCode(reasonCode)) {
                                 subscribeResult.err = new CrtError(ProtocolClientAdapter.FAILING_SUBACK_REASON_CODE);
+                                subscribeResult.retryable = ProtocolClientAdapter.isSubackReasonCodeRetryable(reasonCode);
                             }
                         }
                     },
@@ -279,7 +282,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                         if (!subscribeResult) {
                             subscribeResult = {
                                 topicFilter: subscribeOptions.topicFilter,
-                                err: err
+                                err: err,
+                                retryable: false
                             };
                         }
                     }
@@ -294,8 +298,10 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
                             if (response.qos >= 128) {
                                 subscribeResult.err = new CrtError(ProtocolClientAdapter.FAILING_SUBACK_REASON_CODE);
+                                subscribeResult.retryable = true;
                             } else if (response.error_code) {
                                 subscribeResult.err = new CrtError("Internal Error");
+                                subscribeResult.retryable = true;
                             }
                         }
                     },
@@ -303,7 +309,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                         if (!subscribeResult) {
                             subscribeResult = {
                                 topicFilter: subscribeOptions.topicFilter,
-                                err: err
+                                err: err,
+                                retryable: false,
                             };
                         }
                     }
@@ -317,7 +324,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                         if (!subscribeResult) {
                             subscribeResult = {
                                 topicFilter: subscribeOptions.topicFilter,
-                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT)
+                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT),
+                                retryable: true,
                             };
                         }
                     },
@@ -364,7 +372,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                             unsubscribeResult = {
                                 topicFilter: unsubscribeOptions.topicFilter,
                                 err: err,
-                                retryable: false, // TODO: reevaluate if we can do anything here
+                                retryable: false,
                             }
                         }
                     }
@@ -383,7 +391,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
                             unsubscribeResult = {
                                 topicFilter: unsubscribeOptions.topicFilter,
                                 err: err,
-                                retryable: false, // TODO: reevaluate
+                                retryable: false,
                             };
                         }
                     }
@@ -453,8 +461,20 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
     private static isUnsubackReasonCodeRetryable(reasonCode: mqtt5.UnsubackReasonCode) : boolean {
         switch (reasonCode) {
-            case mqtt5.UnsubackReasonCode.UnspecifiedError:
             case mqtt5.UnsubackReasonCode.ImplementationSpecificError:
+            case mqtt5.UnsubackReasonCode.PacketIdentifierInUse:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static isSubackReasonCodeRetryable(reasonCode: mqtt5.SubackReasonCode) : boolean {
+        switch (reasonCode) {
+            case mqtt5.SubackReasonCode.PacketIdentifierInUse:
+            case mqtt5.SubackReasonCode.ImplementationSpecificError:
+            case mqtt5.SubackReasonCode.QuotaExceeded:
                 return true;
 
             default:

@@ -63,3 +63,95 @@ export enum SocketDomain {
     /** UNIX domain socket/Windows named pipes */
     LOCAL = 2,
 }
+
+/**
+ * The amount of detail that will be logged
+ * @category Logging
+ */
+export enum LogLevel {
+    /** No logging whatsoever. */
+    NONE = 0,
+    /** Only fatals. In practice, this will not do much, as the process will log and then crash (intentionally) if a fatal condition occurs */
+    FATAL = 1,
+    /** Only errors */
+    ERROR = 2,
+    /** Only warnings and errors */
+    WARN = 3,
+    /** Information about connection/stream creation/destruction events */
+    INFO = 4,
+    /** Enough information to debug the chain of events a given network connection encounters */
+    DEBUG = 5,
+    /** Everything. Only use this if you really need to know EVERY single call */
+    TRACE = 6
+}
+
+let logLevel : LogLevel = LogLevel.NONE;
+
+/**
+ * Sets the amount of detail that will be logged
+ * @param level - maximum level of logging detail.  Log invocations at a higher level of detail will be ignored.
+ *
+ * @category Logging
+ */
+export function setLogLevel(level: LogLevel) {
+    logLevel = level;
+}
+
+/*
+ * The logging API is exported to library-internal, but stays private beyond the package boundary, so the following API
+ * decisions are not binding.
+ */
+
+export function logFatal(subject: string, logLine: string) {
+    if (logLevel < LogLevel.FATAL) {
+        return;
+    }
+
+    let currentTime = new Date().toISOString();
+    console.log(`[FATAL] [${currentTime}] [${subject}] - ${logLine}`);
+}
+
+export function logError(subject: string, logLine: string) {
+    if (logLevel < LogLevel.ERROR) {
+        return;
+    }
+
+    let currentTime = new Date().toISOString();
+    console.log(`[ERROR] [${currentTime}] [${subject}] - ${logLine}`);
+}
+
+export function logWarn(subject: string, logLine: string) {
+    if (logLevel < LogLevel.WARN) {
+        return;
+    }
+
+    let currentTime = new Date().toISOString();
+    console.log(`[WARN] [${currentTime}] [${subject}] - ${logLine}`);
+}
+
+export function logInfo(subject: string, logLine: string) {
+    if (logLevel < LogLevel.INFO) {
+        return;
+    }
+
+    let currentTime = new Date().toISOString();
+    console.log(`[INFO] [${currentTime}] [${subject}] - ${logLine}`);
+}
+
+export function logDebug(subject: string, logLine: string) {
+    if (logLevel < LogLevel.DEBUG) {
+        return;
+    }
+
+    let currentTime = new Date().toISOString();
+    console.log(`[DEBUG] [${currentTime}] [${subject}] - ${logLine}`);
+}
+
+export function logTrace(subject: string, logLine: string) {
+    if (logLevel < LogLevel.TRACE) {
+        return;
+    }
+
+    let currentTime = new Date().toISOString();
+    console.log(`[TRACE] [${currentTime}] [${subject}] - ${logLine}`);
+}
