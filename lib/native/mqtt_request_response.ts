@@ -15,6 +15,7 @@ import {CrtError} from "./error";
 import {MqttClientConnection} from "./mqtt";
 import {Mqtt5Client} from "./mqtt5";
 import * as mqtt_request_response from "../common/mqtt_request_response";
+import * as mqtt_request_response_internal from "../common/mqtt_request_response_internal";
 import {NativeResourceMixin} from "./native_resource";
 import {BufferedEventEmitter} from "../common/event";
 import crt_native from './binding';
@@ -22,11 +23,7 @@ import { error_code_to_string } from "./io";
 
 export * from "../common/mqtt_request_response";
 
-enum StreamingOperationState {
-    None,
-    Open,
-    Closed,
-}
+
 
 /**
  * An AWS MQTT service streaming operation.  A streaming operation listens to messages on
@@ -35,7 +32,7 @@ enum StreamingOperationState {
 export class StreamingOperationBase extends NativeResourceMixin(BufferedEventEmitter) implements mqtt_request_response.IStreamingOperation {
 
     private client: RequestResponseClient;
-    private state = StreamingOperationState.None;
+    private state = mqtt_request_response_internal.StreamingOperationState.None;
 
     static new(options: mqtt_request_response.StreamingOperationOptions, client: RequestResponseClient) : StreamingOperationBase {
         if (!options) {
@@ -69,10 +66,10 @@ export class StreamingOperationBase extends NativeResourceMixin(BufferedEventEmi
      * already-open operation.  It is an error to attempt to re-open a closed streaming operation.
      */
     open() : void {
-        if (this.state == StreamingOperationState.None) {
-            this.state = StreamingOperationState.Open;
+        if (this.state == mqtt_request_response_internal.StreamingOperationState.None) {
+            this.state = mqtt_request_response_internal.StreamingOperationState.Open;
             crt_native.mqtt_streaming_operation_open(this.native_handle());
-        } else if (this.state != StreamingOperationState.Open) {
+        } else if (this.state != mqtt_request_response_internal.StreamingOperationState.Open) {
             throw new CrtError("MQTT streaming operation not in an openable state");
         }
     }
@@ -82,9 +79,9 @@ export class StreamingOperationBase extends NativeResourceMixin(BufferedEventEmi
      * resources associated with the stream.
      */
     close(): void {
-        if (this.state != StreamingOperationState.Closed) {
+        if (this.state != mqtt_request_response_internal.StreamingOperationState.Closed) {
             this.client.unregisterUnclosedStreamingOperation(this);
-            this.state = StreamingOperationState.Closed;
+            this.state = mqtt_request_response_internal.StreamingOperationState.Closed;
             crt_native.mqtt_streaming_operation_close(this.native_handle());
         }
     }
@@ -137,10 +134,7 @@ export class StreamingOperationBase extends NativeResourceMixin(BufferedEventEmi
     }
 }
 
-enum RequestResponseClientState {
-    Ready,
-    Closed
-}
+
 
 /**
  * Native implementation of an MQTT-based request-response client tuned for AWS MQTT services.
@@ -151,7 +145,7 @@ enum RequestResponseClientState {
  */
 export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmitter) implements mqtt_request_response.IRequestResponseClient {
 
-    private state: RequestResponseClientState = RequestResponseClientState.Ready;
+    private state: mqtt_request_response_internal.RequestResponseClientState = mqtt_request_response_internal.RequestResponseClientState.Ready;
     private unclosedOperations? : Set<StreamingOperationBase> = new Set<StreamingOperationBase>();
 
     private constructor() {
@@ -199,8 +193,8 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      * This must be called when finished with a client; otherwise, native resources will leak.
      */
     close(): void {
-        if (this.state != RequestResponseClientState.Closed) {
-            this.state = RequestResponseClientState.Closed;
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Closed) {
+            this.state = mqtt_request_response_internal.RequestResponseClientState.Closed;
             this.closeStreamingOperations();
             crt_native.mqtt_request_response_client_close(this.native_handle());
         }
@@ -213,7 +207,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      * @param streamOptions configuration options for the streaming operation
      */
     createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : StreamingOperationBase {
-        if (this.state == RequestResponseClientState.Closed) {
+        if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
             throw new CrtError("MQTT request-response client has already been closed");
         }
 
@@ -233,15 +227,17 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
      * client, one layer up), such a payload may actually indicate a failure.
      */
     async submitRequest(requestOptions: mqtt_request_response.RequestResponseOperationOptions): Promise<mqtt_request_response.Response> {
-        if (this.state == RequestResponseClientState.Closed) {
-            throw new CrtError("MQTT request-response client has already been closed");
-        }
-
-        if (!requestOptions) {
-            throw new CrtError("null request options");
-        }
-
         return new Promise<mqtt_request_response.Response>((resolve, reject) => {
+            if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
+                reject(new CrtError("MQTT request-response client has already been closed"));
+                return;
+            }
+
+            if (!requestOptions) {
+                reject(new CrtError("null request options"));
+                return;
+            }
+
             function curriedPromiseCallback(errorCode: number, topic?: string, response?: ArrayBuffer){
                 return RequestResponseClient._s_on_request_completion(resolve, reject, errorCode, topic, response);
             }
@@ -304,7 +300,7 @@ export class RequestResponseClient extends NativeResourceMixin(BufferedEventEmit
             }
             resolve(response);
         } else {
-            reject(error_code_to_string(errorCode));
+            reject(new CrtError(error_code_to_string(errorCode)));
         }
     }
 }
