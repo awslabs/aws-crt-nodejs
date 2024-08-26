@@ -45,3 +45,65 @@ export function normalize_payload(payload: any): Buffer | string {
 
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
+
+
+function isValidTopicInternal(topic: string, isFilter: boolean) : boolean {
+    if (topic.length === 0 || topic.length > 65535) {
+        return false;
+    }
+
+    let sawHash : boolean = false;
+    for (let segment of topic.split('/')) {
+        if (sawHash) {
+            return false;
+        }
+
+        if (segment.length === 0) {
+            continue;
+        }
+
+        if (segment.includes("+")) {
+            if (!isFilter) {
+                return false;
+            }
+
+            if (segment.length > 1) {
+                return false;
+            }
+        }
+
+        if (segment.includes("#")) {
+            if (!isFilter) {
+                return false;
+            }
+
+            if (segment.length > 1) {
+                return false;
+            }
+
+            sawHash = true;
+        }
+    }
+
+    return true;
+}
+
+export function isValidTopicFilter(topicFilter: any) : boolean {
+    if (typeof(topicFilter) !== 'string') {
+        return false;
+    }
+
+    let topicFilterAsString = topicFilter as string;
+
+    return isValidTopicInternal(topicFilterAsString, true);
+}
+
+export function isValidTopic(topic: any) : boolean {
+    if (typeof(topic) !== 'string') {
+        return false;
+    }
+
+    let topicAsString = topic as string;
+
+    return isValidTopicInternal(topicAsString, false);
+}
