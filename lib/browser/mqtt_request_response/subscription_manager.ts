@@ -529,7 +529,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
             record.status = SubscriptionStatus.Subscribed;
             this.emitEvents(record, SubscriptionEventType.StreamingSubscriptionEstablished);
         } else {
-            if (event.retryable) {
+            if (event.retryable && !this.closed) {
                 this.activateSubscription(record);
             } else {
                 record.poisoned = true;
