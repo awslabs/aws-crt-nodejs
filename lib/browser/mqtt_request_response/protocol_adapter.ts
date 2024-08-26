@@ -493,8 +493,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
     private static isUnsubackReasonCodeRetryable(reasonCode: mqtt5.UnsubackReasonCode) : boolean {
         switch (reasonCode) {
-            case mqtt5.UnsubackReasonCode.UnspecifiedError:
             case mqtt5.UnsubackReasonCode.ImplementationSpecificError:
+            case mqtt5.UnsubackReasonCode.PacketIdentifierInUse:
                 return true;
 
             default:
@@ -504,7 +504,6 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
     private static isSubackReasonCodeRetryable(reasonCode: mqtt5.SubackReasonCode) : boolean {
         switch (reasonCode) {
-            case mqtt5.SubackReasonCode.UnspecifiedError:
             case mqtt5.SubackReasonCode.PacketIdentifierInUse:
             case mqtt5.SubackReasonCode.ImplementationSpecificError:
             case mqtt5.SubackReasonCode.QuotaExceeded:
