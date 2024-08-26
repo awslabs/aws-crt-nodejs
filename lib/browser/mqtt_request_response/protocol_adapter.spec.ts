@@ -27,12 +27,22 @@ interface TestingOptions {
     builder_mutator311?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder,
 }
 
-function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) => aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) : mqtt5.Mqtt5Client {
-    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
+function getTestingCredentials() : auth.AWSCredentials {
+    let credentials : auth.AWSCredentials = {
         aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
         aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
         aws_region: "us-east-1"
-    });
+    };
+
+    if (test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN !== "") {
+        credentials.aws_sts_token = test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN;
+    }
+
+    return credentials;
+}
+
+function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) => aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) : mqtt5.Mqtt5Client {
+    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider(getTestingCredentials());
 
     let builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
         test_utils.ClientEnvironmentalConfig.AWS_IOT_HOST,
@@ -56,11 +66,7 @@ function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.A
 }
 
 function build_protocol_client_mqtt311(builder_mutator?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) : mqtt311.MqttClientConnection {
-    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider({
-        aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
-        aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
-        aws_region: "us-east-1"
-    });
+    let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider(getTestingCredentials());
 
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
     builder.with_credential_provider(provider);
