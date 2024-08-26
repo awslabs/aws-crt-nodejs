@@ -43,11 +43,17 @@ if (BUILD_DEPS)
 
     add_subdirectory(crt/aws-c-common)
     if (UNIX AND NOT APPLE)
-        set(SEARCH_LIBCRYPTO OFF)
-        set(DISABLE_GO ON)
-        set(DISABLE_PERL ON)
-        set(BUILD_LIBSSL OFF)
-        add_subdirectory(crt/aws-lc)
+        include(AwsPrebuildDependency)
+        # s2n-tls uses libcrypto during its configuration, so we need to prebuild aws-lc.
+        prebuild_dependency(
+            DEPENDENCY_NAME AWSLC
+            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/aws-lc
+            CMAKE_ARGUMENTS
+                -DDISABLE_GO=ON
+                -DDISABLE_PERL=ON
+                -DBUILD_LIBSSL=OFF
+                -DBUILD_TESTING=OFF
+        )
         set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
         add_subdirectory(crt/s2n)
     endif()

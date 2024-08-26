@@ -589,10 +589,11 @@ export class SubscriptionManager extends BufferedEventEmitter {
         record.pendingAction = SubscriptionPendingAction.Nothing;
         if (!event.err) {
             record.status = SubscriptionStatus.NotSubscribed;
+            let topicFilter = record.topicFilter;
 
             setImmediate(() => {
                 this.emit(SubscriptionManager.UNSUBSCRIBE_COMPLETE, {
-                    topicFilter: record.topicFilter
+                    topicFilter: topicFilter
                 });
             });
         }
