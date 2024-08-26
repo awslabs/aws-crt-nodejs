@@ -15,6 +15,7 @@ import * as mqtt311 from "../mqtt";
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_request_response from "../../common/mqtt_request_response";
 import {BufferedEventEmitter} from "../../common/event";
+import {QoS} from "../mqtt";
 
 
 const MS_PER_SECOND : number = 1000;
@@ -71,6 +72,13 @@ export interface ConnectionStatusEvent {
 
 export type ConnectionStatusEventListener = (event: ConnectionStatusEvent) => void;
 
+export interface IncomingPublishEvent {
+    topic: string,
+    payload?: ArrayBuffer
+}
+
+export type IncomingPublishEventListener = (event: IncomingPublishEvent) => void;
+
 /*
  * Provides a client-agnostic wrapper around the MQTT functionality needed by the browser request-response client.
  *
@@ -101,6 +109,13 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         })});
     };
 
+    private incomingPublishListener5 : mqtt5.MessageReceivedEventListener = (event: mqtt5.MessageReceivedEvent) => {
+        setImmediate(() => { this.emit(ProtocolClientAdapter.INCOMING_PUBLISH, {
+            topic: event.message.topicName,
+            payload: event.message.payload
+        })});
+    };
+
     private connectionSuccessListener311 : mqtt311.MqttConnectionSuccess = (event : mqtt311.OnConnectionSuccessResult) => {
         this.connectionState = ConnectionState.Connected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
@@ -113,6 +128,13 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         this.connectionState = ConnectionState.Disconnected;
         setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
             status: ConnectionState.Disconnected,
+        })});
+    };
+
+    private incomingPublishListener311 : mqtt311.OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => {
+        setImmediate(() => { this.emit(ProtocolClientAdapter.INCOMING_PUBLISH, {
+            topic: topic,
+            payload: payload
         })});
     };
 
@@ -130,6 +152,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt5.Mqtt5Client.CONNECTION_SUCCESS, adapter.connectionSuccessListener5);
         client.addListener(mqtt5.Mqtt5Client.DISCONNECTION, adapter.disconnectionListener5);
+        client.addListener(mqtt5.Mqtt5Client.MESSAGE_RECEIVED, adapter.incomingPublishListener5);
+
         adapter.connectionState = client.isConnected() ? ConnectionState.Connected : ConnectionState.Disconnected;
 
         return adapter;
@@ -142,6 +166,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         client.addListener(mqtt311.MqttClientConnection.CONNECTION_SUCCESS, adapter.connectionSuccessListener311);
         client.addListener(mqtt311.MqttClientConnection.DISCONNECT, adapter.disconnectionListener311);
+        client.addListener(mqtt311.MqttClientConnection.MESSAGE, adapter.incomingPublishListener311);
+
         adapter.connectionState = client.is_connected() ? ConnectionState.Connected : ConnectionState.Disconnected;
 
         return adapter;
@@ -157,12 +183,14 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         if (this.client5) {
             this.client5.removeListener(mqtt5.Mqtt5Client.CONNECTION_SUCCESS, this.connectionSuccessListener5);
             this.client5.removeListener(mqtt5.Mqtt5Client.DISCONNECTION, this.disconnectionListener5);
+            this.client5.removeListener(mqtt5.Mqtt5Client.MESSAGE_RECEIVED, this.incomingPublishListener5);
             this.client5 = undefined;
         }
 
         if (this.client311) {
             this.client311.removeListener(mqtt311.MqttClientConnection.CONNECTION_SUCCESS, this.connectionSuccessListener311);
             this.client311.removeListener(mqtt311.MqttClientConnection.DISCONNECT, this.disconnectionListener311);
+            this.client311.removeListener(mqtt311.MqttClientConnection.MESSAGE, this.incomingPublishListener311);
             this.client311 = undefined;
         }
     }
@@ -434,6 +462,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
     static CONNECTION_STATUS : string = 'connectionStatus';
 
+    static INCOMING_PUBLISH : string = 'incomingPublish';
+
     on(event: 'publishCompletion', listener: PublishCompletionEventListener): this;
 
     on(event: 'subscribeCompletion', listener: SubscribeCompletionEventListener): this;
@@ -441,6 +471,8 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     on(event: 'unsubscribeCompletion', listener: UnsubscribeCompletionEventListener): this;
 
     on(event: 'connectionStatus', listener: ConnectionStatusEventListener): this;
+
+    on(event: 'incomingPublish', listener: IncomingPublishEventListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);

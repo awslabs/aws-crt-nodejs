@@ -108,8 +108,7 @@ export class AWS_IOT_ENV {
         return AWS_IOT_ENV.MQTT5_HOST !== "" &&
             AWS_IOT_ENV.MQTT5_REGION !== "" &&
             AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY !== "" &&
-            AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY !== "" &&
-            AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN !== "";
+            AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY !== "";
     }
 
     public static mqtt5_is_valid_cognito() {

@@ -127,6 +127,23 @@ export enum AcquireSubscriptionResult {
     Failure,
 }
 
+export function acquireSubscriptionResultToString(result: AcquireSubscriptionResult) : string {
+    switch (result) {
+        case AcquireSubscriptionResult.Subscribed:
+            return "Subscribed";
+        case AcquireSubscriptionResult.Subscribing:
+            return "Subscribing";
+        case AcquireSubscriptionResult.Blocked:
+            return "Blocked";
+        case AcquireSubscriptionResult.NoCapacity:
+            return "NoCapacity";
+        case AcquireSubscriptionResult.Failure:
+            return "Failure";
+        default:
+            return "Unknown";
+    }
+}
+
 export interface SubscriptionManagerConfig {
     maxRequestResponseSubscriptions: number,
     maxStreamingSubscriptions: number,
