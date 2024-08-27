@@ -490,7 +490,6 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 let topicFilters: string[] = packet.topicFilters;
                 let unsubOptions: Object = mqtt_utils.transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(packet);
 
-                // TODO: fix if PR accepted
                 this.browserClient.unsubscribe(topicFilters, unsubOptions, (error, packet) => {
                     if (error) {
                         reject(error);
