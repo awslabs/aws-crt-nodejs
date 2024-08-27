@@ -16,12 +16,12 @@ import * as subscription_manager from "./mqtt_request_response/subscription_mana
 import {MqttClientConnection} from "./mqtt";
 import {Mqtt5Client} from "./mqtt5";
 import * as mqtt_request_response from "../common/mqtt_request_response";
+import {SubscriptionStatusEventType} from "../common/mqtt_request_response";
 import * as mqtt_request_response_internal from "../common/mqtt_request_response_internal";
 import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
 import {LiftedPromise, newLiftedPromise} from "../common/promise";
 import * as io from "../common/io";
-import {acquireSubscriptionResultToString} from "./mqtt_request_response/subscription_manager";
 import * as mqtt_shared from "../common/mqtt_shared";
 
 export * from "../common/mqtt_request_response";
@@ -44,9 +44,6 @@ enum OperationState {
 
     /* (streaming only) (subscription failure OR subscription ended) -> operation close/terminate */
     Terminal,
-
-    /* (request only) the operation's destroy task has been scheduled but not yet executed */
-    PendingDestroy,
 }
 
 function operationStateToString(state: OperationState) {
@@ -63,8 +60,6 @@ function operationStateToString(state: OperationState) {
             return "Subscribed";
         case OperationState.Terminal:
             return "Terminal";
-        case OperationState.PendingDestroy:
-            return "PendingDestroy";
         default:
             return "Unknown";
     }
@@ -89,7 +84,8 @@ interface RequestResponseOperation extends Operation {
 }
 
 interface StreamingOperation extends Operation {
-    options: mqtt_request_response.StreamingOperationOptions
+    options: mqtt_request_response.StreamingOperationOptions,
+    operation: StreamingOperationInternal,
 }
 
 interface ResponsePathEntry {
@@ -138,6 +134,102 @@ function areClientOptionsValid(options: mqtt_request_response.RequestResponseCli
     }
 
     return true;
+}
+
+interface StreamingOperationInternalOptions {
+    close: () => void,
+    open: () => void
+}
+
+/**
+ * An AWS MQTT service streaming operation.  A streaming operation listens to messages on
+ * a particular topic, deserializes them using a service model, and emits the modeled data as Javascript events.
+ */
+export class StreamingOperationBase extends BufferedEventEmitter implements mqtt_request_response.IStreamingOperation {
+
+    private internalOptions: StreamingOperationInternalOptions;
+    private state = mqtt_request_response_internal.StreamingOperationState.None;
+
+    constructor(options: StreamingOperationInternalOptions) {
+        super();
+        this.internalOptions = options;
+    }
+
+    /**
+     * Triggers the streaming operation to start listening to the configured stream of events.  Has no effect on an
+     * already-open operation.  It is an error to attempt to re-open a closed streaming operation.
+     */
+    open() : void {
+        if (this.state == mqtt_request_response_internal.StreamingOperationState.None) {
+            this.state = mqtt_request_response_internal.StreamingOperationState.Open;
+            this.internalOptions.open();
+        } else if (this.state != mqtt_request_response_internal.StreamingOperationState.Open) {
+            throw new CrtError("MQTT streaming operation not in an openable state");
+        }
+    }
+
+    /**
+     * Stops a streaming operation from listening to the configured stream of events and releases all native
+     * resources associated with the stream.
+     */
+    close(): void {
+        if (this.state != mqtt_request_response_internal.StreamingOperationState.Closed) {
+            this.state = mqtt_request_response_internal.StreamingOperationState.Closed;
+            this.internalOptions.close();
+        }
+    }
+
+    /**
+     * Event emitted when the stream's subscription status changes.
+     *
+     * Listener type: {@link SubscriptionStatusListener}
+     *
+     * @event
+     */
+    static SUBSCRIPTION_STATUS : string = 'subscriptionStatus';
+
+    /**
+     * Event emitted when a stream message is received
+     *
+     * Listener type: {@link IncomingPublishListener}
+     *
+     * @event
+     */
+    static INCOMING_PUBLISH : string = 'incomingPublish';
+
+    on(event: 'subscriptionStatus', listener: mqtt_request_response.SubscriptionStatusListener): this;
+
+    on(event: 'incomingPublish', listener: mqtt_request_response.IncomingPublishListener): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
+    }
+}
+
+class StreamingOperationInternal extends StreamingOperationBase {
+
+    private constructor(options: StreamingOperationInternalOptions) {
+        super(options);
+    }
+
+    static newInternal(options: StreamingOperationInternalOptions) : StreamingOperationInternal {
+        let operation = new StreamingOperationInternal(options);
+
+        return operation;
+    }
+
+    triggerIncomingPublishEvent(publishEvent: mqtt_request_response.IncomingPublishEvent) : void {
+        process.nextTick(() => {
+            this.emit(StreamingOperationBase.INCOMING_PUBLISH, publishEvent);
+        });
+    }
+
+    triggerSubscriptionStatusUpdateEvent(statusEvent: mqtt_request_response.SubscriptionStatusEvent) : void {
+        process.nextTick(() => {
+            this.emit(StreamingOperationBase.SUBSCRIPTION_STATUS, statusEvent);
+        });
+    }
 }
 
 /**
@@ -293,7 +385,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         setTimeout(() => {
             this.completeRequestResponseOperationWithError(id, new CrtError("Operation timeout"));
-        }, this.operationTimeoutInSeconds * 1000)
+        }, this.operationTimeoutInSeconds * 1000);
 
         this.wakeServiceTask();
 
@@ -312,8 +404,35 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
      * is necessary because event listening (which streaming operations need) cannot be modeled on an interface.
      */
     createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : mqtt_request_response.IStreamingOperation {
-        // NYI
-        throw new CrtError("NYI");
+        if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
+            throw new CrtError("MQTT request-response client has already been closed");
+        }
+
+        validateStreamingOptions(streamOptions);
+
+        let id = this.nextOperationId;
+        this.nextOperationId++;
+
+        let internalOptions: StreamingOperationInternalOptions = {
+            open: () => { this.openStreamingOperation(id); },
+            close: () => { this.closeStreamingOperation(id); },
+        };
+
+        let internalOperation = StreamingOperationInternal.newInternal(internalOptions);
+
+        let operation : StreamingOperation = {
+            id: id,
+            type: OperationType.RequestResponse,
+            state: OperationState.Queued,
+            pendingSubscriptionCount: 1,
+            inClientTables: false,
+            options: streamOptions,
+            operation: internalOperation
+        };
+
+        this.operations.set(id, operation);
+
+        return internalOperation;
     }
 
     private canOperationDequeue(operation: Operation) : boolean {
@@ -398,7 +517,11 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         if (operation.type == OperationType.Streaming) {
             this.changeOperationState(operation, OperationState.Subscribed);
-            // NYI - emit streaming operation subscription established event
+
+            let streamingOperation = operation as StreamingOperation;
+            streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
+                type: SubscriptionStatusEventType.SubscriptionEstablished
+            });
         } else {
             this.applyRequestResponsePublish(operation as RequestResponseOperation);
         }
@@ -434,7 +557,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             };
 
             let acquireResult = this.subscriptionManager.acquireSubscription(acquireOptions);
-            io.logDebug(RequestResponseClient.logSubject, `servicing queued operation ${operation.id} yielded acquire subscription result of "${acquireSubscriptionResultToString(acquireResult)}"`);
+            io.logDebug(RequestResponseClient.logSubject, `servicing queued operation ${operation.id} yielded acquire subscription result of "${subscription_manager.acquireSubscriptionResultToString(acquireResult)}"`);
             if (acquireResult == subscription_manager.AcquireSubscriptionResult.Blocked) {
                 break;
             }
@@ -586,7 +709,21 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         io.logInfo(RequestResponseClient.logSubject, `streaming operation ${id} halted with error: "${JSON.stringify(err)}"`);
 
-        throw new CrtError("NYI");
+        this.removeOperation(id);
+
+        if (operation.type != OperationType.Streaming) {
+            return;
+        }
+
+        let streamingOperation = operation as StreamingOperation;
+        if (operation.state != OperationState.Terminal && operation.state != OperationState.None) {
+            streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
+                type: SubscriptionStatusEventType.SubscriptionHalted,
+                error: err
+            });
+        }
+
+        this.changeOperationState(operation, OperationState.Terminal);
     }
 
     private completeOperationWithError(id: number, err: CrtError) {
@@ -649,7 +786,25 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
     }
 
     private handleIncomingPublishEventStreaming(event: protocol_client_adapter.IncomingPublishEvent, operations: Set<number>) {
-        // NYI
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        for (let id of operations) {
+            let operation = this.operations.get(id);
+            if (!operation) {
+                continue;
+            }
+
+            if (operation.type != OperationType.Streaming) {
+                continue;
+            }
+
+            let streamingOperation = operation as StreamingOperation;
+            streamingOperation.operation.triggerIncomingPublishEvent({
+                payload: event.payload
+            });
+        }
     }
 
     private handleIncomingPublishEventRequestResponse(event: protocol_client_adapter.IncomingPublishEvent, responsePathEntry: ResponsePathEntry) {
@@ -760,7 +915,25 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             return;
         }
 
-        // NYI
+        let operation = this.operations.get(event.operationId);
+        if (!operation) {
+            return;
+        }
+
+        if (operation.state == OperationState.Terminal) {
+            return;
+        }
+
+        if (operation.type != OperationType.Streaming) {
+            return;
+        }
+
+        let streamingOperation = operation as StreamingOperation;
+        streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
+            type: SubscriptionStatusEventType.SubscriptionEstablished
+        });
+
+        this.changeOperationState(operation, OperationState.Subscribed);
     }
 
     private handleStreamingSubscriptionLostEvent(event: subscription_manager.StreamingSubscriptionLostEvent) {
@@ -768,7 +941,23 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             return;
         }
 
-        // NYI
+        let operation = this.operations.get(event.operationId);
+        if (!operation) {
+            return;
+        }
+
+        if (operation.state == OperationState.Terminal) {
+            return;
+        }
+
+        if (operation.type != OperationType.Streaming) {
+            return;
+        }
+
+        let streamingOperation = operation as StreamingOperation;
+        streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
+            type: SubscriptionStatusEventType.SubscriptionLost,
+        });
     }
 
     private handleStreamingSubscriptionHaltedEvent(event: subscription_manager.StreamingSubscriptionHaltedEvent) {
@@ -776,7 +965,26 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             return;
         }
 
-        // NYI
+        let operation = this.operations.get(event.operationId);
+        if (!operation) {
+            return;
+        }
+
+        if (operation.state == OperationState.Terminal) {
+            return;
+        }
+
+        if (operation.type != OperationType.Streaming) {
+            return;
+        }
+
+        let streamingOperation = operation as StreamingOperation;
+        streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
+            type: SubscriptionStatusEventType.SubscriptionHalted,
+            error: new CrtError(`Subscription Failure for topic filter "${event.topicFilter}"`)
+        });
+
+        this.changeOperationState(operation, OperationState.Terminal);
     }
 
     private handleSubscriptionOrphanedEvent(event: subscription_manager.SubscriptionOrphanedEvent) {
@@ -824,6 +1032,32 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             this.completeRequestResponseOperationWithError(operation.id, new CrtError(`Publish error: "${errorStringified}"`));
             io.logError(RequestResponseClient.logSubject, `request-response operation ${operation.id} synchronously failed publish step due to error: ${errorStringified}`);
         }
+    }
+
+    private openStreamingOperation(id: number) {
+        if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
+            return;
+        }
+
+        let operation = this.operations.get(id);
+        if (!operation) {
+            throw new CrtError(`Attempt to open untracked streaming operation with id "${id}"`);
+        }
+
+        this.operationQueue.push(id);
+
+        this.wakeServiceTask();
+
+        io.logInfo(RequestResponseClient.logSubject, `streaming operation with id "${id}" submitted to operation queue`);
+    }
+
+    private closeStreamingOperation(id: number) {
+        let operation = this.operations.get(id);
+        if (!operation) {
+            throw new CrtError(`Attempt to close untracked streaming operation with id "${id}"`);
+        }
+
+        this.haltStreamingOperationWithError(id, new CrtError("Streaming operation closed"));
     }
 }
 
@@ -904,5 +1138,23 @@ function validateRequestOptions(requestOptions: mqtt_request_response.RequestRes
         }
     } else if (requestOptions.correlationToken === null) {
         throw new CrtError("Invalid request options - correlationToken null");
+    }
+}
+
+function validateStreamingOptions(streamOptions: mqtt_request_response.StreamingOperationOptions) {
+    if (!streamOptions) {
+        throw new CrtError("Invalid streaming options - null options");
+    }
+
+    if (!streamOptions.subscriptionTopicFilter) {
+        throw new CrtError("Invalid streaming options - null subscriptionTopicFilter");
+    }
+
+    if (typeof(streamOptions.subscriptionTopicFilter) !== 'string') {
+        throw new CrtError("Invalid streaming options - subscriptionTopicFilter not a string");
+    }
+
+    if (!mqtt_shared.isValidTopicFilter(streamOptions.subscriptionTopicFilter)) {
+        throw new CrtError("Invalid streaming options - subscriptionTopicFilter not a valid topic filter");
     }
 }
