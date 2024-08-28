@@ -577,8 +577,8 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     return this.on_error(error);
                 }
                 const sub = (packet as mqtt.ISubscriptionGrant[])[0];
-                // 128 is not modeled in QoS. sub.qos could be 128 and indicates an error case,
-                // which should be rejected above
+                // sub.qos could be 128 and indicates a subscription error returned from the server.
+                // Though 128 is not modeled in the QoS value here, we will directly send it back to users.
                 resolve({ topic: sub.topic, qos: sub.qos as QoS });
             });
         });
