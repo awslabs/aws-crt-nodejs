@@ -577,8 +577,17 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     return this.on_error(error);
                 }
                 const sub = (packet as mqtt.ISubscriptionGrant[])[0];
-                // sub.qos could be 128 and indicates a subscription error returned from the server.
-                // Though 128 is not modeled in the QoS value here, we will directly send it back to users.
+
+                /*
+                 * 128 is not modeled in QoS, either on our side nor mqtt-js's side.
+                 * We have always passed this 128 to the user and it is not reasonable to extend
+                 * our output type with 128 since it's also our input type and we don't want anyone
+                 * to pass 128 to us.
+                 *
+                 * The 5 client solves this by making the output type a completely separate enum.
+                 *
+                 * By doing this cast, we make the type checker ignore this edge case.
+                 */
                 resolve({ topic: sub.topic, qos: sub.qos as QoS });
             });
         });
