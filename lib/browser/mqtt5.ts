@@ -16,6 +16,7 @@
 
 import {BufferedEventEmitter} from "../common/event";
 import * as mqtt from "mqtt"; /* The mqtt-js external dependency */
+import * as mqtt_packet from "mqtt-packet";
 import * as mqtt5 from "../common/mqtt5";
 import {OutboundTopicAliasBehaviorType} from "../common/mqtt5";
 import * as mqtt5_packet from "../common/mqtt5_packet"
@@ -445,15 +446,19 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                 let subMap: mqtt.ISubscriptionMap = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscription_map(packet);
                 let subOptions: mqtt.IClientSubscribeOptions = mqtt_utils.transform_crt_subscribe_to_mqtt_js_subscribe_options(packet);
 
-                // @ts-ignore
-                this.browserClient.subscribe(subMap, subOptions, (error, grants) => {
+                this.browserClient.subscribe(subMap, subOptions, (error, grants, suback) => {
                     if (error) {
                         reject(error);
                         return;
                     }
 
-                    const suback: mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(grants);
-                    resolve(suback);
+                    if (suback) {
+                        const crtSubackFromMqttjsSuback = mqtt_utils.transform_mqtt_js_suback_to_crt_suback(suback);
+                        resolve(crtSubackFromMqttjsSuback);
+                    } else {
+                        const crtSubackFromGrants: mqtt5_packet.SubackPacket = mqtt_utils.transform_mqtt_js_subscription_grants_to_crt_suback(grants ?? []);
+                        resolve(crtSubackFromGrants);
+                    }
                 });
             } catch (err) {
                 reject(err);
@@ -505,7 +510,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                         };
                         resolve(unsuback);
                     } else {
-                        const unsuback: mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(packet as mqtt.IUnsubackPacket);
+                        const unsuback: mqtt5_packet.UnsubackPacket = mqtt_utils.transform_mqtt_js_unsuback_to_crt_unsuback(packet as mqtt_packet.IUnsubackPacket);
                         resolve(unsuback);
                     }
                 });
@@ -607,7 +612,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
                                 })
                             }
 
-                            const puback: mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(completionPacket as mqtt.IPubackPacket);
+                            const puback: mqtt5_packet.PubackPacket = mqtt_utils.transform_mqtt_js_puback_to_crt_puback(completionPacket as mqtt_packet.IPubackPacket);
                             resolve(puback);
                             break;
 
