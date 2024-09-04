@@ -161,8 +161,8 @@ export class StreamingOperationBase extends BufferedEventEmitter implements mqtt
      */
     open() : void {
         if (this.state == mqtt_request_response_internal.StreamingOperationState.None) {
-            this.state = mqtt_request_response_internal.StreamingOperationState.Open;
             this.internalOptions.open();
+            this.state = mqtt_request_response_internal.StreamingOperationState.Open;
         } else if (this.state != mqtt_request_response_internal.StreamingOperationState.Open) {
             throw new CrtError("MQTT streaming operation not in an openable state");
         }
@@ -403,7 +403,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
      * browser/node implementers are covariant by returning an implementation of IStreamingOperation.  This split
      * is necessary because event listening (which streaming operations need) cannot be modeled on an interface.
      */
-    createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : mqtt_request_response.IStreamingOperation {
+    createStream(streamOptions: mqtt_request_response.StreamingOperationOptions) : StreamingOperationBase {
         if (this.state == mqtt_request_response_internal.RequestResponseClientState.Closed) {
             throw new CrtError("MQTT request-response client has already been closed");
         }
@@ -422,8 +422,8 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         let operation : StreamingOperation = {
             id: id,
-            type: OperationType.RequestResponse,
-            state: OperationState.Queued,
+            type: OperationType.Streaming,
+            state: OperationState.None,
             pendingSubscriptionCount: 1,
             inClientTables: false,
             options: streamOptions,
@@ -1036,7 +1036,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
     private openStreamingOperation(id: number) {
         if (this.state != mqtt_request_response_internal.RequestResponseClientState.Ready) {
-            return;
+            throw new CrtError(`Attempt to open streaming operation with id "${id}" after client closed`);
         }
 
         let operation = this.operations.get(id);
