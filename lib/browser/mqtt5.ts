@@ -15,7 +15,7 @@
  */
 
 import {BufferedEventEmitter} from "../common/event";
-import * as mqtt from "mqtt"; /* The mqtt-js external dependency */
+import { default as mqtt } from "mqtt/dist/mqtt.esm"; /* The mqtt-js external dependency */
 import * as mqtt_packet from "mqtt-packet";
 import * as mqtt5 from "../common/mqtt5";
 import {OutboundTopicAliasBehaviorType} from "../common/mqtt5";

@@ -12,7 +12,7 @@
  * @mergeTarget
  */
 
-import * as mqtt from "mqtt";
+import { default as mqtt } from "mqtt/dist/mqtt.esm"
 import * as mqtt_packet from "mqtt-packet";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
