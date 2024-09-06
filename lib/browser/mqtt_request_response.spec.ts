@@ -14,20 +14,26 @@ import * as mqtt_request_response from "./mqtt_request_response";
 //import {once} from "events";
 import * as mrr_test from "@test/mqtt_request_response";
 import {v4 as uuid} from "uuid";
+import * as test_utils from "../../test/mqtt5";
 
 jest.setTimeout(10000);
 
-function createClientBuilder5() : aws_iot_5.AwsIotMqtt5ClientConfigBuilder {
+function getTestingCredentials() : auth.AWSCredentials {
     let credentials : auth.AWSCredentials = {
-        aws_region: test_env.AWS_IOT_ENV.MQTT5_REGION,
-        aws_access_id: test_env.AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY,
-        aws_secret_key: test_env.AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY,
+        aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
+        aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
+        aws_region: test_env.AWS_IOT_ENV.MQTT5_REGION
     };
 
-    if (test_env.AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN) {
-        credentials.aws_sts_token = test_env.AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN;
+    if (test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN !== "") {
+        credentials.aws_sts_token = test_utils.ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN;
     }
 
+    return credentials;
+}
+
+function createClientBuilder5() : aws_iot_5.AwsIotMqtt5ClientConfigBuilder {
+    let credentials : auth.AWSCredentials = getTestingCredentials();
     let provider = new auth.StaticCredentialProvider(credentials);
 
     let builder = aws_iot_5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(test_env.AWS_IOT_ENV.MQTT5_HOST, {
@@ -39,16 +45,14 @@ function createClientBuilder5() : aws_iot_5.AwsIotMqtt5ClientConfigBuilder {
 }
 
 function createClientBuilder311() : aws_iot_311.AwsIotMqttConnectionConfigBuilder {
+    let credentials : auth.AWSCredentials = getTestingCredentials();
+    let provider = new auth.StaticCredentialProvider(credentials);
+    
     let builder = aws_iot_311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
 
     builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT5_HOST);
     builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-    builder.with_credentials(
-        test_env.AWS_IOT_ENV.MQTT5_REGION,
-        test_env.AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY,
-        test_env.AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY,
-        test_env.AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN
-    );
+    builder.with_credential_provider(provider);
 
     return builder;
 }
@@ -86,134 +90,167 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt311, true);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected No CorrelationToken Mqtt5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt5, false);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Success Rejected No CorrelationToken Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_success_rejected_test(mrr_test.ProtocolVersion.Mqtt311, false);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted Mqtt5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt5, true);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt311, true);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted No CorrelationToken Mqtt5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt5, false);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('UpdateNamedShadow Success Accepted No CorrelationToken Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_update_named_shadow_success_accepted_test(mrr_test.ProtocolVersion.Mqtt311, false);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout Mqtt5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt5, true);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt311, true);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout No CorrelationToken Mqtt5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt5, false);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Timeout No CorrelationToken Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_timeout_test(mrr_test.ProtocolVersion.Mqtt311, false);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure On Close Mqtt5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_on_close_test(mrr_test.ProtocolVersion.Mqtt5, "closed");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure On Close Mqtt311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_on_close_test(mrr_test.ProtocolVersion.Mqtt311, "closed");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure zero max request response subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_no_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure zero max request response subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_no_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure invalid max request response subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_invalid_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure invalid max request response subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_invalid_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined config mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_undefined_config, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined config mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_undefined_config, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max request response subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_undefined_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max request response subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_undefined_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max request response subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_null_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max request response subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_null_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max request response subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_missing_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max request response subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_missing_max_request_response_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max streaming subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_undefined_max_streaming_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure undefined max streaming subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_undefined_max_streaming_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max streaming subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_null_max_streaming_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure null max streaming subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_null_max_streaming_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_missing_max_streaming_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_missing_max_streaming_subscriptions, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt5', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt5, mrr_test.create_bad_config_invalid_operation_timeout, "Invalid client options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Client creation failure missing max streaming subscriptions mqtt311', async() => {
+    initClientBuilderFactories();
     mrr_test.do_client_creation_failure_test(mrr_test.ProtocolVersion.Mqtt311, mrr_test.create_bad_config_invalid_operation_timeout, "Invalid client options");
 });
 
@@ -241,6 +278,7 @@ test('Client creation failure null protocol client mqtt5', async() => {
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Subscription Topic Filters', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -251,6 +289,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Subscription Topic Filters', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -261,6 +300,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Subscription Topic Filters Not An Array', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -271,6 +311,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Subscription Topic Filters Empty', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -281,6 +322,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Response Paths', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -291,6 +333,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Response Paths', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -301,6 +344,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Paths Not An Array', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -311,6 +355,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Paths Empty', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -321,6 +366,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path No Topic', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -331,6 +377,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Null Topic', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -341,6 +388,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Bad Topic Type', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -351,6 +399,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Null Correlation Token Json Path', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -361,6 +410,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Response Path Bad Correlation Token Json Path Type', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -371,6 +421,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Publish Topic', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -381,6 +432,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Publish Topic', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -391,6 +443,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Bad Publish Topic Type', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -402,6 +455,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure No Payload', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -412,6 +466,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Payload', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -422,6 +477,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Correlation Token', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -432,6 +488,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Bad Correlation Token Type', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         // @ts-ignore
@@ -442,6 +499,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Protocol Invalid Topic', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options", (options : mqtt_request_response.RequestResponseOperationOptions) => {
         let new_options = options;
         new_options.publishTopic = "#/illegal/#/topic";
@@ -451,6 +509,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Null Options', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_get_named_shadow_failure_invalid_test(true, "Invalid request options",
         // @ts-ignore
         (options : mqtt_request_response.RequestResponseOperationOptions) => {
@@ -459,6 +518,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedShadow Failure Submit After Close', async () => {
+    initClientBuilderFactories();
     let context = new mrr_test.TestingContext({
         version: mrr_test.ProtocolVersion.Mqtt5
     });
@@ -477,23 +537,28 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('GetNamedS
 
 //////////////////////////////////////////////
 // Streaming Ops NYI
-/*
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Open/Close MQTT5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_streaming_operation_new_open_close_test(mrr_test.ProtocolVersion.Mqtt5);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Open/Close MQTT311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_streaming_operation_new_open_close_test(mrr_test.ProtocolVersion.Mqtt311);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT5', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_streaming_operation_incoming_publish_test(mrr_test.ProtocolVersion.Mqtt5);
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Incoming Publish MQTT311', async () => {
+    initClientBuilderFactories();
     await mrr_test.do_streaming_operation_incoming_publish_test(mrr_test.ProtocolVersion.Mqtt311);
 });
 
+/*
 // We only have a 5-based test because there's no way to stop the 311 client without destroying it in the process.
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', async () => {
 

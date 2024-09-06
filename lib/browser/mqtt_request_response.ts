@@ -384,7 +384,11 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         this.operationQueue.push(id);
 
         setTimeout(() => {
-            this.completeRequestResponseOperationWithError(id, new CrtError("Operation timeout"));
+            try {
+                this.completeRequestResponseOperationWithError(id, new CrtError("Operation timeout"));
+            } catch (err) {
+                ;
+            }
         }, this.operationTimeoutInSeconds * 1000);
 
         this.wakeServiceTask();
@@ -1044,6 +1048,11 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             throw new CrtError(`Attempt to open untracked streaming operation with id "${id}"`);
         }
 
+        if (operation.state != OperationState.None) {
+            throw new CrtError(`Attempt to open already-opened streaming operation with id "${id}"`);
+        }
+
+        operation.state = OperationState.Queued;
         this.operationQueue.push(id);
 
         this.wakeServiceTask();
