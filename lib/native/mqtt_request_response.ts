@@ -69,8 +69,8 @@ export class StreamingOperationBase extends NativeResourceMixin(BufferedEventEmi
         if (this.state == mqtt_request_response_internal.StreamingOperationState.None) {
             this.state = mqtt_request_response_internal.StreamingOperationState.Open;
             crt_native.mqtt_streaming_operation_open(this.native_handle());
-        } else if (this.state != mqtt_request_response_internal.StreamingOperationState.Open) {
-            throw new CrtError("MQTT streaming operation not in an openable state");
+        } else if (this.state == mqtt_request_response_internal.StreamingOperationState.Closed) {
+            throw new CrtError("MQTT streaming operation already closed");
         }
     }
 

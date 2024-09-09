@@ -16,7 +16,6 @@ import * as subscription_manager from "./mqtt_request_response/subscription_mana
 import {MqttClientConnection} from "./mqtt";
 import {Mqtt5Client} from "./mqtt5";
 import * as mqtt_request_response from "../common/mqtt_request_response";
-import {SubscriptionStatusEventType} from "../common/mqtt_request_response";
 import * as mqtt_request_response_internal from "../common/mqtt_request_response_internal";
 import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
@@ -163,14 +162,13 @@ export class StreamingOperationBase extends BufferedEventEmitter implements mqtt
         if (this.state == mqtt_request_response_internal.StreamingOperationState.None) {
             this.internalOptions.open();
             this.state = mqtt_request_response_internal.StreamingOperationState.Open;
-        } else if (this.state != mqtt_request_response_internal.StreamingOperationState.Open) {
-            throw new CrtError("MQTT streaming operation not in an openable state");
+        } else if (this.state == mqtt_request_response_internal.StreamingOperationState.Closed) {
+            throw new CrtError("MQTT streaming operation already closed");
         }
     }
 
     /**
-     * Stops a streaming operation from listening to the configured stream of events and releases all native
-     * resources associated with the stream.
+     * Stops a streaming operation from listening to the configured stream of events
      */
     close(): void {
         if (this.state != mqtt_request_response_internal.StreamingOperationState.Closed) {
@@ -524,7 +522,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
             let streamingOperation = operation as StreamingOperation;
             streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
-                type: SubscriptionStatusEventType.SubscriptionEstablished
+                type: mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished
             });
         } else {
             this.applyRequestResponsePublish(operation as RequestResponseOperation);
@@ -722,12 +720,16 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         let streamingOperation = operation as StreamingOperation;
         if (operation.state != OperationState.Terminal && operation.state != OperationState.None) {
             streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
-                type: SubscriptionStatusEventType.SubscriptionHalted,
+                type: mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted,
                 error: err
             });
         }
 
         this.changeOperationState(operation, OperationState.Terminal);
+
+        // this is mostly a no-op except it's the only way we can guarantee that the streaming operation state also gets
+        // flipped to closed
+        streamingOperation.operation.close();
     }
 
     private completeOperationWithError(id: number, err: CrtError) {
@@ -934,7 +936,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         let streamingOperation = operation as StreamingOperation;
         streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
-            type: SubscriptionStatusEventType.SubscriptionEstablished
+            type: mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished
         });
 
         this.changeOperationState(operation, OperationState.Subscribed);
@@ -960,7 +962,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         let streamingOperation = operation as StreamingOperation;
         streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
-            type: SubscriptionStatusEventType.SubscriptionLost,
+            type: mqtt_request_response.SubscriptionStatusEventType.SubscriptionLost,
         });
     }
 
@@ -984,7 +986,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
         let streamingOperation = operation as StreamingOperation;
         streamingOperation.operation.triggerSubscriptionStatusUpdateEvent({
-            type: SubscriptionStatusEventType.SubscriptionHalted,
+            type: mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted,
             error: new CrtError(`Subscription Failure for topic filter "${event.topicFilter}"`)
         });
 
@@ -1063,7 +1065,8 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
     private closeStreamingOperation(id: number) {
         let operation = this.operations.get(id);
         if (!operation) {
-            throw new CrtError(`Attempt to close untracked streaming operation with id "${id}"`);
+            // don't throw here intentionally; there's a bit of a recursive tangle with closing streaming operations
+            return;
         }
 
         this.haltStreamingOperationWithError(id, new CrtError("Streaming operation closed"));

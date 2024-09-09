@@ -8,10 +8,9 @@ import * as auth from "./auth";
 import * as test_env from "@test/test_env"
 import * as aws_iot_311 from "./aws_iot";
 import * as aws_iot_5 from "./aws_iot_mqtt5";
-//import * as mqtt5 from "./mqtt5";
+import * as mqtt5 from "./mqtt5";
 import * as mqtt_request_response from "./mqtt_request_response";
-//import {v4 as uuid} from "uuid";
-//import {once} from "events";
+import {once} from "events";
 import * as mrr_test from "@test/mqtt_request_response";
 import {v4 as uuid} from "uuid";
 import * as test_utils from "../../test/mqtt5";
@@ -558,7 +557,6 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpd
     await mrr_test.do_streaming_operation_incoming_publish_test(mrr_test.ProtocolVersion.Mqtt311);
 });
 
-/*
 // We only have a 5-based test because there's no way to stop the 311 client without destroying it in the process.
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('ShadowUpdated Streaming Operation Success Subscription Events MQTT5', async () => {
 
@@ -634,33 +632,30 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Null Options', async () => {
     // @ts-ignore
-    await mrr_test.do_invalid_streaming_operation_config_test(null, "invalid configuration");
+    await mrr_test.do_invalid_streaming_operation_config_test(null, "Invalid streaming options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Undefined Options', async () => {
     // @ts-ignore
-    await mrr_test.do_invalid_streaming_operation_config_test(undefined, "invalid configuration");
+    await mrr_test.do_invalid_streaming_operation_config_test(undefined, "Invalid streaming options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Null Filter', async () => {
     await mrr_test.do_invalid_streaming_operation_config_test({
         // @ts-ignore
         subscriptionTopicFilter : null,
-    }, "invalid configuration");
+    }, "Invalid streaming options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Invalid Filter Type', async () => {
     await mrr_test.do_invalid_streaming_operation_config_test({
         // @ts-ignore
         subscriptionTopicFilter : 5,
-    }, "invalid configuration");
+    }, "Invalid streaming options");
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Streaming Operation Creation Failure Invalid Filter Value', async () => {
     await mrr_test.do_invalid_streaming_operation_config_test({
         subscriptionTopicFilter : "#/hello/#",
-    }, "Failed to create");
+    }, "Invalid streaming options");
 });
-
-
- */

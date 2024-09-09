@@ -13,7 +13,7 @@ import {LiftedPromise, newLiftedPromise} from "../common/promise";
 import {SubscriptionStatusEventType} from "./mqtt_request_response";
 import {v4 as uuid} from "uuid";
 
-jest.setTimeout(1000000);
+jest.setTimeout(10000);
 
 interface TestContextOptions {
     clientOptions?: mqtt_request_response.RequestResponseClientOptions,
@@ -956,7 +956,7 @@ test('streaming operation - close client before open', async () => {
         expect(false);
     } catch (e) {
         let err = e as Error;
-        expect(err.message).toContain("client closed");
+        expect(err.message).toContain("already closed");
     }
 
     cleanupTestContext(context);
