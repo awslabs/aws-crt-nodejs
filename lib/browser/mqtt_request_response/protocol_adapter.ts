@@ -74,7 +74,7 @@ export type ConnectionStatusEventListener = (event: ConnectionStatusEvent) => vo
 
 export interface IncomingPublishEvent {
     topic: string,
-    payload?: ArrayBuffer
+    payload: ArrayBuffer
 }
 
 export type IncomingPublishEventListener = (event: IncomingPublishEvent) => void;

@@ -8,8 +8,12 @@ import * as mqtt_request_response from "./mqtt_request_response";
 import * as protocol_adapter from "./mqtt_request_response/protocol_adapter";
 import { CrtError } from "./error";
 import {MockProtocolAdapter} from "./mqtt_request_response/protocol_adapter_mock";
+import {once} from "events";
+import {LiftedPromise, newLiftedPromise} from "../common/promise";
+import {SubscriptionStatusEventType} from "./mqtt_request_response";
+import {v4 as uuid} from "uuid";
 
-jest.setTimeout(1000000);
+jest.setTimeout(10000);
 
 interface TestContextOptions {
     clientOptions?: mqtt_request_response.RequestResponseClientOptions,
@@ -844,6 +848,796 @@ test('request-response success - multi operation sequence', async () => {
 
         expect(definition.uniqueRequestPayload).toEqual(originalRequestPayload);
     }
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation validation failure - null options', async () => {
+    let context = createTestContext();
+
+    try {
+        // @ts-ignore
+        let operation = context.client.createStream(null);
+        operation.close();
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("Invalid streaming options");
+    }
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation validation failure - subscription topic filter null', async () => {
+    let context = createTestContext();
+
+    try {
+        let operation = context.client.createStream({
+            // @ts-ignore
+            subscriptionTopicFilter: null
+        });
+        operation.close();
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("Invalid streaming options");
+    }
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation validation failure - subscription topic filter wrong type', async () => {
+    let context = createTestContext();
+
+    try {
+        let operation = context.client.createStream({
+            // @ts-ignore
+            subscriptionTopicFilter: 5
+        });
+        operation.close();
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("Invalid streaming options");
+    }
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation validation failure - subscription topic filter invalid', async () => {
+    let context = createTestContext();
+
+    try {
+        let operation = context.client.createStream({
+            subscriptionTopicFilter: ""
+        });
+        operation.close();
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("Invalid streaming options");
+    }
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation create failure - client closed', async () => {
+    let context = createTestContext();
+
+    context.client.close();
+
+    try {
+        let operation = context.client.createStream({
+            subscriptionTopicFilter: ""
+        });
+        operation.close();
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("already been closed");
+    }
+
+    cleanupTestContext(context);
+});
+
+
+test('streaming operation - close client before open', async () => {
+    let context = createTestContext();
+
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    context.client.close();
+
+    try {
+        operation.open();
+        expect(false);
+    } catch (e) {
+        let err = e as Error;
+        expect(err.message).toContain("already closed");
+    }
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation - close client after open', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    let subscriptionStatusPromise1 = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation.open();
+
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus1.error).toBeFalsy();
+
+    let subscriptionStatusPromise2 = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    context.client.close();
+
+    let subscriptionStatus2 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise2)[0];
+    expect(subscriptionStatus2.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
+    expect(subscriptionStatus2.error).toBeTruthy();
+
+    let error : CrtError = subscriptionStatus2.error as CrtError;
+    expect(error.message).toContain("client closed");
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation - success single', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    let subscriptionStatusPromise1 = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation.open();
+
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus1.error).toBeFalsy();
+
+    let allReceived : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
+        incomingPublishes.push(event);
+        allReceived.resolve();
+    });
+
+    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload);
+    await allReceived.promise;
+
+    expect(incomingPublishes.length).toEqual(1);
+
+    let incomingPublish1 = incomingPublishes[0];
+    expect(Buffer.from(incomingPublish1.payload as ArrayBuffer)).toEqual(payload);
+
+    cleanupTestContext(context);
+});
+
+test('streaming operation - success overlapping', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let streamOptions : mqtt_request_response.StreamingOperationOptions = {
+        subscriptionTopicFilter: "a/b"
+    };
+
+    let operation1 = context.client.createStream(streamOptions);
+    let subscriptionStatusPromise1 = once(operation1, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    let operation2 = context.client.createStream(streamOptions);
+    let subscriptionStatusPromise2 = once(operation2, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation1.open();
+    operation2.open();
+
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus1.error).toBeFalsy();
+
+    let subscriptionStatus2 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise2)[0];
+    expect(subscriptionStatus2.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus2.error).toBeFalsy();
+
+    // operation 1 should receive both publishes
+    let allReceived1 : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes1 : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    operation1.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
+        incomingPublishes1.push(event);
+        if (incomingPublishes1.length == 2) {
+            allReceived1.resolve();
+        }
+    });
+
+    // operation 2 should only receive one publish because we close it before triggering the second one
+    let allReceived2 : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes2 : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    operation2.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
+        incomingPublishes2.push(event);
+        allReceived2.resolve();
+    });
+
+    let payload1 : Buffer = Buffer.from("IncomingPublish1", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload1);
+
+    await allReceived2.promise;
+
+    expect(incomingPublishes2.length).toEqual(1);
+    expect(Buffer.from(incomingPublishes2[0].payload as ArrayBuffer)).toEqual(payload1);
+
+    let subscriptionStatus2HaltedPromise = once(operation2, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation2.close();
+
+    let subscriptionStatus2Halted : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatus2HaltedPromise)[0];
+    expect(subscriptionStatus2Halted.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
+    expect(subscriptionStatus2Halted.error).toBeTruthy();
+
+    let payload2 : Buffer = Buffer.from("IncomingPublish2", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload2);
+
+    await allReceived1.promise;
+
+    expect(incomingPublishes1.length).toEqual(2);
+    expect(Buffer.from(incomingPublishes1[0].payload as ArrayBuffer)).toEqual(payload1);
+    expect(Buffer.from(incomingPublishes1[1].payload as ArrayBuffer)).toEqual(payload2);
+
+    cleanupTestContext(context);
+
+    // nothing arrived in the meantime
+    expect(incomingPublishes2.length).toEqual(1);
+});
+
+test('streaming operation - success single starting offline', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+        }
+    });
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    let subscriptionEstablished : mqtt_request_response.SubscriptionStatusEvent | undefined = undefined;
+
+    let subscriptionEstablishedPromise : LiftedPromise<void> = newLiftedPromise();
+    operation.addListener(mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS, (event) => {
+       if (event.type == SubscriptionStatusEventType.SubscriptionEstablished) {
+           subscriptionEstablished = event;
+           subscriptionEstablishedPromise.resolve();
+       }
+    });
+
+    operation.open();
+
+    // wait a second, nothing should happen
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(subscriptionEstablished).toBeFalsy();
+
+    // connecting should kick off the subscribe and successful establishment
+    context.adapter.connect();
+
+    await subscriptionEstablishedPromise.promise;
+    expect(subscriptionEstablished).toBeTruthy();
+    // @ts-ignore
+    expect(subscriptionEstablished.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    // @ts-ignore
+    expect(subscriptionEstablished.error).toBeFalsy();
+
+    let allReceived : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
+        incomingPublishes.push(event);
+        allReceived.resolve();
+    });
+
+    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload);
+    await allReceived.promise;
+
+    expect(incomingPublishes.length).toEqual(1);
+
+    let incomingPublish1 = incomingPublishes[0];
+    expect(Buffer.from(incomingPublish1.payload as ArrayBuffer)).toEqual(payload);
+
+    cleanupTestContext(context);
+});
+
+async function doStreamingSessionTest(resumeSession: boolean) {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    let statusEvents : mqtt_request_response.SubscriptionStatusEvent[] = new Array<mqtt_request_response.SubscriptionStatusEvent>();
+    let established1Promise : LiftedPromise<void> = newLiftedPromise();
+    let established2Promise : LiftedPromise<void> = newLiftedPromise();
+
+    operation.addListener(mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS, (event) => {
+        statusEvents.push(event);
+        if (event.type == SubscriptionStatusEventType.SubscriptionEstablished) {
+            if (statusEvents.length == 1) {
+                established1Promise.resolve();
+            } else {
+                established2Promise.resolve();
+            }
+        }
+    });
+
+    operation.open();
+
+    await established1Promise.promise;
+
+    expect(statusEvents.length).toEqual(1);
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = statusEvents[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus1.error).toBeFalsy();
+
+    let received1 : LiftedPromise<void> = newLiftedPromise();
+    let received2 : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
+        incomingPublishes.push(event);
+        if (incomingPublishes.length == 1) {
+            received1.resolve();
+        } else if (incomingPublishes.length == 2) {
+            received2.resolve();
+        }
+    });
+
+    let payload1 : Buffer = Buffer.from("IncomingPublish1", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload1);
+    await received1.promise;
+
+    expect(incomingPublishes.length).toEqual(1);
+
+    let incomingPublish1 = incomingPublishes[0];
+    expect(Buffer.from(incomingPublish1.payload as ArrayBuffer)).toEqual(payload1);
+
+    // expect to see a single subscribe on the mock protocol adapter
+    let apiCalls1 = context.adapter.getApiCalls();
+    expect(apiCalls1.length).toEqual(1);
+    expect(apiCalls1[0].methodName).toEqual("subscribe");
+
+    // "disconnect" and "reconnect"
+    context.adapter.disconnect();
+    context.adapter.connect(resumeSession);
+
+    if (resumeSession) {
+        // wait a second, nothing should happen
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        expect(statusEvents.length).toEqual(1);
+        expect(context.adapter.getApiCalls().length).toEqual(1);
+    } else {
+        // expect subscription lost event followed by established event
+        await established2Promise.promise;
+        expect(statusEvents.length).toEqual(3);
+
+        expect(statusEvents[1].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionLost);
+        expect(statusEvents[2].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+
+        // expect to see a second subscribe on the mock protocol adapter
+        let apiCalls2 = context.adapter.getApiCalls();
+        expect(apiCalls2.length).toEqual(2);
+        expect(apiCalls1[1].methodName).toEqual("subscribe");
+    }
+
+    // trigger an incoming publish, expect it to arrive
+    let payload2 : Buffer = Buffer.from("IncomingPublish2", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload2);
+    await received2.promise;
+
+    expect(incomingPublishes.length).toEqual(2);
+
+    let incomingPublish2 = incomingPublishes[1];
+    expect(Buffer.from(incomingPublish2.payload as ArrayBuffer)).toEqual(payload2);
+
+    cleanupTestContext(context);
+}
+
+test('streaming operation - successfully reestablish subscription on clean session resumption', async () => {
+    await doStreamingSessionTest(false);
+});
+
+test('streaming operation - success with session resumption', async () => {
+    await doStreamingSessionTest(true);
+});
+
+interface FirstSubscribeContext {
+    count: number
+}
+
+function mockSubscribeFailFirstHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
+    let subscribeContext = context as FirstSubscribeContext;
+    subscribeContext.count++;
+
+    if (subscribeContext.count == 1) {
+        setImmediate(() => {
+            adapter.completeSubscribe(subscribeOptions.topicFilter, new CrtError("Mock Failure"), true);
+        });
+    } else {
+        setImmediate(() => {
+            adapter.completeSubscribe(subscribeOptions.topicFilter);
+        });
+    }
+}
+
+/*
+ * Variant of the basic success test where the first subscribe is failed.  Verify the
+ * client sends a second subscribe (which succeeds) after which everything is fine.
+ */
+test('streaming operation - success despite first subscribe failure', async () => {
+    let subscribeContext = {
+        count: 0
+    };
+
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeFailFirstHandler,
+            subscribeHandlerContext: subscribeContext,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+            operationTimeoutInSeconds: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    let subscriptionStatusPromise1 = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation.open();
+
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus1.error).toBeFalsy();
+
+    let allReceived : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
+        incomingPublishes.push(event);
+        allReceived.resolve();
+    });
+
+    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    context.adapter.triggerIncomingPublish("a/b", payload);
+    await allReceived.promise;
+
+    expect(incomingPublishes.length).toEqual(1);
+
+    let incomingPublish1 = incomingPublishes[0];
+    expect(Buffer.from(incomingPublish1.payload as ArrayBuffer)).toEqual(payload);
+
+    // verify two subscribes sent
+    let apiCalls = context.adapter.getApiCalls();
+    expect(apiCalls.length).toEqual(2);
+    expect(apiCalls[0].methodName).toEqual("subscribe");
+    expect(apiCalls[1].methodName).toEqual("subscribe");
+
+    cleanupTestContext(context);
+});
+
+/*
+ * Failure variant where the subscribe triggers a non-retryable suback failure.  Verify the
+ * operation gets halted.
+ */
+test('streaming operation - halt after unretryable subscribe failure', async () => {
+    let subscribeContext : FailingSubscribeContext = {
+        startFailingIndex: 0,
+        subscribesSeen: 0
+    };
+
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeFailureHandler,
+            subscribeHandlerContext: subscribeContext,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 2,
+            operationTimeoutInSeconds: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let operation = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+
+    let subscriptionStatusPromise1 = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation.open();
+
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
+    expect(subscriptionStatus1.error).toBeTruthy();
+
+    let error = subscriptionStatus1.error as CrtError;
+    expect(error.message).toContain("Subscription Failure")
+
+    cleanupTestContext(context);
+});
+
+async function openOperationAndVerifyPublishes(operation: mqtt_request_response.StreamingOperationBase, testContext: TestContext, topic: string) {
+    let subscriptionStatusPromise1 = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation.open();
+
+    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(subscriptionStatus1.error).toBeFalsy();
+
+    let allReceived : LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let publishListener = (event : mqtt_request_response.IncomingPublishEvent) => {
+        incomingPublishes.push(event);
+        allReceived.resolve();
+    };
+
+    operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, publishListener);
+
+    let payload : Buffer = Buffer.from("IncomingPublish-" + uuid(), "utf-8");
+    testContext.adapter.triggerIncomingPublish(topic, payload);
+    await allReceived.promise;
+
+    expect(incomingPublishes.length).toEqual(1);
+
+    let incomingPublish1 = incomingPublishes[0];
+    expect(Buffer.from(incomingPublish1.payload as ArrayBuffer)).toEqual(payload);
+}
+
+async function closeOperation(operation: mqtt_request_response.StreamingOperationBase) {
+
+    let subscriptionStatusPromise = once(operation, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    operation.close();
+
+    let subscriptionStatus : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise)[0];
+    expect(subscriptionStatus.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
+    expect(subscriptionStatus.error).toBeTruthy();
+}
+
+/*
+ * Multi-operation variant where we exceed the streaming subscription budget, release everything and then verify
+ * we can successfully establish a new streaming operation after everything cleans up.
+ */
+test('streaming operation - failure exceed streaming budget', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2,
+            maxStreamingSubscriptions: 1,
+        }
+    });
+
+    context.adapter.connect();
+
+    let operation1 = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+    await openOperationAndVerifyPublishes(operation1, context, "a/b");
+
+    // we can make a new one that shares the subscription
+    let operation2 = context.client.createStream({
+        subscriptionTopicFilter: "a/b"
+    });
+    await openOperationAndVerifyPublishes(operation2, context, "a/b");
+
+    // but we can't make a new one that uses a new subscription
+    let operation3 = context.client.createStream({
+        subscriptionTopicFilter: "b/c"
+    });
+
+    let subscriptionStatusPromise3 = once(operation3, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+    operation3.open();
+    let subscriptionStatus3 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise3)[0];
+    expect(subscriptionStatus3.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
+    expect(subscriptionStatus3.error).toBeTruthy();
+
+    let error = subscriptionStatus3.error as CrtError;
+    expect(error.message).toContain("NoCapacity");
+
+    // close all the existing streams
+    await closeOperation(operation1);
+    await closeOperation(operation2);
+
+    // now we can make new one that uses a different subscription
+    let operation4 = context.client.createStream({
+        subscriptionTopicFilter: "b/c"
+    });
+    await openOperationAndVerifyPublishes(operation4, context, "b/c");
+
+    cleanupTestContext(context);
+});
+
+const STREAMING_TOPIC : string = "streaming/topic";
+
+function mockSubscribeStreamingSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
+    if (subscribeOptions.topicFilter === STREAMING_TOPIC) {
+        setImmediate(() => {
+            adapter.completeSubscribe(subscribeOptions.topicFilter);
+        });
+    }
+}
+
+async function verifyRequestResponseFailure(promise: Promise<mqtt_request_response.Response>) {
+    try {
+        await promise;
+        expect(false);
+    } catch (err) {
+        let error = err as CrtError;
+        expect(error.message).toContain("timeout");
+    }
+}
+
+/*
+ * Configure server to only respond to subscribes that match a streaming filter.  Submit a couple of
+ * request-response operations ahead of a streaming operation.  Verify they both time out and that the streaming
+ * operation successfully subscribes and receives publishes.
+ */
+test('streaming operation - success delayed by request-response timeouts', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeStreamingSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2, // will cause the requests to be performed serially, blocking the streaming operation temporarily
+            maxStreamingSubscriptions: 1,
+            operationTimeoutInSeconds: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let request1 = makeGoodRequest();
+    request1.subscriptionTopicFilters = new Array<string>("a/accepted", "a/rejected");
+
+    let request2 = makeGoodRequest();
+    request2.subscriptionTopicFilters = new Array<string>("b/accepted", "b/rejected");
+
+    let requestPromise1 = context.client.submitRequest(request1);
+    let requestPromise2 = context.client.submitRequest(request2);
+
+    let operation1 = context.client.createStream({
+        subscriptionTopicFilter: STREAMING_TOPIC
+    });
+
+    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise1); } );
+    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise2); } );
+
+    await openOperationAndVerifyPublishes(operation1, context, STREAMING_TOPIC);
+
+    operation1.close();
+
+    cleanupTestContext(context);
+});
+
+/*
+ * Variant of previous test where we sandwich the streaming operation by multiple request response operations and
+ * verify all request-response operations fail with a timeout.
+ */
+test('streaming operation - success sandwiched by request-response timeouts', async () => {
+    let context = createTestContext({
+        adapterOptions: {
+            subscribeHandler: mockSubscribeStreamingSuccessHandler,
+            unsubscribeHandler: mockUnsubscribeSuccessHandler
+        },
+        clientOptions: {
+            maxRequestResponseSubscriptions: 2, // will cause the requests to be performed serially, blocking the streaming operation temporarily
+            maxStreamingSubscriptions: 1,
+            operationTimeoutInSeconds: 2,
+        }
+    });
+
+    context.adapter.connect();
+
+    let request1 = makeGoodRequest();
+    request1.subscriptionTopicFilters = new Array<string>("a/accepted", "a/rejected");
+
+    let request2 = makeGoodRequest();
+    request2.subscriptionTopicFilters = new Array<string>("b/accepted", "b/rejected");
+
+    let requestPromise1 = context.client.submitRequest(request1);
+    let requestPromise2 = context.client.submitRequest(request2);
+
+    let operation1 = context.client.createStream({
+        subscriptionTopicFilter: STREAMING_TOPIC
+    });
+
+    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise1); } );
+    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise2); } );
+
+    let streamingCheckPromise = openOperationAndVerifyPublishes(operation1, context, STREAMING_TOPIC);
+
+    let request3 = makeGoodRequest();
+    request3.subscriptionTopicFilters = new Array<string>("c/accepted", "c/rejected");
+
+    let request4 = makeGoodRequest();
+    request4.subscriptionTopicFilters = new Array<string>("d/accepted", "d/rejected");
+
+    let requestPromise3 = context.client.submitRequest(request3);
+    let requestPromise4 = context.client.submitRequest(request4);
+
+    await verifyRequestResponseFailure(requestPromise3);
+    await verifyRequestResponseFailure(requestPromise4);
+
+    await streamingCheckPromise;
+
+    operation1.close();
 
     cleanupTestContext(context);
 });

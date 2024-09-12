@@ -11,7 +11,8 @@ import * as mqtt311 from "@awscrt/mqtt";
 import * as mqtt_request_response from "@awscrt/mqtt_request_response";
 import {once} from "events";
 import {toUtf8} from "@aws-sdk/util-utf8-browser";
-import {StreamingOperationOptions} from "@awscrt/mqtt_request_response";
+import {StreamingOperationOptions, SubscriptionStatusEvent} from "@awscrt/mqtt_request_response";
+import {newLiftedPromise} from "../lib/common/promise";
 
 export type ClientBuilderFactory5 = () => iot.AwsIotMqtt5ClientConfigBuilder;
 export type ClientBuilderFactory311 = () => iot.AwsIotMqttConnectionConfigBuilder;
@@ -441,3 +442,101 @@ export async function do_streaming_operation_new_open_close_test(version: Protoc
     await context.close();
 }
 
+export async function do_streaming_operation_incoming_publish_test(version: ProtocolVersion) {
+    let context = new TestingContext({
+        version: version
+    });
+
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let stream = context.client.createStream(streaming_options);
+    let publish_received_promise = once(stream, mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH);
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    await context.publishProtocolClient(topic_filter, payload);
+
+    let incoming_publish : mqtt_request_response.IncomingPublishEvent = (await publish_received_promise)[0];
+
+    expect(Buffer.from(incoming_publish.payload as ArrayBuffer)).toEqual(payload);
+
+    stream.close();
+
+    await context.close();
+}
+
+export async function do_streaming_operation_subscription_events_test(options: TestingOptions) {
+    let context = new TestingContext(options);
+
+    await context.open();
+
+    let topic_filter = `not/a/real/shadow/${uuid()}`;
+    let streaming_options : StreamingOperationOptions = {
+        subscriptionTopicFilter : topic_filter,
+    }
+
+    let events : Array<SubscriptionStatusEvent> = [];
+    let allEventsPromise = newLiftedPromise<void>();
+    let stream = context.client.createStream(streaming_options);
+    stream.addListener("subscriptionStatus", (eventData) => {
+        events.push(eventData);
+
+        if (events.length === 3) {
+            allEventsPromise.resolve();
+        }
+    });
+
+    let initialSubscriptionComplete = once(stream, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
+
+    stream.open();
+
+    await initialSubscriptionComplete;
+
+    let protocolClient = context.mqtt5Client;
+    if (protocolClient) {
+        let stopped = once(protocolClient, mqtt5.Mqtt5Client.STOPPED);
+        protocolClient.stop();
+        await stopped;
+
+        let started = once(protocolClient, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+        protocolClient.start();
+        await started;
+    }
+
+    await allEventsPromise.promise;
+
+    expect(events[0].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(events[0].error).toBeUndefined();
+    expect(events[1].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionLost);
+    expect(events[1].error).toBeUndefined();
+    expect(events[2].type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
+    expect(events[2].error).toBeUndefined();
+
+    stream.close();
+
+    await context.close();
+}
+
+export async function do_invalid_streaming_operation_config_test(config: StreamingOperationOptions, expected_error: string) {
+    let context = new TestingContext({
+        version: ProtocolVersion.Mqtt5
+    });
+
+    await context.open();
+
+    expect(() => {
+        // @ts-ignore
+        context.client.createStream(config)
+    }).toThrow(expected_error);
+
+    await context.close();
+}
