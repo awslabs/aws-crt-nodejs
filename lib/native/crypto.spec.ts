@@ -87,10 +87,6 @@ test('SHA256 multi-part matches', () => {
     const native_hash = native_sha.finalize();
     const browser_hash = browser_sha.finalize();
 
-
-    console.log(typeof(native_hash));
-    console.log(typeof(browser_hash));
-
     expect(native_hash).toEqualDataView(browser_hash);
 });
 
