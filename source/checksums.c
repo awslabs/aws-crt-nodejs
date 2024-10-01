@@ -6,6 +6,7 @@
 #include "checksums.h"
 
 #include <aws/checksums/crc.h>
+#include <aws/common/encoding.h>
 
 napi_value crc32_common(
     napi_env env,
@@ -92,7 +93,7 @@ napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info) {
             goto done;
         }
         AWS_FATAL_ASSERT(previous_buf.len == 8);
-        previous = *(uint64_t *)previous_buf.buffer;
+        previous = aws_read_u64(previous_buf.buffer);
     }
 
     uint64_t val = aws_checksums_crc64nvme_ex(buffer, length, previous);
