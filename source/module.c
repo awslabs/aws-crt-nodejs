@@ -1411,6 +1411,7 @@ static bool s_create_and_register_function(
     /* Checksums */
     CREATE_AND_REGISTER_FN(checksums_crc32)
     CREATE_AND_REGISTER_FN(checksums_crc32c)
+    CREATE_AND_REGISTER_FN(checksums_crc64nvme)
 
     /* HTTP */
     CREATE_AND_REGISTER_FN(http_proxy_options_new)

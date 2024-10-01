@@ -6,6 +6,46 @@
 import * as native from './crypto';
 import * as browser from '../browser/crypto';
 
+import {expect} from '@jest/globals';
+import type {MatcherFunction} from 'expect';
+
+const toEqualDataView: MatcherFunction<[expected: DataView]> =
+  function (actual, expected) {
+    let dv_actual = actual as DataView;
+    let dv_expected = expected as DataView;
+
+    if (dv_actual.buffer.byteLength !== dv_expected.buffer.byteLength) {
+        return {
+            message: () => 'DataViews of different length; actual: ${dv1.buffer.byteLength}, expected: ${dv2.buffer.byteLength}',
+            pass: false
+        };
+    }
+
+    for (let i = 0; i < dv_actual.buffer.byteLength; i++) {
+        if (dv_actual.getUint8(i) !== dv_expected.getUint8(i)) {
+            return {
+                message: () => 'DataViews byte mismatch at index ${i}; actual: ${dv_actual.getUint8(i)}, expected: ${dv_expected.getUint8(i)}',
+                pass: false
+            };
+        }
+    }
+
+    return {
+        message: () => 'DataViews are equal',
+        pass: true
+    };
+  };
+
+expect.extend({
+    toEqualDataView,
+});
+
+declare module 'expect' {
+  interface Matchers<R> {
+    toEqualDataView(expected: DataView): R;
+  }
+}
+
 test('md5 multi-part matches', () => {
     const parts = ['ABC', '123', 'XYZ'];
     const native_md5 = new native.Md5Hash();
@@ -17,7 +57,7 @@ test('md5 multi-part matches', () => {
     const native_hash = native_md5.finalize();
     const browser_hash = browser_md5.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('md5 one-shot matches', () => {
@@ -25,7 +65,7 @@ test('md5 one-shot matches', () => {
     const native_hash = native.hash_md5(data);
     const browser_hash = browser.hash_md5(data);
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA256 multi-part matches', () => {
@@ -39,7 +79,11 @@ test('SHA256 multi-part matches', () => {
     const native_hash = native_sha.finalize();
     const browser_hash = browser_sha.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+
+    console.log(typeof(native_hash));
+    console.log(typeof(browser_hash));
+
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA256 one-shot matches', () => {
@@ -47,7 +91,7 @@ test('SHA256 one-shot matches', () => {
     const native_hash = native.hash_sha256(data);
     const browser_hash = browser.hash_sha256(data);
     
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA1 multi-part matches', () => {
@@ -61,7 +105,7 @@ test('SHA1 multi-part matches', () => {
     const native_hash = native_sha.finalize();
     const browser_hash = browser_sha.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA1 one-shot matches', () => {
@@ -69,7 +113,7 @@ test('SHA1 one-shot matches', () => {
     const native_hash = native.hash_sha1(data);
     const browser_hash = browser.hash_sha1(data);
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('hmac-256 multi-part matches', () => {
@@ -84,7 +128,7 @@ test('hmac-256 multi-part matches', () => {
     const native_hash = native_hmac.finalize();
     const browser_hash = browser_hmac.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('hmac-256 one-shot matches', () => {
@@ -93,5 +137,5 @@ test('hmac-256 one-shot matches', () => {
     const native_hash = native.hmac_sha256(secret, data);
     const browser_hash = browser.hmac_sha256(secret, data);
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });

@@ -82,3 +82,20 @@ test('crc32c_large_buffer', () => {
     const expected = 0xfb5b991d
     expect(output).toEqual(expected);
 });
+
+test('crc64nvme_zeros_one_shot', () => {
+    const arr = new Uint8Array(32);
+    const output = checksums.crc64nvme(arr);
+    expect(output.getBigUint64(0)).toEqual(BigInt("0xCF3473434D4ECF3B"));
+});
+
+test('crc64nvme_zeros_iterated', () => {
+    const buffer = new ArrayBuffer(8);
+    let previous = new DataView(buffer);
+    previous.setBigUint64(0, BigInt(0));
+
+    for (let i = 0; i < 32; i++) {
+        previous = checksums.crc64nvme(new Uint8Array(1), previous);
+    }
+    expect(previous.getBigUint64(0)).toEqual(BigInt("0xCF3473434D4ECF3B"));
+});

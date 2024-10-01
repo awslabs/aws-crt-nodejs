@@ -39,3 +39,15 @@ export function crc32(data: Hashable, previous?: number): number {
  export function crc32c(data: Hashable, previous?: number): number {
     return crt_native.checksums_crc32c(data, previous);
 }
+
+/**
+ * Computes a crc64nvme checksum.
+ *
+ * @param data The data to checksum
+ * @param previous previous crc64nvme checksum result. Used if you are buffering large input.
+ *
+ * @category Crypto
+ */
+export function crc64nvme(data: Hashable, previous?: DataView): DataView {
+    return crt_native.checksums_crc64nvme(data, previous);
+}
