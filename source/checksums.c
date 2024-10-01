@@ -7,7 +7,10 @@
 
 #include <aws/checksums/crc.h>
 
-napi_value crc32_common(napi_env env, napi_callback_info info, uint32_t (*checksum_fn)(const uint8_t *, size_t, uint32_t)) {
+napi_value crc32_common(
+    napi_env env,
+    napi_callback_info info,
+    uint32_t (*checksum_fn)(const uint8_t *, size_t, uint32_t)) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     struct aws_byte_buf to_hash;
@@ -91,9 +94,9 @@ napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info) {
         AWS_FATAL_ASSERT(previous_buf.len == 8);
         previous = *(uint64_t *)previous_buf.buffer;
     }
-    
+
     uint64_t val = aws_checksums_crc64nvme_ex(buffer, length, previous);
-    
+
     napi_value arraybuffer;
     void *data = NULL;
     if (napi_create_arraybuffer(env, 8, &data, &arraybuffer)) {
@@ -115,4 +118,3 @@ done:
 
     return node_val;
 }
-
