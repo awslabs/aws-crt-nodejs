@@ -9,6 +9,14 @@ import * as browser from '../browser/crypto';
 import {expect} from '@jest/globals';
 import type {MatcherFunction} from 'expect';
 
+/*
+ * Note: jest by default does not compare contents of complex classes like DataView.
+ * So when comparing two dataviews for equality we equality we always end up with true result because
+ * the only thing compared is the type of the instance.
+ * So add a custom comparison operation for it.
+ * Its possible to make it global for all tests with some additional work. 
+ * Jest 30 is adding DataView equivalence checks out of the box.
+*/
 const toEqualDataView: MatcherFunction<[expected: DataView]> =
   function (actual, expected) {
     let dv_actual = actual as DataView;
