@@ -24,7 +24,7 @@ export { Hashable } from "../common/crypto";
  * @param hash 
  * @returns 
  */
-function hashToUint8Array(hash: Crypto.WordArray) {
+function wordArrayToUint8Array(hash: Crypto.WordArray) {
     return Uint8Array.from(hash.toString(Crypto.enc.Latin1).split('').map(c => c.charCodeAt(0)));;
 }
 
@@ -51,7 +51,7 @@ class BaseHash {
      * @returns the final hash digest
      */
     finalize(truncate_to?: number): DataView {
-        const hashBuffer = hashToUint8Array(this.hasher.finalize()) ;
+        const hashBuffer = wordArrayToUint8Array(this.hasher.finalize()) ;
         const truncated = hashBuffer.slice(0, truncate_to ? truncate_to : hashBuffer.length);
         return new DataView(truncated.buffer);;
     }
