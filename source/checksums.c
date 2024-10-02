@@ -34,16 +34,16 @@ napi_value crc32_common(
     }
     uint8_t *buffer = to_hash.buffer;
     size_t length = to_hash.len;
-    uint32_t previous = 0;
+    uint32_t previous_crc = 0;
 
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (napi_get_value_uint32(env, node_args[1], &previous)) {
-            napi_throw_type_error(env, NULL, "previous argument must be undefined or a positive number");
+        if (napi_get_value_uint32(env, node_args[1], &previous_crc)) {
+            napi_throw_type_error(env, NULL, "previous value argument must be undefined or a positive number");
             goto done;
         }
     }
 
-    uint32_t val = checksum_fn(buffer, length, previous);
+    uint32_t val = checksum_fn(buffer, length, previous_crc);
     AWS_NAPI_CALL(env, napi_create_uint32(env, val, &node_val), { goto done; });
 
 done:
@@ -65,8 +65,8 @@ napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info) {
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     struct aws_byte_buf to_hash;
     AWS_ZERO_STRUCT(to_hash);
-    struct aws_byte_buf previous_buf;
-    AWS_ZERO_STRUCT(previous_buf);
+    struct aws_byte_buf previous_crc_buf;
+    AWS_ZERO_STRUCT(previous_crc_buf);
 
     napi_value node_val = NULL;
 
@@ -86,17 +86,20 @@ napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info) {
     uint8_t *buffer = to_hash.buffer;
     size_t length = to_hash.len;
 
-    uint64_t previous = 0;
+    uint64_t previous_crc = 0;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
-        if (aws_byte_buf_init_from_napi(&previous_buf, env, node_args[1])) {
-            napi_throw_type_error(env, NULL, "previous argument must be undefined or a positive number");
+        if (aws_byte_buf_init_from_napi(&previous_crc_buf, env, node_args[1])) {
+            napi_throw_type_error(env, NULL, "previous value argument must be undefined or a DataView over 8 bytes");
             goto done;
         }
-        AWS_FATAL_ASSERT(previous_buf.len == 8);
-        previous = aws_read_u64(previous_buf.buffer);
+        if (previous_crc_buf.len != 8) {
+            napi_throw_type_error(env, NULL, "previous value argument must be a DataView over 8 bytes");
+            goto done;
+        }
+        previous_crc = aws_read_u64(previous_crc_buf.buffer);
     }
 
-    uint64_t val = aws_checksums_crc64nvme_ex(buffer, length, previous);
+    uint64_t val = aws_checksums_crc64nvme_ex(buffer, length, previous_crc);
 
     napi_value arraybuffer;
     void *data = NULL;
@@ -115,7 +118,7 @@ napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info) {
 
 done:
     aws_byte_buf_clean_up(&to_hash);
-    aws_byte_buf_clean_up(&previous_buf);
+    aws_byte_buf_clean_up(&previous_crc_buf);
 
     return node_val;
 }

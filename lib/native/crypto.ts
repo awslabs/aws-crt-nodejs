@@ -105,7 +105,6 @@ export function hash_sha256(data: Hashable, truncate_to?: number): DataView {
     }
 }
 
-
 /**
  * Computes an SHA1 hash. Use this if you don't need to stream the data you're hashing and can load the entire input
  * into memory.

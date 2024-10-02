@@ -19,6 +19,7 @@ export { Hashable } from "../common/crypto";
 /**
  * CryptoJS does not provide easy access to underlying bytes.
  * As a workaround just dump it to a string and then reinterpret chars as individual bytes.
+ * Note: we are using Latin1 here because its a static sized 8 bit encoding so each char maps directly to a byte value.
  * TODO: long term we would probably want to move to WebCrypto for SHA's and some other 3p for crc's and md5.
  * @param hash 
  * @returns 
