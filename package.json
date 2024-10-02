@@ -23,7 +23,7 @@
     "test:browser:ci": "npm run install:puppeteer && npm run test:browser",
     "install:puppeteer": "npm install --save-dev jest-puppeteer puppeteer @types/puppeteer",
     "prepare": "node ./scripts/tsc.js && node ./scripts/install.js",
-    "install": "node ./scripts/install.js --rebuild"
+    "install": "node ./scripts/install.js"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
