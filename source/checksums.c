@@ -38,7 +38,7 @@ napi_value crc32_common(
 
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (napi_get_value_uint32(env, node_args[1], &previous_crc)) {
-            napi_throw_type_error(env, NULL, "previous value argument must be undefined or a positive number");
+            napi_throw_type_error(env, NULL, "previous_crc argument must be undefined or a positive number");
             goto done;
         }
     }
@@ -89,11 +89,11 @@ napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info) {
     uint64_t previous_crc = 0;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
         if (aws_byte_buf_init_from_napi(&previous_crc_buf, env, node_args[1])) {
-            napi_throw_type_error(env, NULL, "previous value argument must be undefined or a DataView over 8 bytes");
+            napi_throw_type_error(env, NULL, "previous_crc argument must be undefined or a DataView over 8 bytes");
             goto done;
         }
         if (previous_crc_buf.len != 8) {
-            napi_throw_type_error(env, NULL, "previous value argument must be a DataView over 8 bytes");
+            napi_throw_type_error(env, NULL, "previous_crc argument must be a DataView over 8 bytes");
             goto done;
         }
         previous_crc = aws_read_u64(previous_crc_buf.buffer);
