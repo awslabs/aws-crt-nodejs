@@ -79,7 +79,7 @@ napi_value aws_napi_hash_update(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -114,7 +114,7 @@ napi_value aws_napi_hash_digest(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -169,7 +169,7 @@ napi_value aws_napi_hash_md5_compute(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -226,7 +226,7 @@ napi_value aws_napi_hash_sha256_compute(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -240,7 +240,7 @@ napi_value aws_napi_hash_sha256_compute(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    size_t digest_size = AWS_MD5_LEN;
+    size_t digest_size = AWS_SHA256_LEN;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
 
         uint32_t truncate_to = 0;
@@ -297,7 +297,7 @@ napi_value aws_napi_hash_sha1_compute(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    size_t digest_size = AWS_MD5_LEN;
+    size_t digest_size = AWS_SHA1_LEN;
     if (!aws_napi_is_null_or_undefined(env, node_args[1])) {
 
         uint32_t truncate_to = 0;
@@ -359,7 +359,7 @@ napi_value aws_napi_hmac_sha256_new(napi_env env, napi_callback_info info) {
     napi_value node_args[1];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -394,7 +394,7 @@ napi_value aws_napi_hmac_update(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -429,7 +429,7 @@ napi_value aws_napi_hmac_digest(napi_env env, napi_callback_info info) {
     napi_value node_args[2];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -484,7 +484,7 @@ napi_value aws_napi_hmac_sha256_compute(napi_env env, napi_callback_info info) {
     napi_value node_args[3];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     if (napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
-        napi_throw_error(env, NULL, "Failed to retreive callback information");
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
         return NULL;
     }
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
@@ -505,7 +505,7 @@ napi_value aws_napi_hmac_sha256_compute(napi_env env, napi_callback_info info) {
         return NULL;
     }
 
-    size_t digest_size = AWS_MD5_LEN;
+    size_t digest_size = AWS_SHA256_LEN;
     if (!aws_napi_is_null_or_undefined(env, node_args[2])) {
 
         uint32_t truncate_to = 0;

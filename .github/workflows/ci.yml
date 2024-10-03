@@ -167,7 +167,7 @@ jobs:
   check-docs:
     runs-on: ubuntu-20.04 # latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Check docs
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-20.04 # latest
     steps:
     - name: Checkout Source
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: true
         fetch-depth: 0
@@ -191,7 +191,7 @@ jobs:
   check-lockfile-version:
     runs-on: ubuntu-20.04 # latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Check for edits to package-lock.json

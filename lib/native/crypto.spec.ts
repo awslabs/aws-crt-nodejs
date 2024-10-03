@@ -5,6 +5,7 @@
 
 import * as native from './crypto';
 import * as browser from '../browser/crypto';
+import '@test/custom_matchers'
 
 test('md5 multi-part matches', () => {
     const parts = ['ABC', '123', 'XYZ'];
@@ -17,7 +18,7 @@ test('md5 multi-part matches', () => {
     const native_hash = native_md5.finalize();
     const browser_hash = browser_md5.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('md5 one-shot matches', () => {
@@ -25,7 +26,7 @@ test('md5 one-shot matches', () => {
     const native_hash = native.hash_md5(data);
     const browser_hash = browser.hash_md5(data);
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA256 multi-part matches', () => {
@@ -39,7 +40,7 @@ test('SHA256 multi-part matches', () => {
     const native_hash = native_sha.finalize();
     const browser_hash = browser_sha.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA256 one-shot matches', () => {
@@ -47,7 +48,7 @@ test('SHA256 one-shot matches', () => {
     const native_hash = native.hash_sha256(data);
     const browser_hash = browser.hash_sha256(data);
     
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA1 multi-part matches', () => {
@@ -61,7 +62,7 @@ test('SHA1 multi-part matches', () => {
     const native_hash = native_sha.finalize();
     const browser_hash = browser_sha.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('SHA1 one-shot matches', () => {
@@ -69,7 +70,7 @@ test('SHA1 one-shot matches', () => {
     const native_hash = native.hash_sha1(data);
     const browser_hash = browser.hash_sha1(data);
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('hmac-256 multi-part matches', () => {
@@ -84,7 +85,7 @@ test('hmac-256 multi-part matches', () => {
     const native_hash = native_hmac.finalize();
     const browser_hash = browser_hmac.finalize();
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
 
 test('hmac-256 one-shot matches', () => {
@@ -93,5 +94,5 @@ test('hmac-256 one-shot matches', () => {
     const native_hash = native.hmac_sha256(secret, data);
     const browser_hash = browser.hmac_sha256(secret, data);
 
-    expect(native_hash).toEqual(browser_hash);
+    expect(native_hash).toEqualDataView(browser_hash);
 });
