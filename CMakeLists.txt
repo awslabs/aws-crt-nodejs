@@ -54,7 +54,6 @@ if (BUILD_DEPS)
                 -DBUILD_LIBSSL=OFF
                 -DBUILD_TESTING=OFF
         )
-        set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
         # prebuild s2n-tls.
         aws_prebuild_dependency(
             DEPENDENCY_NAME S2N
