@@ -770,6 +770,7 @@ napi_value aws_napi_io_socket_options_new(napi_env env, napi_callback_info info)
     }
 
     struct aws_socket_options options;
+    AWS_ZERO_STRUCT(options);
 
     uint32_t enum_value = 0;
     if (napi_get_value_uint32(env, node_args[0], &enum_value) || enum_value > AWS_SOCKET_DGRAM) {

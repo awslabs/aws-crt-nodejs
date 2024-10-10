@@ -45,7 +45,7 @@ if (BUILD_DEPS)
     if (UNIX AND NOT APPLE)
         include(AwsPrebuildDependency)
         # s2n-tls uses libcrypto during its configuration, so we need to prebuild aws-lc.
-        prebuild_dependency(
+        aws_prebuild_dependency(
             DEPENDENCY_NAME AWSLC
             SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/aws-lc
             CMAKE_ARGUMENTS
@@ -54,8 +54,14 @@ if (BUILD_DEPS)
                 -DBUILD_LIBSSL=OFF
                 -DBUILD_TESTING=OFF
         )
-        set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
-        add_subdirectory(crt/s2n)
+        # prebuild s2n-tls.
+        aws_prebuild_dependency(
+            DEPENDENCY_NAME S2N
+            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/s2n
+            CMAKE_ARGUMENTS
+                -DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF
+                -DBUILD_TESTING=OFF
+        )
     endif()
 
     add_subdirectory(crt/aws-c-sdkutils)
