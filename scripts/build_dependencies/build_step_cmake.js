@@ -81,6 +81,8 @@ module.exports = {
                 CMAKE_EXPORT_COMPILE_COMMANDS: true,
                 CMAKE_JS_PLATFORM: platform,
                 BUILD_TESTING: 'OFF',
+                CMAKE_INSTALL_PREFIX: 'crt/install',
+                CMAKE_PREFIX_PATH: 'crt/install',
             }
         }
 
