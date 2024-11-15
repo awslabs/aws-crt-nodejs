@@ -4,7 +4,6 @@
  */
 
 import * as mqtt from "mqtt";
-import * as mqtt_packet from "mqtt-packet";
 import * as mqtt5 from "./mqtt5";
 import {InboundTopicAliasBehaviorType, OutboundTopicAliasBehaviorType} from "./mqtt5";
 import * as mqtt5_utils from "./mqtt5_utils";
@@ -19,7 +18,7 @@ test('MQTT.JS User Properties to CRT User Properties undefined', async () => {
 });
 
 test('MQTT.JS User Properties to CRT User Properties single', async () => {
-    let mqttJsUserProperties : mqtt_packet.UserProperties = {
+    let mqttJsUserProperties : mqtt.UserProperties = {
         prop1 : "value1",
         prop2 : "value2"
     }
@@ -42,7 +41,7 @@ test('MQTT.JS User Properties to CRT User Properties single', async () => {
 });
 
 test('MQTT.JS User Properties to CRT User Properties multi', async () => {
-    let mqttJsUserProperties : mqtt_packet.UserProperties = {
+    let mqttJsUserProperties : mqtt.UserProperties = {
         prop1 : "value1",
         prop2 : ["value2_1", "value2_2", "value2_3"]
     }
@@ -73,7 +72,7 @@ test('MQTT.JS User Properties to CRT User Properties multi', async () => {
 });
 
 test('CRT User Properties to MQTT.js User Properties undefined', async () => {
-    let mqttJsUserProperties : mqtt_packet.UserProperties | undefined = mqtt5_utils.transform_crt_user_properties_to_mqtt_js_user_properties(undefined);
+    let mqttJsUserProperties : mqtt.UserProperties | undefined = mqtt5_utils.transform_crt_user_properties_to_mqtt_js_user_properties(undefined);
 
     expect(mqttJsUserProperties).toBeUndefined();
 });
@@ -84,7 +83,7 @@ test('CRT User Properties to MQTT.js User Properties single', async () => {
         { name : "prop2", value: "value2"}
     ]
 
-    let mqttJsUserProperties : mqtt_packet.UserProperties | undefined = mqtt5_utils.transform_crt_user_properties_to_mqtt_js_user_properties(crtUserProperties);
+    let mqttJsUserProperties : mqtt.UserProperties | undefined = mqtt5_utils.transform_crt_user_properties_to_mqtt_js_user_properties(crtUserProperties);
 
     expect(mqttJsUserProperties).toEqual(
         {
@@ -101,9 +100,9 @@ test('CRT User Properties to MQTT.js User Properties single', async () => {
         { name : "prop2", value: "value2_3"}
     ]
 
-    let mqttJsUserProperties : mqtt_packet.UserProperties | undefined = mqtt5_utils.transform_crt_user_properties_to_mqtt_js_user_properties(crtUserProperties);
+    let mqttJsUserProperties : mqtt.UserProperties | undefined = mqtt5_utils.transform_crt_user_properties_to_mqtt_js_user_properties(crtUserProperties);
     expect(mqttJsUserProperties).toBeDefined();
-    let definedProperties : mqtt_packet.UserProperties = mqttJsUserProperties ?? {};
+    let definedProperties : mqtt.UserProperties = mqttJsUserProperties ?? {};
 
     const {prop1 : propOne, prop2: propTwo, ...rest} = definedProperties;
 
@@ -707,44 +706,6 @@ test('transform_mqtt_js_subscription_grants_to_crt_suback', async() => {
     });
 });
 
-test('transform_mqtt_js_suback_to_crt_suback - minimal', async() => {
-    let mqttJsSuback : mqtt_packet.ISubackPacket = {
-        cmd: "suback",
-        granted: [1]
-    };
-
-    let suback : mqtt5.SubackPacket = mqtt5_utils.transform_mqtt_js_suback_to_crt_suback(mqttJsSuback);
-
-    expect(suback).toEqual({
-        type: mqtt5.PacketType.Suback,
-        reasonCodes: [mqtt5.SubackReasonCode.GrantedQoS1]
-    });
-});
-
-test('transform_mqtt_js_suback_to_crt_suback - maximal', async() => {
-    let mqttJsSuback : mqtt_packet.ISubackPacket = {
-        cmd: "suback",
-        granted: [2, 128],
-        properties : {
-            reasonString: "Misadventure",
-            userProperties: {
-                world: ["hello"]
-            }
-        }
-    };
-
-    let suback : mqtt5.SubackPacket = mqtt5_utils.transform_mqtt_js_suback_to_crt_suback(mqttJsSuback);
-
-    expect(suback).toEqual({
-        type: mqtt5.PacketType.Suback,
-        reasonCodes: [mqtt5.SubackReasonCode.GrantedQoS2, mqtt5.SubackReasonCode.UnspecifiedError],
-        reasonString: "Misadventure",
-        userProperties: [
-            {name: "world", value: "hello"}
-        ]
-    });
-});
-
 test('transform_crt_publish_to_mqtt_js_publish_options minimal', async() => {
     let publish : mqtt5.PublishPacket = {
         topicName: "hello/there",
@@ -865,7 +826,7 @@ test('transform_mqtt_js_publish_to_crt_publish maximal', async() => {
 });
 
 test('transform_mqtt_js_puback_to_crt_puback minimal', async() => {
-    let mqttJsPuback : mqtt_packet.IPubackPacket = {
+    let mqttJsPuback : mqtt.IPubackPacket = {
         cmd: 'puback'
     };
 
@@ -878,7 +839,7 @@ test('transform_mqtt_js_puback_to_crt_puback minimal', async() => {
 });
 
 test('transform_mqtt_js_puback_to_crt_puback maximal', async() => {
-    let mqttJsPuback : mqtt_packet.IPubackPacket = {
+    let mqttJsPuback : mqtt.IPubackPacket = {
         cmd: 'puback',
         reasonCode: mqtt5.PubackReasonCode.NotAuthorized,
         properties: {
@@ -931,9 +892,9 @@ test('transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options maximal', async()
 });
 
 test('transform_mqtt_js_unsuback_to_crt_unsuback minimal', async() => {
-    let mqttJsUnsuback : mqtt_packet.IUnsubackPacket = {
+    let mqttJsUnsuback : mqtt.IUnsubackPacket = {
         cmd: 'unsuback',
-        granted: [mqtt5.UnsubackReasonCode.NoSubscriptionExisted]
+        reasonCode: mqtt5.UnsubackReasonCode.NoSubscriptionExisted
     };
 
     let crtUnsuback : mqtt5.UnsubackPacket = mqtt5_utils.transform_mqtt_js_unsuback_to_crt_unsuback(mqttJsUnsuback);
@@ -945,9 +906,10 @@ test('transform_mqtt_js_unsuback_to_crt_unsuback minimal', async() => {
 });
 
 test('transform_mqtt_js_unsuback_to_crt_unsuback maximal', async() => {
-    let mqttJsUnsuback : mqtt_packet.IUnsubackPacket = {
+    let mqttJsUnsuback : mqtt.IUnsubackPacket = {
         cmd: 'unsuback',
-        granted: [mqtt5.UnsubackReasonCode.NoSubscriptionExisted, mqtt5.UnsubackReasonCode.ImplementationSpecificError],
+        // @ts-ignore
+        reasonCode: [mqtt5.UnsubackReasonCode.NoSubscriptionExisted, mqtt5.UnsubackReasonCode.ImplementationSpecificError],
         properties: {
             reasonString: "Dunno",
             userProperties: {

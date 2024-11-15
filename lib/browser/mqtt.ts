@@ -13,7 +13,6 @@
  */
 
 import * as mqtt from "mqtt";
-import * as mqtt_packet from "mqtt-packet";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
@@ -615,7 +614,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 }
                 resolve({
                     packet_id: packet
-                        ? (packet as mqtt_packet.IUnsubackPacket).messageId
+                        ? (packet as mqtt.IUnsubackPacket).messageId
                         : undefined,
                 });
             });
