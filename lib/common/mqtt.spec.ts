@@ -198,7 +198,12 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     await onDisconnect;
 });
 
+import * as io from '@awscrt';
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT payload types', async () => {
+
+    io.enable_logging(io.LogLevel.TRACE);
+
     const connection = await makeConnection();
 
     let onDisconnect = once(connection, 'disconnect');
