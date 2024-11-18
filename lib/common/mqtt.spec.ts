@@ -198,7 +198,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     await onDisconnect;
 });
 
-import * as io from '@awscrt';
+import * as io from '../native/io';
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT payload types', async () => {
 
