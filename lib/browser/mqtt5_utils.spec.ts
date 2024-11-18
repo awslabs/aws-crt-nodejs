@@ -8,6 +8,7 @@ import * as mqtt5 from "./mqtt5";
 import {InboundTopicAliasBehaviorType, OutboundTopicAliasBehaviorType} from "./mqtt5";
 import * as mqtt5_utils from "./mqtt5_utils";
 import * as mqtt_shared from "../common/mqtt_shared";
+import {normalize_payload_to_buffer} from "../common/mqtt_shared";
 
 
 test('MQTT.JS User Properties to CRT User Properties undefined', async () => {
@@ -415,7 +416,7 @@ test('create_mqtt_js_client_config_from_crt_client_config maximal, minimal will'
     expectedOptions["password"] = myPassword;
     expectedOptions["will"] = {
         topic : "Ohno",
-        payload : "",
+        payload : normalize_payload_to_buffer(""),
         qos : mqtt5.QoS.AtLeastOnce,
         retain : false
     }
@@ -638,8 +639,6 @@ test('transform_crt_subscribe_to_mqtt_js_subscription_map', async() => {
     });
 });
 
-//function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: mqtt5.SubscribePacket) : mqtt.IClientSubscribeOptions
-
 test('transform_crt_subscribe_to_mqtt_js_subscribe_options minimal', async() => {
     let subscribe : mqtt5.SubscribePacket = {
         subscriptions: [
@@ -692,7 +691,7 @@ test('transform_mqtt_js_subscription_grants_to_crt_suback', async() => {
         },
         {
             topic: "a/different/topic",
-            qos: mqtt5.SubackReasonCode.NotAuthorized,
+            qos: mqtt5.SubackReasonCode.UnspecifiedError,
             nl: true,
             rap: true,
             rh: 2
@@ -703,7 +702,7 @@ test('transform_mqtt_js_subscription_grants_to_crt_suback', async() => {
 
     expect(suback).toEqual({
         type: mqtt5.PacketType.Suback,
-        reasonCodes: [2, mqtt5.SubackReasonCode.NotAuthorized]
+        reasonCodes: [2, mqtt5.SubackReasonCode.UnspecifiedError]
     });
 });
 

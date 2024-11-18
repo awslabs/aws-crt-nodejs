@@ -28,10 +28,10 @@
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^27.0.1",
-    "@types/node": "^10.17.54",
+    "@types/node": "^14.18.63",
     "@types/prettier": "2.6.0",
     "@types/puppeteer": "^5.4.7",
-    "@types/uuid": "^3.4.13",
+    "@types/uuid": "^10.0.0",
     "@types/ws": "^7.4.7",
     "aws-sdk": "^2.1537.0",
     "cmake-js": "^7.3.0",
@@ -45,7 +45,7 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-merge-modules": "^5.1.0",
     "typescript": "^4.9.5",
-    "uuid": "^8.3.2",
+    "uuid": "^10.0.0",
     "yargs": "^17.2.1"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.9)
 project(aws-crt-nodejs C)
 option(BUILD_DEPS "Builds aws common runtime dependencies as part of build, only do this if you don't want to control your dependency chain." ON)
 
@@ -45,7 +45,7 @@ if (BUILD_DEPS)
     if (UNIX AND NOT APPLE)
         include(AwsPrebuildDependency)
         # s2n-tls uses libcrypto during its configuration, so we need to prebuild aws-lc.
-        prebuild_dependency(
+        aws_prebuild_dependency(
             DEPENDENCY_NAME AWSLC
             SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/aws-lc
             CMAKE_ARGUMENTS
@@ -54,8 +54,14 @@ if (BUILD_DEPS)
                 -DBUILD_LIBSSL=OFF
                 -DBUILD_TESTING=OFF
         )
-        set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
-        add_subdirectory(crt/s2n)
+        # prebuild s2n-tls.
+        aws_prebuild_dependency(
+            DEPENDENCY_NAME S2N
+            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/s2n
+            CMAKE_ARGUMENTS
+                -DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF
+                -DBUILD_TESTING=OFF
+        )
     endif()
 
     add_subdirectory(crt/aws-c-sdkutils)
@@ -72,10 +78,6 @@ if (BUILD_DEPS)
 else()
     include(AwsFindPackage)
     set(IN_SOURCE_BUILD OFF)
-endif()
-
-if (POLICY CMP0069)
-    cmake_policy(SET CMP0069 NEW) # Enable LTO/IPO if available in the compiler, see AwsCFlags
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_PREFIX_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake")

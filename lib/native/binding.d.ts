@@ -143,6 +143,8 @@ export function hmac_sha256_compute(secret: StringLike, data: StringLike, trunca
 export function checksums_crc32(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc32c(data: StringLike, previous?: number): number;
+/** @internal */
+export function checksums_crc64nvme(data: StringLike, previous?: DataView): DataView;
 
 /* MQTT Request-Response Client */
 

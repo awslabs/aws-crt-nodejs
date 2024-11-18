@@ -43,6 +43,21 @@ export function normalize_payload(payload: any): Buffer | string {
     throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
+/**
+ * Converts payload to Buffer only, regardless of the supplied type
+ * @param payload The payload to convert
+ * @internal
+ */
+export function normalize_payload_to_buffer(payload: any): Buffer {
+    let normalized = normalize_payload(payload);
+    if (typeof normalized === 'string') {
+        // pass string through
+        return Buffer.from(normalized);
+    }
+
+    return normalized;
+}
+
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 

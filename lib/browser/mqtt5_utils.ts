@@ -97,7 +97,7 @@ function create_mqtt_js_will_from_crt_config(connectProperties? : mqtt5.ConnectP
 
     let will : any = {
         topic: crtWill.topicName,
-        payload: crtWill.payload ?? "",
+        payload: crtWill.payload ?? mqtt_shared.normalize_payload_to_buffer(""),
         qos: crtWill.qos,
         retain: crtWill.retain ?? false
     };
@@ -402,6 +402,25 @@ export function transform_crt_subscribe_to_mqtt_js_subscribe_options(subscribe: 
 }
 
 /** @internal **/
+export function transform_mqtt_js_suback_to_crt_suback(mqttJsSuback: mqtt.ISubackPacket) : mqtt5.SubackPacket {
+    if (!mqttJsSuback) {
+        throw new CrtError("transform_mqtt_js_suback_to_crt_suback: mqttJsSuback not defined");
+    }
+
+    let crtSuback : mqtt5.SubackPacket = {
+        type: mqtt5.PacketType.Suback,
+        reasonCodes : mqttJsSuback.granted.map((value, index, array) : mqtt5.SubackReasonCode => { return value as mqtt5.SubackReasonCode; }),
+    };
+
+    if (mqttJsSuback.properties) {
+        utils.set_defined_property(crtSuback, "reasonString", mqttJsSuback.properties?.reasonString);
+        utils.set_defined_property(crtSuback, "userProperties", transform_mqtt_js_user_properties_to_crt_user_properties(mqttJsSuback.properties?.userProperties));
+    }
+
+    return crtSuback;
+}
+
+/** @internal **/
 export function transform_mqtt_js_subscription_grants_to_crt_suback(subscriptionsGranted: mqtt.ISubscriptionGrant[]) : mqtt5.SubackPacket {
 
     if (subscriptionsGranted == null || subscriptionsGranted == undefined) {
@@ -490,7 +509,7 @@ export function transform_mqtt_js_publish_to_crt_publish(publish: mqtt.IPublishP
         let subIdsType : string = typeof subIds;
         if (subIds) {
             if (subIdsType == 'number') {
-                crtPublish["subscriptionIdentifiers"] = [subIds];
+                crtPublish["subscriptionIdentifiers"] = [subIds as number];
             } else if (Array.isArray(subIds)) {
                 crtPublish["subscriptionIdentifiers"] = subIds;
             }
@@ -521,7 +540,7 @@ export function transform_mqtt_js_puback_to_crt_puback(puback: mqtt.IPubackPacke
 }
 
 /** @internal **/
-export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubscribe: mqtt5.UnsubscribePacket) : Object {
+export function transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options(unsubscribe: mqtt5.UnsubscribePacket) : any {
 
     if (unsubscribe == null || unsubscribe == undefined) {
         throw new CrtError("transform_crt_unsubscribe_to_mqtt_js_unsubscribe_options: unsubscribe not defined");
@@ -549,7 +568,6 @@ export function transform_mqtt_js_unsuback_to_crt_unsuback(packet: mqtt.IUnsubac
     }
 
     let reasonCodes : number | number[] | undefined = packet.reasonCode;
-
     let codes : number[];
     if (Array.isArray(reasonCodes)) {
         codes = reasonCodes;

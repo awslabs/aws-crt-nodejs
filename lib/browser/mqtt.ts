@@ -36,7 +36,7 @@ import {
     OnConnectionFailedResult,
     OnConnectionClosedResult
 } from "../common/mqtt";
-import { normalize_payload } from "../common/mqtt_shared";
+import {normalize_payload, normalize_payload_to_buffer} from "../common/mqtt_shared";
 
 export {
     QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
@@ -310,7 +310,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         const will = this.config.will ? {
             topic: this.config.will.topic,
-            payload: normalize_payload(this.config.will.payload),
+            payload: normalize_payload_to_buffer(this.config.will.payload),
             qos: this.config.will.qos,
             retain: this.config.will.retain,
         } : undefined;
@@ -576,7 +576,18 @@ export class MqttClientConnection extends BufferedEventEmitter {
                     return this.on_error(error);
                 }
                 const sub = (packet as mqtt.ISubscriptionGrant[])[0];
-                resolve({ topic: sub.topic, qos: sub.qos });
+
+                /*
+                 * 128 is not modeled in QoS, either on our side nor mqtt-js's side.
+                 * We have always passed this 128 to the user and it is not reasonable to extend
+                 * our output type with 128 since it's also our input type and we don't want anyone
+                 * to pass 128 to us.
+                 *
+                 * The 5 client solves this by making the output type a completely separate enum.
+                 *
+                 * By doing this cast, we make the type checker ignore this edge case.
+                 */
+                resolve({ topic: sub.topic, qos: sub.qos as QoS });
             });
         });
     }
