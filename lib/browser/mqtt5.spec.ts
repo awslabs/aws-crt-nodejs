@@ -10,7 +10,7 @@ import url from "url";
 import {HttpsProxyAgent} from "https-proxy-agent";
 import * as auth from "./auth";
 
-jest.setTimeout(1000000);
+jest.setTimeout(10000);
 
 function createBrowserSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
@@ -405,7 +405,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     await test_utils.testNegotiatedSettings(forcedRejoinClient, true);
 });
 
-test('Sub - Pub QoS 0 - Unsub', async () => {
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 0 - Unsub', async () => {
     let topic : string = `test/${uuid()}`;
     let testPayload : Buffer = Buffer.from("Derp", "utf-8");
 
