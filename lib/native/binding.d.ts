@@ -19,6 +19,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
+import * as mqtt_request_response from "../native/mqtt_request_response";
 
 
 /**
@@ -144,6 +145,43 @@ export function checksums_crc32(data: StringLike, previous?: number): number;
 export function checksums_crc32c(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc64nvme(data: StringLike, previous?: DataView): DataView;
+
+/* MQTT Request-Response Client */
+
+/** @internal */
+export function mqtt_request_response_client_new_from_5(
+    client: mqtt_request_response.RequestResponseClient,
+    protocolClient: NativeHandle,
+    options: mqtt_request_response.RequestResponseClientOptions
+): NativeHandle;
+
+/** @internal */
+export function mqtt_request_response_client_new_from_311(
+    client: mqtt_request_response.RequestResponseClient,
+    protocolClient: NativeHandle,
+    options: mqtt_request_response.RequestResponseClientOptions
+): NativeHandle;
+
+/** @internal */
+export function mqtt_request_response_client_close(client: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_request_response_client_submit_request(client: NativeHandle, request_options: mqtt_request_response.RequestResponseOperationOptions, on_completion: (errorCode: number, topic?: string, response?: ArrayBuffer) => void) : void;
+
+/** @internal */
+export function mqtt_streaming_operation_new(
+    operation: mqtt_request_response.StreamingOperationBase,
+    client: NativeHandle,
+    options: mqtt_request_response.StreamingOperationOptions,
+    on_subscription_status_update_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => void,
+    on_incoming_publish_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, publishEvent: mqtt_request_response.IncomingPublishEvent) => void,
+): NativeHandle;
+
+/** @internal */
+export function mqtt_streaming_operation_open(operation: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_streaming_operation_close(operation: NativeHandle) : void;
 
 /* MQTT5 Client */
 

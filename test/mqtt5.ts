@@ -65,8 +65,7 @@ export class ClientEnvironmentalConfig {
     {
         return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
             ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID !== "" &&
-            ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY !== "" &&
-            ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN !== "";
+            ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY !== "";
     }
 
     public static hasIotCoreEnvironment() {
