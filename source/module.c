@@ -17,6 +17,7 @@
 #include "mqtt5_client.h"
 #include "mqtt_client.h"
 #include "mqtt_client_connection.h"
+#include "mqtt_request_response.h"
 
 #include <aws/cal/cal.h>
 
@@ -596,6 +597,35 @@ enum aws_napi_get_named_property_result aws_napi_get_named_property_buffer_lengt
     return result;
 }
 
+static int s_typed_array_element_type_to_byte_length(napi_typedarray_type type, size_t *element_length) {
+    switch (type) {
+        case napi_int8_array:
+        case napi_uint8_array:
+        case napi_uint8_clamped_array:
+            *element_length = 1;
+            return AWS_OP_SUCCESS;
+
+        case napi_int16_array:
+        case napi_uint16_array:
+            *element_length = 2;
+            return AWS_OP_SUCCESS;
+
+        case napi_int32_array:
+        case napi_uint32_array:
+        case napi_float32_array:
+            *element_length = 4;
+            return AWS_OP_SUCCESS;
+
+        case napi_float64_array:
+        case 9:  /*napi_bigint64_array */
+        case 10: /*napi_biguint64_array*/
+            *element_length = 8;
+            return AWS_OP_SUCCESS;
+    }
+
+    return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+}
+
 napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, napi_value node_str) {
 
     AWS_ASSERT(buf);
@@ -650,33 +680,10 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
                 });
 
             size_t element_size = 0;
-
-            /* whoever added napi_bigint64_array to the node api deserves a good thrashing!!!! */
-            int type_hack = array_type;
-            switch (type_hack) {
-                case napi_int8_array:
-                case napi_uint8_array:
-                case napi_uint8_clamped_array:
-                    element_size = 1;
-                    break;
-
-                case napi_int16_array:
-                case napi_uint16_array:
-                    element_size = 2;
-                    break;
-
-                case napi_int32_array:
-                case napi_uint32_array:
-                case napi_float32_array:
-                    element_size = 4;
-                    break;
-
-                case napi_float64_array:
-                case 9:  /*napi_bigint64_array */
-                case 10: /*napi_biguint64_array*/
-                    element_size = 8;
-                    break;
+            if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
+                return napi_invalid_arg;
             }
+
             buf->len = length * element_size;
             buf->capacity = buf->len;
 
@@ -685,6 +692,162 @@ napi_status aws_byte_buf_init_from_napi(struct aws_byte_buf *buf, napi_env env, 
     }
 
     return napi_invalid_arg;
+}
+
+int aws_napi_value_get_storage_length(napi_env env, napi_value value, size_t *storage_length) {
+
+    napi_valuetype type = napi_undefined;
+    AWS_NAPI_CALL(env, napi_typeof(env, value, &type), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    if (type == napi_string) {
+        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, NULL, 0, storage_length), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        return AWS_OP_SUCCESS;
+    } else if (type == napi_object) {
+        /* Try ArrayBuffer */
+        bool is_array_buffer = false;
+        AWS_NAPI_CALL(env, napi_is_arraybuffer(env, value, &is_array_buffer), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_array_buffer) {
+            void *buffer = NULL;
+            AWS_NAPI_CALL(env, napi_get_arraybuffer_info(env, value, &buffer, storage_length), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            return AWS_OP_SUCCESS;
+        }
+
+        /* Try DataView */
+        bool is_data_view = false;
+        AWS_NAPI_CALL(env, napi_is_dataview(env, value, &is_data_view), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_data_view) {
+            AWS_NAPI_CALL(env, napi_get_dataview_info(env, value, storage_length, NULL, NULL, NULL), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            return AWS_OP_SUCCESS;
+        }
+
+        /* Try TypedArray */
+        bool is_typed_array = false;
+        AWS_NAPI_CALL(env, napi_is_typedarray(env, value, &is_typed_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_typed_array) {
+            napi_typedarray_type array_type = napi_uint8_array;
+            size_t length = 0;
+            AWS_NAPI_CALL(env, napi_get_typedarray_info(env, value, &array_type, &length, NULL, NULL, NULL), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            size_t element_size = 0;
+            if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
+                return napi_invalid_arg;
+            }
+
+            *storage_length = length * element_size;
+
+            return AWS_OP_SUCCESS;
+        }
+    }
+
+    return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
+}
+
+int aws_napi_value_bytebuf_append(
+    napi_env env,
+    napi_value value,
+    struct aws_byte_buf *output_buffer,
+    struct aws_byte_cursor *bytes_written_cursor) {
+
+    AWS_ZERO_STRUCT(*bytes_written_cursor);
+
+    napi_valuetype type = napi_undefined;
+    AWS_NAPI_CALL(env, napi_typeof(env, value, &type), { return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT); });
+
+    size_t open_bytes = output_buffer->capacity - output_buffer->len;
+    uint8_t *open_space = output_buffer->buffer + output_buffer->len;
+
+    if (type == napi_string) {
+        size_t bytes_written = 0;
+        AWS_NAPI_CALL(env, napi_get_value_string_utf8(env, value, (char *)open_space, open_bytes, &bytes_written), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+
+        /* technically, we might have been truncated, but there's no way to tell */
+        bytes_written_cursor->ptr = open_space;
+        bytes_written_cursor->len = bytes_written;
+        output_buffer->len += bytes_written;
+
+        return AWS_OP_SUCCESS;
+    } else if (type == napi_object) {
+        /* Try ArrayBuffer */
+        bool is_array_buffer = false;
+        AWS_NAPI_CALL(env, napi_is_arraybuffer(env, value, &is_array_buffer), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_array_buffer) {
+            void *buffer = NULL;
+            size_t buffer_length = 0;
+            AWS_NAPI_CALL(env, napi_get_arraybuffer_info(env, value, &buffer, &buffer_length), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            bytes_written_cursor->ptr = buffer;
+            bytes_written_cursor->len = buffer_length;
+
+            return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
+        }
+
+        /* Try DataView */
+        bool is_data_view = false;
+        AWS_NAPI_CALL(env, napi_is_dataview(env, value, &is_data_view), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_data_view) {
+            void *buffer = NULL;
+            size_t buffer_length = 0;
+            AWS_NAPI_CALL(env, napi_get_dataview_info(env, value, &buffer_length, &buffer, NULL, NULL), {
+                return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+            });
+
+            bytes_written_cursor->ptr = buffer;
+            bytes_written_cursor->len = buffer_length;
+
+            return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
+        }
+
+        bool is_typed_array = false;
+        AWS_NAPI_CALL(env, napi_is_typedarray(env, value, &is_typed_array), {
+            return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+        });
+        if (is_typed_array) {
+            napi_typedarray_type array_type = napi_uint8_array;
+            size_t length = 0;
+            uint8_t *buffer = NULL;
+            AWS_NAPI_CALL(
+                env, napi_get_typedarray_info(env, value, &array_type, &length, (void **)&buffer, NULL, NULL), {
+                    return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE);
+                });
+
+            size_t element_size = 0;
+            if (s_typed_array_element_type_to_byte_length(array_type, &element_size)) {
+                return napi_invalid_arg;
+            }
+
+            bytes_written_cursor->ptr = buffer;
+            bytes_written_cursor->len = element_size * length;
+
+            return aws_byte_buf_append_and_update(output_buffer, bytes_written_cursor);
+        }
+    }
+
+    return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
 }
 
 struct aws_string *aws_string_new_from_napi(napi_env env, napi_value node_str) {
@@ -1367,6 +1530,15 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(io_input_stream_append)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_new)
     CREATE_AND_REGISTER_FN(io_pkcs11_lib_close)
+
+    /* MQTT Request Response */
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_new_from_5)
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_new_from_311)
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_close)
+    CREATE_AND_REGISTER_FN(mqtt_request_response_client_submit_request)
+    CREATE_AND_REGISTER_FN(mqtt_streaming_operation_new)
+    CREATE_AND_REGISTER_FN(mqtt_streaming_operation_open)
+    CREATE_AND_REGISTER_FN(mqtt_streaming_operation_close)
 
     /* MQTT5 Client */
     CREATE_AND_REGISTER_FN(mqtt5_client_new)

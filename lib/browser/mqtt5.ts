@@ -624,6 +624,15 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
     }
 
     /**
+     * Queries whether the client is currently connected
+     *
+     * @returns whether the client is currently connected
+     */
+    isConnected() : boolean {
+        return this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connected;
+    }
+
+    /**
      * Event emitted when the client encounters a disruptive error condition.  Not currently used.
      *
      * Listener type: {@link ErrorEventListener}
