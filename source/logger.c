@@ -264,13 +264,13 @@ void s_threadsafe_log_create(struct aws_napi_logger_ctx *ctx, napi_env env) {
     /* process._rawDebug is specific to NodeJS and may not exist in
        other environments like Deno, fall back to console.error */
     if (rawdebug_type == napi_undefined) {
-       napi_value node_console = NULL;
-       AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_global, "console", &node_console));
+        napi_value node_console = NULL;
+        AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_global, "console", &node_console));
 
-       napi_value node_error = NULL;
-       AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_console, "error", &node_error));
+        napi_value node_error = NULL;
+        AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_console, "error", &node_error));
 
-       node_rawdebug = node_error;
+        node_rawdebug = node_error;
     }
 
     napi_value resource_name = NULL;
