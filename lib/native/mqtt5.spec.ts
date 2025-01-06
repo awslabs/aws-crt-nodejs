@@ -635,7 +635,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         payload: testPayload
     });
 
-    await setTimeout(()=>{}, 2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     statistics = client.getOperationalStatistics();
     expect(statistics.incompleteOperationCount).toBeLessThanOrEqual(0);
