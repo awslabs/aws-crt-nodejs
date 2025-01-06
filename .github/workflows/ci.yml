@@ -88,7 +88,7 @@ jobs:
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-alpine-3.16-armv7 build -p ${{ env.PACKAGE_NAME }}
 
   linux-musl-armv8:
-    runs-on: codebuild-aws-crt-java-codebuild-codebuild-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large
+    runs-on: codebuild-aws-crt-nodejs-arm64-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large
     strategy:
       fail-fast: false
     steps:
