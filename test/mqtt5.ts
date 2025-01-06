@@ -402,7 +402,7 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
         payload: testPayload
     });
 
-    await setTimeout(()=>{}, 2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     client.stop();
     await stopped;
@@ -433,6 +433,9 @@ export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.M
     if (!mqtt5.isSuccessfulSubackReasonCode(suback.reasonCodes[0])) {
         throw new CrtError("doh");
     }
+
+    // pause to minimize eventual consistency race condition possibility
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     publisher.stop({
         reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
