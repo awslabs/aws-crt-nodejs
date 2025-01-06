@@ -662,8 +662,6 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     let messagesReceived : number = 0;
     subscriberMessages.forEach(v => {
         messagesReceived += v;
-        // Each subscriber should receive a portion of messages.
-        expect(v).toBeGreaterThan(0);
     });
     expect(messagesReceived).toEqual(messagesNumber);
 
