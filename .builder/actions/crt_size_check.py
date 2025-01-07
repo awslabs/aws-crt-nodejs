@@ -74,4 +74,5 @@ class CrtSizeCheck(Builder.Action):
 
         print(f"Total NPM package file size: {total_size} bytes")
         if total_size > max_size:
-            raise Exception(f'NPM package exceeds size limit of {max_size} bytes.')
+            raise Exception(f'NPM package exceeds size limit of {
+                            max_size} bytes.')
