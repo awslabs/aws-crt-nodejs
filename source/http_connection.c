@@ -149,8 +149,11 @@ struct http_connection_binding {
 /* finalizer called when node cleans up this object */
 static void s_http_connection_from_manager_binding_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
-    (void)env;
     struct http_connection_binding *binding = finalize_data;
+
+    if (binding->node_external != NULL) {
+        napi_delete_reference(env, binding->node_external);
+    }
 
     /* no release call, the http_client_connection_manager has already released it */
     aws_mem_release(binding->allocator, binding);
