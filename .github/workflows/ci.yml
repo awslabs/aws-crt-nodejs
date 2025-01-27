@@ -21,13 +21,14 @@ permissions:
 
 jobs:
   linux-compat:
-    runs-on: ubuntu-24.04 # latest
+    runs-on: ubuntu-22.04 # temporarily downgrade to old ubuntu until https://github.com/actions/runner-images/issues/11471 resolves
     strategy:
       fail-fast: false
       matrix:
         image:
           - al2012-x64
           - al2-x64
+          - manylinux2014-aarch64
           - manylinux2014-x64
           - fedora-34-x64
           - opensuse-leap
@@ -44,27 +45,6 @@ jobs:
         aws s3 cp s3://aws-crt-test-stuff/ci/${{ env.BUILDER_VERSION }}/linux-container-ci.sh ./linux-container-ci.sh && chmod a+x ./linux-container-ci.sh
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
-
-
-  linux-compat-armv8:
-    runs-on: codebuild-aws-crt-nodejs-arm64-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large
-    strategy:
-      fail-fast: false
-      matrix:
-        image:
-          - manylinux2014-aarch64
-    steps:
-    - uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ env.CRT_CI_ROLE }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
-    # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
-    - name: Build ${{ env.PACKAGE_NAME }}
-      run: |
-        aws s3 cp s3://aws-crt-test-stuff/ci/${{ env.BUILDER_VERSION }}/linux-container-ci.sh ./linux-container-ci.sh && chmod a+x ./linux-container-ci.sh
-        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
-
 
   musl-linux:
     runs-on: ubuntu-24.04 # latest
