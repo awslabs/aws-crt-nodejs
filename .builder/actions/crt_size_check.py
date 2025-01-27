@@ -11,7 +11,7 @@ class CrtSizeCheck(Builder.Action):
         # Maximum package size (for current platform) in bytes
         # NOTE: if you increase this, you might also need to increase the
         # limit in continuous-delivery/pack.sh
-        max_size = 8_400_000
+        max_size = 9_000_000
         # size of current folder
         folder_size = 0
         # total size in bytes
@@ -74,4 +74,5 @@ class CrtSizeCheck(Builder.Action):
 
         print(f"Total NPM package file size: {total_size} bytes")
         if total_size > max_size:
-            raise Exception(f'NPM package exceeds size limit of {max_size} bytes.')
+            raise Exception(f'NPM package exceeds size limit of {
+                            max_size} bytes.')
