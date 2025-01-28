@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   linux-compat:
-    runs-on: ubuntu-24.04 # latest
+    runs-on: ubuntu-22.04 # temporarily downgrade to old ubuntu until https://github.com/actions/runner-images/issues/11471 resolves
     strategy:
       fail-fast: false
       matrix:
