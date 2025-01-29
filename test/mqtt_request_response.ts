@@ -467,6 +467,7 @@ export async function do_streaming_operation_incoming_publish_test(version: Prot
 
     let incoming_publish : mqtt_request_response.IncomingPublishEvent = (await publish_received_promise)[0];
 
+    expect(incoming_publish.topic).toEqual(topic_filter);
     expect(Buffer.from(incoming_publish.payload as ArrayBuffer)).toEqual(payload);
 
     stream.close();

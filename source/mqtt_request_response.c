@@ -1270,6 +1270,7 @@ struct on_incoming_publish_user_data {
     struct aws_allocator *allocator;
 
     struct aws_request_response_streaming_operation_binding *binding_ref;
+    struct aws_byte_buf topic;
     struct aws_byte_buf *payload;
 };
 
@@ -1279,6 +1280,8 @@ static void s_on_incoming_publish_user_data_destroy(struct on_incoming_publish_u
     }
 
     user_data->binding_ref = s_aws_request_response_streaming_operation_binding_release(user_data->binding_ref);
+
+    aws_byte_buf_clean_up(&user_data->topic);
 
     if (user_data->payload != NULL) {
         aws_byte_buf_clean_up(user_data->payload);
@@ -1290,11 +1293,16 @@ static void s_on_incoming_publish_user_data_destroy(struct on_incoming_publish_u
 
 static struct on_incoming_publish_user_data *s_on_incoming_publish_user_data_new(
     struct aws_request_response_streaming_operation_binding *binding,
+    struct aws_byte_cursor topic,
     struct aws_byte_cursor payload) {
 
     struct on_incoming_publish_user_data *user_data =
         aws_mem_calloc(binding->allocator, 1, sizeof(struct on_incoming_publish_user_data));
     user_data->allocator = binding->allocator;
+
+    if (aws_byte_buf_init_copy_from_cursor(&user_data->topic, binding->allocator, topic)) {
+        goto error;
+    }
 
     user_data->payload = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
     if (aws_byte_buf_init_copy_from_cursor(user_data->payload, binding->allocator, payload)) {
@@ -1324,6 +1332,11 @@ static int s_aws_create_napi_value_from_incoming_publish_event(
     napi_value napi_event = NULL;
     AWS_NAPI_CALL(
         env, napi_create_object(env, &napi_event), { return aws_raise_error(AWS_CRT_NODEJS_ERROR_NAPI_FAILURE); });
+
+    struct aws_byte_cursor topic_cursor = aws_byte_cursor_from_buf(&publish_event->topic);
+    if (aws_napi_attach_object_property_string(napi_event, env, AWS_NAPI_KEY_TOPIC, topic_cursor)) {
+        return AWS_OP_ERR;
+    }
 
     if (aws_napi_attach_object_property_binary_as_finalizable_external(
             napi_event, env, AWS_NAPI_KEY_PAYLOAD, publish_event->payload)) {
@@ -1386,10 +1399,14 @@ done:
     s_on_incoming_publish_user_data_destroy(publish_event);
 }
 
-static void s_mqtt_streaming_operation_on_incoming_publish(struct aws_byte_cursor payload, void *user_data) {
+static void s_mqtt_streaming_operation_on_incoming_publish(
+    struct aws_byte_cursor payload,
+    struct aws_byte_cursor topic,
+    void *user_data) {
     struct aws_request_response_streaming_operation_binding *binding = user_data;
 
-    struct on_incoming_publish_user_data *incoming_publish_ud = s_on_incoming_publish_user_data_new(binding, payload);
+    struct on_incoming_publish_user_data *incoming_publish_ud =
+        s_on_incoming_publish_user_data_new(binding, topic, payload);
     if (incoming_publish_ud == NULL) {
         return;
     }
