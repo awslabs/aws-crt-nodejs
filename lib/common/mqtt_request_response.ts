@@ -58,6 +58,11 @@ export interface SubscriptionStatusEvent {
 export interface IncomingPublishEvent {
 
     /**
+     * MQTT Topic that the response was received on.
+     */
+    topic: string
+
+    /**
      * The payload of the incoming message.
      */
     payload: StreamingPayload
@@ -235,4 +240,3 @@ export interface IRequestResponseClient {
      */
     submitRequest(requestOptions: RequestResponseOperationOptions): Promise<Response>;
 }
-
