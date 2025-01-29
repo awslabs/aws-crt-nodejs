@@ -808,6 +808,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
             let streamingOperation = operation as StreamingOperation;
             streamingOperation.operation.triggerIncomingPublishEvent({
+                topic: event.topic,
                 payload: event.payload
             });
         }
