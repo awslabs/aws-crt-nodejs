@@ -108,7 +108,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 target_include_directories(${PROJECT_NAME} PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
-        ${CMAKE_JS_INC})
+        ${CMAKE_JS_INC}
+        ${CMAKE_JS_INC}/node)
 
 aws_use_package(aws-c-http REQUIRED)
 aws_use_package(aws-c-mqtt REQUIRED)
