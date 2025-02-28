@@ -1,3 +1,5 @@
+set AWS_WINDOWS_SDK_VERSION=10.0.17763.0
+
 npm install || goto error
 
 :error
