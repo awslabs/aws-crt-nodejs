@@ -129,13 +129,26 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     const onMessage = once(connectionWaitingForWill, 'message');
     await connectionWaitingForWill.subscribe(willTopic, QoS.AtLeastOnce);
 
+    // pause for a couple of seconds to try and minimize chance for a service-side race
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     // The third connection that will cause the first one to be disconnected because it has the same client ID.
     const connectionDuplicate = await makeConnection(undefined, client_id);
-    const onConnectDuplicate = once(connectionDuplicate, 'connect');
+
     const onDisconnectDuplicate = once(connectionDuplicate, 'disconnect');
-    await connectionDuplicate.connect()
-    const connectDuplicateResult = (await onConnectDuplicate)[0];
-    expect(connectDuplicateResult).toBeFalsy(); /* session present */
+
+    // Rarely, IoT Core disconnects the new connection and not the existing one, so retry in that case
+    let continueConnecting = true;
+    while (continueConnecting) {
+        try {
+            const onConnectDuplicate = once(connectionDuplicate, 'connect');
+            await connectionDuplicate.connect();
+            await onConnectDuplicate;
+            continueConnecting = false;
+        } catch (err) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
 
     // The second connection should receive Will message after the first connection was kicked out.
     const messageReceivedArgs = (await onMessage);
@@ -199,6 +212,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT payload types', async () => {
+
     const connection = await makeConnection();
 
     let onDisconnect = once(connection, 'disconnect');

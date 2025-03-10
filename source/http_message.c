@@ -79,19 +79,20 @@ napi_status aws_napi_http_message_bind(napi_env env, napi_value exports) {
 
 struct http_request_binding {
     struct aws_http_message *native;
-    struct aws_allocator *allocator;
 
     napi_ref node_headers;
 };
 
-/* Need a special finalizer to avoid releasing a request object we don't own */
-static void s_napi_wrapped_http_request_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
+static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
-
     struct http_request_binding *binding = finalize_data;
-    struct aws_allocator *allocator = binding->allocator;
+    struct aws_allocator *allocator = aws_napi_get_allocator();
 
+    if (binding->node_headers != NULL) {
+        napi_delete_reference(env, binding->node_headers);
+    }
+
+    aws_http_message_release(binding->native);
     aws_mem_release(allocator, binding);
 }
 
@@ -99,9 +100,8 @@ napi_status aws_napi_http_message_wrap(napi_env env, struct aws_http_message *me
 
     struct http_request_binding *binding =
         aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(struct http_request_binding));
-    binding->native = message;
-    binding->allocator = aws_napi_get_allocator();
-    return aws_napi_wrap(env, &s_request_class_info, binding, s_napi_wrapped_http_request_finalize, result);
+    binding->native = aws_http_message_acquire(message);
+    return aws_napi_wrap(env, &s_request_class_info, binding, s_napi_http_request_finalize, result);
 }
 
 struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value js_object) {
@@ -114,20 +114,6 @@ struct aws_http_message *aws_napi_http_message_unwrap(napi_env env, napi_value j
 /***********************************************************************************************************************
  * Constructor
  **********************************************************************************************************************/
-
-static void s_napi_http_request_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
-    (void)env;
-
-    struct http_request_binding *binding = finalize_data;
-    struct aws_allocator *allocator = finalize_hint;
-
-    if (binding->node_headers != NULL) {
-        napi_delete_reference(env, binding->node_headers);
-    }
-
-    aws_http_message_destroy(binding->native);
-    aws_mem_release(allocator, binding);
-}
 
 static napi_value s_request_constructor(napi_env env, const struct aws_napi_callback_info *cb_info) {
 
@@ -167,7 +153,7 @@ static napi_value s_request_constructor(napi_env env, const struct aws_napi_call
     }
 
     napi_value node_this = cb_info->native_this;
-    AWS_NAPI_CALL(env, napi_wrap(env, node_this, binding, s_napi_http_request_finalize, alloc, NULL), {
+    AWS_NAPI_CALL(env, napi_wrap(env, node_this, binding, s_napi_http_request_finalize, NULL, NULL), {
         napi_throw_error(env, NULL, "Failed to wrap HttpRequest");
         goto cleanup;
     });
@@ -177,7 +163,7 @@ static napi_value s_request_constructor(napi_env env, const struct aws_napi_call
 cleanup:
     if (binding) {
         if (binding->native) {
-            aws_http_message_destroy(binding->native);
+            aws_http_message_release(binding->native);
         }
         aws_mem_release(alloc, binding);
     }
@@ -238,14 +224,15 @@ static napi_value s_request_headers_get(napi_env env, void *native_this) {
 
     napi_value result = NULL;
     if (binding->node_headers) {
+        /* This HTTP request already has a reference to the Node object for the headers */
         AWS_NAPI_ENSURE(env, napi_get_reference_value(env, binding->node_headers, &result));
     } else {
+        /* There is no Node object for these headers.
+         * Create a Node object, and a reference to it, and store that reference on this HTTP request */
         struct aws_http_headers *headers = aws_http_message_get_headers(binding->native);
         AWS_NAPI_ENSURE(env, aws_napi_http_headers_wrap(env, headers, &result));
+        AWS_NAPI_ENSURE(env, napi_create_reference(env, result, 1, &binding->node_headers));
     }
-
-    /* Store the value for later */
-    AWS_NAPI_ENSURE(env, napi_create_reference(env, result, 1, &binding->node_headers));
 
     return result;
 }

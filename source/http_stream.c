@@ -74,7 +74,7 @@ static void s_on_response_call(napi_env env, napi_value on_response, void *conte
     }
 
     /* clean up the response buffer */
-    aws_http_message_destroy(binding->response);
+    aws_http_message_release(binding->response);
     binding->response = NULL;
 }
 
