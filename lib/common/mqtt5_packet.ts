@@ -875,7 +875,7 @@ export interface ConnectPacket extends IPacket {
      *
      * See [MQTT5 Keep Alive](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901045)
      */
-    keepAliveIntervalSeconds: number;
+    keepAliveIntervalSeconds: 30;
 
     /**
      * A unique string identifying the client to the server.  Used to restore session state between connections.
