@@ -1400,13 +1400,12 @@ done:
 }
 
 static void s_mqtt_streaming_operation_on_incoming_publish(
-    struct aws_byte_cursor payload,
-    struct aws_byte_cursor topic,
+    const struct aws_mqtt_request_response_publish_event *publish_event,
     void *user_data) {
     struct aws_request_response_streaming_operation_binding *binding = user_data;
 
     struct on_incoming_publish_user_data *incoming_publish_ud =
-        s_on_incoming_publish_user_data_new(binding, topic, payload);
+        s_on_incoming_publish_user_data_new(binding, publish_event->topic, publish_event->payload);
     if (incoming_publish_ud == NULL) {
         return;
     }
