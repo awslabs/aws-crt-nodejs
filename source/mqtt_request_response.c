@@ -604,7 +604,7 @@ static int s_compute_request_response_storage_properties(
 
     // Step 3 - Go through all the subscription topic filters, response paths, and options fields and add up
     // the lengths of all the string and binary data fields.
-    for (size_t i = 0; i < subscription_filter_count; ++i) {
+    for (uint32_t i = 0; i < subscription_filter_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
             AWS_LOGF_ERROR(
@@ -626,7 +626,7 @@ static int s_compute_request_response_storage_properties(
         storage_properties->bytes_needed += filter_length;
     }
 
-    for (size_t i = 0; i < response_path_count; ++i) {
+    for (uint32_t i = 0; i < response_path_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_response_paths, i, &array_element), {
             AWS_LOGF_ERROR(
@@ -813,7 +813,7 @@ static int s_initialize_request_storage_from_napi_options(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    for (size_t i = 0; i < storage_properties.subscription_topic_filter_count; ++i) {
+    for (uint32_t i = 0; i < storage_properties.subscription_topic_filter_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
             AWS_LOGF_ERROR(
@@ -849,7 +849,7 @@ static int s_initialize_request_storage_from_napi_options(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    for (size_t i = 0; i < storage_properties.response_path_count; ++i) {
+    for (uint32_t i = 0; i < storage_properties.response_path_count; ++i) {
         napi_value response_path_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_response_paths, i, &response_path_element), {
             AWS_LOGF_ERROR(
