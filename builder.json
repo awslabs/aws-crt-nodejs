@@ -74,20 +74,6 @@
                     "!imports": [ "node-16" ]
                 }
             }
-        },
-        "windows": {
-            "!build_steps": [
-                [
-                    "node",
-                    "scripts/build.js",
-                    "-DAWS_WARNINGS_ARE_ERRORS=ON"
-                ],
-                [
-                    "npm",
-                    "install",
-                    "--unsafe-perm"
-                ]
-            ]
         }
     },
     "targets": {
@@ -107,6 +93,11 @@
         ]
     ],
     "build_steps": [
+        [
+            "node",
+            "scripts/build.js",
+            "-DAWS_WARNINGS_ARE_ERRORS=ON"
+        ],
         [
             "npm",
             "install",
