@@ -104,11 +104,6 @@
             "--unsafe-perm"
         ],
         [
-            "node",
-            "scripts/build.js",
-            "-DAWS_WARNINGS_ARE_ERRORS=ON"
-        ],
-        [
             "npm",
             "run-script",
             "tsc"
