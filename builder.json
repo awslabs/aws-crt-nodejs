@@ -94,14 +94,14 @@
     ],
     "build_steps": [
         [
-            "npm",
-            "install",
-            "--unsafe-perm"
-        ],
-        [
             "node",
             "scripts/build.js",
             "-DAWS_WARNINGS_ARE_ERRORS=ON"
+        ],
+        [
+            "npm",
+            "install",
+            "--unsafe-perm"
         ],
         [
             "npm",
