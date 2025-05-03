@@ -34,7 +34,6 @@
                 "cups-libs",
                 "libdrm",
                 "mesa-libgbm",
-
                 "libXdamage",
                 "libXext",
                 "libXi",
@@ -93,11 +92,6 @@
         ]
     ],
     "build_steps": [
-        [
-            "node",
-            "scripts/build.js",
-            "-DAWS_WARNINGS_ARE_ERRORS=ON"
-        ],
         [
             "npm",
             "install",
