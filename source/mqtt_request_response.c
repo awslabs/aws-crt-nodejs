@@ -484,20 +484,19 @@ done:
 }
 
 static void s_on_request_complete(
-    const struct aws_byte_cursor *response_topic,
-    const struct aws_byte_cursor *payload,
+    const struct aws_mqtt_rr_incoming_publish_event *publish_event,
     int error_code,
     void *user_data) {
 
     struct aws_napi_mqtt_request_binding *binding = user_data;
 
     if (error_code == AWS_ERROR_SUCCESS) {
-        AWS_FATAL_ASSERT(response_topic != NULL && payload != NULL);
+        AWS_FATAL_ASSERT(publish_event != NULL);
 
-        aws_byte_buf_init_copy_from_cursor(&binding->topic, binding->allocator, *response_topic);
+        aws_byte_buf_init_copy_from_cursor(&binding->topic, binding->allocator, publish_event->topic);
 
         binding->payload = aws_mem_calloc(binding->allocator, 1, sizeof(struct aws_byte_buf));
-        aws_byte_buf_init_copy_from_cursor(binding->payload, binding->allocator, *payload);
+        aws_byte_buf_init_copy_from_cursor(binding->payload, binding->allocator, publish_event->payload);
     } else {
         binding->error_code = error_code;
     }
@@ -604,7 +603,7 @@ static int s_compute_request_response_storage_properties(
 
     // Step 3 - Go through all the subscription topic filters, response paths, and options fields and add up
     // the lengths of all the string and binary data fields.
-    for (size_t i = 0; i < subscription_filter_count; ++i) {
+    for (uint32_t i = 0; i < subscription_filter_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
             AWS_LOGF_ERROR(
@@ -626,7 +625,7 @@ static int s_compute_request_response_storage_properties(
         storage_properties->bytes_needed += filter_length;
     }
 
-    for (size_t i = 0; i < response_path_count; ++i) {
+    for (uint32_t i = 0; i < response_path_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_response_paths, i, &array_element), {
             AWS_LOGF_ERROR(
@@ -813,7 +812,7 @@ static int s_initialize_request_storage_from_napi_options(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    for (size_t i = 0; i < storage_properties.subscription_topic_filter_count; ++i) {
+    for (uint32_t i = 0; i < storage_properties.subscription_topic_filter_count; ++i) {
         napi_value array_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_subscription_topic_filters, i, &array_element), {
             AWS_LOGF_ERROR(
@@ -849,7 +848,7 @@ static int s_initialize_request_storage_from_napi_options(
         return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
 
-    for (size_t i = 0; i < storage_properties.response_path_count; ++i) {
+    for (uint32_t i = 0; i < storage_properties.response_path_count; ++i) {
         napi_value response_path_element;
         AWS_NAPI_CALL(env, napi_get_element(env, node_response_paths, i, &response_path_element), {
             AWS_LOGF_ERROR(
@@ -1400,13 +1399,12 @@ done:
 }
 
 static void s_mqtt_streaming_operation_on_incoming_publish(
-    struct aws_byte_cursor payload,
-    struct aws_byte_cursor topic,
+    const struct aws_mqtt_rr_incoming_publish_event *publish_event,
     void *user_data) {
     struct aws_request_response_streaming_operation_binding *binding = user_data;
 
     struct on_incoming_publish_user_data *incoming_publish_ud =
-        s_on_incoming_publish_user_data_new(binding, topic, payload);
+        s_on_incoming_publish_user_data_new(binding, publish_event->topic, publish_event->payload);
     if (incoming_publish_ud == NULL) {
         return;
     }
