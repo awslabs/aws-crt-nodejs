@@ -8,23 +8,23 @@ import * as promise from "./promise";
 jest.setTimeout(10000);
 
 test('Lifted promise - resolve', async () => {
-    let liftedPromise : promise.LiftedPromise<void> = promise.newLiftedPromise<void>();
+    let liftedPromise: promise.LiftedPromise<void> = promise.newLiftedPromise<void>();
 
-    setImmediate(() => { liftedPromise.resolve();});
+    setTimeout(() => { liftedPromise.resolve(); });
 
     await liftedPromise.promise;
 });
 
 test('Lifted promise - reject', async () => {
-    let liftedPromise : promise.LiftedPromise<void> = promise.newLiftedPromise<void>();
+    let liftedPromise: promise.LiftedPromise<void> = promise.newLiftedPromise<void>();
 
-    setImmediate(() => { liftedPromise.reject("Fail");});
+    setTimeout(() => { liftedPromise.reject("Fail"); });
 
     await expect(liftedPromise.promise).rejects.toMatch("Fail");
 });
 
 test('Lifted promise - body function execution', async () => {
-    let liftedPromise : promise.LiftedPromise<void> = promise.newLiftedPromise<void>((resolve, reject) => {
+    let liftedPromise: promise.LiftedPromise<void> = promise.newLiftedPromise<void>((resolve, reject) => {
         resolve();
     });
 

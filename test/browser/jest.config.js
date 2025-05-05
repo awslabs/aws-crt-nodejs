@@ -23,14 +23,14 @@ module.exports = {
         '/cmake-js/',
         '/scripts/'
     ],
-    globalSetup: '<rootDir>/test/browser/jest.setup.js',
-    globalTeardown: '<rootDir>/test/browser/jest.teardown.js',
-    setupFilesAfterEnv: ['<rootDir>/test/browser/jest.setup.ts'],
     moduleNameMapper: {
         '@common/(.+)': '<rootDir>/lib/common/$1',
         '@awscrt/(.+)': '<rootDir>/lib/browser/$1',
         '@awscrt': '<rootDir>/lib/browser.ts',
         '@test/(.+)': '<rootDir>/test/$1',
         "axios": "axios/dist/node/axios.cjs"
-    }
+    },
+    testEnvironment: 'jsdom',
+    testEnvironmentOptions: {
+    },
 }

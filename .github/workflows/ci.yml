@@ -28,11 +28,29 @@ jobs:
         image:
           - al2012-x64
           - al2-x64
-          - manylinux2014-aarch64
           - manylinux2014-x64
           - fedora-34-x64
           - opensuse-leap
           - rhel8-x64
+    steps:
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ env.CRT_CI_ROLE }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+    # We can't use the `uses: docker://image` version yet, GitHub lacks authentication for actions -> packages
+    - name: Build ${{ env.PACKAGE_NAME }}
+      run: |
+        aws s3 cp s3://aws-crt-test-stuff/ci/${{ env.BUILDER_VERSION }}/linux-container-ci.sh ./linux-container-ci.sh && chmod a+x ./linux-container-ci.sh
+        docker run --privileged --rm tonistiigi/binfmt --install all
+        ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
+
+  linux-compat-arm:
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - manylinux2014-aarch64
           - raspbian-bullseye
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
@@ -65,7 +83,7 @@ jobs:
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${{ matrix.image }} build -p ${{ env.PACKAGE_NAME }}
 
   linux-musl-armv8:
-    runs-on: codebuild-aws-crt-nodejs-arm64-${{ github.run_id }}-${{ github.run_attempt }}-arm-3.0-large
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
     steps:

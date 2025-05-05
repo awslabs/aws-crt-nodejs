@@ -5,13 +5,14 @@
 
 import * as eventstream from './eventstream';
 import * as cancel from '../common/cancel';
-import {once} from "events";
+import { once } from "events";
 import crt_native from "./binding";
 import * as os from "os";
+import { TextEncoder } from 'util';
 
 jest.setTimeout(10000);
 
-function hasEchoServerEnvironment() : boolean {
+function hasEchoServerEnvironment(): boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
         return false;
     }
@@ -23,7 +24,7 @@ function hasEchoServerEnvironment() : boolean {
     return true;
 }
 
-const conditional_test = (condition : boolean) => condition ? it : it.skip;
+const conditional_test = (condition: boolean) => condition ? it : it.skip;
 
 function closeNativeConnectionInternal(connection: eventstream.ClientConnection) {
 
@@ -32,8 +33,8 @@ function closeNativeConnectionInternal(connection: eventstream.ClientConnection)
     crt_native.event_stream_client_connection_close_internal(connection.native_handle());
 }
 
-function makeGoodConfig() : eventstream.ClientConnectionOptions {
-    let config : eventstream.ClientConnectionOptions = {
+function makeGoodConfig(): eventstream.ClientConnectionOptions {
+    let config: eventstream.ClientConnectionOptions = {
         hostName: process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST ?? "",
         port: parseInt(process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_PORT ?? "0"),
     };
@@ -48,11 +49,11 @@ function makeGoodConfig() : eventstream.ClientConnectionOptions {
  */
 
 conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, close, and forget', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
-    let cancelController : cancel.CancelController = new cancel.CancelController();
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let cancelController: cancel.CancelController = new cancel.CancelController();
 
     await connection.connect({
-        cancelController : cancelController
+        cancelController: cancelController
     });
 
     // @ts-ignore
@@ -62,7 +63,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - await connect, simulate remote close', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
@@ -79,7 +80,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream transport connection success echo server - start connect, close, and forget', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     // intentionally do not await to try and beat the native connection setup with a close call
     connection.connect({});
@@ -89,13 +90,13 @@ conditional_test(hasEchoServerEnvironment())('Eventstream transport connection s
     await new Promise(resolve => setTimeout(resolve, 200));
 });
 
-async function doConnectionFailureTest(config : eventstream.ClientConnectionOptions) {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(config);
+async function doConnectionFailureTest(config: eventstream.ClientConnectionOptions) {
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(config);
 
-    let controller : cancel.CancelController = new cancel.CancelController();
+    let controller: cancel.CancelController = new cancel.CancelController();
 
     await expect(connection.connect({
-        cancelController : controller
+        cancelController: controller
     })).rejects.toBeDefined();
 
     // @ts-ignore
@@ -105,21 +106,21 @@ async function doConnectionFailureTest(config : eventstream.ClientConnectionOpti
 }
 
 test('Eventstream transport connection failure echo server - bad host', async () => {
-    let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
+    let badConfig: eventstream.ClientConnectionOptions = makeGoodConfig();
     badConfig.hostName = "derp.notarealdomainseriously.org";
 
     await doConnectionFailureTest(badConfig);
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream transport connection failure echo server - bad port', async () => {
-    let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
+    let badConfig: eventstream.ClientConnectionOptions = makeGoodConfig();
     badConfig.port = 33333;
 
     await doConnectionFailureTest(badConfig);
 });
 
 async function doProtocolConnectionSuccessTest1() {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
@@ -137,8 +138,8 @@ async function doProtocolConnectionSuccessTest1() {
         message: connectMessage
     });
 
-    let response : eventstream.MessageEvent = (await connectResponse)[0];
-    let message : eventstream.Message = response.message;
+    let response: eventstream.MessageEvent = (await connectResponse)[0];
+    let message: eventstream.Message = response.message;
 
     expect(message.type).toEqual(eventstream.MessageType.ConnectAck);
     expect(message.flags).toBeDefined();
@@ -154,7 +155,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection su
 });
 
 async function doProtocolConnectionSuccessTest2() {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
@@ -180,7 +181,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection su
     await new Promise(resolve => setTimeout(resolve, 200));
 });
 
-async function makeGoodConnection() : Promise<eventstream.ClientConnection> {
+async function makeGoodConnection(): Promise<eventstream.ClientConnection> {
     return new Promise<eventstream.ClientConnection>(async (resolve, reject) => {
         try {
             let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
@@ -214,7 +215,7 @@ async function makeGoodConnection() : Promise<eventstream.ClientConnection> {
     });
 }
 
-function buildAllTypeHeaderSet() : Array<eventstream.Header> {
+function buildAllTypeHeaderSet(): Array<eventstream.Header> {
     var encoder = new TextEncoder();
     let buffer: ArrayBuffer = encoder.encode("Some test");
     let uuid: ArrayBuffer = encoder.encode("0123456789ABCDEF");
@@ -239,7 +240,7 @@ function buildAllTypeHeaderSet() : Array<eventstream.Header> {
     return headers;
 }
 
-function verifyEchoedHeaders(expectedHeaders : Array<eventstream.Header>, actualHeaders : Array<eventstream.Header>) {
+function verifyEchoedHeaders(expectedHeaders: Array<eventstream.Header>, actualHeaders: Array<eventstream.Header>) {
     expectedHeaders.forEach((header: eventstream.Header) => {
         let actualHeader = actualHeaders.find((value: eventstream.Header) => { return value.name === header.name; });
         expect(actualHeader).toBeDefined();
@@ -247,7 +248,7 @@ function verifyEchoedHeaders(expectedHeaders : Array<eventstream.Header>, actual
         // @ts-ignore
         expect(header.type).toEqual(actualHeader.type);
 
-        switch(header.type) {
+        switch (header.type) {
             case eventstream.HeaderType.BooleanFalse:
             case eventstream.HeaderType.BooleanTrue:
                 break;
@@ -268,7 +269,7 @@ function verifyEchoedHeaders(expectedHeaders : Array<eventstream.Header>, actual
     });
 }
 
-async function verifyPingRoundTrip(connection : eventstream.ClientConnection) : Promise<void> {
+async function verifyPingRoundTrip(connection: eventstream.ClientConnection): Promise<void> {
     return new Promise<void>(async (resolve, reject) => {
         try {
             const pingResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
@@ -307,7 +308,7 @@ async function verifyPingRoundTrip(connection : eventstream.ClientConnection) : 
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection success - send and receive all-header-types ping', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
 
     await verifyPingRoundTrip(connection);
 
@@ -316,7 +317,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection success - s
 
 conditional_test(hasEchoServerEnvironment())('Eventstream protocol connection failure Echo Server - bad version', async () => {
 
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
     await connection.connect({});
 
     const connectResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
@@ -371,7 +372,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - c
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - create with missing required property', async () => {
-    let config : eventstream.ClientConnectionOptions = makeGoodConfig();
+    let config: eventstream.ClientConnectionOptions = makeGoodConfig();
 
     // @ts-ignore
     config.hostName = undefined;
@@ -382,27 +383,27 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - c
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - sendProtocolMessage with undefined', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
     // @ts-ignore
-    await expect(connection.sendProtocolMessage(undefined )).rejects.toThrow();
+    await expect(connection.sendProtocolMessage(undefined)).rejects.toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - sendProtocolMessage with missing required property', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
-    let controller : cancel.CancelController = new cancel.CancelController();
+    let controller: cancel.CancelController = new cancel.CancelController();
 
     // @ts-ignore
     await expect(connection.sendProtocolMessage({
         cancelController: controller
-    } )).rejects.toThrow();
+    })).rejects.toThrow();
 
     // @ts-ignore
     expect(controller.emitter.listenerCount(cancel.EVENT_NAME)).toEqual(0);
@@ -411,29 +412,29 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection failure - s
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - newStream while not connected', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    expect(() => {connection.newStream();}).toThrow();
+    expect(() => { connection.newStream(); }).toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - sendProtocolMessage while not connected', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.Connect
     };
 
-    await expect(connection.sendProtocolMessage({message: message} )).rejects.toThrow();
+    await expect(connection.sendProtocolMessage({ message: message })).rejects.toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - connect while connecting', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
-    let connected : Promise<void> = connection.connect({});
+    let connected: Promise<void> = connection.connect({});
 
     await expect(connection.connect({})).rejects.toThrow();
 
@@ -443,7 +444,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - connect while connected', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
@@ -453,7 +454,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - connect while disconnected', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
@@ -470,7 +471,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - newStream while disconnected', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
@@ -481,13 +482,13 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 
     await disconnected;
 
-    expect(() => {connection.newStream();}).toThrow();
+    expect(() => { connection.newStream(); }).toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - sendProtocolMessage while disconnected', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     let disconnected = once(connection, eventstream.ClientConnection.DISCONNECTION);
 
@@ -498,17 +499,17 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 
     await disconnected;
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.Connect
     };
 
-    await expect(connection.sendProtocolMessage({message: message} )).rejects.toThrow();
+    await expect(connection.sendProtocolMessage({ message: message })).rejects.toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - connect while closed', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     connection.close();
 
@@ -516,58 +517,58 @@ conditional_test(hasEchoServerEnvironment())('Eventstream connection state failu
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - newStream while closed', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
     connection.close();
 
-    expect(() => {connection.newStream();}).toThrow();
+    expect(() => { connection.newStream(); }).toThrow();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream connection state failure - sendProtocolMessage while closed', async () => {
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
     connection.close();
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.Connect
     };
 
-    await expect(connection.sendProtocolMessage({message: message} )).rejects.toThrow();
+    await expect(connection.sendProtocolMessage({ message: message })).rejects.toThrow();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - create and close, no asserts', async () => {
 
-    let connection : eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
+    let connection: eventstream.ClientConnection = new eventstream.ClientConnection(makeGoodConfig());
 
     await connection.connect({});
 
-    let stream : eventstream.ClientStream = connection.newStream();
+    let stream: eventstream.ClientStream = connection.newStream();
 
     stream.close();
     connection.close();
 });
 
-async function openPersistentEchoStream(connection: eventstream.ClientConnection) : Promise<eventstream.ClientStream> {
+async function openPersistentEchoStream(connection: eventstream.ClientConnection): Promise<eventstream.ClientStream> {
     return new Promise<eventstream.ClientStream>(async (resolve, reject) => {
         try {
-            let stream : eventstream.ClientStream = connection.newStream();
+            let stream: eventstream.ClientStream = connection.newStream();
 
             const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
-            let message : eventstream.Message = {
+            let message: eventstream.Message = {
                 type: eventstream.MessageType.ApplicationMessage
             };
 
-            let controller : cancel.CancelController = new cancel.CancelController();
+            let controller: cancel.CancelController = new cancel.CancelController();
 
             await stream.activate({
                 operation: "awstest#EchoStreamMessages",
-                message : message,
-                cancelController : controller
+                message: message,
+                cancelController: controller
             });
 
             let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
@@ -586,9 +587,9 @@ async function openPersistentEchoStream(connection: eventstream.ClientConnection
 }
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, wait for response, close properly', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
 
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     stream.close();
     connection.close();
@@ -596,9 +597,9 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, wait for response, close unexpectedly, verify stream ended event', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
 
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     let streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
@@ -612,23 +613,23 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate one-time echo stream, verify response, verify stream ended', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
 
-    let stream : eventstream.ClientStream = connection.newStream();
+    let stream: eventstream.ClientStream = connection.newStream();
 
     const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
     const streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
     const payloadAsString = "{}";
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
         payload: payloadAsString
     };
 
     await stream.activate({
         operation: "awstest#EchoMessage",
-        message : message
+        message: message
     });
 
     let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
@@ -638,7 +639,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
     expect(response.flags).toBeDefined();
     expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(eventstream.MessageFlags.TerminateStream);
 
-    let payload : string = "";
+    let payload: string = "";
     if (response.payload !== undefined) {
         var decoder = new TextDecoder();
         payload = decoder.decode(Buffer.from(response.payload as ArrayBuffer));
@@ -653,20 +654,20 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activate persistent echo stream, send message, verify echo response', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
 
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     const echoResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
     const payloadAsString = "{}";
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
         payload: payloadAsString
     };
 
-    await stream.sendMessage({ message : message });
+    await stream.sendMessage({ message: message });
 
     let responseEvent: eventstream.MessageEvent = (await echoResponse)[0];
     let response: eventstream.Message = responseEvent.message;
@@ -674,7 +675,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
     expect(response.type).toEqual(eventstream.MessageType.ApplicationMessage);
     expect((response.flags ?? 0) & eventstream.MessageFlags.TerminateStream).toEqual(0);
 
-    let payload : string = "";
+    let payload: string = "";
     if (response.payload !== undefined) {
         var decoder = new TextDecoder();
         payload = decoder.decode(Buffer.from(response.payload as ArrayBuffer));
@@ -687,17 +688,17 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - activ
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream success - client-side terminate a persistent echo stream', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     const streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
         flags: eventstream.MessageFlags.TerminateStream
     };
 
-    await stream.sendMessage({ message : message });
+    await stream.sendMessage({ message: message });
 
     await streamEnded;
 
@@ -707,22 +708,22 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream success - clien
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate invalid operation', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = connection.newStream();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = connection.newStream();
 
     const streamEnded = once(stream, eventstream.ClientStream.ENDED);
     const activateResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
     const payloadAsString = "{}";
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
         payload: payloadAsString
     };
 
     await stream.activate({
         operation: "awstest#NotAValidOperation",
-        message : message
+        message: message
     });
 
     let responseEvent: eventstream.MessageEvent = (await activateResponse)[0];
@@ -738,18 +739,18 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activ
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send invalid payload', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     const streamEnded = once(stream, eventstream.ClientStream.ENDED);
     const echoResponse = once(stream, eventstream.ClientStream.MESSAGE);
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
         payload: "}"
     };
 
-    await stream.sendMessage({ message : message });
+    await stream.sendMessage({ message: message });
 
     let responseEvent: eventstream.MessageEvent = (await echoResponse)[0];
     let response: eventstream.Message = responseEvent.message;
@@ -764,14 +765,14 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on unactivated stream', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = connection.newStream();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = connection.newStream();
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage
     };
 
-    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+    await expect(stream.sendMessage({ message: message })).rejects.toThrow();
 
     stream.close();
     connection.close();
@@ -779,14 +780,14 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - double activate stream', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage
     };
 
-    await expect(stream.activate({operation: "awstest#EchoStreamMessages", message: message} )).rejects.toThrow();
+    await expect(stream.activate({ operation: "awstest#EchoStreamMessages", message: message })).rejects.toThrow();
 
     stream.close();
     connection.close();
@@ -794,21 +795,21 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - doubl
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on ended stream', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     const streamEnded = once(stream, eventstream.ClientStream.ENDED);
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage,
         flags: eventstream.MessageFlags.TerminateStream
     };
 
-    await stream.sendMessage({ message : message });
+    await stream.sendMessage({ message: message });
 
     await streamEnded;
 
-    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+    await expect(stream.sendMessage({ message: message })).rejects.toThrow();
 
     stream.close();
     connection.close();
@@ -816,39 +817,39 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send 
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate a closed stream', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = connection.newStream();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = connection.newStream();
 
     stream.close();
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage
     };
 
-    await expect(stream.activate({operation: "awstest#EchoStreamMessages", message: message} )).rejects.toThrow();
+    await expect(stream.activate({ operation: "awstest#EchoStreamMessages", message: message })).rejects.toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - send message on a closed stream', async () => {
 
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     stream.close();
 
-    let message : eventstream.Message = {
+    let message: eventstream.Message = {
         type: eventstream.MessageType.ApplicationMessage
     };
 
-    await expect(stream.sendMessage({message: message} )).rejects.toThrow();
+    await expect(stream.sendMessage({ message: message })).rejects.toThrow();
 
     connection.close();
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate with undefined', async () => {
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = connection.newStream();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = connection.newStream();
 
     // @ts-ignore
     await expect(stream.activate(undefined)).rejects.toThrow();
@@ -858,13 +859,13 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activ
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activate with missing required property', async () => {
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = connection.newStream();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = connection.newStream();
 
-    let controller : cancel.CancelController = new cancel.CancelController();
+    let controller: cancel.CancelController = new cancel.CancelController();
 
     // @ts-ignore
-    let activateOptions : eventstream.ActivateStreamOptions = {
+    let activateOptions: eventstream.ActivateStreamOptions = {
         message: {
             type: eventstream.MessageType.ApplicationMessage
         },
@@ -880,8 +881,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - activ
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendMessage with undefined', async () => {
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
 
     // @ts-ignore
     await expect(stream.sendMessage(undefined)).rejects.toThrow();
@@ -891,9 +892,9 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
 });
 
 conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendMessage with missing required property', async () => {
-    let connection : eventstream.ClientConnection = await makeGoodConnection();
-    let stream : eventstream.ClientStream = await openPersistentEchoStream(connection);
-    let controller : cancel.CancelController = new cancel.CancelController();
+    let connection: eventstream.ClientConnection = await makeGoodConnection();
+    let stream: eventstream.ClientStream = await openPersistentEchoStream(connection);
+    let controller: cancel.CancelController = new cancel.CancelController();
 
     // @ts-ignore
     await expect(stream.sendMessage({
@@ -914,12 +915,12 @@ test('Eventstream connection cancel - example.com, cancel after connect', async 
         port: 22
     });
 
-    let controller : cancel.CancelController = new cancel.CancelController();
+    let controller: cancel.CancelController = new cancel.CancelController();
 
     setTimeout(() => { controller.cancel(); }, 1000);
 
     await expect(connection.connect({
-        cancelController : controller
+        cancelController: controller
     })).rejects.toThrow("cancelled");
 });
 
@@ -930,10 +931,10 @@ test('Eventstream connection cancel - example.com, cancel before connect', async
         port: 22
     });
 
-    let controller : cancel.CancelController = new cancel.CancelController();
+    let controller: cancel.CancelController = new cancel.CancelController();
     controller.cancel();
-    
+
     await expect(connection.connect({
-        cancelController : controller
+        cancelController: controller
     })).rejects.toThrow("cancelled");
 });

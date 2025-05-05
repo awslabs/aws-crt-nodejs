@@ -7,11 +7,12 @@ import * as protocol_adapter_mock from "./mqtt_request_response/protocol_adapter
 import * as mqtt_request_response from "./mqtt_request_response";
 import * as protocol_adapter from "./mqtt_request_response/protocol_adapter";
 import { CrtError } from "./error";
-import {MockProtocolAdapter} from "./mqtt_request_response/protocol_adapter_mock";
-import {once} from "events";
-import {LiftedPromise, newLiftedPromise} from "../common/promise";
-import {SubscriptionStatusEventType} from "./mqtt_request_response";
-import {v4 as uuid} from "uuid";
+import { MockProtocolAdapter } from "./mqtt_request_response/protocol_adapter_mock";
+import { once } from "events";
+import { LiftedPromise, newLiftedPromise } from "../common/promise";
+import { SubscriptionStatusEventType } from "./mqtt_request_response";
+import { v4 as uuid } from "uuid";
+import { TextEncoder, TextDecoder } from 'util';
 
 jest.setTimeout(10000);
 
@@ -21,14 +22,14 @@ interface TestContextOptions {
 }
 
 interface TestContext {
-    client : mqtt_request_response.RequestResponseClient,
+    client: mqtt_request_response.RequestResponseClient,
     adapter: protocol_adapter_mock.MockProtocolAdapter
 }
 
-function createTestContext(options? : TestContextOptions) : TestContext {
+function createTestContext(options?: TestContextOptions): TestContext {
     let adapter = new protocol_adapter_mock.MockProtocolAdapter(options?.adapterOptions);
 
-    var clientOptions : mqtt_request_response.RequestResponseClientOptions = options?.clientOptions ?? {
+    var clientOptions: mqtt_request_response.RequestResponseClientOptions = options?.clientOptions ?? {
         maxRequestResponseSubscriptions: 4,
         maxStreamingSubscriptions: 2,
         operationTimeoutInSeconds: 600,
@@ -72,18 +73,18 @@ const DEFAULT_REJECTED_PATH = "a/b/rejected";
 const DEFAULT_CORRELATION_TOKEN_PATH = "token";
 const DEFAULT_CORRELATION_TOKEN = "abcd";
 
-function makeGoodRequest() : mqtt_request_response.RequestResponseOperationOptions {
+function makeGoodRequest(): mqtt_request_response.RequestResponseOperationOptions {
     var encoder = new TextEncoder();
 
     return {
-        subscriptionTopicFilters : new Array<string>("a/b/+"),
+        subscriptionTopicFilters: new Array<string>("a/b/+"),
         responsePaths: new Array<mqtt_request_response.ResponsePath>({
-                topic: DEFAULT_ACCEPTED_PATH,
-                correlationTokenJsonPath: DEFAULT_CORRELATION_TOKEN_PATH
-            }, {
-                topic: DEFAULT_REJECTED_PATH,
-                correlationTokenJsonPath: DEFAULT_CORRELATION_TOKEN_PATH
-            }),
+            topic: DEFAULT_ACCEPTED_PATH,
+            correlationTokenJsonPath: DEFAULT_CORRELATION_TOKEN_PATH
+        }, {
+            topic: DEFAULT_REJECTED_PATH,
+            correlationTokenJsonPath: DEFAULT_CORRELATION_TOKEN_PATH
+        }),
         publishTopic: "a/b/derp",
         payload: encoder.encode(JSON.stringify({
             token: DEFAULT_CORRELATION_TOKEN
@@ -94,7 +95,7 @@ function makeGoodRequest() : mqtt_request_response.RequestResponseOperationOptio
 
 test('request-response validation failure - null options', async () => {
     // @ts-ignore
-    let requestOptions : mqtt_request_response.RequestResponseOperationOptions = null;
+    let requestOptions: mqtt_request_response.RequestResponseOperationOptions = null;
 
     await doRequestResponseValidationFailureTest(requestOptions, "Invalid request options");
 });
@@ -321,11 +322,11 @@ test('request-response failure - timeout', async () => {
 });
 
 function mockSubscribeSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
-    setImmediate(() => { adapter.completeSubscribe(subscribeOptions.topicFilter); });
+    setTimeout(() => { adapter.completeSubscribe(subscribeOptions.topicFilter); });
 }
 
 function mockUnsubscribeSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, unsubscribeOptions: protocol_adapter.UnsubscribeOptions, context?: any) {
-    setImmediate(() => { adapter.completeUnsubscribe(unsubscribeOptions.topicFilter); });
+    setTimeout(() => { adapter.completeUnsubscribe(unsubscribeOptions.topicFilter); });
 }
 
 interface PublishHandlerContext {
@@ -335,7 +336,7 @@ interface PublishHandlerContext {
 
 function mockPublishSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
     let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
 
         let decoder = new TextDecoder();
@@ -351,12 +352,12 @@ function mockPublishSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAd
 }
 
 async function do_request_response_single_success_test(responsePath: string, multiSubscribe: boolean) {
-    let publishHandlerContext : PublishHandlerContext = {
+    let publishHandlerContext: PublishHandlerContext = {
         responseTopic: responsePath,
         responsePayload: {}
     }
 
-    let adapterOptions : protocol_adapter_mock.MockProtocolAdapterOptions = {
+    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
         subscribeHandler: mockSubscribeSuccessHandler,
         unsubscribeHandler: mockUnsubscribeSuccessHandler,
         publishHandler: mockPublishSuccessHandler,
@@ -380,7 +381,7 @@ async function do_request_response_single_success_test(responsePath: string, mul
     expect(response.topic).toEqual(responsePath);
 
     let decoder = new TextDecoder();
-    expect(decoder.decode(response.payload)).toEqual(JSON.stringify({token:DEFAULT_CORRELATION_TOKEN}));
+    expect(decoder.decode(response.payload)).toEqual(JSON.stringify({ token: DEFAULT_CORRELATION_TOKEN }));
 
     cleanupTestContext(context);
 }
@@ -402,14 +403,14 @@ test('request-response success - multi-sub rejected response path', async () => 
 });
 
 function mockPublishSuccessHandlerNoToken(responseTopic: string, responsePayload: any, adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
         adapter.triggerIncomingPublish(responseTopic, publishOptions.payload);
     });
 }
 
 async function do_request_response_success_empty_correlation_token(responsePath: string, count: number) {
-    let adapterOptions : protocol_adapter_mock.MockProtocolAdapterOptions = {
+    let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
         subscribeHandler: mockSubscribeSuccessHandler,
         unsubscribeHandler: mockUnsubscribeSuccessHandler,
         publishHandler: (adapter, publishOptions, context) => { mockPublishSuccessHandlerNoToken(responsePath, {}, adapter, publishOptions, context); },
@@ -443,7 +444,7 @@ async function do_request_response_success_empty_correlation_token(responsePath:
         expect(response.topic).toEqual(responsePath);
 
         let decoder = new TextDecoder();
-        expect(decoder.decode(response.payload)).toEqual(JSON.stringify({requestNumber:`${i}`}));
+        expect(decoder.decode(response.payload)).toEqual(JSON.stringify({ requestNumber: `${i}` }));
     }
 
     cleanupTestContext(context);
@@ -474,11 +475,11 @@ function mockSubscribeFailureHandler(adapter: protocol_adapter_mock.MockProtocol
     let subscribeContext = context as FailingSubscribeContext;
 
     if (subscribeContext.subscribesSeen >= subscribeContext.startFailingIndex) {
-        setImmediate(() => {
+        setTimeout(() => {
             adapter.completeSubscribe(subscribeOptions.topicFilter, new CrtError("Nope"));
         });
     } else {
-        setImmediate(() => {
+        setTimeout(() => {
             adapter.completeSubscribe(subscribeOptions.topicFilter);
         });
     }
@@ -488,9 +489,9 @@ function mockSubscribeFailureHandler(adapter: protocol_adapter_mock.MockProtocol
 
 async function do_request_response_failure_subscribe(failSecondSubscribe: boolean) {
 
-    let subscribeContext : FailingSubscribeContext = {
-        startFailingIndex : failSecondSubscribe ? 1 : 0,
-        subscribesSeen : 0,
+    let subscribeContext: FailingSubscribeContext = {
+        startFailingIndex: failSecondSubscribe ? 1 : 0,
+        subscribesSeen: 0,
     };
 
     let adapterOptions: protocol_adapter_mock.MockProtocolAdapterOptions = {
@@ -531,7 +532,7 @@ test('request-response failure - second subscribe failure', async () => {
 });
 
 function mockPublishFailureHandlerAck(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData, new CrtError("Publish failure - No can do"));
     });
 }
@@ -563,7 +564,7 @@ test('request-response failure - publish failure', async () => {
 });
 
 async function doRequestResponseFailureByTimeoutDueToResponseTest(publishHandler: (adapter: MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) => void) {
-    let publishHandlerContext : PublishHandlerContext = {
+    let publishHandlerContext: PublishHandlerContext = {
         responseTopic: DEFAULT_ACCEPTED_PATH,
         responsePayload: {}
     }
@@ -601,7 +602,7 @@ async function doRequestResponseFailureByTimeoutDueToResponseTest(publishHandler
 
 function mockPublishFailureHandlerInvalidResponse(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
     let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
 
         let decoder = new TextDecoder();
@@ -623,7 +624,7 @@ test('request-response failure - invalid response payload', async () => {
 
 function mockPublishFailureHandlerMissingCorrelationToken(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
     let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
 
         let encoder = new TextEncoder();
@@ -638,7 +639,7 @@ test('request-response failure - missing correlation token', async () => {
 
 function mockPublishFailureHandlerInvalidCorrelationTokenType(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
     let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
 
         let decoder = new TextDecoder();
@@ -659,7 +660,7 @@ test('request-response failure - invalid correlation token type', async () => {
 
 function mockPublishFailureHandlerNonMatchingCorrelationToken(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
     let publishHandlerContext = context as PublishHandlerContext;
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
 
         let decoder = new TextDecoder();
@@ -691,14 +692,14 @@ interface RequestSequenceContext {
 function makeTestRequest(definition: TestOperationDefinition): mqtt_request_response.RequestResponseOperationOptions {
     let encoder = new TextEncoder();
 
-    let baseResponseAsObject : any = {};
+    let baseResponseAsObject: any = {};
     baseResponseAsObject["requestPayload"] = definition.uniqueRequestPayload;
     if (definition.correlationToken) {
         baseResponseAsObject[DEFAULT_CORRELATION_TOKEN_PATH] = definition.correlationToken;
     }
 
-    let options : mqtt_request_response.RequestResponseOperationOptions = {
-        subscriptionTopicFilters : new Array<string>(`${definition.topicPrefix}/+`),
+    let options: mqtt_request_response.RequestResponseOperationOptions = {
+        subscriptionTopicFilters: new Array<string>(`${definition.topicPrefix}/+`),
         responsePaths: new Array<mqtt_request_response.ResponsePath>({
             topic: `${definition.topicPrefix}/accepted`
         }, {
@@ -719,14 +720,14 @@ function makeTestRequest(definition: TestOperationDefinition): mqtt_request_resp
 
 function mockPublishSuccessHandlerSequence(adapter: protocol_adapter_mock.MockProtocolAdapter, publishOptions: protocol_adapter.PublishOptions, context?: any) {
     let publishHandlerContext = context as RequestSequenceContext;
-    setImmediate(() => {
+    setTimeout(() => {
         adapter.completePublish(publishOptions.completionData);
 
         let decoder = new TextDecoder();
         let payloadAsString = decoder.decode(publishOptions.payload);
 
         let payloadAsObject: any = JSON.parse(payloadAsString);
-        let token : string | undefined = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
+        let token: string | undefined = payloadAsObject[DEFAULT_CORRELATION_TOKEN_PATH];
 
         let uniquenessValue = payloadAsObject["requestPayload"] as string;
         let definition = publishHandlerContext.responseMap.get(uniquenessValue);
@@ -734,7 +735,7 @@ function mockPublishSuccessHandlerSequence(adapter: protocol_adapter_mock.MockPr
             return;
         }
 
-        let responsePayload : any = {
+        let responsePayload: any = {
             requestPayload: uniquenessValue
         };
         if (token) {
@@ -748,7 +749,7 @@ function mockPublishSuccessHandlerSequence(adapter: protocol_adapter_mock.MockPr
 }
 
 test('request-response success - multi operation sequence', async () => {
-    let operations : Array<TestOperationDefinition> = new Array<TestOperationDefinition>(
+    let operations: Array<TestOperationDefinition> = new Array<TestOperationDefinition>(
         {
             topicPrefix: "test",
             uniqueRequestPayload: "1",
@@ -807,12 +808,12 @@ test('request-response success - multi operation sequence', async () => {
         },
     );
 
-    let responseMap = operations.reduce(function(map, def) {
+    let responseMap = operations.reduce(function (map, def) {
         map.set(def.uniqueRequestPayload, def);
         return map;
     }, new Map<string, TestOperationDefinition>());
 
-    let publishHandlerContext : RequestSequenceContext = {
+    let publishHandlerContext: RequestSequenceContext = {
         responseMap: responseMap
     }
 
@@ -984,7 +985,7 @@ test('streaming operation - close client after open', async () => {
 
     operation.open();
 
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus1.error).toBeFalsy();
 
@@ -992,11 +993,11 @@ test('streaming operation - close client after open', async () => {
 
     context.client.close();
 
-    let subscriptionStatus2 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise2)[0];
+    let subscriptionStatus2: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise2)[0];
     expect(subscriptionStatus2.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
     expect(subscriptionStatus2.error).toBeTruthy();
 
-    let error : CrtError = subscriptionStatus2.error as CrtError;
+    let error: CrtError = subscriptionStatus2.error as CrtError;
     expect(error.message).toContain("client closed");
 
     cleanupTestContext(context);
@@ -1024,18 +1025,18 @@ test('streaming operation - success single', async () => {
 
     operation.open();
 
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus1.error).toBeFalsy();
 
-    let allReceived : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let allReceived: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
     operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
         incomingPublishes.push(event);
         allReceived.resolve();
     });
 
-    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    let payload: Buffer = Buffer.from("IncomingPublish", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload);
     await allReceived.promise;
 
@@ -1061,7 +1062,7 @@ test('streaming operation - success overlapping', async () => {
 
     context.adapter.connect();
 
-    let streamOptions : mqtt_request_response.StreamingOperationOptions = {
+    let streamOptions: mqtt_request_response.StreamingOperationOptions = {
         subscriptionTopicFilter: "a/b"
     };
 
@@ -1074,17 +1075,17 @@ test('streaming operation - success overlapping', async () => {
     operation1.open();
     operation2.open();
 
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus1.error).toBeFalsy();
 
-    let subscriptionStatus2 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise2)[0];
+    let subscriptionStatus2: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise2)[0];
     expect(subscriptionStatus2.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus2.error).toBeFalsy();
 
     // operation 1 should receive both publishes
-    let allReceived1 : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes1 : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let allReceived1: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes1: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
     operation1.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
         incomingPublishes1.push(event);
         if (incomingPublishes1.length == 2) {
@@ -1093,14 +1094,14 @@ test('streaming operation - success overlapping', async () => {
     });
 
     // operation 2 should only receive one publish because we close it before triggering the second one
-    let allReceived2 : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes2 : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let allReceived2: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes2: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
     operation2.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
         incomingPublishes2.push(event);
         allReceived2.resolve();
     });
 
-    let payload1 : Buffer = Buffer.from("IncomingPublish1", "utf-8");
+    let payload1: Buffer = Buffer.from("IncomingPublish1", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload1);
 
     await allReceived2.promise;
@@ -1112,11 +1113,11 @@ test('streaming operation - success overlapping', async () => {
 
     operation2.close();
 
-    let subscriptionStatus2Halted : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatus2HaltedPromise)[0];
+    let subscriptionStatus2Halted: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatus2HaltedPromise)[0];
     expect(subscriptionStatus2Halted.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
     expect(subscriptionStatus2Halted.error).toBeTruthy();
 
-    let payload2 : Buffer = Buffer.from("IncomingPublish2", "utf-8");
+    let payload2: Buffer = Buffer.from("IncomingPublish2", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload2);
 
     await allReceived1.promise;
@@ -1147,14 +1148,14 @@ test('streaming operation - success single starting offline', async () => {
         subscriptionTopicFilter: "a/b"
     });
 
-    let subscriptionEstablished : mqtt_request_response.SubscriptionStatusEvent | undefined = undefined;
+    let subscriptionEstablished: mqtt_request_response.SubscriptionStatusEvent | undefined = undefined;
 
-    let subscriptionEstablishedPromise : LiftedPromise<void> = newLiftedPromise();
+    let subscriptionEstablishedPromise: LiftedPromise<void> = newLiftedPromise();
     operation.addListener(mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS, (event) => {
-       if (event.type == SubscriptionStatusEventType.SubscriptionEstablished) {
-           subscriptionEstablished = event;
-           subscriptionEstablishedPromise.resolve();
-       }
+        if (event.type == SubscriptionStatusEventType.SubscriptionEstablished) {
+            subscriptionEstablished = event;
+            subscriptionEstablishedPromise.resolve();
+        }
     });
 
     operation.open();
@@ -1173,14 +1174,14 @@ test('streaming operation - success single starting offline', async () => {
     // @ts-ignore
     expect(subscriptionEstablished.error).toBeFalsy();
 
-    let allReceived : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let allReceived: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
     operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
         incomingPublishes.push(event);
         allReceived.resolve();
     });
 
-    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    let payload: Buffer = Buffer.from("IncomingPublish", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload);
     await allReceived.promise;
 
@@ -1210,9 +1211,9 @@ async function doStreamingSessionTest(resumeSession: boolean) {
         subscriptionTopicFilter: "a/b"
     });
 
-    let statusEvents : mqtt_request_response.SubscriptionStatusEvent[] = new Array<mqtt_request_response.SubscriptionStatusEvent>();
-    let established1Promise : LiftedPromise<void> = newLiftedPromise();
-    let established2Promise : LiftedPromise<void> = newLiftedPromise();
+    let statusEvents: mqtt_request_response.SubscriptionStatusEvent[] = new Array<mqtt_request_response.SubscriptionStatusEvent>();
+    let established1Promise: LiftedPromise<void> = newLiftedPromise();
+    let established2Promise: LiftedPromise<void> = newLiftedPromise();
 
     operation.addListener(mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS, (event) => {
         statusEvents.push(event);
@@ -1230,13 +1231,13 @@ async function doStreamingSessionTest(resumeSession: boolean) {
     await established1Promise.promise;
 
     expect(statusEvents.length).toEqual(1);
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = statusEvents[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = statusEvents[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus1.error).toBeFalsy();
 
-    let received1 : LiftedPromise<void> = newLiftedPromise();
-    let received2 : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let received1: LiftedPromise<void> = newLiftedPromise();
+    let received2: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
     operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
         incomingPublishes.push(event);
         if (incomingPublishes.length == 1) {
@@ -1246,7 +1247,7 @@ async function doStreamingSessionTest(resumeSession: boolean) {
         }
     });
 
-    let payload1 : Buffer = Buffer.from("IncomingPublish1", "utf-8");
+    let payload1: Buffer = Buffer.from("IncomingPublish1", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload1);
     await received1.promise;
 
@@ -1285,7 +1286,7 @@ async function doStreamingSessionTest(resumeSession: boolean) {
     }
 
     // trigger an incoming publish, expect it to arrive
-    let payload2 : Buffer = Buffer.from("IncomingPublish2", "utf-8");
+    let payload2: Buffer = Buffer.from("IncomingPublish2", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload2);
     await received2.promise;
 
@@ -1314,11 +1315,11 @@ function mockSubscribeFailFirstHandler(adapter: protocol_adapter_mock.MockProtoc
     subscribeContext.count++;
 
     if (subscribeContext.count == 1) {
-        setImmediate(() => {
+        setTimeout(() => {
             adapter.completeSubscribe(subscribeOptions.topicFilter, new CrtError("Mock Failure"), true);
         });
     } else {
-        setImmediate(() => {
+        setTimeout(() => {
             adapter.completeSubscribe(subscribeOptions.topicFilter);
         });
     }
@@ -1356,18 +1357,18 @@ test('streaming operation - success despite first subscribe failure', async () =
 
     operation.open();
 
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus1.error).toBeFalsy();
 
-    let allReceived : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let allReceived: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
     operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, (event) => {
         incomingPublishes.push(event);
         allReceived.resolve();
     });
 
-    let payload : Buffer = Buffer.from("IncomingPublish", "utf-8");
+    let payload: Buffer = Buffer.from("IncomingPublish", "utf-8");
     context.adapter.triggerIncomingPublish("a/b", payload);
     await allReceived.promise;
 
@@ -1390,7 +1391,7 @@ test('streaming operation - success despite first subscribe failure', async () =
  * operation gets halted.
  */
 test('streaming operation - halt after unretryable subscribe failure', async () => {
-    let subscribeContext : FailingSubscribeContext = {
+    let subscribeContext: FailingSubscribeContext = {
         startFailingIndex: 0,
         subscribesSeen: 0
     };
@@ -1418,7 +1419,7 @@ test('streaming operation - halt after unretryable subscribe failure', async () 
 
     operation.open();
 
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
     expect(subscriptionStatus1.error).toBeTruthy();
 
@@ -1433,20 +1434,20 @@ async function openOperationAndVerifyPublishes(operation: mqtt_request_response.
 
     operation.open();
 
-    let subscriptionStatus1 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
+    let subscriptionStatus1: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise1)[0];
     expect(subscriptionStatus1.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished);
     expect(subscriptionStatus1.error).toBeFalsy();
 
-    let allReceived : LiftedPromise<void> = newLiftedPromise();
-    let incomingPublishes : mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
-    let publishListener = (event : mqtt_request_response.IncomingPublishEvent) => {
+    let allReceived: LiftedPromise<void> = newLiftedPromise();
+    let incomingPublishes: mqtt_request_response.IncomingPublishEvent[] = new Array<mqtt_request_response.IncomingPublishEvent>();
+    let publishListener = (event: mqtt_request_response.IncomingPublishEvent) => {
         incomingPublishes.push(event);
         allReceived.resolve();
     };
 
     operation.addListener(mqtt_request_response.StreamingOperationBase.INCOMING_PUBLISH, publishListener);
 
-    let payload : Buffer = Buffer.from("IncomingPublish-" + uuid(), "utf-8");
+    let payload: Buffer = Buffer.from("IncomingPublish-" + uuid(), "utf-8");
     testContext.adapter.triggerIncomingPublish(topic, payload);
     await allReceived.promise;
 
@@ -1462,7 +1463,7 @@ async function closeOperation(operation: mqtt_request_response.StreamingOperatio
 
     operation.close();
 
-    let subscriptionStatus : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise)[0];
+    let subscriptionStatus: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise)[0];
     expect(subscriptionStatus.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
     expect(subscriptionStatus.error).toBeTruthy();
 }
@@ -1503,7 +1504,7 @@ test('streaming operation - failure exceed streaming budget', async () => {
 
     let subscriptionStatusPromise3 = once(operation3, mqtt_request_response.StreamingOperationBase.SUBSCRIPTION_STATUS);
     operation3.open();
-    let subscriptionStatus3 : mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise3)[0];
+    let subscriptionStatus3: mqtt_request_response.SubscriptionStatusEvent = (await subscriptionStatusPromise3)[0];
     expect(subscriptionStatus3.type).toEqual(mqtt_request_response.SubscriptionStatusEventType.SubscriptionHalted);
     expect(subscriptionStatus3.error).toBeTruthy();
 
@@ -1523,11 +1524,11 @@ test('streaming operation - failure exceed streaming budget', async () => {
     cleanupTestContext(context);
 });
 
-const STREAMING_TOPIC : string = "streaming/topic";
+const STREAMING_TOPIC: string = "streaming/topic";
 
 function mockSubscribeStreamingSuccessHandler(adapter: protocol_adapter_mock.MockProtocolAdapter, subscribeOptions: protocol_adapter.SubscribeOptions, context?: any) {
     if (subscribeOptions.topicFilter === STREAMING_TOPIC) {
-        setImmediate(() => {
+        setTimeout(() => {
             adapter.completeSubscribe(subscribeOptions.topicFilter);
         });
     }
@@ -1576,8 +1577,8 @@ test('streaming operation - success delayed by request-response timeouts', async
         subscriptionTopicFilter: STREAMING_TOPIC
     });
 
-    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise1); } );
-    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise2); } );
+    setTimeout(async () => { await verifyRequestResponseFailure(requestPromise1); });
+    setTimeout(async () => { await verifyRequestResponseFailure(requestPromise2); });
 
     await openOperationAndVerifyPublishes(operation1, context, STREAMING_TOPIC);
 
@@ -1618,8 +1619,8 @@ test('streaming operation - success sandwiched by request-response timeouts', as
         subscriptionTopicFilter: STREAMING_TOPIC
     });
 
-    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise1); } );
-    setImmediate(async () => { await verifyRequestResponseFailure(requestPromise2); } );
+    setTimeout(async () => { await verifyRequestResponseFailure(requestPromise1); });
+    setTimeout(async () => { await verifyRequestResponseFailure(requestPromise2); });
 
     let streamingCheckPromise = openOperationAndVerifyPublishes(operation1, context, STREAMING_TOPIC);
 

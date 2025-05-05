@@ -9,10 +9,11 @@ import * as mqtt5 from "../mqtt5";
 import * as protocol_adapter from "./protocol_adapter";
 import * as aws_iot_mqtt311 from "../aws_iot";
 import * as aws_iot_mqtt5 from "../aws_iot_mqtt5";
-import {v4 as uuid} from "uuid";
+import { v4 as uuid } from "uuid";
 import * as test_utils from "../../../test/mqtt5";
 import * as auth from "../auth";
-import {once} from "events";
+import { once } from "events";
+import { TextEncoder } from 'util';
 
 jest.setTimeout(10000);
 
@@ -27,8 +28,8 @@ interface TestingOptions {
     builder_mutator311?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder,
 }
 
-function getTestingCredentials() : auth.AWSCredentials {
-    let credentials : auth.AWSCredentials = {
+function getTestingCredentials(): auth.AWSCredentials {
+    let credentials: auth.AWSCredentials = {
         aws_access_id: test_utils.ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID,
         aws_secret_key: test_utils.ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY,
         aws_region: "us-east-1"
@@ -41,7 +42,7 @@ function getTestingCredentials() : auth.AWSCredentials {
     return credentials;
 }
 
-function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) => aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) : mqtt5.Mqtt5Client {
+function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder) => aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder): mqtt5.Mqtt5Client {
     let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider(getTestingCredentials());
 
     let builder = aws_iot_mqtt5.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
@@ -65,7 +66,7 @@ function build_protocol_client_mqtt5(builder_mutator?: (builder: aws_iot_mqtt5.A
     return new mqtt5.Mqtt5Client(builder.build());
 }
 
-function build_protocol_client_mqtt311(builder_mutator?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) : mqtt311.MqttClientConnection {
+function build_protocol_client_mqtt311(builder_mutator?: (builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) => aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder): mqtt311.MqttClientConnection {
     let provider: auth.StaticCredentialProvider = new auth.StaticCredentialProvider(getTestingCredentials());
 
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -84,7 +85,7 @@ function build_protocol_client_mqtt311(builder_mutator?: (builder: aws_iot_mqtt3
     }
 
     let connection = client.new_connection(builder.build());
-    connection.on('error', (_) => {});
+    connection.on('error', (_) => { });
 
     return connection;
 }
@@ -96,7 +97,7 @@ class TestingContext {
 
     adapter: protocol_adapter.ProtocolClientAdapter;
 
-    private protocolStarted : boolean = false;
+    private protocolStarted: boolean = false;
 
     constructor(options: TestingOptions) {
         if (options.version == ProtocolVersion.Mqtt5) {
@@ -169,7 +170,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await context.close();
 });
 
-async function do_subscribe_success_test(version: ProtocolVersion) : Promise<void> {
+async function do_subscribe_success_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -198,7 +199,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_subscribe_success_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_subscribe_timeout_test(version: ProtocolVersion) : Promise<void> {
+async function do_subscribe_timeout_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -212,7 +213,7 @@ async function do_subscribe_timeout_test(version: ProtocolVersion) : Promise<voi
         timeoutInSeconds: .001 // sketchy but no other reliable timeout possibilities are available
     });
 
-    let subscribe_event : protocol_adapter.SubscribeCompletionEvent = (await subscribe_event_promise)[0];
+    let subscribe_event: protocol_adapter.SubscribeCompletionEvent = (await subscribe_event_promise)[0];
     expect(subscribe_event.topicFilter).toEqual("a/b/c");
     expect(subscribe_event.err).toBeDefined();
 
@@ -231,7 +232,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_subscribe_timeout_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_subscribe_failure_test(version: ProtocolVersion) : Promise<void> {
+async function do_subscribe_failure_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -245,7 +246,7 @@ async function do_subscribe_failure_test(version: ProtocolVersion) : Promise<voi
         timeoutInSeconds: 30
     });
 
-    let subscribe_event : protocol_adapter.SubscribeCompletionEvent = (await subscribe_event_promise)[0];
+    let subscribe_event: protocol_adapter.SubscribeCompletionEvent = (await subscribe_event_promise)[0];
     expect(subscribe_event.topicFilter).toEqual(bad_topic_filter);
 
     // On 5 this fails with a suback reason code, on 311 the connection gets closed by IoT Core
@@ -262,7 +263,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_subscribe_failure_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_unsubscribe_success_test(version: ProtocolVersion) : Promise<void> {
+async function do_unsubscribe_success_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -291,7 +292,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_unsubscribe_success_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_unsubscribe_timeout_test(version: ProtocolVersion) : Promise<void> {
+async function do_unsubscribe_timeout_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -324,7 +325,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_unsubscribe_timeout_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_unsubscribe_failure_test(version: ProtocolVersion) : Promise<void> {
+async function do_unsubscribe_failure_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -385,7 +386,7 @@ async function do_connection_event_test(version: ProtocolVersion) {
 
     await context.open();
 
-    let connection_event1 : protocol_adapter.ConnectionStatusEvent = (await event1_promise)[0];
+    let connection_event1: protocol_adapter.ConnectionStatusEvent = (await event1_promise)[0];
     expect(connection_event1.status).toEqual(protocol_adapter.ConnectionState.Connected);
     expect(connection_event1.joinedSession).toEqual(false);
 
@@ -393,7 +394,7 @@ async function do_connection_event_test(version: ProtocolVersion) {
 
     await context.stopProtocolClient();
 
-    let connection_event2 : protocol_adapter.ConnectionStatusEvent = (await event2_promise)[0];
+    let connection_event2: protocol_adapter.ConnectionStatusEvent = (await event2_promise)[0];
     expect(connection_event2.status).toEqual(protocol_adapter.ConnectionState.Disconnected);
 }
 
@@ -405,7 +406,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_connection_event_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_publish_success_test(version: ProtocolVersion) : Promise<void> {
+async function do_publish_success_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -425,7 +426,7 @@ async function do_publish_success_test(version: ProtocolVersion) : Promise<void>
         completionData: completionData,
     });
 
-    let publish_event : protocol_adapter.PublishCompletionEvent = (await publish_event_promise)[0];
+    let publish_event: protocol_adapter.PublishCompletionEvent = (await publish_event_promise)[0];
     expect(publish_event.err).toBeUndefined();
     expect(publish_event.completionData).toEqual(completionData);
 
@@ -440,7 +441,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await do_publish_success_test(ProtocolVersion.Mqtt311);
 });
 
-async function do_publish_timeout_test(version: ProtocolVersion) : Promise<void> {
+async function do_publish_timeout_test(version: ProtocolVersion): Promise<void> {
     let context = new TestingContext({
         version: version
     });
@@ -460,7 +461,7 @@ async function do_publish_timeout_test(version: ProtocolVersion) : Promise<void>
         completionData: completionData,
     });
 
-    let publish_event : protocol_adapter.PublishCompletionEvent = (await publish_event_promise)[0];
+    let publish_event: protocol_adapter.PublishCompletionEvent = (await publish_event_promise)[0];
     expect(publish_event.completionData).toEqual(completionData);
     expect(publish_event.err).toBeDefined();
 
@@ -500,13 +501,13 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     };
     expect(() => { context.adapter.publish(publishOptions); }).toThrow();
 
-    let unsubscribeOptions ={
+    let unsubscribeOptions = {
         topicFilter: "a/b/c",
         timeoutInSeconds: 30
     };
     expect(() => { context.adapter.unsubscribe(unsubscribeOptions); }).toThrow();
 
-    let subscribeOptions ={
+    let subscribeOptions = {
         topicFilter: "a/b/c",
         timeoutInSeconds: 30
     };

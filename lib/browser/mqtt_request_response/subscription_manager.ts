@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {BufferedEventEmitter} from "../../common/event";
+import { BufferedEventEmitter } from "../../common/event";
 import * as protocol_adapter from "./protocol_adapter";
 import * as io from "../../common/io";
 
@@ -26,7 +26,7 @@ export enum SubscriptionEventType {
     UnsubscribeComplete
 }
 
-function subscriptionEventTypeToString(eventType: SubscriptionEventType) : string {
+function subscriptionEventTypeToString(eventType: SubscriptionEventType): string {
     switch (eventType) {
         case SubscriptionEventType.SubscribeSuccess:
             return "SubscribeSuccess";
@@ -127,7 +127,7 @@ export enum AcquireSubscriptionResult {
     Failure,
 }
 
-export function acquireSubscriptionResultToString(result: AcquireSubscriptionResult) : string {
+export function acquireSubscriptionResultToString(result: AcquireSubscriptionResult): string {
     switch (result) {
         case AcquireSubscriptionResult.Subscribed:
             return "Subscribed";
@@ -186,7 +186,7 @@ interface SubscriptionStats {
 }
 
 export class SubscriptionManager extends BufferedEventEmitter {
-    private static logSubject : string = "SubscriptionManager";
+    private static logSubject: string = "SubscriptionManager";
 
     private closed: boolean = false;
     private records: Map<string, SubscriptionRecord>;
@@ -207,7 +207,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
         this.unsubscribeAll();
     }
 
-    acquireSubscription(options: AcquireSubscriptionConfig) : AcquireSubscriptionResult {
+    acquireSubscription(options: AcquireSubscriptionConfig): AcquireSubscriptionResult {
         if (this.closed) {
             return AcquireSubscriptionResult.Failure;
         }
@@ -232,7 +232,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
             }
         }
 
-        let subscriptionsNeeded : number = 0;
+        let subscriptionsNeeded: number = 0;
         for (let topicFilter of options.topicFilters) {
             let existingRecord = this.records.get(topicFilter);
             if (existingRecord) {
@@ -325,7 +325,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
         }
 
         io.logDebug(SubscriptionManager.logSubject, `purging unused subscriptions`);
-        let toRemove : Array<string> = new Array<string>();
+        let toRemove: Array<string> = new Array<string>();
         for (let [_, record] of this.records) {
             if (record.listeners.size > 0) {
                 continue;
@@ -348,14 +348,14 @@ export class SubscriptionManager extends BufferedEventEmitter {
         }
     }
 
-    static SUBSCRIBE_SUCCESS : string = 'subscribeSuccess';
-    static SUBSCRIBE_FAILURE : string = 'subscribeFailure';
-    static SUBSCRIPTION_ENDED : string = 'subscriptionEnded';
-    static STREAMING_SUBSCRIPTION_ESTABLISHED : string = "streamingSubscriptionEstablished";
-    static STREAMING_SUBSCRIPTION_LOST : string = "streamingSubscriptionLost";
-    static STREAMING_SUBSCRIPTION_HALTED : string = "streamingSubscriptionHalted";
-    static SUBSCRIPTION_ORPHANED : string = "subscriptionOrphaned";
-    static UNSUBSCRIBE_COMPLETE : string = "unsubscribeComplete";
+    static SUBSCRIBE_SUCCESS: string = 'subscribeSuccess';
+    static SUBSCRIBE_FAILURE: string = 'subscribeFailure';
+    static SUBSCRIPTION_ENDED: string = 'subscriptionEnded';
+    static STREAMING_SUBSCRIPTION_ESTABLISHED: string = "streamingSubscriptionEstablished";
+    static STREAMING_SUBSCRIPTION_LOST: string = "streamingSubscriptionLost";
+    static STREAMING_SUBSCRIPTION_HALTED: string = "streamingSubscriptionHalted";
+    static SUBSCRIPTION_ORPHANED: string = "subscriptionOrphaned";
+    static UNSUBSCRIBE_COMPLETE: string = "unsubscribeComplete";
 
     on(event: 'subscribeSuccess', listener: SubscribeSuccessEventListener): this;
     on(event: 'subscribeFailure', listener: SubscribeFailureEventListener): this;
@@ -371,8 +371,8 @@ export class SubscriptionManager extends BufferedEventEmitter {
         return this;
     }
 
-    private getStats() : SubscriptionStats {
-        let stats : SubscriptionStats = {
+    private getStats(): SubscriptionStats {
+        let stats: SubscriptionStats = {
             requestResponseCount: 0,
             streamingCount: 0,
             unsubscribingStreamingCount: 0,
@@ -444,10 +444,10 @@ export class SubscriptionManager extends BufferedEventEmitter {
             return;
         }
 
-        setImmediate(() => {
-           this.emit(SubscriptionManager.SUBSCRIPTION_ORPHANED, {
-              topicFilter: topicFilter
-           });
+        setTimeout(() => {
+            this.emit(SubscriptionManager.SUBSCRIPTION_ORPHANED, {
+                topicFilter: topicFilter
+            });
         });
     }
 
@@ -460,7 +460,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
 
             io.logDebug(SubscriptionManager.logSubject, `emitting ${subscriptionEventTypeToString(eventType)} subscription event for '${record.topicFilter}' with id ${id}`);
 
-            setImmediate(() => {
+            setTimeout(() => {
                 switch (eventType) {
                     case SubscriptionEventType.SubscribeSuccess:
                         this.emit(SubscriptionManager.SUBSCRIBE_SUCCESS, event);
@@ -591,7 +591,7 @@ export class SubscriptionManager extends BufferedEventEmitter {
             record.status = SubscriptionStatus.NotSubscribed;
             let topicFilter = record.topicFilter;
 
-            setImmediate(() => {
+            setTimeout(() => {
                 this.emit(SubscriptionManager.UNSUBSCRIBE_COMPLETE, {
                     topicFilter: topicFilter
                 });
@@ -650,4 +650,3 @@ export class SubscriptionManager extends BufferedEventEmitter {
     }
 
 }
-

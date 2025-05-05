@@ -10,15 +10,15 @@
  *
  */
 
-import {CrtError, ICrtError} from "../error";
+import { CrtError, ICrtError } from "../error";
 import * as mqtt311 from "../mqtt";
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_request_response from "../../common/mqtt_request_response";
-import {BufferedEventEmitter} from "../../common/event";
-import {QoS} from "../mqtt";
+import { BufferedEventEmitter } from "../../common/event";
+import { QoS } from "../mqtt";
 
 
-const MS_PER_SECOND : number = 1000;
+const MS_PER_SECOND: number = 1000;
 
 export interface PublishOptions {
     topic: string,
@@ -94,48 +94,60 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
     private client311?: mqtt311.MqttClientConnection;
     private connectionState: ConnectionState;
 
-    private connectionSuccessListener5 : mqtt5.ConnectionSuccessEventListener = (event : mqtt5.ConnectionSuccessEvent) => {
+    private connectionSuccessListener5: mqtt5.ConnectionSuccessEventListener = (event: mqtt5.ConnectionSuccessEvent) => {
         this.connectionState = ConnectionState.Connected;
-        setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.Connected,
-            joinedSession: event.connack.sessionPresent,
-        })});
+        setTimeout(() => {
+            this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
+                status: ConnectionState.Connected,
+                joinedSession: event.connack.sessionPresent,
+            })
+        });
     };
 
-    private disconnectionListener5 : mqtt5.DisconnectionEventListener = (event : mqtt5.DisconnectionEvent) => {
+    private disconnectionListener5: mqtt5.DisconnectionEventListener = (event: mqtt5.DisconnectionEvent) => {
         this.connectionState = ConnectionState.Disconnected;
-        setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.Disconnected,
-        })});
+        setTimeout(() => {
+            this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
+                status: ConnectionState.Disconnected,
+            })
+        });
     };
 
-    private incomingPublishListener5 : mqtt5.MessageReceivedEventListener = (event: mqtt5.MessageReceivedEvent) => {
-        setImmediate(() => { this.emit(ProtocolClientAdapter.INCOMING_PUBLISH, {
-            topic: event.message.topicName,
-            payload: event.message.payload
-        })});
+    private incomingPublishListener5: mqtt5.MessageReceivedEventListener = (event: mqtt5.MessageReceivedEvent) => {
+        setTimeout(() => {
+            this.emit(ProtocolClientAdapter.INCOMING_PUBLISH, {
+                topic: event.message.topicName,
+                payload: event.message.payload
+            })
+        });
     };
 
-    private connectionSuccessListener311 : mqtt311.MqttConnectionSuccess = (event : mqtt311.OnConnectionSuccessResult) => {
+    private connectionSuccessListener311: mqtt311.MqttConnectionSuccess = (event: mqtt311.OnConnectionSuccessResult) => {
         this.connectionState = ConnectionState.Connected;
-        setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.Connected,
-            joinedSession: event.session_present,
-        })});
+        setTimeout(() => {
+            this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
+                status: ConnectionState.Connected,
+                joinedSession: event.session_present,
+            })
+        });
     };
 
-    private disconnectionListener311 : mqtt311.MqttConnectionDisconnected = () => {
+    private disconnectionListener311: mqtt311.MqttConnectionDisconnected = () => {
         this.connectionState = ConnectionState.Disconnected;
-        setImmediate(() => { this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
-            status: ConnectionState.Disconnected,
-        })});
+        setTimeout(() => {
+            this.emit(ProtocolClientAdapter.CONNECTION_STATUS, {
+                status: ConnectionState.Disconnected,
+            })
+        });
     };
 
-    private incomingPublishListener311 : mqtt311.OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => {
-        setImmediate(() => { this.emit(ProtocolClientAdapter.INCOMING_PUBLISH, {
-            topic: topic,
-            payload: payload
-        })});
+    private incomingPublishListener311: mqtt311.OnMessageCallback = (topic: string, payload: ArrayBuffer, dup: boolean, qos: QoS, retain: boolean) => {
+        setTimeout(() => {
+            this.emit(ProtocolClientAdapter.INCOMING_PUBLISH, {
+                topic: topic,
+                payload: payload
+            })
+        });
     };
 
     private constructor() {
@@ -145,7 +157,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         this.closed = false;
     }
 
-    public static newFrom5(client: mqtt5.Mqtt5Client) : ProtocolClientAdapter {
+    public static newFrom5(client: mqtt5.Mqtt5Client): ProtocolClientAdapter {
         let adapter = new ProtocolClientAdapter();
 
         adapter.client5 = client;
@@ -159,7 +171,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         return adapter;
     }
 
-    public static newFrom311(client: mqtt311.MqttClientConnection) : ProtocolClientAdapter {
+    public static newFrom311(client: mqtt311.MqttClientConnection): ProtocolClientAdapter {
         let adapter = new ProtocolClientAdapter();
 
         adapter.client311 = client;
@@ -173,7 +185,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         return adapter;
     }
 
-    public close() : void {
+    public close(): void {
         if (this.closed) {
             return;
         }
@@ -195,7 +207,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         }
     }
 
-    public publish(publishOptions : PublishOptions) : void {
+    public publish(publishOptions: PublishOptions): void {
 
         if (this.closed) {
             throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
@@ -203,7 +215,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         var publishResult: PublishCompletionEvent | undefined = undefined;
 
-        setImmediate(async () => {
+        setTimeout(async () => {
             var publishPromise: Promise<void>;
             if (this.client5) {
                 let packet: mqtt5.PublishPacket = {
@@ -257,13 +269,13 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
             let timeoutPromise: Promise<void> = new Promise(
                 resolve => setTimeout(() => {
-                        if (!publishResult) {
-                            publishResult = {
-                                completionData: publishOptions.completionData,
-                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT)
-                            };
-                        }
-                    },
+                    if (!publishResult) {
+                        publishResult = {
+                            completionData: publishOptions.completionData,
+                            err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT)
+                        };
+                    }
+                },
                     publishOptions.timeoutInSeconds * MS_PER_SECOND));
 
             await Promise.race([publishPromise, timeoutPromise]);
@@ -272,7 +284,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         });
     }
 
-    public subscribe(subscribeOptions: SubscribeOptions) : void {
+    public subscribe(subscribeOptions: SubscribeOptions): void {
 
         if (this.closed) {
             throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
@@ -280,7 +292,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         var subscribeResult: SubscribeCompletionEvent | undefined = undefined;
 
-        setImmediate(async () => {
+        setTimeout(async () => {
             var subscribePromise: Promise<void>;
             if (this.client5) {
                 let packet: mqtt5.SubscribePacket = {
@@ -349,14 +361,14 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
             let timeoutPromise: Promise<void> = new Promise(
                 resolve => setTimeout(() => {
-                        if (!subscribeResult) {
-                            subscribeResult = {
-                                topicFilter: subscribeOptions.topicFilter,
-                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT),
-                                retryable: true,
-                            };
-                        }
-                    },
+                    if (!subscribeResult) {
+                        subscribeResult = {
+                            topicFilter: subscribeOptions.topicFilter,
+                            err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT),
+                            retryable: true,
+                        };
+                    }
+                },
                     subscribeOptions.timeoutInSeconds * MS_PER_SECOND));
 
             await Promise.race([subscribePromise, timeoutPromise]);
@@ -365,7 +377,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         });
     }
 
-    public unsubscribe(unsubscribeOptions: UnsubscribeOptions) : void {
+    public unsubscribe(unsubscribeOptions: UnsubscribeOptions): void {
 
         if (this.closed) {
             throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
@@ -373,12 +385,12 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
         var unsubscribeResult: UnsubscribeCompletionEvent | undefined = undefined;
 
-        setImmediate(async () => {
+        setTimeout(async () => {
             var unsubscribePromise: Promise<void>;
 
             if (this.client5) {
-                let packet : mqtt5.UnsubscribePacket = {
-                    topicFilters: [ unsubscribeOptions.topicFilter ]
+                let packet: mqtt5.UnsubscribePacket = {
+                    topicFilters: [unsubscribeOptions.topicFilter]
                 };
 
                 unsubscribePromise = this.client5.unsubscribe(packet).then(
@@ -430,15 +442,15 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
             let timeoutPromise: Promise<void> = new Promise(
                 resolve => setTimeout(() => {
-                        if (!unsubscribeResult) {
-                            unsubscribeResult = {
-                                topicFilter: unsubscribeOptions.topicFilter,
-                                err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT),
-                                retryable: true,
-                            };
-                        }
-                    },
-            unsubscribeOptions.timeoutInSeconds * MS_PER_SECOND));
+                    if (!unsubscribeResult) {
+                        unsubscribeResult = {
+                            topicFilter: unsubscribeOptions.topicFilter,
+                            err: new CrtError(ProtocolClientAdapter.OPERATION_TIMEOUT),
+                            retryable: true,
+                        };
+                    }
+                },
+                    unsubscribeOptions.timeoutInSeconds * MS_PER_SECOND));
 
             await Promise.race([unsubscribePromise, timeoutPromise]);
 
@@ -446,7 +458,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         });
     }
 
-    public getConnectionState() : ConnectionState {
+    public getConnectionState(): ConnectionState {
         if (this.closed) {
             throw new CrtError(ProtocolClientAdapter.ADAPTER_CLOSED);
         }
@@ -454,15 +466,15 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         return this.connectionState;
     }
 
-    static PUBLISH_COMPLETION : string = 'publishCompletion';
+    static PUBLISH_COMPLETION: string = 'publishCompletion';
 
-    static SUBSCRIBE_COMPLETION : string = 'subscribeCompletion';
+    static SUBSCRIBE_COMPLETION: string = 'subscribeCompletion';
 
-    static UNSUBSCRIBE_COMPLETION : string = 'unsubscribeCompletion';
+    static UNSUBSCRIBE_COMPLETION: string = 'unsubscribeCompletion';
 
-    static CONNECTION_STATUS : string = 'connectionStatus';
+    static CONNECTION_STATUS: string = 'connectionStatus';
 
-    static INCOMING_PUBLISH : string = 'incomingPublish';
+    static INCOMING_PUBLISH: string = 'incomingPublish';
 
     on(event: 'publishCompletion', listener: PublishCompletionEventListener): this;
 
@@ -491,7 +503,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
 
     private static ADAPTER_CLOSED = "Protocol Client Adapter Closed";
 
-    private static isUnsubackReasonCodeRetryable(reasonCode: mqtt5.UnsubackReasonCode) : boolean {
+    private static isUnsubackReasonCodeRetryable(reasonCode: mqtt5.UnsubackReasonCode): boolean {
         switch (reasonCode) {
             case mqtt5.UnsubackReasonCode.ImplementationSpecificError:
             case mqtt5.UnsubackReasonCode.PacketIdentifierInUse:
@@ -502,7 +514,7 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         }
     }
 
-    private static isSubackReasonCodeRetryable(reasonCode: mqtt5.SubackReasonCode) : boolean {
+    private static isSubackReasonCodeRetryable(reasonCode: mqtt5.SubackReasonCode): boolean {
         switch (reasonCode) {
             case mqtt5.SubackReasonCode.PacketIdentifierInUse:
             case mqtt5.SubackReasonCode.ImplementationSpecificError:

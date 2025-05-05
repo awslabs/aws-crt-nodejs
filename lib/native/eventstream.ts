@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {NativeResourceMixin} from "./native_resource";
-import {BufferedEventEmitter} from "../common/event";
-import {CrtError} from "./error";
+import { NativeResourceMixin } from "./native_resource";
+import { BufferedEventEmitter } from "../common/event";
+import { CrtError } from "./error";
 import * as io from "./io";
 import * as eventstream_utils from "./eventstream_utils";
 import * as cancel from "../common/cancel";
@@ -65,7 +65,7 @@ export enum HeaderType {
  */
 export type Payload = string | ArrayBuffer | ArrayBufferView;
 
-const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH : number = 127;
+const AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH: number = 127;
 
 type HeaderValue =
     undefined |  /* BooleanTrue, BooleanFalse */
@@ -82,7 +82,7 @@ type HeaderValue =
 export class Header {
 
     /** @internal */
-    constructor(public name: string, public type: HeaderType, public value?: HeaderValue) {}
+    constructor(public name: string, public type: HeaderType, public value?: HeaderValue) { }
 
     private static validateHeaderName(name: string) {
         if (name.length == 0 || name.length > AWS_MAXIMUM_EVENT_STREAM_HEADER_NAME_LENGTH) {
@@ -449,15 +449,15 @@ export interface Message {
 }
 
 /** @internal */
-function mapPodHeadersToJSHeaders(headers: Array<Header>) : Array<Header> {
+function mapPodHeadersToJSHeaders(headers: Array<Header>): Array<Header> {
     return Array.from(headers, (header) => {
         return new Header(header.name, header.type, header.value);
     });
 }
 
 /** @internal */
-function mapPodMessageToJSMessage(message: Message) : Message {
-    let jsMessage : Message = {
+function mapPodMessageToJSMessage(message: Message): Message {
+    let jsMessage: Message = {
         type: message.type,
         flags: message.flags,
         payload: message.payload
@@ -661,7 +661,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * This function **must** be called for every ClientConnection instance or native resources will leak.
      */
-    close() : void {
+    close(): void {
         if (this.state != ClientConnectionState.Closed) {
             this.state = ClientConnectionState.Closed;
 
@@ -676,10 +676,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * connect() may only be called once.
      */
-    async connect(options: ConnectOptions) : Promise<void> {
-        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
+    async connect(options: ConnectOptions): Promise<void> {
+        let cleanupCancelListener: promise.PromiseCleanupFunctor | undefined = undefined;
 
-        let connectPromise : Promise<void> = new Promise<void>((resolve, reject) => {
+        let connectPromise: Promise<void> = new Promise<void>((resolve, reject) => {
             if (!options) {
                 reject(new CrtError("Invalid options passed to event stream ClientConnection.connect"));
                 return;
@@ -693,9 +693,9 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
             this.state = ClientConnectionState.Connecting;
 
             if (options.cancelController) {
-                let cancel : () => void = () => {
+                let cancel: () => void = () => {
                     reject(new CrtError(`Event stream connection connect() cancelled by external request.`));
-                    setImmediate(() => { this.close(); });
+                    setTimeout(() => { this.close(); });
                 };
 
                 cleanupCancelListener = options.cancelController.addListener(cancel);
@@ -704,7 +704,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
                 }
             }
 
-            function curriedPromiseCallback(connection: ClientConnection, errorCode: number){
+            function curriedPromiseCallback(connection: ClientConnection, errorCode: number) {
                 return ClientConnection._s_on_connection_setup(resolve, reject, connection, errorCode);
             }
 
@@ -727,10 +727,10 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * Returns a promise that will be fulfilled when the message is successfully flushed to the wire, and rejected if
      * an error occurs prior to that point.
      */
-    async sendProtocolMessage(options: ProtocolMessageOptions) : Promise<void> {
-        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
+    async sendProtocolMessage(options: ProtocolMessageOptions): Promise<void> {
+        let cleanupCancelListener: promise.PromiseCleanupFunctor | undefined = undefined;
 
-        let sendProtocolMessagePromise : Promise<void> = new Promise<void>((resolve, reject) => {
+        let sendProtocolMessagePromise: Promise<void> = new Promise<void>((resolve, reject) => {
             try {
                 if (!options) {
                     reject(new CrtError("Invalid options passed to event stream ClientConnection.sendProtocolMessage"));
@@ -743,9 +743,9 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
                 }
 
                 if (options.cancelController) {
-                    let cancel : () => void = () => {
+                    let cancel: () => void = () => {
                         reject(new CrtError(`Event stream connection sendProtocolMessage() cancelled by external request.`));
-                        setImmediate(() => { this.close(); });
+                        setTimeout(() => { this.close(); });
                     };
 
                     cleanupCancelListener = options.cancelController.addListener(cancel);
@@ -776,14 +776,14 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      * aws_event_stream_rpc_client_connection_is_open() (whose status is an out-of-sync race condition vs. our
      * well-defined client state)
      */
-    isConnected() : boolean {
+    isConnected(): boolean {
         return this.state == ClientConnectionState.Connected;
     }
 
     /**
      * Creates a new stream within the connection.
      */
-    newStream() : ClientStream {
+    newStream(): ClientStream {
         if (!this.isConnected()) {
             throw new CrtError(`Event stream connection in a state (${this.state}) where creating new streams is forbidden.`);
         }
@@ -798,7 +798,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * @event
      */
-    static DISCONNECTION : string = 'disconnection';
+    static DISCONNECTION: string = 'disconnection';
 
     /**
      * Event emitted when a protocol message is received from the remote endpoint
@@ -807,7 +807,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * @event
      */
-    static PROTOCOL_MESSAGE : string = 'protocolMessage';
+    static PROTOCOL_MESSAGE: string = 'protocolMessage';
 
     on(event: 'disconnection', listener: DisconnectionListener): this;
 
@@ -818,7 +818,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         return this;
     }
 
-    private static _s_on_connection_setup(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, connection: ClientConnection, errorCode: number) {
+    private static _s_on_connection_setup(resolve: (value: (void | PromiseLike<void>)) => void, reject: (reason?: any) => void, connection: ClientConnection, errorCode: number) {
         if (errorCode == 0 && connection.state == ClientConnectionState.Connecting) {
             connection.state = ClientConnectionState.Connected;
             resolve();
@@ -837,17 +837,17 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         }
 
         process.nextTick(() => {
-            connection.emit('disconnection', {errorCode: errorCode});
+            connection.emit('disconnection', { errorCode: errorCode });
         });
     }
 
     private static _s_on_protocol_message(connection: ClientConnection, message: Message) {
         process.nextTick(() => {
-            connection.emit('protocolMessage', {message: mapPodMessageToJSMessage(message)});
+            connection.emit('protocolMessage', { message: mapPodMessageToJSMessage(message) });
         });
     }
 
-    private static _s_on_connection_send_protocol_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
+    private static _s_on_connection_send_protocol_message_completion(resolve: (value: (void | PromiseLike<void>)) => void, reject: (reason?: any) => void, errorCode: number) {
         if (errorCode == 0) {
             resolve();
         } else {
@@ -855,7 +855,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
         }
     }
 
-    private state : ClientConnectionState;
+    private state: ClientConnectionState;
 }
 
 /**
@@ -926,7 +926,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * This function **must** be called for every ClientStream instance or native resources will leak.
      */
-    close() : void {
+    close(): void {
         if (this.state != ClientStreamState.Closed) {
             this.state = ClientStreamState.Closed;
 
@@ -942,10 +942,10 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @param options -- configuration data for stream activation, including operation name and initial message
      */
-    async activate(options: ActivateStreamOptions) : Promise<void> {
-        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
+    async activate(options: ActivateStreamOptions): Promise<void> {
+        let cleanupCancelListener: promise.PromiseCleanupFunctor | undefined = undefined;
 
-        let activatePromise : Promise<void> = new Promise<void>((resolve, reject) => {
+        let activatePromise: Promise<void> = new Promise<void>((resolve, reject) => {
             try {
                 if (this.state != ClientStreamState.None) {
                     reject(new CrtError(`Event stream in a state (${this.state}) where activation is not allowed.`));
@@ -965,9 +965,9 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                 this.state = ClientStreamState.Activating;
 
                 if (options.cancelController) {
-                    let cancel : () => void = () => {
+                    let cancel: () => void = () => {
                         reject(new CrtError(`Event stream activate() cancelled by external request.`));
-                        setImmediate(() => { this.close(); });
+                        setTimeout(() => { this.close(); });
                     };
 
                     cleanupCancelListener = options.cancelController.addListener(cancel);
@@ -976,7 +976,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                     }
                 }
 
-                function curriedPromiseCallback(stream: ClientStream, errorCode: number){
+                function curriedPromiseCallback(stream: ClientStream, errorCode: number) {
                     return ClientStream._s_on_stream_activated(resolve, reject, stream, errorCode);
                 }
 
@@ -998,10 +998,10 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      * Returns a promise that will be fulfilled when the message is successfully flushed to the wire, and rejected if
      * an error occurs prior to that point.
      */
-    async sendMessage(options: StreamMessageOptions) : Promise<void> {
-        let cleanupCancelListener : promise.PromiseCleanupFunctor | undefined = undefined;
+    async sendMessage(options: StreamMessageOptions): Promise<void> {
+        let cleanupCancelListener: promise.PromiseCleanupFunctor | undefined = undefined;
 
-        let sendMessagePromise : Promise<void> = new Promise<void>((resolve, reject) => {
+        let sendMessagePromise: Promise<void> = new Promise<void>((resolve, reject) => {
             try {
                 if (!options) {
                     reject(new CrtError("Invalid options passed to ClientStream.sendMessage"));
@@ -1014,9 +1014,9 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
                 }
 
                 if (options.cancelController) {
-                    let cancel : cancel.CancelListener = () => {
+                    let cancel: cancel.CancelListener = () => {
                         reject(new CrtError(`Event stream sendMessage() cancelled by external request.`));
-                        setImmediate(() => { this.close(); });
+                        setTimeout(() => { this.close(); });
                     };
 
                     cleanupCancelListener = options.cancelController.addListener(cancel);
@@ -1042,7 +1042,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
     /**
      * Returns true if the stream is currently active and ready-to-use, false otherwise.
      */
-    isActive() : boolean {
+    isActive(): boolean {
         return this.state == ClientStreamState.Activated;
     }
 
@@ -1053,7 +1053,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static ENDED : string = 'ended';
+    static ENDED: string = 'ended';
 
     /**
      * Event emitted when a stream message is received from the remote endpoint
@@ -1062,7 +1062,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static MESSAGE : string = 'message';
+    static MESSAGE: string = 'message';
 
     on(event: 'ended', listener: StreamEndedListener): this;
 
@@ -1073,7 +1073,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         return this;
     }
 
-    private static _s_on_stream_activated(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, stream: ClientStream, errorCode: number) {
+    private static _s_on_stream_activated(resolve: (value: (void | PromiseLike<void>)) => void, reject: (reason?: any) => void, stream: ClientStream, errorCode: number) {
         if (errorCode == 0 && stream.state == ClientStreamState.Activating) {
             stream.state = ClientStreamState.Activated;
             resolve();
@@ -1086,7 +1086,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
         }
     }
 
-    private static _s_on_stream_send_message_completion(resolve : (value: (void | PromiseLike<void>)) => void, reject : (reason?: any) => void, errorCode: number) {
+    private static _s_on_stream_send_message_completion(resolve: (value: (void | PromiseLike<void>)) => void, reject: (reason?: any) => void, errorCode: number) {
         if (errorCode == 0) {
             resolve();
         } else {
@@ -1102,9 +1102,9 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
 
     private static _s_on_stream_message(stream: ClientStream, message: Message) {
         process.nextTick(() => {
-            stream.emit(ClientStream.MESSAGE, {message: mapPodMessageToJSMessage(message)});
+            stream.emit(ClientStream.MESSAGE, { message: mapPodMessageToJSMessage(message) });
         });
     }
 
-    private state : ClientStreamState;
+    private state: ClientStreamState;
 }
