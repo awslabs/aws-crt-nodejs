@@ -30,7 +30,7 @@ module.exports = {
         '@test/(.+)': '<rootDir>/test/$1',
         "axios": "axios/dist/node/axios.cjs"
     },
-    testEnvironment: 'jsdom',
+    testEnvironment: 'node',
     testEnvironmentOptions: {
     },
 }
