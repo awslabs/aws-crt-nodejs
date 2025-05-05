@@ -55,11 +55,6 @@
                     "install",
                     "nss",
                     "-y"
-                ],
-                [
-                    "npm",
-                    "run",
-                    "test:browser:ci"
                 ]
             ]
         },
@@ -131,6 +126,11 @@
             "node",
             "{project_dir}/samples/node/elasticurl/dist/elasticurl.js"
         ],
-        "crt-size-check"
+        "crt-size-check",
+        [
+            "npm",
+            "run",
+            "test:browser:ci"
+        ]
     ]
 }
