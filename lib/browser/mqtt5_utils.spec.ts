@@ -354,7 +354,6 @@ function create_base_expected_mqtt_js_config() : mqtt.IClientOptions {
         autoAssignTopicAlias : false,
         transformWsUrl: undefined, /* TOFIX */
         resubscribe : false,
-        clientId : ""
     };
 }
 
