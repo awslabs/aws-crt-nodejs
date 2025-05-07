@@ -22,6 +22,9 @@ def main():
         print("uname result {}".format(arch))
 
     lib_path = "dist/bin/darwin-{}-cruntime/aws-crt-nodejs.node".format(arch)
+    if re.match(r'^(aarch64|armv[6-8]|arm64)', arch): # on arm
+        # The oldest version we can target on arm64 is 11.0
+        supported_version = "11.0"
 
     otool_cmd = "otool -l {} | grep -A5 -E 'LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION' | grep -E '(version|minos)' | head -1 | tr -s ' ' | cut -f3 -d' ' | tr -d '[:space:]'".format(lib_path)
 
