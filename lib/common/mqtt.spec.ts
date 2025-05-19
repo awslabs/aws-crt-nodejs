@@ -86,7 +86,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     await expect(sub).resolves.toBeTruthy();
 
     const publishResult = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-    await expect(publishResult).resolves.toBeTruthy();
+    // Cause an error by changing this from toBeTruthy to toBeFalsy
+    await expect(publishResult).resolves.toBeFalsy();
 
     await messageReceivedPromise;
 
