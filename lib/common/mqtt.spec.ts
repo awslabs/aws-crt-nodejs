@@ -11,7 +11,7 @@ import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscr
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 import {once} from "events";
-import * as io from "./io";
+import * as io from "../native/io";
 
 jest.setTimeout(10000);
 
