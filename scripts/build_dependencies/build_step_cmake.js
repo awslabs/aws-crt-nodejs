@@ -95,7 +95,7 @@ module.exports = {
         if (platform === 'darwin') {
             // What Node calls "x64", Apple calls "x86_64". They both agree on the term "arm64" though.
             options.cMakeOptions.CMAKE_OSX_ARCHITECTURES = (arch === 'x64') ? 'x86_64' : arch;
-            options.cMakeOptions.CMAKE_OSX_DEPLOYMENT_TARGET = "10.9";
+            options.cMakeOptions.CMAKE_OSX_DEPLOYMENT_TARGET = "10.15";
         }
 
         // Convert any -D arguments to this script to cmake -D arguments
