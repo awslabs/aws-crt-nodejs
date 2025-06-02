@@ -98,6 +98,15 @@ module.exports = {
             options.cMakeOptions.CMAKE_OSX_DEPLOYMENT_TARGET = "10.15";
         }
 
+        // Set the target windows SDK version. We have a minimum required version of the Windows SDK needed for schannel.h with SCH_CREDENTIALS and
+        // TLS_PARAMETERS. These are required to build Windows Binaries with TLS 1.3 support.
+        // Please note CMAKE_SYSTEM_NAME is only valid for cmake < 3.27. Currently, we dont have a proper way to support cmake 3.27+
+        // Introduced in cmake 3.27+, the generator string supports a version field to specify the windows sdk version in use
+        // https://cmake.org/cmake/help/latest/variable/CMAKE_GENERATOR_PLATFORM.html#variable:CMAKE_GENERATOR_PLATFORM
+        if(process.env.AWS_CRT_WINDOWS_SDK_VERSION && platform == 'win32') {
+            options.cMakeOptions.CMAKE_SYSTEM_VERSION = process.env.AWS_CRT_WINDOWS_SDK_VERSION
+        }
+
         // Convert any -D arguments to this script to cmake -D arguments
         for (const arg of process.argv) {
             if (arg.startsWith('-D')) {
