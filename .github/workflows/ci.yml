@@ -114,7 +114,7 @@ jobs:
         ./linux-container-ci.sh ${{ env.BUILDER_VERSION }} aws-crt-${LINUX_BASE_IMAGE} build -p ${{ env.PACKAGE_NAME }} --compiler=${{ matrix.compiler }}
 
   windows:
-    runs-on: windows-2022 # latest
+    runs-on: windows-2025 # latest
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -125,20 +125,18 @@ jobs:
         python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
         python builder.pyz build -p ${{ env.PACKAGE_NAME }} --spec=downstream
 
-  windows-vc14-x86:
-    runs-on: windows-2019 # windows-2019 is last env with Visual Studio 2015 (v14.0)
+  windows-vc17-x86:
+    runs-on: windows-2025 # latest
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ env.CRT_CI_ROLE }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
     - name: Build ${{ env.PACKAGE_NAME }} + consumers
-      env:
-        AWS_CMAKE_TOOLSET: v140
       run: |
         python -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder.pyz')"
-        python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-x86 --spec=downstream --cmake-extra=-Tv140 --cmake-extra=-Ax86
-    # cross-compile win32
+        python builder.pyz build -p ${{ env.PACKAGE_NAME }} --target=windows-x86 --spec=downstream --cmake-extra=-Tv143 --cmake-extra=-Ax86
+    # cross-compile win32 for x86
     - name: Cross-compile win32
       run: |
         cd aws-crt-nodejs
