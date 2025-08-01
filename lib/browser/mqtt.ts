@@ -203,6 +203,10 @@ export interface MqttConnectionConfig {
 }
 
 /**
+ * @deprecated Please use {@link Mqtt5Client}
+ * The MQTT 3.1.1 client remains fully supported, but migrating to
+ * MQTT 5 gives you a richer feature set, clearer error handling, and
+ * improved lifetime management.
  * MQTT client
  *
  * @category MQTT
