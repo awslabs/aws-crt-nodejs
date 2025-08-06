@@ -1,17 +1,14 @@
-name: Daily CRT Dependency Updates
+name: Daily NodeJS Dependency Updates
 
 on:
-  workflow_dispatch:
-    inputs:
-      logLevel:
-        description: 'Log level'
-        required: true
-        default: 'warning'
-        type: choice
-        options:
-        - info
-        - warning
-        - debug
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches-ignore:
+      - 'main'
+      - 'docs'
 
 
 env:
