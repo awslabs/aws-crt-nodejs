@@ -55,6 +55,7 @@ jobs:
       - name: Run npm audit fix
         run: |
             echo "Running npm audit fix..."
+            npm audit --audit-level=moderate --json > audit_results.json || true
             npm audit fix --audit-level=moderate || true
             echo "npm audit fix completed"
 
@@ -92,7 +93,6 @@ jobs:
             # Get audit results
             echo "" >> changes_summary.md
             echo "### Audit Results" >> changes_summary.md
-            npm audit --audit-level=low --json > audit_results.json || true
 
             # Parse audit results for summary
             if [ -f audit_results.json ]; then
