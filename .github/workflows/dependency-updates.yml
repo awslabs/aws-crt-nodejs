@@ -189,10 +189,8 @@ jobs:
                   "- Production: " + (.prod | tostring) + "\n" +
                   "- Development: " + (.dev | tostring) + "\n" +
                   "- Optional: " + (.optional | tostring)' audit_results.json 2>/dev/null >> changes_summary.md
-
-              else
+            else
                 echo "✅ No vulnerabilities found" >> changes_summary.md
-              fi
             fi
 
             echo "" >> changes_summary.md
