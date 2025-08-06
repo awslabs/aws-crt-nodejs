@@ -76,42 +76,7 @@ jobs:
           else
             echo "Changes detected"
             echo "has_changes=true" >> $GITHUB_OUTPUT
-
-            # Get summary of changes
-            echo "## Changes Summary" > changes_summary.md
-            echo "" >> changes_summary.md
-
-            # Check if package-lock.json changed
-            if git diff --staged --name-only | grep -q "package-lock.json"; then
-              echo "- 📦 package-lock.json updated" >> changes_summary.md
-            fi
-
-            # Check if package.json changed
-            if git diff --staged --name-only | grep -q "package.json"; then
-              echo "- 📋 package.json updated" >> changes_summary.md
-            fi
-
-            # Get audit results
-            echo "" >> changes_summary.md
-            echo "### Audit Results" >> changes_summary.md
-
-            # Parse audit results for summary
-            if [ -f audit_results.json ]; then
-              VULNERABILITIES=$(jq -r '.metadata.vulnerabilities | to_entries[] | select(.value > 0) | "\(.key): \(.value)"' audit_results.json 2>/dev/null || echo "")
-              if [ -n "$VULNERABILITIES" ]; then
-                echo "**Remaining vulnerabilities:**" >> changes_summary.md
-                echo "$VULNERABILITIES" | while read line; do
-                  echo "- $line" >> changes_summary.md
-                done
-              else
-                echo "✅ No vulnerabilities found" >> changes_summary.md
-              fi
-            fi
-
-            echo "" >> changes_summary.md
-            echo "### Files Changed" >> changes_summary.md
-            git diff --staged --name-only | sed 's/^/- /' >> changes_summary.md
-          fi
+            .github/workflows/dep_update_summary.sh
 
       - name: Create branch and commit changes
         if: steps.changes.outputs.has_changes == 'true'
