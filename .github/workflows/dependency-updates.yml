@@ -1,0 +1,214 @@
+name: Daily Dependency Updates
+
+# on:
+#   schedule:
+#     # Run daily at 2 AM UTC
+#     - cron: '0 2 * * *'
+#   workflow_dispatch: # Allow manual triggering
+
+on:
+  push:
+    branches-ignore:
+      - 'main'
+      - 'docs'
+
+env:
+  NODE_VERSION: '18'
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  dependency-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Create branch name with timestamp
+        id: branch
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BRANCH_NAME="dependency-updates/${TIMESTAMP}"
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Run npm audit fix
+        run: |
+          echo "Running npm audit fix..."
+          npm audit fix --audit-level=moderate || true
+          echo "npm audit fix completed"
+
+      - name: Reinstall with lockfile version 1
+        run: |
+          echo "Reinstalling dependencies with lockfile version 1..."
+          npm install --lockfile-version=1
+          echo "Dependencies reinstalled"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes detected"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            # Get summary of changes
+            echo "## Changes Summary" > changes_summary.md
+            echo "" >> changes_summary.md
+
+            # Check if package-lock.json changed
+            if git diff --staged --name-only | grep -q "package-lock.json"; then
+              echo "- 📦 package-lock.json updated" >> changes_summary.md
+            fi
+
+            # Check if package.json changed
+            if git diff --staged --name-only | grep -q "package.json"; then
+              echo "- 📋 package.json updated" >> changes_summary.md
+            fi
+
+            # Get audit results
+            echo "" >> changes_summary.md
+            echo "### Audit Results" >> changes_summary.md
+            npm audit --audit-level=low --json > audit_results.json || true
+
+            # Parse audit results for summary
+            if [ -f audit_results.json ]; then
+              VULNERABILITIES=$(jq -r '.metadata.vulnerabilities | to_entries[] | select(.value > 0) | "\(.key): \(.value)"' audit_results.json 2>/dev/null || echo "")
+              if [ -n "$VULNERABILITIES" ]; then
+                echo "**Remaining vulnerabilities:**" >> changes_summary.md
+                echo "$VULNERABILITIES" | while read line; do
+                  echo "- $line" >> changes_summary.md
+                done
+              else
+                echo "✅ No vulnerabilities found" >> changes_summary.md
+              fi
+            fi
+
+            echo "" >> changes_summary.md
+            echo "### Files Changed" >> changes_summary.md
+            git diff --staged --name-only | sed 's/^/- /' >> changes_summary.md
+          fi
+
+      - name: Create branch and commit changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git checkout -b ${{ steps.branch.outputs.branch_name }}
+          git commit -m "chore: automated dependency updates
+
+          - Run npm audit fix to address security vulnerabilities
+          - Reinstall dependencies with lockfile-version=1
+          - Automated update on ${{ steps.branch.outputs.timestamp }}
+
+          🤖 Assisted by GenAI"
+
+      - name: Push branch
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git push origin ${{ steps.branch.outputs.branch_name }}
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read the changes summary
+            let body = '';
+            try {
+              body = fs.readFileSync('changes_summary.md', 'utf8');
+            } catch (error) {
+              body = 'Automated dependency updates performed.';
+            }
+
+            // Add additional context to PR body
+            const fullBody = `# 🔄 Automated Dependency Updates
+
+            This PR contains automated dependency updates performed by the daily maintenance workflow.
+
+            ${body}
+
+            ## What was done:
+            1. ✅ Ran \`npm audit fix\` to address security vulnerabilities
+            2. ✅ Ran \`npm install --lockfile-version=1\` to ensure lockfile compatibility
+            3. ✅ Committed any resulting changes
+
+            ## Review Guidelines:
+            - 🔍 Review the changes in \`package-lock.json\` for any unexpected updates
+            - 🧪 Ensure CI tests pass before merging
+            - 🚀 This PR can be safely merged if all checks pass
+
+            ---
+            *This PR was automatically created by the dependency-updates workflow.*
+            `;
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `chore: automated dependency updates (${{ steps.branch.outputs.timestamp }})`,
+              head: '${{ steps.branch.outputs.branch_name }}',
+              base: 'main',
+              body: fullBody,
+              draft: false
+            });
+
+            console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+
+      - name: Add labels to PR
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get the PR number from the previous step
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${{ steps.branch.outputs.branch_name }}`,
+              state: 'open'
+            });
+
+            if (prs.data.length > 0) {
+              const prNumber = prs.data[0].number;
+
+              // Add labels
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: ['dependencies', 'automated', 'maintenance']
+              });
+
+              console.log(`Added labels to PR #${prNumber}`);
+            }
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
+            echo "✅ Dependency updates completed and PR created"
+            echo "Branch: ${{ steps.branch.outputs.branch_name }}"
+          else
+            echo "ℹ️ No dependency updates needed"
+          fi
