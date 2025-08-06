@@ -68,8 +68,8 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          git add -p package-lock.json
-          git add -p package.json
+          git add package-lock.json
+          git add package.json
           if git diff --staged --quiet; then
             echo "No changes detected"
             echo "has_changes=false" >> $GITHUB_OUTPUT
