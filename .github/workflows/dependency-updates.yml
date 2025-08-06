@@ -27,42 +27,42 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+            submodules: true
+            token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+            node-version: ${{ env.NODE_VERSION }}
+            cache: 'npm'
 
       - name: Configure Git
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+            git config --global user.name 'github-actions[bot]'
+            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Create branch name with timestamp
         id: branch
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          BRANCH_NAME="dependency-updates/${TIMESTAMP}"
-          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
-          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            BRANCH_NAME="dependency-updates/${TIMESTAMP}"
+            echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+            echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
 
       - name: Install current dependencies
         run: npm ci
 
       - name: Run npm audit fix
         run: |
-          echo "Running npm audit fix..."
-          npm audit fix --audit-level=moderate || true
-          echo "npm audit fix completed"
+            echo "Running npm audit fix..."
+            npm audit fix --audit-level=moderate || true
+            echo "npm audit fix completed"
 
       - name: Reinstall with lockfile version 1
         run: |
-          echo "Reinstalling dependencies with lockfile version 1..."
-          npm install --lockfile-version=1
-          echo "Dependencies reinstalled"
+            echo "Reinstalling dependencies with lockfile version 1..."
+            npm install --lockfile-version=1
+            echo "Dependencies reinstalled"
 
       - name: Check for changes
         id: changes
