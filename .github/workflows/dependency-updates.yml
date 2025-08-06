@@ -1,4 +1,4 @@
-name: Daily Dependency Updates
+name: Daily CRT Dependency Updates
 
 on:
   workflow_dispatch:
