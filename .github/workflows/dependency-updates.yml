@@ -1,14 +1,14 @@
-name: Daily NodeJS Dependency Updates
+name: Daily Dependency Updates
 
 on:
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
-  workflow_dispatch: # Allow manual triggering
   push:
     branches-ignore:
       - 'main'
       - 'docs'
+  workflow_dispatch:
 
 
 env:
