@@ -50,6 +50,11 @@ export interface WebsocketConfig extends WebsocketOptionsBase{
 }
 
 /**
+ * @deprecated Please use {@link Mqtt5Client}
+ * The MQTT 3.1.1 client remains fully supported, but migrating to
+ * MQTT 5 gives you a richer feature set, clearer error handling, and
+ * improved lifetime management.
+ * 
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
  * a {@link MqttClientConnection}, configured for use with AWS IoT.
  *
@@ -79,6 +84,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * @deprecated Please use {@link Mqtt5Client}
+     * The MQTT 3.1.1 client remains fully supported, but migrating to
+     * MQTT 5 gives you a richer feature set, clearer error handling, and
+     * improved lifetime management.
+     * 
      * Create a new builder with mTLS file paths
      * @param cert_path - Path to certificate, in PEM format
      * @param key_path - Path to private key, in PEM format
@@ -95,6 +105,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * @deprecated Please use {@link Mqtt5Client}
+     * The MQTT 3.1.1 client remains fully supported, but migrating to
+     * MQTT 5 gives you a richer feature set, clearer error handling, and
+     * improved lifetime management.
+     * 
      * Create a new builder with mTLS cert pair in memory
      * @param cert - Certificate, in PEM format
      * @param private_key - Private key, in PEM format
@@ -111,6 +126,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * @deprecated Please use {@link Mqtt5Client}
+     * The MQTT 3.1.1 client remains fully supported, but migrating to
+     * MQTT 5 gives you a richer feature set, clearer error handling, and
+     * improved lifetime management.
+     * 
      * Create a new builder with mTLS using a PKCS#11 library for private key operations.
      *
      * NOTE: This configuration only works on Unix devices.
@@ -128,6 +148,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * @deprecated Please use {@link Mqtt5Client}
+     * The MQTT 3.1.1 client remains fully supported, but migrating to
+     * MQTT 5 gives you a richer feature set, clearer error handling, and
+     * improved lifetime management.
+     * 
      * Create a new builder with mTLS using a PKCS#12 file for private key operations.
      *
      * Note: This configuration only works on MacOS devices.
@@ -147,6 +172,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * @deprecated Please use {@link Mqtt5Client}
+     * The MQTT 3.1.1 client remains fully supported, but migrating to
+     * MQTT 5 gives you a richer feature set, clearer error handling, and
+     * improved lifetime management.
+     * 
      * Create a new builder with mTLS using a certificate in a Windows certificate store.
      *
      * NOTE: This configuration only works on Windows devices.
@@ -166,6 +196,11 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * @deprecated Please use {@link Mqtt5Client}
+     * The MQTT 3.1.1 client remains fully supported, but migrating to
+     * MQTT 5 gives you a richer feature set, clearer error handling, and
+     * improved lifetime management.
+     * 
      * Creates a new builder with default Tls options. This requires setting the connection details manually.
      */
     static new_default_builder() {
