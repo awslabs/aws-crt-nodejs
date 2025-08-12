@@ -12,6 +12,7 @@
  * @mergeTarget
  */
 
+import type { Mqtt5Client } from "./mqtt5";
 import crt_native from './binding';
 import { NativeResource, NativeResourceMixin } from "./native_resource";
 import { BufferedEventEmitter } from '../common/event';
@@ -96,7 +97,7 @@ export type MqttConnectionFailure = (callback_data: OnConnectionFailedResult) =>
 export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => void;
 
 /**
- * @deprecated We strongly recommend using {@link Mqtt5Client}
+ * @deprecated We strongly recommend using {@link Mqtt5Client}.  
  * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
  * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
  * management. More details can be found in the GitHub Repo FAQ
