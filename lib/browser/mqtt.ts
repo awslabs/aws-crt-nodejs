@@ -12,6 +12,7 @@
  * @mergeTarget
  */
 
+import type { Mqtt5Client } from "./mqtt5";
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
