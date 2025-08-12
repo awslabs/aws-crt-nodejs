@@ -96,10 +96,10 @@ export type MqttConnectionFailure = (callback_data: OnConnectionFailedResult) =>
 export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => void;
 
 /**
- * @deprecated Please use {@link Mqtt5Client}
- * The MQTT 3.1.1 client remains fully supported, but migrating to
- * MQTT 5 gives you a richer feature set, clearer error handling, and
- * improved lifetime management.
+ * @deprecated We strongly recommend using {@link Mqtt5Client}
+ * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+ * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+ * management. More details can be found in the GitHub Repo FAQ
  * 
  * MQTT client
  *

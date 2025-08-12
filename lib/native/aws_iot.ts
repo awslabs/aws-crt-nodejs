@@ -17,6 +17,7 @@ import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import { WebsocketOptionsBase } from "../common/auth";
 import { CrtError } from "./error";
+import type { Mqtt5Client } from "./mqtt5";
 
 import {
     aws_sign_request,
@@ -84,10 +85,10 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * @deprecated Please use {@link Mqtt5Client}
-     * The MQTT 3.1.1 client remains fully supported, but migrating to
-     * MQTT 5 gives you a richer feature set, clearer error handling, and
-     * improved lifetime management.
+     * @deprecated We strongly recommend using {@link Mqtt5Client}.  
+     * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+     * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+     * management. More details can be found in the GitHub Repo FAQ
      * 
      * Create a new builder with mTLS file paths
      * @param cert_path - Path to certificate, in PEM format
@@ -105,10 +106,10 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * @deprecated Please use {@link Mqtt5Client}
-     * The MQTT 3.1.1 client remains fully supported, but migrating to
-     * MQTT 5 gives you a richer feature set, clearer error handling, and
-     * improved lifetime management.
+     * @deprecated We strongly recommend using {@link Mqtt5Client}.  
+     * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+     * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+     * management. More details can be found in the GitHub Repo FAQ
      * 
      * Create a new builder with mTLS cert pair in memory
      * @param cert - Certificate, in PEM format
@@ -126,10 +127,10 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * @deprecated Please use {@link Mqtt5Client}
-     * The MQTT 3.1.1 client remains fully supported, but migrating to
-     * MQTT 5 gives you a richer feature set, clearer error handling, and
-     * improved lifetime management.
+     * @deprecated We strongly recommend using {@link Mqtt5Client}.  
+     * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+     * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+     * management. More details can be found in the GitHub Repo FAQ
      * 
      * Create a new builder with mTLS using a PKCS#11 library for private key operations.
      *
@@ -148,10 +149,10 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * @deprecated Please use {@link Mqtt5Client}
-     * The MQTT 3.1.1 client remains fully supported, but migrating to
-     * MQTT 5 gives you a richer feature set, clearer error handling, and
-     * improved lifetime management.
+     * @deprecated We strongly recommend using {@link Mqtt5Client}.  
+     * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+     * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+     * management. More details can be found in the GitHub Repo FAQ
      * 
      * Create a new builder with mTLS using a PKCS#12 file for private key operations.
      *
@@ -172,10 +173,10 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * @deprecated Please use {@link Mqtt5Client}
-     * The MQTT 3.1.1 client remains fully supported, but migrating to
-     * MQTT 5 gives you a richer feature set, clearer error handling, and
-     * improved lifetime management.
+     * @deprecated We strongly recommend using {@link Mqtt5Client}.  
+     * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+     * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+     * management. More details can be found in the GitHub Repo FAQ
      * 
      * Create a new builder with mTLS using a certificate in a Windows certificate store.
      *
@@ -196,10 +197,10 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * @deprecated Please use {@link Mqtt5Client}
-     * The MQTT 3.1.1 client remains fully supported, but migrating to
-     * MQTT 5 gives you a richer feature set, clearer error handling, and
-     * improved lifetime management.
+     * @deprecated We strongly recommend using {@link Mqtt5Client}.  
+     * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+     * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+     * management. More details can be found in the GitHub Repo FAQ
      * 
      * Creates a new builder with default Tls options. This requires setting the connection details manually.
      */
