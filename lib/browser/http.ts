@@ -27,7 +27,7 @@ import {
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
-import * as axios from "axios";
+
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
@@ -211,8 +211,8 @@ export class HttpRequest {
  * @category HTTP
  */
 export class HttpClientConnection extends BufferedEventEmitter {
-    public _axios: any;
-    private axios_options: axios.AxiosRequestConfig;
+    public baseURL: string;
+    private proxyConfig?: { host: string; port: number; auth?: { username: string; password: string } };
     protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
@@ -245,24 +245,21 @@ export class HttpClientConnection extends BufferedEventEmitter {
         this.proxy_options = proxyOptions;
         const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
-        this.axios_options = {
-            baseURL: `${scheme}://${host_name}:${port}/`
-        };
+        this.baseURL = `${scheme}://${host_name}:${port}/`;
 
         if (this.proxy_options) {
-            this.axios_options.proxy = {
+            this.proxyConfig = {
                 host: this.proxy_options.host_name,
                 port: this.proxy_options.port,
             };
 
             if (this.proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
-                this.axios_options.proxy.auth = {
+                this.proxyConfig.auth = {
                     username: this.proxy_options.auth_username || "",
                     password: this.proxy_options.auth_password || "",
                 };
             }
         }
-        this._axios = axios.default.create(this.axios_options);
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -320,7 +317,6 @@ export class HttpClientConnection extends BufferedEventEmitter {
      */
     close() {
         this.emit('close');
-        this._axios = undefined;
     }
 }
 
@@ -341,15 +337,39 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
         }
         return obj;
     }
-    let body = (request.body) ? (request.body as InputStream).data : undefined;
+    let body: BodyInit | null = null;
+    if (request.body) {
+        const inputStream = request.body as InputStream;
+        if (inputStream.data instanceof ArrayBuffer) {
+            body = inputStream.data;
+        } else if (typeof inputStream.data === 'string') {
+            body = inputStream.data;
+        } else {
+            body = JSON.stringify(inputStream.data);
+        }
+    }
     let stream = HttpClientStream._create(connection);
-    stream.connection._axios.request({
-        url: request.path,
-        method: request.method.toLowerCase(),
-        headers: _to_object(request.headers),
+    
+    const url = new URL(request.path, connection.baseURL).toString();
+    const headers = _to_object(request.headers);
+    
+    fetch(url, {
+        method: request.method,
+        headers: headers,
         body: body
-    }).then((response: any) => {
-        stream._on_response(response);
+    }).then(async (response: Response) => {
+        const responseHeaders: { [key: string]: string } = {};
+        response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+        });
+        
+        const data = await response.arrayBuffer();
+        
+        stream._on_response({
+            status: response.status,
+            headers: responseHeaders,
+            data: data
+        });
     }).catch((error: any) => {
         stream._on_error(error);
     });
