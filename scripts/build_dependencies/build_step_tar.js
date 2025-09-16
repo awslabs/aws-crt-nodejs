@@ -4,7 +4,7 @@
  */
 const path = require("path");
 const process = require("process");
-const build_step_axios = require("./build_step_axios");
+const build_step_fetch = require("./build_step_fetch");
 const utils = require('./build_utils');
 
 module.exports = {
@@ -50,13 +50,13 @@ module.exports = {
      * Will NOT download or check to see if cmake-js is in the node_modules or otherwise exists.
      */
     fetchNativeCode: async function (url, version, source_path, nativeSourceDir) {
-        build_step_axios.loadAxios();
+        build_step_fetch.loadFetch();
 
         const sourceURL = `${url}/aws-crt-${version}-source.tgz`
         const tarballPath = source_path + "source.tgz";
-        await build_step_axios.downloadFile(sourceURL, tarballPath);
+        await build_step_fetch.downloadFile(sourceURL, tarballPath);
         const sourceChecksumURL = `${url}/aws-crt-${version}-source.sha256`;
-        await build_step_axios.checkChecksum(sourceChecksumURL, tarballPath);
+        await build_step_fetch.checkChecksum(sourceChecksumURL, tarballPath);
         await this.tar.x({ file: tarballPath, strip: 2, C: nativeSourceDir });
     }
 }

@@ -9,29 +9,15 @@ const utils = require('./build_utils');
 
 module.exports = {
 
-    axios: null,
-    clean_up_axios: false,
-    axios_version: require("../../package.json").dependencies['axios'].replace("^", ""),
-
     /**
-     * Loads the axios library. We want to do this seperate instead of having a performStep function
-     * because the axios library is needed for multiple functions that have different data passed to them.
+     * Initializes the fetch API for Node.js if needed
      */
-    loadAxios: function () {
+    loadFetch: function () {
         const workDir = path.join(__dirname, "../../")
         process.chdir(workDir);
-        if (this.axios == null) {
-            if (utils.npmCheckIfPackageExists("axios", this.axios_version)) {
-                this.axios = require("axios");
-            } else {
-                try {
-                    this.clean_up_axios = utils.npmDownloadAndInstallRuntimePackage("axios", this.axios_version);
-                    this.axios = require('axios');
-                } catch (error) {
-                    utils.npmErrorPrint("axios", this.axios_version);
-                    process.exit(1);
-                }
-            }
+        // fetch is available globally in Node.js 18+, for older versions we'd need a polyfill
+        if (typeof fetch === 'undefined') {
+            console.warn('fetch API not available, please use Node.js 18+ or install a fetch polyfill');
         }
     },
 
@@ -41,33 +27,52 @@ module.exports = {
      * @param {*} outputLocationPath The location to store the downloaded file
      * @returns A promise for the file download
      */
-    downloadFile: function (fileUrl, outputLocationPath) {
-        const writer = fs.createWriteStream(outputLocationPath);
-        return this.axios({
-            method: 'get',
-            url: fileUrl,
-            responseType: 'stream',
-        }).then(response => {
+    downloadFile: async function (fileUrl, outputLocationPath) {
+        try {
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const writer = fs.createWriteStream(outputLocationPath);
+            const reader = response.body.getReader();
+            
             return new Promise((resolve, reject) => {
-                response.data.pipe(writer);
                 let error = null;
+                
+                const pump = async () => {
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            writer.write(Buffer.from(value));
+                        }
+                        writer.end();
+                    } catch (err) {
+                        error = err;
+                        writer.destroy(err);
+                    }
+                };
+                
                 writer.on('error', err => {
                     error = err;
                     console.log("Source file download failed " + err);
-                    writer.close();
                     reject(err);
                 });
-                writer.on('close', () => {
+                
+                writer.on('finish', () => {
                     if (!error) {
                         console.log("Source file download succeed!");
                         resolve();
-                    } else {
-                        console.log("Source file download failed " + err);
-                        reject(err);
                     }
                 });
+                
+                pump();
             });
-        });
+        } catch (error) {
+            console.log("Source file download failed " + error);
+            throw error;
+        }
     },
 
     /**
@@ -77,12 +82,15 @@ module.exports = {
      * @param {*} local_file The file to check
      * @returns A promise for the result of the check
      */
-    checkChecksum: function (url, local_file) {
-        return this.axios({
-            method: 'get',
-            url: url,
-            responseType: 'text',
-        }).then(response => {
+    checkChecksum: async function (url, local_file) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const expectedChecksum = (await response.text()).trim();
+            
             return new Promise((resolve, reject) => {
                 const filestream = fs.createReadStream(local_file);
                 const hash = crypto.createHash('sha256');
@@ -94,7 +102,7 @@ module.exports = {
                         hash.update(data);
                     else {
                         const checksum = hash.digest("hex")
-                        if (checksum === response.data) {
+                        if (checksum === expectedChecksum) {
                             resolve()
                         }
                         else {
@@ -103,7 +111,9 @@ module.exports = {
                     }
                 });
             });
-        })
+        } catch (error) {
+            throw new Error(`Failed to fetch checksum: ${error.message}`);
+        }
     }
 
 }

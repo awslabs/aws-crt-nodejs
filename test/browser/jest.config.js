@@ -31,6 +31,6 @@ module.exports = {
         '@awscrt/(.+)': '<rootDir>/lib/browser/$1',
         '@awscrt': '<rootDir>/lib/browser.ts',
         '@test/(.+)': '<rootDir>/test/$1',
-        "axios": "axios/dist/node/axios.cjs"
+
     }
 }

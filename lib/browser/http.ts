@@ -27,7 +27,7 @@ import {
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
-import * as axios from "axios";
+
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
@@ -211,8 +211,8 @@ export class HttpRequest {
  * @category HTTP
  */
 export class HttpClientConnection extends BufferedEventEmitter {
-    public _axios: any;
-    private axios_options: axios.AxiosRequestConfig;
+    public baseURL: string;
+    private proxyConfig?: { host: string; port: number; auth?: { username: string; password: string } };
     protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
@@ -245,24 +245,21 @@ export class HttpClientConnection extends BufferedEventEmitter {
         this.proxy_options = proxyOptions;
         const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
-        this.axios_options = {
-            baseURL: `${scheme}://${host_name}:${port}/`
-        };
+        this.baseURL = `${scheme}://${host_name}:${port}/`;
 
         if (this.proxy_options) {
-            this.axios_options.proxy = {
+            this.proxyConfig = {
                 host: this.proxy_options.host_name,
                 port: this.proxy_options.port,
             };
 
             if (this.proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
-                this.axios_options.proxy.auth = {
+                this.proxyConfig.auth = {
                     username: this.proxy_options.auth_username || "",
                     password: this.proxy_options.auth_password || "",
                 };
             }
         }
-        this._axios = axios.default.create(this.axios_options);
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -320,7 +317,6 @@ export class HttpClientConnection extends BufferedEventEmitter {
      */
     close() {
         this.emit('close');
-        this._axios = undefined;
     }
 }
 
@@ -343,13 +339,45 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
     }
     let body = (request.body) ? (request.body as InputStream).data : undefined;
     let stream = HttpClientStream._create(connection);
-    stream.connection._axios.request({
-        url: request.path,
-        method: request.method.toLowerCase(),
-        headers: _to_object(request.headers),
-        body: body
-    }).then((response: any) => {
-        stream._on_response(response);
+    
+    const url = new URL(request.path, connection.baseURL).toString();
+    const headers = _to_object(request.headers);
+    
+    // Convert body to appropriate format for fetch
+    let fetchBody: BodyInit | null = null;
+    if (body) {
+        if (body instanceof ArrayBuffer || body instanceof Uint8Array) {
+            fetchBody = body;
+        } else if (typeof body === 'string') {
+            fetchBody = body;
+        } else {
+            fetchBody = JSON.stringify(body);
+        }
+    }
+    
+    fetch(url, {
+        method: request.method,
+        headers: headers,
+        body: fetchBody
+    }).then(async (response: Response) => {
+        const responseHeaders = new HttpHeaders();
+        response.headers.forEach((value, key) => {
+            responseHeaders.add(key, value);
+        });
+        
+        const data = await response.arrayBuffer();
+        
+        // Create headers object compatible with existing code
+        const headersObj: { [key: string]: string } = {};
+        response.headers.forEach((value, key) => {
+            headersObj[key] = value;
+        });
+        
+        stream._on_response({
+            status: response.status,
+            headers: headersObj,
+            data: data
+        });
     }).catch((error: any) => {
         stream._on_error(error);
     });
@@ -449,7 +477,7 @@ export class HttpClientStream extends BufferedEventEmitter {
         return new HttpClientStream(connection);
     }
 
-    // Convert axios' single response into a series of events
+    // Convert fetch response into a series of events
     /** @internal */
     _on_response(response: any) {
         this.response_status_code = response.status;
@@ -466,7 +494,7 @@ export class HttpClientStream extends BufferedEventEmitter {
         this.emit('end');
     }
 
-    // Gather as much information as possible from the axios error
+    // Gather as much information as possible from the fetch error
     // and pass it on to the user
     /** @internal */
     _on_error(error: any) {
