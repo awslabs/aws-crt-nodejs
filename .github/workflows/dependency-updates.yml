@@ -223,16 +223,17 @@ jobs:
                   for PACKAGE in $PACKAGES; do
                     PACKAGE_INDEX=$((PACKAGE_INDEX + 1))
                     echo "DEBUG: Processing package $PACKAGE_INDEX/$PACKAGE_COUNT: $PACKAGE"
-                    SEVERITY=$(jq -r ".vulnerabilities[\"$PACKAGE\"].severity" audit_results.json 2>/dev/null)
-                    echo "DEBUG: $SEVERITY"
-                    RANGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].range" audit_results.json 2>/dev/null)
-                    echo "DEBUG: $RANGE"
-                    IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect" audit_results.json 2>/dev/null)
-                    echo "DEBUG: $IS_DIRECT"
-                    FIX_AVAILABLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].fixAvailable" audit_results.json 2>/dev/null)
-                    echo "DEBUG: $FIX_AVAILABLE"
-                    NODES=$(jq -r ".vulnerabilities[\"$PACKAGE\"].nodes | join(\", \")" audit_results.json 2>/dev/null)
-                    echo "DEBUG: $NODES"
+                    # Extract data with null checks and default values
+                    SEVERITY=$(jq -r ".vulnerabilities[\"$PACKAGE\"].severity // \"unknown\"" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Severity: $SEVERITY"
+                    RANGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].range // \"N/A\"" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Range: $RANGE"
+                    IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect // false" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Is Direct: $IS_DIRECT"
+                    FIX_AVAILABLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].fixAvailable // false" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Fix Available: $FIX_AVAILABLE"
+                    NODES=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].nodes then (.vulnerabilities[\"$PACKAGE\"].nodes | join(\", \")) else \"N/A\" end" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Nodes: $NODES"
 
                     echo "### 🚨 $PACKAGE ($SEVERITY severity)" >> changes_summary.md
                     echo "- **Affected versions:** $RANGE" >> changes_summary.md
@@ -242,12 +243,12 @@ jobs:
                     echo "- **Advisories:**" >> changes_summary.md
 
                     # Get advisories for this package
-                    ADVISORY_COUNT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via | length" audit_results.json 2>/dev/null)
+                    ADVISORY_COUNT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via | length // 0" audit_results.json 2>/dev/null)
                     for ((i=0; i<ADVISORY_COUNT; i++)); do
-                      TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title" audit_results.json 2>/dev/null)
-                      URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url" audit_results.json 2>/dev/null)
+                      TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title // \"Unknown\"" audit_results.json 2>/dev/null)
+                      URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url // \"#\"" audit_results.json 2>/dev/null)
                       CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
-
+                      echo "DEBUG: TITLE: $TITLE"
                       if [ "$CVSS_SCORE" != "0" ] && [ "$CVSS_SCORE" != "null" ]; then
                         echo "  - [$TITLE]($URL) (CVSS: $CVSS_SCORE)" >> changes_summary.md
                       else
@@ -293,7 +294,7 @@ jobs:
                   # Check for critical/high severity
                   CRITICAL_HIGH=$(jq -r '(.metadata.vulnerabilities.critical // 0) + (.metadata.vulnerabilities.high // 0)' audit_results.json 2>/dev/null)
                   if [ "$CRITICAL_HIGH" -gt 0 ]; then
-                    echo "- 🚨 $CRITICAL_HIGH critical/high severity vulnerabilities require immediate attention" >> changes_summary.md
+                    echo "- � $CRITICAL_HIGH critical/high severity vulnerabilities require immediate attention" >> changes_summary.md
                   fi
 
                 else
