@@ -230,7 +230,7 @@ jobs:
                     echo "DEBUG: Range: $RANGE"
                     IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect // false" audit_results.json 2>/dev/null)
                     echo "DEBUG: Is Direct: $IS_DIRECT"
-                    FIX_AVAILABLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].fixAvailable // false" audit_results.json 2>/dev/null)
+                    FIX_AVAILABLE=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].fixAvailable then (if (.vulnerabilities[\"$PACKAGE\"].fixAvailable | type) == \"object\" then \"true\" else (.vulnerabilities[\"$PACKAGE\"].fixAvailable | tostring) end) else \"false\" end" audit_results.json 2>/dev/null)
                     echo "DEBUG: Fix Available: $FIX_AVAILABLE"
                     NODES=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].nodes then (.vulnerabilities[\"$PACKAGE\"].nodes | join(\", \")) else \"N/A\" end" audit_results.json 2>/dev/null)
                     echo "DEBUG: Nodes: $NODES"
@@ -245,20 +245,38 @@ jobs:
 
                     # Get advisories for this package
                     ADVISORY_COUNT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via | length // 0" audit_results.json 2>/dev/null)
-                    for ((i=0; i<ADVISORY_COUNT; i++)); do
-                      TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title // \"Unknown\"" audit_results.json 2>/dev/null)
-                      echo "DEBUG: TITLE: $TITLE"
-                      URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url // \"#\"" audit_results.json 2>/dev/null)
-                      echo "DEBUG: URL: $URL"
-                      CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
-                      echo "DEBUG: CVSS_SCORE: $CVSS_SCORE"
+                    echo "DEBUG: ADVISORY_COUNT: $ADVISORY_COUNT"
 
-                      if [ "$CVSS_SCORE" != "0" ] && [ "$CVSS_SCORE" != "null" ]; then
-                        echo "  - [$TITLE]($URL) (CVSS: $CVSS_SCORE)" >> changes_summary.md
-                      else
-                        echo "  - [$TITLE]($URL)" >> changes_summary.md
-                      fi
-                    done
+                    # Check if via contains objects or strings
+                    VIA_TYPE=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].via and (.vulnerabilities[\"$PACKAGE\"].via | length) > 0 then (.vulnerabilities[\"$PACKAGE\"].via[0] | type) else \"null\" end" audit_results.json 2>/dev/null)
+                    echo "DEBUG: VIA_TYPE: $VIA_TYPE"
+
+                    if [ "$VIA_TYPE" = "object" ]; then
+                      # Process as objects with title/url/cvss
+                      for ((i=0; i<ADVISORY_COUNT; i++)); do
+                        TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title // \"Unknown\"" audit_results.json 2>/dev/null)
+                        echo "DEBUG: TITLE: $TITLE"
+                        URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url // \"#\"" audit_results.json 2>/dev/null)
+                        echo "DEBUG: URL: $URL"
+                        CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
+                        echo "DEBUG: CVSS_SCORE: $CVSS_SCORE"
+
+                        if [ "$CVSS_SCORE" != "0" ] && [ "$CVSS_SCORE" != "null" ]; then
+                          echo "  - [$TITLE]($URL) (CVSS: $CVSS_SCORE)" >> changes_summary.md
+                        else
+                          echo "  - [$TITLE]($URL)" >> changes_summary.md
+                        fi
+                      done
+                    elif [ "$VIA_TYPE" = "string" ]; then
+                      # Process as strings (package names)
+                      for ((i=0; i<ADVISORY_COUNT; i++)); do
+                        VIA_PACKAGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i]" audit_results.json 2>/dev/null)
+                        echo "DEBUG: VIA_PACKAGE: $VIA_PACKAGE"
+                        echo "  - Vulnerability via package: $VIA_PACKAGE" >> changes_summary.md
+                      done
+                    else
+                      echo "  - No advisory details available" >> changes_summary.md
+                    fi
 
                     echo "" >> changes_summary.md
                   done
