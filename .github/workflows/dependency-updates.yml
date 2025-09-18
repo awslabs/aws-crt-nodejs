@@ -1,10 +1,14 @@
 name: Daily Dependency Updates
 
 on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+  # schedule:
+  #   # Run daily at 2 AM UTC
+  #   - cron: '0 2 * * *'
+  # workflow_dispatch:
+  push:
+    branches-ignore:
+      - 'main'
+      - 'docs'
 
 
 env:
@@ -63,14 +67,87 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
+          echo "=== DEBUG: Starting change detection ==="
+          echo "Current working directory: $(pwd)"
+          echo "Git status before adding files:"
+          git status --porcelain
+
+          echo ""
+          echo "=== DEBUG: Checking file existence ==="
+          echo "package.json exists: $(test -f package.json && echo 'YES' || echo 'NO')"
+          echo "package-lock.json exists: $(test -f package-lock.json && echo 'YES' || echo 'NO')"
+
+          echo ""
+          echo "=== DEBUG: File sizes and timestamps ==="
+          if [ -f package.json ]; then
+            echo "package.json size: $(wc -c < package.json) bytes"
+            echo "package.json modified: $(stat -c %y package.json 2>/dev/null || stat -f %Sm package.json)"
+          fi
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json size: $(wc -c < package-lock.json) bytes"
+            echo "package-lock.json modified: $(stat -c %y package-lock.json 2>/dev/null || stat -f %Sm package-lock.json)"
+          fi
+
+          echo ""
+          echo "=== DEBUG: Git diff before staging ==="
+          echo "Unstaged changes in package.json:"
+          git diff --name-only | grep package.json || echo "No unstaged changes in package.json"
+          echo "Unstaged changes in package-lock.json:"
+          git diff --name-only | grep package-lock.json || echo "No unstaged changes in package-lock.json"
+
+          echo ""
+          echo "=== DEBUG: Adding files to staging area ==="
+          echo "Adding package-lock.json..."
           git add package-lock.json
+          echo "Adding package.json..."
           git add package.json
+
+          echo ""
+          echo "=== DEBUG: Git status after adding files ==="
+          git status --porcelain
+
+          echo ""
+          echo "=== DEBUG: Staged changes details ==="
+          echo "Files in staging area:"
+          git diff --staged --name-only
+          echo ""
+          echo "Staged changes summary:"
+          git diff --staged --stat
+
+          echo ""
+          echo "=== DEBUG: Checking for staged changes ==="
           if git diff --staged --quiet; then
+            echo "✅ DEBUG: git diff --staged --quiet returned TRUE (no changes)"
             echo "No changes detected"
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
+            echo "✅ DEBUG: git diff --staged --quiet returned FALSE (changes found)"
             echo "Changes detected"
             echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            echo ""
+            echo "=== DEBUG: Detailed diff output ==="
+            echo "Staged diff (first 50 lines):"
+            git diff --staged | head -50
+
+            echo ""
+            echo "=== DEBUG: File-specific changes ==="
+            if git diff --staged --name-only | grep -q "package-lock.json"; then
+              echo "📦 package-lock.json has staged changes"
+              echo "Lines changed in package-lock.json: $(git diff --staged --numstat package-lock.json | cut -f1,2)"
+            else
+              echo "📦 package-lock.json has NO staged changes"
+            fi
+
+            if git diff --staged --name-only | grep -q "package.json"; then
+              echo "📋 package.json has staged changes"
+              echo "Lines changed in package.json: $(git diff --staged --numstat package.json | cut -f1,2)"
+            else
+              echo "📋 package.json has NO staged changes"
+            fi
+
+            echo ""
+            echo "=== DEBUG: Creating changes summary ==="
 
             # Get summary of changes
             echo "## Changes Summary" > changes_summary.md
@@ -79,31 +156,73 @@ jobs:
             # Check if package-lock.json changed
             if git diff --staged --name-only | grep -q "package-lock.json"; then
               echo "- 📦 package-lock.json updated" >> changes_summary.md
+              echo "DEBUG: Added package-lock.json to summary"
+            else
+              echo "DEBUG: package-lock.json not in staged changes"
             fi
 
             # Check if package.json changed
             if git diff --staged --name-only | grep -q "package.json"; then
               echo "- 📋 package.json updated" >> changes_summary.md
+              echo "DEBUG: Added package.json to summary"
+            else
+              echo "DEBUG: package.json not in staged changes"
             fi
 
             # Get audit results
             echo "" >> changes_summary.md
             echo "### Audit Results" >> changes_summary.md
 
+            echo ""
+            echo "=== DEBUG: Processing audit results ==="
+            echo "audit_results.json exists: $(test -f audit_results.json && echo 'YES' || echo 'NO')"
+            if [ -f audit_results.json ]; then
+              echo "audit_results.json size: $(wc -c < audit_results.json) bytes"
+              echo "First 200 characters of audit_results.json:"
+              head -c 200 audit_results.json
+              echo ""
+              echo "Checking if valid JSON:"
+              if jq empty audit_results.json 2>/dev/null; then
+                echo "✅ Valid JSON format"
+              else
+                echo "❌ Invalid JSON format"
+                echo "JSON validation error:"
+                jq empty audit_results.json 2>&1 || true
+              fi
+            fi
+
             # Parse audit results for summary
             if [ -f audit_results.json ]; then
+                echo "DEBUG: Starting audit results parsing..."
+
                 # Check if there are any vulnerabilities
+                echo "DEBUG: Extracting total vulnerabilities count..."
                 TOTAL_VULNS=$(jq -r '.metadata.vulnerabilities.total // 0' audit_results.json 2>/dev/null)
+                echo "DEBUG: Total vulnerabilities found: $TOTAL_VULNS"
+
+                echo "DEBUG: Checking metadata structure:"
+                jq -r '.metadata // "No metadata found"' audit_results.json 2>/dev/null | head -5
+
+                echo "DEBUG: Checking vulnerabilities structure:"
+                jq -r '.vulnerabilities // "No vulnerabilities object found"' audit_results.json 2>/dev/null | head -5
 
                 if [ "$TOTAL_VULNS" -gt 0 ]; then
+                  echo "DEBUG: Processing $TOTAL_VULNS vulnerabilities..."
                   echo "**Security Vulnerabilities Found ($TOTAL_VULNS total):**" >> changes_summary.md
                   echo "" >> changes_summary.md
 
                   # Get list of vulnerable packages
+                  echo "DEBUG: Getting list of vulnerable packages..."
                   PACKAGES=$(jq -r '.vulnerabilities | keys[]' audit_results.json 2>/dev/null)
+                  echo "DEBUG: Found packages: $PACKAGES"
+                  PACKAGE_COUNT=$(echo "$PACKAGES" | wc -w)
+                  echo "DEBUG: Processing $PACKAGE_COUNT packages..."
 
                   # Process each package
+                  PACKAGE_INDEX=0
                   for PACKAGE in $PACKAGES; do
+                    PACKAGE_INDEX=$((PACKAGE_INDEX + 1))
+                    echo "DEBUG: Processing package $PACKAGE_INDEX/$PACKAGE_COUNT: $PACKAGE"
                     SEVERITY=$(jq -r ".vulnerabilities[\"$PACKAGE\"].severity" audit_results.json 2>/dev/null)
                     RANGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].range" audit_results.json 2>/dev/null)
                     IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect" audit_results.json 2>/dev/null)
