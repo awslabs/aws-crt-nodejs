@@ -1,10 +1,14 @@
 name: Daily Dependency Updates
 
 on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+  # schedule:
+  #   # Run daily at 2 AM UTC
+  #   - cron: '0 2 * * *'
+  # workflow_dispatch:
+  push:
+    branches-ignore:
+      - 'main'
+      - 'docs'
 
 
 env:
@@ -23,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
             submodules: true
-            token: ${{ secrets.GITHUB_TOKEN }}
+            token: ${{ secrets.BOT_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
