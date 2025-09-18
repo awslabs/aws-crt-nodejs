@@ -241,14 +241,18 @@ jobs:
                     echo "- **Fix available:** $([ "$FIX_AVAILABLE" = "true" ] && echo "✅ Yes" || echo "❌ No")" >> changes_summary.md
                     echo "- **Installed locations:** $NODES" >> changes_summary.md
                     echo "- **Advisories:**" >> changes_summary.md
+                    echo "DEBUG: Get advisories for this package"
 
                     # Get advisories for this package
                     ADVISORY_COUNT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via | length // 0" audit_results.json 2>/dev/null)
                     for ((i=0; i<ADVISORY_COUNT; i++)); do
                       TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title // \"Unknown\"" audit_results.json 2>/dev/null)
-                      URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url // \"#\"" audit_results.json 2>/dev/null)
-                      CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
                       echo "DEBUG: TITLE: $TITLE"
+                      URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url // \"#\"" audit_results.json 2>/dev/null)
+                      echo "DEBUG: URL: $URL"
+                      CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
+                      echo "DEBUG: CVSS_SCORE: $CVSS_SCORE"
+
                       if [ "$CVSS_SCORE" != "0" ] && [ "$CVSS_SCORE" != "null" ]; then
                         echo "  - [$TITLE]($URL) (CVSS: $CVSS_SCORE)" >> changes_summary.md
                       else
