@@ -204,7 +204,7 @@ jobs:
                 jq -r '.metadata // "No metadata found"' audit_results.json 2>/dev/null | head -5
 
                 echo "DEBUG: Checking vulnerabilities structure:"
-                jq -r '.vulnerabilities // "No vulnerabilities object found"' audit_results.json 2>/dev/null | head -5
+                jq -r '.vulnerabilities // "No vulnerabilities object found"' audit_results.json 2>/dev/null | head -100
 
                 if [ "$TOTAL_VULNS" -gt 0 ]; then
                   echo "DEBUG: Processing $TOTAL_VULNS vulnerabilities..."
@@ -224,10 +224,15 @@ jobs:
                     PACKAGE_INDEX=$((PACKAGE_INDEX + 1))
                     echo "DEBUG: Processing package $PACKAGE_INDEX/$PACKAGE_COUNT: $PACKAGE"
                     SEVERITY=$(jq -r ".vulnerabilities[\"$PACKAGE\"].severity" audit_results.json 2>/dev/null)
+                    echo "DEBUG: $SEVERITY"
                     RANGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].range" audit_results.json 2>/dev/null)
+                    echo "DEBUG: $RANGE"
                     IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect" audit_results.json 2>/dev/null)
+                    echo "DEBUG: $IS_DIRECT"
                     FIX_AVAILABLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].fixAvailable" audit_results.json 2>/dev/null)
+                    echo "DEBUG: $FIX_AVAILABLE"
                     NODES=$(jq -r ".vulnerabilities[\"$PACKAGE\"].nodes | join(\", \")" audit_results.json 2>/dev/null)
+                    echo "DEBUG: $NODES"
 
                     echo "### 🚨 $PACKAGE ($SEVERITY severity)" >> changes_summary.md
                     echo "- **Affected versions:** $RANGE" >> changes_summary.md
