@@ -15,8 +15,6 @@ env:
   NODE_VERSION: '18'
 
 permissions:
-  contents: write
-  pull-requests: write
   id-token: write
 
 jobs:
@@ -27,6 +25,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+          token: ${{ secrets.BOT_PAT }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -355,7 +355,7 @@ jobs:
       - name: Push branch
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git push origin ${{ steps.branch.outputs.branch_name }}
+          git push https://x-access-token:${{ secrets.BOT_PAT }}@github.com/${{ github.repository }}.git ${{ steps.branch.outputs.branch_name }}
 
       - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
