@@ -36,8 +36,8 @@ jobs:
 
       - name: Configure Git
         run: |
-            git config --global user.name 'github-actions[bot]'
-            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+            git config --global user.name 'aws-crt-bot'
+            git config --global user.email 'aws-sdk-common-runtime@amazon.com'
             git config --global url."https://aws-crt-bot:${{ secrets.BOT_PAT }}@github.com/".insteadOf "https://github.com/"
 
       - name: Create branch name with timestamp
