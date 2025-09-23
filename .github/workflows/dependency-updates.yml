@@ -26,8 +26,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-            submodules: true
+            submodules: recursive
             token: ${{ secrets.BOT_PAT }}
+            fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
