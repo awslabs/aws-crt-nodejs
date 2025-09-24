@@ -1,10 +1,14 @@
 name: Daily Dependency Updates
 
 on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+  push:
+    branches-ignore:
+      - 'main'
+# on:
+#   schedule:
+#     # Run daily at 2 AM UTC
+#     - cron: '0 2 * * *'
+#   workflow_dispatch:
 
 
 env:
@@ -53,6 +57,12 @@ jobs:
             npm audit --audit-level=moderate --json > audit_results.json || true
             npm audit fix --audit-level=moderate || true
             echo "npm audit fix completed"
+
+      - name: Update dependencies to latest compatible versions
+        run: |
+            echo "Updating dependencies to latest compatible versions..."
+            npm update
+            echo "Dependencies updated"
 
       - name: Reinstall with lockfile version 1
         run: |
@@ -157,10 +167,36 @@ jobs:
               echo "DEBUG: package-lock.json not in staged changes"
             fi
 
-            # Check if package.json changed
+            # Check if package.json changed and analyze the changes
             if git diff --staged --name-only | grep -q "package.json"; then
               echo "- 📋 package.json updated" >> changes_summary.md
               echo "DEBUG: Added package.json to summary"
+
+              # Add detailed analysis of package.json changes
+              echo "" >> changes_summary.md
+              echo "### ⚠️ IMPORTANT: package.json Changes Detected" >> changes_summary.md
+              echo "" >> changes_summary.md
+              echo "**🚨 EXTRA CAUTION REQUIRED**: The \`package.json\` file has been modified. Please review these changes carefully as they affect your project's direct dependencies." >> changes_summary.md
+              echo "" >> changes_summary.md
+              echo "**Changed dependency versions in package.json:**" >> changes_summary.md
+
+              # Extract dependency changes from package.json diff
+              git diff --staged package.json | grep -E '^[-+].*".*":.*".*"' | while read line; do
+                if [[ $line == -* ]]; then
+                  echo "- ❌ **Removed/Changed from:** \`${line:1}\`" >> changes_summary.md
+                elif [[ $line == +* ]]; then
+                  echo "- ✅ **Added/Changed to:** \`${line:1}\`" >> changes_summary.md
+                fi
+              done
+
+              echo "" >> changes_summary.md
+              echo "**Review Checklist for package.json changes:**" >> changes_summary.md
+              echo "- [ ] Verify all version updates are intentional and compatible" >> changes_summary.md
+              echo "- [ ] Check for any breaking changes in updated packages" >> changes_summary.md
+              echo "- [ ] Ensure updated versions don't conflict with other dependencies" >> changes_summary.md
+              echo "- [ ] Run comprehensive tests to verify functionality" >> changes_summary.md
+              echo "- [ ] Review changelogs/release notes for updated packages" >> changes_summary.md
+              echo "" >> changes_summary.md
             else
               echo "DEBUG: package.json not in staged changes"
             fi
@@ -340,13 +376,29 @@ jobs:
         if: steps.changes.outputs.has_changes == 'true'
         run: |
           git checkout -b ${{ steps.branch.outputs.branch_name }}
-          git commit -m "chore: automated dependency updates
+
+          # Check if package.json was modified to customize commit message
+          if git diff --staged --name-only | grep -q "package.json"; then
+            git commit -m "chore: automated dependency updates (includes package.json changes)
+
+          - Run npm audit fix to address security vulnerabilities
+          - Update dependencies to latest compatible versions (package.json modified)
+          - Reinstall dependencies with lockfile-version=1
+          - Automated update on ${{ steps.branch.outputs.timestamp }}
+
+          ⚠️ IMPORTANT: This commit includes changes to package.json
+          Please review dependency version updates carefully before merging.
+
+          🤖 Assisted by GenAI"
+          else
+            git commit -m "chore: automated dependency updates
 
           - Run npm audit fix to address security vulnerabilities
           - Reinstall dependencies with lockfile-version=1
           - Automated update on ${{ steps.branch.outputs.timestamp }}
 
           🤖 Assisted by GenAI"
+          fi
 
       - name: Push branch
         if: steps.changes.outputs.has_changes == 'true'
@@ -369,22 +421,75 @@ jobs:
               body = 'Automated dependency updates performed.';
             }
 
-            // Add additional context to PR body
-            const fullBody = `# 🔄 Automated Dependency Updates
+            // Check if package.json was modified to add extra warnings
+            const { execSync } = require('child_process');
+            let packageJsonModified = false;
+            try {
+              const changedFiles = execSync('git diff --staged --name-only', { encoding: 'utf8' });
+              packageJsonModified = changedFiles.includes('package.json');
+            } catch (error) {
+              console.log('Could not check for package.json changes:', error.message);
+            }
 
-            This PR contains automated dependency updates performed by the daily maintenance workflow.
+            // Add additional context to PR body with conditional warnings
+            let fullBody = `# 🔄 Automated Dependency Updates
+
+            This PR contains automated dependency updates performed by the daily maintenance workflow.`;
+
+            if (packageJsonModified) {
+              fullBody += `
+
+            ## ⚠️ 🚨 CRITICAL NOTICE: package.json Modified 🚨 ⚠️
+
+            **EXTRA CAUTION REQUIRED**: This PR includes changes to \`package.json\` which affects your project's direct dependencies. Please review these changes with special attention before merging.
+
+            ### 🔍 Required Review Actions:
+            - [ ] **Carefully review all dependency version changes in package.json**
+            - [ ] **Check for breaking changes in updated packages**
+            - [ ] **Verify compatibility with existing code**
+            - [ ] **Run comprehensive tests locally**
+            - [ ] **Review changelogs/release notes for updated packages**
+            - [ ] **Consider the impact on production systems**`;
+            }
+
+            fullBody += `
 
             ${body}
 
             ## What was done:
             1. ✅ Ran \`npm audit fix\` to address security vulnerabilities
-            2. ✅ Ran \`npm install --lockfile-version=1\` to ensure lockfile compatibility
-            3. ✅ Committed any resulting changes
+            2. ✅ Ran \`npm update\` to update dependencies to latest compatible versions`;
 
-            ## Review Guidelines:
+            if (packageJsonModified) {
+              fullBody += ` **(⚠️ package.json was modified)**`;
+            }
+
+            fullBody += `
+            3. ✅ Ran \`npm install --lockfile-version=1\` to ensure lockfile compatibility
+            4. ✅ Committed any resulting changes
+
+            ## Review Guidelines:`;
+
+            if (packageJsonModified) {
+              fullBody += `
+            - 🚨 **PRIORITY**: Review package.json changes first - these affect direct dependencies
+            - ⚠️ **CAUTION**: Test thoroughly as dependency versions have changed`;
+            }
+
+            fullBody += `
             - 🔍 Review the changes in \`package-lock.json\` for any unexpected updates
-            - 🧪 Ensure CI tests pass before merging
-            - 🚀 This PR can be safely merged if all checks pass
+            - 🧪 Ensure CI tests pass before merging`;
+
+            if (packageJsonModified) {
+              fullBody += `
+            - 🔬 Run additional integration tests due to package.json changes
+            - 📚 Review documentation for any updated packages`;
+            } else {
+              fullBody += `
+            - 🚀 This PR can be safely merged if all checks pass`;
+            }
+
+            fullBody += `
 
             ---
             *This PR was automatically created by the dependency-updates workflow.*
