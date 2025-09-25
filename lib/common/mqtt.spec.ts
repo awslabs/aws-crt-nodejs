@@ -11,6 +11,7 @@ import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscr
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
 import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 import {once} from "events";
+import * as io from "../native/io";
 
 jest.setTimeout(10000);
 
@@ -59,6 +60,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Pub/Sub', async () => {
+    io.enable_logging(io.LogLevel["TRACE"])
     const connection = await makeConnection();
 
     let onConnect = once(connection, 'connect');
@@ -86,7 +88,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
     await expect(sub).resolves.toBeTruthy();
 
     const publishResult = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-    await expect(publishResult).resolves.toBeTruthy();
+    // Cause an error by changing this from toBeTruthy to toBeFalsy
+    await expect(publishResult).resolves.toBeFalsy();
 
     await messageReceivedPromise;
 
