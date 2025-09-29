@@ -317,6 +317,43 @@ napi_value aws_napi_io_pkcs11_lib_close(napi_env env, napi_callback_info info) {
     return NULL;
 }
 
+napi_value aws_napi_io_tls_cipher_preference_is_supported(napi_env env, napi_callback_info info) {
+    napi_value node_args[1];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
+        napi_throw_error(env, NULL, "Failed to retrieve callback information");
+        return NULL;
+    }
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(
+            env, NULL, "aws_napi_io_tls_cipher_preference_is_supported called with wrong number of arguments");
+        return NULL;
+    }
+
+    napi_value node_tls_cipher_preferences = *arg++;
+    if (aws_napi_is_null_or_undefined(env, node_tls_cipher_preferences)) {
+        napi_throw_error(env, NULL, "aws_napi_io_tls_cipher_preference_is_supported called with nullable value");
+        return NULL;
+    }
+
+    napi_value node_number;
+    if (napi_ok != napi_coerce_to_number(env, node_tls_cipher_preferences, &node_number)) {
+        napi_throw_type_error(env, NULL, "tls_cipher_preferences must be an enum/Number (or convertible to a Number)");
+        return NULL;
+    }
+
+    uint32_t tls_cipher_preferences = AWS_IO_TLS_CIPHER_PREF_SYSTEM_DEFAULT;
+    napi_status status = napi_get_value_uint32(env, node_number, &tls_cipher_preferences);
+    AWS_FATAL_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
+
+    napi_value result = NULL;
+    AWS_NAPI_ENSURE(env, napi_get_boolean(env, aws_tls_is_cipher_pref_supported(tls_cipher_preferences), &result));
+
+    return result;
+}
+
 /** Finalizer for a tls_ctx external */
 static void s_tls_ctx_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
 
@@ -571,6 +608,18 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
         }
     }
 
+    uint32_t tls_cipher_preferences = AWS_IO_TLS_CIPHER_PREF_SYSTEM_DEFAULT;
+    napi_value node_tls_cipher_preferences = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_tls_cipher_preferences)) {
+        napi_value node_number;
+        if (napi_ok != napi_coerce_to_number(env, node_tls_cipher_preferences, &node_number)) {
+            napi_throw_type_error(env, NULL, "tls_cipher_policy must be an enum/Number (or convertible to a Number)");
+            goto cleanup;
+        }
+        status = napi_get_value_uint32(env, node_number, &tls_cipher_preferences);
+        AWS_FATAL_ASSERT(status == napi_ok); /* We coerced the value to a number, so this must return ok */
+    }
+
     bool verify_peer = true;
     napi_value node_verify_peer = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_verify_peer)) {
@@ -638,6 +687,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     }
 
     aws_tls_ctx_options_set_verify_peer(&ctx_options, verify_peer);
+    aws_tls_ctx_options_set_tls_cipher_preference(&ctx_options, tls_cipher_preferences);
 
     struct aws_tls_ctx *tls_ctx = aws_tls_client_ctx_new(alloc, &ctx_options);
     if (!tls_ctx) {

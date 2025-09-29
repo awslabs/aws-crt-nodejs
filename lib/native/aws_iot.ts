@@ -266,6 +266,11 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
+    withTlsCipherPreference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqttConnectionConfigBuilder {
+        this.tls_ctx_options.tls_cipher_preference = tls_cipher_preference;
+        return this;
+    }
+
     /**
      * Configures the IoT endpoint for this connection
      * @param endpoint The IoT endpoint to connect to

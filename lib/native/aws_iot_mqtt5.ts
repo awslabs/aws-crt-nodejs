@@ -291,6 +291,11 @@ export class AwsIotMqtt5ClientConfigBuilder {
         return this;
     }
 
+    withTlsCipherPreference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqtt5ClientConfigBuilder {
+        this.tlsContextOptions.tls_cipher_preference = tls_cipher_preference;
+        return this;
+    }
+
     /**
      * Overrides the IoT endpoint port to connect to.
      *
