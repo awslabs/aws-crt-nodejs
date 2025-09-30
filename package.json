@@ -25,8 +25,8 @@
     "prepare": "node ./scripts/tsc.js && node ./scripts/install.js",
     "install": "node ./scripts/install.js"
   },
-   "overrides": {
-    "axios": "^1.9.0"
+  "overrides": {
+    "axios": "^1.12.2"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
@@ -54,7 +54,7 @@
   "dependencies": {
     "@aws-sdk/util-utf8-browser": "^3.259.0",
     "@httptoolkit/websocket-stream": "^6.0.1",
-    "axios": "^1.9.0",
+    "axios": "^1.12.2",
     "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
     "mqtt": "^4.3.8",
