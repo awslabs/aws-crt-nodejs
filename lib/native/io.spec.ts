@@ -4,9 +4,13 @@
  */
 
 import * as io from './io';
-import { Pkcs11Lib } from './io';
-import { CrtError } from './error';
+import {Pkcs11Lib, TlsCipherPreference} from './io';
+import {CrtError} from './error';
 import {cRuntime, CRuntimeType} from "./binding";
+import {platform} from 'os';
+import * as aws_iot_mqtt311 from "./aws_iot";
+import {v4 as uuid} from "uuid";
+import * as mqtt311 from "./mqtt";
 
 const conditional_test = (condition: any) => condition ? it : it.skip;
 
@@ -39,5 +43,50 @@ pkcs11_test('Pkcs11Lib exception', () => {
     expect(() => {
         new Pkcs11Lib("obviously-invalid-path.so", Pkcs11Lib.InitializeFinalizeBehavior.STRICT);
     }).toThrow(/AWS_IO_SHARED_LIBRARY_LOAD_FAILURE/);
+});
+
+function do_successful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
+    // verify successful support query
+    expect(io.tls_cipher_preference_is_supported(tls_cipher_preference)).toBe(true);
+
+    // verify successful tls context creation
+    let tls_ctx_options = new io.TlsContextOptions();
+    tls_ctx_options.tls_cipher_preference = tls_cipher_preference;
+
+    let tls_ctx = new io.ClientTlsContext(tls_ctx_options);
+    expect(tls_ctx).toBeDefined();
+}
+
+function do_unsuccessful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
+    // verify failing support query
+    expect(io.tls_cipher_preference_is_supported(tls_cipher_preference)).toBe(false);
+
+    // verify unsuccessful tls context creation
+    let tls_ctx_options = new io.TlsContextOptions();
+    tls_ctx_options.tls_cipher_preference = tls_cipher_preference;
+
+    expect(() => {
+        new io.ClientTlsContext(tls_ctx_options);
+    }).toThrow("AWS_IO_TLS_CIPHER_PREF_UNSUPPORTED");
+}
+
+function do_cipher_preference_test(tls_cipher_preference: TlsCipherPreference, should_be_successful: boolean) {
+    if (should_be_successful) {
+        do_successful_cipher_preference_test(tls_cipher_preference);
+    } else {
+        do_unsuccessful_cipher_preference_test(tls_cipher_preference);
+    }
+}
+
+test("Supports default TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.Default, true);
+});
+
+test("Per-Platform PQ default TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux");
+});
+
+test("Per-Platform latest 1.2 policy TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux");
 });
 

@@ -266,7 +266,7 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
-    withTlsCipherPreference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqttConnectionConfigBuilder {
+    with_tls_cipher_preference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqttConnectionConfigBuilder {
         this.tls_ctx_options.tls_cipher_preference = tls_cipher_preference;
         return this;
     }

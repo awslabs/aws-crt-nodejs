@@ -11,6 +11,8 @@ import * as fs from 'fs';
 import * as auth from "./auth";
 import * as io from "./io";
 import {CRuntimeType, cRuntime} from "./binding"
+import {TlsCipherPreference} from "./io";
+import {platform} from "os";
 
 jest.setTimeout(10000);
 
@@ -275,3 +277,47 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_windows_cert())('A
     await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
 });
 
+function do_successful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
+        test_env.AWS_IOT_ENV.MQTT5_HOST,
+        test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
+        test_env.AWS_IOT_ENV.MQTT5_RSA_KEY
+    );
+    builder.withTlsCipherPreference(tls_cipher_preference);
+
+    let client = new mqtt5.Mqtt5Client(builder.build());
+    expect(client).toBeDefined();
+}
+
+function do_unsuccessful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
+    let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
+        test_env.AWS_IOT_ENV.MQTT5_HOST,
+        test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
+        test_env.AWS_IOT_ENV.MQTT5_RSA_KEY
+    );
+    builder.withTlsCipherPreference(tls_cipher_preference);
+
+    expect(() => {
+        new mqtt5.Mqtt5Client(builder.build());
+    }).toThrow("AWS_IO_TLS_CIPHER_PREF_UNSUPPORTED");
+}
+
+function do_cipher_preference_test(tls_cipher_preference: TlsCipherPreference, should_be_successful: boolean) {
+    if (should_be_successful) {
+        do_successful_cipher_preference_test(tls_cipher_preference);
+    } else {
+        do_unsuccessful_cipher_preference_test(tls_cipher_preference);
+    }
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder supports default TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.Default, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder per-platform conditional support of PQ default TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder per-platform conditional support of latest 1.2 policy TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux");
+});
