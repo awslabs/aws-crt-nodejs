@@ -8,9 +8,6 @@ import {Pkcs11Lib, TlsCipherPreference} from './io';
 import {CrtError} from './error';
 import {cRuntime, CRuntimeType} from "./binding";
 import {platform} from 'os';
-import * as aws_iot_mqtt311 from "./aws_iot";
-import {v4 as uuid} from "uuid";
-import * as mqtt311 from "./mqtt";
 
 const conditional_test = (condition: any) => condition ? it : it.skip;
 
