@@ -4,6 +4,7 @@
  */
 
 import * as test_env from "@test/test_env"
+import * as retry from "@test/retry"
 import * as mqtt311 from "./mqtt";
 import * as aws_iot_mqtt311 from "./aws_iot";
 import * as io from "./io"
@@ -15,8 +16,10 @@ import {newLiftedPromise} from "../common/promise";
 import {TlsCipherPreference} from "./io";
 import {platform} from "os";
 
+jest.setTimeout(30000);
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
         builder.with_custom_authorizer(
             test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_UNSIGNED_USERNAME,
@@ -37,7 +40,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsi
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('Aws Iot Core Mqtt over websockets with Signing Custom Auth - Connection Success', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
         builder.with_custom_authorizer(
             test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -63,7 +66,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
  * TODO: Support AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE
  */
 test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs11())('Aws Iot Core PKCS11 connection', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT311_PKCS11_LIB_PATH);
         const builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs11_builder({
             pkcs11_lib: pkcs11_lib,
@@ -83,7 +86,7 @@ test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs12())('Aws Iot Core PKCS12 connection', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_pkcs12_builder({
             pkcs12_file: test_env.AWS_IOT_ENV.MQTT311_PKCS12_FILE,
             pkcs12_password: test_env.AWS_IOT_ENV.MQTT311_PKCS12_PASSWORD
@@ -99,7 +102,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_pkcs12())('Aws I
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_windows_cert())('Aws Iot Core Windows Cert connection', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_windows_cert_store_path_builder(
             test_env.AWS_IOT_ENV.MQTT311_WINDOWS_CERT);
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
@@ -113,7 +116,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_windows_cert())(
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core - Direct MQTT Custom Auth unsigned', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -133,7 +136,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsi
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('Aws Iot Core - Direct MQTT Custom Auth signed', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -153,7 +156,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('Aws Iot Core - Direct MQTT Custom Auth signed, unencoded signature', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -173,7 +176,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let websocket_config = {
             region: test_env.AWS_IOT_ENV.MQTT311_REGION,
             credentials_provider: auth.AwsCredentialsProvider.newStatic(
@@ -194,7 +197,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect No Bootstrap', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let websocket_config = {
             region: test_env.AWS_IOT_ENV.MQTT311_REGION,
             credentials_provider: auth.AwsCredentialsProvider.newStatic(
@@ -225,7 +228,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Native Websocket Connect/Disconnect - Connection Failure', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
         builder.with_credentials(
@@ -265,7 +268,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Na
 
 // requires correct credentials to be sourced from the default credentials provider chain
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_websocket())('MQTT Native Websocket Default AWS Credentials', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let websocket_config = {
             region: test_env.AWS_IOT_ENV.MQTT311_REGION,
             credentials_provider: auth.AwsCredentialsProvider.newDefault()
@@ -284,7 +287,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_websocket())('MQ
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cognito())('MQTT Native Websocket Cognito Credentials', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let websocket_config = {
             region: test_env.AWS_IOT_ENV.MQTT311_REGION,
             credentials_provider: auth.AwsCredentialsProvider.newCognito({
@@ -304,7 +307,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cognito())('MQTT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_x509())('MQTT Native Websocket X509 Credentials', async () => {
-    test_env.networkTimeoutRetryWrapper( async () => {
+    retry.networkTimeoutRetryWrapper( async () => {
         let tls_ctx_options: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
             test_env.AWS_IOT_ENV.MQTT311_X509_CERT,
             test_env.AWS_IOT_ENV.MQTT311_X509_KEY
