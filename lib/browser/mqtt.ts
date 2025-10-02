@@ -12,6 +12,7 @@
  * @mergeTarget
  */
 
+import type { Mqtt5Client } from "./mqtt5";
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
 import * as auth from "./auth";
@@ -203,6 +204,11 @@ export interface MqttConnectionConfig {
 }
 
 /**
+ * @deprecated We strongly recommend using {@link Mqtt5Client}
+ * There are no current plans to fully deprecate the MQTT 3.1.1 client but it is highly recommended customers
+ * migrate to the MQTT5 client to access a more robust feature set, clearer error handling, and lifetime
+ * management. More details can be found in the GitHub Repo FAQ
+ * 
  * MQTT client
  *
  * @category MQTT
