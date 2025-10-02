@@ -266,6 +266,11 @@ export class AwsIotMqttConnectionConfigBuilder {
         return this;
     }
 
+    /**
+     * Configures which TLS cipher preference should be used when establishing connections
+     *
+     * @param tls_cipher_preference cipher preference to use
+     */
     with_tls_cipher_preference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqttConnectionConfigBuilder {
         this.tls_ctx_options.tls_cipher_preference = tls_cipher_preference;
         return this;

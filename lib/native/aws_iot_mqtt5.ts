@@ -291,8 +291,13 @@ export class AwsIotMqtt5ClientConfigBuilder {
         return this;
     }
 
-    withTlsCipherPreference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqtt5ClientConfigBuilder {
-        this.tlsContextOptions.tls_cipher_preference = tls_cipher_preference;
+    /**
+     * Configures which TLS cipher preference should be used when establishing connections
+     *
+     * @param tlsCipherPreference cipher preference to use
+     */
+    withTlsCipherPreference(tlsCipherPreference: io.TlsCipherPreference) : AwsIotMqtt5ClientConfigBuilder {
+        this.tlsContextOptions.tls_cipher_preference = tlsCipherPreference;
         return this;
     }
 

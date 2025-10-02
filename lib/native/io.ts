@@ -195,6 +195,14 @@ export enum TlsCipherPreference {
     TLSv1_2_2025_07 = 9
 }
 
+/**
+ * Returns true if the supplied TlsCipherPreference is supported on the current platform, false otherwise.
+ *
+ * @param tls_cipher_preference - cipher preference to check support for
+ *
+ * nodejs only.
+ * @category TLS
+ */
 export function tls_cipher_preference_is_supported(tls_cipher_preference: TlsCipherPreference) : boolean {
     return crt_native.io_tls_cipher_preference_is_supported(tls_cipher_preference);
 }
