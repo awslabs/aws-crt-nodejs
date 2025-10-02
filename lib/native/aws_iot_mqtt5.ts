@@ -292,6 +292,16 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
+     * Configures which TLS cipher preference should be used when establishing connections
+     *
+     * @param tlsCipherPreference cipher preference to use
+     */
+    withTlsCipherPreference(tlsCipherPreference: io.TlsCipherPreference) : AwsIotMqtt5ClientConfigBuilder {
+        this.tlsContextOptions.tls_cipher_preference = tlsCipherPreference;
+        return this;
+    }
+
+    /**
      * Overrides the IoT endpoint port to connect to.
      *
      * @param port The IoT endpoint port to connect to. Usually 8883 for MQTT, or 443 for websockets

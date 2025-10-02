@@ -12,6 +12,8 @@ import { v4 as uuid } from 'uuid';
 import {once} from "events";
 import {cRuntime, CRuntimeType} from "./binding"
 import {newLiftedPromise} from "../common/promise";
+import {TlsCipherPreference} from "./io";
+import {platform} from "os";
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
     let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_builder_for_websocket();
@@ -295,4 +297,51 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_x509())('MQTT Na
     let connection = client.new_connection(config);
     await connection.connect();
     await connection.disconnect();
+});
+
+function do_successful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
+    let builder =  aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
+        test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
+        test_env.AWS_IOT_ENV.MQTT5_RSA_KEY);
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT5_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`);
+    builder.with_tls_cipher_preference(tls_cipher_preference);
+
+    let config = builder.build();
+    let client = new mqtt311.MqttClient();
+    let connection = client.new_connection(config);
+    expect(connection).toBeDefined();
+}
+
+function do_unsuccessful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
+    let builder =  aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path(
+        test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
+        test_env.AWS_IOT_ENV.MQTT5_RSA_KEY);
+    builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT5_HOST);
+    builder.with_client_id(`node-mqtt-unit-test-${uuid()}`);
+    builder.with_tls_cipher_preference(tls_cipher_preference);
+
+    expect(() => {
+        builder.build();
+    }).toThrow("AWS_IO_TLS_CIPHER_PREF_UNSUPPORTED");
+}
+
+function do_cipher_preference_test(tls_cipher_preference: TlsCipherPreference, should_be_successful: boolean) {
+    if (should_be_successful) {
+        do_successful_cipher_preference_test(tls_cipher_preference);
+    } else {
+        do_unsuccessful_cipher_preference_test(tls_cipher_preference);
+    }
+}
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt311 client builder supports default TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.Default, true);
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt311 client builder per-platform conditional support of PQ default TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux");
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt311 client builder per-platform conditional support of latest 1.2 policy TlsCipherPreference", () => {
+    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux");
 });

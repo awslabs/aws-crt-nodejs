@@ -55,6 +55,10 @@ export function is_alpn_available(): boolean;
 export function io_client_bootstrap_new(): NativeHandle;
 /* wraps aws_tls_context #TODO: Wrap with ClassBinder */
 /** @internal */
+export function io_tls_cipher_preference_is_supported(
+    tls_cipher_policy: number,
+): boolean;
+/** @internal */
 export function io_tls_ctx_new(
     min_tls_version: number,
     ca_filepath?: StringLike,
@@ -69,6 +73,7 @@ export function io_tls_ctx_new(
     pkcs12_password?: StringLike,
     pkcs11_options?: TlsContextOptions.Pkcs11Options,
     windows_cert_store_path?: StringLike,
+    tls_cipher_policy?: number,
     verify_peer?: boolean,
 ): NativeHandle;
 /* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */

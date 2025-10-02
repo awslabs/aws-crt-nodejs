@@ -158,6 +158,56 @@ export interface Pkcs12Options {
 }
 
 /**
+ * Each TlsCipherPreference represents an ordered list of TLS Ciphers to use when negotiating a TLS Connection. At
+ * present, the ability to configure arbitrary orderings of TLS Ciphers is not allowed, and only a curated list of
+ * vetted TlsCipherPref's are exposed.
+ */
+export enum TlsCipherPreference {
+
+    /**
+     * The underlying platform's default TLS Cipher Preference ordering. This is usually the best option, as it will be
+     * automatically updated as the underlying OS or platform changes, and will always be supported on all platforms.
+     */
+    Default = 0,
+
+    /**
+     * A TLS Cipher Preference ordering that supports TLS 1.0 through TLS 1.3, and has Kyber Round 3 as its highest
+     * priority post-quantum key exchange algorithm. PQ algorithms in this preference list will always be used in hybrid
+     * mode, and will be combined with a classical ECDHE key exchange that is performed in addition to the PQ key
+     * exchange. This preference makes a best-effort to negotiate a PQ algorithm, but if the peer does not support any
+     * PQ algorithms the TLS connection will fall back to a single classical algorithm for key exchange (such as ECDHE
+     * or RSA).
+     * NIST has announced that they plan to eventually standardize Kyber. However, the NIST standardization process might
+     * introduce minor changes that could cause the final Kyber standard to differ from the Kyber Round 3 implementation
+     * available in this preference list.
+     */
+    PQ_TLSv1_0_2021_05 = 6,
+
+    /**
+     * Recommended default policy with post-quantum algorithm support. This policy may change over time.
+     */
+    PQ_Default = 8,
+
+    /**
+     * A TLS Cipher Preference ordering that supports TLS 1.2 through TLS 1.3, and does not include CBC cipher suites.
+     * It is FIPS-complaint.
+     */
+    TLSv1_2_2025_07 = 9
+}
+
+/**
+ * Returns true if the supplied TlsCipherPreference is supported on the current platform, false otherwise.
+ *
+ * @param tls_cipher_preference - cipher preference to check support for
+ *
+ * nodejs only.
+ * @category TLS
+ */
+export function tls_cipher_preference_is_supported(tls_cipher_preference: TlsCipherPreference) : boolean {
+    return crt_native.io_tls_cipher_preference_is_supported(tls_cipher_preference);
+}
+
+/**
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
@@ -190,6 +240,8 @@ export class TlsContextOptions {
     public pkcs11_options?: TlsContextOptions.Pkcs11Options;
     /** Path to certificate in a Windows cert store. Windows only. */
     public windows_cert_store_path?: string;
+    /** TLS cipher preferences; Linux only */
+    public tls_cipher_preference?: TlsCipherPreference;
 
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
@@ -427,6 +479,7 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.pkcs12_password,
             ctx_opt.pkcs11_options,
             ctx_opt.windows_cert_store_path,
+            ctx_opt.tls_cipher_preference,
             ctx_opt.verify_peer));
     }
 }
