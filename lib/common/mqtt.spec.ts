@@ -6,6 +6,7 @@
 import { v4 as uuid } from 'uuid';
 
 import * as test_env from "@test/test_env"
+import * as retry from "@test/retry"
 import { ClientBootstrap } from '@awscrt/io';
 import { MqttClient, MqttClientConnection, QoS, MqttWill, Payload } from '@awscrt/mqtt';
 import { AwsIotMqttConnectionConfigBuilder } from '@awscrt/aws_iot';
@@ -44,18 +45,20 @@ async function makeConnection(will?: MqttWill, client_id: string = `node-mqtt-un
 }
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Connect/Disconnect', async () => {
-    const connection = await makeConnection();
+    retry.networkTimeoutRetryWrapper( async () => {
+        const connection = await makeConnection();
 
-    let onConnect = once(connection, 'connect');
-    let onDisconnect = once(connection, 'disconnect');
+        let onConnect = once(connection, 'connect');
+        let onDisconnect = once(connection, 'disconnect');
 
-    await connection.connect();
+        await connection.connect();
 
-    let connectResult = (await onConnect)[0];
-    expect(connectResult).toBeFalsy(); /* session present */
+        let connectResult = (await onConnect)[0];
+        expect(connectResult).toBeFalsy(); /* session present */
 
-    await connection.disconnect();
-    await onDisconnect;
+        await connection.disconnect();
+        await onDisconnect;
+    })
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Pub/Sub', async () => {
