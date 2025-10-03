@@ -15,7 +15,7 @@ import {CRuntimeType, cRuntime} from "./binding"
 import {TlsCipherPreference} from "./io";
 import {platform} from "os";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Aws Iot Core Direct Mqtt By File - Connection Success', async () => {
     retry.networkTimeoutRetryWrapper( async () => {

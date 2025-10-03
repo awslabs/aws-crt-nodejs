@@ -15,7 +15,7 @@ import * as aws_iot_5 from "./aws_iot_mqtt5";
 import * as aws_iot_311 from "./aws_iot";
 import * as iot from "./iot";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 function createClientBuilder5() : aws_iot_5.AwsIotMqtt5ClientConfigBuilder {
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
