@@ -62,42 +62,46 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Pub/Sub', async () => {
-    const connection = await makeConnection();
+    retry.networkTimeoutRetryWrapper( async () => {
+        const connection = await makeConnection();
 
-    let onConnect = once(connection, 'connect');
-    let onDisconnect = once(connection, 'disconnect');
+        let onConnect = once(connection, 'connect');
+        let onDisconnect = once(connection, 'disconnect');
 
-    await connection.connect();
+        await connection.connect();
 
-    let connectResult = (await onConnect)[0];
-    expect(connectResult).toBeFalsy(); /* session present */
+        let connectResult = (await onConnect)[0];
+        expect(connectResult).toBeFalsy(); /* session present */
 
-    const test_topic = `test/me/senpai/${uuid()}`;
-    const test_payload = 'NOTICE ME';
+        const test_topic = `test/me/senpai/${uuid()}`;
+        const test_payload = 'NOTICE ME';
 
-    var resolvePromise: (value: void | PromiseLike<void>) => void;
-    let messageReceivedPromise = new Promise<void>( (resolve, reject) => { resolvePromise = resolve; });
+        var resolvePromise: (value: void | PromiseLike<void>) => void;
+        let messageReceivedPromise = new Promise<void>((resolve, reject) => {
+            resolvePromise = resolve;
+        });
 
-    const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
-        expect(topic).toEqual(test_topic);
-        const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
-        expect(payload_str).toEqual(test_payload);
-        expect(qos).toEqual(QoS.AtLeastOnce);
-        expect(retain).toBeFalsy();
-        resolvePromise();
-    });
-    await expect(sub).resolves.toBeTruthy();
+        const sub = connection.subscribe(test_topic, QoS.AtLeastOnce, async (topic, payload, dup, qos, retain) => {
+            expect(topic).toEqual(test_topic);
+            const payload_str = (new TextDecoder()).decode(new Uint8Array(payload));
+            expect(payload_str).toEqual(test_payload);
+            expect(qos).toEqual(QoS.AtLeastOnce);
+            expect(retain).toBeFalsy();
+            resolvePromise();
+        });
+        await expect(sub).resolves.toBeTruthy();
 
-    const publishResult = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
-    await expect(publishResult).resolves.toBeTruthy();
+        const publishResult = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
+        await expect(publishResult).resolves.toBeTruthy();
 
-    await messageReceivedPromise;
+        await messageReceivedPromise;
 
-    const unsubscribed = connection.unsubscribe(test_topic);
-    await expect(unsubscribed).resolves.toHaveProperty('packet_id');
+        const unsubscribed = connection.unsubscribe(test_topic);
+        await expect(unsubscribed).resolves.toHaveProperty('packet_id');
 
-    await connection.disconnect();
-    await onDisconnect;
+        await connection.disconnect();
+        await onDisconnect;
+    })
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Will', async () => {
