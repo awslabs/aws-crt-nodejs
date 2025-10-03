@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+// TODO: browser connection timeouts will have different error messages, but we need to wait for them to occur in order
+// to find out what they are
 function isTimeout(e : Error) {
     return e.message.includes("AWS_IO_TLS_NEGOTIATION_TIMEOUT") || e.message.includes("AWS_IO_SOCKET_TIMEOUT");
 }
