@@ -18,7 +18,7 @@ import {platform} from "os";
 jest.setTimeout(30000);
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Aws Iot Core Direct Mqtt By File - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
             test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
@@ -30,7 +30,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Aws I
 
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Aws Iot Core Direct Mqtt By In-Memory - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let cert = fs.readFileSync(test_env.AWS_IOT_ENV.MQTT5_RSA_CERT, 'utf8');
         let key = fs.readFileSync(test_env.AWS_IOT_ENV.MQTT5_RSA_KEY, 'utf8');
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromMemory(
@@ -43,7 +43,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())('Aws I
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_unsigned())('Aws Iot Core Direct Mqtt Non-Signing Custom Auth - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_UNSIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_UNSIGNED_USERNAME,
@@ -58,7 +58,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_unsign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -76,7 +76,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Success Unencoded Signature', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -94,7 +94,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Aws Iot Core Websocket by Sigv4 - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let provider: auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newStatic(
             test_env.AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY,
             test_env.AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY,
@@ -112,7 +112,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cred())('Aws Iot C
 
 // requires correct credentials to be sourced from the default credentials provider chain
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_websocket())('Aws Iot Core Websocket Default Credentials - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let provider: auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newDefault();
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigv4Auth(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
@@ -125,7 +125,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_websocket())('Aws 
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cognito())('Aws Iot Core Websocket Cognito Credentials - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let provider: auth.AwsCredentialsProvider = auth.AwsCredentialsProvider.newCognito(
             {
                 identity: test_env.AWS_IOT_ENV.MQTT5_COGNITO_IDENTITY,
@@ -143,7 +143,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_cognito())('Aws Io
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_x509())('Aws Iot Core Websocket X509 Credentials - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let tls_ctx_options: io.TlsContextOptions = io.TlsContextOptions.create_client_with_mtls_from_path(
             test_env.AWS_IOT_ENV.MQTT5_X509_CERT,
             test_env.AWS_IOT_ENV.MQTT5_X509_KEY
@@ -168,7 +168,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_x509())('Aws Iot C
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_unsigned())('Aws Iot Core Direct Mqtt Non-Signing Custom Auth - Connection Failure Bad Password', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_UNSIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_UNSIGNED_USERNAME,
@@ -183,7 +183,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_unsign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Password', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig : iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -201,7 +201,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Token Value', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -219,7 +219,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Direct Mqtt Signing Custom Auth - Connection Failure Bad Token Signature', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -237,7 +237,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_unsigned())('Aws Iot Core Websocket Mqtt Non-Signing Custom Auth - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_UNSIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_UNSIGNED_USERNAME,
@@ -252,7 +252,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_unsign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed())('Aws Iot Core Websocket Mqtt Signing Custom Auth - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let customAuthConfig: iot.MqttConnectCustomAuthConfig = {
             authorizerName: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_NAME,
             username: test_env.AWS_IOT_ENV.MQTT5_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -275,7 +275,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_custom_auth_signed
  * TODO: Support AWS_PKCS11_LIB_STRICT_INITIALIZE_FINALIZE
  */
 test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs11())('Aws Iot Core PKCS11 - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const pkcs11_lib = new io.Pkcs11Lib(test_env.AWS_IOT_ENV.MQTT5_PKCS11_LIB_PATH);
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs11(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
@@ -292,7 +292,7 @@ test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
             {
@@ -305,7 +305,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_windows_cert())('Aws Iot Core Window Cert - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromWindowsCertStorePath(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
             test_env.AWS_IOT_ENV.MQTT5_WINDOWS_CERT

@@ -45,7 +45,7 @@ async function makeConnection(will?: MqttWill, client_id: string = `mqtt-unit-te
 }
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Connect/Disconnect', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const connection = await makeConnection();
 
         let onConnect = once(connection, 'connect');
@@ -62,7 +62,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Pub/Sub', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const connection = await makeConnection();
 
         let onConnect = once(connection, 'connect');
@@ -105,7 +105,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Will', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         // To check that Will message was successfully set for a connection, the connection should be closed without
         // sending a client-side DISCONNECT packet. This test forces server to close connection by opening another
         // connection with the same client ID.
@@ -184,7 +184,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT On Any Publish', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const connection = await makeConnection();
 
         let onConnect = once(connection, 'connect');
@@ -223,7 +223,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT payload types', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const connection = await makeConnection();
 
         let onDisconnect = once(connection, 'disconnect');
@@ -251,7 +251,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
                 recv: new Uint8Array([0, 255, 255, 255, 255, 255, 1]).buffer,
             },
             [`test/types/${id}/json`]: {
-                send: {I: "was JSON"},
+                send: { I: "was JSON" },
                 recv: fromUtf8('{"I": "was JSON"}').buffer,
             },
         };
@@ -264,7 +264,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         }
 
         var resolveMessagesReceivedPromise: (value: void | PromiseLike<void>) => void;
-        let messagesReceivedPromise = new Promise<void>((resolve, reject) => {
+        let messagesReceivedPromise = new Promise<void>( (resolve, reject) => {
             resolveMessagesReceivedPromise = resolve;
         });
 

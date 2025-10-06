@@ -14,7 +14,7 @@ import {once} from "events";
 jest.setTimeout(30000);
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_custom_authorizer(
             test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_UNSIGNED_USERNAME,
@@ -33,7 +33,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsi
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('Aws Iot Core Mqtt over websockets with Signing Custom Auth - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_custom_authorizer(
             test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -54,7 +54,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('Aws Iot Core Mqtt over websockets with Signing Custom Auth Unencoded Signature - Connection Success', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_custom_authorizer(
             test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_USERNAME,
@@ -75,7 +75,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -103,7 +103,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Br
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect No Bootstrap', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
@@ -132,7 +132,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Br
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_signed())('MQTT Browser Websocket Connect/Disconnect - Connection Failure', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
         builder.with_custom_authorizer(
             test_env.AWS_IOT_ENV.MQTT311_CUSTOM_AUTH_SIGNED_USERNAME,

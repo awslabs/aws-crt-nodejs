@@ -55,25 +55,25 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
 }
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT))('Connection Success - Direct Mqtt', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_BASIC_AUTH))('Connection Success - Direct Mqtt with basic authentication', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_BASIC_AUTH, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS))('Connection Success - Direct Mqtt with TLS', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Direct Mqtt with tls through an http proxy', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY, createNodeSpecificTestConfig);
     })
 });
@@ -139,7 +139,7 @@ function makeMaximalConfig() : mqtt5.Mqtt5ClientConfig {
 }
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.DIRECT_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Direct Mqtt with everything set', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let maximalConfig: mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
 
         await test_utils.testConnect(new mqtt5.Mqtt5Client(maximalConfig));
@@ -147,31 +147,31 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT))('Connection Success - Websocket Mqtt', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH))('Connection Success - Websocket Mqtt with basic authentication', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS))('Connection Success - Websocket Mqtt with TLS', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with tls through an http proxy', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testSuccessfulConnection(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY, createNodeSpecificTestConfig);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_TLS_VIA_PROXY))('Connection Success - Websocket Mqtt with everything set', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let maximalConfig: mqtt5.Mqtt5ClientConfig = makeMaximalConfig();
         maximalConfig.hostName = test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_HOST;
         maximalConfig.port = test_utils.ClientEnvironmentalConfig.WS_MQTT_TLS_PORT;
@@ -450,47 +450,47 @@ function createOperationFailureClient() : mqtt5.Mqtt5Client {
 }
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry underflow', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry overflow', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), 4294967296);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish failure - message expiry underflow', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
         await test_utils.testPublishValidationFailure(createOperationFailureClient(), -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish failure - message expiry overflow', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
         await test_utils.testPublishValidationFailure(createOperationFailureClient(), 4294967297);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Subscribe failure - subscription identifier underflow', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
         await test_utils.testSubscribeValidationFailure(createOperationFailureClient(), -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Subscribe failure - subscription identifier overflow', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
         await test_utils.testSubscribeValidationFailure(createOperationFailureClient(), 4294967297);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Negotiated settings - minimal', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         config.connectProperties = {
             keepAliveIntervalSeconds: 600
@@ -504,7 +504,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Negotiated settings - maximal', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let clientId: string = `test-${uuid()}`;
         let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         config.connectProperties = {
@@ -524,7 +524,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Negotiated settings - always rejoin session', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let clientId: string = `test-${uuid()}`;
         let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         config.connectProperties = {
@@ -543,7 +543,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 0 - Unsub', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
         let testPayload: Buffer = Buffer.from("Derp", "utf-8");
 
@@ -568,7 +568,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Sub - Pub QoS 1 - Unsub', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
         let testPayload: Buffer = Buffer.from("Derp", "utf-8");
 
@@ -593,7 +593,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let willPayload: Buffer = Buffer.from("ToMyChildrenIBequeathNothing", "utf-8");
         let willTopic: string = `will/test${uuid()}`;
 
@@ -630,7 +630,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Shared subscriptions test', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         const publisher: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
         const subscriber1: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
@@ -640,25 +640,25 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation failure - null subscribe', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.nullSubscribeTest(new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig()));
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation failure - null unsubscribe', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.nullUnsubscribeTest(new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig()));
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation failure - null publish', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         await test_utils.nullPublishTest(new mqtt5.Mqtt5Client(createDirectIotCoreClientConfig()));
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Retain test', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
 
         await test_utils.doRetainTest(new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config));
@@ -666,7 +666,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Operation statistics test simple', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let clientConfig: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(clientConfig);
 
@@ -710,7 +710,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
 /* This test doesn't verify LRU aliasing it just gives some evidence that enabling LRU aliasing doesn't blow something up */
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with LRU aliasing', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let clientConfig: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         clientConfig.topicAliasingOptions = {
             outboundBehavior: mqtt5.OutboundTopicAliasBehaviorType.LRU,
@@ -751,7 +751,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
 /* This test doesn't verify manual aliasing it just gives some evidence that enabling manual aliasing doesn't blow something up */
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Publish with manual aliasing', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         let clientConfig: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         clientConfig.topicAliasingOptions = {
             outboundBehavior: mqtt5.OutboundTopicAliasBehaviorType.Manual,

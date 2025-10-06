@@ -61,7 +61,7 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
 }
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_mqtt())('MQTT311 Connection - no credentials', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_DIRECT_MQTT_HOST,
@@ -74,7 +74,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_mqtt())('
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt())('MQTT311 Connection - basic auth', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_HOST,
@@ -89,7 +89,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_tls_mqtt())('MQTT311 Connection - TLS', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const tls_ctx_options = new TlsContextOptions();
         tls_ctx_options.verify_peer = false;
         const config: MqttConnectionConfig = {
@@ -105,7 +105,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_tls_mqtt(
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_proxy())('MQTT311 Connection - Proxy', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const tls_ctx_options = new TlsContextOptions();
         tls_ctx_options.verify_peer = false;
         let tls_ctx = new ClientTlsContext(tls_ctx_options);
@@ -132,7 +132,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_proxy())(
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_rsa())('MQTT311 Connection - mTLS RSA', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_IOT_MQTT_HOST,
@@ -150,7 +150,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_rsa())('MQTT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_ecc())('MQTT311 Connection - mTLS ECC', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_IOT_MQTT_HOST,
@@ -168,7 +168,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_ecc())('MQTT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('MQTT311 WS Connection - no credentials', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_WS_MQTT_HOST,
@@ -185,7 +185,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('MQTT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_auth_mqtt())('MQTT311 WS Connection - basic auth', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_WS_AUTH_MQTT_HOST,
@@ -204,7 +204,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_auth_mqtt())(
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_tls_mqtt())('MQTT311 WS Connection - TLS', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const tls_ctx_options = new TlsContextOptions();
         tls_ctx_options.verify_peer = false;
         let tls_ctx = new ClientTlsContext(tls_ctx_options);
@@ -225,7 +225,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_tls_mqtt())('
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_proxy())('MQTT311 WS Connection - Proxy', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const tls_ctx_options = new TlsContextOptions();
         tls_ctx_options.verify_peer = false;
         let tls_ctx = new ClientTlsContext(tls_ctx_options);
@@ -277,7 +277,7 @@ function make_test_iot_core_connection(clean_session?: boolean) {
 }
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Operation statistics simple', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const promise = new Promise(async (resolve, reject) => {
 
             const connection = make_test_iot_core_connection();
@@ -324,7 +324,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Operation statistics check publish', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const promise = new Promise(async (resolve, reject) => {
 
             const connection = make_test_iot_core_connection();
@@ -371,7 +371,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Disconnect behavior hard-disconnect - default functions like expected', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const promise = new Promise(async (resolve, reject) => {
 
             const connection = make_test_iot_core_connection(
@@ -394,7 +394,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQTT Disconnect behavior hard-disconnect - ensure operations do not work after disconnect', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const promise = new Promise(async (resolve, reject) => {
 
             const connection = make_test_iot_core_connection(

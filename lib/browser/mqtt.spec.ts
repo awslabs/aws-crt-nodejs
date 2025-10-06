@@ -35,7 +35,7 @@ async function test_connection(config: MqttConnectionConfig, client: MqttClient)
 }
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('MQTT311 WS Connection - no credentials', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_WS_MQTT_HOST,
@@ -48,7 +48,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('MQTT
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_auth_mqtt())('MQTT311 WS Connection - basic auth', async () => {
-    retry.networkTimeoutRetryWrapper( async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
         const config: MqttConnectionConfig = {
             client_id: `node-mqtt-unit-test-${uuid()}`,
             host_name: test_env.AWS_IOT_ENV.MQTT311_WS_AUTH_MQTT_HOST,
