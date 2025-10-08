@@ -19,6 +19,20 @@ export const MESSAGE_EXPIRY_INTERVAL_PROPERTY_CODE : number = 0x02;
 export const CONTENT_TYPE_PROPERTY_CODE : number = 0x03;
 export const RESPONSE_TOPIC_PROPERTY_CODE : number = 0x08;
 export const CORRELATION_DATA_PROPERTY_CODE : number = 0x09;
+export const MAXIMUM_QOS_PROPERTY_CODE : number = 0x24;
+export const RETAIN_AVAILABLE_PROPERTY_CODE : number = 0x25;
+export const ASSIGNED_CLIENT_IDENTIFIER_PROPERTY_CODE : number = 0x12;
+export const REASON_STRING_PROPERTY_CODE : number = 0x1F;
+export const WILDCARD_SUBSCRIPTIONS_AVAILABLE_PROPERTY_CODE : number = 0x28;
+export const SUBSCRIPTION_IDENTIFIERS_AVAILABLE_PROPERTY_CODE : number = 0x29;
+export const SHARED_SUBSCRIPTIONS_AVAILABLE_PROPERTY_CODE : number = 0x2A;
+export const SERVER_KEEP_ALIVE_PROPERTY_CODE : number = 0x13;
+export const RESPONSE_INFORMATION_PROPERTY_CODE : number = 0x1A;
+export const SERVER_REFERENCE_PROPERTY_CODE : number = 0x1C;
+export const AUTHENTICATION_METHOD_PROPERTY_CODE: number = 0x15;
+export const AUTHENTICATION_DATA_PROPERTY_CODE: number = 0x16;
+export const TOPIC_ALIAS_PROPERTY_CODE : number = 0x23;
+export const SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE : number = 0x0B;
 
 export const connect311ProtocolBytes = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, 0x04];
 export const connect311ProtocolBuffer = new Uint8Array(connect311ProtocolBytes);
@@ -37,6 +51,10 @@ export const CONNECT_FLAGS_CLEAN_SESSION : number = 0x02;
 export const PUBLISH_FLAGS_QOS_SHIFT : number = 0x01;
 export const PUBLISH_FLAGS_RETAIN : number = 0x01;
 export const PUBLISH_FLAGS_DUPLICATE : number = 0x08;
+
+export const SUBSCRIPTION_FLAGS_NO_LOCAL : number = 0x04;
+export const SUBSCRIPTION_FLAGS_RETAIN_AS_PUBLISHED : number = 0x08;
+export const SUBSCRIPTION_FLAGS_RETAIN_HANDLING_TYPE_SHIFT : number = 0x04;
 
 export const PACKET_TYPE_FIRST_BYTE_CONNECT : number = 0x10;
 export const PACKET_TYPE_FIRST_BYTE_CONNACK : number = 0x20;
@@ -176,6 +194,10 @@ export interface ConnectPacketInternal extends IPacketInternal {
 
     will?: PublishPacketInternal;
 
+    authenticationMethod?: ArrayBuffer;
+
+    authenticationData?: ArrayBuffer;
+
     userProperties?: Array<UserPropertyInternal>;
 }
 
@@ -211,6 +233,10 @@ export interface ConnackPacketInternal extends IPacketInternal {
     responseInformation?: ArrayBuffer;
 
     serverReference?: ArrayBuffer;
+
+    authenticationMethod?: ArrayBuffer;
+
+    authenticationData?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyInternal>;
 }
