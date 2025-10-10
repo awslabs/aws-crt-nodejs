@@ -45,20 +45,35 @@ export function encode_vli(dest: DataView, value: number) : DataView {
     return new DataView(dest.buffer, dest.byteOffset + i, dest.byteLength - i);
 }
 
-export function decode_vli(view: DataView) : [number, DataView] {
-    try {
-        let value: number = 0;
-        let index: number = 0;
-        while (index < 4) {
-            let raw_byte = view.getUint8(index++);
-            let masked_byte = raw_byte & 0x7F;
-            value = (value << 7) | masked_byte;
-            if (masked_byte == raw_byte) {
-                return [value, new DataView(view.buffer, view.byteOffset + index, view.byteLength - index)];
-            }
+export enum VliDecodeResultType {
+    Success,
+    MoreData,
+}
+
+export interface VliDecodeResult {
+    type: VliDecodeResultType,
+    value?: number,
+    nextView?: DataView
+}
+
+export function decode_vli(view: DataView) : VliDecodeResult {
+    let value: number = 0;
+    let index: number = 0;
+    while (index < 4) {
+        let raw_byte = view.getUint8(index++);
+        let masked_byte = raw_byte & 0x7F;
+        value = (value << 7) | masked_byte;
+        if (masked_byte == raw_byte) {
+            return {
+                type: VliDecodeResultType.Success,
+                value: value,
+                nextView: new DataView(view.buffer, view.byteOffset + index, view.byteLength - index)
+            };
+        } else if (index >= view.byteLength) {
+            return {
+                type: VliDecodeResultType.MoreData
+            };
         }
-    } catch (e) {
-        throw new CrtError("Decoding failure - short buffer");
     }
 
     throw new CrtError("Decoding failure - invalid VLI integer");

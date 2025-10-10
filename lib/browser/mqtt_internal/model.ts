@@ -6,6 +6,11 @@
 import {CrtError} from "../error";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 
+export enum ProtocolMode {
+    Mqtt311,
+    Mqtt5
+}
+
 export const USER_PROPERTY_PROPERTY_CODE : number = 0x26;
 export const SESSION_EXPIRY_INTERVAL_PROPERTY_CODE : number = 0x11;
 export const RECEIVE_MAXIMUM_PROPERTY_CODE : number = 0x21;

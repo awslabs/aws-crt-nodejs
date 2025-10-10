@@ -8,7 +8,7 @@ import * as model from "./model";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as vli from "./vli";
 
-enum EncodingStepType {
+export enum EncodingStepType {
     U8,
     U16,
     U32,
@@ -16,12 +16,12 @@ enum EncodingStepType {
     BYTES
 }
 
-interface EncodingStep {
+export interface EncodingStep {
     type: EncodingStepType,
     value: number | DataView
 }
 
-function encode_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
+export function encode_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
     if (source) {
         steps.push({ type: EncodingStepType.U16, value: source.byteLength });
         steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
@@ -30,14 +30,14 @@ function encode_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuff
     }
 }
 
-function encode_optional_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
+export function encode_optional_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
     if (source) {
         steps.push({ type: EncodingStepType.U16, value: source.byteLength });
         steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
     }
 }
 
-function encode_required_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer) {
+export function encode_required_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer) {
     steps.push({ type: EncodingStepType.U16, value: source.byteLength });
     steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
 }
@@ -110,13 +110,6 @@ function encode_connect_packet311(steps: Array<EncodingStep>, packet: model.Conn
 
     encode_optional_16bit_array_buffer(steps, packet.username);
     encode_optional_16bit_array_buffer(steps, packet.password);
-}
-
-function encode_connack_packet311(steps: Array<EncodingStep>, packet: model.ConnackPacketInternal) {
-    steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNACK });
-    steps.push({ type: EncodingStepType.U8, value: 0x02 });
-    steps.push({ type: EncodingStepType.U8, value: packet.sessionPresent ? 1 : 0 });
-    steps.push({ type: EncodingStepType.U8, value: packet.reasonCode });
 }
 
 function compute_publish_flags(packet: model.PublishPacketInternal) {
@@ -196,20 +189,6 @@ function encode_subscribe_packet311(steps: Array<EncodingStep>, packet: model.Su
     }
 }
 
-function get_suback_packet_remaining_lengths311(packet: model.SubackPacketInternal) : number {
-    return 2 + packet.reasonCodes.length;
-}
-
-function encode_suback_packet311(steps: Array<EncodingStep>, packet: model.SubackPacketInternal) {
-    steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_SUBACK });
-    steps.push({ type: EncodingStepType.VLI, value: get_suback_packet_remaining_lengths311(packet) });
-    steps.push({ type: EncodingStepType.U16, value: packet.packetId });
-
-    for (let reasonCode of packet.reasonCodes) {
-        steps.push({ type: EncodingStepType.U8, value: reasonCode });
-    }
-}
-
 function get_unsubscribe_packet_remaining_lengths311(packet: model.UnsubscribePacketInternal) : number {
     let size: number = 2 + packet.topicFilters.length * 2;
 
@@ -230,65 +209,15 @@ function encode_unsubscribe_packet311(steps: Array<EncodingStep>, packet: model.
     }
 }
 
-function encode_unsuback_packet311(steps: Array<EncodingStep>, packet: model.UnsubackPacketInternal) {
-    steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_UNSUBACK });
-    steps.push({ type: EncodingStepType.U8, value: 2 });
-    steps.push({ type: EncodingStepType.U16, value: packet.packetId });
-}
-
 function encode_pingreq_packet(steps: Array<EncodingStep>) {
     steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_PINGREQ_FULL_ENCODING });
-}
-
-function encode_pingresp_packet(steps: Array<EncodingStep>) {
-    steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_PINGRESP_FULL_ENCODING });
 }
 
 function encode_disconnect_packet311(steps: Array<EncodingStep>, packet: model.DisconnectPacketInternal) {
     steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 });
 }
 
-function add_encoding_steps311(steps: Array<EncodingStep>, packet: model.IPacketInternal) {
-    switch(packet.type) {
-        case mqtt5_packet.PacketType.Connect:
-            encode_connect_packet311(steps, packet as model.ConnectPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Connack:
-            encode_connack_packet311(steps, packet as model.ConnackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Publish:
-            encode_publish_packet311(steps, packet as model.PublishPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Puback:
-            encode_puback_packet311(steps, packet as model.PubackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Subscribe:
-            encode_subscribe_packet311(steps, packet as model.SubscribePacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Suback:
-            encode_suback_packet311(steps, packet as model.SubackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Unsubscribe:
-            encode_unsubscribe_packet311(steps, packet as model.UnsubscribePacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Unsuback:
-            encode_unsuback_packet311(steps, packet as model.UnsubackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Pingreq:
-            encode_pingreq_packet(steps);
-            break;
-        case mqtt5_packet.PacketType.Pingresp:
-            encode_pingresp_packet(steps);
-            break;
-        case mqtt5_packet.PacketType.Disconnect:
-            encode_disconnect_packet311(steps, packet as model.DisconnectPacketInternal);
-            break;
-        default:
-            throw new CrtError("Unsupported packet type");
-    }
-}
-
-function compute_user_properties_length(user_properties: Array<model.UserPropertyInternal> | undefined) : number {
+export function compute_user_properties_length(user_properties: Array<model.UserPropertyInternal> | undefined) : number {
     if (!user_properties) {
         return 0;
     }
@@ -405,7 +334,7 @@ function get_connect_packet_remaining_lengths5(packet: model.ConnectPacketIntern
     return [remaining_length, properties_length, will_properties_length];
 }
 
-function encode_user_properties(steps: Array<EncodingStep>, user_properties: Array<model.UserPropertyInternal> | undefined) {
+export function encode_user_properties(steps: Array<EncodingStep>, user_properties: Array<model.UserPropertyInternal> | undefined) {
     if (!user_properties) {
         return;
     }
@@ -523,177 +452,6 @@ function encode_connect_packet5(steps: Array<EncodingStep>, packet: model.Connec
 
     encode_optional_16bit_array_buffer(steps, packet.username);
     encode_optional_16bit_array_buffer(steps, packet.password);
-}
-
-function get_connack_packet_remaining_lengths5(packet: model.ConnackPacketInternal) : [number, number] {
-    let remaining_length: number = 2; // 1 byte flags, 1 byte reason code
-    let properties_length: number = 0;
-
-    if (packet.sessionExpiryInterval) {
-        properties_length += 5;
-    }
-
-    if (packet.receiveMaximum) {
-        properties_length += 3;
-    }
-
-    if (packet.maximumQos) {
-        properties_length += 2;
-    }
-
-    if (packet.retainAvailable) {
-        properties_length += 1;
-    }
-
-    if (packet.maximumPacketSize) {
-        properties_length += 5;
-    }
-
-    if (packet.assignedClientIdentifier) {
-        properties_length += 3 + packet.assignedClientIdentifier.byteLength;
-    }
-
-    if (packet.topicAliasMaximum) {
-        properties_length += 3;
-    }
-
-    if (packet.reasonString) {
-        properties_length += 3 + packet.reasonString.byteLength;
-    }
-
-    if (packet.wildcardSubscriptionsAvailable) {
-        properties_length += 2;
-    }
-
-    if (packet.subscriptionIdentifiersAvailable) {
-        properties_length += 2;
-    }
-
-    if (packet.sharedSubscriptionsAvailable) {
-        properties_length += 2;
-    }
-
-    if (packet.serverKeepAlive) {
-        properties_length += 3;
-    }
-
-    if (packet.responseInformation) {
-        properties_length += 3 + packet.responseInformation.byteLength;
-    }
-
-    if (packet.serverReference) {
-        properties_length += 3 + packet.serverReference.byteLength;
-    }
-
-    if (packet.authenticationMethod) {
-        properties_length += 3 + packet.authenticationMethod.byteLength;
-    }
-
-    if (packet.authenticationData) {
-        properties_length += 3 + packet.authenticationData.byteLength;
-    }
-
-    properties_length += compute_user_properties_length(packet.userProperties);
-
-    remaining_length += vli.get_vli_byte_length(properties_length) + properties_length;
-
-    return [remaining_length, properties_length];
-}
-
-function encode_connack_properties(steps: Array<EncodingStep>, packet: model.ConnackPacketInternal) {
-    if (packet.sessionExpiryInterval) {
-        steps.push({ type: EncodingStepType.U8, value: model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U32, value: packet.sessionExpiryInterval });
-    }
-
-    if (packet.receiveMaximum) {
-        steps.push({ type: EncodingStepType.U8, value: model.RECEIVE_MAXIMUM_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U16, value: packet.receiveMaximum });
-    }
-
-    if (packet.maximumQos) {
-        steps.push({ type: EncodingStepType.U8, value: model.MAXIMUM_QOS_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U8, value: packet.maximumQos });
-    }
-
-    if (packet.retainAvailable) {
-        steps.push({ type: EncodingStepType.U8, value: model.RETAIN_AVAILABLE_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U8, value: packet.retainAvailable });
-    }
-
-    if (packet.maximumPacketSize) {
-        steps.push({ type: EncodingStepType.U8, value: model.MAXIMUM_PACKET_SIZE_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U32, value: packet.maximumPacketSize });
-    }
-
-    if (packet.assignedClientIdentifier) {
-        steps.push({ type: EncodingStepType.U8, value: model.ASSIGNED_CLIENT_IDENTIFIER_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.assignedClientIdentifier);
-    }
-
-    if (packet.topicAliasMaximum) {
-        steps.push({ type: EncodingStepType.U8, value: model.TOPIC_ALIAS_MAXIMUM_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U16, value: packet.topicAliasMaximum });
-    }
-
-    if (packet.reasonString) {
-        steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.reasonString);
-    }
-
-    if (packet.wildcardSubscriptionsAvailable) {
-        steps.push({ type: EncodingStepType.U8, value: model.WILDCARD_SUBSCRIPTIONS_AVAILABLE_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U8, value: packet.wildcardSubscriptionsAvailable });
-    }
-
-    if (packet.subscriptionIdentifiersAvailable) {
-        steps.push({ type: EncodingStepType.U8, value: model.SUBSCRIPTION_IDENTIFIERS_AVAILABLE_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U8, value: packet.subscriptionIdentifiersAvailable });
-    }
-
-    if (packet.sharedSubscriptionsAvailable) {
-        steps.push({ type: EncodingStepType.U8, value: model.SHARED_SUBSCRIPTIONS_AVAILABLE_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U8, value: packet.sharedSubscriptionsAvailable });
-    }
-
-    if (packet.serverKeepAlive) {
-        steps.push({ type: EncodingStepType.U8, value: model.SERVER_KEEP_ALIVE_PROPERTY_CODE });
-        steps.push({ type: EncodingStepType.U16, value: packet.serverKeepAlive });
-    }
-
-    if (packet.responseInformation) {
-        steps.push({ type: EncodingStepType.U8, value: model.RESPONSE_INFORMATION_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.responseInformation);
-    }
-
-    if (packet.serverReference) {
-        steps.push({ type: EncodingStepType.U8, value: model.SERVER_REFERENCE_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.serverReference);
-    }
-
-    if (packet.authenticationMethod) {
-        steps.push({ type: EncodingStepType.U8, value: model.AUTHENTICATION_METHOD_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.authenticationMethod);
-    }
-
-    if (packet.authenticationData) {
-        steps.push({ type: EncodingStepType.U8, value: model.AUTHENTICATION_DATA_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.authenticationData);
-    }
-
-    encode_user_properties(steps, packet.userProperties);
-}
-
-function encode_connack_packet5(steps: Array<EncodingStep>, packet: model.ConnackPacketInternal) {
-    let [remaining_length, properties_length] = get_connack_packet_remaining_lengths5(packet);
-
-    steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNACK });
-    steps.push({ type: EncodingStepType.VLI, value: remaining_length });
-    steps.push({ type: EncodingStepType.U8, value: packet.sessionPresent ? 1 : 0 });
-    steps.push({ type: EncodingStepType.U8, value: packet.reasonCode });
-    steps.push({ type: EncodingStepType.VLI, value: properties_length });
-
-    encode_connack_properties(steps, packet);
 }
 
 function get_publish_packet_remaining_lengths5(packet: model.PublishPacketInternal) : [number, number] {
@@ -917,46 +675,6 @@ function encode_subscribe_packet5(steps: Array<EncodingStep>, packet: model.Subs
     }
 }
 
-function get_suback_packet_remaining_lengths5(packet: model.SubackPacketInternal) : [number, number] {
-    let remaining_length: number = 2; // packet id
-    let properties_length: number = 0;
-
-    if (packet.reasonString) {
-        properties_length += 3 + packet.reasonString.byteLength;
-    }
-
-    properties_length += compute_user_properties_length(packet.userProperties);
-
-    remaining_length += properties_length + vli.get_vli_byte_length(properties_length);
-    remaining_length += packet.reasonCodes.length;
-
-    return [remaining_length, properties_length];
-}
-
-function encode_suback_properties(steps: Array<EncodingStep>, packet: model.SubackPacketInternal) {
-    if (packet.reasonString) {
-        steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.reasonString);
-    }
-
-    encode_user_properties(steps, packet.userProperties);
-}
-
-function encode_suback_packet5(steps: Array<EncodingStep>, packet: model.SubackPacketInternal) {
-    let [remaining_length, properties_length] = get_suback_packet_remaining_lengths5(packet);
-
-    steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_SUBACK });
-    steps.push({ type: EncodingStepType.VLI, value: remaining_length });
-    steps.push({ type: EncodingStepType.U16, value: packet.packetId });
-
-    steps.push({ type: EncodingStepType.VLI, value: properties_length });
-    encode_suback_properties(steps, packet);
-
-    for (let reason_code of packet.reasonCodes) {
-        steps.push({ type: EncodingStepType.U8, value: reason_code });
-    }
-}
-
 function get_unsubscribe_packet_remaining_lengths5(packet: model.UnsubscribePacketInternal) : [number, number] {
     let remaining_length: number = 2; // packet id
     let properties_length: number = compute_user_properties_length(packet.userProperties);
@@ -986,44 +704,6 @@ function encode_unsubscribe_packet5(steps: Array<EncodingStep>, packet: model.Un
 
     for (let topic_filter of packet.topicFilters) {
         encode_required_16bit_array_buffer(steps, topic_filter);
-    }
-}
-
-function get_unsuback_packet_remaining_lengths5(packet: model.UnsubackPacketInternal) : [number, number] {
-    let remaining_length: number = 2; // packet id
-    let properties_length: number = compute_user_properties_length(packet.userProperties);
-
-    if (packet.reasonString) {
-        properties_length += 3 + packet.reasonString.byteLength;
-    }
-
-    remaining_length += properties_length + vli.get_vli_byte_length(properties_length);
-    remaining_length += packet.reasonCodes.length;
-
-    return [remaining_length, properties_length];
-}
-
-function encode_unsuback_properties(steps: Array<EncodingStep>, packet: model.UnsubackPacketInternal) {
-    if (packet.reasonString) {
-        steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.reasonString);
-    }
-
-    encode_user_properties(steps, packet.userProperties);
-}
-
-function encode_unsuback_packet5(steps: Array<EncodingStep>, packet: model.UnsubackPacketInternal) {
-    let [remaining_length, properties_length] = get_unsuback_packet_remaining_lengths5(packet);
-
-    steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_UNSUBACK });
-    steps.push({ type: EncodingStepType.VLI, value: remaining_length });
-    steps.push({ type: EncodingStepType.U16, value: packet.packetId });
-
-    steps.push({ type: EncodingStepType.VLI, value: properties_length });
-    encode_unsuback_properties(steps, packet);
-
-    for (let reason_code of packet.reasonCodes) {
-        steps.push({ type: EncodingStepType.U8, value: reason_code });
     }
 }
 
@@ -1086,68 +766,54 @@ function encode_disconnect_packet5(steps: Array<EncodingStep>, packet: model.Dis
     }
 }
 
-function add_encoding_steps5(steps: Array<EncodingStep>, packet: model.IPacketInternal) {
-    switch(packet.type) {
-        case mqtt5_packet.PacketType.Connect:
-            encode_connect_packet5(steps, packet as model.ConnectPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Connack:
-            encode_connack_packet5(steps, packet as model.ConnackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Publish:
-            encode_publish_packet5(steps, packet as model.PublishPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Puback:
-            encode_puback_packet5(steps, packet as model.PubackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Subscribe:
-            encode_subscribe_packet5(steps, packet as model.SubscribePacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Suback:
-            encode_suback_packet5(steps, packet as model.SubackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Unsubscribe:
-            encode_unsubscribe_packet5(steps, packet as model.UnsubscribePacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Unsuback:
-            encode_unsuback_packet5(steps, packet as model.UnsubackPacketInternal);
-            break;
-        case mqtt5_packet.PacketType.Pingreq:
-            encode_pingreq_packet(steps);
-            break;
-        case mqtt5_packet.PacketType.Pingresp:
-            encode_pingresp_packet(steps);
-            break;
-        case mqtt5_packet.PacketType.Disconnect:
-            encode_disconnect_packet5(steps, packet as model.DisconnectPacketInternal);
-            break;
-        default:
-            throw new CrtError("Unsupported packet type");
+export type EncodingFunction = (steps: Array<EncodingStep>, packet: model.IPacketInternal) => void;
+export type EncodingFunctionSet = Map<mqtt5_packet.PacketType, EncodingFunction>;
+
+
+export function build_client_encoding_function_set(mode: model.ProtocolMode) : EncodingFunctionSet {
+    switch (mode) {
+        case model.ProtocolMode.Mqtt311:
+            return new Map<mqtt5_packet.PacketType, EncodingFunction>([
+                [mqtt5_packet.PacketType.Connect, (steps, packet) => { encode_connect_packet311(steps, packet as model.ConnectPacketInternal); }],
+                [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encode_subscribe_packet311(steps, packet as model.SubscribePacketInternal); }],
+                [mqtt5_packet.PacketType.Unsubscribe, (steps, packet) => { encode_unsubscribe_packet311(steps, packet as model.UnsubscribePacketInternal); }],
+                [mqtt5_packet.PacketType.Publish, (steps, packet) => { encode_publish_packet311(steps, packet as model.PublishPacketInternal); }],
+                [mqtt5_packet.PacketType.Puback, (steps, packet) => { encode_puback_packet311(steps, packet as model.PubackPacketInternal); }],
+                [mqtt5_packet.PacketType.Disconnect, (steps, packet) => { encode_disconnect_packet311(steps, packet as model.DisconnectPacketInternal); }],
+                [mqtt5_packet.PacketType.Pingreq, (steps, packet) => { encode_pingreq_packet(steps); }],
+            ]);
+
+        case model.ProtocolMode.Mqtt5:
+            return new Map<mqtt5_packet.PacketType, EncodingFunction>([
+                [mqtt5_packet.PacketType.Connect, (steps, packet) => { encode_connect_packet5(steps, packet as model.ConnectPacketInternal); }],
+                [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encode_subscribe_packet5(steps, packet as model.SubscribePacketInternal); }],
+                [mqtt5_packet.PacketType.Unsubscribe, (steps, packet) => { encode_unsubscribe_packet5(steps, packet as model.UnsubscribePacketInternal); }],
+                [mqtt5_packet.PacketType.Publish, (steps, packet) => { encode_publish_packet5(steps, packet as model.PublishPacketInternal); }],
+                [mqtt5_packet.PacketType.Puback, (steps, packet) => { encode_puback_packet5(steps, packet as model.PubackPacketInternal); }],
+                [mqtt5_packet.PacketType.Disconnect, (steps, packet) => { encode_disconnect_packet5(steps, packet as model.DisconnectPacketInternal); }],
+                [mqtt5_packet.PacketType.Pingreq, (steps, packet) => { encode_pingreq_packet(steps); }],
+            ]);
+
     }
+
+    throw new CrtError("Unsupported protocol");
 }
 
-enum ProtocolMode {
-    Mqtt311,
-    Mqtt5
-}
-
-function add_encoding_steps(mode: ProtocolMode, steps: Array<EncodingStep>, packet: model.IPacketInternal) {
+function add_encoding_steps(encoders: EncodingFunctionSet, steps: Array<EncodingStep>, packet: model.IPacketInternal) {
     if (steps.length > 0) {
         throw new CrtError("Encoding steps already exist");
     }
 
-    switch (mode) {
-        case ProtocolMode.Mqtt311:
-            add_encoding_steps311(steps, packet);
-            break;
-
-        case ProtocolMode.Mqtt5:
-            add_encoding_steps5(steps, packet);
-            break;
-
-        default:
-            throw new CrtError("Unknown protocol mode");
+    if (!packet.type) {
+        throw new CrtError("Undefined packet type for encoding");
     }
+
+    let encoder = encoders.get(packet.type);
+    if (!encoder) {
+        throw new CrtError("Unsupported packet type for encoding");
+    }
+
+    encoder(steps, packet);
 }
 
 interface ApplyEncodingStepResult {
@@ -1203,6 +869,7 @@ function apply_encoding_step(buffer: DataView, step: EncodingStep) : ApplyEncodi
     }
 }
 
+
 export enum ServiceResultType {
     Complete,
     InProgress
@@ -1218,7 +885,7 @@ export class Encoder {
     private steps: Array<EncodingStep> = new Array<EncodingStep>();
     private currentStep: number = 0;
 
-    constructor(private mode : ProtocolMode) {
+    constructor(private encoders : EncodingFunctionSet) {
     }
 
     // called after connection establishment
@@ -1233,7 +900,7 @@ export class Encoder {
         this.packet = packet;
         this.steps.length = 0;
         this.currentStep = 0;
-        add_encoding_steps(this.mode, this.steps, packet);
+        add_encoding_steps(this.encoders, this.steps, packet);
     }
 
     service(buffer: DataView) : ServiceResult {
