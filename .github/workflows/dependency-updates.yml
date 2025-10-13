@@ -1,29 +1,32 @@
 name: Daily Dependency Updates
 
 on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+  push:
+    branches-ignore:
+      - 'main'
+# on:
+#   schedule:
+#     # Run daily at 2 AM UTC
+#     - cron: '0 2 * * *'
+#   workflow_dispatch:
 
 
 env:
   NODE_VERSION: '18'
 
 permissions:
-  contents: write
-  pull-requests: write
   id-token: write
 
 jobs:
   dependency-updates:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Sources
         uses: actions/checkout@v4
         with:
-            submodules: true
-            token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: true
+          token: ${{ secrets.BOT_PAT }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -33,8 +36,9 @@ jobs:
 
       - name: Configure Git
         run: |
-            git config --global user.name 'github-actions[bot]'
-            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+            git config --global user.name 'aws-crt-bot'
+            git config --global user.email 'aws-sdk-common-runtime@amazon.com'
+            git config --global url."https://aws-crt-bot:${{ secrets.BOT_PAT }}@github.com/".insteadOf "https://github.com/"
 
       - name: Create branch name with timestamp
         id: branch
@@ -54,6 +58,114 @@ jobs:
             npm audit fix --audit-level=moderate || true
             echo "npm audit fix completed"
 
+      - name: Analyze and update specific vulnerable packages
+        run: |
+            echo "Analyzing vulnerable packages that exist in package.json..."
+
+            # Create a script to analyze and update specific packages
+            cat > analyze_and_update.js << 'EOF'
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            try {
+              // Read package.json to get current dependencies
+              const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              const allDeps = {
+                ...packageJson.dependencies || {},
+                ...packageJson.devDependencies || {},
+                ...packageJson.peerDependencies || {},
+                ...packageJson.optionalDependencies || {}
+              };
+
+              console.log('=== DEBUG: Package.json dependencies loaded ===');
+              console.log('Total dependencies in package.json:', Object.keys(allDeps).length);
+
+              // Read audit results
+              let auditData = {};
+              try {
+                const auditContent = fs.readFileSync('audit_results.json', 'utf8');
+                auditData = JSON.parse(auditContent);
+                console.log('=== DEBUG: Audit results loaded ===');
+              } catch (error) {
+                console.log('No audit results found or invalid JSON:', error.message);
+                process.exit(0);
+              }
+
+              // Extract vulnerable packages from audit results
+              const vulnerablePackages = auditData.vulnerabilities || {};
+              const vulnerablePackageNames = Object.keys(vulnerablePackages);
+
+              console.log('=== DEBUG: Vulnerable packages analysis ===');
+              console.log('Total vulnerable packages found:', vulnerablePackageNames.length);
+
+              // Find packages that are both vulnerable and exist in package.json
+              const packagesToUpdate = [];
+              const packageAnalysis = [];
+
+              for (const packageName of vulnerablePackageNames) {
+                const vulnInfo = vulnerablePackages[packageName];
+                const isInPackageJson = allDeps.hasOwnProperty(packageName);
+                const currentVersion = allDeps[packageName] || 'N/A';
+
+                console.log(`Checking ${packageName}: in package.json=${isInPackageJson}, current=${currentVersion}`);
+
+                packageAnalysis.push({
+                  name: packageName,
+                  inPackageJson: isInPackageJson,
+                  currentVersion: currentVersion,
+                  severity: vulnInfo.severity || 'unknown',
+                  fixAvailable: vulnInfo.fixAvailable || false,
+                  isDirect: vulnInfo.isDirect || false
+                });
+
+                if (isInPackageJson) {
+                  packagesToUpdate.push(packageName);
+                  console.log(`✓ Will update ${packageName} (${vulnInfo.severity} severity)`);
+                }
+              }
+
+              // Write analysis results
+              const analysisResult = {
+                totalVulnerable: vulnerablePackageNames.length,
+                inPackageJson: packagesToUpdate.length,
+                packagesToUpdate: packagesToUpdate,
+                packageAnalysis: packageAnalysis
+              };
+
+              fs.writeFileSync('package_analysis.json', JSON.stringify(analysisResult, null, 2));
+
+              console.log('=== SUMMARY ===');
+              console.log(`Total vulnerable packages: ${vulnerablePackageNames.length}`);
+              console.log(`Vulnerable packages in package.json: ${packagesToUpdate.length}`);
+              console.log(`Packages to update: ${packagesToUpdate.join(', ') || 'none'}`);
+
+              // Update specific packages if any found
+              if (packagesToUpdate.length > 0) {
+                console.log('\n=== UPDATING PACKAGES ===');
+                for (const packageName of packagesToUpdate) {
+                  try {
+                    console.log(`Updating ${packageName}...`);
+                    execSync(`npm update ${packageName}`, { stdio: 'inherit' });
+                    console.log(`✓ Updated ${packageName}`);
+                  } catch (error) {
+                    console.log(`✗ Failed to update ${packageName}:`, error.message);
+                  }
+                }
+              } else {
+                console.log('No vulnerable packages found in package.json dependencies');
+              }
+
+            } catch (error) {
+              console.error('Error in package analysis:', error.message);
+              process.exit(1);
+            }
+            EOF
+
+            # Run the analysis and update script
+            node analyze_and_update.js
+
+            echo "Package analysis and targeted updates completed"
+
       - name: Reinstall with lockfile version 1
         run: |
             echo "Reinstalling dependencies with lockfile version 1..."
@@ -63,14 +175,87 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
+          echo "=== DEBUG: Starting change detection ==="
+          echo "Current working directory: $(pwd)"
+          echo "Git status before adding files:"
+          git status --porcelain
+
+          echo ""
+          echo "=== DEBUG: Checking file existence ==="
+          echo "package.json exists: $(test -f package.json && echo 'YES' || echo 'NO')"
+          echo "package-lock.json exists: $(test -f package-lock.json && echo 'YES' || echo 'NO')"
+
+          echo ""
+          echo "=== DEBUG: File sizes and timestamps ==="
+          if [ -f package.json ]; then
+            echo "package.json size: $(wc -c < package.json) bytes"
+            echo "package.json modified: $(stat -c %y package.json 2>/dev/null || stat -f %Sm package.json)"
+          fi
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json size: $(wc -c < package-lock.json) bytes"
+            echo "package-lock.json modified: $(stat -c %y package-lock.json 2>/dev/null || stat -f %Sm package-lock.json)"
+          fi
+
+          echo ""
+          echo "=== DEBUG: Git diff before staging ==="
+          echo "Unstaged changes in package.json:"
+          git diff --name-only | grep package.json || echo "No unstaged changes in package.json"
+          echo "Unstaged changes in package-lock.json:"
+          git diff --name-only | grep package-lock.json || echo "No unstaged changes in package-lock.json"
+
+          echo ""
+          echo "=== DEBUG: Adding files to staging area ==="
+          echo "Adding package-lock.json..."
           git add package-lock.json
+          echo "Adding package.json..."
           git add package.json
+
+          echo ""
+          echo "=== DEBUG: Git status after adding files ==="
+          git status --porcelain
+
+          echo ""
+          echo "=== DEBUG: Staged changes details ==="
+          echo "Files in staging area:"
+          git diff --staged --name-only
+          echo ""
+          echo "Staged changes summary:"
+          git diff --staged --stat
+
+          echo ""
+          echo "=== DEBUG: Checking for staged changes ==="
           if git diff --staged --quiet; then
+            echo "✅ DEBUG: git diff --staged --quiet returned TRUE (no changes)"
             echo "No changes detected"
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
+            echo "✅ DEBUG: git diff --staged --quiet returned FALSE (changes found)"
             echo "Changes detected"
             echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            echo ""
+            echo "=== DEBUG: Detailed diff output ==="
+            echo "Staged diff (first 50 lines):"
+            git diff --staged | head -50
+
+            echo ""
+            echo "=== DEBUG: File-specific changes ==="
+            if git diff --staged --name-only | grep -q "package-lock.json"; then
+              echo "📦 package-lock.json has staged changes"
+              echo "Lines changed in package-lock.json: $(git diff --staged --numstat package-lock.json | cut -f1,2)"
+            else
+              echo "📦 package-lock.json has NO staged changes"
+            fi
+
+            if git diff --staged --name-only | grep -q "package.json"; then
+              echo "📋 package.json has staged changes"
+              echo "Lines changed in package.json: $(git diff --staged --numstat package.json | cut -f1,2)"
+            else
+              echo "📋 package.json has NO staged changes"
+            fi
+
+            echo ""
+            echo "=== DEBUG: Creating changes summary ==="
 
             # Get summary of changes
             echo "## Changes Summary" > changes_summary.md
@@ -79,36 +264,179 @@ jobs:
             # Check if package-lock.json changed
             if git diff --staged --name-only | grep -q "package-lock.json"; then
               echo "- 📦 package-lock.json updated" >> changes_summary.md
+              echo "DEBUG: Added package-lock.json to summary"
+            else
+              echo "DEBUG: package-lock.json not in staged changes"
             fi
 
-            # Check if package.json changed
+            # Check if package.json changed and analyze the changes
             if git diff --staged --name-only | grep -q "package.json"; then
               echo "- 📋 package.json updated" >> changes_summary.md
+              echo "DEBUG: Added package.json to summary"
+
+              # Add targeted analysis using package analysis results
+              echo "" >> changes_summary.md
+              echo "### ⚠️ IMPORTANT: Targeted Package Updates Applied" >> changes_summary.md
+              echo "" >> changes_summary.md
+
+              # Read package analysis results if available
+              if [ -f package_analysis.json ]; then
+                echo "DEBUG: Reading package analysis results..."
+
+                # Extract information from package analysis
+                TOTAL_VULNERABLE=$(jq -r '.totalVulnerable // 0' package_analysis.json 2>/dev/null)
+                PACKAGES_IN_JSON=$(jq -r '.inPackageJson // 0' package_analysis.json 2>/dev/null)
+                UPDATED_PACKAGES=$(jq -r '.packagesToUpdate[]? // empty' package_analysis.json 2>/dev/null | tr '\n' ' ')
+
+                echo "DEBUG: Total vulnerable: $TOTAL_VULNERABLE, In package.json: $PACKAGES_IN_JSON"
+                echo "DEBUG: Updated packages: $UPDATED_PACKAGES"
+
+                echo "**🎯 TARGETED UPDATE SUMMARY**: Only vulnerable packages found in package.json were updated." >> changes_summary.md
+                echo "" >> changes_summary.md
+                echo "- **Total vulnerable packages found:** $TOTAL_VULNERABLE" >> changes_summary.md
+                echo "- **Vulnerable packages in package.json:** $PACKAGES_IN_JSON" >> changes_summary.md
+
+                if [ "$PACKAGES_IN_JSON" -gt 0 ]; then
+                  echo "- **Packages specifically updated:** $UPDATED_PACKAGES" >> changes_summary.md
+                  echo "" >> changes_summary.md
+                  echo "**🚨 SECURITY-FOCUSED UPDATES**: The following vulnerable packages were updated:" >> changes_summary.md
+                  echo "" >> changes_summary.md
+
+                  # List each updated package with its details
+                  jq -r '.packageAnalysis[]? | select(.inPackageJson == true) |
+                    "### 🔒 " + .name + " (Security Update)\n" +
+                    "- **Current version in package.json:** `" + .currentVersion + "`\n" +
+                    "- **Vulnerability severity:** " + .severity + "\n" +
+                    "- **Direct dependency:** " + (if .isDirect then "Yes ⚠️" else "No (transitive)") + "\n" +
+                    "- **Fix available:** " + (if .fixAvailable then "✅ Yes" else "❌ No") + "\n"
+                  ' package_analysis.json 2>/dev/null >> changes_summary.md
+
+                  echo "" >> changes_summary.md
+                  echo "**🔍 TARGETED REVIEW CHECKLIST** (Security-focused updates):" >> changes_summary.md
+                  echo "- [ ] **Verify security fixes** - Check that vulnerabilities are resolved" >> changes_summary.md
+                  echo "- [ ] **Test critical paths** - Focus on functionality using updated packages" >> changes_summary.md
+                  echo "- [ ] **Review breaking changes** - Check changelogs for the updated packages only" >> changes_summary.md
+                  echo "- [ ] **Validate compatibility** - Ensure updated packages work with existing code" >> changes_summary.md
+                  echo "- [ ] **Security verification** - Run \`npm audit\` after merge to confirm fixes" >> changes_summary.md
+                else
+                  echo "- **Result:** No vulnerable packages found in package.json dependencies" >> changes_summary.md
+                  echo "" >> changes_summary.md
+                  echo "**ℹ️ NOTE**: All vulnerabilities are in transitive dependencies only." >> changes_summary.md
+                fi
+              else
+                echo "**🚨 FALLBACK MODE**: Package analysis results not available. General package.json changes detected." >> changes_summary.md
+                echo "" >> changes_summary.md
+                echo "**Changed dependency versions in package.json:**" >> changes_summary.md
+
+                # Extract dependency changes from package.json diff
+                git diff --staged package.json | grep -E '^[-+].*".*":.*".*"' | while read line; do
+                  if [[ $line == -* ]]; then
+                    echo "- ❌ **Removed/Changed from:** \`${line:1}\`" >> changes_summary.md
+                  elif [[ $line == +* ]]; then
+                    echo "- ✅ **Added/Changed to:** \`${line:1}\`" >> changes_summary.md
+                  fi
+                done
+
+                echo "" >> changes_summary.md
+                echo "**Review Checklist for package.json changes:**" >> changes_summary.md
+                echo "- [ ] Verify all version updates are intentional and compatible" >> changes_summary.md
+                echo "- [ ] Check for any breaking changes in updated packages" >> changes_summary.md
+                echo "- [ ] Ensure updated versions don't conflict with other dependencies" >> changes_summary.md
+                echo "- [ ] Run comprehensive tests to verify functionality" >> changes_summary.md
+                echo "- [ ] Review changelogs/release notes for updated packages" >> changes_summary.md
+              fi
+              echo "" >> changes_summary.md
+            else
+              echo "DEBUG: package.json not in staged changes"
+
+              # Even if package.json wasn't changed, show what was analyzed
+              if [ -f package_analysis.json ]; then
+                echo "" >> changes_summary.md
+                echo "### 📊 Package Analysis Results" >> changes_summary.md
+                echo "" >> changes_summary.md
+
+                TOTAL_VULNERABLE=$(jq -r '.totalVulnerable // 0' package_analysis.json 2>/dev/null)
+                PACKAGES_IN_JSON=$(jq -r '.inPackageJson // 0' package_analysis.json 2>/dev/null)
+
+                echo "- **Total vulnerable packages found:** $TOTAL_VULNERABLE" >> changes_summary.md
+                echo "- **Vulnerable packages in package.json:** $PACKAGES_IN_JSON" >> changes_summary.md
+
+                if [ "$PACKAGES_IN_JSON" -eq 0 ] && [ "$TOTAL_VULNERABLE" -gt 0 ]; then
+                  echo "- **Result:** ✅ All vulnerabilities are in transitive dependencies only" >> changes_summary.md
+                  echo "" >> changes_summary.md
+                  echo "**ℹ️ GOOD NEWS**: No direct dependencies in package.json have vulnerabilities." >> changes_summary.md
+                elif [ "$TOTAL_VULNERABLE" -eq 0 ]; then
+                  echo "- **Result:** ✅ No vulnerabilities found" >> changes_summary.md
+                fi
+                echo "" >> changes_summary.md
+              fi
             fi
 
             # Get audit results
             echo "" >> changes_summary.md
             echo "### Audit Results" >> changes_summary.md
 
+            echo ""
+            echo "=== DEBUG: Processing audit results ==="
+            echo "audit_results.json exists: $(test -f audit_results.json && echo 'YES' || echo 'NO')"
+            if [ -f audit_results.json ]; then
+              echo "audit_results.json size: $(wc -c < audit_results.json) bytes"
+              echo "First 200 characters of audit_results.json:"
+              head -c 200 audit_results.json
+              echo ""
+              echo "Checking if valid JSON:"
+              if jq empty audit_results.json 2>/dev/null; then
+                echo "✅ Valid JSON format"
+              else
+                echo "❌ Invalid JSON format"
+                echo "JSON validation error:"
+                jq empty audit_results.json 2>&1 || true
+              fi
+            fi
+
             # Parse audit results for summary
             if [ -f audit_results.json ]; then
+                echo "DEBUG: Starting audit results parsing..."
+
                 # Check if there are any vulnerabilities
+                echo "DEBUG: Extracting total vulnerabilities count..."
                 TOTAL_VULNS=$(jq -r '.metadata.vulnerabilities.total // 0' audit_results.json 2>/dev/null)
+                echo "DEBUG: Total vulnerabilities found: $TOTAL_VULNS"
+
+                echo "DEBUG: Checking metadata structure:"
+                jq -r '.metadata // "No metadata found"' audit_results.json 2>/dev/null | head -5
+
+                echo "DEBUG: Checking vulnerabilities structure:"
+                jq -r '.vulnerabilities // "No vulnerabilities object found"' audit_results.json 2>/dev/null | head -100
 
                 if [ "$TOTAL_VULNS" -gt 0 ]; then
+                  echo "DEBUG: Processing $TOTAL_VULNS vulnerabilities..."
                   echo "**Security Vulnerabilities Found ($TOTAL_VULNS total):**" >> changes_summary.md
                   echo "" >> changes_summary.md
 
                   # Get list of vulnerable packages
+                  echo "DEBUG: Getting list of vulnerable packages..."
                   PACKAGES=$(jq -r '.vulnerabilities | keys[]' audit_results.json 2>/dev/null)
+                  echo "DEBUG: Found packages: $PACKAGES"
+                  PACKAGE_COUNT=$(echo "$PACKAGES" | wc -w)
+                  echo "DEBUG: Processing $PACKAGE_COUNT packages..."
 
                   # Process each package
+                  PACKAGE_INDEX=0
                   for PACKAGE in $PACKAGES; do
-                    SEVERITY=$(jq -r ".vulnerabilities[\"$PACKAGE\"].severity" audit_results.json 2>/dev/null)
-                    RANGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].range" audit_results.json 2>/dev/null)
-                    IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect" audit_results.json 2>/dev/null)
-                    FIX_AVAILABLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].fixAvailable" audit_results.json 2>/dev/null)
-                    NODES=$(jq -r ".vulnerabilities[\"$PACKAGE\"].nodes | join(\", \")" audit_results.json 2>/dev/null)
+                    PACKAGE_INDEX=$((PACKAGE_INDEX + 1))
+                    echo "DEBUG: Processing package $PACKAGE_INDEX/$PACKAGE_COUNT: $PACKAGE"
+                    # Extract data with null checks and default values
+                    SEVERITY=$(jq -r ".vulnerabilities[\"$PACKAGE\"].severity // \"unknown\"" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Severity: $SEVERITY"
+                    RANGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].range // \"N/A\"" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Range: $RANGE"
+                    IS_DIRECT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].isDirect // false" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Is Direct: $IS_DIRECT"
+                    FIX_AVAILABLE=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].fixAvailable then (if (.vulnerabilities[\"$PACKAGE\"].fixAvailable | type) == \"object\" then \"true\" else (.vulnerabilities[\"$PACKAGE\"].fixAvailable | tostring) end) else \"false\" end" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Fix Available: $FIX_AVAILABLE"
+                    NODES=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].nodes then (.vulnerabilities[\"$PACKAGE\"].nodes | join(\", \")) else \"N/A\" end" audit_results.json 2>/dev/null)
+                    echo "DEBUG: Nodes: $NODES"
 
                     echo "### 🚨 $PACKAGE ($SEVERITY severity)" >> changes_summary.md
                     echo "- **Affected versions:** $RANGE" >> changes_summary.md
@@ -116,20 +444,42 @@ jobs:
                     echo "- **Fix available:** $([ "$FIX_AVAILABLE" = "true" ] && echo "✅ Yes" || echo "❌ No")" >> changes_summary.md
                     echo "- **Installed locations:** $NODES" >> changes_summary.md
                     echo "- **Advisories:**" >> changes_summary.md
+                    echo "DEBUG: Get advisories for this package"
 
                     # Get advisories for this package
-                    ADVISORY_COUNT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via | length" audit_results.json 2>/dev/null)
-                    for ((i=0; i<ADVISORY_COUNT; i++)); do
-                      TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title" audit_results.json 2>/dev/null)
-                      URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url" audit_results.json 2>/dev/null)
-                      CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
+                    ADVISORY_COUNT=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via | length // 0" audit_results.json 2>/dev/null)
+                    echo "DEBUG: ADVISORY_COUNT: $ADVISORY_COUNT"
 
-                      if [ "$CVSS_SCORE" != "0" ] && [ "$CVSS_SCORE" != "null" ]; then
-                        echo "  - [$TITLE]($URL) (CVSS: $CVSS_SCORE)" >> changes_summary.md
-                      else
-                        echo "  - [$TITLE]($URL)" >> changes_summary.md
-                      fi
-                    done
+                    # Check if via contains objects or strings
+                    VIA_TYPE=$(jq -r "if .vulnerabilities[\"$PACKAGE\"].via and (.vulnerabilities[\"$PACKAGE\"].via | length) > 0 then (.vulnerabilities[\"$PACKAGE\"].via[0] | type) else \"null\" end" audit_results.json 2>/dev/null)
+                    echo "DEBUG: VIA_TYPE: $VIA_TYPE"
+
+                    if [ "$VIA_TYPE" = "object" ]; then
+                      # Process as objects with title/url/cvss
+                      for ((i=0; i<ADVISORY_COUNT; i++)); do
+                        TITLE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].title // \"Unknown\"" audit_results.json 2>/dev/null)
+                        echo "DEBUG: TITLE: $TITLE"
+                        URL=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].url // \"#\"" audit_results.json 2>/dev/null)
+                        echo "DEBUG: URL: $URL"
+                        CVSS_SCORE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i].cvss.score // 0" audit_results.json 2>/dev/null)
+                        echo "DEBUG: CVSS_SCORE: $CVSS_SCORE"
+
+                        if [ "$CVSS_SCORE" != "0" ] && [ "$CVSS_SCORE" != "null" ]; then
+                          echo "  - [$TITLE]($URL) (CVSS: $CVSS_SCORE)" >> changes_summary.md
+                        else
+                          echo "  - [$TITLE]($URL)" >> changes_summary.md
+                        fi
+                      done
+                    elif [ "$VIA_TYPE" = "string" ]; then
+                      # Process as strings (package names)
+                      for ((i=0; i<ADVISORY_COUNT; i++)); do
+                        VIA_PACKAGE=$(jq -r ".vulnerabilities[\"$PACKAGE\"].via[$i]" audit_results.json 2>/dev/null)
+                        echo "DEBUG: VIA_PACKAGE: $VIA_PACKAGE"
+                        echo "  - Vulnerability via package: $VIA_PACKAGE" >> changes_summary.md
+                      done
+                    else
+                      echo "  - No advisory details available" >> changes_summary.md
+                    fi
 
                     echo "" >> changes_summary.md
                   done
@@ -169,7 +519,7 @@ jobs:
                   # Check for critical/high severity
                   CRITICAL_HIGH=$(jq -r '(.metadata.vulnerabilities.critical // 0) + (.metadata.vulnerabilities.high // 0)' audit_results.json 2>/dev/null)
                   if [ "$CRITICAL_HIGH" -gt 0 ]; then
-                    echo "- 🚨 $CRITICAL_HIGH critical/high severity vulnerabilities require immediate attention" >> changes_summary.md
+                    echo "- � $CRITICAL_HIGH critical/high severity vulnerabilities require immediate attention" >> changes_summary.md
                   fi
 
                 else
@@ -197,23 +547,71 @@ jobs:
         if: steps.changes.outputs.has_changes == 'true'
         run: |
           git checkout -b ${{ steps.branch.outputs.branch_name }}
-          git commit -m "chore: automated dependency updates
+
+          # Check if package.json was modified to customize commit message
+          if git diff --staged --name-only | grep -q "package.json"; then
+            # Read package analysis to customize commit message
+            if [ -f package_analysis.json ]; then
+              UPDATED_PACKAGES=$(jq -r '.packagesToUpdate[]? // empty' package_analysis.json 2>/dev/null | tr '\n' ' ')
+              PACKAGES_COUNT=$(jq -r '.inPackageJson // 0' package_analysis.json 2>/dev/null)
+
+              if [ "$PACKAGES_COUNT" -gt 0 ]; then
+                git commit -m "chore: targeted security updates for vulnerable packages
+
+          - Run npm audit fix to address security vulnerabilities
+          - Update $PACKAGES_COUNT specific vulnerable packages: $UPDATED_PACKAGES
+          - Reinstall dependencies with lockfile-version=1
+          - Automated update on ${{ steps.branch.outputs.timestamp }}
+
+          🎯 TARGETED APPROACH: Only vulnerable packages in package.json were updated
+          ⚠️ SECURITY FOCUS: Review the specific packages listed above
+
+          🤖 Assisted by GenAI"
+              else
+                git commit -m "chore: automated dependency updates (security fixes only)
+
+          - Run npm audit fix to address security vulnerabilities
+          - No vulnerable packages found in package.json (transitive fixes only)
+          - Reinstall dependencies with lockfile-version=1
+          - Automated update on ${{ steps.branch.outputs.timestamp }}
+
+          ✅ GOOD NEWS: All vulnerabilities were in transitive dependencies
+
+          🤖 Assisted by GenAI"
+              fi
+            else
+              git commit -m "chore: automated dependency updates (includes package.json changes)
+
+          - Run npm audit fix to address security vulnerabilities
+          - Update dependencies (package.json modified)
+          - Reinstall dependencies with lockfile-version=1
+          - Automated update on ${{ steps.branch.outputs.timestamp }}
+
+          ⚠️ IMPORTANT: This commit includes changes to package.json
+          Please review dependency version updates carefully before merging.
+
+          🤖 Assisted by GenAI"
+            fi
+          else
+            git commit -m "chore: automated dependency updates
 
           - Run npm audit fix to address security vulnerabilities
           - Reinstall dependencies with lockfile-version=1
           - Automated update on ${{ steps.branch.outputs.timestamp }}
 
           🤖 Assisted by GenAI"
+          fi
 
       - name: Push branch
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git push origin ${{ steps.branch.outputs.branch_name }}
+          git push https://x-access-token:${{ secrets.BOT_PAT }}@github.com/${{ github.repository }}.git ${{ steps.branch.outputs.branch_name }}
 
       - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.BOT_PAT }}
           script: |
             const fs = require('fs');
 
@@ -225,25 +623,120 @@ jobs:
               body = 'Automated dependency updates performed.';
             }
 
-            // Add additional context to PR body
-            const fullBody = `# 🔄 Automated Dependency Updates
+            // Check if package.json was modified to add extra warnings
+            const { execSync } = require('child_process');
+            let packageJsonModified = false;
+            try {
+              const changedFiles = execSync('git diff --staged --name-only', { encoding: 'utf8' });
+              packageJsonModified = changedFiles.includes('package.json');
+            } catch (error) {
+              console.log('Could not check for package.json changes:', error.message);
+            }
 
-            This PR contains automated dependency updates performed by the daily maintenance workflow.
+            // Read package analysis for targeted messaging
+            let packageAnalysis = null;
+            try {
+              const analysisContent = fs.readFileSync('package_analysis.json', 'utf8');
+              packageAnalysis = JSON.parse(analysisContent);
+            } catch (error) {
+              console.log('Package analysis not available:', error.message);
+            }
+
+            // Add additional context to PR body with targeted messaging
+            let fullBody = `# 🔄 Targeted Security Dependency Updates
+
+            This PR contains **targeted security updates** performed by the daily maintenance workflow.`;
+
+            if (packageJsonModified && packageAnalysis) {
+              const updatedCount = packageAnalysis.inPackageJson || 0;
+              const updatedPackages = packageAnalysis.packagesToUpdate || [];
+
+              if (updatedCount > 0) {
+                fullBody += `
+
+            ## 🎯 TARGETED SECURITY UPDATES: ${updatedCount} Package(s)
+
+            **SECURITY-FOCUSED APPROACH**: Only vulnerable packages found in package.json were updated.
+
+            **Updated packages:** ${updatedPackages.join(', ')}
+
+            ### 🔍 Focused Review Actions:
+            - [ ] **Verify security fixes** - Check that vulnerabilities are resolved for the updated packages
+            - [ ] **Test critical functionality** - Focus on features that use the updated packages
+            - [ ] **Review breaking changes** - Check changelogs for the specific updated packages only
+            - [ ] **Validate compatibility** - Ensure updated packages work with existing code
+            - [ ] **Security verification** - Run \`npm audit\` after merge to confirm fixes`;
+              } else {
+                fullBody += `
+
+            ## ✅ TRANSITIVE SECURITY FIXES ONLY
+
+            **GOOD NEWS**: No direct dependencies in package.json had vulnerabilities. All security fixes were applied to transitive dependencies only.
+
+            ### 🔍 Light Review Required:
+            - [ ] **Verify lockfile changes** - Review package-lock.json updates
+            - [ ] **Run basic tests** - Ensure no regressions from transitive updates
+            - [ ] **Security verification** - Run \`npm audit\` after merge to confirm fixes`;
+              }
+            } else if (packageJsonModified) {
+              fullBody += `
+
+            ## ⚠️ 🚨 FALLBACK MODE: package.json Modified 🚨 ⚠️
+
+            **CAUTION**: Package analysis was not available, but package.json was modified. Please review these changes carefully.
+
+            ### 🔍 Required Review Actions:
+            - [ ] **Carefully review all dependency version changes in package.json**
+            - [ ] **Check for breaking changes in updated packages**
+            - [ ] **Verify compatibility with existing code**
+            - [ ] **Run comprehensive tests locally**
+            - [ ] **Review changelogs/release notes for updated packages**`;
+            }
+
+            fullBody += `
 
             ${body}
 
             ## What was done:
             1. ✅ Ran \`npm audit fix\` to address security vulnerabilities
-            2. ✅ Ran \`npm install --lockfile-version=1\` to ensure lockfile compatibility
-            3. ✅ Committed any resulting changes
+            2. ✅ **Targeted package analysis** - Identified vulnerable packages in package.json`;
 
-            ## Review Guidelines:
+            if (packageAnalysis && packageAnalysis.inPackageJson > 0) {
+              fullBody += `
+            3. ✅ **Selective updates** - Updated only ${packageAnalysis.inPackageJson} vulnerable package(s): ${(packageAnalysis.packagesToUpdate || []).join(', ')}`;
+            } else {
+              fullBody += `
+            3. ✅ **Smart detection** - No vulnerable packages found in package.json (transitive fixes only)`;
+            }
+
+            fullBody += `
+            4. ✅ Ran \`npm install --lockfile-version=1\` to ensure lockfile compatibility
+            5. ✅ Committed any resulting changes
+
+            ## Review Guidelines:`;
+
+            if (packageJsonModified && packageAnalysis && packageAnalysis.inPackageJson > 0) {
+              fullBody += `
+            - 🎯 **TARGETED FOCUS**: Review only the ${packageAnalysis.inPackageJson} updated package(s) listed above
+            - 🔒 **SECURITY PRIORITY**: These updates address known vulnerabilities
+            - 🧪 **FOCUSED TESTING**: Test functionality that uses the updated packages`;
+            } else if (packageJsonModified) {
+              fullBody += `
+            - 🚨 **FALLBACK REVIEW**: Package analysis unavailable - review all package.json changes
+            - ⚠️ **CAUTION**: Test thoroughly as dependency versions may have changed`;
+            } else {
+              fullBody += `
+            - ✅ **TRANSITIVE ONLY**: No direct dependencies were updated
+            - 🚀 **LOW RISK**: This PR can be safely merged if all checks pass`;
+            }
+
+            fullBody += `
             - 🔍 Review the changes in \`package-lock.json\` for any unexpected updates
             - 🧪 Ensure CI tests pass before merging
-            - 🚀 This PR can be safely merged if all checks pass
+            - 🔒 Run \`npm audit\` after merge to verify security fixes
 
             ---
-            *This PR was automatically created by the dependency-updates workflow.*
+            *This PR was automatically created by the **targeted** dependency-updates workflow.*
             `;
 
             const { data: pr } = await github.rest.pulls.create({
