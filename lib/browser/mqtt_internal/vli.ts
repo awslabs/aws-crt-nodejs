@@ -79,3 +79,12 @@ export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
 
     throw new CrtError("Decoding failure - invalid VLI integer");
 }
+export function decode_vli_unconditional(data: DataView, offset: number) : [number, number] {
+    let result = decode_vli(data, offset);
+    if (result.type != VliDecodeResultType.Success) {
+        throw new CrtError("insufficient data for variable-length integer");
+    }
+
+    // @ts-ignore
+    return [result.value, result.nextOffset];
+}

@@ -42,7 +42,7 @@ export function encode_required_16bit_array_buffer(steps: Array<EncodingStep>, s
     steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
 }
 
-function get_connect_packet_remaining_lengths311(packet: model.ConnectPacketInternal) : number {
+function get_connect_packet_remaining_lengths311(packet: model.ConnectPacketBinary) : number {
     let size: number = 12; // 0x00, 0x04, "MQTT", 0x04, Flags byte, Keep Alive u16, Client Id Length u16
 
     if (packet.clientId) {
@@ -68,7 +68,7 @@ function get_connect_packet_remaining_lengths311(packet: model.ConnectPacketInte
     return size;
 }
 
-function compute_connect_flags(packet: model.ConnectPacketInternal) : number {
+function compute_connect_flags(packet: model.ConnectPacketBinary) : number {
     let flags: number = 0;
 
     if (packet.username) {
@@ -95,7 +95,7 @@ function compute_connect_flags(packet: model.ConnectPacketInternal) : number {
     return flags;
 }
 
-function encode_connect_packet311(steps: Array<EncodingStep>, packet: model.ConnectPacketInternal) {
+function encode_connect_packet311(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNECT });
     steps.push({ type: EncodingStepType.VLI, value: get_connect_packet_remaining_lengths311(packet) });
     steps.push({ type: EncodingStepType.BYTES, value: model.connect311ProtocolDataView });
@@ -112,7 +112,7 @@ function encode_connect_packet311(steps: Array<EncodingStep>, packet: model.Conn
     encode_optional_16bit_array_buffer(steps, packet.password);
 }
 
-function compute_publish_flags(packet: model.PublishPacketInternal) {
+function compute_publish_flags(packet: model.PublishPacketBinary) {
     let flags: number = 0;
 
     flags |= ((packet.qos & model.QOS_MASK) << model.PUBLISH_FLAGS_QOS_SHIFT);
@@ -128,7 +128,7 @@ function compute_publish_flags(packet: model.PublishPacketInternal) {
     return flags;
 }
 
-function get_publish_packet_remaining_lengths311(packet: model.PublishPacketInternal) : number {
+function get_publish_packet_remaining_lengths311(packet: model.PublishPacketBinary) : number {
     let size: number = 2 + packet.topicName.byteLength;
 
     if (packet.qos > 0) {
@@ -142,7 +142,7 @@ function get_publish_packet_remaining_lengths311(packet: model.PublishPacketInte
     return size;
 }
 
-function encode_publish_packet311(steps: Array<EncodingStep>, packet: model.PublishPacketInternal) {
+function encode_publish_packet311(steps: Array<EncodingStep>, packet: model.PublishPacketBinary) {
     let flags = compute_publish_flags(packet);
 
     steps.push({ type: EncodingStepType.U8, value: flags | model.PACKET_TYPE_FIRST_BYTE_PUBLISH });
@@ -158,13 +158,13 @@ function encode_publish_packet311(steps: Array<EncodingStep>, packet: model.Publ
     }
 }
 
-function encode_puback_packet311(steps: Array<EncodingStep>, packet: model.PubackPacketInternal) {
+function encode_puback_packet311(steps: Array<EncodingStep>, packet: model.PubackPacketBinary) {
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_PUBACK });
     steps.push({ type: EncodingStepType.U8, value: 0x02 });
     steps.push({ type: EncodingStepType.U16, value: packet.packetId });
 }
 
-function get_subscribe_packet_remaining_lengths311(packet: model.SubscribePacketInternal) : number {
+function get_subscribe_packet_remaining_lengths311(packet: model.SubscribePacketBinary) : number {
     let size: number = 2 + packet.subscriptions.length * 3; // 3 == 2 bytes of topic length + 1 byte of qos
 
     for (let subscription of packet.subscriptions) {
@@ -179,7 +179,7 @@ function encode_subscription311(steps: Array<EncodingStep>, subscription: model.
     steps.push({ type: EncodingStepType.U8, value: subscription.qos });
 }
 
-function encode_subscribe_packet311(steps: Array<EncodingStep>, packet: model.SubscribePacketInternal) {
+function encode_subscribe_packet311(steps: Array<EncodingStep>, packet: model.SubscribePacketBinary) {
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_SUBSCRIBE });
     steps.push({ type: EncodingStepType.VLI, value: get_subscribe_packet_remaining_lengths311(packet) });
     steps.push({ type: EncodingStepType.U16, value: packet.packetId });
@@ -189,7 +189,7 @@ function encode_subscribe_packet311(steps: Array<EncodingStep>, packet: model.Su
     }
 }
 
-function get_unsubscribe_packet_remaining_lengths311(packet: model.UnsubscribePacketInternal) : number {
+function get_unsubscribe_packet_remaining_lengths311(packet: model.UnsubscribePacketBinary) : number {
     let size: number = 2 + packet.topicFilters.length * 2;
 
     for (let topicFilter of packet.topicFilters) {
@@ -199,7 +199,7 @@ function get_unsubscribe_packet_remaining_lengths311(packet: model.UnsubscribePa
     return size;
 }
 
-function encode_unsubscribe_packet311(steps: Array<EncodingStep>, packet: model.UnsubscribePacketInternal) {
+function encode_unsubscribe_packet311(steps: Array<EncodingStep>, packet: model.UnsubscribePacketBinary) {
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_UNSUBSCRIBE });
     steps.push({ type: EncodingStepType.VLI, value: get_unsubscribe_packet_remaining_lengths311(packet) });
     steps.push({ type: EncodingStepType.U16, value: packet.packetId });
@@ -213,7 +213,7 @@ function encode_pingreq_packet(steps: Array<EncodingStep>) {
     steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_PINGREQ_FULL_ENCODING });
 }
 
-function encode_disconnect_packet311(steps: Array<EncodingStep>, packet: model.DisconnectPacketInternal) {
+function encode_disconnect_packet311(steps: Array<EncodingStep>, packet: model.DisconnectPacketBinary) {
     steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 });
 }
 
@@ -231,7 +231,7 @@ export function compute_user_properties_length(user_properties: Array<model.User
     return length;
 }
 
-function compute_will_properties_length(packet: model.ConnectPacketInternal) : number {
+function compute_will_properties_length(packet: model.ConnectPacketBinary) : number {
     if (!packet.will) {
         return 0;
     }
@@ -265,7 +265,7 @@ function compute_will_properties_length(packet: model.ConnectPacketInternal) : n
     return length;
 }
 
-function compute_connect_properties_length(packet: model.ConnectPacketInternal) : number {
+function compute_connect_properties_length(packet: model.ConnectPacketBinary) : number {
     let length : number = compute_user_properties_length(packet.userProperties);
 
     if (packet.sessionExpiryIntervalSeconds) {
@@ -303,7 +303,7 @@ function compute_connect_properties_length(packet: model.ConnectPacketInternal) 
     return length;
 }
 
-function get_connect_packet_remaining_lengths5(packet: model.ConnectPacketInternal) : [number, number, number] {
+function get_connect_packet_remaining_lengths5(packet: model.ConnectPacketBinary) : [number, number, number] {
     let remaining_length: number = 12; // 0x00, 0x04, "MQTT", 0x05, Flags byte, Keep Alive u16, Client Id Length u16
     let properties_length: number = compute_connect_properties_length(packet);
     let will_properties_length: number = compute_will_properties_length(packet);
@@ -346,7 +346,7 @@ export function encode_user_properties(steps: Array<EncodingStep>, user_properti
     }
 }
 
-function encode_connect_properties(steps: Array<EncodingStep>, packet: model.ConnectPacketInternal) {
+function encode_connect_properties(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
     if (packet.sessionExpiryIntervalSeconds) {
         steps.push({ type: EncodingStepType.U8, value: model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.sessionExpiryIntervalSeconds });
@@ -390,7 +390,7 @@ function encode_connect_properties(steps: Array<EncodingStep>, packet: model.Con
     encode_user_properties(steps, packet.userProperties);
 }
 
-function encode_will_properties(steps: Array<EncodingStep>, packet: model.ConnectPacketInternal) {
+function encode_will_properties(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
     if (!packet.will) {
         return;
     }
@@ -428,7 +428,7 @@ function encode_will_properties(steps: Array<EncodingStep>, packet: model.Connec
     encode_user_properties(steps, packet.will.userProperties);
 }
 
-function encode_connect_packet5(steps: Array<EncodingStep>, packet: model.ConnectPacketInternal) {
+function encode_connect_packet5(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
     let [remaining_length, properties_length, will_properties_length] = get_connect_packet_remaining_lengths5(packet);
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNECT });
@@ -454,7 +454,7 @@ function encode_connect_packet5(steps: Array<EncodingStep>, packet: model.Connec
     encode_optional_16bit_array_buffer(steps, packet.password);
 }
 
-function get_publish_packet_remaining_lengths5(packet: model.PublishPacketInternal) : [number, number] {
+function get_publish_packet_remaining_lengths5(packet: model.PublishPacketBinary) : [number, number] {
     let remaining_length: number = 2 + packet.topicName.byteLength;
     if (packet.qos != 0) {
         remaining_length += 2;
@@ -503,7 +503,7 @@ function get_publish_packet_remaining_lengths5(packet: model.PublishPacketIntern
     return [remaining_length, properties_length];
 }
 
-function encode_publish_packet_properties(steps: Array<EncodingStep>, packet: model.PublishPacketInternal) {
+function encode_publish_packet_properties(steps: Array<EncodingStep>, packet: model.PublishPacketBinary) {
     if (packet.payloadFormat) {
         steps.push({ type: EncodingStepType.U8, value: model.PAYLOAD_FORMAT_INDICATOR_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U8, value: packet.payloadFormat });
@@ -544,7 +544,7 @@ function encode_publish_packet_properties(steps: Array<EncodingStep>, packet: mo
     encode_user_properties(steps, packet.userProperties);
 }
 
-function encode_publish_packet5(steps: Array<EncodingStep>, packet: model.PublishPacketInternal) {
+function encode_publish_packet5(steps: Array<EncodingStep>, packet: model.PublishPacketBinary) {
     let [remaining_length, properties_length] = get_publish_packet_remaining_lengths5(packet);
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_PUBLISH | compute_publish_flags(packet) });
@@ -563,7 +563,7 @@ function encode_publish_packet5(steps: Array<EncodingStep>, packet: model.Publis
     }
 }
 
-function get_puback_packet_remaining_lengths5(packet: model.PubackPacketInternal) : [number, number] {
+function get_puback_packet_remaining_lengths5(packet: model.PubackPacketBinary) : [number, number] {
     let remaining_length: number = 3; // packet id + reason code
     let properties_length: number = 0;
 
@@ -579,7 +579,7 @@ function get_puback_packet_remaining_lengths5(packet: model.PubackPacketInternal
     return [remaining_length, properties_length];
 }
 
-function encode_puback_properties(steps: Array<EncodingStep>, packet: model.PubackPacketInternal) {
+function encode_puback_properties(steps: Array<EncodingStep>, packet: model.PubackPacketBinary) {
     if (packet.reasonString) {
         steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encode_required_16bit_array_buffer(steps, packet.reasonString);
@@ -588,7 +588,7 @@ function encode_puback_properties(steps: Array<EncodingStep>, packet: model.Puba
     encode_user_properties(steps, packet.userProperties);
 }
 
-function encode_puback_packet5(steps: Array<EncodingStep>, packet: model.PubackPacketInternal) {
+function encode_puback_packet5(steps: Array<EncodingStep>, packet: model.PubackPacketBinary) {
     let [remaining_length, properties_length] = get_puback_packet_remaining_lengths5(packet);
     let truncated_packet : boolean = properties_length == 0 && packet.reasonCode == mqtt5_packet.PubackReasonCode.Success;
 
@@ -610,7 +610,7 @@ function encode_puback_packet5(steps: Array<EncodingStep>, packet: model.PubackP
     encode_puback_properties(steps, packet);
 }
 
-function get_subscribe_packet_remaining_lengths5(packet: model.SubscribePacketInternal) : [number, number] {
+function get_subscribe_packet_remaining_lengths5(packet: model.SubscribePacketBinary) : [number, number] {
     let remaining_length: number = 2; // packet id
     let properties_length: number = 0;
 
@@ -651,7 +651,7 @@ function encode_subscription5(steps: Array<EncodingStep>, subscription: model.Su
     steps.push({ type: EncodingStepType.U8, value: compute_subscription_flags5(subscription) });
 }
 
-function encode_subscribe_properties(steps: Array<EncodingStep>, packet: model.SubscribePacketInternal) {
+function encode_subscribe_properties(steps: Array<EncodingStep>, packet: model.SubscribePacketBinary) {
     if (packet.subscriptionIdentifier) {
         steps.push({ type: EncodingStepType.U8, value: model.SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.VLI, value: packet.subscriptionIdentifier });
@@ -660,7 +660,7 @@ function encode_subscribe_properties(steps: Array<EncodingStep>, packet: model.S
     encode_user_properties(steps, packet.userProperties);
 }
 
-function encode_subscribe_packet5(steps: Array<EncodingStep>, packet: model.SubscribePacketInternal) {
+function encode_subscribe_packet5(steps: Array<EncodingStep>, packet: model.SubscribePacketBinary) {
     let [remaining_length, properties_length] = get_subscribe_packet_remaining_lengths5(packet);
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_SUBSCRIBE });
@@ -675,7 +675,7 @@ function encode_subscribe_packet5(steps: Array<EncodingStep>, packet: model.Subs
     }
 }
 
-function get_unsubscribe_packet_remaining_lengths5(packet: model.UnsubscribePacketInternal) : [number, number] {
+function get_unsubscribe_packet_remaining_lengths5(packet: model.UnsubscribePacketBinary) : [number, number] {
     let remaining_length: number = 2; // packet id
     let properties_length: number = compute_user_properties_length(packet.userProperties);
 
@@ -688,11 +688,11 @@ function get_unsubscribe_packet_remaining_lengths5(packet: model.UnsubscribePack
     return [remaining_length, properties_length];
 }
 
-function encode_unsubscribe_properties(steps: Array<EncodingStep>, packet: model.UnsubscribePacketInternal) {
+function encode_unsubscribe_properties(steps: Array<EncodingStep>, packet: model.UnsubscribePacketBinary) {
     encode_user_properties(steps, packet.userProperties);
 }
 
-function encode_unsubscribe_packet5(steps: Array<EncodingStep>, packet: model.UnsubscribePacketInternal) {
+function encode_unsubscribe_packet5(steps: Array<EncodingStep>, packet: model.UnsubscribePacketBinary) {
     let [remaining_length, properties_length] = get_unsubscribe_packet_remaining_lengths5(packet);
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_UNSUBSCRIBE });
@@ -707,7 +707,7 @@ function encode_unsubscribe_packet5(steps: Array<EncodingStep>, packet: model.Un
     }
 }
 
-function get_disconnect_packet_remaining_lengths5(packet: model.DisconnectPacketInternal) : [number, number] {
+function get_disconnect_packet_remaining_lengths5(packet: model.DisconnectPacketBinary) : [number, number] {
     let remaining_length: number = 0;
     let properties_length: number = compute_user_properties_length(packet.userProperties);
 
@@ -732,7 +732,7 @@ function get_disconnect_packet_remaining_lengths5(packet: model.DisconnectPacket
     return [remaining_length, properties_length];
 }
 
-function encode_disconnect_properties(steps: Array<EncodingStep>, packet: model.DisconnectPacketInternal) {
+function encode_disconnect_properties(steps: Array<EncodingStep>, packet: model.DisconnectPacketBinary) {
     if (packet.reasonString) {
         steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encode_required_16bit_array_buffer(steps, packet.reasonString);
@@ -751,7 +751,7 @@ function encode_disconnect_properties(steps: Array<EncodingStep>, packet: model.
     encode_user_properties(steps, packet.userProperties);
 }
 
-function encode_disconnect_packet5(steps: Array<EncodingStep>, packet: model.DisconnectPacketInternal) {
+function encode_disconnect_packet5(steps: Array<EncodingStep>, packet: model.DisconnectPacketBinary) {
     let [remaining_length, properties_length] = get_disconnect_packet_remaining_lengths5(packet);
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_DISCONNECT });
@@ -766,7 +766,7 @@ function encode_disconnect_packet5(steps: Array<EncodingStep>, packet: model.Dis
     }
 }
 
-export type EncodingFunction = (steps: Array<EncodingStep>, packet: model.IPacketInternal) => void;
+export type EncodingFunction = (steps: Array<EncodingStep>, packet: model.IPacketBinary) => void;
 export type EncodingFunctionSet = Map<mqtt5_packet.PacketType, EncodingFunction>;
 
 
@@ -774,23 +774,23 @@ export function build_client_encoding_function_set(mode: model.ProtocolMode) : E
     switch (mode) {
         case model.ProtocolMode.Mqtt311:
             return new Map<mqtt5_packet.PacketType, EncodingFunction>([
-                [mqtt5_packet.PacketType.Connect, (steps, packet) => { encode_connect_packet311(steps, packet as model.ConnectPacketInternal); }],
-                [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encode_subscribe_packet311(steps, packet as model.SubscribePacketInternal); }],
-                [mqtt5_packet.PacketType.Unsubscribe, (steps, packet) => { encode_unsubscribe_packet311(steps, packet as model.UnsubscribePacketInternal); }],
-                [mqtt5_packet.PacketType.Publish, (steps, packet) => { encode_publish_packet311(steps, packet as model.PublishPacketInternal); }],
-                [mqtt5_packet.PacketType.Puback, (steps, packet) => { encode_puback_packet311(steps, packet as model.PubackPacketInternal); }],
-                [mqtt5_packet.PacketType.Disconnect, (steps, packet) => { encode_disconnect_packet311(steps, packet as model.DisconnectPacketInternal); }],
+                [mqtt5_packet.PacketType.Connect, (steps, packet) => { encode_connect_packet311(steps, packet as model.ConnectPacketBinary); }],
+                [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encode_subscribe_packet311(steps, packet as model.SubscribePacketBinary); }],
+                [mqtt5_packet.PacketType.Unsubscribe, (steps, packet) => { encode_unsubscribe_packet311(steps, packet as model.UnsubscribePacketBinary); }],
+                [mqtt5_packet.PacketType.Publish, (steps, packet) => { encode_publish_packet311(steps, packet as model.PublishPacketBinary); }],
+                [mqtt5_packet.PacketType.Puback, (steps, packet) => { encode_puback_packet311(steps, packet as model.PubackPacketBinary); }],
+                [mqtt5_packet.PacketType.Disconnect, (steps, packet) => { encode_disconnect_packet311(steps, packet as model.DisconnectPacketBinary); }],
                 [mqtt5_packet.PacketType.Pingreq, (steps, packet) => { encode_pingreq_packet(steps); }],
             ]);
 
         case model.ProtocolMode.Mqtt5:
             return new Map<mqtt5_packet.PacketType, EncodingFunction>([
-                [mqtt5_packet.PacketType.Connect, (steps, packet) => { encode_connect_packet5(steps, packet as model.ConnectPacketInternal); }],
-                [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encode_subscribe_packet5(steps, packet as model.SubscribePacketInternal); }],
-                [mqtt5_packet.PacketType.Unsubscribe, (steps, packet) => { encode_unsubscribe_packet5(steps, packet as model.UnsubscribePacketInternal); }],
-                [mqtt5_packet.PacketType.Publish, (steps, packet) => { encode_publish_packet5(steps, packet as model.PublishPacketInternal); }],
-                [mqtt5_packet.PacketType.Puback, (steps, packet) => { encode_puback_packet5(steps, packet as model.PubackPacketInternal); }],
-                [mqtt5_packet.PacketType.Disconnect, (steps, packet) => { encode_disconnect_packet5(steps, packet as model.DisconnectPacketInternal); }],
+                [mqtt5_packet.PacketType.Connect, (steps, packet) => { encode_connect_packet5(steps, packet as model.ConnectPacketBinary); }],
+                [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encode_subscribe_packet5(steps, packet as model.SubscribePacketBinary); }],
+                [mqtt5_packet.PacketType.Unsubscribe, (steps, packet) => { encode_unsubscribe_packet5(steps, packet as model.UnsubscribePacketBinary); }],
+                [mqtt5_packet.PacketType.Publish, (steps, packet) => { encode_publish_packet5(steps, packet as model.PublishPacketBinary); }],
+                [mqtt5_packet.PacketType.Puback, (steps, packet) => { encode_puback_packet5(steps, packet as model.PubackPacketBinary); }],
+                [mqtt5_packet.PacketType.Disconnect, (steps, packet) => { encode_disconnect_packet5(steps, packet as model.DisconnectPacketBinary); }],
                 [mqtt5_packet.PacketType.Pingreq, (steps, packet) => { encode_pingreq_packet(steps); }],
             ]);
 
@@ -799,7 +799,7 @@ export function build_client_encoding_function_set(mode: model.ProtocolMode) : E
     throw new CrtError("Unsupported protocol");
 }
 
-function add_encoding_steps(encoders: EncodingFunctionSet, steps: Array<EncodingStep>, packet: model.IPacketInternal) {
+function add_encoding_steps(encoders: EncodingFunctionSet, steps: Array<EncodingStep>, packet: model.IPacketBinary) {
     if (steps.length > 0) {
         throw new CrtError("Encoding steps already exist");
     }
@@ -881,7 +881,7 @@ export interface ServiceResult {
 }
 
 export class Encoder {
-    private packet: model.IPacketInternal | null = null;
+    private packet: model.IPacketBinary | null = null;
     private steps: Array<EncodingStep> = new Array<EncodingStep>();
     private currentStep: number = 0;
 
@@ -896,7 +896,7 @@ export class Encoder {
     }
 
     // called on new packet ready and previous packet, if any, complete
-    init_for_packet(packet: model.IPacketInternal) {
+    init_for_packet(packet: model.IPacketBinary) {
         this.packet = packet;
         this.steps.length = 0;
         this.currentStep = 0;

@@ -76,8 +76,9 @@ export const PACKET_TYPE_PINGRESP_FULL_ENCODING : number = 0xD000;
 export const PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 : number = 0xE000;
 
 export const QOS_MASK : number = 0x03;
+export const RETAIN_HANDLING_TYPE_SHIFT : number = 0x03;
 
-export interface IPacketInternal extends mqtt5_packet.IPacket {
+export interface IPacketBinary extends mqtt5_packet.IPacket {
 
 }
 
@@ -86,7 +87,7 @@ export interface UserPropertyInternal {
     value: ArrayBuffer;
 }
 
-export interface PublishPacketInternal extends IPacketInternal {
+export interface PublishPacketBinary extends IPacketBinary {
     packetId: number;
 
     topicName: ArrayBuffer;
@@ -116,7 +117,13 @@ export interface PublishPacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface PubackPacketInternal extends IPacketInternal {
+export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
+    packetId?: number;
+
+    duplicate: boolean;
+}
+
+export interface PubackPacketBinary extends IPacketBinary {
     packetId: number;
 
     reasonCode: number;
@@ -124,6 +131,10 @@ export interface PubackPacketInternal extends IPacketInternal {
     reasonString?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyInternal>;
+}
+
+export interface PubackPacketInternal extends mqtt5_packet.PubackPacket {
+    packetId: number
 }
 
 export interface SubscriptionInternal {
@@ -134,7 +145,7 @@ export interface SubscriptionInternal {
     retainHandlingType?: number;
 }
 
-export interface SubscribePacketInternal extends IPacketInternal {
+export interface SubscribePacketBinary extends IPacketBinary {
     packetId: number;
 
     subscriptions: Array<SubscriptionInternal>;
@@ -144,7 +155,11 @@ export interface SubscribePacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface SubackPacketInternal extends IPacketInternal {
+export interface SubscribePacketInternal extends mqtt5_packet.SubscribePacket {
+    packetId: number
+}
+
+export interface SubackPacketBinary extends IPacketBinary {
     packetId: number;
 
     reasonCodes: Array<number>;
@@ -154,7 +169,11 @@ export interface SubackPacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface UnsubscribePacketInternal extends IPacketInternal {
+export interface SubackPacketInternal extends mqtt5_packet.SubackPacket {
+    packetId: number
+}
+
+export interface UnsubscribePacketBinary extends IPacketBinary {
     packetId: number;
 
     topicFilters: Array<ArrayBuffer>;
@@ -162,7 +181,11 @@ export interface UnsubscribePacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface UnsubackPacketInternal extends IPacketInternal {
+export interface UnsubscribePacketInternal extends mqtt5_packet.UnsubscribePacket {
+    packetId: number
+}
+
+export interface UnsubackPacketBinary extends IPacketBinary {
     packetId: number;
 
     reasonCodes: Array<number>;
@@ -172,7 +195,11 @@ export interface UnsubackPacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface ConnectPacketInternal extends IPacketInternal {
+export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
+    packetId: number
+}
+
+export interface ConnectPacketBinary extends IPacketBinary {
     cleanSession: number;
 
     keepAliveIntervalSeconds: number;
@@ -197,7 +224,7 @@ export interface ConnectPacketInternal extends IPacketInternal {
 
     willDelayIntervalSeconds?: number;
 
-    will?: PublishPacketInternal;
+    will?: PublishPacketBinary;
 
     authenticationMethod?: ArrayBuffer;
 
@@ -206,7 +233,17 @@ export interface ConnectPacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface ConnackPacketInternal extends IPacketInternal {
+export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
+    cleanStart: boolean;
+
+    topicAliasMaximum?: number;
+
+    authenticationMethod?: string;
+
+    authenticationData?: ArrayBuffer;
+}
+
+export interface ConnackPacketBinary extends IPacketBinary {
     sessionPresent: number;
 
     reasonCode: number;
@@ -246,13 +283,25 @@ export interface ConnackPacketInternal extends IPacketInternal {
     userProperties?: Array<UserPropertyInternal>;
 }
 
-export interface PingreqPacketInternal extends IPacketInternal {
+export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
+    authenticationMethod?: string;
+
+    authenticationData?: ArrayBuffer;
 }
 
-export interface PingrespPacketInternal extends IPacketInternal {
+export interface PingreqPacketBinary extends IPacketBinary {
 }
 
-export interface DisconnectPacketInternal extends IPacketInternal {
+export interface PingreqPacketInternal extends mqtt5_packet.IPacket {
+}
+
+export interface PingrespPacketBinary extends IPacketBinary {
+}
+
+export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
+}
+
+export interface DisconnectPacketBinary extends IPacketBinary {
     reasonCode: number;
 
     sessionExpiryIntervalSeconds?: number;
@@ -263,6 +312,7 @@ export interface DisconnectPacketInternal extends IPacketInternal {
 
     userProperties?: Array<UserPropertyInternal>;
 }
+
 
 function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
     if (data instanceof ArrayBuffer) {
@@ -290,9 +340,9 @@ function convert_user_properties_to_internal(properties: Array<mqtt5_packet.User
     return internal_properties;
 }
 
-function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) : ConnectPacketInternal {
+function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) : ConnectPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : ConnectPacketInternal = {
+    let internal_packet : ConnectPacketBinary = {
         type: mqtt5_packet.PacketType.Connect,
         cleanSession: 0, // set manually later by the client based on configuration
         keepAliveIntervalSeconds: packet.keepAliveIntervalSeconds
@@ -345,9 +395,9 @@ function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) 
     return internal_packet;
 }
 
-function convert_connack_packet_to_internal(packet: mqtt5_packet.ConnackPacket) : ConnackPacketInternal {
+function convert_connack_packet_to_internal(packet: mqtt5_packet.ConnackPacket) : ConnackPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : ConnackPacketInternal = {
+    let internal_packet : ConnackPacketBinary = {
         type: mqtt5_packet.PacketType.Connack,
         sessionPresent: packet.sessionPresent ? 1 : 0,
         reasonCode: packet.reasonCode
@@ -431,9 +481,9 @@ function payload_to_array_buffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     }
 }
 
-function convert_publish_packet_to_internal(packet: mqtt5_packet.PublishPacket) : PublishPacketInternal {
+function convert_publish_packet_to_internal(packet: mqtt5_packet.PublishPacket) : PublishPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : PublishPacketInternal = {
+    let internal_packet : PublishPacketBinary = {
         type: mqtt5_packet.PacketType.Publish,
         packetId: 0,
         topicName : encoder.encode(packet.topicName).buffer,
@@ -483,9 +533,9 @@ function convert_publish_packet_to_internal(packet: mqtt5_packet.PublishPacket) 
     return internal_packet;
 }
 
-function convert_puback_packet_to_internal(packet: mqtt5_packet.PubackPacket) : PubackPacketInternal {
+function convert_puback_packet_to_internal(packet: mqtt5_packet.PubackPacket) : PubackPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : PubackPacketInternal = {
+    let internal_packet : PubackPacketBinary = {
         type: mqtt5_packet.PacketType.Puback,
         packetId: 0,
         reasonCode: packet.reasonCode
@@ -525,8 +575,8 @@ function convert_subscription_to_internal(subscription: mqtt5_packet.Subscriptio
     return internal_subscription;
 }
 
-function convert_subscribe_packet_to_internal(packet: mqtt5_packet.SubscribePacket) : SubscribePacketInternal {
-    let internal_packet : SubscribePacketInternal = {
+function convert_subscribe_packet_to_internal(packet: mqtt5_packet.SubscribePacket) : SubscribePacketBinary {
+    let internal_packet : SubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Subscribe,
         packetId: 0,
         subscriptions: []
@@ -547,9 +597,9 @@ function convert_subscribe_packet_to_internal(packet: mqtt5_packet.SubscribePack
     return internal_packet;
 }
 
-function convert_suback_packet_to_internal(packet: mqtt5_packet.SubackPacket) : SubackPacketInternal {
+function convert_suback_packet_to_internal(packet: mqtt5_packet.SubackPacket) : SubackPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet: SubackPacketInternal = {
+    let internal_packet: SubackPacketBinary = {
         type: mqtt5_packet.PacketType.Suback,
         packetId: 0,
         reasonCodes: packet.reasonCodes
@@ -566,9 +616,9 @@ function convert_suback_packet_to_internal(packet: mqtt5_packet.SubackPacket) : 
     return internal_packet;
 }
 
-function convert_unsubscribe_packet_to_internal(packet: mqtt5_packet.UnsubscribePacket) : UnsubscribePacketInternal {
+function convert_unsubscribe_packet_to_internal(packet: mqtt5_packet.UnsubscribePacket) : UnsubscribePacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet: UnsubscribePacketInternal = {
+    let internal_packet: UnsubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Unsubscribe,
         packetId: 0,
         topicFilters: []
@@ -585,9 +635,9 @@ function convert_unsubscribe_packet_to_internal(packet: mqtt5_packet.Unsubscribe
     return internal_packet;
 }
 
-function convert_unsuback_packet_to_internal(packet: mqtt5_packet.UnsubackPacket) : UnsubackPacketInternal {
+function convert_unsuback_packet_to_internal(packet: mqtt5_packet.UnsubackPacket) : UnsubackPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet: UnsubackPacketInternal = {
+    let internal_packet: UnsubackPacketBinary = {
         type: mqtt5_packet.PacketType.Unsuback,
         packetId: 0,
         reasonCodes: packet.reasonCodes
@@ -604,9 +654,9 @@ function convert_unsuback_packet_to_internal(packet: mqtt5_packet.UnsubackPacket
     return internal_packet;
 }
 
-function convert_disconnect_packet_to_internal(packet: mqtt5_packet.DisconnectPacket) : DisconnectPacketInternal {
+function convert_disconnect_packet_to_internal(packet: mqtt5_packet.DisconnectPacket) : DisconnectPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : DisconnectPacketInternal = {
+    let internal_packet : DisconnectPacketBinary = {
         reasonCode: packet.reasonCode
     };
 
@@ -631,7 +681,7 @@ function convert_disconnect_packet_to_internal(packet: mqtt5_packet.DisconnectPa
 
 // TODO: take protocol level and modify -> 311 encoding for reason codes
 
-export function convert_packet_to_internal(packet: mqtt5_packet.IPacket) : IPacketInternal {
+export function convert_packet_to_internal(packet: mqtt5_packet.IPacket) : IPacketBinary {
     if (!packet.type) {
         throw new CrtError("Invalid packet type");
     }
