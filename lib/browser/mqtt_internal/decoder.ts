@@ -7,11 +7,80 @@ import {CrtError} from "../error";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as vli from "./vli";
 import * as model from "./model";
+import {toUtf8} from "@aws-sdk/util-utf8-browser";
+
+function decode_boolean(payload: DataView, offset: number) : [boolean, number] {
+    return [payload.getUint8(offset) ? true : false, offset + 1];
+}
+
+function decode_u8(payload: DataView, offset: number) : [number, number] {
+    return [payload.getUint8(offset), offset + 1];
+}
+
+function decode_u16(payload: DataView, offset: number) : [number, number] {
+    return [payload.getUint16(offset), offset + 2];
+}
+
+function decode_u32(payload: DataView, offset: number) : [number, number] {
+    return [payload.getUint32(offset), offset + 4];
+}
+
+function decode_vli(payload: DataView, offset: number) : [number, number] {
+    let result = vli.decode_vli(payload, offset);
+    if (result.type == vli.VliDecodeResultType.Success) {
+        // @ts-ignore
+        return [result.value, result.nextOffset];
+    }
+
+    throw new CrtError("Vli overflow during decoding");
+}
+
+function decode_string(payload: DataView, offset: number, length: number) : [string, number] {
+    return [toUtf8(new Uint8Array(payload.buffer, offset, length)), offset + length];
+}
+
+function decode_bytes(payload: DataView, offset: number, length: number) : [ArrayBuffer, number] {
+    return [payload.buffer.slice(offset, length), offset + length];
+}
 
 function decode_connack_packet_311(firstByte: number, payload: DataView) : mqtt5_packet.ConnackPacket {
     if (payload.byteLength != 2) {
-        throw new CrtError("Invalid connack packet received");
+        throw new CrtError("Invalid 311 Connack packet received");
     }
+
+    let index : number = 0;
+    let flags : number = 0;
+    // @ts-ignore
+    let connack: mqtt5_packet.ConnackPacket = {};
+
+    [flags, index] = decode_u8(payload, index);
+    if ((flags & ~0x01) != 0) {
+        throw new CrtError("Invalid connack flags");
+    }
+    connack.sessionPresent = flags != 0;
+    [connack.reasonCode, index] = decode_u8(payload, index);
+
+    return connack;
+}
+
+function decode_publish_packet_311(firstByte: number, payload: DataView) : mqtt5_packet.PublishPacket {
+
+}
+
+function decode_puback_packet_311(firstByte: number, payload: DataView) : mqtt5_packet.PubackPacket {
+
+}
+
+function decode_suback_packet_311(firstByte: number, payload: DataView) : mqtt5_packet.SubackPacket {
+
+}
+
+function decode_unsuback_packet_311(firstByte: number, payload: DataView) : mqtt5_packet.UnsubackPacket {
+
+}
+
+function decode_pingresp_packet(firstByte: number, payload: DataView) : mqtt5_packet.PingrespPacket {
+
 }
 
 export type DecodingFunction = (firstByte: number, payload: DataView) => mqtt5_packet.IPacket;
@@ -93,11 +162,15 @@ export class Decoder {
         let nextByte = data.getUint8(0);
         this.scratchView.setUint8(this.scratchIndex++, nextByte);
 
-        let result = vli.decode_vli(new DataView(this.scratchBuffer, 0, this.scratchIndex));
+        let result = vli.decode_vli(new DataView(this.scratchBuffer, 0, this.scratchIndex), 0);
         if (result.type == vli.VliDecodeResultType.Success) {
             // @ts-ignore
             this.remainingLength = result.value;
             this.scratchIndex = 0;
+            if (this.remainingLength > this.scratchBuffer.byteLength) {
+                this.scratchBuffer = new ArrayBuffer(this.remainingLength);
+            }
+            this.scratchView = new DataView(this.scratchBuffer, 0, this.remainingLength);
             this.state = DecoderStateType.PendingPayload;
         }
 

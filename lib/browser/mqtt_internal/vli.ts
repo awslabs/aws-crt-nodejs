@@ -53,23 +53,24 @@ export enum VliDecodeResultType {
 export interface VliDecodeResult {
     type: VliDecodeResultType,
     value?: number,
-    nextView?: DataView
+    nextOffset?: number
 }
 
-export function decode_vli(view: DataView) : VliDecodeResult {
+export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
     let value: number = 0;
     let index: number = 0;
     while (index < 4) {
-        let raw_byte = view.getUint8(index++);
+        let view_index = offset + index++;
+        let raw_byte = data.getUint8(view_index);
         let masked_byte = raw_byte & 0x7F;
         value = (value << 7) | masked_byte;
         if (masked_byte == raw_byte) {
             return {
                 type: VliDecodeResultType.Success,
                 value: value,
-                nextView: new DataView(view.buffer, view.byteOffset + index, view.byteLength - index)
+                nextOffset: offset + index + 1
             };
-        } else if (index >= view.byteLength) {
+        } else if (view_index >= data.byteLength) {
             return {
                 type: VliDecodeResultType.MoreData
             };
