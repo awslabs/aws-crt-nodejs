@@ -32,7 +32,7 @@ export function decode_vli(payload: DataView, offset: number) : [number, number]
         return [result.value, result.nextOffset];
     }
 
-    throw new CrtError("Vli overflow during decoding");
+    throw new CrtError("insufficient data to decode variable-length integer");
 }
 
 export function decode_string(payload: DataView, offset: number, length: number) : [string, number] {
@@ -306,7 +306,7 @@ function decode_connack_packet_5(firstByte: number, payload: DataView) : model.C
     [connack.reasonCode, index] = decode_u8(payload, index);
 
     let propertiesLength : number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decode_vli(payload, index);
 
     index = decode_connack_properties(connack, payload, index, propertiesLength);
 
@@ -355,7 +355,7 @@ function decode_publish_properties(publish: model.PublishPacketInternal, payload
                     publish.subscriptionIdentifiers = new Array<number>();
                 }
                 let subscriptionIdentifier : number = 0;
-                [subscriptionIdentifier, index] = vli.decode_vli_unconditional(payload, index);
+                [subscriptionIdentifier, index] = decode_vli(payload, index);
                 publish.subscriptionIdentifiers.push(subscriptionIdentifier);
                 break;
 
@@ -396,7 +396,7 @@ function decode_publish_packet_5(firstByte: number, payload: DataView) : model.P
         [publish.payload, index] = decode_bytes(payload, index, payload.byteLength - index);
     }
 
-    [, index] = vli.decode_vli_unconditional(payload, index);
+    [, index] = decode_vli(payload, index);
 
     [publish.topicName, index] = decode_length_prefixed_string(payload, index);
     if (publish.qos != mqtt5_packet.QoS.AtLeastOnce) {
@@ -404,7 +404,7 @@ function decode_publish_packet_5(firstByte: number, payload: DataView) : model.P
     }
 
     let propertiesLength : number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decode_vli(payload, index);
 
     index = decode_publish_properties(publish, payload, index, propertiesLength);
 
@@ -465,7 +465,7 @@ function decode_puback_packet_5(firstByte: number, payload: DataView) : model.Pu
 
         if (payload.byteLength > 3) {
             let propertiesLength: number = 0;
-            [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+            [propertiesLength, index] = decode_vli(payload, index);
 
             index = decode_puback_properties(puback, payload, index, propertiesLength);
         }
@@ -523,7 +523,7 @@ function decode_suback_packet_5(firstByte: number, payload: DataView) : model.Su
     [suback.packetId, index] = decode_u16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decode_vli(payload, index);
 
     index = decode_suback_properties(suback, payload, index, propertiesLength);
 
@@ -582,7 +582,7 @@ function decode_unsuback_packet_5(firstByte: number, payload: DataView) : model.
     [unsuback.packetId, index] = decode_u16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decode_vli(payload, index);
 
     index = decode_unsuback_properties(unsuback, payload, index, propertiesLength);
 
@@ -650,7 +650,7 @@ function decode_disconnect_packet_5(firstByte: number, payload: DataView) : mqtt
 
         if (payload.byteLength > 1) {
             let propertiesLength: number = 0;
-            [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+            [propertiesLength, index] = decode_vli(payload, index);
 
             index = decode_disconnect_properties(disconnect, payload, index, propertiesLength);
         }

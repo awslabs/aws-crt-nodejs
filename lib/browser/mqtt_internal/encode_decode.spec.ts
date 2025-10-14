@@ -9,7 +9,6 @@ import * as model from "./model";
 import * as vli from "./vli";
 import {CrtError} from "../error";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
-import {PacketType} from '../../common/mqtt5_packet';
 
 function encode_connack_packet311(steps: Array<encoder.EncodingStep>, packet: model.ConnackPacketBinary) {
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNACK });
@@ -370,7 +369,7 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
         [willPayload, index] = decoder.decode_length_prefixed_bytes(payload, index);
 
         connect.will = {
-            type: PacketType.Publish,
+            type: mqtt5_packet.PacketType.Publish,
             topicName: willTopic,
             payload: willPayload,
             qos: (flags >> model.CONNECT_FLAGS_QOS_SHIFT) & model.QOS_MASK
@@ -469,7 +468,7 @@ function decode_subscribe_properties(subscribe: model.SubscribePacketInternal, p
         switch (propertyCode) {
 
             case model.SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE:
-                [subscribe.subscriptionIdentifier, index] = vli.decode_vli_unconditional(payload, index);
+                [subscribe.subscriptionIdentifier, index] = decoder.decode_vli(payload, index);
                 break;
 
             case model.USER_PROPERTY_PROPERTY_CODE:
@@ -506,7 +505,7 @@ function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.
     [subscribe.packetId, index] = decoder.decode_u16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decoder.decode_vli(payload, index);
 
     index = decode_subscribe_properties(subscribe, payload, index, propertiesLength);
 
@@ -577,7 +576,7 @@ function decode_unsubscribe_packet5(firstByte: number, payload: DataView) : mode
     [unsubscribe.packetId, index] = decoder.decode_u16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decoder.decode_vli(payload, index);
 
     index = decode_unsubscribe_properties(unsubscribe, payload, index, propertiesLength);
 
@@ -734,7 +733,7 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
     [connect.keepAliveIntervalSeconds, index] = decoder.decode_u16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+    [propertiesLength, index] = decoder.decode_vli(payload, index);
 
     index = decode_connect_properties(connect, payload, index, propertiesLength);
 
@@ -743,11 +742,11 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
     if (flags & model.CONNECT_FLAGS_HAS_WILL) {
         // @ts-ignore
         let will : model.PublishPacketInternal =  {
-            type: PacketType.Publish,
+            type: mqtt5_packet.PacketType.Publish,
         };
 
         let willPropertiesLength: number = 0;
-        [willPropertiesLength, index] = vli.decode_vli_unconditional(payload, index);
+        [willPropertiesLength, index] = decoder.decode_vli(payload, index);
 
         index = decode_will_properties(connect, will, payload, index, willPropertiesLength);
 

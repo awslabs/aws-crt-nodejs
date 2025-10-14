@@ -23,15 +23,12 @@ export function get_vli_byte_length(value: number) : number {
 // assumes value is integral and non-negative
 export function encode_vli(dest: DataView, value: number) : DataView {
     let i = 0;
-    if (4 > dest.byteLength) {
-        throw new CrtError("Insufficient room to safely encode VLI value");
-    }
 
     let hasMore = true;
     while (hasMore)  {
         let byte = value & 0x7F;
         value = value >>> 7;
-        let hasMore = value > 0;
+        hasMore = value > 0;
         if (hasMore) {
             byte = byte | 0x80;
             if (i >= 3) {
@@ -59,11 +56,12 @@ export interface VliDecodeResult {
 export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
     let value: number = 0;
     let index: number = 0;
+    let shift: number = 0;
     while (index < 4) {
         let view_index = offset + index++;
         let raw_byte = data.getUint8(view_index);
         let masked_byte = raw_byte & 0x7F;
-        value = (value << 7) | masked_byte;
+        value += (masked_byte << shift);
         if (masked_byte == raw_byte) {
             return {
                 type: VliDecodeResultType.Success,
@@ -75,16 +73,9 @@ export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
                 type: VliDecodeResultType.MoreData
             };
         }
+
+        shift += 7;
     }
 
     throw new CrtError("Decoding failure - invalid VLI integer");
-}
-export function decode_vli_unconditional(data: DataView, offset: number) : [number, number] {
-    let result = decode_vli(data, offset);
-    if (result.type != VliDecodeResultType.Success) {
-        throw new CrtError("insufficient data for variable-length integer");
-    }
-
-    // @ts-ignore
-    return [result.value, result.nextOffset];
 }
