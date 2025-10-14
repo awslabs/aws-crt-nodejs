@@ -313,6 +313,9 @@ export interface DisconnectPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyInternal>;
 }
 
+export interface DisconnectPacketInternal extends mqtt5_packet.DisconnectPacket {
+
+}
 
 function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
     if (data instanceof ArrayBuffer) {

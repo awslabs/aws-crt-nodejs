@@ -793,3 +793,338 @@ function apply_debug_decoders_to_decoding_function_set(decoders: decoder.Decodin
 
     throw new CrtError("Unsupported Protocol Mode");
 }
+
+function optional_booleans_equal(lhs: boolean | undefined, rhs: boolean | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs == rhs;
+    }
+
+    return false;
+}
+
+function optional_numbers_equal(lhs: number | undefined, rhs: number | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs == rhs;
+    }
+
+    return false;
+}
+
+function optional_strings_equal(lhs: string | undefined, rhs: string | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs === rhs;
+    }
+
+    return false;
+}
+
+function buffers_equal(lhs: ArrayBuffer, rhs: ArrayBuffer) : boolean {
+    let lhs_view = new DataView(lhs);
+    let rhs_view = new DataView(rhs);
+
+    if (lhs_view.byteLength != rhs_view.byteLength) {
+        return false;
+    }
+
+    for (let i = 0; i < lhs_view.byteLength; i++) {
+        if (lhs_view.getUint8(i) != rhs_view.getUint8(i)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function optional_buffers_equal(lhs: ArrayBuffer | undefined, rhs: ArrayBuffer | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return buffers_equal(lhs, rhs);
+    }
+
+    return false;
+}
+
+function user_properties_equal(lhs: Array<mqtt5_packet.UserProperty> | undefined, rhs: Array<mqtt5_packet.UserProperty> | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        if (lhs.length != rhs.length) {
+            return false;
+        }
+
+        for (let i = 0; i < lhs.length; i++) {
+            if (lhs[i].name !== rhs[i].name) {
+                return false;
+            }
+
+            if (lhs[i].value !== rhs[i].value) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+function are_connect_packets_equal(lhs: model.ConnectPacketInternal, rhs: model.ConnectPacketInternal) : boolean {
+    return optional_booleans_equal(lhs.cleanStart, rhs.cleanStart) &&
+        optional_numbers_equal(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
+        optional_strings_equal(lhs.authenticationMethod, rhs.authenticationMethod) &&
+        optional_buffers_equal(lhs.authenticationData, rhs.authenticationData) &&
+        optional_numbers_equal(lhs.keepAliveIntervalSeconds, rhs.keepAliveIntervalSeconds) &&
+        optional_strings_equal(lhs.clientId, rhs.clientId) &&
+        optional_strings_equal(lhs.username, rhs.username) &&
+        optional_buffers_equal(binary_as_optional_buffer(lhs.password), binary_as_optional_buffer(rhs.password)) &&
+        optional_numbers_equal(lhs.sessionExpiryIntervalSeconds, rhs.sessionExpiryIntervalSeconds) &&
+        optional_booleans_equal(lhs.requestResponseInformation, rhs.requestResponseInformation) &&
+        optional_booleans_equal(lhs.requestProblemInformation, rhs.requestProblemInformation) &&
+        optional_numbers_equal(lhs.receiveMaximum, rhs.receiveMaximum) &&
+        optional_numbers_equal(lhs.maximumPacketSizeBytes, rhs.maximumPacketSizeBytes) &&
+        optional_numbers_equal(lhs.willDelayIntervalSeconds, rhs.willDelayIntervalSeconds) &&
+        are_publish_packets_equal(lhs.will, rhs.will) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function are_connack_packets_equal(lhs: model.ConnackPacketInternal, rhs: model.ConnackPacketInternal) : boolean {
+    return optional_strings_equal(lhs.authenticationMethod, rhs.authenticationMethod) &&
+        optional_buffers_equal(lhs.authenticationData, rhs.authenticationData) &&
+        lhs.sessionPresent == rhs.sessionPresent &&
+        lhs.reasonCode == rhs.reasonCode &&
+        optional_numbers_equal(lhs.sessionExpiryInterval, rhs.sessionExpiryInterval) &&
+        optional_numbers_equal(lhs.receiveMaximum, rhs.receiveMaximum) &&
+        optional_numbers_equal(lhs.maximumQos, rhs.maximumQos) &&
+        optional_booleans_equal(lhs.retainAvailable, rhs.retainAvailable) &&
+        optional_numbers_equal(lhs.maximumPacketSize, rhs.maximumPacketSize) &&
+        optional_strings_equal(lhs.assignedClientIdentifier, rhs.assignedClientIdentifier) &&
+        optional_numbers_equal(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
+        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
+        optional_booleans_equal(lhs.wildcardSubscriptionsAvailable, rhs.wildcardSubscriptionsAvailable) &&
+        optional_booleans_equal(lhs.subscriptionIdentifiersAvailable, rhs.subscriptionIdentifiersAvailable) &&
+        optional_booleans_equal(lhs.sharedSubscriptionsAvailable, rhs.sharedSubscriptionsAvailable) &&
+        optional_numbers_equal(lhs.serverKeepAlive, rhs.serverKeepAlive) &&
+        optional_strings_equal(lhs.responseInformation, rhs.responseInformation) &&
+        optional_strings_equal(lhs.serverReference, rhs.serverReference) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function binary_as_optional_buffer(source: BinaryData | undefined) : ArrayBuffer | undefined {
+    if (source == undefined) {
+        return undefined;
+    }
+
+    return source as ArrayBuffer;
+}
+
+function payload_as_optional_buffer(source: mqtt5_packet.Payload | undefined) : ArrayBuffer | undefined {
+    if (source == undefined) {
+        return undefined;
+    }
+
+    return source as ArrayBuffer;
+}
+
+function number_arrays_equal(lhs: Array<number> | undefined, rhs: Array<number> | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        if (lhs.length != rhs.length) {
+            return false;
+        }
+
+        for (let i = 0; i < lhs.length; i++) {
+            if (lhs[i] != rhs[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+function are_publish_packets_equal(lhs: mqtt5_packet.PublishPacket | undefined, rhs: mqtt5_packet.PublishPacket | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs.topicName == rhs.topicName &&
+            lhs.qos == rhs.qos &&
+            optional_booleans_equal(lhs.retain, rhs.retain) &&
+            optional_numbers_equal(lhs.payloadFormat, rhs.payloadFormat) &&
+            optional_numbers_equal(lhs.messageExpiryIntervalSeconds, rhs.messageExpiryIntervalSeconds) &&
+            optional_numbers_equal(lhs.topicAlias, rhs.topicAlias) &&
+            optional_strings_equal(lhs.responseTopic, rhs.responseTopic) &&
+            optional_buffers_equal(binary_as_optional_buffer(lhs.correlationData), binary_as_optional_buffer(rhs.correlationData)) &&
+            optional_strings_equal(lhs.contentType, rhs.contentType) &&
+            optional_buffers_equal(payload_as_optional_buffer(lhs.payload), payload_as_optional_buffer(rhs.payload)) &&
+            number_arrays_equal(lhs.subscriptionIdentifiers, rhs.subscriptionIdentifiers) &&
+            user_properties_equal(lhs.userProperties, rhs.userProperties);
+    }
+
+    return false;
+}
+
+function are_publish_internal_packets_equal(lhs: model.PublishPacketInternal | undefined, rhs: model.PublishPacketInternal | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs.packetId == rhs.packetId &&
+            lhs.duplicate == rhs.duplicate &&
+            are_publish_packets_equal(lhs, rhs);
+    }
+
+    return false;
+}
+
+function are_puback_packets_equal(lhs: model.PubackPacketInternal, rhs: model.PubackPacketInternal) : boolean {
+    return lhs.packetId == rhs.packetId &&
+        lhs.reasonCode == rhs.reasonCode &&
+        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function subscriptions_equal(lhs: Array<mqtt5_packet.Subscription>, rhs: Array<mqtt5_packet.Subscription>) : boolean {
+    if (lhs.length != rhs.length) {
+        return false;
+    }
+
+    for (let i = 0; i < lhs.length; i++) {
+        if (lhs[i].topicFilter !== rhs[i].topicFilter) {
+            return false;
+        }
+
+        if (lhs[i].qos != rhs[i].qos) {
+            return false;
+        }
+
+        if (!optional_booleans_equal(lhs[i].noLocal, rhs[i].noLocal)) {
+            return false;
+        }
+
+        if (!optional_booleans_equal(lhs[i].retainAsPublished, rhs[i].retainAsPublished)) {
+            return false;
+        }
+
+        if (!optional_numbers_equal(lhs[i].retainHandlingType, rhs[i].retainHandlingType)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function are_subscribe_packets_equal(lhs: model.SubscribePacketInternal, rhs: model.SubscribePacketInternal) : boolean {
+    return lhs.packetId == rhs.packetId &&
+        optional_numbers_equal(lhs.subscriptionIdentifier, rhs.subscriptionIdentifier) &&
+        subscriptions_equal(lhs.subscriptions, rhs.subscriptions) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function are_suback_packets_equal(lhs: model.SubackPacketInternal, rhs: model.SubackPacketInternal) : boolean {
+    return lhs.packetId == rhs.packetId &&
+        number_arrays_equal(lhs.reasonCodes, rhs.reasonCodes) &&
+        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function string_arrays_equal(lhs: Array<string>, rhs: Array<string>) : boolean {
+    if (lhs.length != rhs.length) {
+        return false;
+    }
+
+    for (let i = 0; i < lhs.length; i++) {
+        if (lhs[i] !== rhs[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function are_unsubscribe_packets_equal(lhs: model.UnsubscribePacketInternal, rhs: model.UnsubscribePacketInternal) : boolean {
+    return lhs.packetId == rhs.packetId &&
+        string_arrays_equal(lhs.topicFilters, rhs.topicFilters) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function are_unsuback_packets_equal(lhs: model.UnsubackPacketInternal, rhs: model.UnsubackPacketInternal) : boolean {
+    return lhs.packetId == rhs.packetId &&
+        number_arrays_equal(lhs.reasonCodes, rhs.reasonCodes) &&
+        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function are_disconnect_packets_equal(lhs: model.DisconnectPacketInternal, rhs: model.DisconnectPacketInternal) : boolean {
+    return lhs.reasonCode == rhs.reasonCode &&
+        optional_numbers_equal(lhs.sessionExpiryIntervalSeconds, rhs.sessionExpiryIntervalSeconds) &&
+        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
+        optional_strings_equal(lhs.serverReference, rhs.serverReference) &&
+        user_properties_equal(lhs.userProperties, rhs.userProperties);
+}
+
+function are_packets_equal(lhs: mqtt5_packet.IPacket, rhs: mqtt5_packet.IPacket) : boolean {
+    if (lhs.type != rhs.type) {
+        return false;
+    }
+
+    switch(lhs.type) {
+        case mqtt5_packet.PacketType.Pingreq:
+        case mqtt5_packet.PacketType.Pingresp:
+            return true;
+
+        case mqtt5_packet.PacketType.Connect:
+            return are_connect_packets_equal(lhs as model.ConnectPacketInternal, rhs as model.ConnectPacketInternal);
+
+        case mqtt5_packet.PacketType.Connack:
+            return are_connack_packets_equal(lhs as model.ConnackPacketInternal, rhs as model.ConnackPacketInternal);
+
+        case mqtt5_packet.PacketType.Publish:
+            return are_publish_internal_packets_equal(lhs as model.PublishPacketInternal, rhs as model.PublishPacketInternal);
+
+        case mqtt5_packet.PacketType.Puback:
+            return are_puback_packets_equal(lhs as model.PubackPacketInternal, rhs as model.PubackPacketInternal);
+
+        case mqtt5_packet.PacketType.Subscribe:
+            return are_subscribe_packets_equal(lhs as model.SubscribePacketInternal, rhs as model.SubscribePacketInternal);
+
+        case mqtt5_packet.PacketType.Suback:
+            return are_suback_packets_equal(lhs as model.SubackPacketInternal, rhs as model.SubackPacketInternal);
+
+        case mqtt5_packet.PacketType.Unsubscribe:
+            return are_unsubscribe_packets_equal(lhs as model.UnsubscribePacketInternal, rhs as model.UnsubscribePacketInternal);
+
+        case mqtt5_packet.PacketType.Unsuback:
+            return are_unsuback_packets_equal(lhs as model.UnsubackPacketInternal, rhs as model.UnsubackPacketInternal);
+
+        case mqtt5_packet.PacketType.Disconnect:
+            return are_disconnect_packets_equal(lhs as model.DisconnectPacketInternal, rhs as model.DisconnectPacketInternal);
+
+        default:
+            throw new CrtError("Unsupported packet type: " + lhs.type);
+    }
+}

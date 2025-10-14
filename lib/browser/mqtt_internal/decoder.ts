@@ -53,7 +53,7 @@ export function decode_length_prefixed_bytes(payload: DataView, offset: number) 
     return [payload.buffer.slice(offset, bytesLength), index + bytesLength];
 }
 
-function decode_connack_packet_311(firstByte: number, payload: DataView) : mqtt5_packet.ConnackPacket {
+function decode_connack_packet_311(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
     if (payload.byteLength != 2) {
         throw new CrtError("Invalid 311 Connack packet received");
     }
@@ -61,7 +61,7 @@ function decode_connack_packet_311(firstByte: number, payload: DataView) : mqtt5
     let index : number = 0;
     let flags : number = 0;
 
-    let connack: mqtt5_packet.ConnackPacket = {
+    let connack: model.ConnackPacketInternal = {
         type: mqtt5_packet.PacketType.Connack,
         sessionPresent: false,
         reasonCode: mqtt5_packet.ConnectReasonCode.Success
@@ -634,13 +634,13 @@ function decode_disconnect_properties(disconnect: mqtt5_packet.DisconnectPacket,
     return offset;
 }
 
-function decode_disconnect_packet_5(firstByte: number, payload: DataView) : mqtt5_packet.DisconnectPacket {
+function decode_disconnect_packet_5(firstByte: number, payload: DataView) : model.DisconnectPacketInternal {
     if (firstByte != model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 >> 8) {
         throw new CrtError("Disconnect packet received with invalid first byte");
     }
 
     let index : number = 0;
-    let disconnect: mqtt5_packet.DisconnectPacket = {
+    let disconnect: model.DisconnectPacketInternal = {
         type: mqtt5_packet.PacketType.Disconnect,
         reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
     };
