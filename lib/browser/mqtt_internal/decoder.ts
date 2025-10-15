@@ -82,7 +82,7 @@ function decode_publish_packet_311(firstByte: number, payload: DataView) : model
 
     let publish: model.PublishPacketInternal = {
         type: mqtt5_packet.PacketType.Publish,
-        qos: (firstByte >> model.PUBLISH_FLAGS_QOS_SHIFT) & model.QOS_MASK,
+        qos: (firstByte >>> model.PUBLISH_FLAGS_QOS_SHIFT) & model.QOS_MASK,
         duplicate: (firstByte & model.PUBLISH_FLAGS_DUPLICATE) ? true : false,
         retain: (firstByte & model.PUBLISH_FLAGS_RETAIN) ? true : false,
         topicName: ""
@@ -172,7 +172,7 @@ function decode_pingresp_packet(firstByte: number, payload: DataView) : model.Pi
         throw new CrtError("Invalid Pingresp packet received");
     }
 
-    if (firstByte != (model.PACKET_TYPE_PINGRESP_FULL_ENCODING >> 8)) {
+    if (firstByte != (model.PACKET_TYPE_PINGRESP_FULL_ENCODING >>> 8)) {
         throw new CrtError("Pingresp packet received with invalid first byte");
     }
 
@@ -277,11 +277,11 @@ function decode_connack_properties(connack: model.ConnackPacketInternal, payload
         }
     }
 
-    if (index != propertyLength) {
+    if (index != offset + propertyLength) {
         throw new CrtError("??");
     }
 
-    return offset;
+    return index;
 }
 
 function decode_connack_packet_5(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
@@ -372,7 +372,7 @@ function decode_publish_properties(publish: model.PublishPacketInternal, payload
         throw new CrtError("??");
     }
 
-    return offset;
+    return index;
 }
 
 function decode_publish_packet_5(firstByte: number, payload: DataView) : model.PublishPacketInternal {
@@ -380,7 +380,7 @@ function decode_publish_packet_5(firstByte: number, payload: DataView) : model.P
 
     let publish: model.PublishPacketInternal = {
         type: mqtt5_packet.PacketType.Publish,
-        qos: (firstByte >> model.PUBLISH_FLAGS_QOS_SHIFT) & model.QOS_MASK,
+        qos: (firstByte >>> model.PUBLISH_FLAGS_QOS_SHIFT) & model.QOS_MASK,
         duplicate: (firstByte & model.PUBLISH_FLAGS_DUPLICATE) ? true : false,
         retain: (firstByte & model.PUBLISH_FLAGS_RETAIN) ? true : false,
         topicName: ""
@@ -442,7 +442,7 @@ function decode_puback_properties(puback: model.PubackPacketInternal, payload: D
         throw new CrtError("??");
     }
 
-    return offset;
+    return index;
 }
 
 function decode_puback_packet_5(firstByte: number, payload: DataView) : model.PubackPacketInternal {
@@ -505,7 +505,7 @@ function decode_suback_properties(suback: model.SubackPacketInternal, payload: D
         throw new CrtError("??");
     }
 
-    return offset;
+    return index;
 }
 
 function decode_suback_packet_5(firstByte: number, payload: DataView) : model.SubackPacketInternal {
@@ -564,7 +564,7 @@ function decode_unsuback_properties(unsuback: model.UnsubackPacketInternal, payl
         throw new CrtError("??");
     }
 
-    return offset;
+    return index;
 }
 
 function decode_unsuback_packet_5(firstByte: number, payload: DataView) : model.UnsubackPacketInternal {
@@ -631,11 +631,11 @@ function decode_disconnect_properties(disconnect: mqtt5_packet.DisconnectPacket,
         throw new CrtError("??");
     }
 
-    return offset;
+    return index;
 }
 
 function decode_disconnect_packet_5(firstByte: number, payload: DataView) : model.DisconnectPacketInternal {
-    if (firstByte != model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 >> 8) {
+    if (firstByte != (model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 >>> 8)) {
         throw new CrtError("Disconnect packet received with invalid first byte");
     }
 
@@ -726,7 +726,10 @@ export class Decoder {
         let current_data = data;
         let packets = new Array<mqtt5_packet.IPacket>();
 
-        while (current_data.byteLength > 0) {
+        let current_state = this.state;
+        let next_state = this.state;
+        while (current_data.byteLength > 0 || current_state != next_state) {
+            current_state = this.state;
             switch (this.state) {
                 case DecoderStateType.PendingFirstByte:
                     current_data = this._handle_first_byte(current_data);
@@ -740,19 +743,30 @@ export class Decoder {
                     current_data = this._handle_pending_payload(current_data, packets);
                     break;
             }
+            next_state = this.state;
         }
 
         return packets;
     }
 
     private _handle_first_byte(data: DataView) : DataView {
+        if (data.byteLength == 0) {
+            return data;
+        }
+
         this.firstByte = data.getUint8(0);
         this.state = DecoderStateType.PendingRemainingLength;
+        this.scratchIndex = 0;
         this.scratchView = new DataView(this.scratchBuffer);
+
         return new DataView(data.buffer, data.byteOffset + 1, data.byteLength - 1);
     }
 
     private _handle_remaining_length(data: DataView) : DataView {
+        if (data.byteLength == 0) {
+            return data;
+        }
+
         let nextByte = data.getUint8(0);
         this.scratchView.setUint8(this.scratchIndex++, nextByte);
 
@@ -762,7 +776,7 @@ export class Decoder {
             this.remainingLength = result.value;
             this.scratchIndex = 0;
             if (this.remainingLength > this.scratchBuffer.byteLength) {
-                this.scratchBuffer = new ArrayBuffer(this.remainingLength);
+                this.scratchBuffer = new ArrayBuffer(this.remainingLength * 3 / 2);
             }
             this.scratchView = new DataView(this.scratchBuffer, 0, this.remainingLength);
             this.state = DecoderStateType.PendingPayload;
@@ -777,6 +791,7 @@ export class Decoder {
             let sourceView = new Uint8Array(data.buffer, data.byteOffset, bytesToCopy);
             let destView = new Uint8Array(this.scratchBuffer, this.scratchIndex, bytesToCopy);
             destView.set(sourceView);
+            this.scratchIndex += bytesToCopy;
         }
 
         if (this.scratchIndex == this.remainingLength) {
@@ -789,7 +804,7 @@ export class Decoder {
     }
 
     private _decode_packet() : mqtt5_packet.IPacket {
-        let packetType = this.firstByte >> 4;
+        let packetType = this.firstByte >>> 4;
         let decoder = this.decoders.get(packetType);
         if (!decoder) {
             throw new CrtError("No decoder for packet type");

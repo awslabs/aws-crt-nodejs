@@ -21,7 +21,7 @@ export interface EncodingStep {
     value: number | DataView
 }
 
-export function encode_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
+export function encode_length_prefixed_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
     if (source) {
         steps.push({ type: EncodingStepType.U16, value: source.byteLength });
         steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
@@ -30,14 +30,14 @@ export function encode_16bit_array_buffer(steps: Array<EncodingStep>, source: Ar
     }
 }
 
-export function encode_optional_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
+export function encode_optional_length_prefixed_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer | undefined) {
     if (source) {
         steps.push({ type: EncodingStepType.U16, value: source.byteLength });
         steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
     }
 }
 
-export function encode_required_16bit_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer) {
+export function encode_required_length_prefixed_array_buffer(steps: Array<EncodingStep>, source: ArrayBuffer) {
     steps.push({ type: EncodingStepType.U16, value: source.byteLength });
     steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
 }
@@ -101,15 +101,15 @@ function encode_connect_packet311(steps: Array<EncodingStep>, packet: model.Conn
     steps.push({ type: EncodingStepType.BYTES, value: model.connect311ProtocolDataView });
     steps.push({ type: EncodingStepType.U8, value: compute_connect_flags(packet) });
     steps.push({ type: EncodingStepType.U16, value: packet.keepAliveIntervalSeconds });
-    encode_16bit_array_buffer(steps, packet.clientId);
+    encode_length_prefixed_array_buffer(steps, packet.clientId);
 
     if (packet.will) {
-        encode_16bit_array_buffer(steps, packet.will.topicName);
-        encode_16bit_array_buffer(steps, packet.will.payload);
+        encode_length_prefixed_array_buffer(steps, packet.will.topicName);
+        encode_length_prefixed_array_buffer(steps, packet.will.payload);
     }
 
-    encode_optional_16bit_array_buffer(steps, packet.username);
-    encode_optional_16bit_array_buffer(steps, packet.password);
+    encode_optional_length_prefixed_array_buffer(steps, packet.username);
+    encode_optional_length_prefixed_array_buffer(steps, packet.password);
 }
 
 function compute_publish_flags(packet: model.PublishPacketBinary) {
@@ -147,7 +147,7 @@ function encode_publish_packet311(steps: Array<EncodingStep>, packet: model.Publ
 
     steps.push({ type: EncodingStepType.U8, value: flags | model.PACKET_TYPE_FIRST_BYTE_PUBLISH });
     steps.push({ type: EncodingStepType.VLI, value: get_publish_packet_remaining_lengths311(packet) });
-    encode_16bit_array_buffer(steps, packet.topicName);
+    encode_length_prefixed_array_buffer(steps, packet.topicName);
 
     if (packet.qos > 0) {
         steps.push({ type: EncodingStepType.U16, value: packet.packetId });
@@ -175,7 +175,7 @@ function get_subscribe_packet_remaining_lengths311(packet: model.SubscribePacket
 }
 
 function encode_subscription311(steps: Array<EncodingStep>, subscription: model.SubscriptionInternal) {
-    encode_required_16bit_array_buffer(steps, subscription.topicFilter);
+    encode_required_length_prefixed_array_buffer(steps, subscription.topicFilter);
     steps.push({ type: EncodingStepType.U8, value: subscription.qos });
 }
 
@@ -205,7 +205,7 @@ function encode_unsubscribe_packet311(steps: Array<EncodingStep>, packet: model.
     steps.push({ type: EncodingStepType.U16, value: packet.packetId });
 
     for (let topicFilter of packet.topicFilters) {
-        encode_required_16bit_array_buffer(steps, topicFilter);
+        encode_required_length_prefixed_array_buffer(steps, topicFilter);
     }
 }
 
@@ -341,8 +341,8 @@ export function encode_user_properties(steps: Array<EncodingStep>, user_properti
 
     for (let user_property of user_properties) {
         steps.push({ type: EncodingStepType.U8, value: model.USER_PROPERTY_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, user_property.name);
-        encode_required_16bit_array_buffer(steps, user_property.value);
+        encode_required_length_prefixed_array_buffer(steps, user_property.name);
+        encode_required_length_prefixed_array_buffer(steps, user_property.value);
     }
 }
 
@@ -379,12 +379,12 @@ function encode_connect_properties(steps: Array<EncodingStep>, packet: model.Con
 
     if (packet.authenticationMethod) {
         steps.push({ type: EncodingStepType.U8, value: model.AUTHENTICATION_METHOD_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.authenticationMethod);
+        encode_required_length_prefixed_array_buffer(steps, packet.authenticationMethod);
     }
 
     if (packet.authenticationData) {
         steps.push({ type: EncodingStepType.U8, value: model.AUTHENTICATION_DATA_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.authenticationData);
+        encode_required_length_prefixed_array_buffer(steps, packet.authenticationData);
     }
 
     encode_user_properties(steps, packet.userProperties);
@@ -412,17 +412,17 @@ function encode_will_properties(steps: Array<EncodingStep>, packet: model.Connec
 
     if (packet.will.contentType) {
         steps.push({ type: EncodingStepType.U8, value: model.CONTENT_TYPE_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.will.contentType);
+        encode_required_length_prefixed_array_buffer(steps, packet.will.contentType);
     }
 
     if (packet.will.responseTopic) {
         steps.push({ type: EncodingStepType.U8, value: model.RESPONSE_TOPIC_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.will.responseTopic);
+        encode_required_length_prefixed_array_buffer(steps, packet.will.responseTopic);
     }
 
     if (packet.will.correlationData) {
         steps.push({ type: EncodingStepType.U8, value: model.CORRELATION_DATA_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.will.correlationData);
+        encode_required_length_prefixed_array_buffer(steps, packet.will.correlationData);
     }
 
     encode_user_properties(steps, packet.will.userProperties);
@@ -440,18 +440,18 @@ function encode_connect_packet5(steps: Array<EncodingStep>, packet: model.Connec
     steps.push({ type: EncodingStepType.VLI, value: properties_length });
     encode_connect_properties(steps, packet);
 
-    encode_16bit_array_buffer(steps, packet.clientId);
+    encode_length_prefixed_array_buffer(steps, packet.clientId);
 
     if (packet.will) {
         steps.push({type: EncodingStepType.VLI, value: will_properties_length});
         encode_will_properties(steps, packet);
 
-        encode_required_16bit_array_buffer(steps, packet.will.topicName);
-        encode_16bit_array_buffer(steps, packet.will.payload);
+        encode_required_length_prefixed_array_buffer(steps, packet.will.topicName);
+        encode_length_prefixed_array_buffer(steps, packet.will.payload);
     }
 
-    encode_optional_16bit_array_buffer(steps, packet.username);
-    encode_optional_16bit_array_buffer(steps, packet.password);
+    encode_optional_length_prefixed_array_buffer(steps, packet.username);
+    encode_optional_length_prefixed_array_buffer(steps, packet.password);
 }
 
 function get_publish_packet_remaining_lengths5(packet: model.PublishPacketBinary) : [number, number] {
@@ -521,12 +521,12 @@ function encode_publish_packet_properties(steps: Array<EncodingStep>, packet: mo
 
     if (packet.responseTopic) {
         steps.push({ type: EncodingStepType.U8, value: model.RESPONSE_TOPIC_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.responseTopic);
+        encode_required_length_prefixed_array_buffer(steps, packet.responseTopic);
     }
 
     if (packet.correlationData) {
         steps.push({ type: EncodingStepType.U8, value: model.CORRELATION_DATA_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.correlationData);
+        encode_required_length_prefixed_array_buffer(steps, packet.correlationData);
     }
 
     if (packet.subscriptionIdentifiers) {
@@ -538,7 +538,7 @@ function encode_publish_packet_properties(steps: Array<EncodingStep>, packet: mo
 
     if (packet.contentType) {
         steps.push({ type: EncodingStepType.U8, value: model.CONTENT_TYPE_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.contentType);
+        encode_required_length_prefixed_array_buffer(steps, packet.contentType);
     }
 
     encode_user_properties(steps, packet.userProperties);
@@ -549,7 +549,7 @@ function encode_publish_packet5(steps: Array<EncodingStep>, packet: model.Publis
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_PUBLISH | compute_publish_flags(packet) });
     steps.push({ type: EncodingStepType.VLI, value: remaining_length });
-    encode_required_16bit_array_buffer(steps, packet.topicName);
+    encode_required_length_prefixed_array_buffer(steps, packet.topicName);
 
     if (packet.qos > 0) {
         steps.push({ type: EncodingStepType.U16, value: packet.packetId });
@@ -582,7 +582,7 @@ function get_puback_packet_remaining_lengths5(packet: model.PubackPacketBinary) 
 function encode_puback_properties(steps: Array<EncodingStep>, packet: model.PubackPacketBinary) {
     if (packet.reasonString) {
         steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.reasonString);
+        encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
 
     encode_user_properties(steps, packet.userProperties);
@@ -647,7 +647,7 @@ function compute_subscription_flags5(subscription: model.SubscriptionInternal) :
 }
 
 function encode_subscription5(steps: Array<EncodingStep>, subscription: model.SubscriptionInternal) {
-    encode_required_16bit_array_buffer(steps, subscription.topicFilter);
+    encode_required_length_prefixed_array_buffer(steps, subscription.topicFilter);
     steps.push({ type: EncodingStepType.U8, value: compute_subscription_flags5(subscription) });
 }
 
@@ -703,7 +703,7 @@ function encode_unsubscribe_packet5(steps: Array<EncodingStep>, packet: model.Un
     encode_unsubscribe_properties(steps, packet);
 
     for (let topic_filter of packet.topicFilters) {
-        encode_required_16bit_array_buffer(steps, topic_filter);
+        encode_required_length_prefixed_array_buffer(steps, topic_filter);
     }
 }
 
@@ -735,12 +735,12 @@ function get_disconnect_packet_remaining_lengths5(packet: model.DisconnectPacket
 function encode_disconnect_properties(steps: Array<EncodingStep>, packet: model.DisconnectPacketBinary) {
     if (packet.reasonString) {
         steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.reasonString);
+        encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
 
     if (packet.serverReference) {
         steps.push({ type: EncodingStepType.U8, value: model.SERVER_REFERENCE_PROPERTY_CODE });
-        encode_required_16bit_array_buffer(steps, packet.serverReference);
+        encode_required_length_prefixed_array_buffer(steps, packet.serverReference);
     }
 
     if (packet.sessionExpiryIntervalSeconds) {
@@ -824,19 +824,19 @@ interface ApplyEncodingStepResult {
 function apply_encoding_step(buffer: DataView, step: EncodingStep) : ApplyEncodingStepResult {
     switch (step.type) {
         case EncodingStepType.U8:
-            buffer.setUint8(buffer.byteOffset, step.value as number);
+            buffer.setUint8(0, step.value as number);
             return {
                 nextBuffer: new DataView(buffer.buffer, buffer.byteOffset + 1, buffer.byteLength - 1)
             };
 
         case EncodingStepType.U16:
-            buffer.setUint16(buffer.byteOffset, step.value as number);
+            buffer.setUint16(0, step.value as number);
             return {
                 nextBuffer: new DataView(buffer.buffer, buffer.byteOffset + 2, buffer.byteLength - 2)
             };
 
         case EncodingStepType.U32:
-            buffer.setUint32(buffer.byteOffset, step.value as number);
+            buffer.setUint32(0, step.value as number);
             return {
                 nextBuffer: new DataView(buffer.buffer, buffer.byteOffset + 4, buffer.byteLength - 4)
             };
@@ -877,7 +877,8 @@ export enum ServiceResultType {
 
 export interface ServiceResult {
     type: ServiceResultType;
-    nextBuffer: DataView;
+    encodedView?: DataView;
+    nextView: DataView;
 }
 
 export class Encoder {
@@ -903,24 +904,25 @@ export class Encoder {
         add_encoding_steps(this.encoders, this.steps, packet);
     }
 
-    service(buffer: DataView) : ServiceResult {
+    service(dest: DataView) : ServiceResult {
         if (!this.packet) {
             return {
                 type: ServiceResultType.Complete,
-                nextBuffer: buffer
+                nextView: dest
             };
         }
 
+        let startingOffset : number = dest.byteOffset;
+        let resultType : ServiceResultType = ServiceResultType.Complete;
+
         while (this.currentStep < this.steps.length) {
-            if (buffer.byteLength < 4) {
-                return {
-                    type: ServiceResultType.InProgress,
-                    nextBuffer: buffer
-                };
+            if (dest.byteLength < 4) {
+                resultType = ServiceResultType.InProgress;
+                break;
             }
 
-            let step_result = apply_encoding_step(buffer, this.steps[this.currentStep]);
-            buffer = step_result.nextBuffer;
+            let step_result = apply_encoding_step(dest, this.steps[this.currentStep]);
+            dest = step_result.nextBuffer;
             if (step_result.step) {
                 this.steps[this.currentStep] = step_result.step;
             } else {
@@ -929,8 +931,9 @@ export class Encoder {
         }
 
         return {
-            type: ServiceResultType.Complete,
-            nextBuffer: buffer
+            type: resultType,
+            encodedView: new DataView(dest.buffer, startingOffset, dest.byteOffset - startingOffset),
+            nextView: dest
         };
     }
 }

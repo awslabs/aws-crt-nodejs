@@ -36,7 +36,7 @@ export function encode_vli(dest: DataView, value: number) : DataView {
             }
         }
 
-        dest.setUint8(dest.byteOffset + i++, byte);
+        dest.setUint8(i++, byte);
     }
 
     return new DataView(dest.buffer, dest.byteOffset + i, dest.byteLength - i);
@@ -66,7 +66,7 @@ export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
             return {
                 type: VliDecodeResultType.Success,
                 value: value,
-                nextOffset: offset + index + 1
+                nextOffset: offset + index
             };
         } else if (view_index >= data.byteLength) {
             return {

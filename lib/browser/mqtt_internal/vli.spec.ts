@@ -242,3 +242,34 @@ test('VLI round trip', () => {
     do_round_trip_encode_decode_vli_test(278306);
     do_round_trip_encode_decode_vli_test(26843545);
 });
+
+function do_encode_decode_multiple_vli_test(value: number, count: number) {
+    let buffer = new ArrayBuffer(count * 4);
+    let encoding_view = new DataView(buffer);
+
+    for (let i = 0; i < count; i++) {
+        encoding_view = vli.encode_vli(encoding_view, value);
+    }
+
+    let encoded_view = new DataView(buffer, 0, buffer.byteLength - encoding_view.byteLength);
+    let decode_count : number = 0;
+    let offset : number = 0;
+    while (offset < encoded_view.byteLength) {
+        let decode_result = vli.decode_vli(encoded_view, offset);
+        if (decode_result.type == vli.VliDecodeResultType.Success) {
+            expect(decode_result.value).toBe(value);
+            // @ts-ignore
+            offset = decode_result.nextOffset;
+            decode_count++;
+        }
+    }
+
+    expect(decode_count).toBe(count);
+}
+
+test('VLI Multiple', () => {
+    do_encode_decode_multiple_vli_test(42, 20);
+    do_encode_decode_multiple_vli_test(2000, 20);
+    do_encode_decode_multiple_vli_test(99999, 20);
+    do_encode_decode_multiple_vli_test(128 * 128 * 128 + 5, 20);
+});

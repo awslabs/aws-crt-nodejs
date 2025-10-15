@@ -343,11 +343,11 @@ function convert_user_properties_to_internal(properties: Array<mqtt5_packet.User
     return internal_properties;
 }
 
-function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) : ConnectPacketBinary {
+function convert_connect_packet_to_internal(packet: ConnectPacketInternal) : ConnectPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : ConnectPacketBinary = {
         type: mqtt5_packet.PacketType.Connect,
-        cleanSession: 0, // set manually later by the client based on configuration
+        cleanSession: packet.cleanStart ? 1 : 0,
         keepAliveIntervalSeconds: packet.keepAliveIntervalSeconds
     };
 
@@ -361,6 +361,10 @@ function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) 
 
     if (packet.password) {
         internal_packet.password = binary_data_to_array_buffer(packet.password);
+    }
+
+    if (packet.topicAliasMaximum) {
+        internal_packet.topicAliasMaximum = packet.topicAliasMaximum;
     }
 
     if (packet.sessionExpiryIntervalSeconds) {
@@ -388,7 +392,15 @@ function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) 
     }
 
     if (packet.will) {
-        internal_packet.will = convert_publish_packet_to_internal(packet.will);
+        internal_packet.will = convert_publish_packet_to_internal(packet.will as PublishPacketInternal);
+    }
+
+    if (packet.authenticationMethod) {
+        internal_packet.authenticationMethod = encoder.encode(packet.authenticationMethod).buffer;
+    }
+
+    if (packet.authenticationData) {
+        internal_packet.authenticationData = binary_data_to_array_buffer(packet.authenticationData);
     }
 
     if (packet.userProperties) {
@@ -398,7 +410,7 @@ function convert_connect_packet_to_internal(packet: mqtt5_packet.ConnectPacket) 
     return internal_packet;
 }
 
-function convert_connack_packet_to_internal(packet: mqtt5_packet.ConnackPacket) : ConnackPacketBinary {
+function convert_connack_packet_to_internal(packet: ConnackPacketInternal) : ConnackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : ConnackPacketBinary = {
         type: mqtt5_packet.PacketType.Connack,
@@ -462,6 +474,14 @@ function convert_connack_packet_to_internal(packet: mqtt5_packet.ConnackPacket) 
         internal_packet.serverReference = encoder.encode(packet.serverReference).buffer;
     }
 
+    if (packet.authenticationMethod) {
+        internal_packet.authenticationMethod = encoder.encode(packet.authenticationMethod).buffer;
+    }
+
+    if (packet.authenticationData) {
+        internal_packet.authenticationData = binary_data_to_array_buffer(packet.authenticationData);
+    }
+
     if (packet.userProperties) {
         internal_packet.userProperties = convert_user_properties_to_internal(packet.userProperties);
     }
@@ -484,13 +504,14 @@ function payload_to_array_buffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     }
 }
 
-function convert_publish_packet_to_internal(packet: mqtt5_packet.PublishPacket) : PublishPacketBinary {
+function convert_publish_packet_to_internal(packet: PublishPacketInternal) : PublishPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : PublishPacketBinary = {
         type: mqtt5_packet.PacketType.Publish,
-        packetId: 0,
+        packetId: packet.packetId || 0,
         topicName : encoder.encode(packet.topicName).buffer,
-        qos: packet.qos
+        qos: packet.qos,
+        duplicate: packet.duplicate ? 1 : 0,
     };
 
     if (packet.payload) {
@@ -536,11 +557,11 @@ function convert_publish_packet_to_internal(packet: mqtt5_packet.PublishPacket) 
     return internal_packet;
 }
 
-function convert_puback_packet_to_internal(packet: mqtt5_packet.PubackPacket) : PubackPacketBinary {
+function convert_puback_packet_to_internal(packet: PubackPacketInternal) : PubackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : PubackPacketBinary = {
         type: mqtt5_packet.PacketType.Puback,
-        packetId: 0,
+        packetId: packet.packetId,
         reasonCode: packet.reasonCode
     };
 
@@ -578,10 +599,10 @@ function convert_subscription_to_internal(subscription: mqtt5_packet.Subscriptio
     return internal_subscription;
 }
 
-function convert_subscribe_packet_to_internal(packet: mqtt5_packet.SubscribePacket) : SubscribePacketBinary {
+function convert_subscribe_packet_to_internal(packet: SubscribePacketInternal) : SubscribePacketBinary {
     let internal_packet : SubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Subscribe,
-        packetId: 0,
+        packetId: packet.packetId,
         subscriptions: []
     };
 
@@ -600,11 +621,11 @@ function convert_subscribe_packet_to_internal(packet: mqtt5_packet.SubscribePack
     return internal_packet;
 }
 
-function convert_suback_packet_to_internal(packet: mqtt5_packet.SubackPacket) : SubackPacketBinary {
+function convert_suback_packet_to_internal(packet: SubackPacketInternal) : SubackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet: SubackPacketBinary = {
         type: mqtt5_packet.PacketType.Suback,
-        packetId: 0,
+        packetId: packet.packetId,
         reasonCodes: packet.reasonCodes
     };
 
@@ -619,11 +640,11 @@ function convert_suback_packet_to_internal(packet: mqtt5_packet.SubackPacket) : 
     return internal_packet;
 }
 
-function convert_unsubscribe_packet_to_internal(packet: mqtt5_packet.UnsubscribePacket) : UnsubscribePacketBinary {
+function convert_unsubscribe_packet_to_internal(packet: UnsubscribePacketInternal) : UnsubscribePacketBinary {
     let encoder = new TextEncoder();
     let internal_packet: UnsubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Unsubscribe,
-        packetId: 0,
+        packetId: packet.packetId,
         topicFilters: []
     };
 
@@ -638,11 +659,11 @@ function convert_unsubscribe_packet_to_internal(packet: mqtt5_packet.Unsubscribe
     return internal_packet;
 }
 
-function convert_unsuback_packet_to_internal(packet: mqtt5_packet.UnsubackPacket) : UnsubackPacketBinary {
+function convert_unsuback_packet_to_internal(packet: UnsubackPacketInternal) : UnsubackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet: UnsubackPacketBinary = {
         type: mqtt5_packet.PacketType.Unsuback,
-        packetId: 0,
+        packetId: packet.packetId,
         reasonCodes: packet.reasonCodes
     };
 
@@ -657,7 +678,7 @@ function convert_unsuback_packet_to_internal(packet: mqtt5_packet.UnsubackPacket
     return internal_packet;
 }
 
-function convert_disconnect_packet_to_internal(packet: mqtt5_packet.DisconnectPacket) : DisconnectPacketBinary {
+function convert_disconnect_packet_to_internal(packet: DisconnectPacketInternal) : DisconnectPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : DisconnectPacketBinary = {
         reasonCode: packet.reasonCode
@@ -684,30 +705,38 @@ function convert_disconnect_packet_to_internal(packet: mqtt5_packet.DisconnectPa
 
 // TODO: take protocol level and modify -> 311 encoding for reason codes
 
-export function convert_packet_to_internal(packet: mqtt5_packet.IPacket) : IPacketBinary {
+export function convert_packet_to_binary(packet: mqtt5_packet.IPacket) : IPacketBinary {
     if (!packet.type) {
         throw new CrtError("Invalid packet type");
     }
 
     switch(packet.type) {
         case mqtt5_packet.PacketType.Connect:
-            return convert_connect_packet_to_internal(packet as mqtt5_packet.ConnectPacket);
+            return convert_connect_packet_to_internal(packet as ConnectPacketInternal);
         case mqtt5_packet.PacketType.Connack:
-            return convert_connack_packet_to_internal(packet as mqtt5_packet.ConnackPacket);
+            return convert_connack_packet_to_internal(packet as ConnackPacketInternal);
         case mqtt5_packet.PacketType.Publish:
-            return convert_publish_packet_to_internal(packet as mqtt5_packet.PublishPacket);
+            return convert_publish_packet_to_internal(packet as PublishPacketInternal);
         case mqtt5_packet.PacketType.Puback:
-            return convert_puback_packet_to_internal(packet as mqtt5_packet.PubackPacket);
+            return convert_puback_packet_to_internal(packet as PubackPacketInternal);
         case mqtt5_packet.PacketType.Subscribe:
-            return convert_subscribe_packet_to_internal(packet as mqtt5_packet.SubscribePacket);
+            return convert_subscribe_packet_to_internal(packet as SubscribePacketInternal);
         case mqtt5_packet.PacketType.Suback:
-            return convert_suback_packet_to_internal(packet as mqtt5_packet.SubackPacket);
+            return convert_suback_packet_to_internal(packet as SubackPacketInternal);
         case mqtt5_packet.PacketType.Unsubscribe:
-            return convert_unsubscribe_packet_to_internal(packet as mqtt5_packet.UnsubscribePacket);
+            return convert_unsubscribe_packet_to_internal(packet as UnsubscribePacketInternal);
         case mqtt5_packet.PacketType.Unsuback:
-            return convert_unsuback_packet_to_internal(packet as mqtt5_packet.UnsubackPacket);
+            return convert_unsuback_packet_to_internal(packet as UnsubackPacketInternal);
         case mqtt5_packet.PacketType.Disconnect:
-            return convert_disconnect_packet_to_internal(packet as mqtt5_packet.DisconnectPacket);
+            return convert_disconnect_packet_to_internal(packet as DisconnectPacketInternal);
+        case mqtt5_packet.PacketType.Pingreq:
+            return {
+                type: mqtt5_packet.PacketType.Pingreq
+            };
+        case mqtt5_packet.PacketType.Pingresp:
+            return {
+                type: mqtt5_packet.PacketType.Pingresp
+            };
         default:
             throw new CrtError("Unsupported packet type: ");
     }
