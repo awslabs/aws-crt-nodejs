@@ -45,12 +45,12 @@ export function decode_length_prefixed_string(payload: DataView, offset: number)
 }
 
 export function decode_bytes(payload: DataView, offset: number, length: number) : [ArrayBuffer, number] {
-    return [payload.buffer.slice(offset, length), offset + length];
+    return [payload.buffer.slice(offset, offset + length), offset + length];
 }
 
 export function decode_length_prefixed_bytes(payload: DataView, offset: number) : [ArrayBuffer, number] {
     let [bytesLength, index] = decode_u16(payload, offset);
-    return [payload.buffer.slice(offset, bytesLength), index + bytesLength];
+    return [payload.buffer.slice(offset, offset + bytesLength), index + bytesLength];
 }
 
 function decode_connack_packet_311(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
@@ -90,7 +90,7 @@ function decode_publish_packet_311(firstByte: number, payload: DataView) : model
 
     [publish.topicName, index] = decode_length_prefixed_string(payload, index);
 
-    if (publish.qos != mqtt5_packet.QoS.AtLeastOnce) {
+    if (publish.qos > 0) {
         [publish.packetId, index] = decode_u16(payload, index);
     }
 
@@ -387,19 +387,7 @@ function decode_publish_packet_5(firstByte: number, payload: DataView) : model.P
     };
 
     [publish.topicName, index] = decode_length_prefixed_string(payload, index);
-
-    if (publish.qos != mqtt5_packet.QoS.AtLeastOnce) {
-        [publish.packetId, index] = decode_u16(payload, index);
-    }
-
-    if (index < payload.byteLength) {
-        [publish.payload, index] = decode_bytes(payload, index, payload.byteLength - index);
-    }
-
-    [, index] = decode_vli(payload, index);
-
-    [publish.topicName, index] = decode_length_prefixed_string(payload, index);
-    if (publish.qos != mqtt5_packet.QoS.AtLeastOnce) {
+    if (publish.qos > 0) {
         [publish.packetId, index] = decode_u16(payload, index);
     }
 

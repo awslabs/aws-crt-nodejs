@@ -1291,3 +1291,32 @@ test('Puback - EncodeDecode Maximal 5', () => {
 
     do_fragmented_round_trip_encode_decode_test(puback, model.ProtocolMode.Mqtt5, 20);
 });
+
+test('Publish - Empty Payload 311', () => {
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        topicName: "foo/bar",
+        duplicate: true,
+        retain: true
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Publish - With Payload 311', () => {
+    let encoder = new TextEncoder();
+    let payload = encoder.encode("Something").buffer;
+
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        packetId: 7,
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        topicName: "foo/bar",
+        duplicate: false,
+        retain: false,
+        payload: payload
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt311, 20);
+});
