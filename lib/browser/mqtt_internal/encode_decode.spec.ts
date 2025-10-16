@@ -313,11 +313,11 @@ function apply_debug_encoders_to_encoding_function_set(encoders: encoder.Encodin
 
 function decode_pingreq_packet(firstByte: number, payload: DataView) : model.PingreqPacketInternal {
     if (payload.byteLength != 0) {
-        throw new CrtError("Invalid Pingreq packet received");
+        throw new CrtError("Pingreq packet with invalid payload");
     }
 
     if (firstByte != (model.PACKET_TYPE_PINGREQ_FULL_ENCODING >>> 8)) {
-        throw new CrtError("Pingreq packet received with invalid first byte");
+        throw new CrtError("Pingreq packet with invalid first byte: " + firstByte);
     }
 
     return {
@@ -328,7 +328,7 @@ function decode_pingreq_packet(firstByte: number, payload: DataView) : model.Pin
 function decode_connect_packet311(firstByte: number, payload: DataView) : model.ConnectPacketInternal {
 
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNECT) {
-        throw new CrtError("311 Connect packet received with invalid first byte");
+        throw new CrtError("Connect(311) packet with invalid first byte: " + firstByte);
     }
 
     let connect : model.ConnectPacketInternal = {
@@ -343,13 +343,13 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
 
     [protocol, index] = decoder.decode_length_prefixed_string(payload, index);
     if (protocol != "MQTT") {
-        throw new CrtError("Connect packet received with invalid protocol");
+        throw new CrtError("Connect(311) packet with invalid protocol");
     }
 
     let protocolVersion: number = 0;
     [protocolVersion, index] = decoder.decode_u8(payload, index);
     if (protocolVersion != 4) {
-        throw new CrtError("Connect packet received with non-311 protocol version");
+        throw new CrtError("Connect(311) packet with mismatched protocol version");
     }
 
     let flags: number = 0;
@@ -395,7 +395,7 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
 
 function decode_subscribe_packet311(firstByte: number, payload: DataView) : model.SubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBSCRIBE) {
-        throw new CrtError("311 Subscribe packet received with invalid first byte");
+        throw new CrtError("Subscribe(311) packet with invalid first byte: " + firstByte);
     }
 
     let subscribe : model.SubscribePacketInternal = {
@@ -425,7 +425,7 @@ function decode_subscribe_packet311(firstByte: number, payload: DataView) : mode
 
 function decode_unsubscribe_packet311(firstByte: number, payload: DataView) : model.UnsubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBSCRIBE) {
-        throw new CrtError("311 Unsubscribe packet received with invalid first byte");
+        throw new CrtError("Unsubscribe(311) packet with invalid first byte: " + firstByte);
     }
 
     let unsubscribe : model.UnsubscribePacketInternal = {
@@ -449,11 +449,11 @@ function decode_unsubscribe_packet311(firstByte: number, payload: DataView) : mo
 
 function decode_disconnect_packet311(firstByte: number, payload: DataView) : mqtt5_packet.DisconnectPacket {
     if (payload.byteLength != 0) {
-        throw new CrtError("Invalid 311 Disconnect packet received");
+        throw new CrtError("Disconnect(311) packet with invalid payload");
     }
 
     if (firstByte != (model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 >>> 8)) {
-        throw new CrtError("311 Disconnect packet received with invalid first byte");
+        throw new CrtError("Disconnect(311) packet with invalid first byte: " + firstByte);
     }
 
     return {
@@ -486,7 +486,7 @@ function decode_subscribe_properties(subscribe: model.SubscribePacketInternal, p
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Subscribe packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -494,7 +494,7 @@ function decode_subscribe_properties(subscribe: model.SubscribePacketInternal, p
 
 function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.SubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBSCRIBE) {
-        throw new CrtError("5 Subscribe packet received with invalid first byte");
+        throw new CrtError("Subscribe(5) packet with invalid first byte: " + firstByte);
     }
 
     let subscribe : model.SubscribePacketInternal = {
@@ -531,7 +531,7 @@ function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.
     }
 
     if (index != payload.byteLength) {
-        throw new CrtError("??");
+        throw new CrtError("Subscribe packet mismatch between encoded subscriptions and expected length");
     }
 
     return subscribe;
@@ -557,7 +557,7 @@ function decode_unsubscribe_properties(unsubscribe: model.UnsubscribePacketInter
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Unsubscribe packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -565,7 +565,7 @@ function decode_unsubscribe_properties(unsubscribe: model.UnsubscribePacketInter
 
 function decode_unsubscribe_packet5(firstByte: number, payload: DataView) : model.UnsubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBSCRIBE) {
-        throw new CrtError("5 Unsubscribe packet received with invalid first byte");
+        throw new CrtError("Unsubscribe(5) packet with invalid first byte: " + firstByte);
     }
 
     let unsubscribe : model.UnsubscribePacketInternal = {
@@ -643,7 +643,7 @@ function decode_connect_properties(connect: model.ConnectPacketInternal, payload
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Connect packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -693,7 +693,7 @@ function decode_will_properties(connect: model.ConnectPacketInternal, will: mode
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Will mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -701,7 +701,7 @@ function decode_will_properties(connect: model.ConnectPacketInternal, will: mode
 
 function decode_connect_packet5(firstByte: number, payload: DataView) : model.ConnectPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNECT) {
-        throw new CrtError("5 Connect packet received with invalid first byte");
+        throw new CrtError("Connect(5) packet with invalid first byte: " + firstByte);
     }
 
     let connect : model.ConnectPacketInternal = {
@@ -716,13 +716,13 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
 
     [protocol, index] = decoder.decode_length_prefixed_string(payload, index);
     if (protocol != "MQTT") {
-        throw new CrtError("Connect packet received with invalid protocol");
+        throw new CrtError("Connect(5) packet with invalid protocol");
     }
 
     let protocolVersion: number = 0;
     [protocolVersion, index] = decoder.decode_u8(payload, index);
     if (protocolVersion != 5) {
-        throw new CrtError("Connect packet received with non-311 protocol version");
+        throw new CrtError("Connect(5) packet with unexpected protocol version");
     }
 
     let flags: number = 0;
@@ -769,7 +769,7 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
     }
 
     if (index != payload.byteLength) {
-        throw new CrtError("??");
+        throw new CrtError("Connect packet mismatch between payload and expected length");
     }
 
     return connect;
@@ -1236,7 +1236,7 @@ function do_fragmented_round_trip_encode_decode_test(packet: mqtt5_packet.IPacke
     }
 }
 
-test('Pingreq - EncodeDecode 311', () => {
+test('Pingreq - 311', () => {
     let pingreq : model.PingreqPacketInternal = {
         type: mqtt5_packet.PacketType.Pingreq
     };
@@ -1244,7 +1244,7 @@ test('Pingreq - EncodeDecode 311', () => {
     do_fragmented_round_trip_encode_decode_test(pingreq, model.ProtocolMode.Mqtt311, 20);
 });
 
-test('Pingreq - EncodeDecode 5', () => {
+test('Pingreq - 5', () => {
     let pingreq : model.PingreqPacketInternal = {
         type: mqtt5_packet.PacketType.Pingreq
     };
@@ -1252,7 +1252,7 @@ test('Pingreq - EncodeDecode 5', () => {
     do_fragmented_round_trip_encode_decode_test(pingreq, model.ProtocolMode.Mqtt5, 20);
 });
 
-test('Pingresp - EncodeDecode 311', () => {
+test('Pingresp - 311', () => {
     let pingreq : model.PingrespPacketInternal = {
         type: mqtt5_packet.PacketType.Pingreq
     };
@@ -1260,7 +1260,7 @@ test('Pingresp - EncodeDecode 311', () => {
     do_fragmented_round_trip_encode_decode_test(pingreq, model.ProtocolMode.Mqtt311, 20);
 });
 
-test('Pingresp - EncodeDecode 5', () => {
+test('Pingresp - 5', () => {
     let pingreq : model.PingrespPacketInternal = {
         type: mqtt5_packet.PacketType.Pingreq
     };
@@ -1268,7 +1268,7 @@ test('Pingresp - EncodeDecode 5', () => {
     do_fragmented_round_trip_encode_decode_test(pingreq, model.ProtocolMode.Mqtt5, 20);
 });
 
-test('Puback - EncodeDecode 311', () => {
+test('Puback - 311', () => {
     let puback : model.PubackPacketInternal = {
         type: mqtt5_packet.PacketType.Puback,
         packetId: 5,
@@ -1278,7 +1278,7 @@ test('Puback - EncodeDecode 311', () => {
     do_fragmented_round_trip_encode_decode_test(puback, model.ProtocolMode.Mqtt311, 20);
 });
 
-test('Puback - EncodeDecode Minimal 5', () => {
+test('Puback - Minimal 5', () => {
     let puback : model.PubackPacketInternal = {
         type: mqtt5_packet.PacketType.Puback,
         packetId: 5,
@@ -1288,7 +1288,7 @@ test('Puback - EncodeDecode Minimal 5', () => {
     do_fragmented_round_trip_encode_decode_test(puback, model.ProtocolMode.Mqtt5, 20);
 });
 
-test('Puback - EncodeDecode Minimal With Non-Zero ReasonCode 5', () => {
+test('Puback - Minimal With Non-Zero ReasonCode 5', () => {
     let puback : model.PubackPacketInternal = {
         type: mqtt5_packet.PacketType.Puback,
         packetId: 5,
@@ -1306,7 +1306,7 @@ function createDummyUserProperties() : Array<mqtt5_packet.UserProperty> {
     );
 }
 
-test('Puback - EncodeDecode Maximal 5', () => {
+test('Puback - Maximal 5', () => {
     let puback : model.PubackPacketInternal = {
         type: mqtt5_packet.PacketType.Puback,
         packetId: 37,
@@ -1318,7 +1318,7 @@ test('Puback - EncodeDecode Maximal 5', () => {
     do_fragmented_round_trip_encode_decode_test(puback, model.ProtocolMode.Mqtt5, 20);
 });
 
-test('Puback - EncodeDecode Maximal Falsy 5', () => {
+test('Puback - Maximal Falsy 5', () => {
     let puback : model.PubackPacketInternal = {
         type: mqtt5_packet.PacketType.Puback,
         packetId: 37,

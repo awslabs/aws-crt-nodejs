@@ -35,10 +35,6 @@ export function decode_vli(payload: DataView, offset: number) : [number, number]
     throw new CrtError("insufficient data to decode variable-length integer");
 }
 
-export function decode_string(payload: DataView, offset: number, length: number) : [string, number] {
-    return [toUtf8(new Uint8Array(payload.buffer, offset, length)), offset + length];
-}
-
 export function decode_length_prefixed_string(payload: DataView, offset: number) : [string, number] {
     let [stringLength, index] = decode_u16(payload, offset);
     return [toUtf8(new Uint8Array(payload.buffer, index, stringLength)), index + stringLength];
@@ -55,7 +51,7 @@ export function decode_length_prefixed_bytes(payload: DataView, offset: number) 
 
 function decode_connack_packet_311(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
     if (payload.byteLength != 2) {
-        throw new CrtError("Invalid 311 Connack packet received");
+        throw new CrtError("Connack(311) packet invalid payload length");
     }
 
     let index : number = 0;
@@ -69,9 +65,9 @@ function decode_connack_packet_311(firstByte: number, payload: DataView) : model
 
     [flags, index] = decode_u8(payload, index);
     if ((flags & ~0x01) != 0) {
-        throw new CrtError("Invalid connack flags");
+        throw new CrtError("Connack(311) invalid flags");
     }
-    connack.sessionPresent = flags != 0;
+    connack.sessionPresent = (flags & model.CONNACK_FLAGS_SESSION_PRESENT) != 0;
     [connack.reasonCode, index] = decode_u8(payload, index);
 
     return connack;
@@ -103,11 +99,11 @@ function decode_publish_packet_311(firstByte: number, payload: DataView) : model
 
 function decode_puback_packet_311(firstByte: number, payload: DataView) : model.PubackPacketInternal {
     if (payload.byteLength != 2) {
-        throw new CrtError("Puback packet received with invalid payload length");
+        throw new CrtError("Puback(311) packet with invalid payload length");
     }
 
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_PUBACK) {
-        throw new CrtError("Puback packet received with invalid first byte");
+        throw new CrtError("Puback(311) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -124,7 +120,7 @@ function decode_puback_packet_311(firstByte: number, payload: DataView) : model.
 
 function decode_suback_packet_311(firstByte: number, payload: DataView) : model.SubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBACK) {
-        throw new CrtError("Suback packet received with invalid first byte");
+        throw new CrtError("Suback(311) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -148,11 +144,11 @@ function decode_suback_packet_311(firstByte: number, payload: DataView) : model.
 
 function decode_unsuback_packet_311(firstByte: number, payload: DataView) : model.UnsubackPacketInternal {
     if (payload.byteLength != 2) {
-        throw new CrtError("Unsuback packet received with invalid payload length");
+        throw new CrtError("Unsuback(311) packet with invalid payload length");
     }
 
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBACK) {
-        throw new CrtError("Unsuback packet received with invalid first byte");
+        throw new CrtError("Unsuback(311) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -169,11 +165,11 @@ function decode_unsuback_packet_311(firstByte: number, payload: DataView) : mode
 
 function decode_pingresp_packet(firstByte: number, payload: DataView) : model.PingrespPacketInternal {
     if (payload.byteLength != 0) {
-        throw new CrtError("Invalid Pingresp packet received");
+        throw new CrtError("Pingresp packet with invalid payload length");
     }
 
     if (firstByte != (model.PACKET_TYPE_PINGRESP_FULL_ENCODING >>> 8)) {
-        throw new CrtError("Pingresp packet received with invalid first byte");
+        throw new CrtError("Pingresp packet with invalid first byte: " + firstByte);
     }
 
     return {
@@ -278,7 +274,7 @@ function decode_connack_properties(connack: model.ConnackPacketInternal, payload
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Connack packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -286,7 +282,7 @@ function decode_connack_properties(connack: model.ConnackPacketInternal, payload
 
 function decode_connack_packet_5(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNACK) {
-        throw new CrtError("Connack received with invalid first byte");
+        throw new CrtError("Connack(5) with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -299,10 +295,7 @@ function decode_connack_packet_5(firstByte: number, payload: DataView) : model.C
     };
 
     [flags, index] = decode_u8(payload, index);
-    if ((flags & ~0x01) != 0) {
-        throw new CrtError("Invalid connack flags");
-    }
-    connack.sessionPresent = flags != 0;
+    connack.sessionPresent = (flags & model.CONNACK_FLAGS_SESSION_PRESENT) != 0;
     [connack.reasonCode, index] = decode_u8(payload, index);
 
     let propertiesLength : number = 0;
@@ -311,7 +304,7 @@ function decode_connack_packet_5(firstByte: number, payload: DataView) : model.C
     index = decode_connack_properties(connack, payload, index, propertiesLength);
 
     if (index != payload.byteLength) {
-        throw new CrtError("??");
+        throw new CrtError("Connect packet mismatch between payload and expected length");
     }
 
     return connack;
@@ -369,7 +362,7 @@ function decode_publish_properties(publish: model.PublishPacketInternal, payload
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Publish packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -427,16 +420,15 @@ function decode_puback_properties(puback: model.PubackPacketInternal, payload: D
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Puback packet mismatch between encoded properties and expected length");
     }
 
     return index;
 }
 
 function decode_puback_packet_5(firstByte: number, payload: DataView) : model.PubackPacketInternal {
-
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_PUBACK) {
-        throw new CrtError("Puback packet received with invalid first byte");
+        throw new CrtError("Puback(5) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -460,7 +452,7 @@ function decode_puback_packet_5(firstByte: number, payload: DataView) : model.Pu
     }
 
     if (index != payload.byteLength) {
-        throw new CrtError("??");
+        throw new CrtError("Puback packet mismatch between payload and expected length");
     }
 
     return puback;
@@ -490,7 +482,7 @@ function decode_suback_properties(suback: model.SubackPacketInternal, payload: D
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Suback packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -498,7 +490,7 @@ function decode_suback_properties(suback: model.SubackPacketInternal, payload: D
 
 function decode_suback_packet_5(firstByte: number, payload: DataView) : model.SubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBACK) {
-        throw new CrtError("Suback packet received with invalid first byte");
+        throw new CrtError("Suback(5) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -549,7 +541,7 @@ function decode_unsuback_properties(unsuback: model.UnsubackPacketInternal, payl
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Unsuback packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -557,7 +549,7 @@ function decode_unsuback_properties(unsuback: model.UnsubackPacketInternal, payl
 
 function decode_unsuback_packet_5(firstByte: number, payload: DataView) : model.UnsubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBACK) {
-        throw new CrtError("Unsuback packet received with invalid first byte");
+        throw new CrtError("Unsuback(5) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -616,7 +608,7 @@ function decode_disconnect_properties(disconnect: mqtt5_packet.DisconnectPacket,
     }
 
     if (index != offset + propertyLength) {
-        throw new CrtError("??");
+        throw new CrtError("Disconnect packet mismatch between encoded properties and expected length");
     }
 
     return index;
@@ -624,7 +616,7 @@ function decode_disconnect_properties(disconnect: mqtt5_packet.DisconnectPacket,
 
 function decode_disconnect_packet_5(firstByte: number, payload: DataView) : model.DisconnectPacketInternal {
     if (firstByte != (model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 >>> 8)) {
-        throw new CrtError("Disconnect packet received with invalid first byte");
+        throw new CrtError("Disconnect(5) packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -645,7 +637,7 @@ function decode_disconnect_packet_5(firstByte: number, payload: DataView) : mode
     }
 
     if (index != payload.byteLength) {
-        throw new CrtError("??");
+        throw new CrtError("Disconnect packet mismatch between payload and expected length");
     }
 
     return disconnect;

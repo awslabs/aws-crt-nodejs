@@ -53,6 +53,8 @@ export const CONNECT_FLAGS_QOS_SHIFT : number = 0x03;
 export const CONNECT_FLAGS_WILL_RETAIN : number = 0x20;
 export const CONNECT_FLAGS_CLEAN_SESSION : number = 0x02;
 
+export const CONNACK_FLAGS_SESSION_PRESENT : number = 0x01;
+
 export const PUBLISH_FLAGS_QOS_SHIFT : number = 0x01;
 export const PUBLISH_FLAGS_RETAIN : number = 0x01;
 export const PUBLISH_FLAGS_DUPLICATE : number = 0x08;
