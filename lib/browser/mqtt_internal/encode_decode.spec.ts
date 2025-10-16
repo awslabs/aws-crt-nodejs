@@ -46,67 +46,67 @@ function get_connack_packet_remaining_lengths5(packet: model.ConnackPacketBinary
     let remaining_length: number = 2; // 1 byte flags, 1 byte reason code
     let properties_length: number = 0;
 
-    if (packet.sessionExpiryInterval) {
+    if (packet.sessionExpiryInterval != undefined) {
         properties_length += 5;
     }
 
-    if (packet.receiveMaximum) {
+    if (packet.receiveMaximum != undefined) {
         properties_length += 3;
     }
 
-    if (packet.maximumQos) {
+    if (packet.maximumQos != undefined) {
         properties_length += 2;
     }
 
-    if (packet.retainAvailable) {
-        properties_length += 1;
+    if (packet.retainAvailable != undefined) {
+        properties_length += 2;
     }
 
-    if (packet.maximumPacketSize) {
+    if (packet.maximumPacketSize != undefined) {
         properties_length += 5;
     }
 
-    if (packet.assignedClientIdentifier) {
+    if (packet.assignedClientIdentifier != undefined) {
         properties_length += 3 + packet.assignedClientIdentifier.byteLength;
     }
 
-    if (packet.topicAliasMaximum) {
+    if (packet.topicAliasMaximum != undefined) {
         properties_length += 3;
     }
 
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
-    if (packet.wildcardSubscriptionsAvailable) {
+    if (packet.wildcardSubscriptionsAvailable != undefined) {
         properties_length += 2;
     }
 
-    if (packet.subscriptionIdentifiersAvailable) {
+    if (packet.subscriptionIdentifiersAvailable != undefined) {
         properties_length += 2;
     }
 
-    if (packet.sharedSubscriptionsAvailable) {
+    if (packet.sharedSubscriptionsAvailable != undefined) {
         properties_length += 2;
     }
 
-    if (packet.serverKeepAlive) {
+    if (packet.serverKeepAlive != undefined) {
         properties_length += 3;
     }
 
-    if (packet.responseInformation) {
+    if (packet.responseInformation != undefined) {
         properties_length += 3 + packet.responseInformation.byteLength;
     }
 
-    if (packet.serverReference) {
+    if (packet.serverReference != undefined) {
         properties_length += 3 + packet.serverReference.byteLength;
     }
 
-    if (packet.authenticationMethod) {
+    if (packet.authenticationMethod != undefined) {
         properties_length += 3 + packet.authenticationMethod.byteLength;
     }
 
-    if (packet.authenticationData) {
+    if (packet.authenticationData != undefined) {
         properties_length += 3 + packet.authenticationData.byteLength;
     }
 
@@ -118,82 +118,82 @@ function get_connack_packet_remaining_lengths5(packet: model.ConnackPacketBinary
 }
 
 function encode_connack_properties(steps: Array<encoder.EncodingStep>, packet: model.ConnackPacketBinary) {
-    if (packet.sessionExpiryInterval) {
+    if (packet.sessionExpiryInterval != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U32, value: packet.sessionExpiryInterval });
     }
 
-    if (packet.receiveMaximum) {
+    if (packet.receiveMaximum != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.RECEIVE_MAXIMUM_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U16, value: packet.receiveMaximum });
     }
 
-    if (packet.maximumQos) {
+    if (packet.maximumQos != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.MAXIMUM_QOS_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U8, value: packet.maximumQos });
     }
 
-    if (packet.retainAvailable) {
+    if (packet.retainAvailable != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.RETAIN_AVAILABLE_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U8, value: packet.retainAvailable });
     }
 
-    if (packet.maximumPacketSize) {
+    if (packet.maximumPacketSize != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.MAXIMUM_PACKET_SIZE_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U32, value: packet.maximumPacketSize });
     }
 
-    if (packet.assignedClientIdentifier) {
+    if (packet.assignedClientIdentifier != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.ASSIGNED_CLIENT_IDENTIFIER_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.assignedClientIdentifier);
     }
 
-    if (packet.topicAliasMaximum) {
+    if (packet.topicAliasMaximum != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.TOPIC_ALIAS_MAXIMUM_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U16, value: packet.topicAliasMaximum });
     }
 
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
 
-    if (packet.wildcardSubscriptionsAvailable) {
+    if (packet.wildcardSubscriptionsAvailable != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.WILDCARD_SUBSCRIPTIONS_AVAILABLE_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U8, value: packet.wildcardSubscriptionsAvailable });
     }
 
-    if (packet.subscriptionIdentifiersAvailable) {
+    if (packet.subscriptionIdentifiersAvailable != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SUBSCRIPTION_IDENTIFIERS_AVAILABLE_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U8, value: packet.subscriptionIdentifiersAvailable });
     }
 
-    if (packet.sharedSubscriptionsAvailable) {
+    if (packet.sharedSubscriptionsAvailable != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SHARED_SUBSCRIPTIONS_AVAILABLE_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U8, value: packet.sharedSubscriptionsAvailable });
     }
 
-    if (packet.serverKeepAlive) {
+    if (packet.serverKeepAlive != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SERVER_KEEP_ALIVE_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U16, value: packet.serverKeepAlive });
     }
 
-    if (packet.responseInformation) {
+    if (packet.responseInformation != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.RESPONSE_INFORMATION_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.responseInformation);
     }
 
-    if (packet.serverReference) {
+    if (packet.serverReference != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SERVER_REFERENCE_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.serverReference);
     }
 
-    if (packet.authenticationMethod) {
+    if (packet.authenticationMethod != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.AUTHENTICATION_METHOD_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.authenticationMethod);
     }
 
-    if (packet.authenticationData) {
+    if (packet.authenticationData != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.AUTHENTICATION_DATA_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.authenticationData);
     }
@@ -217,7 +217,7 @@ function get_suback_packet_remaining_lengths5(packet: model.SubackPacketBinary) 
     let remaining_length: number = 2; // packet id
     let properties_length: number = 0;
 
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
@@ -230,7 +230,7 @@ function get_suback_packet_remaining_lengths5(packet: model.SubackPacketBinary) 
 }
 
 function encode_suback_properties(steps: Array<encoder.EncodingStep>, packet: model.SubackPacketBinary) {
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
@@ -257,7 +257,7 @@ function get_unsuback_packet_remaining_lengths5(packet: model.UnsubackPacketBina
     let remaining_length: number = 2; // packet id
     let properties_length: number = encoder.compute_user_properties_length(packet.userProperties);
 
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
@@ -268,7 +268,7 @@ function get_unsuback_packet_remaining_lengths5(packet: model.UnsubackPacketBina
 }
 
 function encode_unsuback_properties(steps: Array<encoder.EncodingStep>, packet: model.UnsubackPacketBinary) {
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encoder.encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
@@ -373,7 +373,8 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
             type: mqtt5_packet.PacketType.Publish,
             topicName: willTopic,
             payload: willPayload,
-            qos: (flags >>> model.CONNECT_FLAGS_QOS_SHIFT) & model.QOS_MASK
+            qos: (flags >>> model.CONNECT_FLAGS_QOS_SHIFT) & model.QOS_MASK,
+            retain: (flags & model.CONNECT_FLAGS_WILL_RETAIN) != 0
         };
     }
 
@@ -754,6 +755,7 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
         [will.topicName, index] = decoder.decode_length_prefixed_string(payload, index);
         [will.payload, index] = decoder.decode_length_prefixed_bytes(payload, index);
         will.qos = (flags >>> model.CONNECT_FLAGS_QOS_SHIFT) & model.QOS_MASK;
+        will.retain = (flags & model.CONNECT_FLAGS_WILL_RETAIN) != 0;
 
         connect.will = will;
     }
@@ -807,6 +809,18 @@ function optional_booleans_equal(lhs: boolean | undefined, rhs: boolean | undefi
     return false;
 }
 
+function optional_booleans_falsy_equal(lhs: boolean | undefined, rhs: boolean | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs == rhs;
+    }
+
+    return !lhs && !rhs;
+}
+
 function optional_numbers_equal(lhs: number | undefined, rhs: number | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
@@ -819,6 +833,18 @@ function optional_numbers_equal(lhs: number | undefined, rhs: number | undefined
     return false;
 }
 
+function optional_numbers_falsy_equal(lhs: number | undefined, rhs: number | undefined) : boolean {
+    if (lhs == undefined && rhs == undefined) {
+        return true;
+    }
+
+    if (lhs != undefined && rhs != undefined) {
+        return lhs == rhs;
+    }
+
+    return !lhs && !rhs;
+}
+
 function optional_strings_equal(lhs: string | undefined, rhs: string | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
@@ -828,7 +854,7 @@ function optional_strings_equal(lhs: string | undefined, rhs: string | undefined
         return lhs === rhs;
     }
 
-    return false;
+    return (lhs == undefined || lhs.length == 0) && (rhs == undefined || rhs.length == 0);
 }
 
 function buffers_equal(lhs: ArrayBuffer, rhs: ArrayBuffer) : boolean {
@@ -857,7 +883,7 @@ function optional_buffers_equal(lhs: ArrayBuffer | undefined, rhs: ArrayBuffer |
         return buffers_equal(lhs, rhs);
     }
 
-    return false;
+    return (lhs == undefined || lhs.byteLength == 0) && (rhs == undefined || rhs.byteLength == 0);
 }
 
 function user_properties_equal(lhs: Array<mqtt5_packet.UserProperty> | undefined, rhs: Array<mqtt5_packet.UserProperty> | undefined) : boolean {
@@ -883,7 +909,7 @@ function user_properties_equal(lhs: Array<mqtt5_packet.UserProperty> | undefined
         return true;
     }
 
-    return false;
+    return (lhs == undefined || lhs.length == 0) && (rhs == undefined || rhs.length == 0);
 }
 
 function are_connect_packets_equal(lhs: model.ConnectPacketInternal, rhs: model.ConnectPacketInternal) : boolean {
@@ -962,7 +988,7 @@ function number_arrays_equal(lhs: Array<number> | undefined, rhs: Array<number> 
         return true;
     }
 
-    return false;
+    return (lhs == undefined || lhs.length == 0) && (rhs == undefined || rhs.length == 0);
 }
 
 function are_publish_packets_equal(lhs: mqtt5_packet.PublishPacket | undefined, rhs: mqtt5_packet.PublishPacket | undefined) : boolean {
@@ -1023,15 +1049,15 @@ function subscriptions_equal(lhs: Array<mqtt5_packet.Subscription>, rhs: Array<m
             return false;
         }
 
-        if (!optional_booleans_equal(lhs[i].noLocal, rhs[i].noLocal)) {
+        if (!optional_booleans_falsy_equal(lhs[i].noLocal, rhs[i].noLocal)) {
             return false;
         }
 
-        if (!optional_booleans_equal(lhs[i].retainAsPublished, rhs[i].retainAsPublished)) {
+        if (!optional_booleans_falsy_equal(lhs[i].retainAsPublished, rhs[i].retainAsPublished)) {
             return false;
         }
 
-        if (!optional_numbers_equal(lhs[i].retainHandlingType, rhs[i].retainHandlingType)) {
+        if (!optional_numbers_falsy_equal(lhs[i].retainHandlingType, rhs[i].retainHandlingType)) {
             return false;
         }
     }
@@ -1292,6 +1318,18 @@ test('Puback - EncodeDecode Maximal 5', () => {
     do_fragmented_round_trip_encode_decode_test(puback, model.ProtocolMode.Mqtt5, 20);
 });
 
+test('Puback - EncodeDecode Maximal Falsy 5', () => {
+    let puback : model.PubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Puback,
+        packetId: 37,
+        reasonCode: mqtt5_packet.PubackReasonCode.UnspecifiedError,
+        reasonString: "",
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(puback, model.ProtocolMode.Mqtt5, 20);
+});
+
 test('Publish - Empty Payload 311', () => {
     let publish : model.PublishPacketInternal = {
         type: mqtt5_packet.PacketType.Publish,
@@ -1312,11 +1350,610 @@ test('Publish - With Payload 311', () => {
         type: mqtt5_packet.PacketType.Publish,
         packetId: 7,
         qos: mqtt5_packet.QoS.AtLeastOnce,
-        topicName: "foo/bar",
+        topicName: "hello/world",
         duplicate: false,
         retain: false,
         payload: payload
     };
 
     do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Publish - Minimal Empty Payload 5', () => {
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.ExactlyOnce,
+        packetId: 47,
+        topicName: "uff/dah",
+        duplicate: true,
+        retain: false
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Publish - Minimal With Payload 5', () => {
+    let encoder = new TextEncoder();
+    let payload = encoder.encode("Very Important Data").buffer;
+
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.ExactlyOnce,
+        packetId: 47,
+        topicName: "uff/dah/2",
+        duplicate: true,
+        retain: false,
+        payload: payload
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Publish - Maximal Empty Payload 5', () => {
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        topicName: "uff/dah",
+        duplicate: true,
+        retain: false,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Utf8,
+        messageExpiryIntervalSeconds: 1020,
+        topicAlias: 5,
+        responseTopic: "uff/dah/accepted",
+        subscriptionIdentifiers: new Array<number>(32, 255, 128 * 128 * 128 - 1, 128 * 128 * 128 + 1),
+        correlationData: new Uint8Array([1, 2, 3, 4, 5]).buffer,
+        contentType: "application/json",
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Publish - Maximal Empty Payload Falsy 5', () => {
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        topicName: "uff/dah",
+        duplicate: false,
+        retain: false,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Bytes,
+        messageExpiryIntervalSeconds: 0,
+        topicAlias: 0, // protocol error, but doesn't matter here
+        responseTopic: "",
+        subscriptionIdentifiers: new Array<number>(0, 255, 128 * 128 * 128 - 1, 128 * 128 * 128 + 1),
+        correlationData: new Uint8Array([]).buffer,
+        contentType: "",
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Publish - Maximal With Payload 5', () => {
+    let encoder = new TextEncoder();
+    let payload = encoder.encode("Very Important Data").buffer;
+
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.ExactlyOnce,
+        packetId: 47,
+        topicName: "uff/dah/api",
+        duplicate: false,
+        retain: true,
+        payload: payload,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Bytes,
+        messageExpiryIntervalSeconds: 53281,
+        topicAlias: 2,
+        responseTopic: "uff/dah/rejected",
+        subscriptionIdentifiers: new Array<number>(1, 128 * 128 * 128 - 1, 128 * 128 * 128 + 1, 255),
+        correlationData: new Uint8Array([5, 4, 3, 2, 1]).buffer,
+        contentType: "application/xml",
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Publish - Maximal With Payload Falsy 5', () => {
+    let payload = new Uint8Array([0]).buffer;
+
+    let publish : model.PublishPacketInternal = {
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.ExactlyOnce,
+        packetId: 47,
+        topicName: "",
+        duplicate: false,
+        retain: true,
+        payload: payload,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Bytes,
+        messageExpiryIntervalSeconds: 0,
+        topicAlias: 2,
+        responseTopic: "",
+        subscriptionIdentifiers: new Array<number>(),
+        correlationData: new Uint8Array([]).buffer,
+        contentType: "",
+        userProperties: new Array<mqtt5_packet.UserProperty>()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(publish, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Disconnect - 311', () => {
+    let disconnect : model.DisconnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
+    };
+
+    do_fragmented_round_trip_encode_decode_test(disconnect, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Disconnect - Minimal zero reason code 5', () => {
+    let disconnect : model.DisconnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
+    };
+
+    do_fragmented_round_trip_encode_decode_test(disconnect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Disconnect - Minimal non-zero reason code 5', () => {
+    let disconnect : model.DisconnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: mqtt5_packet.DisconnectReasonCode.KeepAliveTimeout,
+    };
+
+    do_fragmented_round_trip_encode_decode_test(disconnect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Disconnect - Maximal 5', () => {
+    let disconnect : model.DisconnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
+        reasonString: "Looks funny",
+        serverReference: "Somewhere else",
+        sessionExpiryIntervalSeconds: 255,
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(disconnect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Disconnect - Maximal Falsy 5', () => {
+    let disconnect : model.DisconnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: mqtt5_packet.DisconnectReasonCode.DisconnectWithWillMessage,
+        reasonString: "",
+        serverReference: "",
+        sessionExpiryIntervalSeconds: 0,
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(disconnect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Subscribe - 311', () => {
+    let subscribe : model.SubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Subscribe,
+        packetId: 12,
+        subscriptions: new Array<mqtt5_packet.Subscription>(
+            {topicFilter: "three", qos: mqtt5_packet.QoS.AtLeastOnce},
+            {topicFilter: "fortysix/and/two", qos: mqtt5_packet.QoS.AtMostOnce},
+            {topicFilter: "five", qos: mqtt5_packet.QoS.ExactlyOnce},
+        )
+    };
+
+    do_fragmented_round_trip_encode_decode_test(subscribe, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Subscribe - Minimal 5', () => {
+    let subscribe : model.SubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Subscribe,
+        packetId: 42,
+        subscriptions: new Array<mqtt5_packet.Subscription>(
+            {topicFilter: "up", qos: mqtt5_packet.QoS.AtLeastOnce},
+            {topicFilter: "fortysix/and/two", qos: mqtt5_packet.QoS.AtMostOnce},
+            {topicFilter: "down", qos: mqtt5_packet.QoS.ExactlyOnce},
+        )
+    };
+
+    do_fragmented_round_trip_encode_decode_test(subscribe, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Subscribe - Maximal 5', () => {
+    let subscribe : model.SubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Subscribe,
+        packetId: 42,
+        subscriptions: new Array<mqtt5_packet.Subscription>(
+            {topicFilter: "up", qos: mqtt5_packet.QoS.AtLeastOnce, noLocal: true, retainAsPublished : true, retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribe},
+            {topicFilter: "fortysix/and/two", qos: mqtt5_packet.QoS.AtMostOnce, noLocal: false, retainAsPublished : false, retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribeIfNew},
+            {topicFilter: "down", qos: mqtt5_packet.QoS.ExactlyOnce, noLocal: true, retainAsPublished : false, retainHandlingType: mqtt5_packet.RetainHandlingType.DontSend},
+        ),
+        userProperties: createDummyUserProperties(),
+        subscriptionIdentifier: 47,
+    };
+
+    do_fragmented_round_trip_encode_decode_test(subscribe, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Subscribe - Maximal Falsy 5', () => {
+    let subscribe : model.SubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Subscribe,
+        packetId: 0,
+        subscriptions: new Array<mqtt5_packet.Subscription>(
+            {topicFilter: "", qos: mqtt5_packet.QoS.AtLeastOnce, noLocal: true, retainAsPublished : true, retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribe},
+            {topicFilter: "fortysix/and/two", qos: mqtt5_packet.QoS.AtMostOnce, noLocal: false, retainAsPublished : false, retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribeIfNew},
+            {topicFilter: "down", qos: mqtt5_packet.QoS.ExactlyOnce, noLocal: true, retainAsPublished : false, retainHandlingType: mqtt5_packet.RetainHandlingType.DontSend},
+        ),
+        userProperties: createDummyUserProperties(),
+        subscriptionIdentifier: 0,
+    };
+
+    do_fragmented_round_trip_encode_decode_test(subscribe, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Suback - 311', () => {
+    let suback : model.SubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Suback,
+        packetId: 12,
+        reasonCodes: new Array<mqtt5_packet.SubackReasonCode>(
+            mqtt5_packet.SubackReasonCode.GrantedQoS1,
+            mqtt5_packet.SubackReasonCode.GrantedQoS0,
+            mqtt5_packet.SubackReasonCode.GrantedQoS2,
+            128
+        )
+    };
+
+    do_fragmented_round_trip_encode_decode_test(suback, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Suback - Minimal 5', () => {
+    let suback : model.SubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Suback,
+        packetId: 53280,
+        reasonCodes: new Array<mqtt5_packet.SubackReasonCode>(
+            mqtt5_packet.SubackReasonCode.GrantedQoS1,
+            mqtt5_packet.SubackReasonCode.GrantedQoS0,
+            mqtt5_packet.SubackReasonCode.NotAuthorized,
+            mqtt5_packet.SubackReasonCode.TopicFilterInvalid,
+        )
+    };
+
+    do_fragmented_round_trip_encode_decode_test(suback, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Suback - Maximal 5', () => {
+    let suback : model.SubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Suback,
+        packetId: 53280,
+        reasonCodes: new Array<mqtt5_packet.SubackReasonCode>(
+            mqtt5_packet.SubackReasonCode.GrantedQoS1,
+            mqtt5_packet.SubackReasonCode.GrantedQoS0,
+            mqtt5_packet.SubackReasonCode.NotAuthorized,
+            mqtt5_packet.SubackReasonCode.TopicFilterInvalid,
+        ),
+        reasonString: "Not well",
+        userProperties: createDummyUserProperties(),
+    };
+
+    do_fragmented_round_trip_encode_decode_test(suback, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Suback - Maximal Falsy 5', () => {
+    let suback : model.SubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Suback,
+        packetId: 0,
+        reasonCodes: new Array<mqtt5_packet.SubackReasonCode>(
+            mqtt5_packet.SubackReasonCode.GrantedQoS1,
+            mqtt5_packet.SubackReasonCode.GrantedQoS0,
+            mqtt5_packet.SubackReasonCode.NotAuthorized,
+            mqtt5_packet.SubackReasonCode.TopicFilterInvalid,
+        ),
+        reasonString: "",
+        userProperties: new Array<mqtt5_packet.UserProperty>(),
+    };
+
+    do_fragmented_round_trip_encode_decode_test(suback, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Unsubscribe - 311', () => {
+    let unsubscribe : model.UnsubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        packetId: 12,
+        topicFilters: new Array<string>("three", "fortysix/and/two", "squarepants")
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsubscribe, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Unsubscribe - Minimal 5', () => {
+    let unsubscribe : model.UnsubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        packetId: 12,
+        topicFilters: new Array<string>("three", "fortysix/and/two", "squidward")
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsubscribe, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Unsubscribe - Maximal 5', () => {
+    let unsubscribe : model.UnsubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        packetId: 12,
+        topicFilters: new Array<string>("three", "fortysix/and/two", "five"),
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsubscribe, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Unsubscribe - Falsy 5', () => {
+    let unsubscribe : model.UnsubscribePacketInternal = {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        packetId: 0,
+        topicFilters: new Array<string>("three", "fortysix/and/two", "patrickstar"),
+        userProperties: new Array<mqtt5_packet.UserProperty>()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsubscribe, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Unsuback - 311', () => {
+    let unsuback : model.UnsubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Unsuback,
+        packetId: 12,
+        reasonCodes: new Array<mqtt5_packet.UnsubackReasonCode>()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsuback, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Unsuback - Minimal 5', () => {
+    let unsuback : model.UnsubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Unsuback,
+        packetId: 12,
+        reasonCodes: new Array<mqtt5_packet.UnsubackReasonCode>(
+            mqtt5_packet.UnsubackReasonCode.Success,
+            mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted,
+            mqtt5_packet.UnsubackReasonCode.NotAuthorized,
+            mqtt5_packet.UnsubackReasonCode.TopicFilterInvalid,
+        )
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsuback, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Unsuback - Maximal 5', () => {
+    let unsuback : model.UnsubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Unsuback,
+        packetId: 12,
+        reasonCodes: new Array<mqtt5_packet.UnsubackReasonCode>(
+            mqtt5_packet.UnsubackReasonCode.Success,
+            mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted,
+            mqtt5_packet.UnsubackReasonCode.NotAuthorized,
+            mqtt5_packet.UnsubackReasonCode.TopicFilterInvalid,
+        ),
+        reasonString: "Ihavenoidea",
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsuback, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Unsuback - Maximal Falsy 5', () => {
+    let unsuback : model.UnsubackPacketInternal = {
+        type: mqtt5_packet.PacketType.Unsuback,
+        packetId: 0,
+        reasonCodes: new Array<mqtt5_packet.UnsubackReasonCode>(
+            mqtt5_packet.UnsubackReasonCode.Success,
+        ),
+        reasonString: "",
+        userProperties: new Array<mqtt5_packet.UserProperty>()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(unsuback, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Connect - Minimal 311', () => {
+    let connect : model.ConnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Connect,
+        cleanStart: true,
+        keepAliveIntervalSeconds: 1200
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connect, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Connect - Maximal 311', () => {
+    let connect : model.ConnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Connect,
+        cleanStart: true,
+        keepAliveIntervalSeconds: 1200,
+        clientId: "Spongebob",
+        username: "KrabbyPatty",
+        password: new Uint8Array([0, 1, 2, 3, 4]).buffer,
+        will: {
+            type: mqtt5_packet.PacketType.Publish,
+            topicName: "Bikini/Bottom",
+            payload: new Uint8Array([5, 6, 7, 8, 9]).buffer,
+            qos: mqtt5_packet.QoS.AtLeastOnce,
+            retain: true
+        },
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connect, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Connect - Maximal Falsy 311', () => {
+    let connect : model.ConnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Connect,
+        cleanStart: false,
+        keepAliveIntervalSeconds: 0,
+        clientId: "",
+        username: "",
+        password: new Uint8Array([]).buffer,
+        will: {
+            type: mqtt5_packet.PacketType.Publish,
+            topicName: "",
+            payload: new Uint8Array([]).buffer,
+            qos: mqtt5_packet.QoS.AtMostOnce,
+            retain: false
+        },
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connect, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Connect - Minimal 5', () => {
+    let connect : model.ConnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Connect,
+        cleanStart: true,
+        keepAliveIntervalSeconds: 1200
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Connect - Maximal 5', () => {
+    let connect : model.ConnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Connect,
+        cleanStart: true,
+        keepAliveIntervalSeconds: 1200,
+        clientId: "Spongebob",
+        username: "KrabbyPatty",
+        password: new Uint8Array([0, 1, 2, 3, 4]).buffer,
+        topicAliasMaximum: 20,
+        authenticationMethod: "Secrethandshake",
+        authenticationData: new Uint8Array([40, 41, 42, 43, 44]).buffer,
+        willDelayIntervalSeconds: 30,
+        sessionExpiryIntervalSeconds: 600,
+        requestResponseInformation: true,
+        requestProblemInformation: false,
+        receiveMaximum: 100,
+        maximumPacketSizeBytes: 128 * 1024,
+        userProperties: createDummyUserProperties(),
+        will: {
+            type: mqtt5_packet.PacketType.Publish,
+            topicName: "Bikini/Bottom",
+            payload: new Uint8Array([5, 6, 7, 8, 9]).buffer,
+            qos: mqtt5_packet.QoS.AtLeastOnce,
+            retain: true,
+            payloadFormat: mqtt5_packet.PayloadFormatIndicator.Utf8,
+            messageExpiryIntervalSeconds: 3600,
+            contentType: "application/json",
+            responseTopic: "Krusty/Krab",
+            correlationData: new Uint8Array([65, 66, 68]).buffer,
+            userProperties: createDummyUserProperties(),
+        },
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Connect - Maximal Falsy 5', () => {
+    let connect : model.ConnectPacketInternal = {
+        type: mqtt5_packet.PacketType.Connect,
+        cleanStart: true,
+        keepAliveIntervalSeconds: 0,
+        clientId: "",
+        username: "",
+        password: new Uint8Array([]).buffer,
+        topicAliasMaximum: 0,
+        authenticationMethod: "",
+        authenticationData: new Uint8Array([]).buffer,
+        willDelayIntervalSeconds: 0,
+        sessionExpiryIntervalSeconds: 0,
+        requestResponseInformation: false,
+        requestProblemInformation: false,
+        receiveMaximum: 0,
+        maximumPacketSizeBytes: 0,
+        userProperties: new Array<mqtt5_packet.UserProperty>(),
+        will: {
+            type: mqtt5_packet.PacketType.Publish,
+            topicName: "",
+            qos: mqtt5_packet.QoS.AtMostOnce,
+            retain: false,
+            payloadFormat: mqtt5_packet.PayloadFormatIndicator.Bytes,
+            messageExpiryIntervalSeconds: 0,
+            contentType: "",
+            responseTopic: "",
+            correlationData: new Uint8Array([]).buffer,
+            userProperties: new Array<mqtt5_packet.UserProperty>(),
+        },
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connect, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Connack - 311', () => {
+    let connack : model.ConnackPacketInternal = {
+        type: mqtt5_packet.PacketType.Connack,
+        reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+        sessionPresent: true
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connack, model.ProtocolMode.Mqtt311, 20);
+});
+
+test('Connack - Minimal 5', () => {
+    let connack : model.ConnackPacketInternal = {
+        type: mqtt5_packet.PacketType.Connack,
+        reasonCode: mqtt5_packet.ConnectReasonCode.NotAuthorized,
+        sessionPresent: false
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connack, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Connack - Maximal 5', () => {
+    let connack : model.ConnackPacketInternal = {
+        type: mqtt5_packet.PacketType.Connack,
+        reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+        sessionPresent: true,
+        authenticationMethod: "Piglatin",
+        authenticationData: new Uint8Array([40, 41, 42, 43, 44]).buffer,
+        sessionExpiryInterval: 3600,
+        receiveMaximum: 100,
+        maximumQos: 1,
+        retainAvailable: true,
+        maximumPacketSize: 128 * 1024,
+        assignedClientIdentifier: "SpongebobSquarepants",
+        topicAliasMaximum: 20,
+        reasonString: "Nice",
+        wildcardSubscriptionsAvailable: true,
+        subscriptionIdentifiersAvailable: true,
+        sharedSubscriptionsAvailable: true,
+        serverKeepAlive: 1200,
+        responseInformation: "this/topic",
+        serverReference: "Guam.com",
+        userProperties: createDummyUserProperties()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connack, model.ProtocolMode.Mqtt5, 20);
+});
+
+test('Connack - Maximal Falsy 5', () => {
+    let connack : model.ConnackPacketInternal = {
+        type: mqtt5_packet.PacketType.Connack,
+        reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+        sessionPresent: false,
+        authenticationMethod: "",
+        authenticationData: new Uint8Array([]).buffer,
+        sessionExpiryInterval: 0,
+        receiveMaximum: 0,
+        maximumQos: 0,
+        retainAvailable: false,
+        maximumPacketSize: 0,
+        assignedClientIdentifier: "",
+        topicAliasMaximum: 0,
+        reasonString: "",
+        wildcardSubscriptionsAvailable: false,
+        subscriptionIdentifiersAvailable: false,
+        sharedSubscriptionsAvailable: false,
+        serverKeepAlive: 0,
+        responseInformation: "",
+        serverReference: "",
+        userProperties: new Array<mqtt5_packet.UserProperty>()
+    };
+
+    do_fragmented_round_trip_encode_decode_test(connack, model.ProtocolMode.Mqtt5, 20);
 });

@@ -68,7 +68,7 @@ export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
                 value: value,
                 nextOffset: offset + index
             };
-        } else if (view_index >= data.byteLength) {
+        } else if (view_index + 1 >= data.byteLength) {
             return {
                 type: VliDecodeResultType.MoreData
             };

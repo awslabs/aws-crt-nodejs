@@ -174,7 +174,7 @@ function get_subscribe_packet_remaining_lengths311(packet: model.SubscribePacket
     return size;
 }
 
-function encode_subscription311(steps: Array<EncodingStep>, subscription: model.SubscriptionInternal) {
+function encode_subscription311(steps: Array<EncodingStep>, subscription: model.SubscriptionBinary) {
     encode_required_length_prefixed_array_buffer(steps, subscription.topicFilter);
     steps.push({ type: EncodingStepType.U8, value: subscription.qos });
 }
@@ -217,7 +217,7 @@ function encode_disconnect_packet311(steps: Array<EncodingStep>, packet: model.D
     steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 });
 }
 
-export function compute_user_properties_length(user_properties: Array<model.UserPropertyInternal> | undefined) : number {
+export function compute_user_properties_length(user_properties: Array<model.UserPropertyBinary> | undefined) : number {
     if (!user_properties) {
         return 0;
     }
@@ -238,27 +238,27 @@ function compute_will_properties_length(packet: model.ConnectPacketBinary) : num
 
     let length : number = compute_user_properties_length(packet.will.userProperties);
 
-    if (packet.willDelayIntervalSeconds) {
+    if (packet.willDelayIntervalSeconds != undefined) {
         length += 5;
     }
 
-    if (packet.will.payloadFormat) {
+    if (packet.will.payloadFormat != undefined) {
         length += 2;
     }
 
-    if (packet.will.messageExpiryIntervalSeconds) {
+    if (packet.will.messageExpiryIntervalSeconds != undefined) {
         length += 5;
     }
 
-    if (packet.will.contentType) {
+    if (packet.will.contentType != undefined) {
         length += 3 + packet.will.contentType.byteLength;
     }
 
-    if (packet.will.responseTopic) {
+    if (packet.will.responseTopic != undefined) {
         length += 3 + packet.will.responseTopic.byteLength;
     }
 
-    if (packet.will.correlationData) {
+    if (packet.will.correlationData != undefined) {
         length += 3 + packet.will.correlationData.byteLength;
     }
 
@@ -268,35 +268,35 @@ function compute_will_properties_length(packet: model.ConnectPacketBinary) : num
 function compute_connect_properties_length(packet: model.ConnectPacketBinary) : number {
     let length : number = compute_user_properties_length(packet.userProperties);
 
-    if (packet.sessionExpiryIntervalSeconds) {
+    if (packet.sessionExpiryIntervalSeconds != undefined) {
         length += 5;
     }
 
-    if (packet.receiveMaximum) {
+    if (packet.receiveMaximum != undefined) {
         length += 3;
     }
 
-    if (packet.maximumPacketSizeBytes) {
+    if (packet.maximumPacketSizeBytes != undefined) {
         length += 5;
     }
 
-    if (packet.topicAliasMaximum) {
+    if (packet.topicAliasMaximum != undefined) {
         length += 3;
     }
 
-    if (packet.requestResponseInformation) {
+    if (packet.requestResponseInformation != undefined) {
         length += 2;
     }
 
-    if (packet.requestProblemInformation) {
+    if (packet.requestProblemInformation != undefined) {
         length += 2;
     }
 
-    if (packet.authenticationMethod) {
+    if (packet.authenticationMethod != undefined) {
         length += 3 + packet.authenticationMethod.byteLength;
     }
 
-    if (packet.authenticationData) {
+    if (packet.authenticationData != undefined) {
         length += 3 + packet.authenticationData.byteLength;
     }
 
@@ -334,7 +334,7 @@ function get_connect_packet_remaining_lengths5(packet: model.ConnectPacketBinary
     return [remaining_length, properties_length, will_properties_length];
 }
 
-export function encode_user_properties(steps: Array<EncodingStep>, user_properties: Array<model.UserPropertyInternal> | undefined) {
+export function encode_user_properties(steps: Array<EncodingStep>, user_properties: Array<model.UserPropertyBinary> | undefined) {
     if (!user_properties) {
         return;
     }
@@ -347,42 +347,42 @@ export function encode_user_properties(steps: Array<EncodingStep>, user_properti
 }
 
 function encode_connect_properties(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
-    if (packet.sessionExpiryIntervalSeconds) {
+    if (packet.sessionExpiryIntervalSeconds != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.sessionExpiryIntervalSeconds });
     }
 
-    if (packet.receiveMaximum) {
+    if (packet.receiveMaximum != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.RECEIVE_MAXIMUM_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U16, value: packet.receiveMaximum });
     }
 
-    if (packet.maximumPacketSizeBytes) {
+    if (packet.maximumPacketSizeBytes != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.MAXIMUM_PACKET_SIZE_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.maximumPacketSizeBytes });
     }
 
-    if (packet.topicAliasMaximum) {
+    if (packet.topicAliasMaximum != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.TOPIC_ALIAS_MAXIMUM_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U16, value: packet.topicAliasMaximum });
     }
 
-    if (packet.requestResponseInformation) {
+    if (packet.requestResponseInformation != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.REQUEST_RESPONSE_INFORMATION_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U8, value: packet.requestResponseInformation });
     }
 
-    if (packet.requestProblemInformation) {
+    if (packet.requestProblemInformation != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.REQUEST_PROBLEM_INFORMATION_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U8, value: packet.requestProblemInformation });
     }
 
-    if (packet.authenticationMethod) {
+    if (packet.authenticationMethod != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.AUTHENTICATION_METHOD_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.authenticationMethod);
     }
 
-    if (packet.authenticationData) {
+    if (packet.authenticationData != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.AUTHENTICATION_DATA_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.authenticationData);
     }
@@ -395,32 +395,32 @@ function encode_will_properties(steps: Array<EncodingStep>, packet: model.Connec
         return;
     }
 
-    if (packet.willDelayIntervalSeconds) {
+    if (packet.willDelayIntervalSeconds != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.WILL_DELAY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.willDelayIntervalSeconds });
     }
 
-    if (packet.will.payloadFormat) {
+    if (packet.will.payloadFormat != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.PAYLOAD_FORMAT_INDICATOR_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U8, value: packet.will.payloadFormat });
     }
 
-    if (packet.will.messageExpiryIntervalSeconds) {
+    if (packet.will.messageExpiryIntervalSeconds != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.MESSAGE_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.will.messageExpiryIntervalSeconds });
     }
 
-    if (packet.will.contentType) {
+    if (packet.will.contentType != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.CONTENT_TYPE_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.will.contentType);
     }
 
-    if (packet.will.responseTopic) {
+    if (packet.will.responseTopic != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.RESPONSE_TOPIC_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.will.responseTopic);
     }
 
-    if (packet.will.correlationData) {
+    if (packet.will.correlationData != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.CORRELATION_DATA_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.will.correlationData);
     }
@@ -462,34 +462,34 @@ function get_publish_packet_remaining_lengths5(packet: model.PublishPacketBinary
 
     let properties_length: number = 0;
 
-    if (packet.payloadFormat) {
+    if (packet.payloadFormat != undefined) {
         properties_length += 2;
     }
 
-    if (packet.messageExpiryIntervalSeconds) {
+    if (packet.messageExpiryIntervalSeconds != undefined) {
         properties_length += 5;
     }
 
-    if (packet.topicAlias) {
+    if (packet.topicAlias != undefined) {
         properties_length += 3;
     }
 
-    if (packet.responseTopic) {
+    if (packet.responseTopic != undefined) {
         properties_length += 3 + packet.responseTopic.byteLength;
     }
 
-    if (packet.correlationData) {
+    if (packet.correlationData != undefined) {
         properties_length += 3 + packet.correlationData.byteLength;
     }
 
-    if (packet.subscriptionIdentifiers) {
+    if (packet.subscriptionIdentifiers != undefined) {
         properties_length += packet.subscriptionIdentifiers.length; // each identifier is a separate property entry
         for (let subscription_identifier of packet.subscriptionIdentifiers) {
             properties_length += vli.get_vli_byte_length(subscription_identifier);
         }
     }
 
-    if (packet.contentType) {
+    if (packet.contentType != undefined) {
         properties_length += 3 + packet.contentType.byteLength;
     }
 
@@ -504,39 +504,39 @@ function get_publish_packet_remaining_lengths5(packet: model.PublishPacketBinary
 }
 
 function encode_publish_packet_properties(steps: Array<EncodingStep>, packet: model.PublishPacketBinary) {
-    if (packet.payloadFormat) {
+    if (packet.payloadFormat != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.PAYLOAD_FORMAT_INDICATOR_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U8, value: packet.payloadFormat });
     }
 
-    if (packet.messageExpiryIntervalSeconds) {
+    if (packet.messageExpiryIntervalSeconds != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.MESSAGE_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.messageExpiryIntervalSeconds });
     }
 
-    if (packet.topicAlias) {
+    if (packet.topicAlias != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.TOPIC_ALIAS_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U16, value: packet.topicAlias });
     }
 
-    if (packet.responseTopic) {
+    if (packet.responseTopic != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.RESPONSE_TOPIC_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.responseTopic);
     }
 
-    if (packet.correlationData) {
+    if (packet.correlationData != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.CORRELATION_DATA_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.correlationData);
     }
 
-    if (packet.subscriptionIdentifiers) {
+    if (packet.subscriptionIdentifiers != undefined) {
         for (let subscription_identifier of packet.subscriptionIdentifiers) {
             steps.push({ type: EncodingStepType.U8, value: model.SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE });
             steps.push({ type: EncodingStepType.VLI, value: subscription_identifier });
         }
     }
 
-    if (packet.contentType) {
+    if (packet.contentType != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.CONTENT_TYPE_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.contentType);
     }
@@ -567,7 +567,7 @@ function get_puback_packet_remaining_lengths5(packet: model.PubackPacketBinary) 
     let remaining_length: number = 3; // packet id + reason code
     let properties_length: number = 0;
 
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
@@ -580,7 +580,7 @@ function get_puback_packet_remaining_lengths5(packet: model.PubackPacketBinary) 
 }
 
 function encode_puback_properties(steps: Array<EncodingStep>, packet: model.PubackPacketBinary) {
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
@@ -614,7 +614,7 @@ function get_subscribe_packet_remaining_lengths5(packet: model.SubscribePacketBi
     let remaining_length: number = 2; // packet id
     let properties_length: number = 0;
 
-    if (packet.subscriptionIdentifier) {
+    if (packet.subscriptionIdentifier != undefined) {
         properties_length += 1 + vli.get_vli_byte_length(packet.subscriptionIdentifier);
     }
 
@@ -629,7 +629,7 @@ function get_subscribe_packet_remaining_lengths5(packet: model.SubscribePacketBi
     return [remaining_length, properties_length];
 }
 
-function compute_subscription_flags5(subscription: model.SubscriptionInternal) : number {
+function compute_subscription_flags5(subscription: model.SubscriptionBinary) : number {
     let flags : number = subscription.qos;
     if (subscription.noLocal) {
         flags |= model.SUBSCRIPTION_FLAGS_NO_LOCAL;
@@ -646,13 +646,13 @@ function compute_subscription_flags5(subscription: model.SubscriptionInternal) :
     return flags;
 }
 
-function encode_subscription5(steps: Array<EncodingStep>, subscription: model.SubscriptionInternal) {
+function encode_subscription5(steps: Array<EncodingStep>, subscription: model.SubscriptionBinary) {
     encode_required_length_prefixed_array_buffer(steps, subscription.topicFilter);
     steps.push({ type: EncodingStepType.U8, value: compute_subscription_flags5(subscription) });
 }
 
 function encode_subscribe_properties(steps: Array<EncodingStep>, packet: model.SubscribePacketBinary) {
-    if (packet.subscriptionIdentifier) {
+    if (packet.subscriptionIdentifier != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.VLI, value: packet.subscriptionIdentifier });
     }
@@ -711,15 +711,15 @@ function get_disconnect_packet_remaining_lengths5(packet: model.DisconnectPacket
     let remaining_length: number = 0;
     let properties_length: number = compute_user_properties_length(packet.userProperties);
 
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
-    if (packet.serverReference) {
+    if (packet.serverReference != undefined) {
         properties_length += 3 + packet.serverReference.byteLength;
     }
 
-    if (packet.sessionExpiryIntervalSeconds) {
+    if (packet.sessionExpiryIntervalSeconds != undefined) {
         properties_length += 5;
     }
 
@@ -733,17 +733,17 @@ function get_disconnect_packet_remaining_lengths5(packet: model.DisconnectPacket
 }
 
 function encode_disconnect_properties(steps: Array<EncodingStep>, packet: model.DisconnectPacketBinary) {
-    if (packet.reasonString) {
+    if (packet.reasonString != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
     }
 
-    if (packet.serverReference) {
+    if (packet.serverReference != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.SERVER_REFERENCE_PROPERTY_CODE });
         encode_required_length_prefixed_array_buffer(steps, packet.serverReference);
     }
 
-    if (packet.sessionExpiryIntervalSeconds) {
+    if (packet.sessionExpiryIntervalSeconds != undefined) {
         steps.push({ type: EncodingStepType.U8, value: model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: EncodingStepType.U32, value: packet.sessionExpiryIntervalSeconds });
     }

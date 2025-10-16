@@ -50,7 +50,7 @@ export function decode_bytes(payload: DataView, offset: number, length: number) 
 
 export function decode_length_prefixed_bytes(payload: DataView, offset: number) : [ArrayBuffer, number] {
     let [bytesLength, index] = decode_u16(payload, offset);
-    return [payload.buffer.slice(offset, offset + bytesLength), index + bytesLength];
+    return [payload.buffer.slice(index, index + bytesLength), index + bytesLength];
 }
 
 function decode_connack_packet_311(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
