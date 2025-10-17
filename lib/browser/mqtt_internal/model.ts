@@ -11,6 +11,8 @@ export enum ProtocolMode {
     Mqtt5
 }
 
+// A variety of constants related to the MQTT311 and MQTT5 protocols
+
 export const USER_PROPERTY_PROPERTY_CODE : number = 0x26;
 export const SESSION_EXPIRY_INTERVAL_PROPERTY_CODE : number = 0x11;
 export const RECEIVE_MAXIMUM_PROPERTY_CODE : number = 0x21;
@@ -39,12 +41,12 @@ export const AUTHENTICATION_DATA_PROPERTY_CODE: number = 0x16;
 export const TOPIC_ALIAS_PROPERTY_CODE : number = 0x23;
 export const SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE : number = 0x0B;
 
-export const connect311ProtocolBytes = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, 0x04];
-export const connect311ProtocolBuffer = new Uint8Array(connect311ProtocolBytes);
-export const connect311ProtocolDataView = new DataView(connect311ProtocolBuffer.buffer);
-export const connect5ProtocolBytes = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, 0x05];
-export const connect5ProtocolBuffer = new Uint8Array(connect5ProtocolBytes);
-export const connect5ProtocolDataView = new DataView(connect5ProtocolBuffer.buffer);
+export const CONNECT_311_PROTOCOL_BYTES = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, 0x04];
+export const CONNECT_311_PROTOCOL_BUFFER = new Uint8Array(CONNECT_311_PROTOCOL_BYTES);
+export const CONNECT_311_PROTOCOL_DATAVIEW = new DataView(CONNECT_311_PROTOCOL_BUFFER.buffer);
+export const CONNECT_5_PROTOCOL_BYTES = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, 0x05];
+export const CONNECT_5_PROTOCOL_BUFFER = new Uint8Array(CONNECT_5_PROTOCOL_BYTES);
+export const CONNECT_5_PROTOCOL_DATAVIEW = new DataView(CONNECT_5_PROTOCOL_BUFFER.buffer);
 
 export const CONNECT_FLAGS_HAS_USERNAME : number = 0x80;
 export const CONNECT_FLAGS_HAS_PASSWORD : number = 0x40;
@@ -80,17 +82,87 @@ export const PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 : number = 0xE000;
 export const QOS_MASK : number = 0x03;
 export const RETAIN_HANDLING_TYPE_SHIFT : number = 0x03;
 
-export interface IPacketBinary extends mqtt5_packet.IPacket {
+/*
+ * We specify two separate-but-related packet models in this module:
+ *
+ *   1. An internal model - extends packets defined in "common/mqtt5_packet.ts" with protocol-internal details like
+ *      packet id, duplicate, and other fields that we don't want to put into the public packet model.  This is the
+ *      model we decode into (so technically these fields will be visible as properties on received packets, but
+ *      far more importantly, they won't be required on outbound packets).
+ *
+ *   2. A binary model - a transformation of the internal packets to one where all field primitives are numbers or
+ *      ArrayBuffers.  This is the representation that the client will track persistently and output to the wire
+ *      (ie, the encoder operates on the binary model).  The binary model is needed due to the fact that Javascript
+ *      does not have any API for computing the utf-8 length of a string other than by performing the encoding (due
+ *      to the fact that strings are represented internally using a non-utf-8 encoding).  By converting to and using
+ *      a binary model, we only ever have to do the to-bytes conversion once (we need to know the lengths of all
+ *      string-value fields before we even begin the encoding due to VLI remaining length calculations).
+ */
 
+// Internal Model
+export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
+    packetId?: number;
+
+    duplicate: boolean;
+}
+
+export interface PubackPacketInternal extends mqtt5_packet.PubackPacket {
+    packetId: number
+}
+
+export interface SubscribePacketInternal extends mqtt5_packet.SubscribePacket {
+    packetId: number
+}
+
+export interface SubackPacketInternal extends mqtt5_packet.SubackPacket {
+    packetId: number
+}
+
+export interface UnsubscribePacketInternal extends mqtt5_packet.UnsubscribePacket {
+    packetId: number
+}
+
+export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
+    packetId: number
+}
+
+export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
+    cleanStart: boolean;
+
+    topicAliasMaximum?: number;
+
+    authenticationMethod?: string;
+
+    authenticationData?: ArrayBuffer;
+}
+
+export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
+    authenticationMethod?: string;
+
+    authenticationData?: ArrayBuffer;
+}
+
+export interface PingreqPacketInternal extends mqtt5_packet.IPacket {
+}
+
+export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
+}
+
+export interface DisconnectPacketInternal extends mqtt5_packet.DisconnectPacket {
+}
+
+// Binary Model
+export interface IPacketBinary extends mqtt5_packet.IPacket {
 }
 
 export interface UserPropertyBinary {
     name: ArrayBuffer;
+
     value: ArrayBuffer;
 }
 
 export interface PublishPacketBinary extends IPacketBinary {
-    packetId: number;
+    packetId?: number;
 
     topicName: ArrayBuffer;
 
@@ -119,12 +191,6 @@ export interface PublishPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
-    packetId?: number;
-
-    duplicate: boolean;
-}
-
 export interface PubackPacketBinary extends IPacketBinary {
     packetId: number;
 
@@ -133,10 +199,6 @@ export interface PubackPacketBinary extends IPacketBinary {
     reasonString?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyBinary>;
-}
-
-export interface PubackPacketInternal extends mqtt5_packet.PubackPacket {
-    packetId: number
 }
 
 export interface SubscriptionBinary {
@@ -157,10 +219,6 @@ export interface SubscribePacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export interface SubscribePacketInternal extends mqtt5_packet.SubscribePacket {
-    packetId: number
-}
-
 export interface SubackPacketBinary extends IPacketBinary {
     packetId: number;
 
@@ -171,20 +229,12 @@ export interface SubackPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export interface SubackPacketInternal extends mqtt5_packet.SubackPacket {
-    packetId: number
-}
-
 export interface UnsubscribePacketBinary extends IPacketBinary {
     packetId: number;
 
     topicFilters: Array<ArrayBuffer>;
 
     userProperties?: Array<UserPropertyBinary>;
-}
-
-export interface UnsubscribePacketInternal extends mqtt5_packet.UnsubscribePacket {
-    packetId: number
 }
 
 export interface UnsubackPacketBinary extends IPacketBinary {
@@ -195,10 +245,6 @@ export interface UnsubackPacketBinary extends IPacketBinary {
     reasonString?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyBinary>;
-}
-
-export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
-    packetId: number
 }
 
 export interface ConnectPacketBinary extends IPacketBinary {
@@ -233,16 +279,6 @@ export interface ConnectPacketBinary extends IPacketBinary {
     authenticationData?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyBinary>;
-}
-
-export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
-    cleanStart: boolean;
-
-    topicAliasMaximum?: number;
-
-    authenticationMethod?: string;
-
-    authenticationData?: ArrayBuffer;
 }
 
 export interface ConnackPacketBinary extends IPacketBinary {
@@ -285,22 +321,10 @@ export interface ConnackPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
-    authenticationMethod?: string;
-
-    authenticationData?: ArrayBuffer;
-}
-
 export interface PingreqPacketBinary extends IPacketBinary {
 }
 
-export interface PingreqPacketInternal extends mqtt5_packet.IPacket {
-}
-
 export interface PingrespPacketBinary extends IPacketBinary {
-}
-
-export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
 }
 
 export interface DisconnectPacketBinary extends IPacketBinary {
@@ -313,10 +337,6 @@ export interface DisconnectPacketBinary extends IPacketBinary {
     serverReference?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyBinary>;
-}
-
-export interface DisconnectPacketInternal extends mqtt5_packet.DisconnectPacket {
-
 }
 
 function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
@@ -510,7 +530,7 @@ function convert_publish_packet_to_binary(packet: PublishPacketInternal) : Publi
     let encoder = new TextEncoder();
     let internal_packet : PublishPacketBinary = {
         type: mqtt5_packet.PacketType.Publish,
-        packetId: packet.packetId || 0,
+        packetId: packet.packetId,
         topicName : encoder.encode(packet.topicName).buffer,
         qos: packet.qos,
         duplicate: packet.duplicate ? 1 : 0,
@@ -706,8 +726,6 @@ function convert_disconnect_packet_to_binary(packet: DisconnectPacketInternal) :
     return internal_packet;
 }
 
-// TODO: take protocol level and modify -> 311 encoding for reason codes
-
 export function convert_packet_to_binary(packet: mqtt5_packet.IPacket) : IPacketBinary {
     if (!packet.type) {
         throw new CrtError("Invalid packet type");
@@ -744,5 +762,3 @@ export function convert_packet_to_binary(packet: mqtt5_packet.IPacket) : IPacket
             throw new CrtError("Unsupported packet type: ");
     }
 }
-
-// TODO: convert from internal that handles reason code differences appropriately (or maybe doesn't need to)

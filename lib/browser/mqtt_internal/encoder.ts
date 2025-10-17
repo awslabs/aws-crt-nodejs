@@ -98,7 +98,7 @@ function compute_connect_flags(packet: model.ConnectPacketBinary) : number {
 function encode_connect_packet311(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNECT });
     steps.push({ type: EncodingStepType.VLI, value: get_connect_packet_remaining_lengths311(packet) });
-    steps.push({ type: EncodingStepType.BYTES, value: model.connect311ProtocolDataView });
+    steps.push({ type: EncodingStepType.BYTES, value: model.CONNECT_311_PROTOCOL_DATAVIEW });
     steps.push({ type: EncodingStepType.U8, value: compute_connect_flags(packet) });
     steps.push({ type: EncodingStepType.U16, value: packet.keepAliveIntervalSeconds });
     encode_length_prefixed_array_buffer(steps, packet.clientId);
@@ -150,7 +150,11 @@ function encode_publish_packet311(steps: Array<EncodingStep>, packet: model.Publ
     encode_length_prefixed_array_buffer(steps, packet.topicName);
 
     if (packet.qos > 0) {
-        steps.push({ type: EncodingStepType.U16, value: packet.packetId });
+        if (packet.packetId) {
+            steps.push({type: EncodingStepType.U16, value: packet.packetId});
+        } else {
+            throw new CrtError("Publish(311) packet with non-zero qos and invalid or missing packet id");
+        }
     }
 
     if (packet.payload && packet.payload.byteLength > 0) {
@@ -433,7 +437,7 @@ function encode_connect_packet5(steps: Array<EncodingStep>, packet: model.Connec
 
     steps.push({ type: EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNECT });
     steps.push({ type: EncodingStepType.VLI, value: remaining_length });
-    steps.push({ type: EncodingStepType.BYTES, value: model.connect5ProtocolDataView });
+    steps.push({ type: EncodingStepType.BYTES, value: model.CONNECT_5_PROTOCOL_DATAVIEW });
     steps.push({ type: EncodingStepType.U8, value: compute_connect_flags(packet) });
     steps.push({ type: EncodingStepType.U16, value: packet.keepAliveIntervalSeconds });
 
@@ -552,7 +556,11 @@ function encode_publish_packet5(steps: Array<EncodingStep>, packet: model.Publis
     encode_required_length_prefixed_array_buffer(steps, packet.topicName);
 
     if (packet.qos > 0) {
-        steps.push({ type: EncodingStepType.U16, value: packet.packetId });
+        if (packet.packetId) {
+            steps.push({type: EncodingStepType.U16, value: packet.packetId});
+        } else {
+            throw new CrtError("Publish(5) packet with non-zero qos and invalid or missing packet id");
+        }
     }
 
     steps.push({ type: EncodingStepType.VLI, value: properties_length });
