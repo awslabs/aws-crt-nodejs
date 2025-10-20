@@ -8,6 +8,26 @@ import * as model from "./model";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as vli from "./vli";
 
+/**
+ * The encoder works similarly to the native MQTT5 client in aws-c-mqtt:
+ *
+ * Encoding is a two-step process.
+ *
+ * The first step takes the finalized packet and pushes one or more "steps"
+ * onto a queue.  Each step represents the encoding of a single primitive integer or range of bytes.
+ *
+ * The second step involves iterating the encoding steps and performing them on a mutable buffer that represents
+ * a range of bytes to write to the socket.
+ *
+ * If the buffer fills up, encoding is halted (byte ranges are clipped in place) and the buffer is considered
+ * ready to send to the socket.  The client only has one buffer in-flight at once (the write completion callback
+ * must be invoked in order to continue encoding).
+ *
+ * There isn't a pressing need to do it this way other than familiarity (the minimal allocation and hot-buffer
+ * properties probably aren't particular impactful in JS).
+ */
+
+// Encoding step model and helpers
 export enum EncodingStepType {
     U8,
     U16,
@@ -42,6 +62,8 @@ export function encode_required_length_prefixed_array_buffer(steps: Array<Encodi
     steps.push({ type: EncodingStepType.BYTES, value: new DataView(source) });
 }
 
+// MQTT 311 packet encoders
+
 function get_connect_packet_remaining_lengths311(packet: model.ConnectPacketBinary) : number {
     let size: number = 12; // 0x00, 0x04, "MQTT", 0x04, Flags byte, Keep Alive u16, Client Id Length u16
 
@@ -51,7 +73,7 @@ function get_connect_packet_remaining_lengths311(packet: model.ConnectPacketBina
 
     if (packet.will) {
         size += 2 + packet.will.topicName.byteLength;
-        size += 2; // payload length
+        size += 2; // payload length which is 16 bit and not a VLI
         if (packet.will.payload) {
             size += packet.will.payload.byteLength;
         }
@@ -221,6 +243,8 @@ function encode_disconnect_packet311(steps: Array<EncodingStep>, packet: model.D
     steps.push({ type: EncodingStepType.U16, value: model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 });
 }
 
+// MQTT 5 packet encoders
+
 export function compute_user_properties_length(user_properties: Array<model.UserPropertyBinary> | undefined) : number {
     if (!user_properties) {
         return 0;
@@ -233,6 +257,18 @@ export function compute_user_properties_length(user_properties: Array<model.User
     }
 
     return length;
+}
+
+export function encode_user_properties(steps: Array<EncodingStep>, user_properties: Array<model.UserPropertyBinary> | undefined) {
+    if (!user_properties) {
+        return;
+    }
+
+    for (let user_property of user_properties) {
+        steps.push({ type: EncodingStepType.U8, value: model.USER_PROPERTY_PROPERTY_CODE });
+        encode_required_length_prefixed_array_buffer(steps, user_property.name);
+        encode_required_length_prefixed_array_buffer(steps, user_property.value);
+    }
 }
 
 function compute_will_properties_length(packet: model.ConnectPacketBinary) : number {
@@ -336,18 +372,6 @@ function get_connect_packet_remaining_lengths5(packet: model.ConnectPacketBinary
     }
 
     return [remaining_length, properties_length, will_properties_length];
-}
-
-export function encode_user_properties(steps: Array<EncodingStep>, user_properties: Array<model.UserPropertyBinary> | undefined) {
-    if (!user_properties) {
-        return;
-    }
-
-    for (let user_property of user_properties) {
-        steps.push({ type: EncodingStepType.U8, value: model.USER_PROPERTY_PROPERTY_CODE });
-        encode_required_length_prefixed_array_buffer(steps, user_property.name);
-        encode_required_length_prefixed_array_buffer(steps, user_property.value);
-    }
 }
 
 function encode_connect_properties(steps: Array<EncodingStep>, packet: model.ConnectPacketBinary) {
@@ -774,10 +798,12 @@ function encode_disconnect_packet5(steps: Array<EncodingStep>, packet: model.Dis
     }
 }
 
+// Encoding Implementation
+
 export type EncodingFunction = (steps: Array<EncodingStep>, packet: model.IPacketBinary) => void;
 export type EncodingFunctionSet = Map<mqtt5_packet.PacketType, EncodingFunction>;
 
-
+// Encoders for packets sent by the client.  Packets sent by the server have encoders defined in the spec file.
 export function build_client_encoding_function_set(mode: model.ProtocolMode) : EncodingFunctionSet {
     switch (mode) {
         case model.ProtocolMode.Mqtt311:
@@ -865,6 +891,8 @@ function apply_encoding_step(buffer: DataView, step: EncodingStep) : ApplyEncodi
                 nextBuffer: new DataView(buffer.buffer, buffer.byteOffset + amountToCopy, buffer.byteLength - amountToCopy)
             };
             if (amountToCopy < source.byteLength) {
+                // ran out of room.  Clip the step.  It's the caller's responsibility to push the clipped step back
+                // into the queue.
                 result.step = {
                     type: EncodingStepType.BYTES,
                     value: new DataView(source.buffer, source.byteOffset + amountToCopy, source.byteLength - amountToCopy)
@@ -889,6 +917,12 @@ export interface ServiceResult {
     nextView: DataView;
 }
 
+/**
+ * Encoder implementation.  All failures are surfaced as exceptions and considered protocol-fatal.
+ *
+ * The implementation assumes full, stringent validation has been performed prior to encoding (ie all packets are
+ * protocol-compliant).
+ */
 export class Encoder {
     private packet: model.IPacketBinary | null = null;
     private steps: Array<EncodingStep> = new Array<EncodingStep>();

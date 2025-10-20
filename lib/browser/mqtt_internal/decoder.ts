@@ -9,6 +9,8 @@ import * as vli from "./vli";
 import * as model from "./model";
 import {toUtf8} from "@aws-sdk/util-utf8-browser";
 
+// utility functions for individual packet fields
+
 export function decode_boolean(payload: DataView, offset: number) : [boolean, number] {
     return [payload.getUint8(offset) ? true : false, offset + 1];
 }
@@ -49,9 +51,25 @@ export function decode_length_prefixed_bytes(payload: DataView, offset: number) 
     return [payload.buffer.slice(index, index + bytesLength), index + bytesLength];
 }
 
+export function decode_user_property(payload: DataView, offset: number, userProperties: Array<mqtt5_packet.UserProperty>) : number {
+    let index: number = offset;
+
+    let name : string = "";
+    [name, index] = decode_length_prefixed_string(payload, index);
+
+    let value : string = "";
+    [value, index] = decode_length_prefixed_string(payload, index);
+
+    userProperties.push({name: name, value: value});
+
+    return index;
+}
+
+// MQTT 311 Packet decoding functions
+
 function decode_connack_packet_311(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
     if (payload.byteLength != 2) {
-        throw new CrtError("Connack(311) packet invalid payload length");
+        throw new CrtError("Connack packet invalid payload length");
     }
 
     let index : number = 0;
@@ -64,8 +82,8 @@ function decode_connack_packet_311(firstByte: number, payload: DataView) : model
     };
 
     [flags, index] = decode_u8(payload, index);
-    if ((flags & ~0x01) != 0) {
-        throw new CrtError("Connack(311) invalid flags");
+    if ((flags & (~0x01)) != 0) {
+        throw new CrtError("Connack invalid flags");
     }
     connack.sessionPresent = (flags & model.CONNACK_FLAGS_SESSION_PRESENT) != 0;
     [connack.reasonCode, index] = decode_u8(payload, index);
@@ -99,11 +117,11 @@ function decode_publish_packet_311(firstByte: number, payload: DataView) : model
 
 function decode_puback_packet_311(firstByte: number, payload: DataView) : model.PubackPacketInternal {
     if (payload.byteLength != 2) {
-        throw new CrtError("Puback(311) packet with invalid payload length");
+        throw new CrtError("Puback packet with invalid payload length");
     }
 
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_PUBACK) {
-        throw new CrtError("Puback(311) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Puback packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -120,7 +138,7 @@ function decode_puback_packet_311(firstByte: number, payload: DataView) : model.
 
 function decode_suback_packet_311(firstByte: number, payload: DataView) : model.SubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBACK) {
-        throw new CrtError("Suback(311) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Suback packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -144,11 +162,11 @@ function decode_suback_packet_311(firstByte: number, payload: DataView) : model.
 
 function decode_unsuback_packet_311(firstByte: number, payload: DataView) : model.UnsubackPacketInternal {
     if (payload.byteLength != 2) {
-        throw new CrtError("Unsuback(311) packet with invalid payload length");
+        throw new CrtError("Unsuback packet with invalid payload length");
     }
 
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBACK) {
-        throw new CrtError("Unsuback(311) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Unsuback packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -177,19 +195,7 @@ function decode_pingresp_packet(firstByte: number, payload: DataView) : model.Pi
     };
 }
 
-export function decode_user_property(payload: DataView, offset: number, userProperties: Array<mqtt5_packet.UserProperty>) : number {
-    let index: number = offset;
-
-    let name : string = "";
-    [name, index] = decode_length_prefixed_string(payload, index);
-
-    let value : string = "";
-    [value, index] = decode_length_prefixed_string(payload, index);
-
-    userProperties.push({name: name, value: value});
-
-    return index;
-}
+// MQTT 5 packet decoders
 
 function decode_connack_properties(connack: model.ConnackPacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
     let index : number = offset;
@@ -282,7 +288,7 @@ function decode_connack_properties(connack: model.ConnackPacketInternal, payload
 
 function decode_connack_packet_5(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNACK) {
-        throw new CrtError("Connack(5) with invalid first byte: " + firstByte);
+        throw new CrtError("Connack with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -428,7 +434,7 @@ function decode_puback_properties(puback: model.PubackPacketInternal, payload: D
 
 function decode_puback_packet_5(firstByte: number, payload: DataView) : model.PubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_PUBACK) {
-        throw new CrtError("Puback(5) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Puback packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -490,7 +496,7 @@ function decode_suback_properties(suback: model.SubackPacketInternal, payload: D
 
 function decode_suback_packet_5(firstByte: number, payload: DataView) : model.SubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBACK) {
-        throw new CrtError("Suback(5) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Suback packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -549,7 +555,7 @@ function decode_unsuback_properties(unsuback: model.UnsubackPacketInternal, payl
 
 function decode_unsuback_packet_5(firstByte: number, payload: DataView) : model.UnsubackPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBACK) {
-        throw new CrtError("Unsuback(5) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Unsuback packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -616,7 +622,7 @@ function decode_disconnect_properties(disconnect: mqtt5_packet.DisconnectPacket,
 
 function decode_disconnect_packet_5(firstByte: number, payload: DataView) : model.DisconnectPacketInternal {
     if (firstByte != (model.PACKET_TYPE_DISCONNECT_FULL_ENCODING_311 >>> 8)) {
-        throw new CrtError("Disconnect(5) packet with invalid first byte: " + firstByte);
+        throw new CrtError("Disconnect packet with invalid first byte: " + firstByte);
     }
 
     let index : number = 0;
@@ -643,9 +649,12 @@ function decode_disconnect_packet_5(firstByte: number, payload: DataView) : mode
     return disconnect;
 }
 
+// Decoder implementation
+
 export type DecodingFunction = (firstByte: number, payload: DataView) => mqtt5_packet.IPacket;
 export type DecodingFunctionSet = Map<mqtt5_packet.PacketType, DecodingFunction>;
 
+// decoders for server-decoded packets are found in the spec file
 export function build_client_decoding_function_set(mode: model.ProtocolMode) : DecodingFunctionSet {
     switch (mode) {
         case model.ProtocolMode.Mqtt311:
@@ -675,13 +684,33 @@ export function build_client_decoding_function_set(mode: model.ProtocolMode) : D
 }
 
 enum DecoderStateType {
+
+    /**
+     * We're waiting for the a byte to tell us what the next packet is
+     */
     PendingFirstByte,
+
+    /**
+     * We're waiting for the VLI-encoded remaining length of the full packet
+     */
     PendingRemainingLength,
+
+    /**
+     * We're waiting for the complete packet payload (determined by the remaining length field)
+     */
     PendingPayload
 }
 
+/**
+ * Starting buffer size for the buffer used to hold the payload (or the remaining length VLI encoding).  Grows
+ * as necessary.
+ */
 const DEFAULT_SCRATCH_BUFFER_SIZE : number = 16 * 1024;
 
+/**
+ * Decoder implementation.  All failures surface as exceptions and are considered protocol-fatal (the connection
+ * must be dropped).
+ */
 export class Decoder {
 
     private state: DecoderStateType;
