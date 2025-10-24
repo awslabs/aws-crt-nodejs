@@ -31,6 +31,32 @@ export enum ConnectReasonCode {
     Success = 0,
 
     /**
+     * (MQTT 311 Only) The connection was rejected because the server does not support the requested protocol version.
+     */
+    UnacceptableProtocolVersion311 = 1,
+
+    /**
+     * (MQTT 311 Only) The connection was rejected because the server does not allow the requested client id.
+     */
+    ClientIdRejected311 = 2,
+
+    /**
+     * (MQTT 311 Only) The connection was rejected because the server is not accepting MQTT connections.
+     */
+    ServerUnavailable311 = 3,
+
+    /**
+     * (MQTT 311 Only) The connection was rejected because the server does not accept the data specified in
+     * the username or password fields.
+     */
+    InvalidUsernameOrPassword311 = 4,
+
+    /**
+     * (MQTT 311 Only) The connection was rejected because the client is not authorized to connect.
+     */
+    NotAuthorized311 = 5,
+
+    /**
      * Returned when the server has a failure but does not want to specify a reason or none
      * of the other reason codes apply.
      */
@@ -149,7 +175,7 @@ export enum ConnectReasonCode {
  * @param reasonCode reason code to check success for
  */
 export function isSuccessfulConnectReasonCode(reasonCode: ConnectReasonCode): boolean {
-    return reasonCode < 128;
+    return reasonCode == ConnectReasonCode.Success;
 }
 
 /**
@@ -409,6 +435,10 @@ export enum SubackReasonCode {
      */
     GrantedQoS2 = 2,
 
+    /**
+     * Generic reason code used in MQTT311 to indicate subscription failure
+     */
+    Failure311 = 128,
 
     /**
      * Returned when the connection was closed but the sender does not want to specify a reason or none
@@ -705,6 +735,58 @@ export enum PacketType {
     Pingresp = 13,
     Disconnect = 14,
     Auth = 15,
+}
+
+export function packetTypeToString(type: PacketType): string {
+    switch(type) {
+        case PacketType.Connect:
+            return "Connect";
+
+        case PacketType.Connack:
+            return "Connack";
+
+        case PacketType.Publish:
+            return "Publish";
+
+        case PacketType.Puback:
+            return "Puback";
+
+        case PacketType.Pubrec:
+            return "Pubrec";
+
+        case PacketType.Pubrel:
+            return "Pubrel";
+
+        case PacketType.Pubcomp:
+            return "Pubcomp";
+
+        case PacketType.Subscribe:
+            return "Subscribe";
+
+        case PacketType.Suback:
+            return "Suback";
+
+        case PacketType.Unsubscribe:
+            return "Unsubscribe";
+
+        case PacketType.Unsuback:
+            return "Unsuback";
+
+        case PacketType.Pingreq:
+            return "Pingreq";
+
+        case PacketType.Pingresp:
+            return "Pingresp";
+
+        case PacketType.Disconnect:
+            return "Disconnect";
+
+        case PacketType.Auth:
+            return "Auth";
+
+        default:
+            return "Unknown";
+    }
 }
 
 /**
