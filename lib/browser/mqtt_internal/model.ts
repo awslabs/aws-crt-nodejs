@@ -90,42 +90,37 @@ export const RETAIN_HANDLING_TYPE_SHIFT : number = 0x03;
  *      model we decode into (so technically these fields will be visible as properties on received packets, but
  *      far more importantly, they won't be required on outbound packets).
  *
- *   2. A binary model - a transformation of the internal packets to one where all field primitives are numbers or
+ *   2. A binary model - a transformation of external/internal packets to one where all field primitives are numbers or
  *      ArrayBuffers.  This is the representation that the client will track persistently and output to the wire
  *      (ie, the encoder operates on the binary model).  The binary model is needed due to the fact that Javascript
  *      does not have any API for computing the utf-8 length of a string other than by performing the encoding (due
  *      to the fact that strings are represented internally using a non-utf-8 encoding).  By converting to and using
  *      a binary model, we only ever have to do the to-bytes conversion once (we need to know the lengths of all
  *      string-value fields before we even begin the encoding due to VLI remaining length calculations).
+ *
+ *
+ *   User-submitted outbound packet processing:
+ *
+ *   [User Subscribe/Publish/Unsubscribe/Disconnect] ->
+ *   validate_user_submitted_outbound_packet ->
+ *   convert_external_packet_to_binary_model ->
+ *   client operation queue ->
+ *   current operatioon ->
+ *   validate_binary_outbound_packet ->
+ *   encode and write to socket
+ *
+ *   Client-initiated outbound packet processing:
+ *
+ *   client operation queue ->
+ *   current operatioon ->
+ *   validate_binary_outbound_packet ->
+ *   encode and write to socket
+ *
+ *   Model packets that aren't needed in the final client implementation are defined in test modules and used as
+ *   needed.
  */
 
-// Internal Model
-export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
-    packetId?: number;
-
-    duplicate: boolean;
-}
-
-export interface PubackPacketInternal extends mqtt5_packet.PubackPacket {
-    packetId: number
-}
-
-export interface SubscribePacketInternal extends mqtt5_packet.SubscribePacket {
-    packetId: number
-}
-
-export interface SubackPacketInternal extends mqtt5_packet.SubackPacket {
-    packetId: number
-}
-
-export interface UnsubscribePacketInternal extends mqtt5_packet.UnsubscribePacket {
-    packetId: number
-}
-
-export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
-    packetId: number
-}
-
+// Internal Model - decoded packet types + Connect
 export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
     cleanStart: boolean;
 
@@ -136,13 +131,28 @@ export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
     authenticationData?: ArrayBuffer;
 }
 
+export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
+    packetId?: number;
+
+    duplicate: boolean;
+}
+
+export interface PubackPacketInternal extends mqtt5_packet.PubackPacket {
+    packetId: number
+}
+
+export interface SubackPacketInternal extends mqtt5_packet.SubackPacket {
+    packetId: number
+}
+
+export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
+    packetId: number
+}
+
 export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
     authenticationMethod?: string;
 
     authenticationData?: ArrayBuffer;
-}
-
-export interface PingreqPacketInternal extends mqtt5_packet.IPacket {
 }
 
 export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
@@ -151,7 +161,15 @@ export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
 export interface DisconnectPacketInternal extends mqtt5_packet.DisconnectPacket {
 }
 
-// Binary Model
+export interface SubscribePacketInternal extends mqtt5_packet.SubscribePacket {
+    packetId: number
+}
+
+export interface UnsubscribePacketInternal extends mqtt5_packet.UnsubscribePacket {
+    packetId: number
+}
+
+// Binary Model - outbound packet types (publish, subscribe, unsubscribe, connect, puback, pingreq, disconnect)
 export interface IPacketBinary extends mqtt5_packet.IPacket {
 }
 
@@ -219,30 +237,10 @@ export interface SubscribePacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export interface SubackPacketBinary extends IPacketBinary {
-    packetId: number;
-
-    reasonCodes: Array<number>;
-
-    reasonString?: ArrayBuffer;
-
-    userProperties?: Array<UserPropertyBinary>;
-}
-
 export interface UnsubscribePacketBinary extends IPacketBinary {
     packetId: number;
 
     topicFilters: Array<ArrayBuffer>;
-
-    userProperties?: Array<UserPropertyBinary>;
-}
-
-export interface UnsubackPacketBinary extends IPacketBinary {
-    packetId: number;
-
-    reasonCodes: Array<number>;
-
-    reasonString?: ArrayBuffer;
 
     userProperties?: Array<UserPropertyBinary>;
 }
@@ -281,50 +279,7 @@ export interface ConnectPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export interface ConnackPacketBinary extends IPacketBinary {
-    sessionPresent: number;
-
-    reasonCode: number;
-
-    sessionExpiryInterval?: number;
-
-    receiveMaximum?: number;
-
-    maximumQos?: number;
-
-    retainAvailable?: number;
-
-    maximumPacketSize?: number;
-
-    assignedClientIdentifier?: ArrayBuffer;
-
-    topicAliasMaximum?: number;
-
-    reasonString?: ArrayBuffer;
-
-    wildcardSubscriptionsAvailable?: number;
-
-    subscriptionIdentifiersAvailable?: number;
-
-    sharedSubscriptionsAvailable?: number;
-
-    serverKeepAlive?: number;
-
-    responseInformation?: ArrayBuffer;
-
-    serverReference?: ArrayBuffer;
-
-    authenticationMethod?: ArrayBuffer;
-
-    authenticationData?: ArrayBuffer;
-
-    userProperties?: Array<UserPropertyBinary>;
-}
-
 export interface PingreqPacketBinary extends IPacketBinary {
-}
-
-export interface PingrespPacketBinary extends IPacketBinary {
 }
 
 export interface DisconnectPacketBinary extends IPacketBinary {
@@ -339,7 +294,11 @@ export interface DisconnectPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
+export function is_valid_binary_data(data: BinaryData) : boolean {
+    return data instanceof ArrayBuffer || data instanceof Uint8Array || data instanceof Buffer;
+}
+
+export function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
     if (data instanceof ArrayBuffer) {
         return data;
     } else if (data instanceof Uint8Array) {
@@ -351,7 +310,7 @@ function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
     }
 }
 
-function convert_user_properties_to_binary(properties: Array<mqtt5_packet.UserProperty>) : Array<UserPropertyBinary> {
+export function convert_user_properties_to_binary(properties: Array<mqtt5_packet.UserProperty>) : Array<UserPropertyBinary> {
     let encoder = new TextEncoder();
     let internal_properties : Array<UserPropertyBinary> = [];
 
@@ -365,150 +324,90 @@ function convert_user_properties_to_binary(properties: Array<mqtt5_packet.UserPr
     return internal_properties;
 }
 
-function convert_connect_packet_to_binary(packet: ConnectPacketInternal) : ConnectPacketBinary {
+function convert_connect_packet_to_binary(packet: ConnectPacketInternal, includeInternalFields: boolean) : ConnectPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : ConnectPacketBinary = {
+    let binary_packet : ConnectPacketBinary = {
         type: mqtt5_packet.PacketType.Connect,
         cleanSession: packet.cleanStart ? 1 : 0,
         keepAliveIntervalSeconds: packet.keepAliveIntervalSeconds
     };
 
     if (packet.clientId != undefined) {
-        internal_packet.clientId = encoder.encode(packet.clientId).buffer;
+        binary_packet.clientId = encoder.encode(packet.clientId).buffer;
     }
 
     if (packet.username != undefined) {
-        internal_packet.username = encoder.encode(packet.username).buffer;
+        binary_packet.username = encoder.encode(packet.username).buffer;
     }
 
     if (packet.password != undefined) {
-        internal_packet.password = binary_data_to_array_buffer(packet.password);
+        binary_packet.password = binary_data_to_array_buffer(packet.password);
     }
 
     if (packet.topicAliasMaximum != undefined) {
-        internal_packet.topicAliasMaximum = packet.topicAliasMaximum;
+        binary_packet.topicAliasMaximum = packet.topicAliasMaximum;
     }
 
     if (packet.sessionExpiryIntervalSeconds != undefined) {
-        internal_packet.sessionExpiryIntervalSeconds = packet.sessionExpiryIntervalSeconds;
+        binary_packet.sessionExpiryIntervalSeconds = packet.sessionExpiryIntervalSeconds;
     }
 
     if (packet.requestResponseInformation != undefined) {
-        internal_packet.requestResponseInformation = packet.requestResponseInformation ? 1 : 0;
+        binary_packet.requestResponseInformation = packet.requestResponseInformation ? 1 : 0;
     }
 
     if (packet.requestProblemInformation != undefined) {
-        internal_packet.requestProblemInformation = packet.requestProblemInformation ? 1 : 0;
+        binary_packet.requestProblemInformation = packet.requestProblemInformation ? 1 : 0;
     }
 
     if (packet.receiveMaximum != undefined) {
-        internal_packet.receiveMaximum = packet.receiveMaximum;
+        binary_packet.receiveMaximum = packet.receiveMaximum;
     }
 
     if (packet.maximumPacketSizeBytes != undefined) {
-        internal_packet.maximumPacketSizeBytes = packet.maximumPacketSizeBytes;
+        binary_packet.maximumPacketSizeBytes = packet.maximumPacketSizeBytes;
     }
 
     if (packet.willDelayIntervalSeconds != undefined) {
-        internal_packet.willDelayIntervalSeconds = packet.willDelayIntervalSeconds;
+        binary_packet.willDelayIntervalSeconds = packet.willDelayIntervalSeconds;
     }
 
     if (packet.will) {
-        internal_packet.will = convert_publish_packet_to_binary(packet.will as PublishPacketInternal);
+        binary_packet.will = convert_publish_packet_to_binary(packet.will as PublishPacketInternal, includeInternalFields);
     }
 
     if (packet.authenticationMethod != undefined) {
-        internal_packet.authenticationMethod = encoder.encode(packet.authenticationMethod).buffer;
+        binary_packet.authenticationMethod = encoder.encode(packet.authenticationMethod).buffer;
     }
 
     if (packet.authenticationData != undefined) {
-        internal_packet.authenticationData = binary_data_to_array_buffer(packet.authenticationData);
+        binary_packet.authenticationData = binary_data_to_array_buffer(packet.authenticationData);
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
     }
 
-    return internal_packet;
+    if (includeInternalFields) {
+        binary_packet.cleanSession = packet.cleanStart ? 1 : 0;
+        if (packet.topicAliasMaximum != undefined) {
+            binary_packet.topicAliasMaximum = packet.topicAliasMaximum;
+        }
+
+        if (packet.authenticationMethod != undefined) {
+            binary_packet.authenticationMethod = encoder.encode(packet.authenticationMethod).buffer;
+        }
+
+        if (packet.authenticationData != undefined) {
+            binary_packet.authenticationData = packet.authenticationData;
+        }
+    }
+
+    return binary_packet;
 }
 
-function convert_connack_packet_to_binary(packet: ConnackPacketInternal) : ConnackPacketBinary {
-    let encoder = new TextEncoder();
-    let internal_packet : ConnackPacketBinary = {
-        type: mqtt5_packet.PacketType.Connack,
-        sessionPresent: packet.sessionPresent ? 1 : 0,
-        reasonCode: packet.reasonCode
-    };
-
-    if (packet.sessionExpiryInterval != undefined) {
-        internal_packet.sessionExpiryInterval = packet.sessionExpiryInterval;
-    }
-
-    if (packet.receiveMaximum != undefined) {
-        internal_packet.receiveMaximum = packet.receiveMaximum;
-    }
-
-    if (packet.maximumQos != undefined) {
-        internal_packet.maximumQos = packet.maximumQos;
-    }
-
-    if (packet.retainAvailable != undefined) {
-        internal_packet.retainAvailable = packet.retainAvailable ? 1 : 0;
-    }
-
-    if (packet.maximumPacketSize != undefined) {
-        internal_packet.maximumPacketSize = packet.maximumPacketSize;
-    }
-
-    if (packet.assignedClientIdentifier != undefined) {
-        internal_packet.assignedClientIdentifier = encoder.encode(packet.assignedClientIdentifier).buffer;
-    }
-
-    if (packet.topicAliasMaximum != undefined) {
-        internal_packet.topicAliasMaximum = packet.topicAliasMaximum;
-    }
-
-    if (packet.reasonString != undefined) {
-        internal_packet.reasonString = encoder.encode(packet.reasonString).buffer;
-    }
-
-    if (packet.wildcardSubscriptionsAvailable != undefined) {
-        internal_packet.wildcardSubscriptionsAvailable = packet.wildcardSubscriptionsAvailable ? 1 : 0;
-    }
-
-    if (packet.subscriptionIdentifiersAvailable != undefined) {
-        internal_packet.subscriptionIdentifiersAvailable = packet.subscriptionIdentifiersAvailable ? 1 : 0;
-    }
-
-    if (packet.sharedSubscriptionsAvailable != undefined) {
-        internal_packet.sharedSubscriptionsAvailable = packet.sharedSubscriptionsAvailable ? 1 : 0;
-    }
-
-    if (packet.serverKeepAlive != undefined) {
-        internal_packet.serverKeepAlive = packet.serverKeepAlive;
-    }
-
-    if (packet.responseInformation != undefined) {
-        internal_packet.responseInformation = encoder.encode(packet.responseInformation).buffer;
-    }
-
-    if (packet.serverReference != undefined) {
-        internal_packet.serverReference = encoder.encode(packet.serverReference).buffer;
-    }
-
-    if (packet.authenticationMethod != undefined) {
-        internal_packet.authenticationMethod = encoder.encode(packet.authenticationMethod).buffer;
-    }
-
-    if (packet.authenticationData != undefined) {
-        internal_packet.authenticationData = binary_data_to_array_buffer(packet.authenticationData);
-    }
-
-    if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
-    }
-
-    return internal_packet;
+export function is_valid_payload(payload: mqtt5_packet.Payload) : boolean {
+    return payload instanceof ArrayBuffer || payload instanceof Uint8Array || payload instanceof Buffer || typeof(payload) === 'string';
 }
 
 function payload_to_array_buffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
@@ -526,76 +425,87 @@ function payload_to_array_buffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     }
 }
 
-function convert_publish_packet_to_binary(packet: PublishPacketInternal) : PublishPacketBinary {
+function convert_publish_packet_to_binary(packet: PublishPacketInternal, includeInternalFields: boolean) : PublishPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : PublishPacketBinary = {
+    let binary_packet : PublishPacketBinary = {
         type: mqtt5_packet.PacketType.Publish,
-        packetId: packet.packetId,
         topicName : encoder.encode(packet.topicName).buffer,
         qos: packet.qos,
-        duplicate: packet.duplicate ? 1 : 0,
     };
 
     if (packet.payload != undefined) {
-        internal_packet.payload = payload_to_array_buffer(packet.payload);
+        binary_packet.payload = payload_to_array_buffer(packet.payload);
     }
 
     if (packet.retain != undefined) {
-        internal_packet.retain = packet.retain ? 1 : 0;
+        binary_packet.retain = packet.retain ? 1 : 0;
     }
 
     if (packet.payloadFormat != undefined) {
-        internal_packet.payloadFormat = packet.payloadFormat;
+        binary_packet.payloadFormat = packet.payloadFormat;
     }
 
     if (packet.messageExpiryIntervalSeconds != undefined) {
-        internal_packet.messageExpiryIntervalSeconds = packet.messageExpiryIntervalSeconds;
+        binary_packet.messageExpiryIntervalSeconds = packet.messageExpiryIntervalSeconds;
     }
 
     if (packet.topicAlias != undefined) {
-        internal_packet.topicAlias = packet.topicAlias;
+        binary_packet.topicAlias = packet.topicAlias;
     }
 
     if (packet.responseTopic != undefined) {
-        internal_packet.responseTopic = encoder.encode(packet.responseTopic).buffer;
+        binary_packet.responseTopic = encoder.encode(packet.responseTopic).buffer;
     }
 
     if (packet.correlationData != undefined) {
-        internal_packet.correlationData = binary_data_to_array_buffer(packet.correlationData);
-    }
-
-    if (packet.subscriptionIdentifiers != undefined) {
-        internal_packet.subscriptionIdentifiers = packet.subscriptionIdentifiers;
+        binary_packet.correlationData = binary_data_to_array_buffer(packet.correlationData);
     }
 
     if (packet.contentType != undefined) {
-        internal_packet.contentType = encoder.encode(packet.contentType).buffer;
+        binary_packet.contentType = encoder.encode(packet.contentType).buffer;
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
     }
 
-    return internal_packet;
+    if (includeInternalFields) {
+        if (packet.packetId != undefined) {
+            binary_packet.packetId = packet.packetId;
+        }
+
+        if (packet.subscriptionIdentifiers != undefined) {
+            binary_packet.subscriptionIdentifiers = packet.subscriptionIdentifiers;
+        }
+
+        binary_packet.duplicate = packet.duplicate ? 1 : 0;
+
+    }
+
+    return binary_packet;
 }
 
-function convert_puback_packet_to_binary(packet: PubackPacketInternal) : PubackPacketBinary {
+function convert_puback_packet_to_binary(packet: PubackPacketInternal, includeInternalFields: boolean) : PubackPacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet : PubackPacketBinary = {
+    let binary_packet : PubackPacketBinary = {
         type: mqtt5_packet.PacketType.Puback,
-        packetId: packet.packetId,
+        packetId: 0,
         reasonCode: packet.reasonCode
     };
 
     if (packet.reasonString != undefined) {
-        internal_packet.reasonString = encoder.encode(packet.reasonString).buffer;
+        binary_packet.reasonString = encoder.encode(packet.reasonString).buffer;
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
     }
 
-    return internal_packet;
+    if (includeInternalFields) {
+        binary_packet.packetId = packet.packetId;
+    }
+
+    return binary_packet;
 }
 
 function convert_subscription_to_binary(subscription: mqtt5_packet.Subscription) : SubscriptionBinary {
@@ -621,86 +531,56 @@ function convert_subscription_to_binary(subscription: mqtt5_packet.Subscription)
     return internal_subscription;
 }
 
-function convert_subscribe_packet_to_binary(packet: SubscribePacketInternal) : SubscribePacketBinary {
-    let internal_packet : SubscribePacketBinary = {
+function convert_subscribe_packet_to_binary(packet: SubscribePacketInternal, includeInternalFields: boolean) : SubscribePacketBinary {
+    let binary_packet : SubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Subscribe,
-        packetId: packet.packetId,
+        packetId: 0,
         subscriptions: []
     };
 
     for (let subscription of packet.subscriptions) {
-        internal_packet.subscriptions.push(convert_subscription_to_binary(subscription));
+        binary_packet.subscriptions.push(convert_subscription_to_binary(subscription));
     }
 
     if (packet.subscriptionIdentifier != undefined) {
-        internal_packet.subscriptionIdentifier = packet.subscriptionIdentifier;
+        binary_packet.subscriptionIdentifier = packet.subscriptionIdentifier;
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
     }
 
-    return internal_packet;
+    if (includeInternalFields) {
+        binary_packet.packetId = packet.packetId;
+    }
+
+    return binary_packet;
 }
 
-function convert_suback_packet_to_binary(packet: SubackPacketInternal) : SubackPacketBinary {
+function convert_unsubscribe_packet_to_binary(packet: UnsubscribePacketInternal, includeInternalFields: boolean) : UnsubscribePacketBinary {
     let encoder = new TextEncoder();
-    let internal_packet: SubackPacketBinary = {
-        type: mqtt5_packet.PacketType.Suback,
-        packetId: packet.packetId,
-        reasonCodes: packet.reasonCodes
-    };
-
-    if (packet.reasonString != undefined) {
-        internal_packet.reasonString = encoder.encode(packet.reasonString).buffer;
-    }
-
-    if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
-    }
-
-    return internal_packet;
-}
-
-function convert_unsubscribe_packet_to_binary(packet: UnsubscribePacketInternal) : UnsubscribePacketBinary {
-    let encoder = new TextEncoder();
-    let internal_packet: UnsubscribePacketBinary = {
+    let binary_packet: UnsubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Unsubscribe,
-        packetId: packet.packetId,
+        packetId: 0,
         topicFilters: []
     };
 
     for (let topicFilter of packet.topicFilters) {
-        internal_packet.topicFilters.push(encoder.encode(topicFilter).buffer);
+        binary_packet.topicFilters.push(encoder.encode(topicFilter).buffer);
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
     }
 
-    return internal_packet;
+    if (includeInternalFields) {
+        binary_packet.packetId = packet.packetId;
+    }
+
+    return binary_packet;
 }
 
-function convert_unsuback_packet_to_binary(packet: UnsubackPacketInternal) : UnsubackPacketBinary {
-    let encoder = new TextEncoder();
-    let internal_packet: UnsubackPacketBinary = {
-        type: mqtt5_packet.PacketType.Unsuback,
-        packetId: packet.packetId,
-        reasonCodes: packet.reasonCodes
-    };
-
-    if (packet.reasonString != undefined) {
-        internal_packet.reasonString = encoder.encode(packet.reasonString).buffer;
-    }
-
-    if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
-    }
-
-    return internal_packet;
-}
-
-function convert_disconnect_packet_to_binary(packet: DisconnectPacketInternal) : DisconnectPacketBinary {
+function convert_disconnect_packet_to_binary(packet: mqtt5_packet.DisconnectPacket, includeInternalFields: boolean) : DisconnectPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : DisconnectPacketBinary = {
         type: mqtt5_packet.PacketType.Disconnect,
@@ -726,37 +606,27 @@ function convert_disconnect_packet_to_binary(packet: DisconnectPacketInternal) :
     return internal_packet;
 }
 
-export function convert_packet_to_binary(packet: mqtt5_packet.IPacket) : IPacketBinary {
+export function convert_packet_to_binary(packet: mqtt5_packet.IPacket, includeInternalFields: boolean) : IPacketBinary {
     if (!packet.type) {
         throw new CrtError("Invalid packet type");
     }
 
     switch(packet.type) {
         case mqtt5_packet.PacketType.Connect:
-            return convert_connect_packet_to_binary(packet as ConnectPacketInternal);
-        case mqtt5_packet.PacketType.Connack:
-            return convert_connack_packet_to_binary(packet as ConnackPacketInternal);
+            return convert_connect_packet_to_binary(packet as ConnectPacketInternal, includeInternalFields);
         case mqtt5_packet.PacketType.Publish:
-            return convert_publish_packet_to_binary(packet as PublishPacketInternal);
+            return convert_publish_packet_to_binary(packet as PublishPacketInternal, includeInternalFields);
         case mqtt5_packet.PacketType.Puback:
-            return convert_puback_packet_to_binary(packet as PubackPacketInternal);
+            return convert_puback_packet_to_binary(packet as PubackPacketInternal, includeInternalFields);
         case mqtt5_packet.PacketType.Subscribe:
-            return convert_subscribe_packet_to_binary(packet as SubscribePacketInternal);
-        case mqtt5_packet.PacketType.Suback:
-            return convert_suback_packet_to_binary(packet as SubackPacketInternal);
+            return convert_subscribe_packet_to_binary(packet as SubscribePacketInternal, includeInternalFields);
         case mqtt5_packet.PacketType.Unsubscribe:
-            return convert_unsubscribe_packet_to_binary(packet as UnsubscribePacketInternal);
-        case mqtt5_packet.PacketType.Unsuback:
-            return convert_unsuback_packet_to_binary(packet as UnsubackPacketInternal);
+            return convert_unsubscribe_packet_to_binary(packet as UnsubscribePacketInternal, includeInternalFields);
         case mqtt5_packet.PacketType.Disconnect:
-            return convert_disconnect_packet_to_binary(packet as DisconnectPacketInternal);
+            return convert_disconnect_packet_to_binary(packet as DisconnectPacketInternal, includeInternalFields);
         case mqtt5_packet.PacketType.Pingreq:
             return {
                 type: mqtt5_packet.PacketType.Pingreq
-            };
-        case mqtt5_packet.PacketType.Pingresp:
-            return {
-                type: mqtt5_packet.PacketType.Pingresp
             };
         default:
             throw new CrtError("Unsupported packet type: ");
