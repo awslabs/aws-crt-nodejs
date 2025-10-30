@@ -10,20 +10,20 @@ import * as vli from "../lib/browser/mqtt_internal/vli";
 import {CrtError} from "@awscrt";
 import * as mqtt5_packet from '../lib/common/mqtt5_packet';
 
-function encode_connack_packet311(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
+function encodeConnackPacket311(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNACK });
     steps.push({ type: encoder.EncodingStepType.U8, value: 0x02 });
     steps.push({ type: encoder.EncodingStepType.U8, value: packet.sessionPresent ? 1 : 0 });
     steps.push({ type: encoder.EncodingStepType.U8, value: packet.reasonCode });
 }
 
-function get_suback_packet_remaining_lengths311(packet: SubackPacketBinary) : number {
+function getSubackPacketRemainingLengths311(packet: SubackPacketBinary) : number {
     return 2 + packet.reasonCodes.length;
 }
 
-function encode_suback_packet311(steps: Array<encoder.EncodingStep>, packet: SubackPacketBinary) {
+function encodeSubackPacket311(steps: Array<encoder.EncodingStep>, packet: SubackPacketBinary) {
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_SUBACK });
-    steps.push({ type: encoder.EncodingStepType.VLI, value: get_suback_packet_remaining_lengths311(packet) });
+    steps.push({ type: encoder.EncodingStepType.VLI, value: getSubackPacketRemainingLengths311(packet) });
     steps.push({ type: encoder.EncodingStepType.U16, value: packet.packetId });
 
     for (let reasonCode of packet.reasonCodes) {
@@ -31,17 +31,17 @@ function encode_suback_packet311(steps: Array<encoder.EncodingStep>, packet: Sub
     }
 }
 
-function encode_unsuback_packet311(steps: Array<encoder.EncodingStep>, packet: UnsubackPacketBinary) {
+function encodeUnsubackPacket311(steps: Array<encoder.EncodingStep>, packet: UnsubackPacketBinary) {
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_UNSUBACK });
     steps.push({ type: encoder.EncodingStepType.U8, value: 2 });
     steps.push({ type: encoder.EncodingStepType.U16, value: packet.packetId });
 }
 
-function encode_pingresp_packet(steps: Array<encoder.EncodingStep>) {
+function encodePingrespPacket(steps: Array<encoder.EncodingStep>) {
     steps.push({ type: encoder.EncodingStepType.U16, value: model.PACKET_TYPE_PINGRESP_FULL_ENCODING });
 }
 
-function get_connack_packet_remaining_lengths5(packet: ConnackPacketBinary) : [number, number] {
+function getConnackPacketRemainingLengths5(packet: ConnackPacketBinary) : [number, number] {
     let remaining_length: number = 2; // 1 byte flags, 1 byte reason code
     let properties_length: number = 0;
 
@@ -109,14 +109,14 @@ function get_connack_packet_remaining_lengths5(packet: ConnackPacketBinary) : [n
         properties_length += 3 + packet.authenticationData.byteLength;
     }
 
-    properties_length += encoder.compute_user_properties_length(packet.userProperties);
+    properties_length += encoder.computeUserPropertiesLength(packet.userProperties);
 
-    remaining_length += vli.get_vli_byte_length(properties_length) + properties_length;
+    remaining_length += vli.getVliByteLength(properties_length) + properties_length;
 
     return [remaining_length, properties_length];
 }
 
-function encode_connack_properties(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
+function encodeConnackProperties(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
     if (packet.sessionExpiryInterval != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE });
         steps.push({ type: encoder.EncodingStepType.U32, value: packet.sessionExpiryInterval });
@@ -144,7 +144,7 @@ function encode_connack_properties(steps: Array<encoder.EncodingStep>, packet: C
 
     if (packet.assignedClientIdentifier != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.ASSIGNED_CLIENT_IDENTIFIER_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.assignedClientIdentifier);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.assignedClientIdentifier);
     }
 
     if (packet.topicAliasMaximum != undefined) {
@@ -154,7 +154,7 @@ function encode_connack_properties(steps: Array<encoder.EncodingStep>, packet: C
 
     if (packet.reasonString != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.reasonString);
     }
 
     if (packet.wildcardSubscriptionsAvailable != undefined) {
@@ -179,29 +179,29 @@ function encode_connack_properties(steps: Array<encoder.EncodingStep>, packet: C
 
     if (packet.responseInformation != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.RESPONSE_INFORMATION_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.responseInformation);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.responseInformation);
     }
 
     if (packet.serverReference != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.SERVER_REFERENCE_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.serverReference);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.serverReference);
     }
 
     if (packet.authenticationMethod != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.AUTHENTICATION_METHOD_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.authenticationMethod);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.authenticationMethod);
     }
 
     if (packet.authenticationData != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.AUTHENTICATION_DATA_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.authenticationData);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.authenticationData);
     }
 
-    encoder.encode_user_properties(steps, packet.userProperties);
+    encoder.encodeUserProperties(steps, packet.userProperties);
 }
 
-function encode_connack_packet5(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
-    let [remaining_length, properties_length] = get_connack_packet_remaining_lengths5(packet);
+function encodeConnackPacket5(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
+    let [remaining_length, properties_length] = getConnackPacketRemainingLengths5(packet);
 
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNACK });
     steps.push({ type: encoder.EncodingStepType.VLI, value: remaining_length });
@@ -209,10 +209,10 @@ function encode_connack_packet5(steps: Array<encoder.EncodingStep>, packet: Conn
     steps.push({ type: encoder.EncodingStepType.U8, value: packet.reasonCode });
     steps.push({ type: encoder.EncodingStepType.VLI, value: properties_length });
 
-    encode_connack_properties(steps, packet);
+    encodeConnackProperties(steps, packet);
 }
 
-function get_suback_packet_remaining_lengths5(packet: SubackPacketBinary) : [number, number] {
+function getSubackPacketRemainingLengths5(packet: SubackPacketBinary) : [number, number] {
     let remaining_length: number = 2; // packet id
     let properties_length: number = 0;
 
@@ -220,97 +220,97 @@ function get_suback_packet_remaining_lengths5(packet: SubackPacketBinary) : [num
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
-    properties_length += encoder.compute_user_properties_length(packet.userProperties);
+    properties_length += encoder.computeUserPropertiesLength(packet.userProperties);
 
-    remaining_length += properties_length + vli.get_vli_byte_length(properties_length);
+    remaining_length += properties_length + vli.getVliByteLength(properties_length);
     remaining_length += packet.reasonCodes.length;
 
     return [remaining_length, properties_length];
 }
 
-function encode_suback_properties(steps: Array<encoder.EncodingStep>, packet: SubackPacketBinary) {
+function encodeSubackProperties(steps: Array<encoder.EncodingStep>, packet: SubackPacketBinary) {
     if (packet.reasonString != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.reasonString);
     }
 
-    encoder.encode_user_properties(steps, packet.userProperties);
+    encoder.encodeUserProperties(steps, packet.userProperties);
 }
 
-function encode_suback_packet5(steps: Array<encoder.EncodingStep>, packet: SubackPacketBinary) {
-    let [remaining_length, properties_length] = get_suback_packet_remaining_lengths5(packet);
+function encodeSubackPacket5(steps: Array<encoder.EncodingStep>, packet: SubackPacketBinary) {
+    let [remaining_length, properties_length] = getSubackPacketRemainingLengths5(packet);
 
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_SUBACK });
     steps.push({ type: encoder.EncodingStepType.VLI, value: remaining_length });
     steps.push({ type: encoder.EncodingStepType.U16, value: packet.packetId });
 
     steps.push({ type: encoder.EncodingStepType.VLI, value: properties_length });
-    encode_suback_properties(steps, packet);
+    encodeSubackProperties(steps, packet);
 
     for (let reason_code of packet.reasonCodes) {
         steps.push({ type: encoder.EncodingStepType.U8, value: reason_code });
     }
 }
 
-function get_unsuback_packet_remaining_lengths5(packet: UnsubackPacketBinary) : [number, number] {
+function getUnsubackPacketRemainingLengths5(packet: UnsubackPacketBinary) : [number, number] {
     let remaining_length: number = 2; // packet id
-    let properties_length: number = encoder.compute_user_properties_length(packet.userProperties);
+    let properties_length: number = encoder.computeUserPropertiesLength(packet.userProperties);
 
     if (packet.reasonString != undefined) {
         properties_length += 3 + packet.reasonString.byteLength;
     }
 
-    remaining_length += properties_length + vli.get_vli_byte_length(properties_length);
+    remaining_length += properties_length + vli.getVliByteLength(properties_length);
     remaining_length += packet.reasonCodes.length;
 
     return [remaining_length, properties_length];
 }
 
-function encode_unsuback_properties(steps: Array<encoder.EncodingStep>, packet: UnsubackPacketBinary) {
+function encodeUnsubackProperties(steps: Array<encoder.EncodingStep>, packet: UnsubackPacketBinary) {
     if (packet.reasonString != undefined) {
         steps.push({ type: encoder.EncodingStepType.U8, value: model.REASON_STRING_PROPERTY_CODE });
-        encoder.encode_required_length_prefixed_array_buffer(steps, packet.reasonString);
+        encoder.encodeRequiredLengthPrefixedArrayBuffer(steps, packet.reasonString);
     }
 
-    encoder.encode_user_properties(steps, packet.userProperties);
+    encoder.encodeUserProperties(steps, packet.userProperties);
 }
 
-function encode_unsuback_packet5(steps: Array<encoder.EncodingStep>, packet: UnsubackPacketBinary) {
-    let [remaining_length, properties_length] = get_unsuback_packet_remaining_lengths5(packet);
+function encodeUnsubackPacket5(steps: Array<encoder.EncodingStep>, packet: UnsubackPacketBinary) {
+    let [remaining_length, properties_length] = getUnsubackPacketRemainingLengths5(packet);
 
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_UNSUBACK });
     steps.push({ type: encoder.EncodingStepType.VLI, value: remaining_length });
     steps.push({ type: encoder.EncodingStepType.U16, value: packet.packetId });
 
     steps.push({ type: encoder.EncodingStepType.VLI, value: properties_length });
-    encode_unsuback_properties(steps, packet);
+    encodeUnsubackProperties(steps, packet);
 
     for (let reason_code of packet.reasonCodes) {
         steps.push({ type: encoder.EncodingStepType.U8, value: reason_code });
     }
 }
 
-export function apply_debug_encoders_to_encoding_function_set(encoders: encoder.EncodingFunctionSet, mode: model.ProtocolMode) {
+export function applyDebugEncodersToEncodingFunctionSet(encoders: encoder.EncodingFunctionSet, mode: model.ProtocolMode) {
     switch(mode) {
         case model.ProtocolMode.Mqtt5:
-            encoders.set(mqtt5_packet.PacketType.Connack, (steps, packet) => { encode_connack_packet5(steps, packet as ConnackPacketBinary); });
-            encoders.set(mqtt5_packet.PacketType.Suback, (steps, packet) => { encode_suback_packet5(steps, packet as SubackPacketBinary); });
-            encoders.set(mqtt5_packet.PacketType.Unsuback, (steps, packet) => { encode_unsuback_packet5(steps, packet as UnsubackPacketBinary); });
-            encoders.set(mqtt5_packet.PacketType.Pingresp, (steps, packet) => { encode_pingresp_packet(steps); });
+            encoders.set(mqtt5_packet.PacketType.Connack, (steps, packet) => { encodeConnackPacket5(steps, packet as ConnackPacketBinary); });
+            encoders.set(mqtt5_packet.PacketType.Suback, (steps, packet) => { encodeSubackPacket5(steps, packet as SubackPacketBinary); });
+            encoders.set(mqtt5_packet.PacketType.Unsuback, (steps, packet) => { encodeUnsubackPacket5(steps, packet as UnsubackPacketBinary); });
+            encoders.set(mqtt5_packet.PacketType.Pingresp, (steps, packet) => { encodePingrespPacket(steps); });
             return;
 
         case model.ProtocolMode.Mqtt311:
-            encoders.set(mqtt5_packet.PacketType.Connack, (steps, packet) => { encode_connack_packet311(steps, packet as ConnackPacketBinary); });
-            encoders.set(mqtt5_packet.PacketType.Suback, (steps, packet) => { encode_suback_packet311(steps, packet as SubackPacketBinary); });
-            encoders.set(mqtt5_packet.PacketType.Unsuback, (steps, packet) => { encode_unsuback_packet311(steps, packet as UnsubackPacketBinary); });
-            encoders.set(mqtt5_packet.PacketType.Pingresp, (steps, packet) => { encode_pingresp_packet(steps); });
+            encoders.set(mqtt5_packet.PacketType.Connack, (steps, packet) => { encodeConnackPacket311(steps, packet as ConnackPacketBinary); });
+            encoders.set(mqtt5_packet.PacketType.Suback, (steps, packet) => { encodeSubackPacket311(steps, packet as SubackPacketBinary); });
+            encoders.set(mqtt5_packet.PacketType.Unsuback, (steps, packet) => { encodeUnsubackPacket311(steps, packet as UnsubackPacketBinary); });
+            encoders.set(mqtt5_packet.PacketType.Pingresp, (steps, packet) => { encodePingrespPacket(steps); });
             return;
     }
 
     throw new CrtError("Unsupported Protocol Mode");
 }
 
-function decode_pingreq_packet(firstByte: number, payload: DataView) : mqtt5_packet.IPacket {
+function decodePingreqPacket(firstByte: number, payload: DataView) : mqtt5_packet.IPacket {
     if (payload.byteLength != 0) {
         throw new CrtError("Pingreq packet with invalid payload");
     }
@@ -324,7 +324,7 @@ function decode_pingreq_packet(firstByte: number, payload: DataView) : mqtt5_pac
     };
 }
 
-function decode_connect_packet311(firstByte: number, payload: DataView) : model.ConnectPacketInternal {
+function decodeConnectPacket311(firstByte: number, payload: DataView) : model.ConnectPacketInternal {
 
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNECT) {
         throw new CrtError("Connect(311) packet with invalid first byte: " + firstByte);
@@ -340,33 +340,33 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
     let index: number = 0;
     let protocol: string = "";
 
-    [protocol, index] = decoder.decode_length_prefixed_string(payload, index);
+    [protocol, index] = decoder.decodeLengthPrefixedString(payload, index);
     if (protocol != "MQTT") {
         throw new CrtError("Connect(311) packet with invalid protocol");
     }
 
     let protocolVersion: number = 0;
-    [protocolVersion, index] = decoder.decode_u8(payload, index);
+    [protocolVersion, index] = decoder.decodeU8(payload, index);
     if (protocolVersion != 4) {
         throw new CrtError("Connect(311) packet with mismatched protocol version");
     }
 
     let flags: number = 0;
-    [flags, index] = decoder.decode_u8(payload, index);
+    [flags, index] = decoder.decodeU8(payload, index);
 
     if (flags & model.CONNECT_FLAGS_CLEAN_SESSION) {
         connect.cleanStart = true;
     }
 
-    [connect.keepAliveIntervalSeconds, index] = decoder.decode_u16(payload, index);
-    [connect.clientId, index] = decoder.decode_length_prefixed_string(payload, index);
+    [connect.keepAliveIntervalSeconds, index] = decoder.decodeU16(payload, index);
+    [connect.clientId, index] = decoder.decodeLengthPrefixedString(payload, index);
 
     if (flags & model.CONNECT_FLAGS_HAS_WILL) {
         let willTopic : string = "";
         let willPayload : ArrayBuffer | null = null;
 
-        [willTopic, index] = decoder.decode_length_prefixed_string(payload, index);
-        [willPayload, index] = decoder.decode_length_prefixed_bytes(payload, index);
+        [willTopic, index] = decoder.decodeLengthPrefixedString(payload, index);
+        [willPayload, index] = decoder.decodeLengthPrefixedBytes(payload, index);
 
         connect.will = {
             type: mqtt5_packet.PacketType.Publish,
@@ -378,11 +378,11 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
     }
 
     if (flags & model.CONNECT_FLAGS_HAS_USERNAME) {
-        [connect.username, index] = decoder.decode_length_prefixed_string(payload, index);
+        [connect.username, index] = decoder.decodeLengthPrefixedString(payload, index);
     }
 
     if (flags & model.CONNECT_FLAGS_HAS_PASSWORD) {
-        [connect.password, index] = decoder.decode_length_prefixed_bytes(payload, index);
+        [connect.password, index] = decoder.decodeLengthPrefixedBytes(payload, index);
     }
 
     if (index != payload.byteLength) {
@@ -392,7 +392,7 @@ function decode_connect_packet311(firstByte: number, payload: DataView) : model.
     return connect;
 }
 
-function decode_subscribe_packet311(firstByte: number, payload: DataView) : model.SubscribePacketInternal {
+function decodeSubscribePacket311(firstByte: number, payload: DataView) : model.SubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBSCRIBE) {
         throw new CrtError("Subscribe(311) packet with invalid first byte: " + firstByte);
     }
@@ -405,7 +405,7 @@ function decode_subscribe_packet311(firstByte: number, payload: DataView) : mode
 
     let index: number = 0;
 
-    [subscribe.packetId, index] = decoder.decode_u16(payload, index);
+    [subscribe.packetId, index] = decoder.decodeU16(payload, index);
 
     while (index < payload.byteLength) {
         let subscription : mqtt5_packet.Subscription = {
@@ -413,8 +413,8 @@ function decode_subscribe_packet311(firstByte: number, payload: DataView) : mode
             qos: 0
         };
 
-        [subscription.topicFilter, index] = decoder.decode_length_prefixed_string(payload, index);
-        [subscription.qos, index] = decoder.decode_u8(payload, index);
+        [subscription.topicFilter, index] = decoder.decodeLengthPrefixedString(payload, index);
+        [subscription.qos, index] = decoder.decodeU8(payload, index);
 
         subscribe.subscriptions.push(subscription);
     }
@@ -422,7 +422,7 @@ function decode_subscribe_packet311(firstByte: number, payload: DataView) : mode
     return subscribe;
 }
 
-function decode_unsubscribe_packet311(firstByte: number, payload: DataView) : model.UnsubscribePacketInternal {
+function decodeUnsubscribePacket311(firstByte: number, payload: DataView) : model.UnsubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBSCRIBE) {
         throw new CrtError("Unsubscribe(311) packet with invalid first byte: " + firstByte);
     }
@@ -435,18 +435,18 @@ function decode_unsubscribe_packet311(firstByte: number, payload: DataView) : mo
 
     let index: number = 0;
 
-    [unsubscribe.packetId, index] = decoder.decode_u16(payload, index);
+    [unsubscribe.packetId, index] = decoder.decodeU16(payload, index);
 
     while (index < payload.byteLength) {
         let topicFilter : string = "";
-        [topicFilter, index] = decoder.decode_length_prefixed_string(payload, index);
+        [topicFilter, index] = decoder.decodeLengthPrefixedString(payload, index);
         unsubscribe.topicFilters.push(topicFilter);
     }
 
     return unsubscribe;
 }
 
-function decode_disconnect_packet311(firstByte: number, payload: DataView) : mqtt5_packet.DisconnectPacket {
+function decodeDisconnectPacket311(firstByte: number, payload: DataView) : mqtt5_packet.DisconnectPacket {
     if (payload.byteLength != 0) {
         throw new CrtError("Disconnect(311) packet with invalid payload");
     }
@@ -461,22 +461,22 @@ function decode_disconnect_packet311(firstByte: number, payload: DataView) : mqt
     };
 }
 
-function decode_subscribe_properties(subscribe: model.SubscribePacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
+function decodeSubscribeProperties(subscribe: model.SubscribePacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
     let index : number = offset;
     let propertyCode : number = 0;
     while (index < offset + propertyLength) {
-        [propertyCode, index] = decoder.decode_u8(payload, index);
+        [propertyCode, index] = decoder.decodeU8(payload, index);
         switch (propertyCode) {
 
             case model.SUBSCRIPTION_IDENTIFIER_PROPERTY_CODE:
-                [subscribe.subscriptionIdentifier, index] = decoder.decode_vli(payload, index);
+                [subscribe.subscriptionIdentifier, index] = decoder.decodeVli(payload, index);
                 break;
 
             case model.USER_PROPERTY_PROPERTY_CODE:
                 if (!subscribe.userProperties) {
                     subscribe.userProperties = new Array<mqtt5_packet.UserProperty>();
                 }
-                index = decoder.decode_user_property(payload, index, subscribe.userProperties);
+                index = decoder.decodeUserProperty(payload, index, subscribe.userProperties);
                 break;
 
             default:
@@ -491,7 +491,7 @@ function decode_subscribe_properties(subscribe: model.SubscribePacketInternal, p
     return index;
 }
 
-function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.SubscribePacketInternal {
+function decodeSubscribePacket5(firstByte: number, payload: DataView) : model.SubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_SUBSCRIBE) {
         throw new CrtError("Subscribe(5) packet with invalid first byte: " + firstByte);
     }
@@ -503,12 +503,12 @@ function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.
     };
 
     let index: number = 0;
-    [subscribe.packetId, index] = decoder.decode_u16(payload, index);
+    [subscribe.packetId, index] = decoder.decodeU16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = decoder.decode_vli(payload, index);
+    [propertiesLength, index] = decoder.decodeVli(payload, index);
 
-    index = decode_subscribe_properties(subscribe, payload, index, propertiesLength);
+    index = decodeSubscribeProperties(subscribe, payload, index, propertiesLength);
 
     while (index < payload.byteLength) {
         let subscription : mqtt5_packet.Subscription = {
@@ -516,10 +516,10 @@ function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.
             qos: 0
         };
 
-        [subscription.topicFilter, index] = decoder.decode_length_prefixed_string(payload, index);
+        [subscription.topicFilter, index] = decoder.decodeLengthPrefixedString(payload, index);
 
         let subscriptionFlags : number = 0;
-        [subscriptionFlags, index] = decoder.decode_u8(payload, index);
+        [subscriptionFlags, index] = decoder.decodeU8(payload, index);
 
         subscription.qos = subscriptionFlags & model.QOS_MASK;
         subscription.noLocal = (subscriptionFlags & model.SUBSCRIPTION_FLAGS_NO_LOCAL) != 0;
@@ -536,18 +536,18 @@ function decode_subscribe_packet5(firstByte: number, payload: DataView) : model.
     return subscribe;
 }
 
-function decode_unsubscribe_properties(unsubscribe: model.UnsubscribePacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
+function decodeUnsubscribeProperties(unsubscribe: model.UnsubscribePacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
     let index : number = offset;
     let propertyCode : number = 0;
     while (index < offset + propertyLength) {
-        [propertyCode, index] = decoder.decode_u8(payload, index);
+        [propertyCode, index] = decoder.decodeU8(payload, index);
         switch (propertyCode) {
 
             case model.USER_PROPERTY_PROPERTY_CODE:
                 if (!unsubscribe.userProperties) {
                     unsubscribe.userProperties = new Array<mqtt5_packet.UserProperty>();
                 }
-                index = decoder.decode_user_property(payload, index, unsubscribe.userProperties);
+                index = decoder.decodeUserProperty(payload, index, unsubscribe.userProperties);
                 break;
 
             default:
@@ -562,7 +562,7 @@ function decode_unsubscribe_properties(unsubscribe: model.UnsubscribePacketInter
     return index;
 }
 
-function decode_unsubscribe_packet5(firstByte: number, payload: DataView) : model.UnsubscribePacketInternal {
+function decodeUnsubscribePacket5(firstByte: number, payload: DataView) : model.UnsubscribePacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_UNSUBSCRIBE) {
         throw new CrtError("Unsubscribe(5) packet with invalid first byte: " + firstByte);
     }
@@ -574,66 +574,66 @@ function decode_unsubscribe_packet5(firstByte: number, payload: DataView) : mode
     };
 
     let index: number = 0;
-    [unsubscribe.packetId, index] = decoder.decode_u16(payload, index);
+    [unsubscribe.packetId, index] = decoder.decodeU16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = decoder.decode_vli(payload, index);
+    [propertiesLength, index] = decoder.decodeVli(payload, index);
 
-    index = decode_unsubscribe_properties(unsubscribe, payload, index, propertiesLength);
+    index = decodeUnsubscribeProperties(unsubscribe, payload, index, propertiesLength);
 
     while (index < payload.byteLength) {
         let topicFilter : string = "";
-        [topicFilter, index] = decoder.decode_length_prefixed_string(payload, index);
+        [topicFilter, index] = decoder.decodeLengthPrefixedString(payload, index);
         unsubscribe.topicFilters.push(topicFilter);
     }
 
     return unsubscribe;
 }
 
-function decode_connect_properties(connect: model.ConnectPacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
+function decodeConnectProperties(connect: model.ConnectPacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
     let index : number = offset;
     let propertyCode : number = 0;
     while (index < offset + propertyLength) {
-        [propertyCode, index] = decoder.decode_u8(payload, index);
+        [propertyCode, index] = decoder.decodeU8(payload, index);
         switch (propertyCode) {
 
             case model.SESSION_EXPIRY_INTERVAL_PROPERTY_CODE:
-                [connect.sessionExpiryIntervalSeconds, index] = decoder.decode_u32(payload, index);
+                [connect.sessionExpiryIntervalSeconds, index] = decoder.decodeU32(payload, index);
                 break;
 
             case model.RECEIVE_MAXIMUM_PROPERTY_CODE:
-                [connect.receiveMaximum, index] = decoder.decode_u16(payload, index);
+                [connect.receiveMaximum, index] = decoder.decodeU16(payload, index);
                 break;
 
             case model.MAXIMUM_PACKET_SIZE_PROPERTY_CODE:
-                [connect.maximumPacketSizeBytes, index] = decoder.decode_u32(payload, index);
+                [connect.maximumPacketSizeBytes, index] = decoder.decodeU32(payload, index);
                 break;
 
             case model.TOPIC_ALIAS_MAXIMUM_PROPERTY_CODE:
-                [connect.topicAliasMaximum, index] = decoder.decode_u16(payload, index);
+                [connect.topicAliasMaximum, index] = decoder.decodeU16(payload, index);
                 break;
 
             case model.REQUEST_RESPONSE_INFORMATION_PROPERTY_CODE:
-                [connect.requestResponseInformation, index] = decoder.decode_boolean(payload, index);
+                [connect.requestResponseInformation, index] = decoder.decodeBoolean(payload, index);
                 break;
 
             case model.REQUEST_PROBLEM_INFORMATION_PROPERTY_CODE:
-                [connect.requestProblemInformation, index] = decoder.decode_boolean(payload, index);
+                [connect.requestProblemInformation, index] = decoder.decodeBoolean(payload, index);
                 break;
 
             case model.USER_PROPERTY_PROPERTY_CODE:
                 if (!connect.userProperties) {
                     connect.userProperties = new Array<mqtt5_packet.UserProperty>();
                 }
-                index = decoder.decode_user_property(payload, index, connect.userProperties);
+                index = decoder.decodeUserProperty(payload, index, connect.userProperties);
                 break;
 
             case model.AUTHENTICATION_METHOD_PROPERTY_CODE:
-                [connect.authenticationMethod, index] = decoder.decode_length_prefixed_string(payload, index);
+                [connect.authenticationMethod, index] = decoder.decodeLengthPrefixedString(payload, index);
                 break;
 
             case model.AUTHENTICATION_DATA_PROPERTY_CODE:
-                [connect.authenticationData, index] = decoder.decode_length_prefixed_bytes(payload, index);
+                [connect.authenticationData, index] = decoder.decodeLengthPrefixedBytes(payload, index);
                 break;
 
             default:
@@ -648,42 +648,42 @@ function decode_connect_properties(connect: model.ConnectPacketInternal, payload
     return index;
 }
 
-function decode_will_properties(connect: model.ConnectPacketInternal, will: model.PublishPacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
+function decodeWillProperties(connect: model.ConnectPacketInternal, will: model.PublishPacketInternal, payload: DataView, offset: number, propertyLength: number) : number {
     let index : number = offset;
     let propertyCode : number = 0;
     while (index < offset + propertyLength) {
-        [propertyCode, index] = decoder.decode_u8(payload, index);
+        [propertyCode, index] = decoder.decodeU8(payload, index);
         switch (propertyCode) {
 
             case model.WILL_DELAY_INTERVAL_PROPERTY_CODE:
-                [connect.willDelayIntervalSeconds, index] = decoder.decode_u32(payload, index);
+                [connect.willDelayIntervalSeconds, index] = decoder.decodeU32(payload, index);
                 break;
 
             case model.PAYLOAD_FORMAT_INDICATOR_PROPERTY_CODE:
-                [will.payloadFormat, index] = decoder.decode_u8(payload, index);
+                [will.payloadFormat, index] = decoder.decodeU8(payload, index);
                 break;
 
             case model.MESSAGE_EXPIRY_INTERVAL_PROPERTY_CODE:
-                [will.messageExpiryIntervalSeconds, index] = decoder.decode_u32(payload, index);
+                [will.messageExpiryIntervalSeconds, index] = decoder.decodeU32(payload, index);
                 break;
 
             case model.CONTENT_TYPE_PROPERTY_CODE:
-                [will.contentType, index] = decoder.decode_length_prefixed_string(payload, index);
+                [will.contentType, index] = decoder.decodeLengthPrefixedString(payload, index);
                 break;
 
             case model.RESPONSE_TOPIC_PROPERTY_CODE:
-                [will.responseTopic, index] = decoder.decode_length_prefixed_string(payload, index);
+                [will.responseTopic, index] = decoder.decodeLengthPrefixedString(payload, index);
                 break;
 
             case model.CORRELATION_DATA_PROPERTY_CODE:
-                [will.correlationData, index] = decoder.decode_length_prefixed_bytes(payload, index);
+                [will.correlationData, index] = decoder.decodeLengthPrefixedBytes(payload, index);
                 break;
 
             case model.USER_PROPERTY_PROPERTY_CODE:
                 if (!will.userProperties) {
                     will.userProperties = new Array<mqtt5_packet.UserProperty>();
                 }
-                index = decoder.decode_user_property(payload, index, will.userProperties);
+                index = decoder.decodeUserProperty(payload, index, will.userProperties);
                 break;
 
             default:
@@ -698,7 +698,7 @@ function decode_will_properties(connect: model.ConnectPacketInternal, will: mode
     return index;
 }
 
-function decode_connect_packet5(firstByte: number, payload: DataView) : model.ConnectPacketInternal {
+function decodeConnectPacket5(firstByte: number, payload: DataView) : model.ConnectPacketInternal {
     if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNECT) {
         throw new CrtError("Connect(5) packet with invalid first byte: " + firstByte);
     }
@@ -713,32 +713,32 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
     let index: number = 0;
     let protocol: string = "";
 
-    [protocol, index] = decoder.decode_length_prefixed_string(payload, index);
+    [protocol, index] = decoder.decodeLengthPrefixedString(payload, index);
     if (protocol != "MQTT") {
         throw new CrtError("Connect(5) packet with invalid protocol");
     }
 
     let protocolVersion: number = 0;
-    [protocolVersion, index] = decoder.decode_u8(payload, index);
+    [protocolVersion, index] = decoder.decodeU8(payload, index);
     if (protocolVersion != 5) {
         throw new CrtError("Connect(5) packet with unexpected protocol version");
     }
 
     let flags: number = 0;
-    [flags, index] = decoder.decode_u8(payload, index);
+    [flags, index] = decoder.decodeU8(payload, index);
 
     if (flags & model.CONNECT_FLAGS_CLEAN_SESSION) {
         connect.cleanStart = true;
     }
 
-    [connect.keepAliveIntervalSeconds, index] = decoder.decode_u16(payload, index);
+    [connect.keepAliveIntervalSeconds, index] = decoder.decodeU16(payload, index);
 
     let propertiesLength: number = 0;
-    [propertiesLength, index] = decoder.decode_vli(payload, index);
+    [propertiesLength, index] = decoder.decodeVli(payload, index);
 
-    index = decode_connect_properties(connect, payload, index, propertiesLength);
+    index = decodeConnectProperties(connect, payload, index, propertiesLength);
 
-    [connect.clientId, index] = decoder.decode_length_prefixed_string(payload, index);
+    [connect.clientId, index] = decoder.decodeLengthPrefixedString(payload, index);
 
     if (flags & model.CONNECT_FLAGS_HAS_WILL) {
         // @ts-ignore
@@ -747,12 +747,12 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
         };
 
         let willPropertiesLength: number = 0;
-        [willPropertiesLength, index] = decoder.decode_vli(payload, index);
+        [willPropertiesLength, index] = decoder.decodeVli(payload, index);
 
-        index = decode_will_properties(connect, will, payload, index, willPropertiesLength);
+        index = decodeWillProperties(connect, will, payload, index, willPropertiesLength);
 
-        [will.topicName, index] = decoder.decode_length_prefixed_string(payload, index);
-        [will.payload, index] = decoder.decode_length_prefixed_bytes(payload, index);
+        [will.topicName, index] = decoder.decodeLengthPrefixedString(payload, index);
+        [will.payload, index] = decoder.decodeLengthPrefixedBytes(payload, index);
         will.qos = (flags >>> model.CONNECT_FLAGS_QOS_SHIFT) & model.QOS_MASK;
         will.retain = (flags & model.CONNECT_FLAGS_WILL_RETAIN) != 0;
 
@@ -760,11 +760,11 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
     }
 
     if (flags & model.CONNECT_FLAGS_HAS_USERNAME) {
-        [connect.username, index] = decoder.decode_length_prefixed_string(payload, index);
+        [connect.username, index] = decoder.decodeLengthPrefixedString(payload, index);
     }
 
     if (flags & model.CONNECT_FLAGS_HAS_PASSWORD) {
-        [connect.password, index] = decoder.decode_length_prefixed_bytes(payload, index);
+        [connect.password, index] = decoder.decodeLengthPrefixedBytes(payload, index);
     }
 
     if (index != payload.byteLength) {
@@ -774,22 +774,22 @@ function decode_connect_packet5(firstByte: number, payload: DataView) : model.Co
     return connect;
 }
 
-export function apply_debug_decoders_to_decoding_function_set(decoders: decoder.DecodingFunctionSet, mode: model.ProtocolMode) {
+export function applyDebugDecodersToDecodingFunctionSet(decoders: decoder.DecodingFunctionSet, mode: model.ProtocolMode) {
 
     switch(mode) {
         case model.ProtocolMode.Mqtt5:
-            decoders.set(mqtt5_packet.PacketType.Pingreq, (firstByte, payload) => { return decode_pingreq_packet(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Subscribe, (firstByte, payload) => { return decode_subscribe_packet5(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Unsubscribe, (firstByte, payload) => { return decode_unsubscribe_packet5(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Connect, (firstByte, payload) => { return decode_connect_packet5(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Pingreq, (firstByte, payload) => { return decodePingreqPacket(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Subscribe, (firstByte, payload) => { return decodeSubscribePacket5(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Unsubscribe, (firstByte, payload) => { return decodeUnsubscribePacket5(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Connect, (firstByte, payload) => { return decodeConnectPacket5(firstByte, payload); });
             return;
 
         case model.ProtocolMode.Mqtt311:
-            decoders.set(mqtt5_packet.PacketType.Pingreq, (firstByte, payload) => { return decode_pingreq_packet(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Subscribe, (firstByte, payload) => { return decode_subscribe_packet311(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Unsubscribe, (firstByte, payload) => { return decode_unsubscribe_packet311(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Connect, (firstByte, payload) => { return decode_connect_packet311(firstByte, payload); });
-            decoders.set(mqtt5_packet.PacketType.Disconnect, (firstByte, payload) => { return decode_disconnect_packet311(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Pingreq, (firstByte, payload) => { return decodePingreqPacket(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Subscribe, (firstByte, payload) => { return decodeSubscribePacket311(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Unsubscribe, (firstByte, payload) => { return decodeUnsubscribePacket311(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Connect, (firstByte, payload) => { return decodeConnectPacket311(firstByte, payload); });
+            decoders.set(mqtt5_packet.PacketType.Disconnect, (firstByte, payload) => { return decodeDisconnectPacket311(firstByte, payload); });
             return;
     }
 
@@ -859,7 +859,7 @@ export interface ConnackPacketBinary extends model.IPacketBinary {
 export interface PingrespPacketBinary extends model.IPacketBinary {
 }
 
-function convert_connack_packet_to_binary(packet: model.ConnackPacketInternal) : ConnackPacketBinary {
+function convertConnackPacketToBinary(packet: model.ConnackPacketInternal) : ConnackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : ConnackPacketBinary = {
         type: mqtt5_packet.PacketType.Connack,
@@ -928,17 +928,17 @@ function convert_connack_packet_to_binary(packet: model.ConnackPacketInternal) :
     }
 
     if (packet.authenticationData != undefined) {
-        internal_packet.authenticationData = model.binary_data_to_array_buffer(packet.authenticationData);
+        internal_packet.authenticationData = model.binaryDataToArrayBuffer(packet.authenticationData);
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = model.convert_user_properties_to_binary(packet.userProperties);
+        internal_packet.userProperties = model.convertUserPropertiesToBinary(packet.userProperties);
     }
 
     return internal_packet;
 }
 
-function convert_suback_packet_to_binary(packet: model.SubackPacketInternal) : SubackPacketBinary {
+function convertSubackPacketToBinary(packet: model.SubackPacketInternal) : SubackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet: SubackPacketBinary = {
         type: mqtt5_packet.PacketType.Suback,
@@ -951,13 +951,13 @@ function convert_suback_packet_to_binary(packet: model.SubackPacketInternal) : S
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = model.convert_user_properties_to_binary(packet.userProperties);
+        internal_packet.userProperties = model.convertUserPropertiesToBinary(packet.userProperties);
     }
 
     return internal_packet;
 }
 
-function convert_unsuback_packet_to_binary(packet: model.UnsubackPacketInternal) : UnsubackPacketBinary {
+function convertUnsubackPacketToBinary(packet: model.UnsubackPacketInternal) : UnsubackPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet: UnsubackPacketBinary = {
         type: mqtt5_packet.PacketType.Unsuback,
@@ -970,7 +970,7 @@ function convert_unsuback_packet_to_binary(packet: model.UnsubackPacketInternal)
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = model.convert_user_properties_to_binary(packet.userProperties);
+        internal_packet.userProperties = model.convertUserPropertiesToBinary(packet.userProperties);
     }
 
     return internal_packet;
@@ -989,18 +989,18 @@ export function convertDebugPacketToBinary(packet: mqtt5_packet.IPacket) : model
         case mqtt5_packet.PacketType.Unsubscribe:
         case mqtt5_packet.PacketType.Disconnect:
         case mqtt5_packet.PacketType.Pingreq:
-            // use the non-test conversion function for normal outbound packets
-            return model.convert_packet_to_binary(packet, true);
+            // round trip testing success requires us to use the internal converter to capture all fields
+            return model.convertInternalPacketToBinary(packet);
 
-        // for everything else, use a test-only function (will be moved to test/... eventually)
+        // for everything else, use a test-only function
         case mqtt5_packet.PacketType.Connack:
-            return convert_connack_packet_to_binary(packet as model.ConnackPacketInternal);
+            return convertConnackPacketToBinary(packet as model.ConnackPacketInternal);
 
         case mqtt5_packet.PacketType.Suback:
-            return convert_suback_packet_to_binary(packet as model.SubackPacketInternal);
+            return convertSubackPacketToBinary(packet as model.SubackPacketInternal);
 
         case mqtt5_packet.PacketType.Unsuback:
-            return convert_unsuback_packet_to_binary(packet as model.UnsubackPacketInternal);
+            return convertUnsubackPacketToBinary(packet as model.UnsubackPacketInternal);
 
         case mqtt5_packet.PacketType.Pingresp:
             return {
@@ -1012,7 +1012,7 @@ export function convertDebugPacketToBinary(packet: mqtt5_packet.IPacket) : model
     }
 }
 
-function optional_booleans_equal(lhs: boolean | undefined, rhs: boolean | undefined) : boolean {
+function optionalBooleansEqual(lhs: boolean | undefined, rhs: boolean | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1024,7 +1024,7 @@ function optional_booleans_equal(lhs: boolean | undefined, rhs: boolean | undefi
     return false;
 }
 
-function optional_booleans_falsy_equal(lhs: boolean | undefined, rhs: boolean | undefined) : boolean {
+function optionalBooleansFalsyEqual(lhs: boolean | undefined, rhs: boolean | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1036,7 +1036,7 @@ function optional_booleans_falsy_equal(lhs: boolean | undefined, rhs: boolean | 
     return !lhs && !rhs;
 }
 
-function optional_numbers_equal(lhs: number | undefined, rhs: number | undefined) : boolean {
+function optionalNumbersEqual(lhs: number | undefined, rhs: number | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1048,7 +1048,7 @@ function optional_numbers_equal(lhs: number | undefined, rhs: number | undefined
     return false;
 }
 
-function optional_numbers_falsy_equal(lhs: number | undefined, rhs: number | undefined) : boolean {
+function optionalNumbersFalsyEqual(lhs: number | undefined, rhs: number | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1060,7 +1060,7 @@ function optional_numbers_falsy_equal(lhs: number | undefined, rhs: number | und
     return !lhs && !rhs;
 }
 
-function optional_strings_equal(lhs: string | undefined, rhs: string | undefined) : boolean {
+function optionalStringsEqual(lhs: string | undefined, rhs: string | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1072,7 +1072,7 @@ function optional_strings_equal(lhs: string | undefined, rhs: string | undefined
     return (lhs == undefined || lhs.length == 0) && (rhs == undefined || rhs.length == 0);
 }
 
-function buffers_equal(lhs: ArrayBuffer, rhs: ArrayBuffer) : boolean {
+function buffersEqual(lhs: ArrayBuffer, rhs: ArrayBuffer) : boolean {
     let lhs_view = new DataView(lhs);
     let rhs_view = new DataView(rhs);
 
@@ -1089,19 +1089,19 @@ function buffers_equal(lhs: ArrayBuffer, rhs: ArrayBuffer) : boolean {
     return true;
 }
 
-function optional_buffers_equal(lhs: ArrayBuffer | undefined, rhs: ArrayBuffer | undefined) : boolean {
+function optionalBuffersEqual(lhs: ArrayBuffer | undefined, rhs: ArrayBuffer | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
 
     if (lhs != undefined && rhs != undefined) {
-        return buffers_equal(lhs, rhs);
+        return buffersEqual(lhs, rhs);
     }
 
     return (lhs == undefined || lhs.byteLength == 0) && (rhs == undefined || rhs.byteLength == 0);
 }
 
-function user_properties_equal(lhs: Array<mqtt5_packet.UserProperty> | undefined, rhs: Array<mqtt5_packet.UserProperty> | undefined) : boolean {
+function userPropertiesEqual(lhs: Array<mqtt5_packet.UserProperty> | undefined, rhs: Array<mqtt5_packet.UserProperty> | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1127,48 +1127,48 @@ function user_properties_equal(lhs: Array<mqtt5_packet.UserProperty> | undefined
     return (lhs == undefined || lhs.length == 0) && (rhs == undefined || rhs.length == 0);
 }
 
-function are_connect_packets_equal(lhs: model.ConnectPacketInternal, rhs: model.ConnectPacketInternal) : boolean {
-    return optional_booleans_equal(lhs.cleanStart, rhs.cleanStart) &&
-        optional_numbers_equal(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
-        optional_strings_equal(lhs.authenticationMethod, rhs.authenticationMethod) &&
-        optional_buffers_equal(lhs.authenticationData, rhs.authenticationData) &&
-        optional_numbers_equal(lhs.keepAliveIntervalSeconds, rhs.keepAliveIntervalSeconds) &&
-        optional_strings_equal(lhs.clientId, rhs.clientId) &&
-        optional_strings_equal(lhs.username, rhs.username) &&
-        optional_buffers_equal(binary_as_optional_buffer(lhs.password), binary_as_optional_buffer(rhs.password)) &&
-        optional_numbers_equal(lhs.sessionExpiryIntervalSeconds, rhs.sessionExpiryIntervalSeconds) &&
-        optional_booleans_equal(lhs.requestResponseInformation, rhs.requestResponseInformation) &&
-        optional_booleans_equal(lhs.requestProblemInformation, rhs.requestProblemInformation) &&
-        optional_numbers_equal(lhs.receiveMaximum, rhs.receiveMaximum) &&
-        optional_numbers_equal(lhs.maximumPacketSizeBytes, rhs.maximumPacketSizeBytes) &&
-        optional_numbers_equal(lhs.willDelayIntervalSeconds, rhs.willDelayIntervalSeconds) &&
-        are_publish_packets_equal(lhs.will, rhs.will) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+function areConnectPacketsEqual(lhs: model.ConnectPacketInternal, rhs: model.ConnectPacketInternal) : boolean {
+    return optionalBooleansEqual(lhs.cleanStart, rhs.cleanStart) &&
+        optionalNumbersEqual(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
+        optionalStringsEqual(lhs.authenticationMethod, rhs.authenticationMethod) &&
+        optionalBuffersEqual(lhs.authenticationData, rhs.authenticationData) &&
+        optionalNumbersEqual(lhs.keepAliveIntervalSeconds, rhs.keepAliveIntervalSeconds) &&
+        optionalStringsEqual(lhs.clientId, rhs.clientId) &&
+        optionalStringsEqual(lhs.username, rhs.username) &&
+        optionalBuffersEqual(binaryAsOptionalBuffer(lhs.password), binaryAsOptionalBuffer(rhs.password)) &&
+        optionalNumbersEqual(lhs.sessionExpiryIntervalSeconds, rhs.sessionExpiryIntervalSeconds) &&
+        optionalBooleansEqual(lhs.requestResponseInformation, rhs.requestResponseInformation) &&
+        optionalBooleansEqual(lhs.requestProblemInformation, rhs.requestProblemInformation) &&
+        optionalNumbersEqual(lhs.receiveMaximum, rhs.receiveMaximum) &&
+        optionalNumbersEqual(lhs.maximumPacketSizeBytes, rhs.maximumPacketSizeBytes) &&
+        optionalNumbersEqual(lhs.willDelayIntervalSeconds, rhs.willDelayIntervalSeconds) &&
+        arePublishPacketsEqual(lhs.will, rhs.will) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function are_connack_packets_equal(lhs: model.ConnackPacketInternal, rhs: model.ConnackPacketInternal) : boolean {
-    return optional_strings_equal(lhs.authenticationMethod, rhs.authenticationMethod) &&
-        optional_buffers_equal(lhs.authenticationData, rhs.authenticationData) &&
+function areConnackPacketsEqual(lhs: model.ConnackPacketInternal, rhs: model.ConnackPacketInternal) : boolean {
+    return optionalStringsEqual(lhs.authenticationMethod, rhs.authenticationMethod) &&
+        optionalBuffersEqual(lhs.authenticationData, rhs.authenticationData) &&
         lhs.sessionPresent == rhs.sessionPresent &&
         lhs.reasonCode == rhs.reasonCode &&
-        optional_numbers_equal(lhs.sessionExpiryInterval, rhs.sessionExpiryInterval) &&
-        optional_numbers_equal(lhs.receiveMaximum, rhs.receiveMaximum) &&
-        optional_numbers_equal(lhs.maximumQos, rhs.maximumQos) &&
-        optional_booleans_equal(lhs.retainAvailable, rhs.retainAvailable) &&
-        optional_numbers_equal(lhs.maximumPacketSize, rhs.maximumPacketSize) &&
-        optional_strings_equal(lhs.assignedClientIdentifier, rhs.assignedClientIdentifier) &&
-        optional_numbers_equal(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
-        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
-        optional_booleans_equal(lhs.wildcardSubscriptionsAvailable, rhs.wildcardSubscriptionsAvailable) &&
-        optional_booleans_equal(lhs.subscriptionIdentifiersAvailable, rhs.subscriptionIdentifiersAvailable) &&
-        optional_booleans_equal(lhs.sharedSubscriptionsAvailable, rhs.sharedSubscriptionsAvailable) &&
-        optional_numbers_equal(lhs.serverKeepAlive, rhs.serverKeepAlive) &&
-        optional_strings_equal(lhs.responseInformation, rhs.responseInformation) &&
-        optional_strings_equal(lhs.serverReference, rhs.serverReference) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        optionalNumbersEqual(lhs.sessionExpiryInterval, rhs.sessionExpiryInterval) &&
+        optionalNumbersEqual(lhs.receiveMaximum, rhs.receiveMaximum) &&
+        optionalNumbersEqual(lhs.maximumQos, rhs.maximumQos) &&
+        optionalBooleansEqual(lhs.retainAvailable, rhs.retainAvailable) &&
+        optionalNumbersEqual(lhs.maximumPacketSize, rhs.maximumPacketSize) &&
+        optionalStringsEqual(lhs.assignedClientIdentifier, rhs.assignedClientIdentifier) &&
+        optionalNumbersEqual(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
+        optionalStringsEqual(lhs.reasonString, rhs.reasonString) &&
+        optionalBooleansEqual(lhs.wildcardSubscriptionsAvailable, rhs.wildcardSubscriptionsAvailable) &&
+        optionalBooleansEqual(lhs.subscriptionIdentifiersAvailable, rhs.subscriptionIdentifiersAvailable) &&
+        optionalBooleansEqual(lhs.sharedSubscriptionsAvailable, rhs.sharedSubscriptionsAvailable) &&
+        optionalNumbersEqual(lhs.serverKeepAlive, rhs.serverKeepAlive) &&
+        optionalStringsEqual(lhs.responseInformation, rhs.responseInformation) &&
+        optionalStringsEqual(lhs.serverReference, rhs.serverReference) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function binary_as_optional_buffer(source: BinaryData | undefined) : ArrayBuffer | undefined {
+function binaryAsOptionalBuffer(source: BinaryData | undefined) : ArrayBuffer | undefined {
     if (source == undefined) {
         return undefined;
     }
@@ -1176,7 +1176,7 @@ function binary_as_optional_buffer(source: BinaryData | undefined) : ArrayBuffer
     return source as ArrayBuffer;
 }
 
-function payload_as_optional_buffer(source: mqtt5_packet.Payload | undefined) : ArrayBuffer | undefined {
+function payloadAsOptionalBuffer(source: mqtt5_packet.Payload | undefined) : ArrayBuffer | undefined {
     if (source == undefined) {
         return undefined;
     }
@@ -1184,7 +1184,7 @@ function payload_as_optional_buffer(source: mqtt5_packet.Payload | undefined) : 
     return source as ArrayBuffer;
 }
 
-function number_arrays_equal(lhs: Array<number> | undefined, rhs: Array<number> | undefined) : boolean {
+function numberArraysEqual(lhs: Array<number> | undefined, rhs: Array<number> | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1206,7 +1206,7 @@ function number_arrays_equal(lhs: Array<number> | undefined, rhs: Array<number> 
     return (lhs == undefined || lhs.length == 0) && (rhs == undefined || rhs.length == 0);
 }
 
-function are_publish_packets_equal(lhs: mqtt5_packet.PublishPacket | undefined, rhs: mqtt5_packet.PublishPacket | undefined) : boolean {
+function arePublishPacketsEqual(lhs: mqtt5_packet.PublishPacket | undefined, rhs: mqtt5_packet.PublishPacket | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1214,22 +1214,22 @@ function are_publish_packets_equal(lhs: mqtt5_packet.PublishPacket | undefined, 
     if (lhs != undefined && rhs != undefined) {
         return lhs.topicName == rhs.topicName &&
             lhs.qos == rhs.qos &&
-            optional_booleans_equal(lhs.retain, rhs.retain) &&
-            optional_numbers_equal(lhs.payloadFormat, rhs.payloadFormat) &&
-            optional_numbers_equal(lhs.messageExpiryIntervalSeconds, rhs.messageExpiryIntervalSeconds) &&
-            optional_numbers_equal(lhs.topicAlias, rhs.topicAlias) &&
-            optional_strings_equal(lhs.responseTopic, rhs.responseTopic) &&
-            optional_buffers_equal(binary_as_optional_buffer(lhs.correlationData), binary_as_optional_buffer(rhs.correlationData)) &&
-            optional_strings_equal(lhs.contentType, rhs.contentType) &&
-            optional_buffers_equal(payload_as_optional_buffer(lhs.payload), payload_as_optional_buffer(rhs.payload)) &&
-            number_arrays_equal(lhs.subscriptionIdentifiers, rhs.subscriptionIdentifiers) &&
-            user_properties_equal(lhs.userProperties, rhs.userProperties);
+            optionalBooleansEqual(lhs.retain, rhs.retain) &&
+            optionalNumbersEqual(lhs.payloadFormat, rhs.payloadFormat) &&
+            optionalNumbersEqual(lhs.messageExpiryIntervalSeconds, rhs.messageExpiryIntervalSeconds) &&
+            optionalNumbersEqual(lhs.topicAlias, rhs.topicAlias) &&
+            optionalStringsEqual(lhs.responseTopic, rhs.responseTopic) &&
+            optionalBuffersEqual(binaryAsOptionalBuffer(lhs.correlationData), binaryAsOptionalBuffer(rhs.correlationData)) &&
+            optionalStringsEqual(lhs.contentType, rhs.contentType) &&
+            optionalBuffersEqual(payloadAsOptionalBuffer(lhs.payload), payloadAsOptionalBuffer(rhs.payload)) &&
+            numberArraysEqual(lhs.subscriptionIdentifiers, rhs.subscriptionIdentifiers) &&
+            userPropertiesEqual(lhs.userProperties, rhs.userProperties);
     }
 
     return false;
 }
 
-function are_publish_internal_packets_equal(lhs: model.PublishPacketInternal | undefined, rhs: model.PublishPacketInternal | undefined) : boolean {
+function arePublishInternalPacketsEqual(lhs: model.PublishPacketInternal | undefined, rhs: model.PublishPacketInternal | undefined) : boolean {
     if (lhs == undefined && rhs == undefined) {
         return true;
     }
@@ -1237,20 +1237,20 @@ function are_publish_internal_packets_equal(lhs: model.PublishPacketInternal | u
     if (lhs != undefined && rhs != undefined) {
         return lhs.packetId == rhs.packetId &&
             lhs.duplicate == rhs.duplicate &&
-            are_publish_packets_equal(lhs, rhs);
+            arePublishPacketsEqual(lhs, rhs);
     }
 
     return false;
 }
 
-function are_puback_packets_equal(lhs: model.PubackPacketInternal, rhs: model.PubackPacketInternal) : boolean {
+function arePubackPacketsEqual(lhs: model.PubackPacketInternal, rhs: model.PubackPacketInternal) : boolean {
     return lhs.packetId == rhs.packetId &&
         lhs.reasonCode == rhs.reasonCode &&
-        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        optionalStringsEqual(lhs.reasonString, rhs.reasonString) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function subscriptions_equal(lhs: Array<mqtt5_packet.Subscription>, rhs: Array<mqtt5_packet.Subscription>) : boolean {
+function subscriptionsEqual(lhs: Array<mqtt5_packet.Subscription>, rhs: Array<mqtt5_packet.Subscription>) : boolean {
     if (lhs.length != rhs.length) {
         return false;
     }
@@ -1264,15 +1264,15 @@ function subscriptions_equal(lhs: Array<mqtt5_packet.Subscription>, rhs: Array<m
             return false;
         }
 
-        if (!optional_booleans_falsy_equal(lhs[i].noLocal, rhs[i].noLocal)) {
+        if (!optionalBooleansFalsyEqual(lhs[i].noLocal, rhs[i].noLocal)) {
             return false;
         }
 
-        if (!optional_booleans_falsy_equal(lhs[i].retainAsPublished, rhs[i].retainAsPublished)) {
+        if (!optionalBooleansFalsyEqual(lhs[i].retainAsPublished, rhs[i].retainAsPublished)) {
             return false;
         }
 
-        if (!optional_numbers_falsy_equal(lhs[i].retainHandlingType, rhs[i].retainHandlingType)) {
+        if (!optionalNumbersFalsyEqual(lhs[i].retainHandlingType, rhs[i].retainHandlingType)) {
             return false;
         }
     }
@@ -1280,21 +1280,21 @@ function subscriptions_equal(lhs: Array<mqtt5_packet.Subscription>, rhs: Array<m
     return true;
 }
 
-function are_subscribe_packets_equal(lhs: model.SubscribePacketInternal, rhs: model.SubscribePacketInternal) : boolean {
+function areSubscribePacketsEqual(lhs: model.SubscribePacketInternal, rhs: model.SubscribePacketInternal) : boolean {
     return lhs.packetId == rhs.packetId &&
-        optional_numbers_equal(lhs.subscriptionIdentifier, rhs.subscriptionIdentifier) &&
-        subscriptions_equal(lhs.subscriptions, rhs.subscriptions) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        optionalNumbersEqual(lhs.subscriptionIdentifier, rhs.subscriptionIdentifier) &&
+        subscriptionsEqual(lhs.subscriptions, rhs.subscriptions) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function are_suback_packets_equal(lhs: model.SubackPacketInternal, rhs: model.SubackPacketInternal) : boolean {
+function areSubackPacketsEqual(lhs: model.SubackPacketInternal, rhs: model.SubackPacketInternal) : boolean {
     return lhs.packetId == rhs.packetId &&
-        number_arrays_equal(lhs.reasonCodes, rhs.reasonCodes) &&
-        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        numberArraysEqual(lhs.reasonCodes, rhs.reasonCodes) &&
+        optionalStringsEqual(lhs.reasonString, rhs.reasonString) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function string_arrays_equal(lhs: Array<string>, rhs: Array<string>) : boolean {
+function stringArraysEqual(lhs: Array<string>, rhs: Array<string>) : boolean {
     if (lhs.length != rhs.length) {
         return false;
     }
@@ -1308,28 +1308,28 @@ function string_arrays_equal(lhs: Array<string>, rhs: Array<string>) : boolean {
     return true;
 }
 
-function are_unsubscribe_packets_equal(lhs: model.UnsubscribePacketInternal, rhs: model.UnsubscribePacketInternal) : boolean {
+function areUnsubscribePacketsEqual(lhs: model.UnsubscribePacketInternal, rhs: model.UnsubscribePacketInternal) : boolean {
     return lhs.packetId == rhs.packetId &&
-        string_arrays_equal(lhs.topicFilters, rhs.topicFilters) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        stringArraysEqual(lhs.topicFilters, rhs.topicFilters) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function are_unsuback_packets_equal(lhs: model.UnsubackPacketInternal, rhs: model.UnsubackPacketInternal) : boolean {
+function areUnsubackPacketsEqual(lhs: model.UnsubackPacketInternal, rhs: model.UnsubackPacketInternal) : boolean {
     return lhs.packetId == rhs.packetId &&
-        number_arrays_equal(lhs.reasonCodes, rhs.reasonCodes) &&
-        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        numberArraysEqual(lhs.reasonCodes, rhs.reasonCodes) &&
+        optionalStringsEqual(lhs.reasonString, rhs.reasonString) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function are_disconnect_packets_equal(lhs: model.DisconnectPacketInternal, rhs: model.DisconnectPacketInternal) : boolean {
+function areDisconnectPacketsEqual(lhs: model.DisconnectPacketInternal, rhs: model.DisconnectPacketInternal) : boolean {
     return lhs.reasonCode == rhs.reasonCode &&
-        optional_numbers_equal(lhs.sessionExpiryIntervalSeconds, rhs.sessionExpiryIntervalSeconds) &&
-        optional_strings_equal(lhs.reasonString, rhs.reasonString) &&
-        optional_strings_equal(lhs.serverReference, rhs.serverReference) &&
-        user_properties_equal(lhs.userProperties, rhs.userProperties);
+        optionalNumbersEqual(lhs.sessionExpiryIntervalSeconds, rhs.sessionExpiryIntervalSeconds) &&
+        optionalStringsEqual(lhs.reasonString, rhs.reasonString) &&
+        optionalStringsEqual(lhs.serverReference, rhs.serverReference) &&
+        userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-export function are_packets_equal(lhs: mqtt5_packet.IPacket, rhs: mqtt5_packet.IPacket) : boolean {
+export function arePacketsEqual(lhs: mqtt5_packet.IPacket, rhs: mqtt5_packet.IPacket) : boolean {
     if (lhs.type != rhs.type) {
         return false;
     }
@@ -1340,31 +1340,31 @@ export function are_packets_equal(lhs: mqtt5_packet.IPacket, rhs: mqtt5_packet.I
             return true;
 
         case mqtt5_packet.PacketType.Connect:
-            return are_connect_packets_equal(lhs as model.ConnectPacketInternal, rhs as model.ConnectPacketInternal);
+            return areConnectPacketsEqual(lhs as model.ConnectPacketInternal, rhs as model.ConnectPacketInternal);
 
         case mqtt5_packet.PacketType.Connack:
-            return are_connack_packets_equal(lhs as model.ConnackPacketInternal, rhs as model.ConnackPacketInternal);
+            return areConnackPacketsEqual(lhs as model.ConnackPacketInternal, rhs as model.ConnackPacketInternal);
 
         case mqtt5_packet.PacketType.Publish:
-            return are_publish_internal_packets_equal(lhs as model.PublishPacketInternal, rhs as model.PublishPacketInternal);
+            return arePublishInternalPacketsEqual(lhs as model.PublishPacketInternal, rhs as model.PublishPacketInternal);
 
         case mqtt5_packet.PacketType.Puback:
-            return are_puback_packets_equal(lhs as model.PubackPacketInternal, rhs as model.PubackPacketInternal);
+            return arePubackPacketsEqual(lhs as model.PubackPacketInternal, rhs as model.PubackPacketInternal);
 
         case mqtt5_packet.PacketType.Subscribe:
-            return are_subscribe_packets_equal(lhs as model.SubscribePacketInternal, rhs as model.SubscribePacketInternal);
+            return areSubscribePacketsEqual(lhs as model.SubscribePacketInternal, rhs as model.SubscribePacketInternal);
 
         case mqtt5_packet.PacketType.Suback:
-            return are_suback_packets_equal(lhs as model.SubackPacketInternal, rhs as model.SubackPacketInternal);
+            return areSubackPacketsEqual(lhs as model.SubackPacketInternal, rhs as model.SubackPacketInternal);
 
         case mqtt5_packet.PacketType.Unsubscribe:
-            return are_unsubscribe_packets_equal(lhs as model.UnsubscribePacketInternal, rhs as model.UnsubscribePacketInternal);
+            return areUnsubscribePacketsEqual(lhs as model.UnsubscribePacketInternal, rhs as model.UnsubscribePacketInternal);
 
         case mqtt5_packet.PacketType.Unsuback:
-            return are_unsuback_packets_equal(lhs as model.UnsubackPacketInternal, rhs as model.UnsubackPacketInternal);
+            return areUnsubackPacketsEqual(lhs as model.UnsubackPacketInternal, rhs as model.UnsubackPacketInternal);
 
         case mqtt5_packet.PacketType.Disconnect:
-            return are_disconnect_packets_equal(lhs as model.DisconnectPacketInternal, rhs as model.DisconnectPacketInternal);
+            return areDisconnectPacketsEqual(lhs as model.DisconnectPacketInternal, rhs as model.DisconnectPacketInternal);
 
         default:
             throw new CrtError("Unsupported packet type: " + lhs.type);
