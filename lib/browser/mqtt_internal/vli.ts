@@ -6,7 +6,7 @@
 import {CrtError} from "../error";
 
 // assumes value is integral and non-negative
-export function get_vli_byte_length(value: number) : number {
+export function getVliByteLength(value: number) : number {
     if (value < 128) {
         return 1;
     } else if (value < 16384) {
@@ -21,7 +21,7 @@ export function get_vli_byte_length(value: number) : number {
 }
 
 // assumes value is integral and non-negative
-export function encode_vli(dest: DataView, value: number) : DataView {
+export function encodeVli(dest: DataView, value: number) : DataView {
     let i = 0;
 
     let hasMore = true;
@@ -53,7 +53,7 @@ export interface VliDecodeResult {
     nextOffset?: number
 }
 
-export function decode_vli(data: DataView, offset: number) : VliDecodeResult {
+export function decodeVli(data: DataView, offset: number) : VliDecodeResult {
     let value: number = 0;
     let index: number = 0;
     let shift: number = 0;
