@@ -294,11 +294,11 @@ export interface DisconnectPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export function is_valid_binary_data(data: BinaryData) : boolean {
+export function isValidBinaryData(data: BinaryData) : boolean {
     return data instanceof ArrayBuffer || data instanceof Uint8Array || data instanceof Buffer;
 }
 
-export function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
+export function binaryDataToArrayBuffer(data: BinaryData) : ArrayBuffer {
     if (data instanceof ArrayBuffer) {
         return data;
     } else if (data instanceof Uint8Array) {
@@ -310,7 +310,7 @@ export function binary_data_to_array_buffer(data: BinaryData) : ArrayBuffer {
     }
 }
 
-export function convert_user_properties_to_binary(properties: Array<mqtt5_packet.UserProperty>) : Array<UserPropertyBinary> {
+export function convertUserPropertiesToBinary(properties: Array<mqtt5_packet.UserProperty>) : Array<UserPropertyBinary> {
     let encoder = new TextEncoder();
     let internal_properties : Array<UserPropertyBinary> = [];
 
@@ -324,7 +324,7 @@ export function convert_user_properties_to_binary(properties: Array<mqtt5_packet
     return internal_properties;
 }
 
-function convert_connect_packet_to_binary(packet: ConnectPacketInternal, includeInternalFields: boolean) : ConnectPacketBinary {
+function convertConnectPacketToBinary(packet: ConnectPacketInternal, includeInternalFields: boolean) : ConnectPacketBinary {
     let encoder = new TextEncoder();
     let binary_packet : ConnectPacketBinary = {
         type: mqtt5_packet.PacketType.Connect,
@@ -341,7 +341,7 @@ function convert_connect_packet_to_binary(packet: ConnectPacketInternal, include
     }
 
     if (packet.password != undefined) {
-        binary_packet.password = binary_data_to_array_buffer(packet.password);
+        binary_packet.password = binaryDataToArrayBuffer(packet.password);
     }
 
     if (packet.topicAliasMaximum != undefined) {
@@ -373,7 +373,7 @@ function convert_connect_packet_to_binary(packet: ConnectPacketInternal, include
     }
 
     if (packet.will) {
-        binary_packet.will = convert_publish_packet_to_binary(packet.will as PublishPacketInternal, includeInternalFields);
+        binary_packet.will = convertPublishPacketToBinary(packet.will as PublishPacketInternal, includeInternalFields);
     }
 
     if (packet.authenticationMethod != undefined) {
@@ -381,11 +381,11 @@ function convert_connect_packet_to_binary(packet: ConnectPacketInternal, include
     }
 
     if (packet.authenticationData != undefined) {
-        binary_packet.authenticationData = binary_data_to_array_buffer(packet.authenticationData);
+        binary_packet.authenticationData = binaryDataToArrayBuffer(packet.authenticationData);
     }
 
     if (packet.userProperties != undefined) {
-        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convertUserPropertiesToBinary(packet.userProperties);
     }
 
     if (includeInternalFields) {
@@ -406,11 +406,11 @@ function convert_connect_packet_to_binary(packet: ConnectPacketInternal, include
     return binary_packet;
 }
 
-export function is_valid_payload(payload: mqtt5_packet.Payload) : boolean {
+export function isValidPayload(payload: mqtt5_packet.Payload) : boolean {
     return payload instanceof ArrayBuffer || payload instanceof Uint8Array || payload instanceof Buffer || typeof(payload) === 'string';
 }
 
-function payload_to_array_buffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
+function payloadToArrayBuffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     if (payload instanceof ArrayBuffer) {
         return payload;
     } else if (payload instanceof Uint8Array) {
@@ -425,7 +425,7 @@ function payload_to_array_buffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     }
 }
 
-function convert_publish_packet_to_binary(packet: PublishPacketInternal, includeInternalFields: boolean) : PublishPacketBinary {
+function convertPublishPacketToBinary(packet: PublishPacketInternal, includeInternalFields: boolean) : PublishPacketBinary {
     let encoder = new TextEncoder();
     let binary_packet : PublishPacketBinary = {
         type: mqtt5_packet.PacketType.Publish,
@@ -434,7 +434,7 @@ function convert_publish_packet_to_binary(packet: PublishPacketInternal, include
     };
 
     if (packet.payload != undefined) {
-        binary_packet.payload = payload_to_array_buffer(packet.payload);
+        binary_packet.payload = payloadToArrayBuffer(packet.payload);
     }
 
     if (packet.retain != undefined) {
@@ -458,7 +458,7 @@ function convert_publish_packet_to_binary(packet: PublishPacketInternal, include
     }
 
     if (packet.correlationData != undefined) {
-        binary_packet.correlationData = binary_data_to_array_buffer(packet.correlationData);
+        binary_packet.correlationData = binaryDataToArrayBuffer(packet.correlationData);
     }
 
     if (packet.contentType != undefined) {
@@ -466,7 +466,7 @@ function convert_publish_packet_to_binary(packet: PublishPacketInternal, include
     }
 
     if (packet.userProperties != undefined) {
-        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convertUserPropertiesToBinary(packet.userProperties);
     }
 
     if (includeInternalFields) {
@@ -485,7 +485,7 @@ function convert_publish_packet_to_binary(packet: PublishPacketInternal, include
     return binary_packet;
 }
 
-function convert_puback_packet_to_binary(packet: PubackPacketInternal, includeInternalFields: boolean) : PubackPacketBinary {
+function convertPubackPacketToBinary(packet: PubackPacketInternal, includeInternalFields: boolean) : PubackPacketBinary {
     let encoder = new TextEncoder();
     let binary_packet : PubackPacketBinary = {
         type: mqtt5_packet.PacketType.Puback,
@@ -498,7 +498,7 @@ function convert_puback_packet_to_binary(packet: PubackPacketInternal, includeIn
     }
 
     if (packet.userProperties != undefined) {
-        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convertUserPropertiesToBinary(packet.userProperties);
     }
 
     if (includeInternalFields) {
@@ -508,7 +508,7 @@ function convert_puback_packet_to_binary(packet: PubackPacketInternal, includeIn
     return binary_packet;
 }
 
-function convert_subscription_to_binary(subscription: mqtt5_packet.Subscription) : SubscriptionBinary {
+function convertSubscriptionToBinary(subscription: mqtt5_packet.Subscription) : SubscriptionBinary {
     let encoder = new TextEncoder();
 
     let internal_subscription : SubscriptionBinary = {
@@ -531,7 +531,7 @@ function convert_subscription_to_binary(subscription: mqtt5_packet.Subscription)
     return internal_subscription;
 }
 
-function convert_subscribe_packet_to_binary(packet: SubscribePacketInternal, includeInternalFields: boolean) : SubscribePacketBinary {
+function convertSubscribePacketToBinary(packet: SubscribePacketInternal, includeInternalFields: boolean) : SubscribePacketBinary {
     let binary_packet : SubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Subscribe,
         packetId: 0,
@@ -539,7 +539,7 @@ function convert_subscribe_packet_to_binary(packet: SubscribePacketInternal, inc
     };
 
     for (let subscription of packet.subscriptions) {
-        binary_packet.subscriptions.push(convert_subscription_to_binary(subscription));
+        binary_packet.subscriptions.push(convertSubscriptionToBinary(subscription));
     }
 
     if (packet.subscriptionIdentifier != undefined) {
@@ -547,7 +547,7 @@ function convert_subscribe_packet_to_binary(packet: SubscribePacketInternal, inc
     }
 
     if (packet.userProperties != undefined) {
-        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convertUserPropertiesToBinary(packet.userProperties);
     }
 
     if (includeInternalFields) {
@@ -557,7 +557,7 @@ function convert_subscribe_packet_to_binary(packet: SubscribePacketInternal, inc
     return binary_packet;
 }
 
-function convert_unsubscribe_packet_to_binary(packet: UnsubscribePacketInternal, includeInternalFields: boolean) : UnsubscribePacketBinary {
+function convertUnsubscribePacketToBinary(packet: UnsubscribePacketInternal, includeInternalFields: boolean) : UnsubscribePacketBinary {
     let encoder = new TextEncoder();
     let binary_packet: UnsubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Unsubscribe,
@@ -570,7 +570,7 @@ function convert_unsubscribe_packet_to_binary(packet: UnsubscribePacketInternal,
     }
 
     if (packet.userProperties != undefined) {
-        binary_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        binary_packet.userProperties = convertUserPropertiesToBinary(packet.userProperties);
     }
 
     if (includeInternalFields) {
@@ -580,7 +580,7 @@ function convert_unsubscribe_packet_to_binary(packet: UnsubscribePacketInternal,
     return binary_packet;
 }
 
-function convert_disconnect_packet_to_binary(packet: mqtt5_packet.DisconnectPacket, includeInternalFields: boolean) : DisconnectPacketBinary {
+function convertDisconnectPacketToBinary(packet: mqtt5_packet.DisconnectPacket) : DisconnectPacketBinary {
     let encoder = new TextEncoder();
     let internal_packet : DisconnectPacketBinary = {
         type: mqtt5_packet.PacketType.Disconnect,
@@ -600,35 +600,58 @@ function convert_disconnect_packet_to_binary(packet: mqtt5_packet.DisconnectPack
     }
 
     if (packet.userProperties != undefined) {
-        internal_packet.userProperties = convert_user_properties_to_binary(packet.userProperties);
+        internal_packet.userProperties = convertUserPropertiesToBinary(packet.userProperties);
     }
 
     return internal_packet;
 }
 
-export function convert_packet_to_binary(packet: mqtt5_packet.IPacket, includeInternalFields: boolean) : IPacketBinary {
-    if (!packet.type) {
+/*
+ * Mostly needed for round trip encode/decode testing.  In the client implementation, we use
+ * convert_user_packet_to_binary on user-submitted packets after initial validation.
+ */
+export function convertInternalPacketToBinary(packet: mqtt5_packet.IPacket) : IPacketBinary {
+    if (packet.type == undefined) {
         throw new CrtError("Invalid packet type");
     }
 
     switch(packet.type) {
         case mqtt5_packet.PacketType.Connect:
-            return convert_connect_packet_to_binary(packet as ConnectPacketInternal, includeInternalFields);
+            return convertConnectPacketToBinary(packet as ConnectPacketInternal, true);
         case mqtt5_packet.PacketType.Publish:
-            return convert_publish_packet_to_binary(packet as PublishPacketInternal, includeInternalFields);
+            return convertPublishPacketToBinary(packet as PublishPacketInternal, true);
         case mqtt5_packet.PacketType.Puback:
-            return convert_puback_packet_to_binary(packet as PubackPacketInternal, includeInternalFields);
+            return convertPubackPacketToBinary(packet as PubackPacketInternal, true);
         case mqtt5_packet.PacketType.Subscribe:
-            return convert_subscribe_packet_to_binary(packet as SubscribePacketInternal, includeInternalFields);
+            return convertSubscribePacketToBinary(packet as SubscribePacketInternal, true);
         case mqtt5_packet.PacketType.Unsubscribe:
-            return convert_unsubscribe_packet_to_binary(packet as UnsubscribePacketInternal, includeInternalFields);
+            return convertUnsubscribePacketToBinary(packet as UnsubscribePacketInternal, true);
         case mqtt5_packet.PacketType.Disconnect:
-            return convert_disconnect_packet_to_binary(packet as DisconnectPacketInternal, includeInternalFields);
+            return convertDisconnectPacketToBinary(packet as DisconnectPacketInternal);
         case mqtt5_packet.PacketType.Pingreq:
             return {
                 type: mqtt5_packet.PacketType.Pingreq
             };
         default:
-            throw new CrtError("Unsupported packet type: ");
+            throw new CrtError(`Unexpected/unsupported internal packet type: ${packet.type}`);
+    }
+}
+
+export function convertUserSubmittedPacketToBinary(packet: mqtt5_packet.IPacket) : IPacketBinary {
+    if (packet.type == undefined) {
+        throw new CrtError("Invalid packet type");
+    }
+
+    switch(packet.type) {
+        case mqtt5_packet.PacketType.Publish:
+            return convertPublishPacketToBinary(packet as PublishPacketInternal, false);
+        case mqtt5_packet.PacketType.Subscribe:
+            return convertSubscribePacketToBinary(packet as SubscribePacketInternal, false);
+        case mqtt5_packet.PacketType.Unsubscribe:
+            return convertUnsubscribePacketToBinary(packet as UnsubscribePacketInternal, false);
+        case mqtt5_packet.PacketType.Disconnect:
+            return convertDisconnectPacketToBinary(packet as DisconnectPacketInternal);
+        default:
+            throw new CrtError(`Unexpected/unsupported user-submitted packet type: ${packet.type}`);
     }
 }
