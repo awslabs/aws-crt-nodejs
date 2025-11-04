@@ -122,3 +122,7 @@ export function isValidTopic(topic: any) : boolean {
 
     return isValidTopicInternal(topicAsString, false);
 }
+
+export function isShared(topic : string) : boolean {
+    return topic.startsWith("$share/")
+}
