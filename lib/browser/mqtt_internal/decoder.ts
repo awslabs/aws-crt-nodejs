@@ -12,7 +12,12 @@ import {toUtf8} from "@aws-sdk/util-utf8-browser";
 // utility functions for individual packet fields
 
 export function decodeBoolean(payload: DataView, offset: number) : [boolean, number] {
-    return [payload.getUint8(offset) ? true : false, offset + 1];
+    let value = payload.getUint8(offset);
+    if (value == 0 || value == 1) {
+        return [value == 1, offset + 1];
+    }
+
+    throw new CrtError("Boolean field encoded with invalid byte value");
 }
 
 export function decodeU8(payload: DataView, offset: number) : [number, number] {
