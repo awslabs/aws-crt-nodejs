@@ -798,6 +798,89 @@ function encodeDisconnectPacket5(steps: Array<EncodingStep>, packet: model.Disco
     }
 }
 
+function computePacketEncodingLength311(packet: model.IPacketBinary) : number {
+    let remaining_length: number = 0;
+
+    switch (packet.type) {
+        case mqtt5_packet.PacketType.Connect:
+            remaining_length = getConnectPacketRemainingLengths311(packet as model.ConnectPacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Publish:
+            remaining_length = getPublishPacketRemainingLengths311(packet as model.PublishPacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Subscribe:
+            remaining_length = getSubscribePacketRemainingLengths311(packet as model.SubscribePacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Unsubscribe:
+            remaining_length = getUnsubscribePacketRemainingLengths311(packet as model.UnsubscribePacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Disconnect:
+        case mqtt5_packet.PacketType.Puback:
+        case mqtt5_packet.PacketType.Pingreq:
+            return 2;
+
+        default:
+            throw new CrtError("Unexpected packet type: " + packet.type);
+    }
+
+    return 1 + remaining_length + vli.getVliByteLength(remaining_length);
+}
+
+function computePacketEncodingLength5(packet: model.IPacketBinary) : number {
+    let remaining_length: number = 0;
+
+    switch (packet.type) {
+        case mqtt5_packet.PacketType.Connect:
+            [remaining_length, , ] = getConnectPacketRemainingLengths5(packet as model.ConnectPacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Publish:
+            [remaining_length, ] = getPublishPacketRemainingLengths5(packet as model.PublishPacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Puback:
+            [remaining_length, ] = getPubackPacketRemainingLengths5(packet as model.PubackPacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Subscribe:
+            [remaining_length, ] = getSubscribePacketRemainingLengths5(packet as model.SubscribePacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Unsubscribe:
+            [remaining_length, ] = getUnsubscribePacketRemainingLengths5(packet as model.UnsubscribePacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Disconnect:
+            [remaining_length, ] = getDisconnectPacketRemainingLengths5(packet as model.DisconnectPacketBinary);
+            break;
+
+        case mqtt5_packet.PacketType.Pingreq:
+            return 2;
+
+        default:
+            throw new CrtError("Unexpected packet type: " + packet.type);
+    }
+
+    return 1 + remaining_length + vli.getVliByteLength(remaining_length);
+}
+
+export function computePacketEncodingLength(packet: model.IPacketBinary, mode: model.ProtocolMode) : number {
+    switch (mode) {
+        case model.ProtocolMode.Mqtt311:
+            return computePacketEncodingLength311(packet);
+
+        case model.ProtocolMode.Mqtt5:
+            return computePacketEncodingLength5(packet);
+
+        default:
+            throw new CrtError("Unexpected packet type: " + packet.type);
+    }
+}
+
 // Encoding Implementation
 
 export type EncodingFunction = (steps: Array<EncodingStep>, packet: model.IPacketBinary) => void;
