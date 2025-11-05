@@ -4,6 +4,7 @@
  */
 
 import {CrtError} from "../error";
+import * as encoder from "./encoder";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as mqtt5_common from "../../common/mqtt5";
 import * as mqtt_shared from '../../common/mqtt_shared';
@@ -35,8 +36,6 @@ import * as model from "./model";
  * submitted packet into the internal model.
  */
 
-// Exported Internal API
-
 export function validateUserSubmittedOutboundPacket(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode) {
     switch(packet.type) {
         case mqtt5_packet.PacketType.Publish:
@@ -60,7 +59,7 @@ export function validateUserSubmittedOutboundPacket(packet: mqtt5_packet.IPacket
     }
 }
 
-export function validateBinaryOutboundPacket(packet: model.IPacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
+export function validateBinaryOutboundPacket(packet: model.IPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
     switch(packet.type) {
         case mqtt5_packet.PacketType.Publish:
             validateBinaryPublish(packet as model.PublishPacketBinary, mode, settings);
@@ -193,6 +192,14 @@ function validateBufferLength(value : ArrayBuffer, fieldName: string) {
     if (value.byteLength > 65535) {
         throw new CrtError(`Field "${fieldName}" is not a 16-bit length buffer`);
     }
+}
+
+function validateOptionalBufferLength(value : ArrayBuffer | undefined, fieldName: string) {
+    if (value == undefined) {
+        return;
+    }
+
+    validateBufferLength(value, fieldName);
 }
 
 // enum validation
@@ -547,47 +554,167 @@ function validateUserSubmittedDisconnect(packet: mqtt5_packet.DisconnectPacket, 
 
 // binary outbound packet validators; user-submitted validation is not repeated here
 
-function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
-    // total encoding length <= maximum packet size
-    // topic alias cannot be zero or >= maximum to server
-    // sub identifiers not allowed?
-    // (qos 0 and no packet id) ^ (qos 1+ and positive packet id)
-    // (!retain || settings.retain_available)
-    // packet.qos <= settings.maximum_qos
+function validatePacketLength(packet: model.IPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    let length = encoder.computePacketEncodingLength(packet, mode);
+    if (length > settings.maximumPacketSizeToServer) {
+        throw new CrtError(`Packet with length ${length} exceeds established maximum packet size of ${settings.maximumPacketSizeToServer}`);
+    }
 }
 
-function validateBinaryPuback(packet: model.PubackPacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
-    // total encoding length <= maximum packet size
-    // has positive packet id
+function validateBinaryUserProperties(userProperties: Array<model.UserPropertyBinary> | undefined) {
+    if (!userProperties) {
+        return;
+    }
+
+    for (let userProperty of userProperties) {
+        validateBufferLength(userProperty.name, "UserProperty.name");
+        validateBufferLength(userProperty.value, "UserProperty.value");
+    }
 }
 
-function validateBinarySubscribe(packet: model.SubscribePacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
-    // total encoding length <= maximum packet size
-    // has positive packet id
-    // for each subscription:
-    //   !shared || settings.shared_subs_available
-    //   !wildcard || settings.wildcard_subs_available
-    //   !noLocal || !mqtt_shared.isShared(topicFilter)
+function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    validatePacketLength(packet, mode, settings);
+
+    if (packet.qos == mqtt5_packet.QoS.AtMostOnce) {
+        if (packet.packetId != undefined) {
+            throw new CrtError("packetId must not be set on outbound publish packets with QoS 0");
+        }
+
+        if (packet.duplicate) {
+            throw new CrtError("duplicate must not be set on outbound publish packets with QoS 0");
+        }
+    } else {
+        validateRequiredPacketId(packet.packetId, "packetId");
+    }
+
+    if (packet.retain && !settings.retainAvailable) {
+        throw new CrtError("retain cannot be set on outbound publish packets if the server does not support retained messages");
+    }
+
+    if (packet.qos > settings.maximumQos) {
+        throw new CrtError(`QoS ${packet.qos} is greater than the maximum QoS (${settings.maximumQos}) supported by the server`);
+    }
+
+    validateBufferLength(packet.topicName, "topicName");
+
+    if (mode == model.ProtocolMode.Mqtt5) {
+        if (packet.subscriptionIdentifiers != undefined) {
+            throw new CrtError("subscriptionIdentifiers may not be set on outbound publish packets");
+        }
+
+        if (packet.topicAlias != undefined) {
+            if (packet.topicAlias == 0) {
+                throw new CrtError("topicAlias cannot be zero");
+            } else if (packet.topicAlias > settings.topicAliasMaximumToServer) {
+                throw new CrtError(`topicAlias value ${packet.topicAlias} is greater than the maximum topic alias (${settings.topicAliasMaximumToServer}) supported by the server`);
+            }
+        }
+
+        validateOptionalBufferLength(packet.responseTopic, "responseTopic");
+        validateOptionalBufferLength(packet.correlationData, "correlationData");
+        validateOptionalBufferLength(packet.contentType, "contentType");
+        validateBinaryUserProperties(packet.userProperties);
+    }
 }
 
-function validateBinaryUnsubscribe(packet: model.UnsubscribePacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
-    // total encoding length <= maximum packet size
-    // has positive packet id
+function validateBinaryPuback(packet: model.PubackPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    validatePacketLength(packet, mode, settings);
+    validateRequiredPacketId(packet.packetId, "packetId");
+
+    if (mode == model.ProtocolMode.Mqtt5) {
+        validateOptionalBufferLength(packet.reasonString, "reasonString");
+        validateBinaryUserProperties(packet.userProperties);
+    }
 }
 
-function validateBinaryDisconnect(packet: model.DisconnectPacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
-    // total encoding length <= maximum packet size
-    // falsy session_expiry_interval || (connect.session_expiry_interval > 0)
+function validateSubscription(subscription: model.SubscriptionBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    let properties = mqtt_shared.computeTopicProperties(subscription.topicFilterAsString, true);
+    if (properties.isShared) {
+        if (!settings.sharedSubscriptionsAvailable) {
+            throw new CrtError("Shared subscriptions are not supported by the server");
+        }
+
+        if (mode == model.ProtocolMode.Mqtt5) {
+            if (subscription.noLocal) {
+                throw new CrtError("noLocal may not be set on a shared subscriptions");
+            }
+        }
+    }
+
+    if (properties.hasWildcard && !settings.wildcardSubscriptionsAvailable) {
+        throw new CrtError("Wildcard subscriptions are not supported by the server");
+    }
+
+    validateBufferLength(subscription.topicFilter, "subscription.topicFilter");
 }
 
-function validateBinaryConnect(packet: model.ConnectPacketBinary, mode: model.ProtocolMode, settings?: mqtt5_common.NegotiatedSettings) {
-    // (everything)
+function validateBinarySubscribe(packet: model.SubscribePacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    validatePacketLength(packet, mode, settings);
+    validateRequiredPacketId(packet.packetId, "packetId");
+
+    for (let subscription of packet.subscriptions) {
+        validateSubscription(subscription, mode, settings);
+    }
+
+    if (mode == model.ProtocolMode.Mqtt5) {
+        validateBinaryUserProperties(packet.userProperties);
+    }
+}
+
+function validateBinaryUnsubscribe(packet: model.UnsubscribePacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    validatePacketLength(packet, mode, settings);
+    validateRequiredPacketId(packet.packetId, "packetId");
+
+    for (let topicFilter of packet.topicFilters) {
+        validateBufferLength(topicFilter, "topicFilter");
+    }
+
+    if (mode == model.ProtocolMode.Mqtt5) {
+        validateBinaryUserProperties(packet.userProperties);
+    }
+}
+
+function validateBinaryDisconnect(packet: model.DisconnectPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    validatePacketLength(packet, mode, settings);
+
+    if (mode == model.ProtocolMode.Mqtt5) {
+        if (settings.sessionExpiryInterval == 0) {
+            if (packet.sessionExpiryIntervalSeconds != undefined && packet.sessionExpiryIntervalSeconds > 0) {
+                throw new CrtError("sessionExpiryIntervalSeconds cannot be positive when the connection was established with a zero-valued session expiry interval");
+            }
+        }
+
+        validateOptionalBufferLength(packet.reasonString, "reasonString");
+        validateOptionalBufferLength(packet.serverReference, "serverReference");
+        validateBinaryUserProperties(packet.userProperties);
+    }
+}
+
+// Connect packets are synthesized internally based on configuration settings and state
+// we validate type and integer widths when we validate the corresponding component of client configuration
+function validateBinaryConnect(packet: model.ConnectPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+    validatePacketLength(packet, mode, settings);
+
+    validateOptionalBufferLength(packet.clientId, "clientId");
+    validateOptionalBufferLength(packet.username, "username");
+    validateOptionalBufferLength(packet.password, "password");
+
+    if (packet.will) {
+        validateBinaryPublish(packet.will, mode, settings);
+    }
+
+    if (mode == model.ProtocolMode.Mqtt5) {
+        validateOptionalBufferLength(packet.password, "authenticationMethod");
+        validateOptionalBufferLength(packet.password, "authenticationData");
+
+        validateBinaryUserProperties(packet.userProperties);
+    }
 }
 
 // inbound packet validators - we don't type check or integer-width check anything because we're the ones
-// who initialized the packet.  We do check
+// who initialized the packet with appropriate byte-level decoding operations.  We do check
 //   1. enum values
-//   2. packet ids
+//   2. packet ids (non-zero)
 //   3. misc. property constraints
 
 function validateInboundPublish(packet: model.PublishPacketInternal, mode: model.ProtocolMode) {
@@ -651,7 +778,9 @@ function validateInboundUnsuback(packet: model.UnsubackPacketInternal, mode: mod
 
 function validateInboundDisconnect(packet: model.DisconnectPacketInternal, mode: model.ProtocolMode) {
     validateDisconnectReasonCode(packet.reasonCode, mode);
-    if (packet.sessionExpiryIntervalSeconds != undefined) {
-        throw new CrtError("server Disconnect packets must not define sessionExpiryIntervalSeconds");
+    if (mode == model.ProtocolMode.Mqtt5) {
+        if (packet.sessionExpiryIntervalSeconds != undefined) {
+            throw new CrtError("server Disconnect packets must not define sessionExpiryIntervalSeconds");
+        }
     }
 }
