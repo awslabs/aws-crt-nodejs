@@ -61,46 +61,75 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 
+export interface TopicProperties {
+    isValid: boolean;
+    isShared: boolean;
+    hasWildcard: boolean;
+}
 
-function isValidTopicInternal(topic: string, isFilter: boolean) : boolean {
-    if (topic.length === 0 || topic.length > 65535) {
-        return false;
+export function computeTopicProperties(topic: string, isFilter: boolean) : TopicProperties {
+    let properties : TopicProperties = {
+        isValid: false,
+        isShared: false,
+        hasWildcard: false
+    };
+
+    if (topic.length === 0) {
+        return properties;
     }
 
+    let hasSharePrefix : boolean = false;
+    let hasShareName : boolean = false;
     let sawHash : boolean = false;
+    let index : number = 0;
     for (let segment of topic.split('/')) {
         if (sawHash) {
-            return false;
-        }
-
-        if (segment.length === 0) {
-            continue;
+            return properties;
         }
 
         if (segment.includes("+")) {
             if (!isFilter) {
-                return false;
+                return properties;
             }
 
             if (segment.length > 1) {
-                return false;
+                return properties;
             }
+
+            properties.hasWildcard = true;
         }
 
         if (segment.includes("#")) {
             if (!isFilter) {
-                return false;
+                return properties;
             }
 
             if (segment.length > 1) {
-                return false;
+                return properties;
             }
 
+            properties.hasWildcard = true;
             sawHash = true;
         }
+
+        if (index == 0 && segment === "$share") {
+            hasSharePrefix = true;
+        }
+
+        if (index == 1 && hasSharePrefix && segment.length > 0 && !properties.hasWildcard) {
+            hasShareName = true;
+        }
+
+        if (hasShareName && ((index == 2 && segment.length > 0) || index > 2)) {
+            properties.isShared = true;
+        }
+
+        index += 1;
     }
 
-    return true;
+    properties.isValid = true;
+
+    return properties;
 }
 
 export function isValidTopicFilter(topicFilter: any) : boolean {
@@ -108,9 +137,8 @@ export function isValidTopicFilter(topicFilter: any) : boolean {
         return false;
     }
 
-    let topicFilterAsString = topicFilter as string;
-
-    return isValidTopicInternal(topicFilterAsString, true);
+    let properties = computeTopicProperties(topicFilter as string, true);
+    return properties.isValid;
 }
 
 export function isValidTopic(topic: any) : boolean {
@@ -118,11 +146,7 @@ export function isValidTopic(topic: any) : boolean {
         return false;
     }
 
-    let topicAsString = topic as string;
-
-    return isValidTopicInternal(topicAsString, false);
+    let properties = computeTopicProperties(topic as string, false);
+    return properties.isValid;
 }
 
-export function isShared(topic : string) : boolean {
-    return topic.startsWith("$share/")
-}

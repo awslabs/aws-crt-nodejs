@@ -818,10 +818,12 @@ function computePacketEncodingLength311(packet: model.IPacketBinary) : number {
             remaining_length = getUnsubscribePacketRemainingLengths311(packet as model.UnsubscribePacketBinary);
             break;
 
-        case mqtt5_packet.PacketType.Disconnect:
         case mqtt5_packet.PacketType.Puback:
+            return 4; // packet type byte + remaining length (2) + packet id
+
+        case mqtt5_packet.PacketType.Disconnect:
         case mqtt5_packet.PacketType.Pingreq:
-            return 2;
+            return 2; // packet type byte + remaining length (0)
 
         default:
             throw new CrtError("Unexpected packet type: " + packet.type);
