@@ -137,9 +137,12 @@ function validateU16(value: number, fieldName: string) {
     }
 }
 
-function validateOptionalU16(value: number | undefined, fieldName: string) {
+function validateOptionalPositiveU16(value: number | undefined, fieldName: string) {
     if (value != undefined) {
         validateU16(value, fieldName);
+        if (value == 0) {
+            throw new CrtError(`Field "${fieldName}" with value "${value}" cannot be 0`);
+        }
     }
 }
 
@@ -423,6 +426,10 @@ function validateUserProperties(userProperties: Array<mqtt5_packet.UserProperty>
         return;
     }
 
+    if (!Array.isArray(userProperties)) {
+        throw new CrtError('UserProperties is not an array');
+    }
+
     for (let userProperty of userProperties) {
         validateString(userProperty.name, 'UserProperty.name');
         validateString(userProperty.value, 'UserProperty.value');
@@ -496,7 +503,7 @@ function validateUserSubmittedPublish(packet: mqtt5_packet.PublishPacket, mode: 
     if (mode == model.ProtocolMode.Mqtt5) {
         validateOptionalPayloadFormat(packet.payloadFormat, "payloadFormat");
         validateOptionalU32(packet.messageExpiryIntervalSeconds, "messageExpiryIntervalSeconds");
-        validateOptionalU16(packet.topicAlias, "topicAlias");
+        validateOptionalPositiveU16(packet.topicAlias, "topicAlias"); // 0 is also invalid
         validateOptionalTopic(packet.responseTopic, "responseTopic");
         validateOptionalBinaryData(packet.correlationData, "correlationData");
         validateOptionalString(packet.contentType, "contentType");
@@ -728,7 +735,7 @@ function validateInboundPublish(packet: model.PublishPacketInternal, mode: model
     }
 
     if (packet.topicName.length == 0) {
-        throw new CrtError("topicName is empty (alias could not resolve)");
+        throw new CrtError("topicName is empty (alias could not be resolved)");
     }
 }
 
