@@ -98,6 +98,11 @@ export const RETAIN_HANDLING_TYPE_SHIFT : number = 0x03;
  *      a binary model, we only ever have to do the to-bytes conversion once (we need to know the lengths of all
  *      string-value fields before we even begin the encoding due to VLI remaining length calculations).
  *
+ *      The binary model keeps around non-binary fields in exactly one instance: the subscriptions in a Subscribe packet
+ *      contain both the topic filter as an ArrayBuffer as well as the original string.  This was the least messy
+ *      way to be able to do dynamic (negotiated settings based) validation based on properties like wildcards and
+ *      shared subscriptions.
+ *
  *
  *   User-submitted outbound packet processing:
  *
@@ -221,6 +226,7 @@ export interface PubackPacketBinary extends IPacketBinary {
 
 export interface SubscriptionBinary {
     topicFilter: ArrayBuffer;
+    topicFilterAsString: string; // the one place we keep around a non-binary value
     qos: number;
     noLocal?: number;
     retainAsPublished?: number;
@@ -513,6 +519,7 @@ function convertSubscriptionToBinary(subscription: mqtt5_packet.Subscription) : 
 
     let internal_subscription : SubscriptionBinary = {
         topicFilter: encoder.encode(subscription.topicFilter).buffer,
+        topicFilterAsString: subscription.topicFilter,
         qos: subscription.qos
     };
 
