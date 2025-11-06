@@ -512,7 +512,11 @@ function validateUserSubmittedPublish(packet: mqtt5_packet.PublishPacket, mode: 
 }
 
 function validateSubscriptions(subscriptions: Array<mqtt5_packet.Subscription>, mode: model.ProtocolMode) {
-    if (!subscriptions || subscriptions.length == 0) {
+    if (!Array.isArray(subscriptions)) {
+        throw new CrtError("Subscriptions must be an array");
+    }
+
+    if (subscriptions.length == 0) {
         throw new CrtError("Subscriptions cannot be empty");
     }
 
