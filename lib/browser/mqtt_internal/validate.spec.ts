@@ -1360,4 +1360,85 @@ test('External disconnect packet validation - user properties value undefined ty
 
 // binary disconnects
 
+function createBinaryDisconnectPacketMaximal() : model.DisconnectPacketBinary {
+    let packet = createExternalDisconnectPacketMaximal();
+    let binaryPacket = model.convertInternalPacketToBinary(packet) as model.DisconnectPacketBinary;
+
+    return binaryPacket;
+}
+
+test('Binary disconnect packet validation - success', async () => {
+    let packet = createBinaryDisconnectPacketMaximal();
+    let settings = createStandardNegotiatedSettings();
+    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+});
+
+test('Binary disconnect packet validation - packet too long', async () => {
+    let packet = createBinaryDisconnectPacketMaximal();
+    let settings = createStandardNegotiatedSettings();
+    settings.maximumPacketSizeToServer = 20;
+
+    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+});
+
+test('Binary disconnect packet validation - positive session expiry interval when previously established zero-length', async () => {
+    let packet = createBinaryDisconnectPacketMaximal();
+    let settings = createStandardNegotiatedSettings();
+    settings.sessionExpiryInterval = 0;
+
+    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("cannot be positive");
+});
+
+test('Binary disconnect packet validation - reason string too long', async () => {
+    let packet = createBinaryDisconnectPacketMaximal();
+    let settings = createStandardNegotiatedSettings();
+    packet.reasonString = new Uint8Array(65536);
+
+    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+});
+
+test('Binary disconnect packet validation - server reference too long', async () => {
+    let packet = createBinaryDisconnectPacketMaximal();
+    let settings = createStandardNegotiatedSettings();
+    packet.serverReference = new Uint8Array(65536);
+
+    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+});
+
+test('Binary disconnect packet validation - user property name too long', async () => {
+    doBinaryUserPropertyNameTooLongTest(createBinaryDisconnectPacketMaximal());
+});
+
+test('Binary disconnect packet validation - user property value too long', async () => {
+    doBinaryUserPropertyValueTooLongTest(createBinaryDisconnectPacketMaximal());
+});
+
 // inbound disconnects
+
+function createInternalDisconnectPacketMaximal() : model.DisconnectPacketInternal {
+    let packet = createExternalDisconnectPacketMaximal();
+    delete packet.sessionExpiryIntervalSeconds;
+    packet.reasonCode = mqtt5_packet.DisconnectReasonCode.NormalDisconnection;
+
+    return packet;
+}
+
+test('Inbound disconnect packet validation - success', async () => {
+    let packet = createInternalDisconnectPacketMaximal();
+
+    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
+    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5);
+});
+
+test('Inbound disconnect packet validation - server-side session expiry', async () => {
+    let packet = createInternalDisconnectPacketMaximal();
+    packet.sessionExpiryIntervalSeconds = 30;
+
+    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("must not define");
+});
