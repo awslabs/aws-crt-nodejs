@@ -62,7 +62,7 @@ export function validateUserSubmittedOutboundPacket(packet: mqtt5_packet.IPacket
 export function validateBinaryOutboundPacket(packet: model.IPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
     switch(packet.type) {
         case mqtt5_packet.PacketType.Publish:
-            validateBinaryPublish(packet as model.PublishPacketBinary, mode, settings);
+            validateBinaryPublish(packet as model.PublishPacketBinary, mode, settings, false);
             break;
 
         case mqtt5_packet.PacketType.Subscribe:
@@ -565,10 +565,10 @@ function validateUserSubmittedDisconnect(packet: mqtt5_packet.DisconnectPacket, 
 
 // binary outbound packet validators; user-submitted validation is not repeated here
 
-function validatePacketLength(packet: model.IPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
+function validatePacketLength(packet: model.IPacketBinary, mode: model.ProtocolMode, maximumPacketSize: number) {
     let length = encoder.computePacketEncodingLength(packet, mode);
-    if (length > settings.maximumPacketSizeToServer) {
-        throw new CrtError(`Packet with length ${length} exceeds established maximum packet size of ${settings.maximumPacketSizeToServer}`);
+    if (length > maximumPacketSize) {
+        throw new CrtError(`Packet with length ${length} exceeds established maximum packet size of ${maximumPacketSize}`);
     }
 }
 
@@ -583,19 +583,25 @@ function validateBinaryUserProperties(userProperties: Array<model.UserPropertyBi
     }
 }
 
-function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    validatePacketLength(packet, mode, settings);
-
-    if (packet.qos == mqtt5_packet.QoS.AtMostOnce) {
-        if (packet.packetId != undefined) {
-            throw new CrtError("packetId must not be set on outbound publish packets with QoS 0");
-        }
-
-        if (packet.duplicate) {
-            throw new CrtError("duplicate must not be set on outbound publish packets with QoS 0");
-        }
+function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings, isWill: boolean) {
+    if (isWill) {
+        validatePacketLength(packet, mode, 65535);
     } else {
-        validateRequiredPacketId(packet.packetId, "packetId");
+        validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
+    }
+
+    if (!isWill) {
+        if (packet.qos == mqtt5_packet.QoS.AtMostOnce) {
+            if (packet.packetId != undefined) {
+                throw new CrtError("packetId must not be set on outbound publish packets with QoS 0");
+            }
+
+            if (packet.duplicate) {
+                throw new CrtError("duplicate must not be set on outbound publish packets with QoS 0");
+            }
+        } else {
+            validateRequiredPacketId(packet.packetId, "packetId");
+        }
     }
 
     if (packet.retain && !settings.retainAvailable) {
@@ -613,7 +619,7 @@ function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.Pr
             throw new CrtError("subscriptionIdentifiers may not be set on outbound publish packets");
         }
 
-        if (packet.topicAlias != undefined) {
+        if (!isWill && packet.topicAlias != undefined) {
             if (packet.topicAlias == 0) {
                 throw new CrtError("topicAlias cannot be zero");
             } else if (packet.topicAlias > settings.topicAliasMaximumToServer) {
@@ -629,7 +635,7 @@ function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.Pr
 }
 
 function validateBinaryPuback(packet: model.PubackPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    validatePacketLength(packet, mode, settings);
+    validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
     validateRequiredPacketId(packet.packetId, "packetId");
 
     if (mode == model.ProtocolMode.Mqtt5) {
@@ -660,7 +666,7 @@ function validateSubscription(subscription: model.SubscriptionBinary, mode: mode
 }
 
 function validateBinarySubscribe(packet: model.SubscribePacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    validatePacketLength(packet, mode, settings);
+    validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
     validateRequiredPacketId(packet.packetId, "packetId");
 
     for (let subscription of packet.subscriptions) {
@@ -673,7 +679,7 @@ function validateBinarySubscribe(packet: model.SubscribePacketBinary, mode: mode
 }
 
 function validateBinaryUnsubscribe(packet: model.UnsubscribePacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    validatePacketLength(packet, mode, settings);
+    validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
     validateRequiredPacketId(packet.packetId, "packetId");
 
     for (let topicFilter of packet.topicFilters) {
@@ -686,7 +692,7 @@ function validateBinaryUnsubscribe(packet: model.UnsubscribePacketBinary, mode: 
 }
 
 function validateBinaryDisconnect(packet: model.DisconnectPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    validatePacketLength(packet, mode, settings);
+    validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
 
     if (mode == model.ProtocolMode.Mqtt5) {
         if (settings.sessionExpiryInterval == 0) {
@@ -704,19 +710,19 @@ function validateBinaryDisconnect(packet: model.DisconnectPacketBinary, mode: mo
 // Connect packets are synthesized internally based on configuration settings and state
 // we validate type and integer widths when we validate the corresponding component of client configuration
 function validateBinaryConnect(packet: model.ConnectPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    validatePacketLength(packet, mode, settings);
+    validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
 
     validateOptionalBufferLength(packet.clientId, "clientId");
     validateOptionalBufferLength(packet.username, "username");
     validateOptionalBufferLength(packet.password, "password");
 
     if (packet.will) {
-        validateBinaryPublish(packet.will, mode, settings);
+        validateBinaryPublish(packet.will, mode, settings, true);
     }
 
     if (mode == model.ProtocolMode.Mqtt5) {
-        validateOptionalBufferLength(packet.password, "authenticationMethod");
-        validateOptionalBufferLength(packet.password, "authenticationData");
+        validateOptionalBufferLength(packet.authenticationMethod, "authenticationMethod");
+        validateOptionalBufferLength(packet.authenticationData, "authenticationData");
 
         validateBinaryUserProperties(packet.userProperties);
     }
