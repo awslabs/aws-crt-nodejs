@@ -226,7 +226,7 @@ export interface PubackPacketBinary extends IPacketBinary {
 
 export interface SubscriptionBinary {
     topicFilter: ArrayBuffer;
-    topicFilterAsString: string; // the one place we keep around a non-binary value
+    topicFilterAsString: string; // keep around the non-binary value for easy validation
     qos: number;
     noLocal?: number;
     retainAsPublished?: number;
@@ -247,6 +247,7 @@ export interface UnsubscribePacketBinary extends IPacketBinary {
     packetId: number;
 
     topicFilters: Array<ArrayBuffer>;
+    topicFiltersAsStrings : Array<string>; // keep around the non-binary values for easy validation
 
     userProperties?: Array<UserPropertyBinary>;
 }
@@ -569,11 +570,13 @@ function convertUnsubscribePacketToBinary(packet: UnsubscribePacketInternal, inc
     let binary_packet: UnsubscribePacketBinary = {
         type: mqtt5_packet.PacketType.Unsubscribe,
         packetId: 0,
-        topicFilters: []
+        topicFilters: [],
+        topicFiltersAsStrings: []
     };
 
     for (let topicFilter of packet.topicFilters) {
         binary_packet.topicFilters.push(encoder.encode(topicFilter).buffer);
+        binary_packet.topicFiltersAsStrings.push(topicFilter);
     }
 
     if (packet.userProperties != undefined) {
