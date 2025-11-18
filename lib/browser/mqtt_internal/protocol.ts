@@ -9,7 +9,10 @@ import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as validate from "./validate";
 import {CrtError} from "../error";
-import {BinaryData, PublishPacket, UserProperty} from "../../common/mqtt5_packet";
+
+import * as mqtt5 from "../mqtt5";
+import * as mqtt_shared from "../../common/mqtt_shared";
+import * as mqtt5_utils from "../mqtt5_utils";
 
 interface ResultHandler<T> {
     onCompletionSuccess : (value : T) => void;
@@ -199,8 +202,8 @@ interface ConnectOptions {
     receiveMaximum?: number;
     maximumPacketSizeBytes?: number;
     willDelayIntervalSeconds?: number;
-    will?: PublishPacket;
-    userProperties?: Array<UserProperty>;
+    will?: mqtt5_packet.PublishPacket;
+    userProperties?: Array<mqtt5_packet.UserProperty>;
 }
 
 
@@ -250,6 +253,9 @@ export class ProtocolState implements IProtocolState {
     private pendingPublishAcks : Map<number, number> = new Map<number, number>();
     private pendingNonPublishAcks : Map<number, number> = new Map<number, number>();
 
+    private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
+    private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
+
     constructor(config : ProtocolStateConfig) {
         this.config = config;
         this.encoder = new encoder.Encoder(encoder.buildClientEncodingFunctionSet(config.protocolVersion));
@@ -281,7 +287,6 @@ export class ProtocolState implements IProtocolState {
 
     handleNetworkEvent(context: NetworkEventContext) : void {
         this.updateElapsedMillis(context.elapsedMillis);
-        this.throwIfHalted();
 
         try {
             switch (context.type) {
@@ -594,12 +599,26 @@ export class ProtocolState implements IProtocolState {
         while (!done) {
             let currentOperation : ClientOperation | undefined = undefined;
 
-            if (this.currentOperation == undefined) {
+            while (this.currentOperation == undefined) {
                 currentOperation = this.dequeueNextOperation(serviceQueueType);
-                if (currentOperation != undefined) {
+                if (currentOperation == undefined) {
+                    break;
+                }
+
+                this.bindPacketId(currentOperation);
+
+                let validationError : any = undefined;
+                try {
+                    validate.validateBinaryOutboundPacket(currentOperation.packet, this.config.protocolVersion, this.lastNegotiatedSettings);
+                } catch (e) {
+                    validationError = e;
+                }
+
+                if (validationError == undefined) {
                     this.currentOperation = currentOperation.id;
-                    this.bindPacketId(currentOperation);
                     this.encoder.initForPacket(currentOperation.packet);
+                } else {
+                    this.failOperation(currentOperation.id, new CrtError(`Binary outbound packet validation failed: ${validationError}`));
                 }
             }
 
@@ -667,43 +686,59 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handlePublish(context: PublishContext) : void {
-        let operation = {
+        let operation : ClientOperation = {
             type: mqtt5_packet.PacketType.Publish,
             id: this.nextOperationId++,
             packet: model.convertPublishPacketToBinary(context.packet),
             options: context.options,
+            numAttempts: 0,
         };
 
         this.submitOperation(operation, context.packet);
     }
 
     private handleSubscribe(context: SubscribeContext) : void {
-        let operation = {
+        let operation : ClientOperation = {
             type: mqtt5_packet.PacketType.Subscribe,
             id: this.nextOperationId++,
             packet: model.convertSubscribePacketToBinary(context.packet),
             options: context.options,
+            numAttempts: 0,
         };
 
         this.submitOperation(operation, context.packet);
     }
 
     private handleUnsubscribe(context: UnsubscribeContext) : void {
-        let operation = {
+        let operation : ClientOperation = {
             type: mqtt5_packet.PacketType.Unsubscribe,
             id: this.nextOperationId++,
             packet: model.convertUnsubscribePacketToBinary(context.packet),
             options: context.options,
+            numAttempts: 0,
         };
 
         this.submitOperation(operation, context.packet);
     }
 
     private handleDisconnect(context: DisconnectContext) : void {
+        let options : GenericOptionsInternal = {
+            resultHandler: {
+                onCompletionSuccess: () => {
+                    this.halt(new CrtError("User-initiated disconnect complete"));
+                },
+                onCompletionFailure: (error: CrtError) => {
+                    this.halt(error);
+                }
+            }
+        };
+
         let operation = {
             type: mqtt5_packet.PacketType.Disconnect,
             id: this.nextOperationId++,
-            packet: model.convertDisconnectPacketToBinary(context.packet)
+            packet: model.convertDisconnectPacketToBinary(context.packet),
+            options: options,
+            numAttempts: 0,
         };
 
         this.operations.set(operation.id, operation);
@@ -730,6 +765,7 @@ export class ProtocolState implements IProtocolState {
         this.pendingConnackTimeoutElapsedMillis = context.establishmentTimeout;
 
         let connect = this.buildConnectPacket();
+        this.lastOutboundConnect = connect;
         this.submitInternalHighPriority(model.convertInternalPacketToBinary(connect), {
             onCompletionSuccess: () => {},
             onCompletionFailure: (error: CrtError) => {
@@ -739,15 +775,21 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handleConnectionClosed() : void {
-        if (this.state == ProtocolStateType.Disconnected || this.state == ProtocolStateType.Halted) {
+        if (this.state == ProtocolStateType.Disconnected) {
             throw new CrtError("Connection closed while disconnected");
         }
 
-        this.changeState(ProtocolStateType.PendingDisconnect);
+        // TODO: Fail user/resub operations that do not pass offline queue policy
+
+        this.changeState(ProtocolStateType.Disconnected);
     }
 
     private handleIncomingData(context: IncomingDataContext) : void {
-        if (this.state == ProtocolStateType.Disconnected || this.state == ProtocolStateType.Halted) {
+        if (this.halted) {
+            return;
+        }
+
+        if (this.state == ProtocolStateType.Disconnected) {
             this.halt(new CrtError("Data received while disconnected"));
             return;
         }
@@ -793,7 +835,22 @@ export class ProtocolState implements IProtocolState {
         }
     }
 
-    private handleIncomingConnack(packet: model.ConnackPacketInternal) : void {}
+    private handleIncomingConnack(packet: model.ConnackPacketInternal) : void {
+        if (this.state != ProtocolStateType.PendingConnack) {
+            this.halt(new CrtError("Connack received while not in PendingConnack state"));
+            return;
+        }
+
+        this.pendingConnackTimeoutElapsedMillis = undefined;
+        this.lastNegotiatedSettings = createNegotiatedSettings(this.lastOutboundConnect, packet);
+
+        if (packet.reasonCode == mqtt5_packet.ConnectReasonCode.Success) {
+            this.changeState(ProtocolStateType.Connected);
+        } else {
+            this.halt(new CrtError(`Connection rejected with reason code ${packet.reasonCode}`));
+        }
+    }
+
     private handleIncomingPublish(packet: model.PublishPacketInternal) : void {}
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {}
     private handleIncomingSuback(packet: model.SubackPacketInternal) : void {}
@@ -866,13 +923,14 @@ export class ProtocolState implements IProtocolState {
             throw new CrtError("Packet type must be set on internal packets");
         }
 
-        let operation = {
+        let operation : ClientOperation = {
             type: packet.type,
             id: this.nextOperationId++,
             packet: packet,
             options: {
                 resultHandler: resultHandler
-            }
+            },
+            numAttempts: 0,
         };
 
         this.operations.set(operation.id, operation);
@@ -880,16 +938,16 @@ export class ProtocolState implements IProtocolState {
     }
 
     private halt(error: CrtError) {
-        if (this.state == ProtocolStateType.Halted) {
+        if (this.halted) {
             return;
         }
 
-        this.state = ProtocolStateType.Halted;
+        this.halted = true;
         this.haltError = error;
     }
 
     private throwIfHalted() {
-        if (this.state == ProtocolStateType.Halted) {
+        if (this.halted) {
             throw this.haltError;
         }
     }
@@ -938,4 +996,47 @@ function foldTime(lhs : number | undefined, rhs : number | undefined) : number |
     }
 
     return Math.min(lhs, rhs);
+}
+
+function createNegotiatedSettings(connect: model.ConnectPacketInternal, connack: mqtt5.ConnackPacket) : mqtt5.NegotiatedSettings {
+    return {
+        maximumQos: Math.min(connack.maximumQos ?? mqtt5.QoS.ExactlyOnce, mqtt5.QoS.AtLeastOnce),
+        sessionExpiryInterval: connack.sessionExpiryInterval ?? connect.sessionExpiryIntervalSeconds ?? 0,
+        receiveMaximumFromServer: connack.receiveMaximum ?? mqtt5_utils.DEFAULT_RECEIVE_MAXIMUM,
+        maximumPacketSizeToServer: connack.maximumPacketSize ?? mqtt5_utils.MAXIMUM_PACKET_SIZE,
+        topicAliasMaximumToServer: 0, // TODO
+        topicAliasMaximumToClient: 0, // TODO
+        serverKeepAlive: connack.serverKeepAlive ?? connect.keepAliveIntervalSeconds ?? mqtt_shared.DEFAULT_KEEP_ALIVE,
+        retainAvailable: connack.retainAvailable ?? true,
+        wildcardSubscriptionsAvailable: connack.wildcardSubscriptionsAvailable ?? true,
+        subscriptionIdentifiersAvailable: connack.subscriptionIdentifiersAvailable ?? true,
+        sharedSubscriptionsAvailable: connack.sharedSubscriptionsAvailable ?? true,
+        rejoinedSession: connack.sessionPresent,
+        clientId: connack.assignedClientIdentifier ?? connect.clientId ?? ""
+    };
+}
+
+function createDefaultNegotiatedSettings() : mqtt5.NegotiatedSettings {
+    return {
+        maximumQos: mqtt5.QoS.AtLeastOnce,
+        sessionExpiryInterval: 0,
+        receiveMaximumFromServer: mqtt5_utils.DEFAULT_RECEIVE_MAXIMUM,
+        maximumPacketSizeToServer: mqtt5_utils.MAXIMUM_PACKET_SIZE,
+        topicAliasMaximumToServer: 0,
+        topicAliasMaximumToClient: 0,
+        serverKeepAlive: mqtt_shared.DEFAULT_KEEP_ALIVE,
+        retainAvailable: true,
+        wildcardSubscriptionsAvailable: true,
+        subscriptionIdentifiersAvailable: true,
+        sharedSubscriptionsAvailable: true,
+        rejoinedSession: false,
+        clientId: ""
+    }
+}
+
+function createDefaultConnect() : model.ConnectPacketInternal {
+    return {
+        keepAliveIntervalSeconds: mqtt_shared.DEFAULT_KEEP_ALIVE,
+        cleanStart: true
+    };
 }
