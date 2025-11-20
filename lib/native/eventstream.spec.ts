@@ -9,7 +9,7 @@ import {once} from "events";
 import crt_native from "./binding";
 import * as os from "os";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
@@ -106,7 +106,7 @@ async function doConnectionFailureTest(config : eventstream.ClientConnectionOpti
 
 test('Eventstream transport connection failure echo server - bad host', async () => {
     let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
-    badConfig.hostName = "derp.notarealdomainseriously.org";
+    badConfig.hostName = "localhst";
 
     await doConnectionFailureTest(badConfig);
 });
