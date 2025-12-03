@@ -20,8 +20,6 @@ interface ResultHandler<T> {
     onCompletionFailure : (error : CrtError) => void;
 }
 
-// type ResultHandler<T> = (value: T | undefined, err: CrtError | undefined) => void;
-
 enum ProtocolStateType {
     Disconnected,
     PendingConnack,
@@ -131,14 +129,8 @@ interface ServiceResult {
     toSocket?: DataView
 }
 
-enum ResetType {
-    Connection,
-    Session
-}
-
 interface ResetContext {
-    elapsedMillis: number,
-    type: ResetType
+    elapsedMillis: number
 }
 
 interface IProtocolState {
@@ -217,27 +209,20 @@ export interface ConnectOptions {
  */
 export enum OfflineQueuePolicy {
 
-    /** Same as FailQos0PublishOnDisconnect */
+    /** Operations are never failed due to connection state */
+    PreserveAll = 0,
+
+    /** Qos0 Publishes are failed when there is no connection, all other operations are left alone. */
+    PreserveAcknowledged,
+
+    /** Only QoS1 and QoS2 publishes are retained when there is no connection */
+    PreserveQos1PlusPublishes,
+
+    /** Nothing is retained when there is no connection */
+    PreserveNothing,
+
+    /** Keep everything by default */
     Default = 0,
-
-    /**
-     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
-     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
-     */
-    FailNonQos1PublishOnDisconnect = 1,
-
-    /**
-     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
-     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
-     * are requeued in original order behind any retransmissions.
-     */
-    FailQos0PublishOnDisconnect = 2,
-
-    /**
-     * All operations that are not complete at the time of disconnection are failed, except operations that
-     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
-     */
-    FailAllOnDisconnect = 3,
 }
 
 export interface ProtocolStateConfig {
@@ -296,6 +281,7 @@ export class ProtocolState implements IProtocolState {
 
     private nextOperationId : number = 1;
     private operations : Map<number, ClientOperation> = new Map<number, ClientOperation>();
+    private operationTimeouts : heap.MinHeap<OperationTimeoutRecord> = new heap.MinHeap<OperationTimeoutRecord>(compareTimeoutRecords);
 
     private userOperationQueue : Array<number> = new Array<number>();
     private resubmitOperationQueue : Array<number> = new Array<number>();
@@ -315,8 +301,6 @@ export class ProtocolState implements IProtocolState {
     private pendingPublishAcks : Map<number, number> = new Map<number, number>();
     private pendingNonPublishAcks : Map<number, number> = new Map<number, number>();
 
-    private operationTimeouts : heap.MinHeap<OperationTimeoutRecord> = new heap.MinHeap<OperationTimeoutRecord>(compareTimeoutRecords);
-
     private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
 
@@ -329,27 +313,38 @@ export class ProtocolState implements IProtocolState {
     reset(context: ResetContext) : void {
         this.updateElapsedMillis(context.elapsedMillis);
 
-        this.requeueCurrentOperation();
-        this.pendingWriteCompletion = false;
-        this.pendingWriteCompletionOperations.forEach((id : number) => this.failOperation(id, new CrtError("Protocol state reset")));
-        this.pendingWriteCompletionOperations = [];
-        this.pendingFlushOperations = [];
-
-        this.operationTimeouts.clear();
-
-        this.highPriorityOperationQueue.forEach((id: number)=> this.failOperation(id, new CrtError("Protocol state reset")));
-        this.highPriorityOperationQueue = [];
-
         this.state = ProtocolStateType.Disconnected;
         this.halted = false;
         this.haltError = undefined;
+
         this.pendingConnackTimeoutElapsedMillis = undefined;
+        this.nextOutboundPingElapsedMillis = undefined;
+        this.pendingPingrespTimeoutElapsedMillis = undefined;
+
+        let failError = new CrtError("Protocol state reset");
+        this.operations.forEach((operation, operationId) => {
+            this.failOperation(operationId, failError);
+        });
+        this.operations.clear();
+        this.operationTimeouts.clear();
+
+        this.userOperationQueue = [];
+        this.resubmitOperationQueue = [];
+        this.highPriorityOperationQueue = [];
+        this.currentOperation = undefined;
+
+        this.nextPacketId = 1;
+        this.boundPacketIds.clear();
+
         this.encoder.reset();
         this.decoder.reset();
 
-        if (context.type == ResetType.Session) {
-            this.resetForNewSession();
-        }
+        this.pendingWriteCompletion = false;
+        this.pendingWriteCompletionOperations = [];
+        this.pendingFlushOperations = [];
+
+        this.pendingNonPublishAcks.clear();
+        this.pendingPublishAcks.clear();
     }
 
     handleNetworkEvent(context: NetworkEventContext) : void {
@@ -848,6 +843,15 @@ export class ProtocolState implements IProtocolState {
                 validate.validateUserSubmittedOutboundPacket(userPacket, this.config.protocolVersion);
             }
 
+            if (queueType == OperationQueueType.User) {
+                if (this.state != ProtocolStateType.Connected) {
+                    if (!this.operationPassesOfflineQueuePolicy(operation.id)) {
+                        // gets failed properly in catch clause
+                        throw new CrtError("User-submitted operation did not pass offline queue policy check");
+                    }
+                }
+            }
+
             let queue = this.getOperationQueue(queueType);
             if (submitLocation == QueueEndType.Front) {
                 queue.unshift(operation.id);
@@ -920,6 +924,11 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handleDisconnect(context: DisconnectContext) : void {
+        if (this.state != ProtocolStateType.Connected) {
+            // TODO: Log
+            return;
+        }
+
         let options : GenericOptionsInternal = {
             resultHandler: {
                 onCompletionSuccess: () => {
@@ -948,6 +957,9 @@ export class ProtocolState implements IProtocolState {
             throw new CrtError("Connection opened while not disconnected");
         }
 
+        this.halted = false;
+        this.haltError = undefined;
+
         this.changeState(ProtocolStateType.PendingConnack);
         this.encoder.reset();
         this.decoder.reset();
@@ -964,9 +976,56 @@ export class ProtocolState implements IProtocolState {
             throw new CrtError("Connection closed while disconnected");
         }
 
-        // TODO: Fail user/resub operations that do not pass offline queue policy
-
         this.changeState(ProtocolStateType.Disconnected);
+        this.requeueCurrentOperation();
+        this.pendingFlushOperations = [];
+        this.operationTimeouts.clear();
+        this.nextOutboundPingElapsedMillis = undefined;
+        this.pendingPingrespTimeoutElapsedMillis = undefined;
+        this.pendingConnackTimeoutElapsedMillis = undefined;
+
+        this.pendingWriteCompletionOperations.forEach((operationId) => {});
+        this.pendingWriteCompletionOperations = [];
+
+        let failError = new CrtError("failed OfflineQueuePolicy check on disconnect");
+
+        // 0. fail high priority queue (disconnect, connect, pingreq, puback); if we ever support qos 2 this changes
+        this.highPriorityOperationQueue.forEach((operationId) => { this.failOperation(operationId, failError)});
+        this.highPriorityOperationQueue = [];
+
+        // 1. filter write completions, keep survivors
+        let remainingWriteCompletions = this.partitionAndFailQueueByOfflineQueuePolicy(this.pendingWriteCompletionOperations, failError);
+        this.pendingWriteCompletionOperations = [];
+
+        // 2. filter non-publish pending ack and append to user queue
+        this.pendingNonPublishAcks.forEach((operationId) => {
+            if (this.operationPassesOfflineQueuePolicy(operationId)) {
+                this.userOperationQueue.push(operationId);
+            } else {
+                this.failOperation(operationId, failError);
+            }
+        });
+        this.pendingNonPublishAcks.clear();
+
+        // 3. mark publish pending ack as duplicate and append to resubmit queue
+        this.pendingPublishAcks.forEach((operationId) => {
+            let operation = this.operations.get(operationId);
+            if (operation) {
+                let publish = operation.packet as model.PublishPacketBinary;
+                publish.duplicate = 1;
+            }
+
+            this.resubmitOperationQueue.push(operationId);
+        });
+        this.pendingPublishAcks.clear();
+
+        // 4. filter user queue
+        this.userOperationQueue = this.partitionAndFailQueueByOfflineQueuePolicy(this.userOperationQueue, failError);
+
+        // 5. append preserved write completion operations to user queue
+        this.userOperationQueue = this.userOperationQueue.concat(remainingWriteCompletions);
+
+        // side-affected queues (user and resubmit) will be sorted on the transition to connected state
     }
 
     private handleIncomingData(context: NetworkEventContext) : void {
@@ -1033,6 +1092,7 @@ export class ProtocolState implements IProtocolState {
             this.changeState(ProtocolStateType.Connected);
             this.lastNegotiatedSettings = createNegotiatedSettings(this.lastOutboundConnect, packet);
             this.resetNextPing();
+            this.applySessionState(packet.sessionPresent);
         } else {
             this.halt(new CrtError(`Connection rejected with reason code ${packet.reasonCode}`));
         }
@@ -1221,6 +1281,8 @@ export class ProtocolState implements IProtocolState {
             } else {
                 this.userOperationQueue.unshift(this.currentOperation);
             }
+        } else {
+            this.highPriorityOperationQueue.unshift(this.currentOperation);
         }
     }
 
@@ -1251,8 +1313,79 @@ export class ProtocolState implements IProtocolState {
     }
 
     private operationPassesOfflineQueuePolicy(operationId: number) : boolean {
-        // TODO: impl
-        return false;
+        let operation = this.operations.get(operationId);
+        if (!operation) {
+            return false;
+        }
+
+        let queuePolicy = this.config.offlineQueuePolicy;
+        if (queuePolicy == OfflineQueuePolicy.PreserveNothing) {
+            return false;
+        }
+
+        switch (operation.type) {
+            case mqtt5_packet.PacketType.Publish:
+                if (queuePolicy == OfflineQueuePolicy.PreserveAll) {
+                    return true;
+                }
+
+                let publish = operation.packet as model.PublishPacketBinary;
+                return publish.qos != mqtt5_packet.QoS.AtMostOnce;
+
+            case mqtt5_packet.PacketType.Subscribe:
+            case mqtt5_packet.PacketType.Unsubscribe:
+                return queuePolicy == OfflineQueuePolicy.PreserveAll || queuePolicy == OfflineQueuePolicy.PreserveAcknowledged;
+
+            default:
+                return false;
+        }
+    }
+
+    private partitionAndFailQueueByOfflineQueuePolicy(queue: Array<number>, failError: CrtError) : Array<number> {
+        let preserved : Array<number> = [];
+
+        queue.forEach((operationId) => {
+            if (this.operationPassesOfflineQueuePolicy(operationId)) {
+                preserved.push(operationId);
+            } else {
+                this.failOperation(operationId, failError);
+            }
+        });
+
+        return preserved;
+    }
+
+    private applySessionState(sessionPresent: boolean) {
+        if (!sessionPresent) {
+            let failError = new CrtError("failed OfflineQueuePolicy check on reconnect with no session");
+            let remaining = this.partitionAndFailQueueByOfflineQueuePolicy(this.resubmitOperationQueue, failError);
+            this.userOperationQueue = this.userOperationQueue.concat(remaining);
+            this.resubmitOperationQueue = [];
+
+            // undo all packet id bindings
+            this.boundPacketIds.forEach((operationId, packetId) => {
+                let operation = this.operations.get(operationId);
+                if (operation) {
+                    operation.packetId = undefined;
+                }
+            });
+            this.boundPacketIds.clear();
+        }
+
+        this.sortOperationQueue(this.userOperationQueue);
+        this.sortOperationQueue(this.resubmitOperationQueue);
+    }
+
+    private sortOperationQueue(queue: Array<number>) {
+        queue.sort((lhs, rhs) => {
+            if (lhs < rhs) {
+                return -1;
+            } else if (lhs < rhs) {
+                return 1;
+            }
+
+            return 0;
+        });
     }
 }
 
