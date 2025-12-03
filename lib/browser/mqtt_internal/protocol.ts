@@ -7,6 +7,7 @@ import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as model from "./model";
 import * as encoder from "./encoder";
 import * as decoder from "./decoder";
+import * as heap from "./heap";
 import * as validate from "./validate";
 import {CrtError} from "../error";
 
@@ -191,7 +192,7 @@ interface ClientOperation {
 
 type ConnectPacketTransformer = (packet: mqtt5_packet.ConnectPacket) => void;
 
-interface ConnectOptions {
+export interface ConnectOptions {
     connectPacketTransformer? : ConnectPacketTransformer,
     keepAliveIntervalSeconds: number;
     clientId?: string;
@@ -207,11 +208,41 @@ interface ConnectOptions {
     userProperties?: Array<mqtt5_packet.UserProperty>;
 }
 
+/**
+ * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
+ * how operations are handled while the client is not connected.  In particular, if the client is not connected,
+ * then any operation that would be failed on disconnect (according to these rules) will be rejected.
+ *
+ * A deliberate mirror of the native ClientOperationQueueBehavior enum
+ */
+export enum OfflineQueuePolicy {
 
+    /** Same as FailQos0PublishOnDisconnect */
+    Default = 0,
 
-interface ProtocolStateConfig {
+    /**
+     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
+     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
+     */
+    FailNonQos1PublishOnDisconnect = 1,
+
+    /**
+     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
+     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
+     * are requeued in original order behind any retransmissions.
+     */
+    FailQos0PublishOnDisconnect = 2,
+
+    /**
+     * All operations that are not complete at the time of disconnection are failed, except operations that
+     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
+     */
+    FailAllOnDisconnect = 3,
+}
+
+export interface ProtocolStateConfig {
     protocolVersion : model.ProtocolMode,
-
+    offlineQueuePolicy : OfflineQueuePolicy,
     connectOptions : ConnectOptions,
 }
 
@@ -229,6 +260,21 @@ enum QueueEndType {
 enum ServiceQueueType {
     HighPriorityOnly,
     All
+}
+
+interface OperationTimeoutRecord {
+    operationId: number,
+    timeoutElapsedMillis: number
+}
+
+function compareTimeoutRecords(lhs: OperationTimeoutRecord, rhs: OperationTimeoutRecord) : boolean {
+    if (lhs.timeoutElapsedMillis < rhs.timeoutElapsedMillis) {
+        return true;
+    } else if (lhs.timeoutElapsedMillis > rhs.timeoutElapsedMillis) {
+        return false;
+    } else {
+        return lhs.operationId < rhs.operationId;
+    }
 }
 
 const MAXIMUM_NUMBER_OF_PACKET_IDS : number = 65535;
@@ -269,6 +315,8 @@ export class ProtocolState implements IProtocolState {
     private pendingPublishAcks : Map<number, number> = new Map<number, number>();
     private pendingNonPublishAcks : Map<number, number> = new Map<number, number>();
 
+    private operationTimeouts : heap.MinHeap<OperationTimeoutRecord> = new heap.MinHeap<OperationTimeoutRecord>(compareTimeoutRecords);
+
     private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
 
@@ -286,6 +334,8 @@ export class ProtocolState implements IProtocolState {
         this.pendingWriteCompletionOperations.forEach((id : number) => this.failOperation(id, new CrtError("Protocol state reset")));
         this.pendingWriteCompletionOperations = [];
         this.pendingFlushOperations = [];
+
+        this.operationTimeouts.clear();
 
         this.highPriorityOperationQueue.forEach((id: number)=> this.failOperation(id, new CrtError("Protocol state reset")));
         this.highPriorityOperationQueue = [];
@@ -389,6 +439,10 @@ export class ProtocolState implements IProtocolState {
     }
 
     private pushOutNextPing(baseTime: number | undefined) {
+        if (!this.config.connectOptions.keepAliveIntervalSeconds) {
+            return;
+        }
+
         if (baseTime) {
             let pingTime = baseTime + this.config.connectOptions.keepAliveIntervalSeconds * 1000;
 
@@ -450,10 +504,10 @@ export class ProtocolState implements IProtocolState {
     }
 
     private getNextServiceTimepointConnected() : number | undefined {
-        // TODO: operation timeouts
         let serviceTime = this.getQueueServiceTimepoint(ServiceQueueType.All);
         serviceTime = foldTimeMin(serviceTime, this.nextOutboundPingElapsedMillis);
         serviceTime = foldTimeMin(serviceTime, this.pendingPingrespTimeoutElapsedMillis);
+        serviceTime = foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
 
         return serviceTime;
     }
@@ -543,27 +597,50 @@ export class ProtocolState implements IProtocolState {
         operation.numAttempts++;
         this.pendingFlushOperations.push(operation.id);
 
+        let timeoutMillis : number | undefined = undefined;
+
         switch (operation.type) {
             case mqtt5_packet.PacketType.Publish:
                 if (operation.packetId != undefined) {
                     this.pendingPublishAcks.set(operation.packetId, operation.id);
+
+                    let publishOptions = operation.options as PublishOptionsInternal;
+                    timeoutMillis = publishOptions.options.timeoutInMillis;
                 } else {
                     this.pendingWriteCompletionOperations.push(operation.id);
                 }
                 break;
 
             case mqtt5_packet.PacketType.Subscribe:
+                if (operation.packetId != undefined) {
+                    this.pendingNonPublishAcks.set(operation.packetId, operation.id);
+                    let subscribeOptions = operation.options as SubscribeOptionsInternal;
+                    timeoutMillis = subscribeOptions.options.timeoutInMillis;
+                } else {
+                    this.halt(new CrtError("Packet id not set for outbound subscribe"));
+                }
+                break;
+
             case mqtt5_packet.PacketType.Unsubscribe:
                 if (operation.packetId != undefined) {
                     this.pendingNonPublishAcks.set(operation.packetId, operation.id);
+                    let unsubscribeOptions = operation.options as UnsubscribeOptionsInternal;
+                    timeoutMillis = unsubscribeOptions.options.timeoutInMillis;
                 } else {
-                    throw new CrtError("Packet id not set for outbound subscribe/unsubscribe");
+                    this.halt(new CrtError("Packet id not set for outbound unsubscribe"));
                 }
                 break;
 
             default:
                 this.pendingWriteCompletionOperations.push(operation.id);
                 break;
+        }
+
+        if (timeoutMillis) {
+            this.operationTimeouts.push({
+                operationId : operation.id,
+                timeoutElapsedMillis: this.elapsedMillis + timeoutMillis
+            });
         }
     }
 
@@ -706,23 +783,19 @@ export class ProtocolState implements IProtocolState {
     }
 
     private servicePing() {
+        if (!this.config.connectOptions.keepAliveIntervalSeconds) {
+            return;
+        }
+
         if (this.nextOutboundPingElapsedMillis) {
             if (this.elapsedMillis >= this.nextOutboundPingElapsedMillis) {
-                let pingreq = {
+                let pingreq : model.PingreqPacketBinary = {
                     type: mqtt5_packet.PacketType.Pingreq
                 };
-
-                let operation : ClientOperation = {
-                    type: mqtt5_packet.PacketType.Pingreq,
-                    id: this.nextOperationId++,
-                    packet: model.convertInternalPacketToBinary(pingreq), // doesn't really do anything
-                    numAttempts: 0,
-                };
-
-                this.submitOperation(operation, pingreq, OperationQueueType.HighPriority, QueueEndType.Front);
+                this.submitOperationHighPriority(model.convertInternalPacketToBinary(pingreq));
 
                 this.pushOutNextPing(this.elapsedMillis);
-                this.nextOutboundPingElapsedMillis = this.elapsedMillis + this.config.connectOptions.keepAliveIntervalSeconds / 2;
+                this.pendingPingrespTimeoutElapsedMillis = this.elapsedMillis + this.config.connectOptions.keepAliveIntervalSeconds / 2;
             }
         }
 
@@ -733,9 +806,27 @@ export class ProtocolState implements IProtocolState {
         }
     }
 
+    private serviceOperationTimeouts() {
+        while (!this.operationTimeouts.empty()) {
+            let top = this.operationTimeouts.peek();
+            if (top == undefined) {
+                break; // should be impossible
+            }
+
+            if (top.timeoutElapsedMillis > this.elapsedMillis) {
+                break;
+            }
+
+            this.operationTimeouts.pop();
+            this.failOperation(top.operationId, new CrtError("Operation timed out"));
+        }
+    }
+
     private serviceConnected(context: ServiceContext) : ServiceResult
     {
         this.servicePing();
+
+        this.serviceOperationTimeouts();
 
         return this.serviceOutboundOperations(ServiceQueueType.All, context.socketBuffer);
     }
@@ -749,11 +840,13 @@ export class ProtocolState implements IProtocolState {
         this.elapsedMillis = elapsedMillis;
     }
 
-    private submitOperation(operation: ClientOperation, packet: mqtt5_packet.IPacket, queueType: OperationQueueType, submitLocation : QueueEndType) : void {
+    private submitOperation(operation: ClientOperation, userPacket: mqtt5_packet.IPacket | undefined, queueType: OperationQueueType, submitLocation : QueueEndType) : void {
         this.operations.set(operation.id, operation);
 
         try {
-            validate.validateUserSubmittedOutboundPacket(packet, this.config.protocolVersion);
+            if (userPacket) {
+                validate.validateUserSubmittedOutboundPacket(userPacket, this.config.protocolVersion);
+            }
 
             let queue = this.getOperationQueue(queueType);
             if (submitLocation == QueueEndType.Front) {
@@ -764,6 +857,30 @@ export class ProtocolState implements IProtocolState {
         } catch (e) {
             this.failOperation(operation.id, e as CrtError);
         }
+    }
+
+    private submitOperationHighPriority(packet : model.IPacketBinary) {
+        if (packet.type == undefined) {
+            this.halt(new CrtError("Packet type not set"));
+            return;
+        }
+
+        let resultHandler : ResultHandler<void> = {
+            onCompletionSuccess: () => {},
+            onCompletionFailure: (error: CrtError) => { this.halt(error); }
+        };
+
+        let operation : ClientOperation = {
+            type: packet.type,
+            id: this.nextOperationId++,
+            packet: packet,
+            options: {
+                resultHandler: resultHandler
+            },
+            numAttempts: 0,
+        };
+
+        this.submitOperation(operation, undefined, OperationQueueType.HighPriority, QueueEndType.Front);
     }
 
     private handlePublish(context: PublishContext) : void {
@@ -838,12 +955,8 @@ export class ProtocolState implements IProtocolState {
 
         let connect = this.buildConnectPacket();
         this.lastOutboundConnect = connect;
-        this.submitInternalHighPriority(model.convertInternalPacketToBinary(connect), {
-            onCompletionSuccess: () => {},
-            onCompletionFailure: (error: CrtError) => {
-                this.halt(error);
-            }
-        });
+
+        this.submitOperationHighPriority(model.convertInternalPacketToBinary(connect));
     }
 
     private handleConnectionClosed() : void {
@@ -926,7 +1039,20 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handleIncomingPublish(packet: model.PublishPacketInternal) : void {
-        // TODO: impl
+        if (packet.qos == mqtt5_packet.QoS.AtLeastOnce) {
+            if (packet.packetId == undefined) {
+                this.halt(new CrtError("QoS 1 publish received without packet id"));
+                return;
+            }
+
+            let puback : model.PubackPacketBinary = {
+                type: mqtt5_packet.PacketType.Puback,
+                packetId: packet.packetId,
+                reasonCode: mqtt5_packet.PubackReasonCode.Success
+            };
+
+            this.submitOperationHighPriority(puback);
+        }
     }
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {
@@ -1064,26 +1190,6 @@ export class ProtocolState implements IProtocolState {
         return connect_packet;
     }
 
-    // Pingreq, Puback, Connect
-    private submitInternalHighPriority(packet: model.IPacketBinary, resultHandler: ResultHandler<void>) {
-        if (packet.type == undefined) {
-            throw new CrtError("Packet type must be set on internal packets");
-        }
-
-        let operation : ClientOperation = {
-            type: packet.type,
-            id: this.nextOperationId++,
-            packet: packet,
-            options: {
-                resultHandler: resultHandler
-            },
-            numAttempts: 0,
-        };
-
-        this.operations.set(operation.id, operation);
-        this.highPriorityOperationQueue.unshift(operation.id);
-    }
-
     private halt(error: CrtError) {
         if (this.halted) {
             return;
@@ -1142,6 +1248,11 @@ export class ProtocolState implements IProtocolState {
             default:
                 throw new CrtError("Unknown operation queue type");
         }
+    }
+
+    private operationPassesOfflineQueuePolicy(operationId: number) : boolean {
+        // TODO: impl
+        return false;
     }
 }
 

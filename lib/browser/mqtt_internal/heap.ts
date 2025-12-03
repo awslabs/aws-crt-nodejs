@@ -7,12 +7,10 @@ import {CrtError} from "../error";
 
 export class MinHeap<T> {
 
-    private heap : Array<T | undefined> = [];
+    private heap : Array<T | undefined> = [undefined];
     private currentSize: number = 0;
 
     constructor(private lessThanOperator: (lhs: T, rhs: T) => boolean) {
-        // @ts-ignore
-        this.heap.push({});
     }
 
     push(value: T) {
@@ -49,6 +47,11 @@ export class MinHeap<T> {
         return this.currentSize == 0;
     }
 
+    clear() {
+        this.heap = [undefined];
+        this.currentSize = 0;
+    }
+
     private swapElements(index1: number, index2: number) {
         let temp = this.heap[index1];
         this.heap[index1] = this.heap[index2];
@@ -60,16 +63,25 @@ export class MinHeap<T> {
 
         while (true) {
             let leftIndex = currentIndex << 1;
-            let rightIndex = currentIndex + 1;
+            let rightIndex = leftIndex + 1;
             let swapIndex = undefined;
 
-            // @ts-ignore - heap element guaranteed to be a T
+            // @ts-ignore - heap elements guaranteed to be a T
             if (leftIndex <= this.currentSize && this.lessThanOperator(this.heap[leftIndex], this.heap[currentIndex])) {
                 swapIndex = leftIndex;
-            // @ts-ignore - heap element guaranteed to be a T
-            } else if (rightIndex <= this.currentSize && this.lessThanOperator(this.heap[rightIndex], this.heap[currentIndex])) {
-                swapIndex = rightIndex;
-            } else {
+            }
+
+            // @ts-ignore - heap elements guaranteed to be a T
+            if (rightIndex <= this.currentSize && this.lessThanOperator(this.heap[rightIndex], this.heap[currentIndex])) {
+                // @ts-ignore - heap elements guaranteed to be a T
+                if (!swapIndex || this.lessThanOperator(this.heap[rightIndex], this.heap[leftIndex])) {
+                    // if current is greater than both left and right children, we must swap with the smallest child
+                    // since it will become the parent of both current and the other child
+                    swapIndex = rightIndex;
+                }
+            }
+
+            if (!swapIndex) {
                 break;
             }
 
