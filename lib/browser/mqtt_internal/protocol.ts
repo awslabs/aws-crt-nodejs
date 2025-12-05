@@ -15,127 +15,121 @@ import * as mqtt5 from "../mqtt5";
 import * as mqtt_shared from "../../common/mqtt_shared";
 import * as mqtt5_utils from "../mqtt5_utils";
 
-interface ResultHandler<T> {
+export interface ResultHandler<T> {
     onCompletionSuccess : (value : T) => void;
     onCompletionFailure : (error : CrtError) => void;
 }
 
-enum ProtocolStateType {
+export enum ProtocolStateType {
     Disconnected,
     PendingConnack,
     Connected,
     PendingDisconnect
 }
 
-enum NetworkEventType {
+export enum NetworkEventType {
     ConnectionOpened,
     ConnectionClosed,
     IncomingData,
     WriteCompletion,
 }
 
-interface ConnectionOpenedContext {
+export interface ConnectionOpenedContext {
     establishmentTimeout: number
 }
 
-interface IncomingDataContext {
+export interface IncomingDataContext {
     data: DataView
 }
 
-interface NetworkEventContext {
+export interface NetworkEventContext {
     type : NetworkEventType,
     context? : ConnectionOpenedContext | IncomingDataContext,
     elapsedMillis : number,
     decodedPackets? : Array<mqtt5_packet.IPacket> // in-order output sequence of all packets received during an incoming data event
 }
 
-enum UserEventType {
+export enum UserEventType {
     Publish,
     Subscribe,
     Unsubscribe,
     Disconnect
 }
 
-interface PublishOptions {
+export interface PublishOptions {
     timeoutInMillis? : number
 }
 
-enum PublishResultType {
+export enum PublishResultType {
     Qos0,
     Qos1,
 }
 
-interface PublishResult {
+export interface PublishResult {
     type: PublishResultType,
     packet?: mqtt5_packet.PubackPacket,
 }
 
-interface PublishOptionsInternal {
+export interface PublishOptionsInternal {
     options: PublishOptions,
     resultHandler : ResultHandler<PublishResult>
 }
 
-interface PublishContext {
+export interface PublishContext {
     packet : mqtt5_packet.PublishPacket,
     options : PublishOptionsInternal
 }
 
-interface SubscribeOptions {
+export interface SubscribeOptions {
     timeoutInMillis? : number
 }
 
-interface SubscribeOptionsInternal {
+export interface SubscribeOptionsInternal {
     options: SubscribeOptions,
     resultHandler : ResultHandler<mqtt5_packet.SubackPacket>
 }
 
-interface SubscribeContext {
+export interface SubscribeContext {
     packet : mqtt5_packet.SubscribePacket,
     options : SubscribeOptionsInternal
 }
 
-interface UnsubscribeOptions {
+export interface UnsubscribeOptions {
     timeoutInMillis? : number
 }
 
-interface UnsubscribeOptionsInternal {
+export interface UnsubscribeOptionsInternal {
     options: UnsubscribeOptions,
     resultHandler : ResultHandler<mqtt5_packet.UnsubackPacket>
 }
 
 type OperationResultType = PublishResult | mqtt5_packet.SubackPacket | mqtt5_packet.UnsubackPacket | undefined;
 
-interface UnsubscribeContext {
+export interface UnsubscribeContext {
     packet : mqtt5_packet.UnsubscribePacket,
     options : UnsubscribeOptionsInternal
 }
 
-interface DisconnectContext {
+export interface DisconnectContext {
     packet : mqtt5_packet.DisconnectPacket
 }
 
-interface UserEventContext {
+export interface UserEventContext {
     type: UserEventType,
     context: PublishContext | SubscribeContext | UnsubscribeContext | DisconnectContext,
     elapsedMillis: number
 }
 
-interface ServiceContext {
+export interface ServiceContext {
     elapsedMillis: number,
     socketBuffer: ArrayBuffer,
 }
 
-interface ServiceResult {
+export interface ServiceResult {
     toSocket?: DataView
 }
 
-interface ResetContext {
-    elapsedMillis: number
-}
-
-interface IProtocolState {
-
-    reset(context: ResetContext) : void;
+export interface IProtocolState {
 
     handleNetworkEvent(context: NetworkEventContext) : void;
 
@@ -229,6 +223,8 @@ export interface ProtocolStateConfig {
     protocolVersion : model.ProtocolMode,
     offlineQueuePolicy : OfflineQueuePolicy,
     connectOptions : ConnectOptions,
+    baseElapsedMillis : number,
+    pingTimeoutMillis? : number,
 }
 
 enum OperationQueueType {
@@ -308,43 +304,7 @@ export class ProtocolState implements IProtocolState {
         this.config = config;
         this.encoder = new encoder.Encoder(encoder.buildClientEncodingFunctionSet(config.protocolVersion));
         this.decoder = new decoder.Decoder(decoder.buildClientDecodingFunctionSet(config.protocolVersion));
-    }
-
-    reset(context: ResetContext) : void {
-        this.updateElapsedMillis(context.elapsedMillis);
-
-        this.state = ProtocolStateType.Disconnected;
-        this.halted = false;
-        this.haltError = undefined;
-
-        this.pendingConnackTimeoutElapsedMillis = undefined;
-        this.nextOutboundPingElapsedMillis = undefined;
-        this.pendingPingrespTimeoutElapsedMillis = undefined;
-
-        let failError = new CrtError("Protocol state reset");
-        this.operations.forEach((operation, operationId) => {
-            this.failOperation(operationId, failError);
-        });
-        this.operations.clear();
-        this.operationTimeouts.clear();
-
-        this.userOperationQueue = [];
-        this.resubmitOperationQueue = [];
-        this.highPriorityOperationQueue = [];
-        this.currentOperation = undefined;
-
-        this.nextPacketId = 1;
-        this.boundPacketIds.clear();
-
-        this.encoder.reset();
-        this.decoder.reset();
-
-        this.pendingWriteCompletion = false;
-        this.pendingWriteCompletionOperations = [];
-        this.pendingFlushOperations = [];
-
-        this.pendingNonPublishAcks.clear();
-        this.pendingPublishAcks.clear();
+        this.elapsedMillis = config.baseElapsedMillis;
     }
 
     handleNetworkEvent(context: NetworkEventContext) : void {
@@ -407,10 +367,8 @@ export class ProtocolState implements IProtocolState {
             }
         } catch (e) {
             this.halt(new CrtError(`service() failure: ${e}`));
+            throw this.haltError;
         }
-
-        this.throwIfHalted();
-        return {};
     }
 
     getNextServiceTimepoint(elapsedMillis: number) : number | undefined {
@@ -426,6 +384,10 @@ export class ProtocolState implements IProtocolState {
             default:
                 return undefined;
         }
+    }
+
+    getState() : ProtocolStateType {
+        return this.state;
     }
 
     private resetNextPing() {
@@ -790,7 +752,8 @@ export class ProtocolState implements IProtocolState {
                 this.submitOperationHighPriority(model.convertInternalPacketToBinary(pingreq));
 
                 this.pushOutNextPing(this.elapsedMillis);
-                this.pendingPingrespTimeoutElapsedMillis = this.elapsedMillis + this.config.connectOptions.keepAliveIntervalSeconds / 2;
+                let timeoutMillis = foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
+                this.pendingPingrespTimeoutElapsedMillis = this.elapsedMillis + timeoutMillis;
             }
         }
 
@@ -1284,19 +1247,6 @@ export class ProtocolState implements IProtocolState {
         } else {
             this.highPriorityOperationQueue.unshift(this.currentOperation);
         }
-    }
-
-    private resetForNewSession() {
-        this.operations.forEach((operation: ClientOperation) => this.failOperation(operation.id, new CrtError("Protocol state reset")));
-        this.operations.clear();
-        this.nextOperationId = 1;
-
-        this.userOperationQueue = [];
-        this.resubmitOperationQueue = [];
-        this.highPriorityOperationQueue = [];
-        this.currentOperation = undefined;
-        this.nextPacketId = 1;
-        this.boundPacketIds.clear();
     }
 
     private getOperationQueue(type: OperationQueueType) : Array<number> {
