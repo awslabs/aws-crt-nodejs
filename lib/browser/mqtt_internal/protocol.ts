@@ -227,7 +227,7 @@ export interface ProtocolStateConfig {
     pingTimeoutMillis? : number,
 }
 
-enum OperationQueueType {
+export enum OperationQueueType {
     HighPriority,
     Resubmit,
     User
@@ -299,6 +299,8 @@ export class ProtocolState implements IProtocolState {
 
     private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
+
+    private connectInTransit : boolean = false;
 
     constructor(config : ProtocolStateConfig) {
         this.config = config;
@@ -386,10 +388,46 @@ export class ProtocolState implements IProtocolState {
         }
     }
 
-    getState() : ProtocolStateType {
-        return this.state;
+    /* Test accessors */
+    getState() : ProtocolStateType { return this.state; }
+    getHalted() : boolean { return this.halted; }
+    getHaltError() : CrtError | undefined { return this.haltError; }
+    getPendingConnackTimeoutElapsedMillis() : number | undefined { return this.pendingConnackTimeoutElapsedMillis; }
+    getNextOutboundPingElapsedMillis() : number | undefined { return this.nextOutboundPingElapsedMillis; }
+    getPendingPingrespTimeoutElapsedMillis() : number | undefined { return this.pendingPingrespTimeoutElapsedMillis; }
+    getOperations() : Map<number, ClientOperation> { return this.operations; }
+    getOperationTimeouts() : heap.MinHeap<OperationTimeoutRecord> { return this.operationTimeouts; }
+    getCurrentOperation() : ClientOperation | undefined {
+        let id = this.currentOperation;
+        if (id != undefined) {
+            return this.operations.get(id);
+        }
+
+        return undefined;
     }
 
+    getOperationQueue(type: OperationQueueType) : Array<number> {
+        switch (type) {
+            case OperationQueueType.User:
+                return this.userOperationQueue;
+            case OperationQueueType.Resubmit:
+                return this.resubmitOperationQueue;
+            case OperationQueueType.HighPriority:
+                return this.highPriorityOperationQueue;
+            default:
+                throw new CrtError("Unknown operation queue type");
+        }
+    }
+
+    getBoundPacketIds() : Map<number, number> { return this.boundPacketIds; }
+    getPendingWriteCompletion() : boolean { return this.pendingWriteCompletion; }
+    getPendingWriteCompletionOperations() : Array<number> { return this.pendingWriteCompletionOperations; }
+    getPendingFlushOperations() : Array<number> { return this.pendingFlushOperations; }
+
+    getPendingPublishAcks() : Map<number, number> { return this.pendingPublishAcks; }
+    getPendingNonPublishAcks() : Map<number, number> { return this.pendingNonPublishAcks; }
+
+    /* Internal Impl */
     private resetNextPing() {
         this.pendingPingrespTimeoutElapsedMillis = undefined;
         this.pushOutNextPing(this.elapsedMillis);
@@ -444,6 +482,10 @@ export class ProtocolState implements IProtocolState {
                     case mqtt5_packet.PacketType.Unsubscribe:
                         let unsubscribeHandler = operation.options.resultHandler as ResultHandler<mqtt5_packet.UnsubackPacket>;
                         unsubscribeHandler.onCompletionSuccess(result as mqtt5_packet.UnsubackPacket);
+                        break;
+                    default:
+                        let genericOptions = operation.options as GenericOptionsInternal;
+                        genericOptions.resultHandler.onCompletionSuccess();
                         break;
                 }
             }
@@ -826,16 +868,18 @@ export class ProtocolState implements IProtocolState {
         }
     }
 
-    private submitOperationHighPriority(packet : model.IPacketBinary) {
+    private createDefaultResultHandler() : ResultHandler<void> {
+        return {
+            onCompletionSuccess: () => {},
+            onCompletionFailure: (error: CrtError) => { this.halt(error); }
+        };
+    }
+
+    private submitOperationHighPriority(packet : model.IPacketBinary, resultHandler: ResultHandler<void> = this.createDefaultResultHandler()) {
         if (packet.type == undefined) {
             this.halt(new CrtError("Packet type not set"));
             return;
         }
-
-        let resultHandler : ResultHandler<void> = {
-            onCompletionSuccess: () => {},
-            onCompletionFailure: (error: CrtError) => { this.halt(error); }
-        };
 
         let operation : ClientOperation = {
             type: packet.type,
@@ -927,11 +971,17 @@ export class ProtocolState implements IProtocolState {
         this.encoder.reset();
         this.decoder.reset();
         this.pendingConnackTimeoutElapsedMillis = context.establishmentTimeout;
+        this.connectInTransit = true;
 
         let connect = this.buildConnectPacket();
         this.lastOutboundConnect = connect;
 
-        this.submitOperationHighPriority(model.convertInternalPacketToBinary(connect));
+        let onConnectComplete = {
+            onCompletionSuccess: () => { this.connectInTransit = false },
+            onCompletionFailure: (error: CrtError) => { this.connectInTransit = false }
+        };
+
+        this.submitOperationHighPriority(model.convertInternalPacketToBinary(connect), onConnectComplete);
     }
 
     private handleConnectionClosed() : void {
@@ -991,6 +1041,35 @@ export class ProtocolState implements IProtocolState {
         // side-affected queues (user and resubmit) will be sorted on the transition to connected state
     }
 
+    private isReceivedPacketTypeValidForState(type: mqtt5_packet.PacketType | undefined) : boolean {
+        switch(this.state) {
+            case ProtocolStateType.Connected:
+            case ProtocolStateType.PendingDisconnect:
+                if (type == mqtt5_packet.PacketType.Publish ||
+                       type == mqtt5_packet.PacketType.Puback ||
+                       type == mqtt5_packet.PacketType.Suback ||
+                       type == mqtt5_packet.PacketType.Unsuback ||
+                       type == mqtt5_packet.PacketType.Pingresp) {
+                    return true;
+                }
+
+                if (type == mqtt5_packet.PacketType.Disconnect) {
+                    return this.config.protocolVersion == model.ProtocolMode.Mqtt5;
+                }
+
+                return false;
+
+            case ProtocolStateType.PendingConnack:
+                return type == mqtt5_packet.PacketType.Connack && !this.connectInTransit;
+
+            case ProtocolStateType.Disconnected:
+                return false;
+
+            default:
+                throw new CrtError("Unknown protocol state");
+        }
+    }
+
     private handleIncomingData(context: NetworkEventContext) : void {
         if (this.halted) {
             return;
@@ -1004,6 +1083,11 @@ export class ProtocolState implements IProtocolState {
         let incomingDataContext = context.context as IncomingDataContext;
         context.decodedPackets = this.decoder.decode(incomingDataContext.data);
         for (let packet of context.decodedPackets) {
+            if (!this.isReceivedPacketTypeValidForState(packet.type)) {
+                this.halt(new CrtError("Received packet type not valid for current state"));
+                return;
+            }
+
             this.handleIncomingPacket(packet);
         }
     }
@@ -1050,6 +1134,7 @@ export class ProtocolState implements IProtocolState {
         }
 
         this.pendingConnackTimeoutElapsedMillis = undefined;
+        this.connectInTransit = false;
 
         if (packet.reasonCode == mqtt5_packet.ConnectReasonCode.Success) {
             this.changeState(ProtocolStateType.Connected);
@@ -1145,6 +1230,20 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handleWriteCompletion() : void {
+        if (this.halted) {
+            return;
+        }
+
+        if (this.state == ProtocolStateType.Disconnected) {
+            this.halt(new CrtError("Received write completion while disconnected"));
+            return;
+        }
+
+        if (!this.pendingWriteCompletion) {
+            this.halt(new CrtError("Received write completion while no write was pending"));
+            return;
+        }
+
         this.pendingFlushOperations.forEach((id) => {
             let operation = this.operations.get(id);
             if (operation) {
@@ -1246,19 +1345,6 @@ export class ProtocolState implements IProtocolState {
             }
         } else {
             this.highPriorityOperationQueue.unshift(this.currentOperation);
-        }
-    }
-
-    private getOperationQueue(type: OperationQueueType) : Array<number> {
-        switch (type) {
-            case OperationQueueType.User:
-                return this.userOperationQueue;
-            case OperationQueueType.Resubmit:
-                return this.resubmitOperationQueue;
-            case OperationQueueType.HighPriority:
-                return this.highPriorityOperationQueue;
-            default:
-                throw new CrtError("Unknown operation queue type");
         }
     }
 
