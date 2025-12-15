@@ -58,7 +58,7 @@ phases:
       # Run the Canary
       - cd canary/mqtt5
       - npm install --unsafe-perm
-      - python3 ../../codebuild/CanaryWrapper.py --canary_executable node --canary_arguments "./dist/canary.js --duration ${CANARY_DURATION} --endpoint ${ENDPOINT} --tps ${CANARY_TPS} --clients ${CANARY_CLIENT_COUNT}" --git_hash ${GIT_HASH} --git_repo_name $PACKAGE_NAME --ticket_item "${CODEBUILD_TICKET_ITEM}" -cloudwatch_namespace mqtt5_canary
+      - python3 ../../codebuild/CanaryWrapper.py --canary_executable node --canary_arguments "./dist/canary.js --duration ${CANARY_DURATION} --endpoint ${ENDPOINT} --tps ${CANARY_TPS} --clients ${CANARY_CLIENT_COUNT}" --git_hash ${GIT_HASH} --git_repo_name $PACKAGE_NAME --ticket_item "${CODEBUILD_TICKET_ITEM}" --cloudwatch_namespace mqtt5_canary
   post_build:
     commands:
       - echo Build completed on `date`
