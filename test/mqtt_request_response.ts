@@ -203,18 +203,18 @@ export async function do_get_named_shadow_success_rejected_test(version: Protoco
     await context.close();
 }
 
-export function createAcceptedUpdateNamedShadowRequest(addCorelationToken: boolean) : mqtt_request_response.RequestResponseOperationOptions {
+export function createAcceptedUpdateNamedShadowRequest(shadowPrefix: string, addCorelationToken: boolean) : mqtt_request_response.RequestResponseOperationOptions {
     let requestOptions : mqtt_request_response.RequestResponseOperationOptions = {
         subscriptionTopicFilters: [
-            "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update/accepted",
-            "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update/rejected"
+            `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/update/accepted`,
+            `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/update/rejected`
         ],
         responsePaths: [{
-            topic: "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update/accepted",
+            topic: `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/update/accepted`,
         }, {
-            topic: "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update/rejected",
+            topic: `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/update/rejected`,
         }],
-        publishTopic: "$aws/things/NoSuchThing/shadow/name/UpdateShadowCITest/update",
+        publishTopic: `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/update`,
         payload: Buffer.from("", "utf-8"),
     }
 
@@ -234,6 +234,24 @@ export function createAcceptedUpdateNamedShadowRequest(addCorelationToken: boole
     return requestOptions;
 }
 
+async function delete_update_shadow(context: TestingContext, shadowPrefix: string) {
+    let desired_state = `{\"magic\":\"${uuid()}\"}`;
+    let requestOptions : mqtt_request_response.RequestResponseOperationOptions = {
+        subscriptionTopicFilters: [
+            `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/delete/+`
+        ],
+        responsePaths: [{
+            topic: `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/delete/accepted`,
+        }, {
+            topic: `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/delete/rejected`,
+        }],
+        publishTopic: `$aws/things/NoSuchThing/shadow/name/UpdateShadowCI${shadowPrefix}/delete`,
+        payload: Buffer.from(`{\"state\":{\"desired\":${desired_state}}}`),
+    }
+
+    await context.client.submitRequest(requestOptions);
+}
+
 export async function do_update_named_shadow_success_accepted_test(version: ProtocolVersion, useCorrelationToken: boolean) : Promise<void> {
     let context = new TestingContext({
         version: version
@@ -241,13 +259,17 @@ export async function do_update_named_shadow_success_accepted_test(version: Prot
 
     await context.open();
 
-    let requestOptions = createAcceptedUpdateNamedShadowRequest(useCorrelationToken);
+    let shadowPrefix = uuid();
+    let requestOptions = createAcceptedUpdateNamedShadowRequest(shadowPrefix, useCorrelationToken);
 
-    let response = await context.client.submitRequest(requestOptions);
-    expect(response.topic).toEqual(requestOptions.responsePaths[0].topic);
-    expect(response.payload.byteLength).toBeGreaterThan(0);
-
-    await context.close();
+    try {
+        let response = await context.client.submitRequest(requestOptions);
+        expect(response.topic).toEqual(requestOptions.responsePaths[0].topic);
+        expect(response.payload.byteLength).toBeGreaterThan(0);
+    } finally {
+        await delete_update_shadow(context, shadowPrefix);
+        await context.close();
+    }
 }
 
 export async function do_get_named_shadow_failure_timeout_test(version: ProtocolVersion, useCorrelationToken: boolean) : Promise<void> {
