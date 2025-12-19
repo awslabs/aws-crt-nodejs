@@ -405,6 +405,7 @@ export class ProtocolState implements IProtocolState {
 
         return undefined;
     }
+    getConfig() : ProtocolStateConfig { return this.config; }
 
     getOperationQueue(type: OperationQueueType) : Array<number> {
         switch (type) {
@@ -438,7 +439,7 @@ export class ProtocolState implements IProtocolState {
             return;
         }
 
-        if (baseTime) {
+        if (baseTime != undefined) {
             let pingTime = baseTime + this.config.connectOptions.keepAliveIntervalSeconds * 1000;
 
             this.nextOutboundPingElapsedMillis = foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
@@ -451,6 +452,8 @@ export class ProtocolState implements IProtocolState {
         }
 
         this.boundPacketIds.delete(id);
+        this.pendingPublishAcks.delete(id);
+        this.pendingNonPublishAcks.delete(id);
     }
 
     private failOperation(id: number, error: CrtError) {
@@ -1088,6 +1091,13 @@ export class ProtocolState implements IProtocolState {
                 return;
             }
 
+            try {
+                validate.validateInboundPacket(packet, this.config.protocolVersion);
+            } catch (e) {
+                this.halt(e as CrtError);
+                continue;
+            }
+
             this.handleIncomingPacket(packet);
         }
     }
@@ -1167,13 +1177,13 @@ export class ProtocolState implements IProtocolState {
         let id = packet.packetId;
         let operationId = this.pendingPublishAcks.get(id);
         if (!operationId) {
-            // TODO: log
+            // TODO: log, this is not an error, can happen due to timeouts
             return;
         }
 
         let operation = this.operations.get(operationId);
         if (!operation) {
-            // TODO: log
+            // TODO: log, this is not an error, can happen due to timeouts, etc...
             return;
         }
 
@@ -1188,7 +1198,7 @@ export class ProtocolState implements IProtocolState {
         let id = packet.packetId;
         let operationId = this.pendingNonPublishAcks.get(id);
         if (!operationId) {
-            // TODO: log
+            // TODO: log, this is not an error, can happen due to timeouts
             return;
         }
 
@@ -1206,7 +1216,7 @@ export class ProtocolState implements IProtocolState {
         let id = packet.packetId;
         let operationId = this.pendingNonPublishAcks.get(id);
         if (!operationId) {
-            // TODO: log
+            // TODO: log, this is not an error, can happen due to timeouts
             return;
         }
 

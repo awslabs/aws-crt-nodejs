@@ -8,7 +8,7 @@ import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as model from "./model";
 import * as protocol from "./protocol";
-import {ProtocolStateType} from "./protocol";
+import {ProtocolStateType, PublishResult} from "./protocol";
 import {CrtError} from "../error";
 import {v4 as uuid} from "uuid";
 import * as test_mqtt_internal_client from "@test/mqtt_internal_client";
@@ -135,19 +135,25 @@ function defaultUnsubscribeHandler(packet : mqtt5_packet.IPacket, context: Broke
     responsePackets.push(unsuback);
 }
 
-function defaultPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function internalPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>, reflectPublish : boolean) {
     let incomingPublish = packet as model.PublishPacketInternal;
     if (incomingPublish.qos != mqtt5_packet.QoS.ExactlyOnce) {
-        let outboundPublish : model.PublishPacketInternal = {
-            type: mqtt5_packet.PacketType.Publish,
-            topicName: incomingPublish.topicName,
-            qos: incomingPublish.qos,
-            retain: incomingPublish.retain,
-            duplicate: false,
-            payload: incomingPublish.payload
-        };
+        if (reflectPublish) {
+            let outboundPublish: model.PublishPacketInternal = {
+                type: mqtt5_packet.PacketType.Publish,
+                topicName: incomingPublish.topicName,
+                qos: incomingPublish.qos,
+                retain: incomingPublish.retain,
+                duplicate: false,
+                payload: incomingPublish.payload
+            };
 
-        responsePackets.push(outboundPublish);
+            if (incomingPublish.qos != mqtt5_packet.QoS.AtMostOnce) {
+                outboundPublish.packetId = incomingPublish.packetId; // not a great solution
+            }
+
+            responsePackets.push(outboundPublish);
+        }
 
         if (incomingPublish.qos == mqtt5_packet.QoS.AtLeastOnce) {
             let puback : model.PubackPacketInternal = {
@@ -159,6 +165,14 @@ function defaultPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTes
             responsePackets.push(puback);
         }
     }
+}
+
+function defaultPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+    internalPublishHandler(packet, context, responsePackets, true);
+}
+
+function nonReflectivePublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+    internalPublishHandler(packet, context, responsePackets, false);
 }
 
 function defaultPingreqHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
@@ -685,11 +699,13 @@ describe("pendingConnackTimeout", () => {
 
 describe("pendingConnackFailedConnack", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        let reason = (mode == model.ProtocolMode.Mqtt5) ? mqtt5_packet.ConnectReasonCode.ServerBusy : mqtt5_packet.ConnectReasonCode.ServerUnavailable311;
         let context : BrokerTestContext = {
-            protocolStateConfig: buildProtocolStateConfig(protocolVersionToMode(protocolVersion)),
+            protocolStateConfig: buildProtocolStateConfig(mode),
             connackOverrides: {
                 sessionPresent: false,
-                reasonCode: mqtt5_packet.ConnectReasonCode.ServerBusy,
+                reasonCode: reason,
             }
         };
 
@@ -702,7 +718,7 @@ describe("pendingConnackFailedConnack", () => {
         expect(fixture.protocolState.getHalted()).toEqual(true);
 
         let [, connackPacket] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Connack, 1);
-        expect((connackPacket as mqtt5_packet.ConnackPacket).reasonCode).toEqual(mqtt5_packet.ConnectReasonCode.ServerBusy);
+        expect((connackPacket as mqtt5_packet.ConnackPacket).reasonCode).toEqual(reason);
 
         let [index, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Connect, 1);
         expect(index).toEqual(0);
@@ -1060,6 +1076,330 @@ test("connectedIncomingForbiddenDisconnectPacket - Mqtt311", () => {
         type: mqtt5_packet.PacketType.Disconnect,
         reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
     } as model.DisconnectPacketInternal, model.ProtocolMode.Mqtt311);
+});
+
+function doUnknownAckPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.ProtocolMode) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    let badPacketView = encodePacketToBuffer(packet, mode);
+
+    fixture.onIncomingData(0, badPacketView);
+
+    expect(fixture.protocolState.getHalted()).toEqual(false);
+    expect(fixture.protocolState.getHaltError()?.toString()).toBeUndefined();
+
+    fixture.verifyEmpty();
+}
+
+describe("connectedIncomingUnknownPuback", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doUnknownAckPacketIdTest({
+            type: mqtt5_packet.PacketType.Puback,
+            packetId: 1,
+            reasonCode: mqtt5_packet.PubackReasonCode.Success
+        } as mqtt5_packet.PubackPacket,
+            protocolVersionToMode(protocolVersion));
+    })
+});
+
+describe("connectedIncomingUnknownSuback", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doUnknownAckPacketIdTest({
+                type: mqtt5_packet.PacketType.Suback,
+                packetId: 42,
+                reasonCodes: [mqtt5_packet.SubackReasonCode.GrantedQoS1, (mode == model.ProtocolMode.Mqtt5) ? mqtt5_packet.SubackReasonCode.TopicFilterInvalid: mqtt5_packet.SubackReasonCode.Failure311]
+            } as mqtt5_packet.SubackPacket,
+            mode);
+    })
+});
+
+describe("connectedIncomingUnknownUnsuback", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doUnknownAckPacketIdTest({
+                type: mqtt5_packet.PacketType.Unsuback,
+                packetId: 120,
+                reasonCodes: [mqtt5_packet.UnsubackReasonCode.Success, mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted]
+            } as mqtt5_packet.UnsubackPacket,
+            protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doInvalidPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.ProtocolMode) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    let badPacketView = encodePacketToBuffer(packet, mode);
+
+    expect(() => fixture.onIncomingData(0, badPacketView)).toThrow("not a valid packetId");
+
+    expect(fixture.protocolState.getHalted()).toEqual(true);
+    expect(fixture.protocolState.getHaltError()?.toString()).toMatch("not a valid packetId");
+
+    fixture.verifyEmpty();
+}
+
+describe("connectedIncomingPublishInvalidPacketIdQos1", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doInvalidPacketIdTest({
+                type: mqtt5_packet.PacketType.Publish,
+                packetId: 0,
+                qos: mqtt5_packet.QoS.AtLeastOnce,
+                topicName: "a/b"
+            } as mqtt5_packet.PublishPacket,
+            protocolVersionToMode(protocolVersion));
+    })
+});
+
+describe("connectedIncomingPubackInvalidPacketId", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doInvalidPacketIdTest({
+                type: mqtt5_packet.PacketType.Puback,
+                packetId: 0,
+                reasonCode: mqtt5_packet.PubackReasonCode.Success
+            } as mqtt5_packet.PubackPacket,
+            protocolVersionToMode(protocolVersion));
+    })
+});
+
+describe("connectedIncomingSubackInvalidPacketId", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doInvalidPacketIdTest({
+                type: mqtt5_packet.PacketType.Suback,
+                packetId: 0,
+                reasonCodes: [mqtt5_packet.SubackReasonCode.GrantedQoS1, mqtt5_packet.SubackReasonCode.TopicFilterInvalid]
+            } as mqtt5_packet.SubackPacket,
+            protocolVersionToMode(protocolVersion));
+    })
+});
+
+describe("connectedIncomingUnsubackInvalidPacketId", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doInvalidPacketIdTest({
+                type: mqtt5_packet.PacketType.Unsuback,
+                packetId: 0,
+                reasonCodes: [mqtt5_packet.UnsubackReasonCode.Success, mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted]
+            } as mqtt5_packet.UnsubackPacket,
+            protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doPingSequenceTest(mode: model.ProtocolMode, connackDelayMillis: number, responseDelayMillis: number, requestDelayMillis: number) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds = 20;
+    context.protocolStateConfig.pingTimeoutMillis = 10000;
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(connackDelayMillis, ProtocolStateType.Connected);
+
+    let currentTime = connackDelayMillis;
+    let keepAliveMillis = context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds * 1000;
+    let rollingPingTime = currentTime + 20000;
+
+    for (let i = 0; i < 5; i++) {
+        expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toEqual(rollingPingTime);
+        expect(fixture.protocolState.getPendingPingrespTimeoutElapsedMillis()).toBeUndefined();
+        expect(fixture.protocolState.getNextServiceTimepoint(currentTime)).toEqual(rollingPingTime);
+        expect(fixture.toServerPackets.length).toEqual(i + 1); // 1 Connect + i pings
+
+        // trigger a ping, verify it goes out and a pingresp comes back
+        currentTime = rollingPingTime + requestDelayMillis;
+        let serverResponseBytes = fixture.serviceWithDrain(currentTime);
+        expect(fixture.toServerPackets.length).toEqual(i + 2); // 1 Connect + (i + 1) pingreqs
+
+        let [pingreqIndex, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Pingreq, i + 1);
+        expect(pingreqIndex).toEqual(i + 1);
+
+        // verify next service time is the ping timeout
+        let pingTimeout = currentTime + context.protocolStateConfig.pingTimeoutMillis;
+        expect(fixture.protocolState.getNextServiceTimepoint(currentTime)).toEqual(pingTimeout);
+        expect(fixture.protocolState.getPendingPingrespTimeoutElapsedMillis()).toEqual(pingTimeout);
+
+        // receive pingresp, verify timeout reset
+        expect(fixture.toClientPackets.length).toEqual(i + 2); // 1 Connack + (i + 1) pingresps
+        let [pingrespIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Pingresp, i + 1);
+        expect(pingrespIndex).toEqual(i + 1);
+
+        fixture.onIncomingData(currentTime + responseDelayMillis, serverResponseBytes);
+        expect(fixture.protocolState.getPendingPingrespTimeoutElapsedMillis()).toBeUndefined();
+        rollingPingTime = currentTime + keepAliveMillis;
+    }
+
+    fixture.verifyEmpty();
+}
+
+describe("connectedPingSequence", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doPingSequenceTest(protocolVersionToMode(protocolVersion), 0, 0, 0);
+    })
+});
+
+describe("connectedPingSequenceRespDelayed", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doPingSequenceTest(protocolVersionToMode(protocolVersion), 1, 2500, 0);
+    })
+});
+
+describe("connectedPingSequenceReqDelayed", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doPingSequenceTest(protocolVersionToMode(protocolVersion), 5, 0, 500);
+    })
+});
+
+describe("connectedPingSequenceBothDelayed", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doPingSequenceTest(protocolVersionToMode(protocolVersion), 7, 333, 131);
+    })
+});
+
+function doSubscribeWithAck(fixture: ProtocolTestFixture, subscribeTime: number, subackTime: number, reasonCode: mqtt5_packet.SubackReasonCode) {
+
+    let resultHolder = fixture.subscribe(subscribeTime, {
+       subscriptions: [{
+           topicFilter: "hello/world",
+           qos: mqtt5_packet.QoS.AtLeastOnce
+       }]
+    });
+
+    expect(resultHolder.state).toEqual(OperationResultStateType.Pending);
+
+    let responseBytes = fixture.serviceWithDrain(subscribeTime);
+    fixture.onIncomingData(subackTime, responseBytes);
+
+    let [subscribeIndex, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Subscribe, 1);
+    expect(subscribeIndex).toEqual(1);
+
+    expect(resultHolder.state).toEqual(OperationResultStateType.Success);
+    let result = resultHolder.result;
+    expect(result).toBeDefined();
+
+    let suback = result as mqtt5_packet.SubackPacket;
+    expect(suback.reasonCodes.length).toEqual(1);
+    expect(suback.reasonCodes[0]).toEqual(reasonCode);
+
+    let [subackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Suback, 1);
+    expect(subackIndex).toEqual(1);
+
+    fixture.verifyEmpty();
+}
+
+function doUnsubscribeWithAck(fixture: ProtocolTestFixture, unsubscribeTime: number, unsubackTime: number, reasonCode: mqtt5_packet.UnsubackReasonCode) {
+
+    let resultHolder = fixture.unsubscribe(unsubscribeTime, {
+        topicFilters: ["hello/world"]
+    });
+
+    expect(resultHolder.state).toEqual(OperationResultStateType.Pending);
+
+    let responseBytes = fixture.serviceWithDrain(unsubscribeTime);
+    fixture.onIncomingData(unsubackTime, responseBytes);
+
+    let [unsubscribeIndex, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Unsubscribe, 1);
+    expect(unsubscribeIndex).toEqual(1);
+
+    expect(resultHolder.state).toEqual(OperationResultStateType.Success);
+    let result = resultHolder.result;
+    expect(result).toBeDefined();
+
+    if (fixture.protocolState.getConfig().protocolVersion != model.ProtocolMode.Mqtt311) {
+        let unsuback = result as mqtt5_packet.UnsubackPacket;
+        expect(unsuback.reasonCodes.length).toEqual(1);
+        expect(unsuback.reasonCodes[0]).toEqual(reasonCode);
+    }
+
+    let [unsubackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Unsuback, 1);
+    expect(unsubackIndex).toEqual(1);
+
+    fixture.verifyEmpty();
+}
+
+function doPublishWithAck(fixture: ProtocolTestFixture, publishTime: number, pubackTime: number, reasonCode: mqtt5_packet.PubackReasonCode) {
+
+    let resultHolder = fixture.publish(publishTime, {
+        topicName: "hello/world",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    });
+
+    expect(resultHolder.state).toEqual(OperationResultStateType.Pending);
+
+    let responseBytes = fixture.serviceWithDrain(publishTime);
+    fixture.onIncomingData(pubackTime, responseBytes);
+
+    let [publishIndex, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Publish, 1);
+    expect(publishIndex).toEqual(1);
+
+    expect(resultHolder.state).toEqual(OperationResultStateType.Success);
+    let result = resultHolder.result;
+    expect(result).toBeDefined();
+
+    // @ts-ignore
+    let puback : mqtt5_packet.PubackPacket = (result as PublishResult).packet;
+    expect(puback.reasonCode).toEqual(reasonCode);
+
+    let [pubackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Puback, 1);
+    expect(pubackIndex).toEqual(1);
+
+    fixture.verifyEmpty();
+}
+
+type AckedOperationFunction<T> = (fixture: ProtocolTestFixture, outboundTime: number, ackTime: number, reasonCode: T) => void;
+
+function doConnectedPingPushOutTest<T>(mode: model.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T, operationTime: number, ackTime: number) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds = 20;
+    context.protocolStateConfig.pingTimeoutMillis = 10000;
+    let keepAliveMillis = context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds * 1000;
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    let baseNextPingTime = keepAliveMillis;
+    expect(fixture.getNextServiceTimepoint(ackTime)).toEqual(baseNextPingTime);
+    expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toEqual(baseNextPingTime);
+
+    operationFunction(fixture, operationTime, ackTime, reasonCode);
+
+    let pushedNextPingTime = operationTime + keepAliveMillis;
+    expect(fixture.getNextServiceTimepoint(ackTime)).toEqual(pushedNextPingTime);
+    expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toEqual(pushedNextPingTime);
+
+    fixture.verifyEmpty();
+}
+
+describe("connectedPingPushOutBySubscribeCompletion", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doSubscribeWithAck, mqtt5_packet.SubackReasonCode.GrantedQoS1, 1000, 3000);
+    })
+});
+
+describe("connectedPingPushOutByUnsubscribeCompletion", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doUnsubscribeWithAck, mqtt5_packet.UnsubackReasonCode.Success, 777, 4200);
+    })
+});
+
+describe("connectedPingPushOutByPublishCompletion", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doPublishWithAck, mqtt5_packet.PubackReasonCode.Success, 3456, 5111);
+    })
 });
 
 /*
