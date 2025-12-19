@@ -1325,11 +1325,11 @@ function doUnsubscribeWithAck(fixture: ProtocolTestFixture, unsubscribeTime: num
     fixture.verifyEmpty();
 }
 
-function doPublishWithAck(fixture: ProtocolTestFixture, publishTime: number, pubackTime: number, reasonCode: mqtt5_packet.PubackReasonCode) {
+function doPublish(fixture: ProtocolTestFixture, publishTime: number, pubackTime: number, reasonCode: mqtt5_packet.PubackReasonCode, qos: mqtt5_packet.QoS) {
 
     let resultHolder = fixture.publish(publishTime, {
         topicName: "hello/world",
-        qos: mqtt5_packet.QoS.AtLeastOnce
+        qos: qos
     });
 
     expect(resultHolder.state).toEqual(OperationResultStateType.Pending);
@@ -1341,22 +1341,33 @@ function doPublishWithAck(fixture: ProtocolTestFixture, publishTime: number, pub
     expect(publishIndex).toEqual(1);
 
     expect(resultHolder.state).toEqual(OperationResultStateType.Success);
-    let result = resultHolder.result;
-    expect(result).toBeDefined();
 
-    // @ts-ignore
-    let puback : mqtt5_packet.PubackPacket = (result as PublishResult).packet;
-    expect(puback.reasonCode).toEqual(reasonCode);
+    if (qos == mqtt5_packet.QoS.AtLeastOnce) {
+        let result = resultHolder.result;
+        expect(result).toBeDefined();
 
-    let [pubackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Puback, 1);
-    expect(pubackIndex).toEqual(1);
+        // @ts-ignore
+        let puback : mqtt5_packet.PubackPacket = (result as PublishResult).packet;
+        expect(puback.reasonCode).toEqual(reasonCode);
+
+        let [pubackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Puback, 1);
+        expect(pubackIndex).toEqual(1);
+    }
 
     fixture.verifyEmpty();
 }
 
+function doQos1PublishWithAck(fixture: ProtocolTestFixture, publishTime: number, pubackTime: number, reasonCode: mqtt5_packet.PubackReasonCode) {
+    doPublish(fixture, publishTime, pubackTime, reasonCode, mqtt5_packet.QoS.AtLeastOnce);
+}
+
+function doQos0Publish(fixture: ProtocolTestFixture, publishTime: number, pubackTime: number, reasonCode: mqtt5_packet.PubackReasonCode) {
+    doPublish(fixture, publishTime, pubackTime, reasonCode, mqtt5_packet.QoS.AtMostOnce);
+}
+
 type AckedOperationFunction<T> = (fixture: ProtocolTestFixture, outboundTime: number, ackTime: number, reasonCode: T) => void;
 
-function doConnectedPingPushOutTest<T>(mode: model.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T, operationTime: number, ackTime: number) {
+function doConnectedPingPushOutTest<T>(mode: model.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T, operationTime: number, ackTime: number, expectedPushout: number) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1377,28 +1388,34 @@ function doConnectedPingPushOutTest<T>(mode: model.ProtocolMode, operationFuncti
 
     operationFunction(fixture, operationTime, ackTime, reasonCode);
 
-    let pushedNextPingTime = operationTime + keepAliveMillis;
-    expect(fixture.getNextServiceTimepoint(ackTime)).toEqual(pushedNextPingTime);
-    expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toEqual(pushedNextPingTime);
+    let expectedPingTime = keepAliveMillis + expectedPushout;
+    expect(fixture.getNextServiceTimepoint(ackTime)).toEqual(expectedPingTime);
+    expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toEqual(expectedPingTime);
 
     fixture.verifyEmpty();
 }
 
 describe("connectedPingPushOutBySubscribeCompletion", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doSubscribeWithAck, mqtt5_packet.SubackReasonCode.GrantedQoS1, 1000, 3000);
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doSubscribeWithAck, mqtt5_packet.SubackReasonCode.GrantedQoS1, 1000, 3000, 1000);
     })
 });
 
 describe("connectedPingPushOutByUnsubscribeCompletion", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doUnsubscribeWithAck, mqtt5_packet.UnsubackReasonCode.Success, 777, 4200);
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doUnsubscribeWithAck, mqtt5_packet.UnsubackReasonCode.Success, 777, 4200, 777);
     })
 });
 
-describe("connectedPingPushOutByPublishCompletion", () => {
+describe("connectedPingPushOutByQos1PublishCompletion", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doPublishWithAck, mqtt5_packet.PubackReasonCode.Success, 3456, 5111);
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doQos1PublishWithAck, mqtt5_packet.PubackReasonCode.Success, 3456, 5111, 3456);
+    })
+});
+
+describe("connectedPingNoPushOutByQos0PublishCompletion", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doConnectedPingPushOutTest(protocolVersionToMode(protocolVersion), doQos0Publish, mqtt5_packet.PubackReasonCode.Success, 3456, 5111, 0);
     })
 });
 
