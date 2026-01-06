@@ -20,6 +20,7 @@ import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
 import * as mqtt_request_response from "../native/mqtt_request_response";
+import { AwsIoTDeviceSDKMetrics } from "lib/common/mqtt_shared";
 
 
 /**
@@ -251,6 +252,7 @@ export function mqtt_client_connection_new(
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
     reconnect_min_sec?: number,
     reconnect_max_sec?: number,
+    metrics? : AwsIoTDeviceSDKMetrics
 ): NativeHandle;
 
 /** @internal */

@@ -13,7 +13,6 @@ import { MqttClientConnection, MqttConnectionConfig, MqttWill} from "./mqtt";
 import { DEFAULT_RECONNECT_MIN_SEC, DEFAULT_RECONNECT_MAX_SEC} from "../common/mqtt"
 import * as io from "./io";
 import { TlsContextOptions } from "./io";
-import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import { WebsocketOptionsBase } from "../common/auth";
 import { CrtError } from "./error";
@@ -27,6 +26,7 @@ import {
     AwsSigningConfig
 } from "./auth";
 import * as iot_shared from "../common/aws_iot_shared"
+import { AwsIoTDeviceSDKMetrics } from "../common/mqtt_shared"
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -73,7 +73,9 @@ export class AwsIotMqttConnectionConfigBuilder {
             password: undefined,
             tls_ctx: undefined,
             reconnect_min_sec: DEFAULT_RECONNECT_MIN_SEC,
-            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC
+            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC,
+            enable_metrics: true,
+            metrics: new AwsIoTDeviceSDKMetrics(),
         };
         this.is_using_custom_authorizer = false
     }
@@ -503,18 +505,6 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.params.tls_ctx === undefined) {
             this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
         }
-
-        // Add the metrics string
-        if (iot_shared.is_string_and_not_empty(this.params.username) == false) {
-            this.params.username = "?SDK=NodeJSv2&Version="
-        } else {
-            if (this.params.username?.indexOf("?") != -1) {
-                this.params.username += "&SDK=NodeJSv2&Version="
-            } else {
-                this.params.username += "?SDK=NodeJSv2&Version="
-            }
-        }
-        this.params.username += platform.crt_version()
 
         return this.params;
     }
