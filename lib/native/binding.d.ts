@@ -20,7 +20,7 @@ import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
 import * as mqtt_request_response from "../native/mqtt_request_response";
-import { AwsIoTDeviceSDKMetrics } from "lib/common/mqtt_shared";
+import { AwsIoTDeviceSDKMetrics } from "../common/mqtt_shared";
 
 
 /**
