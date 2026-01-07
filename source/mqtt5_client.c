@@ -2149,6 +2149,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_mqtt_iot_sdk_metrics metrics;
     AWS_ZERO_STRUCT(metrics);
 
+    struct aws_byte_buf libraryName;
+    AWS_ZERO_STRUCT(libraryName);
+
     s_init_default_mqtt5_client_options(&client_options, &connect_options);
 
     /* Arg #1: the mqtt5 client */
@@ -2334,8 +2337,6 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     // Set metrics
     napi_value node_metrics = *arg++;
-    struct aws_byte_buf libraryName;
-    AWS_ZERO_STRUCT(libraryName);
     if (!aws_napi_is_null_or_undefined(env, node_metrics)) {
         napi_value node_libraryName = NULL;
         AWS_NAPI_CALL(env, napi_get_named_property(env, node_metrics, "libraryName", &node_libraryName), {

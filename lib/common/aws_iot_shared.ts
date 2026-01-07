@@ -12,7 +12,6 @@
  */
 
 
-import * as platform from "./platform";
 import * as mqtt5_packet from "./mqtt5_packet";
 import * as utils from "./utils";
 
