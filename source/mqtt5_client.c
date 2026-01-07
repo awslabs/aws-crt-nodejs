@@ -2350,6 +2350,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         });
 
         metrics.library_name = aws_byte_cursor_from_buf(&libraryName);
+        client_options.metrics = &metrics;
     }
 
     client_options.publish_received_handler = s_on_publish_received;
