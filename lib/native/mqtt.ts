@@ -36,7 +36,6 @@ import {
     OnConnectionFailedResult,
     OnConnectionClosedResult
 } from "../common/mqtt";
-import { AwsIoTDeviceSDKMetrics } from 'lib/common/mqtt_shared';
 export {
     QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
     MqttConnectionResumed, OnConnectionSuccessResult, OnConnectionFailedResult, OnConnectionClosedResult
@@ -325,7 +324,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             config.websocket_handshake_transform,
             min_sec,
             max_sec,
-            config.enable_metrics == false ? undefined : new AwsIoTDeviceSDKMetrics()
+            config.enable_metrics == false ? undefined : new crt.AwsIoTDeviceSDKMetrics()
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));
