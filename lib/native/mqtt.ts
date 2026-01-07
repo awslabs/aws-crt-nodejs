@@ -220,7 +220,6 @@ export interface MqttConnectionConfig {
 
     /** Optional enable metrics  */
     enable_metrics?: boolean;
-    metrics?: AwsIoTDeviceSDKMetrics;
 
     /**
      * Optional function to transform websocket handshake request.
@@ -326,7 +325,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             config.websocket_handshake_transform,
             min_sec,
             max_sec,
-            config.enable_metrics? config.metrics : undefined
+            config.enable_metrics == false ? undefined : new AwsIoTDeviceSDKMetrics()
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));

@@ -205,6 +205,7 @@ export function mqtt5_client_new(
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
     proxy_options?: NativeHandle,
+    metrics? : AwsIoTDeviceSDKMetrics
 ): NativeHandle;
 
 /** @internal */

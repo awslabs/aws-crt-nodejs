@@ -257,6 +257,14 @@ export interface Mqtt5ClientConfig {
      * @group Node-only
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
+
+    /**
+     * Additional controls for client behavior with respect to operation validation and flow control; these checks
+     * go beyond the base MQTT5 spec to respect limits of specific MQTT brokers.
+     *
+     * @group Node-only
+     */
+    enableMetrics? : boolean
 }
 
 /**
@@ -295,7 +303,8 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             config.clientBootstrap ? config.clientBootstrap.native_handle() : null,
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
-            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null
+            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null,
+            config.enableMetrics == false ? undefined : new mqtt_shared.AwsIoTDeviceSDKMetrics()
         ));
     }
 

@@ -26,7 +26,6 @@ import {
     AwsSigningConfig
 } from "./auth";
 import * as iot_shared from "../common/aws_iot_shared"
-import { AwsIoTDeviceSDKMetrics } from "../common/mqtt_shared"
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -74,8 +73,6 @@ export class AwsIotMqttConnectionConfigBuilder {
             tls_ctx: undefined,
             reconnect_min_sec: DEFAULT_RECONNECT_MIN_SEC,
             reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC,
-            enable_metrics: true,
-            metrics: new AwsIoTDeviceSDKMetrics(),
         };
         this.is_using_custom_authorizer = false
     }
