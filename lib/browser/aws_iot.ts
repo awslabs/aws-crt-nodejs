@@ -12,6 +12,7 @@
 import { CredentialsProvider, StaticCredentialProvider} from "./auth"
 import { SocketOptions } from "./io";
 import { MqttClientConnection, MqttConnectionConfig, MqttWill } from "./mqtt";
+import * as platform from "../common/platform";
 import * as iot_shared from "../common/aws_iot_shared"
 
 /**
@@ -324,6 +325,18 @@ export class AwsIotMqttConnectionConfigBuilder {
         if (this.params.client_id === undefined || this.params.host_name === undefined) {
             throw 'client_id and endpoint are required';
         }
+
+        // Add the metrics string
+        if (this.params.username == undefined || this.params.username == null || this.params.username == "") {
+            this.params.username = "?SDK=IoTDeviceSDK/JS&Version="
+        } else {
+            if (this.params.username.indexOf("?") != -1) {
+                this.params.username += "&SDK=IoTDeviceSDK/JS&Version="
+            } else {
+                this.params.username += "?SDK=IoTDeviceSDK/JS&Version="
+            }
+        }
+        this.params.username += platform.crt_version()
 
         return this.params;
     }
