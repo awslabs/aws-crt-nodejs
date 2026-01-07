@@ -259,10 +259,7 @@ export interface Mqtt5ClientConfig {
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
 
     /**
-     * Additional controls for client behavior with respect to operation validation and flow control; these checks
-     * go beyond the base MQTT5 spec to respect limits of specific MQTT brokers.
-     *
-     * @group Node-only
+     * Enable AWS IoT SDK Metrics. Enable metrics will append metrics to username field.
      */
     enableMetrics? : boolean
 }

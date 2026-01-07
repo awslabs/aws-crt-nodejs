@@ -8,7 +8,7 @@ import * as iot_shared from "./aws_iot_shared";
 jest.setTimeout(10000);
 
 test('Aws IoT Mqtt5 Username Construction - No Custom Auth', async () => {
-    let finalUsername : string = iot_shared.buildMqtt5FinalUsername(undefined, true);
+    let finalUsername : string = iot_shared.buildMqtt5FinalUsername(undefined);
 
     expect(finalUsername).toEqual(expect.stringMatching(""));
 });

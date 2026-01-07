@@ -203,6 +203,7 @@ export class ClientEnvironmentalConfig {
                 username : ClientEnvironmentalConfig.BASIC_AUTH_USERNAME,
                 password : ClientEnvironmentalConfig.BASIC_AUTH_PASSWORD
             }
+            // Disable metrics for custom auth
             config.enableMetrics = false
         }
 

@@ -72,7 +72,7 @@ export class AwsIotMqttConnectionConfigBuilder {
             password: undefined,
             tls_ctx: undefined,
             reconnect_min_sec: DEFAULT_RECONNECT_MIN_SEC,
-            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC,
+            reconnect_max_sec: DEFAULT_RECONNECT_MAX_SEC
         };
         this.is_using_custom_authorizer = false
     }
