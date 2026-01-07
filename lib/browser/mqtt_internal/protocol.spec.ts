@@ -8,7 +8,7 @@ import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as model from "./model";
 import * as protocol from "./protocol";
-import {ProtocolStateType, PublishResult} from "./protocol";
+import {OperationQueueType, ProtocolStateType, PublishResult} from "./protocol";
 import {CrtError} from "../error";
 import {v4 as uuid} from "uuid";
 import * as test_mqtt_internal_client from "@test/mqtt_internal_client";
@@ -333,6 +333,26 @@ class ProtocolTestFixture {
         this.onIncomingData(elapsedMillis, responseBytes);
     }
 
+    serviceOnceWithDrain(elapsedMillis: number) : DataView {
+        let responseBytes = new DynamicArrayBuffer(4096);
+
+        let toSocket = this.service(elapsedMillis);
+        if (!toSocket) {
+            return responseBytes.getView();
+        }
+
+        this.onWriteCompletion(elapsedMillis);
+
+        responseBytes.append(this.writeToSocket(toSocket));
+
+        return responseBytes.getView();
+    }
+
+    serviceOnceRoundTrip(elapsedMillis: number) {
+        let responseBytes = this.serviceOnceWithDrain(elapsedMillis);
+
+        this.onIncomingData(elapsedMillis, responseBytes);
+    }
 
     onConnectionOpened(elapsedMillis: number) {
         this.brokerDecoder.reset();
@@ -396,7 +416,7 @@ class ProtocolTestFixture {
                 },
                 onCompletionFailure : (error : CrtError)=> {
                     result.error = error;
-                    result.state = OperationResultStateType.Success;
+                    result.state = OperationResultStateType.Failure;
                 }
             }
         };
@@ -428,7 +448,7 @@ class ProtocolTestFixture {
                 },
                 onCompletionFailure : (error : CrtError)=> {
                     result.error = error;
-                    result.state = OperationResultStateType.Success;
+                    result.state = OperationResultStateType.Failure;
                 }
             }
         };
@@ -460,7 +480,7 @@ class ProtocolTestFixture {
                 },
                 onCompletionFailure : (error : CrtError)=> {
                     result.error = error;
-                    result.state = OperationResultStateType.Success;
+                    result.state = OperationResultStateType.Failure;
                 }
             }
         };
@@ -501,8 +521,8 @@ class ProtocolTestFixture {
 
             case protocol.ProtocolStateType.Connected:
                 this.onConnectionOpened(elapsedMillis);
-                let toServer = this.serviceWithDrain(elapsedMillis);
-                this.onIncomingData(elapsedMillis, toServer);
+                let fromServer = this.serviceWithDrain(elapsedMillis);
+                this.onIncomingData(elapsedMillis, fromServer);
                 break;
 
             case ProtocolStateType.Disconnected:
@@ -1419,5 +1439,564 @@ describe("connectedPingNoPushOutByQos0PublishCompletion", () => {
     })
 });
 
+function doPingTimeoutTest(mode: model.ProtocolMode, pingTimeoutMillis: number, keepAliveSeconds: number) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds = keepAliveSeconds;
+    context.protocolStateConfig.pingTimeoutMillis = pingTimeoutMillis;
+    let keepAliveMillis = keepAliveSeconds * 1000;
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    let baseNextPingTime = keepAliveMillis;
+    expect(fixture.getNextServiceTimepoint(0)).toEqual(baseNextPingTime);
+    expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toEqual(baseNextPingTime);
+
+    fixture.serviceWithDrain(baseNextPingTime);
+    let internalPingTimeoutMillis = Math.min(pingTimeoutMillis, keepAliveMillis / 2);
+    let expectedPingTimeoutMillis = baseNextPingTime + internalPingTimeoutMillis;
+    expect(fixture.protocolState.getPendingPingrespTimeoutElapsedMillis()).toEqual(expectedPingTimeoutMillis);
+
+    expect(fixture.toServerPackets.length).toEqual(2);
+    let [pingreqIndex, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Pingreq, 1);
+    expect(pingreqIndex).toEqual(1);
+
+    fixture.service(expectedPingTimeoutMillis - 1);
+    expect(fixture.protocolState.getPendingPingrespTimeoutElapsedMillis()).toEqual(expectedPingTimeoutMillis);
+
+    expect(fixture.protocolState.getHalted()).toEqual(false);
+
+    fixture.service(expectedPingTimeoutMillis);
+
+    expect(fixture.protocolState.getHalted()).toEqual(true);
+    expect(fixture.protocolState.getHaltError()?.toString()).toMatch("Pingresp timeout");
+
+    fixture.verifyEmpty();
+}
+
+describe("connectedPingTimeoutNormal", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doPingTimeoutTest(protocolVersionToMode(protocolVersion), 10000, 20);
+    })
+});
+
+describe("connectedPingTimeoutMisconfigured", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doPingTimeoutTest(protocolVersionToMode(protocolVersion), 30000, 30);
+    })
+});
+
+function doConnectedNoPingsIfZeroKeepAlive(mode: model.ProtocolMode) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds = 0;
+    context.protocolStateConfig.pingTimeoutMillis = 10000;
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    expect(fixture.getNextServiceTimepoint(0)).toBeUndefined();
+    expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toBeUndefined();
+
+    for (let i = 0; i < 120; i++) {
+        let elapsedMillis : number = i * 1000;
+        fixture.service(elapsedMillis);
+        expect(fixture.getNextServiceTimepoint(elapsedMillis)).toBeUndefined();
+        expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toBeUndefined();
+        expect(fixture.toServerPackets.length).toEqual(1);
+        expect(fixture.toClientPackets.length).toEqual(1);
+        fixture.verifyEmpty();
+    }
+}
+
+describe("connectedNoPingsIfZeroKeepAlive", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doConnectedNoPingsIfZeroKeepAlive(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doSuccessfulOperationTest<T>(mode: model.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T) {
+    let context : BrokerTestContext = {
+        protocolStateConfig: buildProtocolStateConfig(mode)
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    operationFunction(fixture, 0, 100, reasonCode);
+}
+
+describe("connectedSubscribeSucccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doSuccessfulOperationTest(protocolVersionToMode(protocolVersion), doSubscribeWithAck, mqtt5_packet.SubackReasonCode.GrantedQoS1);
+    })
+});
+
+describe("connectedUnsubscribeSucccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doSuccessfulOperationTest(protocolVersionToMode(protocolVersion), doUnsubscribeWithAck, mqtt5_packet.UnsubackReasonCode.Success);
+    })
+});
+
+describe("connectedQos0PublishSucccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doSuccessfulOperationTest(protocolVersionToMode(protocolVersion), doQos0Publish, mqtt5_packet.PubackReasonCode.Success);
+    })
+});
+
+describe("connectedQos1PublishSucccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doSuccessfulOperationTest(protocolVersionToMode(protocolVersion), doQos1PublishWithAck, mqtt5_packet.PubackReasonCode.Success);
+    })
+});
+
+type QueueOperationFunction<T> = (fixture: ProtocolTestFixture, operationQueueTime: number) => OperationResult<T>;
+type ResultVerifier<T> = (result: OperationResult<T>) => void;
+
+enum InterruptedOperationOutcomeType {
+    StayQueued,
+    FailedOnDisconnect,
+    FailedOnReconnect
+}
+
+function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+    fixture.onConnectionClosed(0);
+
+    if (operationOutcome == InterruptedOperationOutcomeType.FailedOnDisconnect) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        fixture.verifyEmpty();
+        return;
+    }
+
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+    } else {
+        expect(operationOutcome).toEqual(InterruptedOperationOutcomeType.StayQueued);
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+        expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+        fixture.serviceRoundTrip(0);
+
+        expect(verifier).toBeDefined();
+        // @ts-ignore
+        verifier(result);
+    }
+
+    fixture.verifyEmpty();
+}
+
+function verifySuccessfulSuback(result: OperationResult<mqtt5_packet.SubackPacket>) : void {
+    expect(result.state).toEqual(OperationResultStateType.Success);
+
+    let suback = result.result as mqtt5_packet.SubackPacket;
+    expect(suback.reasonCodes.length).toEqual(1);
+    expect(suback.reasonCodes[0]).toEqual(mqtt5_packet.SubackReasonCode.GrantedQoS1);
+}
+
+function queueSubscribe(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mqtt5_packet.SubackPacket> {
+    return fixture.subscribe(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Subscribe,
+        subscriptions: [
+            {
+                topicFilter: "hello/world",
+                qos: mqtt5_packet.QoS.AtLeastOnce
+            }
+        ],
+    });
+}
+
+describe("ReconnectWhileSubscribeQueuedSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
+    })
+});
+
+describe("ReconnectWhileSubscribeQueuedFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+function verifySuccessfulUnsuback5(result: OperationResult<mqtt5_packet.UnsubackPacket>) : void {
+    expect(result.state).toEqual(OperationResultStateType.Success);
+
+    let unsuback = result.result as mqtt5_packet.UnsubackPacket;
+    expect(unsuback.reasonCodes.length).toEqual(1);
+    expect(unsuback.reasonCodes[0]).toEqual(mqtt5_packet.UnsubackReasonCode.Success);
+}
+
+function verifySuccessfulUnsuback311(result: OperationResult<mqtt5_packet.UnsubackPacket>) : void {
+    expect(result.state).toEqual(OperationResultStateType.Success);
+
+    let unsuback = result.result as mqtt5_packet.UnsubackPacket;
+    expect(unsuback.reasonCodes.length).toEqual(0);
+}
+
+function verifySuccessfulUnsuback(result: OperationResult<mqtt5_packet.UnsubackPacket>, mode: model.ProtocolMode) : void {
+    if (mode == model.ProtocolMode.Mqtt5) {
+        verifySuccessfulUnsuback5(result);
+    } else {
+        verifySuccessfulUnsuback311(result);
+    }
+}
+
+function queueUnsubscribe(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mqtt5_packet.UnsubackPacket> {
+    return fixture.unsubscribe(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        topicFilters: [ "hello/world" ],
+    });
+}
+
+describe("ReconnectWhileUnsubscribeQueuedSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationQueuedTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); });
+    })
+});
+
+describe("ReconnectWhileUnsubscribeQueuedFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+
+function verifySuccessfulPuback5(result: OperationResult<protocol.PublishResult>) : void {
+    expect(result.state).toEqual(OperationResultStateType.Success);
+
+    let puback = result.result!.packet as mqtt5_packet.PubackPacket;
+    expect(puback.reasonCode).toEqual(mqtt5_packet.PubackReasonCode.Success);
+}
+
+function verifySuccessfulPuback311(result: OperationResult<protocol.PublishResult>) : void {
+    expect(result.state).toEqual(OperationResultStateType.Success);
+}
+
+function verifySuccessfulPuback(result: OperationResult<protocol.PublishResult>, mode: model.ProtocolMode) : void {
+    if (mode == model.ProtocolMode.Mqtt5) {
+        verifySuccessfulPuback5(result);
+    } else {
+        verifySuccessfulPuback311(result);
+    }
+}
+
+function queueQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
+    return fixture.publish(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Publish,
+        topicName: "hello/world",
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+    });
+}
+
+describe("ReconnectWhileQos1PublishQueuedSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationQueuedTest(mode, protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); });
+    })
+});
+
+describe("ReconnectWhileQos1PublishQueuedFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+function verifySuccessfulQos0Publish(result: OperationResult<protocol.PublishResult>) : void {
+    expect(result.state).toEqual(OperationResultStateType.Success);
+}
+
+function queueQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
+    return fixture.publish(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Publish,
+        topicName: "hello/world",
+        qos: mqtt5_packet.QoS.AtMostOnce,
+    });
+}
+
+describe("ReconnectWhileQos0PublishQueuedSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationQueuedTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish);
+    })
+});
+
+describe("ReconnectWhileQos0PublishQueuedFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+    fixture.service(0);
+
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    expect(fixture.protocolState.getCurrentOperation()).toBeDefined();
+
+    fixture.onConnectionClosed(0);
+
+    expect(fixture.protocolState.getCurrentOperation()).toBeUndefined();
+
+    if (operationOutcome == InterruptedOperationOutcomeType.FailedOnDisconnect) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        fixture.verifyEmpty();
+        return;
+    }
+
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+    } else {
+        expect(operationOutcome).toEqual(InterruptedOperationOutcomeType.StayQueued);
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+        expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+        // packets have been set up to be split across two services by having a length > 4k and < 8k
+        fixture.serviceOnceRoundTrip(0);
+        expect(fixture.protocolState.getCurrentOperation()).toBeDefined();
+        fixture.serviceOnceRoundTrip(0);
+        expect(fixture.protocolState.getCurrentOperation()).toBeUndefined();
+
+        expect(verifier).toBeDefined();
+        // @ts-ignore
+        verifier(result);
+    }
+
+    fixture.verifyEmpty();
+}
+
+function queueMultiServiceSubscribe(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mqtt5_packet.SubackPacket> {
+    return fixture.subscribe(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Subscribe,
+        subscriptions: [
+            {
+                topicFilter: "a".repeat(5000),
+                qos: mqtt5_packet.QoS.AtLeastOnce
+            }
+        ],
+    });
+}
+
+describe("ReconnectWhileSubscribeCurrentOperationSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceSubscribe, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
+    })
+});
+
+describe("ReconnectWhileSubscribeCurrentOperationFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceSubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+function queueMultiServiceUnsubscribe(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mqtt5_packet.UnsubackPacket> {
+    return fixture.unsubscribe(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        topicFilters: [ "a".repeat(5000) ],
+    });
+}
+
+describe("ReconnectWhileUnsubscribeCurrentOperationSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileOperationCurrentTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceUnsubscribe, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); });
+    })
+});
+
+describe("ReconnectWhileUnsubscribeCurrentOperationFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceUnsubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+function queueMultiServiceQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
+    return fixture.publish(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Publish,
+        topicName: "a".repeat(5000),
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+    });
+}
+
+describe("ReconnectWhileQos1PublishCurrentOperationSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileOperationCurrentTest(mode, protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos1Publish, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); });
+    })
+});
+
+describe("ReconnectWhileQos1PublishCurrentOperationFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos1Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+function queueMultiServiceQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
+    return fixture.publish(operationQueueTime, {
+        type: mqtt5_packet.PacketType.Publish,
+        topicName: "a".repeat(5000),
+        qos: mqtt5_packet.QoS.AtMostOnce,
+    });
+}
+
+describe("ReconnectWhileQos0PublishCurrentOperationSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileOperationCurrentTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos0Publish, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish);
+    })
+});
+
+describe("ReconnectWhileQos0PublishCurrentOperationFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos0Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+type VerifyPendingFunction = (fixture: ProtocolTestFixture) => void;
+
+function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+
+    fixture.service(0);
+    verifyPendingFunction(fixture);
+
+    fixture.onConnectionClosed(0);
+
+    if (operationOutcome == InterruptedOperationOutcomeType.FailedOnDisconnect) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        fixture.verifyEmpty();
+        return;
+    }
+
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+
+    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+
+    if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+    } else {
+        expect(operationOutcome).toEqual(InterruptedOperationOutcomeType.StayQueued);
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+
+        fixture.serviceRoundTrip(0);
+
+        expect(verifier).toBeDefined();
+        // @ts-ignore
+        verifier(result);
+    }
+
+    fixture.verifyEmpty();
+}
+
+function verifyPendingAck(fixture: ProtocolTestFixture) {
+    expect(fixture.protocolState.getPendingNonPublishAcks().size).toEqual(1);
+}
+
+describe("ReconnectWhileSubscribePendingAckSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
+    })
+});
+
+describe("ReconnectWhileSubscribePendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
+describe("ReconnectWhileUnsubscribePendingAckSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); });
+    })
+});
+
+describe("ReconnectWhileUnsubscribePendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect);
+    })
+});
+
 /*
+
+
  */
+

@@ -724,8 +724,11 @@ export class ProtocolState implements IProtocolState {
 
         while (!done) {
             let currentOperation : ClientOperation | undefined = undefined;
+            if (this.currentOperation != undefined) {
+                currentOperation = this.operations.get(this.currentOperation);
+            }
 
-            while (this.currentOperation == undefined) {
+            while (currentOperation == undefined) {
                 currentOperation = this.dequeueNextOperation(serviceQueueType);
                 if (currentOperation == undefined) {
                     break;
@@ -745,6 +748,7 @@ export class ProtocolState implements IProtocolState {
                     this.encoder.initForPacket(currentOperation.packet);
                 } else {
                     this.failOperation(currentOperation.id, new CrtError(`Binary outbound packet validation failed: ${validationError}`));
+                    currentOperation = undefined;
                 }
             }
 
@@ -994,14 +998,12 @@ export class ProtocolState implements IProtocolState {
 
         this.changeState(ProtocolStateType.Disconnected);
         this.requeueCurrentOperation();
+        this.pendingWriteCompletion = false;
         this.pendingFlushOperations = [];
         this.operationTimeouts.clear();
         this.nextOutboundPingElapsedMillis = undefined;
         this.pendingPingrespTimeoutElapsedMillis = undefined;
         this.pendingConnackTimeoutElapsedMillis = undefined;
-
-        this.pendingWriteCompletionOperations.forEach((operationId) => {});
-        this.pendingWriteCompletionOperations = [];
 
         let failError = new CrtError("failed OfflineQueuePolicy check on disconnect");
 
@@ -1356,6 +1358,8 @@ export class ProtocolState implements IProtocolState {
         } else {
             this.highPriorityOperationQueue.unshift(this.currentOperation);
         }
+
+        this.currentOperation = undefined;
     }
 
     private operationPassesOfflineQueuePolicy(operationId: number) : boolean {
@@ -1416,6 +1420,7 @@ export class ProtocolState implements IProtocolState {
                 }
             });
             this.boundPacketIds.clear();
+            this.nextPacketId = 1;
         }
 
         this.sortOperationQueue(this.userOperationQueue);
