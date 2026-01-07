@@ -241,8 +241,6 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
         }
     }
 
-    paramList.push(["Version", platform.crt_version()]);
-
     return (path ?? "") + "?" + paramList.map((value : [string, string]) => `${value[0]}=${value[1]}`).join("&");
 }
 

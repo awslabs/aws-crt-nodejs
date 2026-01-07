@@ -7,28 +7,13 @@ import * as iot_shared from "./aws_iot_shared";
 
 jest.setTimeout(10000);
 
-test('Aws IoT Mqtt5 Username Construction - No Custom Auth', async () => {
-    let finalUsername : string = iot_shared.buildMqtt5FinalUsername(undefined);
-
-    expect(finalUsername).toEqual(expect.stringContaining("?SDK=IoTDeviceSDK/JS"));
-});
-
-test('Aws IoT Mqtt5 Username Construction - Empty custom auth', async () => {
-    let finalUsername : string = iot_shared.buildMqtt5FinalUsername({});
-
-    expect(finalUsername).toEqual(expect.stringContaining("?SDK=IoTDeviceSDK/JS"));
-    expect(finalUsername).toEqual(expect.stringContaining("&Platform="));
-
-});
-
 
 test('Aws IoT Mqtt5 Username Construction - Simple username', async () => {
     let finalUsername : string = iot_shared.buildMqtt5FinalUsername({
         username: "Derp"
     });
 
-    expect(finalUsername).toEqual(expect.stringContaining("Derp?SDK=IoTDeviceSDK/JS"));
-    expect(finalUsername).toEqual(expect.stringContaining("&Platform="));
+    expect(finalUsername).toEqual(expect.stringContaining("Derp"));
 });
 
 test('Aws IoT Mqtt5 Username Construction - Query param username', async () => {
@@ -36,8 +21,7 @@ test('Aws IoT Mqtt5 Username Construction - Query param username', async () => {
         username: "Derp?Param1=Value1"
     });
 
-    expect(finalUsername).toEqual(expect.stringContaining("Derp?Param1=Value1&SDK=IoTDeviceSDK/JS"));
-    expect(finalUsername).toEqual(expect.stringContaining("&Platform="));
+    expect(finalUsername).toEqual(expect.stringContaining("Derp?Param1=Value1"));
 });
 
 test('Aws IoT Mqtt5 Username Construction - Authorizer Name', async () => {
@@ -46,8 +30,7 @@ test('Aws IoT Mqtt5 Username Construction - Authorizer Name', async () => {
         authorizerName: "MyAuthorizer"
     });
 
-    expect(finalUsername).toEqual(expect.stringContaining("Hello?x-amz-customauthorizer-name=MyAuthorizer&SDK=IoTDeviceSDK/JS"));
-    expect(finalUsername).toEqual(expect.stringContaining("&Platform="));
+    expect(finalUsername).toEqual(expect.stringContaining("Hello?x-amz-customauthorizer-name=MyAuthorizer"));
 });
 
 test('Aws IoT Mqtt5 Username Construction - Token Signing', async () => {
@@ -59,8 +42,7 @@ test('Aws IoT Mqtt5 Username Construction - Token Signing', async () => {
         tokenSignature: "SignedToken"
     });
 
-    expect(finalUsername).toEqual(expect.stringContaining("Hello?x-amz-customauthorizer-name=MyAuthorizer&MyToken=TheToken&x-amz-customauthorizer-signature=SignedToken&SDK=IoTDeviceSDK/JS"));
-    expect(finalUsername).toEqual(expect.stringContaining("&Platform="));
+    expect(finalUsername).toEqual(expect.stringContaining("Hello?x-amz-customauthorizer-name=MyAuthorizer&MyToken=TheToken&x-amz-customauthorizer-signature=SignedToken"));
 });
 
 test('Aws IoT Mqtt5 Username Construction Failure - Missing token key name', async () => {

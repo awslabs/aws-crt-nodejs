@@ -2104,7 +2104,7 @@ static void s_init_default_mqtt5_client_options(
 
 napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
-    napi_value node_args[14];
+    napi_value node_args[13];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -2113,7 +2113,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     });
 
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt5_client_new - needs exactly 12 arguments");
+        napi_throw_error(env, NULL, "mqtt5_client_new - needs exactly 13 arguments");
         return NULL;
     }
 
