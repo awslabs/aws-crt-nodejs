@@ -1913,12 +1913,16 @@ describe("ReconnectWhileQos0PublishCurrentOperationFailureTest", () => {
 
 type VerifyPendingFunction = (fixture: ProtocolTestFixture) => void;
 
-function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier: ResultVerifier<T> | null, sessionPresent: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
     let context : BrokerTestContext = {
-        protocolStateConfig: config
+        protocolStateConfig: config,
+        connackOverrides: {
+            sessionPresent: sessionPresent,
+            reasonCode: mqtt5_packet.ConnectReasonCode.Success
+        }
     };
 
     let brokerHandlers = buildDefaultHandlerSet();
@@ -1939,7 +1943,7 @@ function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, o
 
     if (operationOutcome == InterruptedOperationOutcomeType.FailedOnDisconnect) {
         expect(result.state).toEqual(OperationResultStateType.Failure);
-        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy check on disconnect");
         fixture.verifyEmpty();
         return;
     }
@@ -1950,7 +1954,7 @@ function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, o
 
     if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
         expect(result.state).toEqual(OperationResultStateType.Failure);
-        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy check on reconnect");
     } else {
         expect(operationOutcome).toEqual(InterruptedOperationOutcomeType.StayQueued);
         expect(result.state).toEqual(OperationResultStateType.Pending);
@@ -1969,29 +1973,114 @@ function verifyPendingAck(fixture: ProtocolTestFixture) {
     expect(fixture.protocolState.getPendingNonPublishAcks().size).toEqual(1);
 }
 
-describe("ReconnectWhileSubscribePendingAckSuccessTest", () => {
+describe("ReconnectNoSessionWhileSubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback, false);
     })
 });
 
-describe("ReconnectWhileSubscribePendingAckFailureTest", () => {
+describe("ReconnectSessionPresentWhileSubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback, true);
     })
 });
 
-describe("ReconnectWhileUnsubscribePendingAckSuccessTest", () => {
+describe("ReconnectNoSessionWhileSubscribePendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
+    })
+});
+
+describe("ReconnectSessionPresentWhileSubscribePendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
+    })
+});
+
+describe("ReconnectNoSessionWhileUnsubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
         doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
-            (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); });
+            (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); }, false);
     })
 });
 
-describe("ReconnectWhileUnsubscribePendingAckFailureTest", () => {
+describe("ReconnectSessionPresentWhileUnsubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); }, true);
+    })
+});
+
+describe("ReconnectNoSessionWhileUnsubscribePendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
+    })
+});
+
+describe("ReconnectSessionPresentWhileUnsubscribePendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
+    })
+});
+
+function verifyPendingWriteCompleteOperation(fixture: ProtocolTestFixture) {
+    expect(fixture.protocolState.getPendingWriteCompletionOperations().length).toEqual(1);
+}
+
+describe("ReconnectNoSessionWhileQos0PublishPendingAckSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish, false);
+    })
+});
+
+describe("ReconnectSessionPresentWhileQos0PublishPendingAckSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish, true);
+    })
+});
+
+describe("ReconnectNoSessionWhileQos0PublishPendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
+    })
+});
+
+describe("ReconnectSessionPresentWhileQos0PublishPendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
+    })
+});
+
+function verifyPendingQos1PublishOperation(fixture: ProtocolTestFixture) {
+    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(1);
+}
+
+describe("ReconnectNoSessionWhileQos1PublishPendingAckSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); },
+            false);
+    })
+});
+
+describe("ReconnectSessionPresentWhileQos1PublishPendingAckSuccessTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); },
+            true);
+    })
+});
+
+describe("ReconnectNoSessionWhileQos1PublishPendingAckFailureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.FailedOnReconnect,
+            null,
+            false);
     })
 });
 
@@ -1999,4 +2088,3 @@ describe("ReconnectWhileUnsubscribePendingAckFailureTest", () => {
 
 
  */
-
