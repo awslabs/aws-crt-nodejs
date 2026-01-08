@@ -258,8 +258,11 @@ export interface Mqtt5ClientConfig {
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
 
+
     /**
-     * Enable AWS IoT SDK Metrics. Enable metrics will append metrics to username field.
+     * Options for enable/disable Aws IoT Metrics
+     * 
+     * @group Node-only
      */
     enableMetrics? : boolean
 }

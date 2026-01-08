@@ -193,13 +193,6 @@ export interface Mqtt5ClientConfig {
      * @group Browser-only
      */
     websocketOptions?: Mqtt5WebsocketConfig;
-
-    /**
-     * Options for enable/disable Aws IoT Metrics
-     * 
-     * @group Node-only
-     */
-    enableMetrics?: boolean
 }
 
 /**
