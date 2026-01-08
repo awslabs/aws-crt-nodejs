@@ -219,8 +219,8 @@ export interface MqttConnectionConfig {
 
     /** Optional enable Aws IoT SDK Metrics 
      * 
-     *  @group Node-only
-    */
+     * @group Node-only
+     */
     enable_metrics?: boolean;
 
     /**
