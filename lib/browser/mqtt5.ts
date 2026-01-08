@@ -196,6 +196,8 @@ export interface Mqtt5ClientConfig {
 
     /**
      * Options for enable/disable Aws IoT Metrics
+     * 
+     * @group Node-only
      */
     enableMetrics?: boolean
 }
