@@ -14,6 +14,7 @@
 
 import * as mqtt from "mqtt";
 import * as WebsocketUtils from "./ws";
+import * as platform from "../common/platform";
 import * as auth from "./auth";
 import { Trie, TrieOp, Node as TrieNode } from "./trie";
 
@@ -200,6 +201,9 @@ export interface MqttConnectionConfig {
 
     /** Options for the underlying credentials provider */
     credentials_provider?: auth.CredentialsProvider;
+
+    /** Optional enable Aws IoT SDK Metrics */
+    enable_metrics?: boolean;
 }
 
 /**
@@ -342,6 +346,22 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         const websocketXform = (this.config.websocket || {}).protocol != 'wss-custom-auth' ? transform_websocket_url : undefined;
+
+        let final_username = this.config.username;
+        if (this.config.enable_metrics ?? true) {
+            // Add the metrics string
+            if (final_username == undefined || final_username == null || final_username == "") {
+                final_username = "?SDK=IoTDeviceSDK/JS&Version="
+            } else {
+                if (final_username.indexOf("?") != -1) {
+                    final_username += "&SDK=IoTDeviceSDK/JS&Version="
+                } else {
+                    final_username += "?SDK=IoTDeviceSDK/JS&Version="
+                }
+            }
+            final_username += platform.crt_version()
+        }
+
         this.connection = new mqtt.MqttClient(
             create_websocket_stream,
             {
@@ -350,7 +370,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 clientId: this.config.client_id,
                 connectTimeout: this.config.ping_timeout ? this.config.ping_timeout : 30 * 1000,
                 clean: this.config.clean_session,
-                username: this.config.username,
+                username: final_username,
                 password: this.config.password,
                 reconnectPeriod: this.reconnect_max_sec * 1000,
                 will: will,
