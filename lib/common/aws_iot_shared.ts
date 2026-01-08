@@ -11,6 +11,7 @@
  * @module aws_iot
  */
 
+
 import * as platform from "./platform";
 import * as mqtt5_packet from "./mqtt5_packet";
 import * as utils from "./utils";
@@ -200,7 +201,7 @@ function addParam(paramName: string, paramValue: string | undefined, paramSet: [
  * and SDK metrics properties.
  *
  * @param customAuthConfig intended AWS IoT custom auth client configuration
- * @param appendMetrics if we manually add SDK metrics. Native library will handle metrics in c libraries. We only manually do it for browser. 
+ * @param appendMetrics manually append SDK metrics, set to true while we build username for browser.
  *
  * @internal
  */
@@ -246,7 +247,7 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
         paramList.push(["Version", platform.crt_version()]);
     }
 
-    return (path ?? "") + "?" + paramList.map((value: [string, string]) => `${value[0]}=${value[1]}`).join("&");
+    return (path ?? "") + "?" + paramList.map((value : [string, string]) => `${value[0]}=${value[1]}`).join("&");
 }
 
 /**
