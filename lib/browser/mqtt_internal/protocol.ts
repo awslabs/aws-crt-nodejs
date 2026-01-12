@@ -154,13 +154,13 @@ function isUserOperationType(type: mqtt5_packet.PacketType): boolean {
 }
 
 // Disconnect, Connect, Pingreq
-interface GenericOptionsInternal {
+export interface GenericOptionsInternal {
     resultHandler: ResultHandler<void>,
 }
 
-type ClientOperationOptionsType = PublishOptionsInternal | SubscribeOptionsInternal | UnsubscribeOptionsInternal | GenericOptionsInternal;
+export type ClientOperationOptionsType = PublishOptionsInternal | SubscribeOptionsInternal | UnsubscribeOptionsInternal | GenericOptionsInternal;
 
-interface ClientOperation {
+export interface ClientOperation {
     type: mqtt5_packet.PacketType,
 
     id : number,
@@ -176,11 +176,29 @@ interface ClientOperation {
     numAttempts: number,
 }
 
-type ConnectPacketTransformer = (packet: mqtt5_packet.ConnectPacket) => void;
+/**
+ * Controls how the client will attempt to use MQTT sessions.
+ */
+export enum ResumeSessionPolicyType {
+
+    /** User clean start true until a successful connection is established.  Afterwards, always attempt to rejoin a session */
+    PostSuccess = 0,
+
+    /** Never rejoin a session.  Clean start is always true. */
+    Never = 1,
+
+    /** Always try to rejoin a session.  Clean start is always false.  This setting is technically not spec-compliant */
+    Always = 2,
+
+    Default = 0,
+}
+
+export type ConnectPacketTransformer = (packet: mqtt5_packet.ConnectPacket) => void;
 
 export interface ConnectOptions {
     connectPacketTransformer? : ConnectPacketTransformer,
     keepAliveIntervalSeconds: number;
+    resumeSessionPolicy?: ResumeSessionPolicyType,
     clientId?: string;
     username?: string;
     password?: BinaryData;
@@ -301,6 +319,7 @@ export class ProtocolState implements IProtocolState {
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
 
     private connectInTransit : boolean = false;
+    private hasSuccessfullyConnected : boolean = false;
 
     constructor(config : ProtocolStateConfig) {
         this.config = config;
@@ -539,7 +558,7 @@ export class ProtocolState implements IProtocolState {
                 let id = this.userOperationQueue.shift();
                 if (id != undefined) {
                     this.userOperationQueue.unshift(id);
-                    if (!this.operationNeedsPacketBinding(id) || this.canAllocatePacketId()) {
+                    if (this.canDequeueUserOperation(id)) {
                         return this.elapsedMillis;
                     }
                 }
@@ -552,6 +571,38 @@ export class ProtocolState implements IProtocolState {
 
     private canAllocatePacketId() : boolean {
         return this.pendingPublishAcks.size + this.pendingNonPublishAcks.size < MAXIMUM_NUMBER_OF_PACKET_IDS;
+    }
+
+    private wouldOperationBreachReceiveMaximum(id: number) : boolean {
+        let operation = this.operations.get(id);
+        if (!operation) {
+            return false;
+        }
+
+        if (operation.type != mqtt5_packet.PacketType.Publish) {
+            return false;
+        }
+
+        let publishPacket = operation.packet as model.PublishPacketBinary;
+        if (publishPacket.qos != mqtt5_packet.QoS.AtMostOnce) {
+            if (this.pendingPublishAcks.size >= this.lastNegotiatedSettings.receiveMaximumFromServer) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private canDequeueUserOperation(id: number) : boolean {
+        if (this.operationNeedsPacketBinding(id) && !this.canAllocatePacketId()) {
+            return false;
+        }
+
+        if (this.wouldOperationBreachReceiveMaximum(id)) {
+            return false;
+        }
+
+        return true;
     }
 
     private dequeueNextOperation(serviceQueueType : ServiceQueueType) : ClientOperation | undefined {
@@ -576,7 +627,7 @@ export class ProtocolState implements IProtocolState {
                 if (id == undefined) {
                     id = this.userOperationQueue.shift();
                     if (id != undefined) {
-                        if (this.operationNeedsPacketBinding(id) && !this.canAllocatePacketId()) {
+                        if (!this.canDequeueUserOperation(id)) {
                             this.userOperationQueue.unshift(id);
                             id = undefined;
                         }
@@ -964,6 +1015,7 @@ export class ProtocolState implements IProtocolState {
 
         // disconnects go to the front of the high priority queue
         this.submitOperation(operation, context.packet, OperationQueueType.HighPriority, QueueEndType.Front);
+        this.changeState(ProtocolStateType.PendingDisconnect);
     }
 
     private handleConnectionOpened(context: ConnectionOpenedContext) : void {
@@ -1149,6 +1201,7 @@ export class ProtocolState implements IProtocolState {
         this.connectInTransit = false;
 
         if (packet.reasonCode == mqtt5_packet.ConnectReasonCode.Success) {
+            this.hasSuccessfullyConnected = true;
             this.changeState(ProtocolStateType.Connected);
             this.lastNegotiatedSettings = createNegotiatedSettings(this.lastOutboundConnect, packet);
             this.resetNextPing();
@@ -1274,13 +1327,28 @@ export class ProtocolState implements IProtocolState {
         this.pendingWriteCompletion = false;
     }
 
+    private computeCleanStart() : boolean {
+        let resumeSessionPolicy = this.config.connectOptions.resumeSessionPolicy ?? ResumeSessionPolicyType.Default;
+
+        switch (resumeSessionPolicy) {
+            case ResumeSessionPolicyType.Always:
+                return false;
+
+            case ResumeSessionPolicyType.PostSuccess:
+                return !this.hasSuccessfullyConnected;
+
+            default:
+                return true;
+        }
+    }
+
     private buildConnectPacket() : model.ConnectPacketInternal {
         let connectOptions = this.config.connectOptions;
 
         let connect_packet : model.ConnectPacketInternal = {
             type: mqtt5_packet.PacketType.Connect,
             keepAliveIntervalSeconds: connectOptions.keepAliveIntervalSeconds,
-            cleanStart: true
+            cleanStart: this.computeCleanStart()
         };
 
         if (connectOptions.clientId != undefined) {

@@ -8,7 +8,6 @@ import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as model from "./model";
 import * as protocol from "./protocol";
-import {OperationQueueType, ProtocolStateType, PublishResult} from "./protocol";
 import {CrtError} from "../error";
 import {v4 as uuid} from "uuid";
 import * as test_mqtt_internal_client from "@test/mqtt_internal_client";
@@ -69,11 +68,12 @@ interface BrokerTestContext {
     socketBufferSize? : number,
 }
 
-type PacketHandlerType = (packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) => void;
+type PacketHandlerType = (packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) => void;
 type PacketHandlerSet = Map<mqtt5_packet.PacketType, PacketHandlerType>;
 
-function defaultConnectHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function defaultConnectHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
     let connect = packet as model.ConnectPacketInternal;
+    let context = fixture.getContext();
 
     let connack : mqtt5_packet.ConnackPacket = {
         type: mqtt5_packet.PacketType.Connack,
@@ -85,12 +85,21 @@ function defaultConnectHandler(packet : mqtt5_packet.IPacket, context: BrokerTes
         if (!connect.clientId || !connect.clientId.length) {
             connack.assignedClientIdentifier = context.connackOverrides?.assignedClientIdentifier ?? `test-${uuid()}`;
         }
+
+        if (context.connackOverrides?.maximumPacketSize) {
+            connack.maximumPacketSize = context.connackOverrides?.maximumPacketSize;
+        }
+
+        if (context.connackOverrides?.receiveMaximum) {
+            connack.receiveMaximum = context.connackOverrides?.receiveMaximum;
+        }
     }
 
     responsePackets.push(connack);
+    fixture.cleanStartFlags.push(connect.cleanStart);
 }
 
-function defaultSubscribeHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function defaultSubscribeHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
     let subscribe = packet as model.SubscribePacketInternal;
 
     let suback : model.SubackPacketInternal = {
@@ -119,7 +128,7 @@ function defaultSubscribeHandler(packet : mqtt5_packet.IPacket, context: BrokerT
     responsePackets.push(suback);
 }
 
-function defaultUnsubscribeHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function defaultUnsubscribeHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
     let unsubscribe = packet as model.UnsubscribePacketInternal;
 
     let unsuback : model.UnsubackPacketInternal = {
@@ -135,7 +144,7 @@ function defaultUnsubscribeHandler(packet : mqtt5_packet.IPacket, context: Broke
     responsePackets.push(unsuback);
 }
 
-function internalPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>, reflectPublish : boolean) {
+function internalPublishHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>, reflectPublish : boolean) {
     let incomingPublish = packet as model.PublishPacketInternal;
     if (incomingPublish.qos != mqtt5_packet.QoS.ExactlyOnce) {
         if (reflectPublish) {
@@ -167,15 +176,15 @@ function internalPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTe
     }
 }
 
-function defaultPublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
-    internalPublishHandler(packet, context, responsePackets, true);
+function defaultPublishHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
+    internalPublishHandler(packet, fixture, responsePackets, true);
 }
 
-function nonReflectivePublishHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
-    internalPublishHandler(packet, context, responsePackets, false);
+function nonReflectivePublishHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
+    internalPublishHandler(packet, fixture, responsePackets, false);
 }
 
-function defaultPingreqHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function defaultPingreqHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
     let pingresp : model.PingrespPacketInternal = {
         type: mqtt5_packet.PacketType.Pingresp
     };
@@ -183,11 +192,11 @@ function defaultPingreqHandler(packet : mqtt5_packet.IPacket, context: BrokerTes
     responsePackets.push(pingresp);
 }
 
-function throwHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function throwHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
     throw new CrtError("Unexpected packet received");
 }
 
-function nullHandler(packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) {
+function nullHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) {
 }
 
 function buildDefaultHandlerSet() : PacketHandlerSet {
@@ -244,6 +253,8 @@ class ProtocolTestFixture {
     toServerPackets : Array<mqtt5_packet.IPacket> = [];
     toClientPackets : Array<mqtt5_packet.IPacket> = [];
 
+    cleanStartFlags : Array<boolean> = [];
+
     constructor(private context: BrokerTestContext, private handlers: PacketHandlerSet) {
         this.protocolState = new protocol.ProtocolState(context.protocolStateConfig);
         this.socketBuffer = new ArrayBuffer(context.socketBufferSize ?? 4096);
@@ -277,7 +288,7 @@ class ProtocolTestFixture {
             throw new CrtError("No handler for packet type");
         }
 
-        handler(packet, this.context, responsePackets);
+        handler(packet, this, responsePackets);
 
         let encodeBuffer = new ArrayBuffer(4096);
 
@@ -525,7 +536,7 @@ class ProtocolTestFixture {
                 this.onIncomingData(elapsedMillis, fromServer);
                 break;
 
-            case ProtocolStateType.Disconnected:
+            case protocol.ProtocolStateType.Disconnected:
                 break;
 
             default:
@@ -546,6 +557,8 @@ class ProtocolTestFixture {
         expect(this.protocolState.getPendingNonPublishAcks().size).toEqual(0);
         expect(this.protocolState.getPendingWriteCompletionOperations().length).toEqual(0);
     }
+
+    getContext() : BrokerTestContext { return this.context; }
 }
 
 function findNthPacketOfType(packets: Array<mqtt5_packet.IPacket>, packetType: mqtt5_packet.PacketType, n: number) : [number, mqtt5_packet.IPacket] {
@@ -674,7 +687,7 @@ describe("pendingConnackConnectionOpenedFails", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
 
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
 
         expect(() => fixture.onConnectionOpened(0)).toThrow("while not disconnected");
         expect(fixture.protocolState.getHalted()).toEqual(true);
@@ -690,7 +703,7 @@ describe("pendingConnackIllegalWriteCompletionFails", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
 
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
 
         expect(() => fixture.onWriteCompletion(0)).toThrow("no write was pending");
         expect(fixture.protocolState.getHalted()).toEqual(true);
@@ -705,7 +718,7 @@ describe("pendingConnackTimeout", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         fixture.serviceWithDrain(0);
@@ -731,7 +744,7 @@ describe("pendingConnackFailedConnack", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         expect(() => fixture.serviceRoundTrip(0)).toThrow("Connection rejected");
@@ -778,7 +791,7 @@ describe("pendingConnackConnackTooSoon", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         fixture.service(0);
@@ -800,14 +813,14 @@ describe("pendingConnackConnectionClosed", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         fixture.serviceWithDrain(0);
 
         fixture.onConnectionClosed(1);
         expect(fixture.protocolState.getHalted()).toEqual(false);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.Disconnected);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Disconnected);
 
         fixture.verifyEmpty();
     })
@@ -821,7 +834,7 @@ describe("pendingConnackIncomingGarbageData", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         fixture.serviceWithDrain(0);
@@ -905,14 +918,14 @@ function doPendingConnackIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacke
     };
 
     let handlers = buildDefaultHandlerSet();
-    handlers.set(mqtt5_packet.PacketType.Connect, (packet : mqtt5_packet.IPacket, context: BrokerTestContext, responsePackets : Array<mqtt5_packet.IPacket>) => {
+    handlers.set(mqtt5_packet.PacketType.Connect, (packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) => {
         // @ts-ignore
         responsePackets.push(packet);
     });
 
     let fixture = new ProtocolTestFixture(context, handlers);
     fixture.onConnectionOpened(0);
-    expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.PendingConnack);
+    expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
     expect(fixture.protocolState.getHalted()).toEqual(false);
 
     expect(() => fixture.serviceRoundTrip(0)).toThrow(new RegExp("packet type not valid for current state|No decoder for packet type"));
@@ -945,9 +958,9 @@ describe("connectedConnectionOpenedFails", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
 
-        fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+        fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.Connected);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         expect(() => fixture.onConnectionOpened(0)).toThrow("opened while not disconnected");
@@ -966,9 +979,9 @@ describe("connectedWriteCompletionFails", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
 
-        fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+        fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.Connected);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         expect(() => fixture.onWriteCompletion(0)).toThrow("no write was pending");
@@ -987,15 +1000,15 @@ describe("connectedTransitionToDisconnected", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
 
-        fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+        fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.Connected);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         fixture.onConnectionClosed(0);
 
         expect(fixture.protocolState.getHalted()).toEqual(false);
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.Disconnected);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Disconnected);
 
         fixture.verifyEmpty();
     })
@@ -1009,9 +1022,9 @@ describe("connectedIncomingGarbageData", () => {
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
 
-        fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+        fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-        expect(fixture.protocolState.getState()).toEqual(ProtocolStateType.Connected);
+        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
         expect(fixture.protocolState.getHalted()).toEqual(false);
 
         expect(() => fixture.onIncomingData(0, new DataView(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer))).toThrow("handleNetworkEvent() failure");
@@ -1065,7 +1078,7 @@ function doConnectedIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mo
     };
 
     let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     let badPacketView = encodePacketToBuffer(packet, mode);
 
@@ -1104,7 +1117,7 @@ function doUnknownAckPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.Pro
     };
 
     let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     let badPacketView = encodePacketToBuffer(packet, mode);
 
@@ -1156,7 +1169,7 @@ function doInvalidPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.Protoc
     };
 
     let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     let badPacketView = encodePacketToBuffer(packet, mode);
 
@@ -1222,7 +1235,7 @@ function doPingSequenceTest(mode: model.ProtocolMode, connackDelayMillis: number
     context.protocolStateConfig.pingTimeoutMillis = 10000;
 
     let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-    fixture.advanceFromDisconnected(connackDelayMillis, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(connackDelayMillis, protocol.ProtocolStateType.Connected);
 
     let currentTime = connackDelayMillis;
     let keepAliveMillis = context.protocolStateConfig.connectOptions.keepAliveIntervalSeconds * 1000;
@@ -1400,7 +1413,7 @@ function doConnectedPingPushOutTest<T>(mode: model.ProtocolMode, operationFuncti
     brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
 
     let fixture = new ProtocolTestFixture(context, brokerHandlers);
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     let baseNextPingTime = keepAliveMillis;
     expect(fixture.getNextServiceTimepoint(ackTime)).toEqual(baseNextPingTime);
@@ -1449,7 +1462,7 @@ function doPingTimeoutTest(mode: model.ProtocolMode, pingTimeoutMillis: number, 
     let keepAliveMillis = keepAliveSeconds * 1000;
 
     let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     let baseNextPingTime = keepAliveMillis;
     expect(fixture.getNextServiceTimepoint(0)).toEqual(baseNextPingTime);
@@ -1498,7 +1511,7 @@ function doConnectedNoPingsIfZeroKeepAlive(mode: model.ProtocolMode) {
     context.protocolStateConfig.pingTimeoutMillis = 10000;
 
     let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     expect(fixture.getNextServiceTimepoint(0)).toBeUndefined();
     expect(fixture.protocolState.getNextOutboundPingElapsedMillis()).toBeUndefined();
@@ -1529,7 +1542,7 @@ function doSuccessfulOperationTest<T>(mode: model.ProtocolMode, operationFunctio
     brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
 
     let fixture = new ProtocolTestFixture(context, brokerHandlers);
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     operationFunction(fixture, 0, 100, reasonCode);
 }
@@ -1579,12 +1592,12 @@ function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, of
     brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
 
     let fixture = new ProtocolTestFixture(context, brokerHandlers);
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
     let result = queueOperationFunction(fixture, 0);
     expect(result.state).toEqual(OperationResultStateType.Pending);
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
     fixture.onConnectionClosed(0);
 
@@ -1596,9 +1609,9 @@ function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, of
     }
 
     expect(result.state).toEqual(OperationResultStateType.Pending);
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
         expect(result.state).toEqual(OperationResultStateType.Failure);
@@ -1606,7 +1619,7 @@ function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, of
     } else {
         expect(operationOutcome).toEqual(InterruptedOperationOutcomeType.StayQueued);
         expect(result.state).toEqual(OperationResultStateType.Pending);
-        expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+        expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
         fixture.serviceRoundTrip(0);
 
@@ -1773,16 +1786,16 @@ function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offli
     brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
 
     let fixture = new ProtocolTestFixture(context, brokerHandlers);
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
     let result = queueOperationFunction(fixture, 0);
     expect(result.state).toEqual(OperationResultStateType.Pending);
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
     fixture.service(0);
 
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
     expect(fixture.protocolState.getCurrentOperation()).toBeDefined();
 
     fixture.onConnectionClosed(0);
@@ -1797,9 +1810,9 @@ function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offli
     }
 
     expect(result.state).toEqual(OperationResultStateType.Pending);
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
         expect(result.state).toEqual(OperationResultStateType.Failure);
@@ -1807,7 +1820,7 @@ function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offli
     } else {
         expect(operationOutcome).toEqual(InterruptedOperationOutcomeType.StayQueued);
         expect(result.state).toEqual(OperationResultStateType.Pending);
-        expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+        expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
         // packets have been set up to be split across two services by having a length > 4k and < 8k
         fixture.serviceOnceRoundTrip(0);
@@ -1929,12 +1942,12 @@ function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, o
     brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
 
     let fixture = new ProtocolTestFixture(context, brokerHandlers);
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
     let result = queueOperationFunction(fixture, 0);
     expect(result.state).toEqual(OperationResultStateType.Pending);
-    expect(fixture.protocolState.getOperationQueue(OperationQueueType.User).length).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
     fixture.service(0);
     verifyPendingFunction(fixture);
@@ -1950,7 +1963,7 @@ function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, o
 
     expect(result.state).toEqual(OperationResultStateType.Pending);
 
-    fixture.advanceFromDisconnected(0, ProtocolStateType.Connected);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     if (operationOutcome == InterruptedOperationOutcomeType.FailedOnReconnect) {
         expect(result.state).toEqual(OperationResultStateType.Failure);
@@ -2084,7 +2097,864 @@ describe("ReconnectNoSessionWhileQos1PublishPendingAckFailureTest", () => {
     })
 });
 
+function doOperationInternalValidationFailureTest<T>(queueOperationFunction: QueueOperationFunction<T>, failureVerifier: ResultVerifier<T>) {
+    let config = buildProtocolStateConfig(model.ProtocolMode.Mqtt5);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+        connackOverrides: {
+            sessionPresent: false,
+            reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+            maximumPacketSize: 6
+        }
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+
+    fixture.service(0);
+    failureVerifier(result);
+
+    fixture.verifyEmpty();
+}
+
+function verifyValidationFailure<T>(result: OperationResult<T>) {
+    expect(result.state).toEqual(OperationResultStateType.Failure);
+    expect(result.error).toBeDefined();
+    expect(result.error?.message).toMatch("outbound packet validation failed");
+}
+
+test("SubscribeInternalOutboundValidationFailure", () => {
+    doOperationInternalValidationFailureTest(queueSubscribe, verifyValidationFailure);
+});
+
+test("UnsubscribeInternalOutboundValidationFailure", () => {
+    doOperationInternalValidationFailureTest(queueUnsubscribe, verifyValidationFailure);
+});
+
+test("PublishInternalOutboundValidationFailure", () => {
+    doOperationInternalValidationFailureTest(queueQos1Publish, verifyValidationFailure);
+});
+
+function doOperationTimeoutFailureTest<T>(mode: model.ProtocolMode, queueOperationFunction: QueueOperationFunction<T>, pendingVerifier: VerifyPendingFunction) {
+    let config = buildProtocolStateConfig(mode);
+    config.connectOptions.keepAliveIntervalSeconds = 0;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nullHandler);
+    brokerHandlers.set(mqtt5_packet.PacketType.Subscribe, nullHandler);
+    brokerHandlers.set(mqtt5_packet.PacketType.Unsubscribe, nullHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+
+    fixture.serviceRoundTrip(0);
+    pendingVerifier(fixture);
+
+    for (let i = 0; i < 30; i++) {
+        let currentMillis = i * 1000;
+        fixture.service(currentMillis);
+
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+        expect(fixture.protocolState.getNextServiceTimepoint(currentMillis)).toEqual(30 * 1000);
+    }
+
+    fixture.service(30 * 1000 - 1);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+
+    fixture.service(30 * 1000);
+    expect(result.state).toEqual(OperationResultStateType.Failure);
+    expect(result.error?.toString()).toMatch("Operation timed out");
+
+    fixture.verifyEmpty();
+}
+
+function queueSubscribeWithTimeout(fixture: ProtocolTestFixture) : OperationResult<mqtt5_packet.SubackPacket> {
+    return fixture.subscribe(0, {
+        subscriptions: [
+            {
+                topicFilter: "a/b/c/hello",
+                qos: mqtt5_packet.QoS.AtMostOnce
+            }
+        ]
+    }, {
+        timeoutInMillis: 30000
+    });
+}
+
+describe("SubscribeTimeoutFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOperationTimeoutFailureTest(protocolVersionToMode(protocolVersion), queueSubscribeWithTimeout, verifyPendingAck);
+    })
+});
+
+function queueUnsubscribeWithTimeout(fixture: ProtocolTestFixture) : OperationResult<mqtt5_packet.UnsubackPacket> {
+    return fixture.unsubscribe(0, {
+        topicFilters: [ "a/b/c/hello" ]
+    }, {
+        timeoutInMillis: 30000
+    });
+}
+
+describe("UnsubscribeTimeoutFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOperationTimeoutFailureTest(protocolVersionToMode(protocolVersion), queueUnsubscribeWithTimeout, verifyPendingAck);
+    })
+});
+
+function queueQos1PublishWithTimeout(fixture: ProtocolTestFixture) : OperationResult<protocol.PublishResult> {
+    return fixture.publish(0, {
+        topicName: "a/b/c/hello",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    }, {
+        timeoutInMillis: 30000
+    });
+}
+
+describe("PublishTimeoutFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOperationTimeoutFailureTest(protocolVersionToMode(protocolVersion), queueQos1PublishWithTimeout, verifyPendingQos1PublishOperation);
+    })
+});
+
+function doOfflineSubmitTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+
+    if (shouldFail) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("did not pass offline queue policy");
+
+        fixture.verifyEmpty();
+    } else {
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+    }
+}
+
+describe("SubscribeOfflineSubmitPreserveAllSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
+    })
+});
+
+describe("SubscribeOfflineSubmitPreserveAcknowledgedSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
+    })
+});
+
+describe("SubscribeOfflineSubmitPreserveQos1Failure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
+    })
+});
+
+describe("SubscribeOfflineSubmitPreserveNothingFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
+    })
+});
+
+describe("UnsubscribeOfflineSubmitPreserveAllSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
+    })
+});
+
+describe("UnsubscribeOfflineSubmitPreserveAcknowledgedSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
+    })
+});
+
+describe("UnsubscribeOfflineSubmitPreserveQos1Failure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
+    })
+});
+
+describe("UnsubscribeOfflineSubmitPreserveNothingFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
+    })
+});
+
+describe("Qos0PublishOfflineSubmitPreserveAllSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
+    })
+});
+
+describe("Qos0PublishOfflineSubmitPreserveAcknowledgedFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
+    })
+});
+
+describe("Qos0PublishOfflineSubmitPreserveQos1Failure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
+    })
+});
+
+describe("Qos0PublishOfflineSubmitPreserveNothingFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
+    })
+});
+
+describe("Qos1PublishOfflineSubmitPreserveAllSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
+    })
+});
+
+describe("Qos1PublishOfflineSubmitPreserveAcknowledgedSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
+    })
+});
+
+describe("Qos1PublishOfflineSubmitPreserveQos1Success", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
+    })
+});
+
+describe("Qos1PublishOfflineSubmitPreserveNothingFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, true);
+    })
+});
+
+function doDisconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+
+    fixture.onConnectionClosed(0);
+
+    if (shouldFail) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        fixture.verifyEmpty();
+    } else {
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+    }
+}
+
+describe("SubscribePreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
+    })
+});
+
+describe("SubscribePreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
+    })
+});
+
+describe("SubscribePreserveQos1DisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
+    })
+});
+
+describe("SubscribePreserveNothingDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
+    })
+});
+
+describe("UnsubscribePreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
+    })
+});
+
+describe("UnsubscribePreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
+    })
+});
+
+describe("UnsubscribePreserveQos1DisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
+    })
+});
+
+describe("UnsubscribePreserveNothingDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
+    })
+});
+
+describe("Qos0PublishPreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
+    })
+});
+
+describe("Qos0PublishPreserveAcknowledgedDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
+    })
+});
+
+describe("Qos0PublishPreserveQos1DisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
+    })
+});
+
+describe("Qos0PublishPreserveNothingDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
+    })
+});
+
+describe("Qos1PublishPreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
+    })
+});
+
+describe("Qos1PublishPreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
+    })
+});
+
+describe("Qos1PublishPreserveQos1DisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
+    })
+});
+
+describe("Qos1PublishPreserveNothingDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, true);
+    })
+});
+
+function doDisconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+
+    fixture.service(0);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    expect(fixture.protocolState.getCurrentOperation()).toBeDefined();
+
+    fixture.onConnectionClosed(0);
+
+    expect(fixture.protocolState.getCurrentOperation()).toBeUndefined();
+
+    if (shouldFail) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy");
+        fixture.verifyEmpty();
+    } else {
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+    }
+}
+
+describe("CurrentOperationSubscribePreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceSubscribe, false);
+    })
+});
+
+describe("CurrentOperationSubscribePreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceSubscribe, false);
+    })
+});
+
+describe("CurrentOperationSubscribePreserveQos1OnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceSubscribe, true);
+    })
+});
+
+describe("CurrentOperationSubscribePreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceSubscribe, true);
+    })
+});
+
+describe("CurrentOperationUnsubscribePreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceUnsubscribe, false);
+    })
+});
+
+describe("CurrentOperationUnsubscribePreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceUnsubscribe, false);
+    })
+});
+
+describe("CurrentOperationUnsubscribePreserveQos1OnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceUnsubscribe, true);
+    })
+});
+
+describe("CurrentOperationUnsubscribePreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceUnsubscribe, true);
+    })
+});
+
+describe("CurrentOperationQos0PublishPreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos0Publish, false);
+    })
+});
+
+describe("CurrentOperationQos0PublishPreserveAcknowledgedDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos0Publish, true);
+    })
+});
+
+describe("CurrentOperationQos0PublishPreserveQos1OnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos0Publish, true);
+    })
+});
+
+describe("CurrentOperationQos0PublishPreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos0Publish, true);
+    })
+});
+
+describe("CurrentOperationQos1PublishPreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos1Publish, false);
+    })
+});
+
+describe("CurrentOperationQos1PublishPreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos1Publish, false);
+    })
+});
+
+describe("CurrentOperationQos1PublishPreserveQos1OnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos1Publish, false);
+    })
+});
+
+describe("CurrentOperationQos1PublishPreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos1Publish, true);
+    })
+});
+
+
+function doDisconnectWhileOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = offlineQueuePolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueOperationFunction(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+
+    fixture.service(0);
+    expect(fixture.protocolState.getPendingPublishAcks().size + fixture.protocolState.getPendingNonPublishAcks().size + fixture.protocolState.getPendingWriteCompletionOperations().length).toEqual(1);
+
+    fixture.onConnectionClosed(0);
+
+    if (shouldFail) {
+        expect(result.state).toEqual(OperationResultStateType.Failure);
+        expect(result.error?.toString()).toMatch("failed OfflineQueuePolicy check on disconnect");
+        fixture.verifyEmpty();
+    } else {
+        expect(result.state).toEqual(OperationResultStateType.Pending);
+    }
+}
+
+describe("PendingOperationSubscribePreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
+    })
+});
+
+describe("PendingOperationSubscribePreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
+    })
+});
+
+describe("PendingOperationSubscribePreserveQos1OnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
+    })
+});
+
+describe("PendingOperationSubscribePreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
+    })
+});
+
+describe("PendingOperationUnsubscribePreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
+    })
+});
+
+describe("PendingOperationUnsubscribePreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
+    })
+});
+
+describe("PendingOperationUnsubscribePreserveQos1OnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
+    })
+});
+
+describe("PendingOperationUnsubscribePreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
+    })
+});
+
+describe("PendingOperationQos0PublishPreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
+    })
+});
+
+describe("PendingOperationQos0PublishPreserveAcknowledgedDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
+    })
+});
+
+describe("PendingOperationQos0PublishPreserveQos1OnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
+    })
+});
+
+describe("PendingOperationQos0PublishPreserveNothingOnDisconnectFailure", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
+    })
+});
+
+describe("PendingOperationQos1PublishPreserveAllOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
+    })
+});
+
+describe("PendingOperationQos1PublishPreserveAcknowledgedDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
+    })
+});
+
+describe("PendingOperationQos1PublishPreserveQos1OnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
+    })
+});
+
+// doesn't fail because we have to check session resumption on reconnect before failure
+describe("PendingOperationQos1PublishPreserveNothingOnDisconnectPending", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, false);
+    })
+});
+
+function doDisconnectWhileQos1PublishPendingSetsDuplicateTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+    config.offlineQueuePolicy = protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(0);
+    let result = queueQos1Publish(fixture, 0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+
+    expect(fixture.protocolState.getOperations().size).toEqual(1);
+    let operation : protocol.ClientOperation = fixture.protocolState.getOperations().values().next().value;
+    let publishPacket = operation.packet as model.PublishPacketBinary;
+    expect(publishPacket.duplicate ?? 0).toEqual(0);
+
+    fixture.service(0);
+    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(1);
+
+    fixture.onConnectionClosed(0);
+    expect(result.state).toEqual(OperationResultStateType.Pending);
+
+    expect(publishPacket.duplicate).toEqual(1);
+}
+
+describe("PendingQos1PublishOnDisconnectSetsDuplicate", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectWhileQos1PublishPendingSetsDuplicateTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+
+function doResumeSessionPolicyTest(mode: model.ProtocolMode, resumeSessionPolicy: protocol.ResumeSessionPolicyType, expectedCleanStartFlags: Array<boolean>) {
+    let config = buildProtocolStateConfig(mode);
+    config.connectOptions.resumeSessionPolicy = resumeSessionPolicy;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+
+    for (let i = 0; i < expectedCleanStartFlags.length; i++) {
+        fixture.advanceFromDisconnected(i, protocol.ProtocolStateType.Connected);
+        fixture.onConnectionClosed(i);
+    }
+
+    expect(fixture.cleanStartFlags).toEqual(expectedCleanStartFlags);
+}
+
+describe("ResumeSessionPolicyNever", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), protocol.ResumeSessionPolicyType.Never, [true, true, true, true]);
+    })
+});
+
+describe("ResumeSessionPolicyAlways", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), protocol.ResumeSessionPolicyType.Always, [false, false, false, false]);
+    })
+});
+
+describe("ResumeSessionPolicyPostSuccess", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), protocol.ResumeSessionPolicyType.PostSuccess, [true, false, false, false]);
+    })
+});
+
+const RECEIVE_MAXIMUM_ITERATIONS : number = 10;
+
+function doReceiveMaximumBackpressureTest(receiveMaximum: number) {
+    let config = buildProtocolStateConfig(model.ProtocolMode.Mqtt5);
+    config.connectOptions.keepAliveIntervalSeconds = 0;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config,
+        connackOverrides: {
+            reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+            sessionPresent: false,
+            receiveMaximum: receiveMaximum,
+        }
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    for (let i = 0; i < RECEIVE_MAXIMUM_ITERATIONS; i++) {
+        for (let j = 0; j < receiveMaximum; j++) {
+            fixture.publish(0, {
+                topicName: "a/b",
+                qos: mqtt5_packet.QoS.AtLeastOnce
+            })
+        }
+    }
+
+    for (let i = 0; i < RECEIVE_MAXIMUM_ITERATIONS; i++) {
+        expect(fixture.protocolState.getNextServiceTimepoint(i)).toEqual(i);
+
+        let brokerData = fixture.serviceWithDrain(i);
+        expect(fixture.toServerPackets.length).toEqual(1 + (i + 1) * receiveMaximum); // include 1 connect
+        expect(fixture.protocolState.getNextServiceTimepoint(i)).toBeUndefined();
+
+        for (let j = 0; j < 4; j++) {
+            let shouldBeEmpty = fixture.serviceWithDrain(i);
+            expect(shouldBeEmpty.byteLength).toEqual(0);
+            expect(fixture.protocolState.getNextServiceTimepoint(i)).toBeUndefined();
+        }
+
+        fixture.onIncomingData(i, brokerData);
+    }
+
+    fixture.onConnectionClosed(RECEIVE_MAXIMUM_ITERATIONS);
+
+    fixture.verifyEmpty();
+}
+
+const receiveMaximumValues = [1, 2, 3, 5, 10];
+
+describe("ReceiveMaximumFlowControl", () => {
+    test.each(receiveMaximumValues)(" %p", (receiveMaximum) => {
+        doReceiveMaximumBackpressureTest(receiveMaximum);
+    })
+});
+
+const EXHAUST_ID_PACKET_COUNT : number = 66000;
+
+function doOutOfPacketIdsBackpressureTest(mode: model.ProtocolMode, queueOperationFunction: (fixture: ProtocolTestFixture, elapsed: number) => void) {
+    let config = buildProtocolStateConfig(mode);
+    config.connectOptions.keepAliveIntervalSeconds = 0;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, nonReflectivePublishHandler);
+
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    for (let i = 0; i < EXHAUST_ID_PACKET_COUNT; i++) {
+        queueOperationFunction(fixture, 0);
+    }
+
+    let iterations : number = 0;
+    let done : boolean = false;
+    while (!done) {
+
+        let responseViews: Array<DataView> = [];
+        let blocked: boolean = false;
+        while (!blocked && !done) {
+            expect(fixture.protocolState.getNextServiceTimepoint(0)).toEqual(0);
+
+            let brokerData = fixture.serviceWithDrain(0);
+
+            if (brokerData.byteLength > 0) {
+                responseViews.push(brokerData);
+            }
+
+            blocked = fixture.protocolState.getBoundPacketIds().size >= 65535;
+            done = (fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length == 0 && fixture.protocolState.getCurrentOperation() == undefined);
+        }
+
+        expect(fixture.protocolState.getNextServiceTimepoint(0)).toBeUndefined();
+        let expectEmpty = fixture.serviceWithDrain(0);
+        expect(expectEmpty.byteLength).toEqual(0);
+
+        for (let responseData of responseViews) {
+            fixture.onIncomingData(0, responseData);
+        }
+
+        iterations++;
+    }
+
+    expect(iterations > 1).toBeTruthy();
+
+    fixture.onConnectionClosed(RECEIVE_MAXIMUM_ITERATIONS);
+
+    fixture.verifyEmpty();
+}
+
+function queueBackpressureSubscribe(fixture: ProtocolTestFixture, time: number) {
+    fixture.subscribe(time, {
+        subscriptions: [
+            {
+                topicFilter: "a/b",
+                qos: mqtt5_packet.QoS.AtLeastOnce
+            }
+        ]
+    });
+}
+
+describe("UnackedSubscribesBackpressureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOutOfPacketIdsBackpressureTest(protocolVersionToMode(protocolVersion), queueBackpressureSubscribe);
+    })
+});
+
 /*
 
 
  */
+
