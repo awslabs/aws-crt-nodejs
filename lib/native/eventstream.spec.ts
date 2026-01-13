@@ -8,7 +8,6 @@ import * as cancel from '../common/cancel';
 import {once} from "events";
 import crt_native from "./binding";
 import * as os from "os";
-import {io} from "../index";
 
 jest.setTimeout(30000);
 
@@ -908,13 +907,7 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
     connection.close();
 });
 
-function sleep(millisecond: number) {
-    return new Promise((resolve) => setTimeout(resolve, millisecond));
-}
-
-test('Eventstream connection cancel - example.com, cancel after connect', async () => {
-    io.enable_logging(io.LogLevel.TRACE);
-
+conditional_test(process.platform !== 'win32')('Eventstream connection cancel - example.com, cancel after connect', async () => {
     // hangs atm
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
@@ -925,15 +918,9 @@ test('Eventstream connection cancel - example.com, cancel after connect', async 
 
     setTimeout(() => { controller.cancel(); }, 1000);
 
-    await connection.connect({
+    await expect(connection.connect({
         cancelController : controller
-    });
-    // await expect(connection.connect({
-    //     cancelController : controller
-    // })).rejects.toThrow("olol");
-
-    console.log("====================================")
-    await sleep(1000);
+    })).rejects.toThrow("cancelled");
 });
 
 test('Eventstream connection cancel - example.com, cancel before connect', async () => {
