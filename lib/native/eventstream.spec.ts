@@ -907,8 +907,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
     connection.close();
 });
 
-test('Eventstream connection cancel - example.com, cancel after connect', async () => {
-    // hangs atm
+conditional_test(process.platform !== 'win32')('Eventstream connection cancel - example.com, cancel after connect', async () => {
+    // Connection to example.com hangs atm on all platforms except Windows
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
         port: 22
@@ -924,7 +924,7 @@ test('Eventstream connection cancel - example.com, cancel after connect', async 
 });
 
 test('Eventstream connection cancel - example.com, cancel before connect', async () => {
-    // hangs atm
+    // Connection to example.com hangs atm on all platforms except Windows
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
         port: 22
