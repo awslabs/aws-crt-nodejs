@@ -254,9 +254,14 @@ class ProtocolTestFixture {
     toClientPackets : Array<mqtt5_packet.IPacket> = [];
 
     cleanStartFlags : Array<boolean> = [];
+    haltEvents : Array<protocol.HaltedEvent> = [];
 
     constructor(private context: BrokerTestContext, private handlers: PacketHandlerSet) {
         this.protocolState = new protocol.ProtocolState(context.protocolStateConfig);
+        this.protocolState.on("halted", (event) => {
+            this.haltEvents.push(event);
+        });
+
         this.socketBuffer = new ArrayBuffer(context.socketBufferSize ?? 4096);
 
         let encoder_set = encoder.buildClientEncodingFunctionSet(context.protocolStateConfig.protocolVersion);
@@ -514,6 +519,10 @@ class ProtocolTestFixture {
             type: protocol.UserEventType.Disconnect,
             context: {
                 packet: packet,
+                resultHandler: {
+                    onCompletionSuccess : ()=>{},
+                    onCompletionFailure : ()=>{}
+                }
             },
             elapsedMillis: elapsedMillis
         };
@@ -558,6 +567,46 @@ class ProtocolTestFixture {
         expect(this.protocolState.getPendingWriteCompletionOperations().length).toEqual(0);
     }
 
+    verifyHalted(type: protocol.HaltEventType, messageMatch: string) {
+        let haltState = this.protocolState.getHaltState();
+        expect(haltState).toBeDefined();
+        expect(haltState?.type).toEqual(type);
+        expect(haltState?.reason.toString()).toMatch(messageMatch);
+
+        let emittedMatchingHaltEvent : boolean = false;
+        for (let event of this.haltEvents) {
+            if (event.type == type && event.reason.toString().includes(messageMatch)) {
+                emittedMatchingHaltEvent = true;
+                break;
+            }
+        }
+
+        expect(emittedMatchingHaltEvent).toBeTruthy();
+    }
+
+    verifyHaltedByExpression(types: Array<protocol.HaltEventType>, messageMatch: RegExp) {
+        let haltState = this.protocolState.getHaltState();
+        expect(haltState).toBeDefined();
+        expect(haltState?.type).toBeDefined();
+        // @ts-ignore
+        expect(types.includes(haltState?.type)).toBeTruthy();
+        expect(haltState?.reason.toString()).toMatch(messageMatch);
+
+        let emittedMatchingHaltEvent : boolean = false;
+        for (let event of this.haltEvents) {
+            if (types.includes(event.type) && event.reason.toString().match(messageMatch)) {
+                emittedMatchingHaltEvent = true;
+                break;
+            }
+        }
+
+        expect(emittedMatchingHaltEvent).toBeTruthy();
+    }
+
+    verifyNotHalted() {
+        expect(this.protocolState.getHaltState()).toBeUndefined();
+    }
+
     getContext() : BrokerTestContext { return this.context; }
 }
 
@@ -577,26 +626,6 @@ function findNthPacketOfType(packets: Array<mqtt5_packet.IPacket>, packetType: m
 
     throw new Error("Failed to find packet");
 }
-
-/*
-function findNthPacketByPredicate(packets: Array<mqtt5_packet.IPacket>, predicate: (packet: mqtt5_packet.IPacket) => boolean, n: number) : [number, mqtt5_packet.IPacket] | undefined {
-    let currentIndex : number = 0;
-    let matches : number = 0;
-    for (let packet of packets) {
-        if (predicate(packet)) {
-            matches++;
-            if (matches == n) {
-                return [currentIndex, packet];
-            }
-        }
-
-        currentIndex++;
-    }
-
-    return undefined;
-}
-
-*/
 
 let modes = [311, 5];
 
@@ -618,18 +647,18 @@ describe("disconnectedStateFailsNetworkEvents", () => {
         };
 
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-        expect(() => fixture.onConnectionClosed(0)).toThrow("while disconnected");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.onConnectionClosed(0);
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "while disconnected");
         fixture.verifyEmpty();
 
         fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-        expect(() => fixture.onWriteCompletion(0)).toThrow("while disconnected");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.onWriteCompletion(0);
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "while disconnected");
         fixture.verifyEmpty();
 
         fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-        expect(() => { fixture.onIncomingData(0, new DataView(new Uint8Array([0, 1, 2, 3, 4, 5]).buffer)); }).toThrow("while disconnected");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.onIncomingData(0, new DataView(new Uint8Array([0, 1, 2, 3, 4, 5]).buffer));
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "while disconnected");
         fixture.verifyEmpty();
     })
 });
@@ -689,8 +718,8 @@ describe("pendingConnackConnectionOpenedFails", () => {
 
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
 
-        expect(() => fixture.onConnectionOpened(0)).toThrow("while not disconnected");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.onConnectionOpened(0);
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "while not disconnected");
     })
 });
 
@@ -705,8 +734,8 @@ describe("pendingConnackIllegalWriteCompletionFails", () => {
 
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
 
-        expect(() => fixture.onWriteCompletion(0)).toThrow("no write was pending");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.onWriteCompletion(0);
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "no write was pending");
     })
 });
 
@@ -719,12 +748,11 @@ describe("pendingConnackTimeout", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
         fixture.serviceWithDrain(0);
         fixture.service(1 + TEST_CONNECTION_ESTABLISHMENT_TIMEOUT_MS);
-        expect(fixture.protocolState.getHalted()).toEqual(true);
-        expect(fixture.protocolState.getHaltError()?.toString()).toMatch("Connack timeout");
+        fixture.verifyHalted(protocol.HaltEventType.Timeout, "Connack timeout");
 
         fixture.verifyEmpty();
     })
@@ -745,10 +773,10 @@ describe("pendingConnackFailedConnack", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
-        expect(() => fixture.serviceRoundTrip(0)).toThrow("Connection rejected");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.serviceRoundTrip(0);
+        fixture.verifyHalted(protocol.HaltEventType.Normal, "Connection rejected");
 
         let [, connackPacket] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Connack, 1);
         expect((connackPacket as mqtt5_packet.ConnackPacket).reasonCode).toEqual(reason);
@@ -792,7 +820,7 @@ describe("pendingConnackConnackTooSoon", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
         fixture.service(0);
         let encodedConnack = encodePacketToBuffer({
@@ -800,8 +828,8 @@ describe("pendingConnackConnackTooSoon", () => {
             sessionPresent: true
         } as model.ConnackPacketInternal, protocolVersionToMode(protocolVersion));
 
-        expect(() => fixture.onIncomingData(0, encodedConnack)).toThrow("packet type not valid for current state");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
+        fixture.onIncomingData(0, encodedConnack);
+        fixture.verifyHalted(protocol.HaltEventType.ProtocolError, "packet type not valid for current state");
     })
 });
 
@@ -814,12 +842,12 @@ describe("pendingConnackConnectionClosed", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
         fixture.serviceWithDrain(0);
 
         fixture.onConnectionClosed(1);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Disconnected);
 
         fixture.verifyEmpty();
@@ -835,13 +863,12 @@ describe("pendingConnackIncomingGarbageData", () => {
         let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
         fixture.onConnectionOpened(0);
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
         fixture.serviceWithDrain(0);
 
-        expect(() => fixture.onIncomingData(0, new DataView(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer))).toThrow("handleNetworkEvent() failure");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
-        expect(fixture.protocolState.getHaltError()?.toString()).toMatch("handleNetworkEvent() failure");
+        fixture.onIncomingData(0, new DataView(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer));
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "handleNetworkEvent() failure");
 
         fixture.verifyEmpty();
     })
@@ -926,13 +953,11 @@ function doPendingConnackIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacke
     let fixture = new ProtocolTestFixture(context, handlers);
     fixture.onConnectionOpened(0);
     expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-    expect(fixture.protocolState.getHalted()).toEqual(false);
+    fixture.verifyNotHalted();
 
-    expect(() => fixture.serviceRoundTrip(0)).toThrow(new RegExp("packet type not valid for current state|No decoder for packet type"));
+    fixture.serviceRoundTrip(0);
 
-    expect(fixture.protocolState.getHalted()).toEqual(true);
-    expect(fixture.protocolState.getHaltError()?.toString()).toMatch(new RegExp("packet type not valid for current state|No decoder for packet type"));
-
+    fixture.verifyHaltedByExpression([protocol.HaltEventType.ProtocolError, protocol.HaltEventType.Unknown], new RegExp("packet type not valid for current state|No decoder for packet type"));
     fixture.verifyEmpty();
 }
 
@@ -961,11 +986,10 @@ describe("connectedConnectionOpenedFails", () => {
         fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
-        expect(() => fixture.onConnectionOpened(0)).toThrow("opened while not disconnected");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
-        expect(fixture.protocolState.getHaltError()?.toString()).toMatch("opened while not disconnected");
+        fixture.onConnectionOpened(0);
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "opened while not disconnected");
 
         fixture.verifyEmpty();
     })
@@ -982,11 +1006,10 @@ describe("connectedWriteCompletionFails", () => {
         fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
-        expect(() => fixture.onWriteCompletion(0)).toThrow("no write was pending");
-        expect(fixture.protocolState.getHalted()).toEqual(true);
-        expect(fixture.protocolState.getHaltError()?.toString()).toMatch("no write was pending");
+        fixture.onWriteCompletion(0);
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "no write was pending");
 
         fixture.verifyEmpty();
     })
@@ -1003,11 +1026,11 @@ describe("connectedTransitionToDisconnected", () => {
         fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
         fixture.onConnectionClosed(0);
 
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Disconnected);
 
         fixture.verifyEmpty();
@@ -1025,12 +1048,10 @@ describe("connectedIncomingGarbageData", () => {
         fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
         expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.Connected);
-        expect(fixture.protocolState.getHalted()).toEqual(false);
+        fixture.verifyNotHalted();
 
-        expect(() => fixture.onIncomingData(0, new DataView(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer))).toThrow("handleNetworkEvent() failure");
-
-        expect(fixture.protocolState.getHalted()).toEqual(true);
-        expect(fixture.protocolState.getHaltError()?.toString()).toMatch("handleNetworkEvent() failure");
+        fixture.onIncomingData(0, new DataView(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer));
+        fixture.verifyHalted(protocol.HaltEventType.Unknown, "handleNetworkEvent() failure");
 
         fixture.verifyEmpty();
     })
@@ -1082,10 +1103,8 @@ function doConnectedIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mo
 
     let badPacketView = encodePacketToBuffer(packet, mode);
 
-    expect(() => fixture.onIncomingData(0, badPacketView)).toThrow(new RegExp("packet type not valid for current state|No decoder for packet type"));
-
-    expect(fixture.protocolState.getHalted()).toEqual(true);
-    expect(fixture.protocolState.getHaltError()?.toString()).toMatch(new RegExp("packet type not valid for current state|No decoder for packet type"));
+    fixture.onIncomingData(0, badPacketView);
+    fixture.verifyHaltedByExpression([protocol.HaltEventType.ProtocolError, protocol.HaltEventType.Unknown], new RegExp("packet type not valid for current state|No decoder for packet type"));
 
     fixture.verifyEmpty();
 }
@@ -1122,10 +1141,7 @@ function doUnknownAckPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.Pro
     let badPacketView = encodePacketToBuffer(packet, mode);
 
     fixture.onIncomingData(0, badPacketView);
-
-    expect(fixture.protocolState.getHalted()).toEqual(false);
-    expect(fixture.protocolState.getHaltError()?.toString()).toBeUndefined();
-
+    fixture.verifyNotHalted();
     fixture.verifyEmpty();
 }
 
@@ -1173,10 +1189,9 @@ function doInvalidPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.Protoc
 
     let badPacketView = encodePacketToBuffer(packet, mode);
 
-    expect(() => fixture.onIncomingData(0, badPacketView)).toThrow("not a valid packetId");
+    fixture.onIncomingData(0, badPacketView);
 
-    expect(fixture.protocolState.getHalted()).toEqual(true);
-    expect(fixture.protocolState.getHaltError()?.toString()).toMatch("not a valid packetId");
+    fixture.verifyHalted(protocol.HaltEventType.ProtocolError, "not a valid packetId");
 
     fixture.verifyEmpty();
 }
@@ -1480,12 +1495,11 @@ function doPingTimeoutTest(mode: model.ProtocolMode, pingTimeoutMillis: number, 
     fixture.service(expectedPingTimeoutMillis - 1);
     expect(fixture.protocolState.getPendingPingrespTimeoutElapsedMillis()).toEqual(expectedPingTimeoutMillis);
 
-    expect(fixture.protocolState.getHalted()).toEqual(false);
+    fixture.verifyNotHalted();
 
     fixture.service(expectedPingTimeoutMillis);
 
-    expect(fixture.protocolState.getHalted()).toEqual(true);
-    expect(fixture.protocolState.getHaltError()?.toString()).toMatch("Pingresp timeout");
+    fixture.verifyHalted(protocol.HaltEventType.Timeout, "Pingresp timeout");
 
     fixture.verifyEmpty();
 }
@@ -2953,7 +2967,117 @@ describe("UnackedSubscribesBackpressureTest", () => {
     })
 });
 
+function queueBackpressureUnsubscribe(fixture: ProtocolTestFixture, time: number) {
+    fixture.unsubscribe(time, {
+        topicFilters: [ "a/b" ]
+    });
+}
+
+describe("UnackedUnsubscribesBackpressureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOutOfPacketIdsBackpressureTest(protocolVersionToMode(protocolVersion), queueBackpressureUnsubscribe);
+    })
+});
+
+function queueBackpressurePublish(fixture: ProtocolTestFixture, time: number) {
+    fixture.publish(time, {
+        topicName: "a/b",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    });
+}
+
+describe("UnackedPublishesBackpressureTest", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doOutOfPacketIdsBackpressureTest(protocolVersionToMode(protocolVersion), queueBackpressurePublish);
+    })
+});
+
+const ACK_TEST_PUBLISH_TEST : number = 100;
+
+function doAckOrderTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+    config.connectOptions.keepAliveIntervalSeconds = 0;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    for (let i = 0; i < ACK_TEST_PUBLISH_TEST; i++) {
+        fixture.publish(0, {
+            topicName: "a/b",
+            qos: mqtt5_packet.QoS.AtLeastOnce
+        });
+    }
+
+    fixture.serviceRoundTrip(0);
+    fixture.serviceRoundTrip(0);
+    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+
+    let incomingPublishes : Array<model.PublishPacketInternal> = fixture.toClientPackets.filter((packet) => {
+        return packet.type == mqtt5_packet.PacketType.Publish;
+    }) as Array<model.PublishPacketInternal>;
+    expect(incomingPublishes.length).toEqual(ACK_TEST_PUBLISH_TEST);
+
+    let pubacks : Array<model.PubackPacketInternal> = fixture.toServerPackets.filter((packet) => {
+        return packet.type == mqtt5_packet.PacketType.Puback;
+    }) as Array<model.PubackPacketInternal>;
+
+    expect(pubacks.length).toEqual(ACK_TEST_PUBLISH_TEST);
+    for (let i = 0; i < ACK_TEST_PUBLISH_TEST; i++) {
+        expect(pubacks[i].packetId).toEqual(i + 1);
+    }
+}
+
+describe("PublishAckOrdering", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAckOrderTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
 /*
+
+function doDisconnectTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+    config.connectOptions.keepAliveIntervalSeconds = 0;
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let brokerHandlers = buildDefaultHandlerSet();
+    let fixture = new ProtocolTestFixture(context, brokerHandlers);
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    queueQos1Publish(fixture, 0);
+    queueQos0Publish(fixture, 0);
+    queueQos1Publish(fixture, 0);
+    queueMultiServiceQos1Publish(fixture, 0);
+    queueQos1Publish(fixture, 0);
+
+    fixture.serviceOnceRoundTrip(0);
+
+    // expect: 2 high priority acks, one current operation, 1 user operation
+
+    fixture.disconnect(0, {
+            reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
+        }
+    );
+
+    // expect: disconnect in front
+
+    // service
+
+    // expect: halted, disconnect is last toServerPacket, 2 high priority acks, 1 user operation
+
+    //
+}
+
+
 
 
  */

@@ -14,6 +14,7 @@ import {CrtError} from "../error";
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_shared from "../../common/mqtt_shared";
 import * as mqtt5_utils from "../mqtt5_utils";
+import {BufferedEventEmitter} from "../../common/event";
 
 export interface ResultHandler<T> {
     onCompletionSuccess : (value : T) => void;
@@ -23,8 +24,7 @@ export interface ResultHandler<T> {
 export enum ProtocolStateType {
     Disconnected,
     PendingConnack,
-    Connected,
-    PendingDisconnect
+    Connected
 }
 
 export enum NetworkEventType {
@@ -111,7 +111,8 @@ export interface UnsubscribeContext {
 }
 
 export interface DisconnectContext {
-    packet : mqtt5_packet.DisconnectPacket
+    packet : mqtt5_packet.DisconnectPacket,
+    resultHandler : ResultHandler<void>
 }
 
 export interface UserEventContext {
@@ -127,17 +128,6 @@ export interface ServiceContext {
 
 export interface ServiceResult {
     toSocket?: DataView
-}
-
-export interface IProtocolState {
-
-    handleNetworkEvent(context: NetworkEventContext) : void;
-
-    handleUserEvent(context: UserEventContext) : void;
-
-    service(context: ServiceContext) : ServiceResult;
-
-    getNextServiceTimepoint(elapsedMillis: number) : number | undefined;
 }
 
 function isUserOperationType(type: mqtt5_packet.PacketType): boolean {
@@ -276,16 +266,48 @@ function compareTimeoutRecords(lhs: OperationTimeoutRecord, rhs: OperationTimeou
     }
 }
 
+/**
+ * Classifies why the client has been halted.
+ */
+export enum HaltEventType {
+
+    /**
+     * The client has been halted due to an event not considered anomalous: user-initiated or server-initiated disconnect, rejected connection attempt, etc...
+     */
+    Normal,
+
+    /**
+     * The client has been halted due to unexpected, spec-breaking behavior from the remote broker
+     */
+    ProtocolError,
+
+    /**
+     * The client has been halted due to an unexpected internal state or exception
+     */
+    Unknown,
+
+    /**
+     * The client has been halted due to a network timeout (connack or ping)
+     */
+    Timeout
+}
+
+export interface HaltedEvent {
+    reason: CrtError,
+    type: HaltEventType
+}
+
+export type HaltedEventListener = (eventData: HaltedEvent) => void;
+
 const MAXIMUM_NUMBER_OF_PACKET_IDS : number = 65535;
 const MAXIMUM_PACKET_ID : number = 65535;
 
-export class ProtocolState implements IProtocolState {
+export class ProtocolState extends BufferedEventEmitter {
 
     private config : ProtocolStateConfig;
     private state : ProtocolStateType = ProtocolStateType.Disconnected;
 
-    private halted: boolean = false;
-    private haltError? : CrtError;
+    private haltState? : HaltedEvent;
 
     private elapsedMillis : number = 0;
 
@@ -322,6 +344,7 @@ export class ProtocolState implements IProtocolState {
     private hasSuccessfullyConnected : boolean = false;
 
     constructor(config : ProtocolStateConfig) {
+        super();
         this.config = config;
         this.encoder = new encoder.Encoder(encoder.buildClientEncodingFunctionSet(config.protocolVersion));
         this.decoder = new decoder.Decoder(decoder.buildClientDecodingFunctionSet(config.protocolVersion));
@@ -329,9 +352,11 @@ export class ProtocolState implements IProtocolState {
     }
 
     handleNetworkEvent(context: NetworkEventContext) : void {
-        this.updateElapsedMillis(context.elapsedMillis);
+        this.cork();
 
         try {
+            this.updateElapsedMillis(context.elapsedMillis);
+
             switch (context.type) {
                 case NetworkEventType.ConnectionOpened:
                     this.handleConnectionOpened(context.context as ConnectionOpenedContext);
@@ -347,49 +372,59 @@ export class ProtocolState implements IProtocolState {
                     break;
             }
         } catch (e) {
-            this.halt(new CrtError(`handleNetworkEvent() failure: ${e}`));
+            this.halt(HaltEventType.Unknown, new CrtError(`handleNetworkEvent() failure: ${e}`));
+        } finally {
+            this.uncork();
         }
-
-        this.throwIfHalted();
     }
 
     handleUserEvent(context: UserEventContext) : void {
-        this.updateElapsedMillis(context.elapsedMillis);
-        switch (context.type) {
-            case UserEventType.Publish:
-                this.handlePublish(context.context as PublishContext);
-                break;
-            case UserEventType.Subscribe:
-                this.handleSubscribe(context.context as SubscribeContext);
-                break;
-            case UserEventType.Unsubscribe:
-                this.handleUnsubscribe(context.context as UnsubscribeContext);
-                break;
-            case UserEventType.Disconnect:
-                this.handleDisconnect(context.context as DisconnectContext);
-                break;
+        this.cork();
+
+        try {
+            this.updateElapsedMillis(context.elapsedMillis);
+            switch (context.type) {
+                case UserEventType.Publish:
+                    this.handlePublish(context.context as PublishContext);
+                    break;
+                case UserEventType.Subscribe:
+                    this.handleSubscribe(context.context as SubscribeContext);
+                    break;
+                case UserEventType.Unsubscribe:
+                    this.handleUnsubscribe(context.context as UnsubscribeContext);
+                    break;
+                case UserEventType.Disconnect:
+                    this.handleDisconnect(context.context as DisconnectContext);
+                    break;
+            }
+        } finally {
+            this.uncork();
         }
     }
 
     service(context: ServiceContext) : ServiceResult {
-        this.updateElapsedMillis(context.elapsedMillis);
-        this.throwIfHalted();
+        this.cork();
 
         try {
-            switch (this.state) {
-                case ProtocolStateType.PendingConnack:
-                    return this.servicePendingConnack(context);
-                case ProtocolStateType.Connected:
-                    return this.serviceConnected(context);
-                case ProtocolStateType.PendingDisconnect:
-                    return this.servicePendingDisconnect(context);
-                default:
-                    return {};
+            this.updateElapsedMillis(context.elapsedMillis);
+            if (!this.haltState) {
+
+                switch (this.state) {
+                    case ProtocolStateType.PendingConnack:
+                        return this.servicePendingConnack(context);
+                    case ProtocolStateType.Connected:
+                        return this.serviceConnected(context);
+                    default:
+                        break;
+                }
             }
         } catch (e) {
-            this.halt(new CrtError(`service() failure: ${e}`));
-            throw this.haltError;
+            this.halt(HaltEventType.Unknown, new CrtError(`service() failure: ${e}`));
+        } finally {
+            this.uncork();
         }
+
+        return {};
     }
 
     getNextServiceTimepoint(elapsedMillis: number) : number | undefined {
@@ -400,8 +435,6 @@ export class ProtocolState implements IProtocolState {
                 return this.getNextServiceTimepointPendingConnack();
             case ProtocolStateType.Connected:
                 return this.getNextServiceTimepointConnected();
-            case ProtocolStateType.PendingDisconnect:
-                return this.getNextServiceTimepointPendingDisconnect();
             default:
                 return undefined;
         }
@@ -409,8 +442,7 @@ export class ProtocolState implements IProtocolState {
 
     /* Test accessors */
     getState() : ProtocolStateType { return this.state; }
-    getHalted() : boolean { return this.halted; }
-    getHaltError() : CrtError | undefined { return this.haltError; }
+    getHaltState() : HaltedEvent | undefined { return this.haltState; }
     getPendingConnackTimeoutElapsedMillis() : number | undefined { return this.pendingConnackTimeoutElapsedMillis; }
     getNextOutboundPingElapsedMillis() : number | undefined { return this.nextOutboundPingElapsedMillis; }
     getPendingPingrespTimeoutElapsedMillis() : number | undefined { return this.pendingPingrespTimeoutElapsedMillis; }
@@ -446,6 +478,30 @@ export class ProtocolState implements IProtocolState {
 
     getPendingPublishAcks() : Map<number, number> { return this.pendingPublishAcks; }
     getPendingNonPublishAcks() : Map<number, number> { return this.pendingNonPublishAcks; }
+
+    /**
+     * Event emitted when the o object becomes halted.
+     *
+     * Listener type: {@link HaltedEventListener}
+     *
+     * @event
+     */
+    static HALTED : string = 'halted';
+
+    /**
+     * Registers a listener for the client's {@link MESSAGE_RECEIVED messageReceived} event.  A
+     * {@link MESSAGE_RECEIVED messageReceived} event is emitted when an MQTT PUBLISH packet is received by the
+     * client.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'halted', listener: HaltedEventListener): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
+    }
 
     /* Internal Impl */
     private resetNextPing() {
@@ -531,10 +587,6 @@ export class ProtocolState implements IProtocolState {
         serviceTime = foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
 
         return serviceTime;
-    }
-
-    private getNextServiceTimepointPendingDisconnect() : number | undefined {
-        return this.getQueueServiceTimepoint(ServiceQueueType.HighPriorityOnly);
     }
 
     private getQueueServiceTimepoint(serviceQueueType : ServiceQueueType) : number | undefined {
@@ -646,7 +698,7 @@ export class ProtocolState implements IProtocolState {
         return this.operations.get(id);
     }
 
-    private onOperationProcessed(operation: ClientOperation) {
+    private onOperationProcessed(operation: ClientOperation) : boolean {
         operation.numAttempts++;
         this.pendingFlushOperations.push(operation.id);
 
@@ -670,7 +722,7 @@ export class ProtocolState implements IProtocolState {
                     let subscribeOptions = operation.options as SubscribeOptionsInternal;
                     timeoutMillis = subscribeOptions.options.timeoutInMillis;
                 } else {
-                    this.halt(new CrtError("Packet id not set for outbound subscribe"));
+                    this.halt(HaltEventType.Unknown, new CrtError("Packet id not set for outbound subscribe"));
                 }
                 break;
 
@@ -680,8 +732,13 @@ export class ProtocolState implements IProtocolState {
                     let unsubscribeOptions = operation.options as UnsubscribeOptionsInternal;
                     timeoutMillis = unsubscribeOptions.options.timeoutInMillis;
                 } else {
-                    this.halt(new CrtError("Packet id not set for outbound unsubscribe"));
+                    this.halt(HaltEventType.Unknown, new CrtError("Packet id not set for outbound unsubscribe"));
                 }
+                break;
+
+            case mqtt5_packet.PacketType.Disconnect:
+                this.pendingWriteCompletionOperations.push(operation.id);
+                this.halt(HaltEventType.Normal, new CrtError("User-initiated disconnect"));
                 break;
 
             default:
@@ -695,6 +752,8 @@ export class ProtocolState implements IProtocolState {
                 timeoutElapsedMillis: this.elapsedMillis + timeoutMillis
             });
         }
+
+        return this.haltState != undefined;
     }
 
     private operationNeedsPacketBinding(id: number) : boolean {
@@ -811,7 +870,7 @@ export class ProtocolState implements IProtocolState {
                     done = true;
                 } else {
                     this.currentOperation = undefined;
-                    this.onOperationProcessed(currentOperation);
+                    done = this.onOperationProcessed(currentOperation);
                 }
 
                 remainingView = encodeResult.nextView;
@@ -831,7 +890,7 @@ export class ProtocolState implements IProtocolState {
     {
         if (this.pendingConnackTimeoutElapsedMillis != undefined) {
             if (this.elapsedMillis >= this.pendingConnackTimeoutElapsedMillis) {
-                this.halt(new CrtError("Connack timeout"));
+                this.halt(HaltEventType.Timeout, new CrtError("Connack timeout"));
                 return {};
             }
         }
@@ -849,7 +908,7 @@ export class ProtocolState implements IProtocolState {
                 let pingreq : model.PingreqPacketBinary = {
                     type: mqtt5_packet.PacketType.Pingreq
                 };
-                this.submitOperationHighPriority(model.convertInternalPacketToBinary(pingreq));
+                this.submitOperationHighPriority(model.convertInternalPacketToBinary(pingreq), QueueEndType.Front);
 
                 this.pushOutNextPing(this.elapsedMillis);
                 let timeoutMillis = foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
@@ -859,7 +918,7 @@ export class ProtocolState implements IProtocolState {
 
         if (this.pendingPingrespTimeoutElapsedMillis) {
             if (this.elapsedMillis >= this.pendingPingrespTimeoutElapsedMillis) {
-                this.halt(new CrtError("Pingresp timeout"));
+                this.halt(HaltEventType.Timeout, new CrtError("Pingresp timeout"));
             }
         }
     }
@@ -887,11 +946,6 @@ export class ProtocolState implements IProtocolState {
         this.serviceOperationTimeouts();
 
         return this.serviceOutboundOperations(ServiceQueueType.All, context.socketBuffer);
-    }
-
-    private servicePendingDisconnect(context: ServiceContext) : ServiceResult
-    {
-        return this.serviceOutboundOperations(ServiceQueueType.HighPriorityOnly, context.socketBuffer);
     }
 
     private updateElapsedMillis(elapsedMillis: number) : void {
@@ -929,13 +983,13 @@ export class ProtocolState implements IProtocolState {
     private createDefaultResultHandler() : ResultHandler<void> {
         return {
             onCompletionSuccess: () => {},
-            onCompletionFailure: (error: CrtError) => { this.halt(error); }
+            onCompletionFailure: (error: CrtError) => { this.halt(HaltEventType.Unknown, error); }
         };
     }
 
-    private submitOperationHighPriority(packet : model.IPacketBinary, resultHandler: ResultHandler<void> = this.createDefaultResultHandler()) {
+    private submitOperationHighPriority(packet : model.IPacketBinary, queueEnd: QueueEndType, resultHandler: ResultHandler<void> = this.createDefaultResultHandler()) {
         if (packet.type == undefined) {
-            this.halt(new CrtError("Packet type not set"));
+            this.halt(HaltEventType.Unknown, new CrtError("Packet type not set"));
             return;
         }
 
@@ -949,7 +1003,7 @@ export class ProtocolState implements IProtocolState {
             numAttempts: 0,
         };
 
-        this.submitOperation(operation, undefined, OperationQueueType.HighPriority, QueueEndType.Front);
+        this.submitOperation(operation, undefined, OperationQueueType.HighPriority, queueEnd);
     }
 
     private handlePublish(context: PublishContext) : void {
@@ -994,28 +1048,15 @@ export class ProtocolState implements IProtocolState {
             return;
         }
 
-        let options : GenericOptionsInternal = {
-            resultHandler: {
-                onCompletionSuccess: () => {
-                    this.halt(new CrtError("User-initiated disconnect complete"));
-                },
-                onCompletionFailure: (error: CrtError) => {
-                    this.halt(error);
-                }
-            }
-        };
-
         let operation = {
             type: mqtt5_packet.PacketType.Disconnect,
             id: this.nextOperationId++,
             packet: model.convertDisconnectPacketToBinary(context.packet),
-            options: options,
             numAttempts: 0,
         };
 
         // disconnects go to the front of the high priority queue
         this.submitOperation(operation, context.packet, OperationQueueType.HighPriority, QueueEndType.Front);
-        this.changeState(ProtocolStateType.PendingDisconnect);
     }
 
     private handleConnectionOpened(context: ConnectionOpenedContext) : void {
@@ -1023,8 +1064,7 @@ export class ProtocolState implements IProtocolState {
             throw new CrtError("Connection opened while not disconnected");
         }
 
-        this.halted = false;
-        this.haltError = undefined;
+        this.haltState = undefined;
 
         this.changeState(ProtocolStateType.PendingConnack);
         this.encoder.reset();
@@ -1040,7 +1080,7 @@ export class ProtocolState implements IProtocolState {
             onCompletionFailure: (error: CrtError) => { this.connectInTransit = false }
         };
 
-        this.submitOperationHighPriority(model.convertInternalPacketToBinary(connect), onConnectComplete);
+        this.submitOperationHighPriority(model.convertInternalPacketToBinary(connect), QueueEndType.Front, onConnectComplete);
     }
 
     private handleConnectionClosed() : void {
@@ -1101,7 +1141,6 @@ export class ProtocolState implements IProtocolState {
     private isReceivedPacketTypeValidForState(type: mqtt5_packet.PacketType | undefined) : boolean {
         switch(this.state) {
             case ProtocolStateType.Connected:
-            case ProtocolStateType.PendingDisconnect:
                 if (type == mqtt5_packet.PacketType.Publish ||
                        type == mqtt5_packet.PacketType.Puback ||
                        type == mqtt5_packet.PacketType.Suback ||
@@ -1128,12 +1167,12 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handleIncomingData(context: NetworkEventContext) : void {
-        if (this.halted) {
+        if (this.haltState) {
             return;
         }
 
         if (this.state == ProtocolStateType.Disconnected) {
-            this.halt(new CrtError("Data received while disconnected"));
+            this.halt(HaltEventType.Unknown, new CrtError("Data received while disconnected"));
             return;
         }
 
@@ -1141,14 +1180,14 @@ export class ProtocolState implements IProtocolState {
         context.decodedPackets = this.decoder.decode(incomingDataContext.data);
         for (let packet of context.decodedPackets) {
             if (!this.isReceivedPacketTypeValidForState(packet.type)) {
-                this.halt(new CrtError("Received packet type not valid for current state"));
+                this.halt(HaltEventType.ProtocolError, new CrtError("Received packet type not valid for current state"));
                 return;
             }
 
             try {
                 validate.validateInboundPacket(packet, this.config.protocolVersion);
             } catch (e) {
-                this.halt(e as CrtError);
+                this.halt(HaltEventType.ProtocolError, e as CrtError);
                 continue;
             }
 
@@ -1193,7 +1232,7 @@ export class ProtocolState implements IProtocolState {
 
     private handleIncomingConnack(packet: model.ConnackPacketInternal) : void {
         if (this.state != ProtocolStateType.PendingConnack) {
-            this.halt(new CrtError("Connack received while not in PendingConnack state"));
+            this.halt(HaltEventType.ProtocolError, new CrtError("Connack received while not in PendingConnack state"));
             return;
         }
 
@@ -1207,14 +1246,14 @@ export class ProtocolState implements IProtocolState {
             this.resetNextPing();
             this.applySessionState(packet.sessionPresent);
         } else {
-            this.halt(new CrtError(`Connection rejected with reason code ${packet.reasonCode}`));
+            this.halt(HaltEventType.Normal, new CrtError(`Connection rejected with reason code ${packet.reasonCode}`));
         }
     }
 
     private handleIncomingPublish(packet: model.PublishPacketInternal) : void {
         if (packet.qos == mqtt5_packet.QoS.AtLeastOnce) {
-            if (packet.packetId == undefined) {
-                this.halt(new CrtError("QoS 1 publish received without packet id"));
+            if (!packet.packetId) {
+                this.halt(HaltEventType.ProtocolError, new CrtError("QoS 1 publish received with illegal packet id"));
                 return;
             }
 
@@ -1224,7 +1263,7 @@ export class ProtocolState implements IProtocolState {
                 reasonCode: mqtt5_packet.PubackReasonCode.Success
             };
 
-            this.submitOperationHighPriority(puback);
+            this.submitOperationHighPriority(puback, QueueEndType.Back);
         }
     }
 
@@ -1287,7 +1326,7 @@ export class ProtocolState implements IProtocolState {
 
     private handleIncomingDisconnect(packet: model.DisconnectPacketInternal) : void {
         // TODO: impl
-        this.halt(new CrtError("Server-side disconnect"));
+        this.halt(HaltEventType.Normal, new CrtError("Server-side disconnect"));
     }
 
     private handleIncomingPingresp() : void {
@@ -1295,17 +1334,17 @@ export class ProtocolState implements IProtocolState {
     }
 
     private handleWriteCompletion() : void {
-        if (this.halted) {
+        if (this.haltState) {
             return;
         }
 
         if (this.state == ProtocolStateType.Disconnected) {
-            this.halt(new CrtError("Received write completion while disconnected"));
+            this.halt(HaltEventType.Unknown, new CrtError("Received write completion while disconnected"));
             return;
         }
 
         if (!this.pendingWriteCompletion) {
-            this.halt(new CrtError("Received write completion while no write was pending"));
+            this.halt(HaltEventType.Unknown, new CrtError("Received write completion while no write was pending"));
             return;
         }
 
@@ -1392,19 +1431,18 @@ export class ProtocolState implements IProtocolState {
         return connect_packet;
     }
 
-    private halt(error: CrtError) {
-        if (this.halted) {
+    private halt(type: HaltEventType, error: CrtError) {
+        if (this.haltState) {
             return;
         }
 
-        this.halted = true;
-        this.haltError = error;
-    }
+        this.haltState = {
+            type: type,
+            reason: error
+        };
 
-    private throwIfHalted() {
-        if (this.halted) {
-            throw this.haltError;
-        }
+        // TODO: potentially defer this in order to prevent recursive invocations
+        this.emit(ProtocolState.HALTED, this.haltState);
     }
 
     private requeueCurrentOperation() {
