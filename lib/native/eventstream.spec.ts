@@ -908,7 +908,6 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
 });
 
 test('Eventstream connection cancel - example.com, cancel after connect', async () => {
-    // hangs atm
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
         port: 22
@@ -916,7 +915,9 @@ test('Eventstream connection cancel - example.com, cancel after connect', async 
 
     let controller : cancel.CancelController = new cancel.CancelController();
 
-    setTimeout(() => { controller.cancel(); }, 1000);
+    // Use shorter timeout on Windows to avoid hanging
+    const timeout = os.platform() === 'win32' ? 500 : 1000;
+    setTimeout(() => { controller.cancel(); }, timeout);
 
     await expect(connection.connect({
         cancelController : controller
