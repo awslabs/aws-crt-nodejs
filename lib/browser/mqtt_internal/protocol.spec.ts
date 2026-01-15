@@ -3040,28 +3040,51 @@ describe("PublishAckOrdering", () => {
 });
 
 /*
+ * Reflects first N publishes, then ignores the rest, not even sending a puback (so they stay pending ack)
+ */
+function createReflectOrIgnorePublishHandler(reflectCount: number) : PacketHandlerType {
+    let count : number = 0;
+    return (packet : mqtt5_packet.IPacket, fixture: ProtocolTestFixture, responsePackets : Array<mqtt5_packet.IPacket>) => {
+        if (count < reflectCount) {
+            count++;
+            defaultPublishHandler(packet, fixture, responsePackets);
+        }
+    };
+}
 
 function doDisconnectTest(mode: model.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.keepAliveIntervalSeconds = 0;
 
     let context : BrokerTestContext = {
-        protocolStateConfig: config
+        protocolStateConfig: config,
+        connackOverrides : {
+            sessionPresent: true,
+            reasonCode: mqtt5_packet.ConnectReasonCode.Success
+        }
     };
 
     let brokerHandlers = buildDefaultHandlerSet();
+    brokerHandlers.set(mqtt5_packet.PacketType.Publish, createReflectOrIgnorePublishHandler(2));
+
     let fixture = new ProtocolTestFixture(context, brokerHandlers);
     fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
 
     queueQos1Publish(fixture, 0);
-    queueQos0Publish(fixture, 0);
+    queueQos1Publish(fixture, 0);
+    queueQos1Publish(fixture, 0);
     queueQos1Publish(fixture, 0);
     queueMultiServiceQos1Publish(fixture, 0);
     queueQos1Publish(fixture, 0);
 
     fixture.serviceOnceRoundTrip(0);
 
-    // expect: 2 high priority acks, one current operation, 1 user operation
+    // we only react to the first two publishes so that some stay in pending ack state
+    // expect: 2 high priority acks, one current operation, 1 user operation, 2 pending publish acks
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(2);
+    expect(fixture.protocolState.getCurrentOperation()).toBeDefined();
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
+    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(2);
 
     fixture.disconnect(0, {
             reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
@@ -3069,16 +3092,48 @@ function doDisconnectTest(mode: model.ProtocolMode) {
     );
 
     // expect: disconnect in front
+    let highPriorityQueue = fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority);
+    expect(highPriorityQueue.length).toEqual(3);
+    let frontOperationId = highPriorityQueue.shift() as number;
+    highPriorityQueue.unshift(frontOperationId); // put it back
+    let operation = fixture.protocolState.getOperations().get(frontOperationId);
+    expect(operation).toBeDefined();
+    expect(operation?.type).toEqual(mqtt5_packet.PacketType.Disconnect);
 
     // service
+    fixture.serviceOnceRoundTrip(0);
 
     // expect: halted, disconnect is last toServerPacket, 2 high priority acks, 1 user operation
+    fixture.verifyHalted(protocol.HaltEventType.Normal, "User-initiated");
+    let lastPacket = fixture.toServerPackets[fixture.toServerPackets.length - 1];
+    expect(lastPacket.type).toEqual(mqtt5_packet.PacketType.Disconnect);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(2);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
-    //
+    // reconnect with session
+    fixture.onConnectionClosed(0);
+
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+    fixture.verifyNotHalted();
+
+    // expect the two pending acks plus the in-progress publish are now in the resubmit queue in packet id order
+    let resubmitQueue = fixture.protocolState.getOperationQueue(protocol.OperationQueueType.Resubmit);
+    expect(resubmitQueue.length).toEqual(3);
+    let firstOperationId = resubmitQueue.shift() as number;
+    let secondOperationId = resubmitQueue.shift() as number;
+    let thirdOperationId = resubmitQueue.shift() as number;
+    expect(firstOperationId < secondOperationId).toBeTruthy();
+    expect(secondOperationId < thirdOperationId).toBeTruthy();
+
+    resubmitQueue.unshift(thirdOperationId);
+    resubmitQueue.unshift(secondOperationId);
+    resubmitQueue.unshift(firstOperationId);
 }
 
+describe("MixedDisconnect", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doDisconnectTest(protocolVersionToMode(protocolVersion));
+    })
+});
 
-
-
- */
 
