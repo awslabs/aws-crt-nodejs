@@ -205,7 +205,7 @@ function addParam(paramName: string, paramValue: string | undefined, paramSet: [
  *
  * @internal
  */
-export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig, appendMetrics: boolean = false): string {
+export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig): string {
 
     let path : string = "";
     let paramList : [string, string][] = [];
@@ -242,10 +242,8 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
         }
     }
 
-    if (appendMetrics) {
-        paramList.push(["SDK", "IoTDeviceSDK/JS"]);
-        paramList.push(["Version", platform.crt_version()]);
-    }
+    paramList.push(["SDK", "IoTDeviceSDK/JS"]);
+    paramList.push(["Version", platform.crt_version()]);
 
     return (path ?? "") + "?" + paramList.map((value : [string, string]) => `${value[0]}=${value[1]}`).join("&");
 }

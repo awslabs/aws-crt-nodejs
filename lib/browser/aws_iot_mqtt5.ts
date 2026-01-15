@@ -235,7 +235,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
     build() : mqtt5.Mqtt5ClientConfig {
         // this is always set by the constructor, but check it to make typescript happy
         if (this.config.connectProperties) {
-            this.config.connectProperties.username = iot_shared.buildMqtt5FinalUsername(this.customAuthConfig, true);
+            this.config.connectProperties.username = iot_shared.buildMqtt5FinalUsername(this.customAuthConfig);
             if (this.customAuthConfig?.password) {
                 this.config.connectProperties.password = this.customAuthConfig?.password;
             }
