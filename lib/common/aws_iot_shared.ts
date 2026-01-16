@@ -201,10 +201,11 @@ function addParam(paramName: string, paramValue: string | undefined, paramSet: [
  * and SDK metrics properties.
  *
  * @param customAuthConfig intended AWS IoT custom auth client configuration
+ * @param appendMetrics manually append SDK metrics, set to true while we build username for browser.
  *
  * @internal
  */
-export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig) : string {
+export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig): string {
 
     let path : string = "";
     let paramList : [string, string][] = [];
@@ -241,7 +242,7 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
         }
     }
 
-    paramList.push(["SDK", "NodeJSv2"]);
+    paramList.push(["SDK", "IoTDeviceSDK/JS"]);
     paramList.push(["Version", platform.crt_version()]);
 
     return (path ?? "") + "?" + paramList.map((value : [string, string]) => `${value[0]}=${value[1]}`).join("&");

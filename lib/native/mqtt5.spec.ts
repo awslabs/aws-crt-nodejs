@@ -45,12 +45,15 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
             HttpProxyConnectionType.Tunneling);
     }
 
+    let enableMetrics = test_utils.ClientEnvironmentalConfig.isTestBasicAuth(testType) == false
+
     return {
         hostName: "unknown",
         port: 0,
         tlsCtx: tlsCtx,
         httpProxyOptions: proxyOptions,
-        websocketHandshakeTransform: wsTransform
+        websocketHandshakeTransform: wsTransform,
+        enableMetrics: enableMetrics
     };
 }
 

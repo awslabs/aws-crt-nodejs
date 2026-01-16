@@ -328,12 +328,12 @@ export class AwsIotMqttConnectionConfigBuilder {
 
         // Add the metrics string
         if (this.params.username == undefined || this.params.username == null || this.params.username == "") {
-            this.params.username = "?SDK=NodeJSv2&Version="
+            this.params.username = "?SDK=IoTDeviceSDK/JS&Version="
         } else {
             if (this.params.username.indexOf("?") != -1) {
-                this.params.username += "&SDK=NodeJSv2&Version="
+                this.params.username += "&SDK=IoTDeviceSDK/JS&Version="
             } else {
-                this.params.username += "?SDK=NodeJSv2&Version="
+                this.params.username += "?SDK=IoTDeviceSDK/JS&Version="
             }
         }
         this.params.username += platform.crt_version()

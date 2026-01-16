@@ -11,6 +11,7 @@
 #include <aws/http/proxy.h>
 #include <aws/io/socket.h>
 #include <aws/io/tls_channel_handler.h>
+#include <aws/mqtt/mqtt.h>
 #include <aws/mqtt/v5/mqtt5_client.h>
 #include <aws/mqtt/v5/mqtt5_packet_storage.h>
 #include <aws/mqtt/v5/mqtt5_types.h>
@@ -2103,7 +2104,7 @@ static void s_init_default_mqtt5_client_options(
 
 napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
-    napi_value node_args[12];
+    napi_value node_args[13];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
@@ -2112,7 +2113,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     });
 
     if (num_args != AWS_ARRAY_SIZE(node_args)) {
-        napi_throw_error(env, NULL, "mqtt5_client_new - needs exactly 12 arguments");
+        napi_throw_error(env, NULL, "mqtt5_client_new - needs exactly 13 arguments");
         return NULL;
     }
 
@@ -2144,6 +2145,12 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
+
+    struct aws_mqtt_iot_sdk_metrics metrics;
+    AWS_ZERO_STRUCT(metrics);
+
+    struct aws_byte_buf libraryName;
+    AWS_ZERO_STRUCT(libraryName);
 
     s_init_default_mqtt5_client_options(&client_options, &connect_options);
 
@@ -2328,6 +2335,24 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
         client_options.http_proxy_options = aws_napi_get_http_proxy_options(proxy_binding);
     }
 
+    // Set metrics
+    napi_value node_metrics = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_metrics)) {
+        napi_value node_libraryName = NULL;
+        AWS_NAPI_CALL(env, napi_get_named_property(env, node_metrics, "libraryName", &node_libraryName), {
+            napi_throw_type_error(env, NULL, "SDK Metrics must contain a libraryName string");
+            goto cleanup;
+        });
+
+        AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&libraryName, env, node_libraryName), {
+            aws_napi_throw_last_error(env);
+            goto cleanup;
+        });
+
+        metrics.library_name = aws_byte_cursor_from_buf(&libraryName);
+        client_options.metrics = &metrics;
+    }
+
     client_options.publish_received_handler = s_on_publish_received;
     client_options.publish_received_handler_user_data = binding;
 
@@ -2362,6 +2387,7 @@ post_ref_error:
 cleanup:
 
     s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
+    aws_byte_buf_clean_up(&libraryName);
 
     return napi_client_wrapper;
 }
