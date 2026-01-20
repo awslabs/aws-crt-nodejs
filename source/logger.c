@@ -258,6 +258,21 @@ void s_threadsafe_log_create(struct aws_napi_logger_ctx *ctx, napi_env env) {
     napi_value node_rawdebug = NULL;
     AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_process, "_rawDebug", &node_rawdebug));
 
+    napi_valuetype rawdebug_type;
+    AWS_NAPI_ENSURE(env, napi_typeof(env, node_rawdebug, &rawdebug_type));
+
+    /* process._rawDebug is specific to NodeJS and may not exist in
+       other environments like Deno, fall back to console.error */
+    if (rawdebug_type == napi_undefined) {
+        napi_value node_console = NULL;
+        AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_global, "console", &node_console));
+
+        napi_value node_error = NULL;
+        AWS_NAPI_ENSURE(env, napi_get_named_property(env, node_console, "error", &node_error));
+
+        node_rawdebug = node_error;
+    }
+
     napi_value resource_name = NULL;
     AWS_NAPI_ENSURE(env, napi_create_string_utf8(env, "aws_logger", 10, &resource_name));
 
