@@ -1537,7 +1537,7 @@ export class ProtocolState extends BufferedEventEmitter {
         queue.sort((lhs, rhs) => {
             if (lhs < rhs) {
                 return -1;
-            } else if (lhs < rhs) {
+            } else if (lhs > rhs) {
                 return 1;
             }
 
