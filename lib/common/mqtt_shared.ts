@@ -149,3 +149,4 @@ export function isValidTopic(topic: any) : boolean {
     let properties = computeTopicProperties(topic as string, false);
     return properties.isValid;
 }
+
