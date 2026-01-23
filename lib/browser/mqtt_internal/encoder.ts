@@ -172,10 +172,10 @@ function encodePublishPacket311(steps: Array<EncodingStep>, packet: model.Publis
     encodeLengthPrefixedArrayBuffer(steps, packet.topicName);
 
     if (packet.qos > 0) {
-        if (packet.packetId) {
+        if (packet.packetId != undefined) {
             steps.push({type: EncodingStepType.U16, value: packet.packetId});
         } else {
-            throw new CrtError("Publish(311) packet with non-zero qos and invalid or missing packet id");
+            throw new CrtError("Publish(311) packet with non-zero qos and missing packet id");
         }
     }
 
@@ -580,10 +580,10 @@ function encodePublishPacket5(steps: Array<EncodingStep>, packet: model.PublishP
     encodeRequiredLengthPrefixedArrayBuffer(steps, packet.topicName);
 
     if (packet.qos > 0) {
-        if (packet.packetId) {
+        if (packet.packetId != undefined) {
             steps.push({type: EncodingStepType.U16, value: packet.packetId});
         } else {
-            throw new CrtError("Publish(5) packet with non-zero qos and invalid or missing packet id");
+            throw new CrtError("Publish(5) packet with non-zero qos and missing packet id");
         }
     }
 
