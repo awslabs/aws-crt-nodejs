@@ -62,6 +62,17 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 
 
+/** 
+ * IoT Device SDK Metrics Structure 
+ * @internal
+*/
+export class AwsIoTDeviceSDKMetrics {
+    /**
+     * Name of the library
+     */
+    libraryName: string = "IoTDeviceSDK/JS";
+}
+
 function isValidTopicInternal(topic: string, isFilter: boolean) : boolean {
     if (topic.length === 0 || topic.length > 65535) {
         return false;

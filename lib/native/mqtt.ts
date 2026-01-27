@@ -217,6 +217,12 @@ export interface MqttConnectionConfig {
     /** Optional proxy options */
     proxy_options?: HttpProxyOptions;
 
+    /** Optional enable Aws IoT SDK Metrics 
+     * 
+     * @group Node-only
+     */
+    enable_metrics?: boolean;
+
     /**
      * Optional function to transform websocket handshake request.
      * If provided, function is called each time a websocket connection is attempted.
@@ -321,6 +327,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             config.websocket_handshake_transform,
             min_sec,
             max_sec,
+            config.enable_metrics == false ? undefined : new crt.AwsIoTDeviceSDKMetrics()
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));

@@ -146,7 +146,7 @@ export class ClientEnvironmentalConfig {
         return 0;
     }
 
-    private static isTestBasicAuth(testType: SuccessfulConnectionTestType) : boolean {
+    public static isTestBasicAuth(testType: SuccessfulConnectionTestType) : boolean {
         if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_BASIC_AUTH ||
             testType == SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH) {
             return true;
