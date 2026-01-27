@@ -4,11 +4,14 @@
  */
 
 import * as mqtt5_packet from '../../common/mqtt5_packet';
+import * as mqtt from "./mod";
 import * as model from "./model";
+import * as client from "./client";
 import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as heap from "./heap";
 import * as validate from "./validate";
+import * as utils from "./utils";
 import {CrtError} from "../error";
 
 import * as mqtt5 from "../mqtt5";
@@ -35,7 +38,7 @@ export enum NetworkEventType {
 }
 
 export interface ConnectionOpenedContext {
-    establishmentTimeout: number
+    establishmentTimeoutMillis: number
 }
 
 export interface IncomingDataContext {
@@ -56,23 +59,9 @@ export enum UserEventType {
     Disconnect
 }
 
-export interface PublishOptions {
-    timeoutInMillis? : number
-}
-
-export enum PublishResultType {
-    Qos0,
-    Qos1,
-}
-
-export interface PublishResult {
-    type: PublishResultType,
-    packet?: mqtt5_packet.PubackPacket,
-}
-
 export interface PublishOptionsInternal {
-    options: PublishOptions,
-    resultHandler : ResultHandler<PublishResult>
+    options: mqtt.PublishOptions,
+    resultHandler : ResultHandler<mqtt.PublishResult>
 }
 
 export interface PublishContext {
@@ -80,12 +69,8 @@ export interface PublishContext {
     options : PublishOptionsInternal
 }
 
-export interface SubscribeOptions {
-    timeoutInMillis? : number
-}
-
 export interface SubscribeOptionsInternal {
-    options: SubscribeOptions,
+    options: mqtt.SubscribeOptions,
     resultHandler : ResultHandler<mqtt5_packet.SubackPacket>
 }
 
@@ -94,16 +79,12 @@ export interface SubscribeContext {
     options : SubscribeOptionsInternal
 }
 
-export interface UnsubscribeOptions {
-    timeoutInMillis? : number
-}
-
 export interface UnsubscribeOptionsInternal {
-    options: UnsubscribeOptions,
+    options: mqtt.UnsubscribeOptions,
     resultHandler : ResultHandler<mqtt5_packet.UnsubackPacket>
 }
 
-type OperationResultType = PublishResult | mqtt5_packet.SubackPacket | mqtt5_packet.UnsubackPacket | undefined;
+type OperationResultType = mqtt.PublishResult | mqtt5_packet.SubackPacket | mqtt5_packet.UnsubackPacket | undefined;
 
 export interface UnsubscribeContext {
     packet : mqtt5_packet.UnsubscribePacket,
@@ -166,71 +147,10 @@ export interface ClientOperation {
     numAttempts: number,
 }
 
-/**
- * Controls how the client will attempt to use MQTT sessions.
- */
-export enum ResumeSessionPolicyType {
-
-    /** User clean start true until a successful connection is established.  Afterwards, always attempt to rejoin a session */
-    PostSuccess = 0,
-
-    /** Never rejoin a session.  Clean start is always true. */
-    Never = 1,
-
-    /** Always try to rejoin a session.  Clean start is always false.  This setting is technically not spec-compliant */
-    Always = 2,
-
-    Default = 0,
-}
-
-export type ConnectPacketTransformer = (packet: mqtt5_packet.ConnectPacket) => void;
-
-export interface ConnectOptions {
-    connectPacketTransformer? : ConnectPacketTransformer,
-    keepAliveIntervalSeconds: number;
-    resumeSessionPolicy?: ResumeSessionPolicyType,
-    clientId?: string;
-    username?: string;
-    password?: BinaryData;
-    sessionExpiryIntervalSeconds?: number;
-    requestResponseInformation?: boolean;
-    requestProblemInformation?: boolean;
-    receiveMaximum?: number;
-    maximumPacketSizeBytes?: number;
-    willDelayIntervalSeconds?: number;
-    will?: mqtt5_packet.PublishPacket;
-    userProperties?: Array<mqtt5_packet.UserProperty>;
-}
-
-/**
- * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
- * how operations are handled while the client is not connected.  In particular, if the client is not connected,
- * then any operation that would be failed on disconnect (according to these rules) will be rejected.
- *
- * A deliberate mirror of the native ClientOperationQueueBehavior enum
- */
-export enum OfflineQueuePolicy {
-
-    /** Operations are never failed due to connection state */
-    PreserveAll = 0,
-
-    /** Qos0 Publishes are failed when there is no connection, all other operations are left alone. */
-    PreserveAcknowledged,
-
-    /** Only QoS1 and QoS2 publishes are retained when there is no connection */
-    PreserveQos1PlusPublishes,
-
-    /** Nothing is retained when there is no connection */
-    PreserveNothing,
-
-    /** Keep everything by default */
-    Default = 0,
-}
-
 export interface ProtocolStateConfig {
     protocolVersion : model.ProtocolMode,
-    offlineQueuePolicy : OfflineQueuePolicy,
-    connectOptions : ConnectOptions,
+    offlineQueuePolicy : mqtt.OfflineQueuePolicy,
+    connectOptions : mqtt.ConnectOptions,
     baseElapsedMillis : number,
     pingTimeoutMillis? : number,
 }
@@ -480,7 +400,7 @@ export class ProtocolState extends BufferedEventEmitter {
     getPendingNonPublishAcks() : Map<number, number> { return this.pendingNonPublishAcks; }
 
     /**
-     * Event emitted when the o object becomes halted.
+     * Event emitted when the protocol object becomes halted.
      *
      * Listener type: {@link HaltedEventListener}
      *
@@ -489,9 +409,8 @@ export class ProtocolState extends BufferedEventEmitter {
     static HALTED : string = 'halted';
 
     /**
-     * Registers a listener for the client's {@link MESSAGE_RECEIVED messageReceived} event.  A
-     * {@link MESSAGE_RECEIVED messageReceived} event is emitted when an MQTT PUBLISH packet is received by the
-     * client.
+     * Registers a listener for the client's {@link HALTED} {@link HaltedEvent} event.  A
+     * {@link HALTED} {@link HaltedEvent} event is emitted when the protocol object enters the halted state.
      *
      * @param event the type of event to listen to
      * @param listener the event listener to add
@@ -517,7 +436,7 @@ export class ProtocolState extends BufferedEventEmitter {
         if (baseTime != undefined) {
             let pingTime = baseTime + this.config.connectOptions.keepAliveIntervalSeconds * 1000;
 
-            this.nextOutboundPingElapsedMillis = foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
+            this.nextOutboundPingElapsedMillis = utils.foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
         }
     }
 
@@ -550,8 +469,8 @@ export class ProtocolState extends BufferedEventEmitter {
             if (operation.options) {
                 switch (operation.type) {
                     case mqtt5_packet.PacketType.Publish:
-                        let publishHandler = operation.options.resultHandler as ResultHandler<PublishResult>;
-                        publishHandler.onCompletionSuccess(result as PublishResult);
+                        let publishHandler = operation.options.resultHandler as ResultHandler<mqtt.PublishResult>;
+                        publishHandler.onCompletionSuccess(result as mqtt.PublishResult);
                         break;
                     case mqtt5_packet.PacketType.Subscribe:
                         let subscribeHandler = operation.options.resultHandler as ResultHandler<mqtt5_packet.SubackPacket>;
@@ -577,14 +496,14 @@ export class ProtocolState extends BufferedEventEmitter {
     }
 
     private getNextServiceTimepointPendingConnack() : number | undefined {
-        return foldTimeMin(this.getQueueServiceTimepoint(ServiceQueueType.HighPriorityOnly), this.pendingConnackTimeoutElapsedMillis);
+        return utils.foldTimeMin(this.getQueueServiceTimepoint(ServiceQueueType.HighPriorityOnly), this.pendingConnackTimeoutElapsedMillis);
     }
 
     private getNextServiceTimepointConnected() : number | undefined {
         let serviceTime = this.getQueueServiceTimepoint(ServiceQueueType.All);
-        serviceTime = foldTimeMin(serviceTime, this.nextOutboundPingElapsedMillis);
-        serviceTime = foldTimeMin(serviceTime, this.pendingPingrespTimeoutElapsedMillis);
-        serviceTime = foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
+        serviceTime = utils.Min(serviceTime, this.nextOutboundPingElapsedMillis);
+        serviceTime = utils.foldTimeMin(serviceTime, this.pendingPingrespTimeoutElapsedMillis);
+        serviceTime = utils.foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
 
         return serviceTime;
     }
@@ -911,7 +830,7 @@ export class ProtocolState extends BufferedEventEmitter {
                 this.submitOperationHighPriority(model.convertInternalPacketToBinary(pingreq), QueueEndType.Front);
 
                 this.pushOutNextPing(this.elapsedMillis);
-                let timeoutMillis = foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
+                let timeoutMillis = utils.foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
                 this.pendingPingrespTimeoutElapsedMillis = this.elapsedMillis + timeoutMillis;
             }
         }
@@ -1069,7 +988,7 @@ export class ProtocolState extends BufferedEventEmitter {
         this.changeState(ProtocolStateType.PendingConnack);
         this.encoder.reset();
         this.decoder.reset();
-        this.pendingConnackTimeoutElapsedMillis = context.establishmentTimeout;
+        this.pendingConnackTimeoutElapsedMillis = context.establishmentTimeoutMillis;
         this.connectInTransit = true;
 
         let connect = this.buildConnectPacket();
@@ -1283,7 +1202,7 @@ export class ProtocolState extends BufferedEventEmitter {
 
         this.pushOutNextPing(operation.flushTimepoint);
         this.completeOperation(operationId, {
-            type: PublishResultType.Qos1,
+            type: client.PublishResultType.Qos1,
             packet: packet,
         });
     }
@@ -1547,29 +1466,7 @@ export class ProtocolState extends BufferedEventEmitter {
 }
 
 
-function foldTimeMin(lhs : number | undefined, rhs : number | undefined) : number | undefined {
-    if (lhs == undefined) {
-        return rhs;
-    }
 
-    if (rhs == undefined) {
-        return lhs;
-    }
-
-    return Math.min(lhs, rhs);
-}
-
-function foldTimeMax(lhs : number | undefined, rhs : number | undefined) : number | undefined {
-    if (lhs == undefined) {
-        return rhs;
-    }
-
-    if (rhs == undefined) {
-        return lhs;
-    }
-
-    return Math.max(lhs, rhs);
-}
 
 function createNegotiatedSettings(connect: model.ConnectPacketInternal, connack: mqtt5.ConnackPacket) : mqtt5.NegotiatedSettings {
     return {
