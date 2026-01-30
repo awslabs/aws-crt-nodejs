@@ -8,6 +8,9 @@
  */
 
 
+import * as mqtt5 from "./mqtt5";
+import * as mqtt_utils from "../browser/mqtt5_utils";
+
 /**
  * Converts payload to Buffer or string regardless of the supplied type
  * @param payload The payload to convert
@@ -150,3 +153,38 @@ export function isValidTopic(topic: any) : boolean {
     return properties.isValid;
 }
 
+function randomInRange(min: number, max: number) : number {
+    return min + (max - min) * Math.random();
+}
+
+export interface ReconnectDelayContext {
+    retryJitterMode?: mqtt5.RetryJitterType,
+    minReconnectDelayMs? : number,
+    maxReconnectDelayMs? : number,
+    lastReconnectDelay? : number,
+    connectionFailureCount : number,
+}
+
+/**
+ * Computes the next reconnect delay based on the Jitter/Retry configuration.
+ * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+ * @private
+ */
+export function calculateNextReconnectDelay(context: ReconnectDelayContext) : number {
+    const jitterType : mqtt5.RetryJitterType = context.retryJitterMode ?? mqtt5.RetryJitterType.Default;
+    const [minDelay, maxDelay] : [number, number] = mqtt_utils.getOrderedReconnectDelayBounds(context.minReconnectDelayMs, context.maxReconnectDelayMs);
+    const clampedFailureCount : number = Math.min(52, context.connectionFailureCount);
+    let delay : number = 0;
+
+    if (jitterType == mqtt5.RetryJitterType.None) {
+        delay = minDelay * Math.pow(2, clampedFailureCount);
+    } else if (jitterType == mqtt5.RetryJitterType.Decorrelated && context.lastReconnectDelay) {
+        delay = randomInRange(minDelay, 3 * context.lastReconnectDelay);
+    } else {
+        delay = randomInRange(minDelay, Math.min(maxDelay, minDelay * Math.pow(2, clampedFailureCount)));
+    }
+
+    delay = Math.min(maxDelay, delay);
+
+    return delay;
+}

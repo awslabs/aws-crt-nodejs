@@ -42,14 +42,13 @@ export interface ConnectionOpenedContext {
 }
 
 export interface IncomingDataContext {
-    data: DataView
+    data: DataView,
 }
 
 export interface NetworkEventContext {
     type : NetworkEventType,
     context? : ConnectionOpenedContext | IncomingDataContext,
     elapsedMillis : number,
-    decodedPackets? : Array<mqtt5_packet.IPacket> // in-order output sequence of all packets received during an incoming data event
 }
 
 export enum UserEventType {
@@ -218,6 +217,24 @@ export interface HaltedEvent {
 }
 
 export type HaltedEventListener = (eventData: HaltedEvent) => void;
+
+export interface PublishReceivedEvent {
+    packet: mqtt5_packet.PublishPacket,
+}
+
+export type PublishReceivedEventListener = (eventData: PublishReceivedEvent) => void;
+
+export interface DisconnectReceivedEvent {
+    packet: mqtt5_packet.DisconnectPacket,
+}
+
+export type DisconnectReceivedEventListener = (eventData: DisconnectReceivedEvent) => void;
+
+export interface ConnackReceivedEvent {
+    packet: mqtt5_packet.ConnackPacket,
+}
+
+export type ConnackReceivedEventListener = (eventData: ConnackReceivedEvent) => void;
 
 const MAXIMUM_NUMBER_OF_PACKET_IDS : number = 65535;
 const MAXIMUM_PACKET_ID : number = 65535;
@@ -409,6 +426,33 @@ export class ProtocolState extends BufferedEventEmitter {
     static HALTED : string = 'halted';
 
     /**
+     * Event emitted when a disconnect packet is received
+     *
+     * Listener type: {@link DisconnectReceivedEventListener}
+     *
+     * @event
+     */
+    static DISCONNECT_RECEIVED : string = 'disconnectReceived';
+
+    /**
+     * Event emitted when a publish packet is received
+     *
+     * Listener type: {@link PublishReceivedEventListener}
+     *
+     * @event
+     */
+    static PUBLISH_RECEIVED : string = 'publishReceived';
+
+    /**
+     * Event emitted when a connack packet is received
+     *
+     * Listener type: {@link ConnackReceivedEventListener}
+     *
+     * @event
+     */
+    static CONNACK_RECEIVED : string = 'connackReceived';
+
+    /**
      * Registers a listener for the client's {@link HALTED} {@link HaltedEvent} event.  A
      * {@link HALTED} {@link HaltedEvent} event is emitted when the protocol object enters the halted state.
      *
@@ -416,6 +460,33 @@ export class ProtocolState extends BufferedEventEmitter {
      * @param listener the event listener to add
      */
     on(event: 'halted', listener: HaltedEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link DISCONNECT_RECEIVED} {@link DisconnectReceivedEvent} event.  A
+     * {@link DISCONNECT_RECEIVED} {@link DisconnectReceivedEvent} event is emitted when the protocol object decodes a Disconnect packet.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'disconnectReceived', listener: DisconnectReceivedEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link PUBLISH_RECEIVED} {@link PublishReceivedEvent} event.  A
+     * {@link PUBLISH_RECEIVED} {@link PublishReceivedEvent} event is emitted when the protocol object decodes a Publish packet.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'publishReceived', listener: PublishReceivedEventListener): this;
+
+    /**
+     * Registers a listener for the client's {@link CONNACK_RECEIVED} {@link ConnackReceivedEvent} event.  A
+     * {@link CONNACK_RECEIVED} {@link ConnackReceivedEvent} event is emitted when the protocol object decodes a Connack packet that indicates a successful broker connection.
+     *
+     * @param event the type of event to listen to
+     * @param listener the event listener to add
+     */
+    on(event: 'connackReceived', listener: ConnackReceivedEventListener): this;
 
     on(event: string | symbol, listener: (...args: any[]) => void): this {
         super.on(event, listener);
@@ -1096,8 +1167,8 @@ export class ProtocolState extends BufferedEventEmitter {
         }
 
         let incomingDataContext = context.context as IncomingDataContext;
-        context.decodedPackets = this.decoder.decode(incomingDataContext.data);
-        for (let packet of context.decodedPackets) {
+        let packets = this.decoder.decode(incomingDataContext.data);
+        for (let packet of packets) {
             if (!this.isReceivedPacketTypeValidForState(packet.type)) {
                 this.halt(HaltEventType.ProtocolError, new CrtError("Received packet type not valid for current state"));
                 return;
@@ -1158,6 +1229,10 @@ export class ProtocolState extends BufferedEventEmitter {
         this.pendingConnackTimeoutElapsedMillis = undefined;
         this.connectInTransit = false;
 
+        this.emit(ProtocolState.CONNACK_RECEIVED, {
+            packet: packet
+        });
+
         if (packet.reasonCode == mqtt5_packet.ConnectReasonCode.Success) {
             this.hasSuccessfullyConnected = true;
             this.changeState(ProtocolStateType.Connected);
@@ -1175,6 +1250,10 @@ export class ProtocolState extends BufferedEventEmitter {
                 this.halt(HaltEventType.ProtocolError, new CrtError("QoS 1 publish received with illegal packet id"));
                 return;
             }
+
+            this.emit(ProtocolState.PUBLISH_RECEIVED, {
+                packet: packet
+            });
 
             let puback : model.PubackPacketBinary = {
                 type: mqtt5_packet.PacketType.Puback,
@@ -1244,7 +1323,10 @@ export class ProtocolState extends BufferedEventEmitter {
     }
 
     private handleIncomingDisconnect(packet: model.DisconnectPacketInternal) : void {
-        // TODO: impl
+        this.emit(ProtocolState.DISCONNECT_RECEIVED, {
+            packet: packet
+        });
+
         this.halt(HaltEventType.Normal, new CrtError("Server-side disconnect"));
     }
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
+
 export function foldTimeMin(lhs : number | undefined, rhs : number | undefined) : number | undefined {
     if (lhs == undefined) {
         return rhs;
@@ -26,3 +27,4 @@ export function foldTimeMax(lhs : number | undefined, rhs : number | undefined) 
 
     return Math.max(lhs, rhs);
 }
+
