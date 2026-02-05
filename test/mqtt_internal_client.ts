@@ -1370,3 +1370,41 @@ export function arePacketsEqual(lhs: mqtt5_packet.IPacket, rhs: mqtt5_packet.IPa
             throw new CrtError("Unsupported packet type: " + lhs.type);
     }
 }
+
+export class DynamicArrayBuffer {
+
+    private buffer : ArrayBuffer;
+    private length : number = 0;
+
+    constructor(initialSize: number) {
+        this.buffer = new ArrayBuffer(initialSize);
+    }
+
+    getView(): DataView {
+        return new DataView(this.buffer, 0, this.length);
+    }
+
+    append(view : DataView) {
+        let minLengthNeeded = view.byteLength + this.length;
+        if (minLengthNeeded > this.buffer.byteLength) {
+            this.resizeBuffer(Math.floor(minLengthNeeded * 1.5 + 1));
+        }
+
+        let typedArray = new Uint8Array(this.buffer);
+        let source = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+        typedArray.set(source, this.length);
+        this.length += view.byteLength;
+    }
+
+    reset() {
+        this.length = 0;
+    }
+
+    private resizeBuffer(newSize: number) {
+        let newBuffer = new ArrayBuffer(newSize);
+        let newTypedArray = new Uint8Array(newBuffer);
+        let source = new Uint8Array(this.buffer, 0, this.length);
+        newTypedArray.set(source, 0);
+        this.buffer = newBuffer;
+    }
+}

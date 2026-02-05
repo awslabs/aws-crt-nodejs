@@ -65,6 +65,7 @@ export interface ClientConfig {
     retryJitterMode?: mqtt5.RetryJitterType,
     minReconnectDelayMs? : number,
     maxReconnectDelayMs? : number,
+    resetConnectionFailureCountMillis? : number
 }
 
 enum ClientState {
@@ -80,7 +81,7 @@ interface ConnectionCallbackState {
     crtError?: CrtError,
 }
 
-const RESET_CONNECTION_FAILURE_COUNT_MILLIS : number = 30 * 1000;
+const DEFAULT_RESET_CONNECTION_FAILURE_COUNT_MILLIS : number = 30 * 1000;
 
 export class Client extends BufferedEventEmitter {
 
@@ -158,7 +159,6 @@ export class Client extends BufferedEventEmitter {
 
             switch (this.currentState) {
                 case ClientState.Connecting:
-                    this.pendingConnectionTimeout = undefined;
                     this.shutdownConnection();
                     break;
 
@@ -182,8 +182,7 @@ export class Client extends BufferedEventEmitter {
                 }
 
                 case ClientState.PendingReconnect:
-                    this.reconnectTimepoint = undefined;
-                    this.transitionToStateStopped();
+                    this.transitionToState(ClientState.Stopped);
                     break;
 
                 default:
@@ -424,7 +423,6 @@ export class Client extends BufferedEventEmitter {
         let currentTime = this.getCurrentTime();
 
         if (this.pendingConnectionTimeout != undefined && currentTime >= this.pendingConnectionTimeout) {
-            this.pendingConnectionTimeout = undefined;
             if (this.connectionCallbackState.crtError == undefined) {
                 this.connectionCallbackState.crtError = new CrtError("Connection establishment timeout");
             }
@@ -454,8 +452,15 @@ export class Client extends BufferedEventEmitter {
 
             });
 
-            if (serviceResult.toSocket) {
-                this.connection.write(serviceResult.toSocket, this.onSocketWrite);
+            let toSocketView = serviceResult.toSocket;
+            if (toSocketView != undefined && toSocketView.byteLength > 0) {
+                const dataAsUint8Array = new Uint8Array(
+                    toSocketView.buffer,
+                    toSocketView.byteOffset,
+                    toSocketView.byteLength
+                );
+
+                this.connection.write(dataAsUint8Array, this.onSocketWrite.bind(this));
             }
         }
 
@@ -489,7 +494,7 @@ export class Client extends BufferedEventEmitter {
         }
 
         if (serviceTime != undefined) {
-            setTimeout(this.service, Math.max(0, serviceTime - currentTime));
+            setTimeout(this.service.bind(this), Math.max(0, serviceTime - currentTime));
         }
     }
 
@@ -550,7 +555,6 @@ export class Client extends BufferedEventEmitter {
                 this.shutdownConnection();
             }
 
-            this.pendingConnectionTimeout = undefined;
             this.reevaluateService();
         });
 
@@ -561,9 +565,9 @@ export class Client extends BufferedEventEmitter {
         this.changeState(ClientState.Connected);
         this.linkToConnection();
         let currentTime = this.getCurrentTime();
-        this.resetConnectionFailuresTimepoint = currentTime + RESET_CONNECTION_FAILURE_COUNT_MILLIS;
+        this.resetConnectionFailuresTimepoint = currentTime + (this.config.resetConnectionFailureCountMillis ?? DEFAULT_RESET_CONNECTION_FAILURE_COUNT_MILLIS);
 
-        let connackTimeout = this.pendingConnectionTimeout ?? 0;
+        let connackTimeout = this.pendingConnectionTimeout ?? this.creationTime;
         this.protocolState.handleNetworkEvent({
             type: protocol.NetworkEventType.ConnectionOpened,
             context: {
@@ -595,11 +599,21 @@ export class Client extends BufferedEventEmitter {
     }
 
     private transitionToStateStopped() {
+        this.pendingConnectionTimeout = undefined;
+        this.reconnectTimepoint = undefined;
+        this.resetConnectionFailuresTimepoint = undefined;
+        this.lastReconnectDelay = undefined;
+        this.connectionFailureCount = 0;
+
         this.changeState(ClientState.Stopped);
+
+        this.emit(Client.STOPPED, {});
+
         this.reevaluateService();
     }
 
     private shutdownConnection() {
+        this.pendingConnectionTimeout = undefined;
         this.unlinkFromConnection();
         if (this.currentState == ClientState.Connected) {
             this.protocolState.handleNetworkEvent({
@@ -665,7 +679,7 @@ export class Client extends BufferedEventEmitter {
                 type: protocol.NetworkEventType.IncomingData,
                 elapsedMillis: this.getCurrentTime(),
                 context: {
-                    data: new DataView(buffer.buffer)
+                    data: new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
                 }
             };
 

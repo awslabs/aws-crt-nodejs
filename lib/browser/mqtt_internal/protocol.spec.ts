@@ -25,43 +25,7 @@ interface OperationResult<T> {
     result?: T
 }
 
-class DynamicArrayBuffer {
 
-    private buffer : ArrayBuffer;
-    private length : number = 0;
-
-    constructor(initialSize: number) {
-        this.buffer = new ArrayBuffer(initialSize);
-    }
-
-    getView(): DataView {
-        return new DataView(this.buffer, 0, this.length);
-    }
-
-    append(view : DataView) {
-        let minLengthNeeded = view.byteLength + this.length;
-        if (minLengthNeeded > this.buffer.byteLength) {
-            this.resizeBuffer(Math.floor(minLengthNeeded * 1.5 + 1));
-        }
-
-        let typedArray = new Uint8Array(this.buffer);
-        let source = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
-        typedArray.set(source, this.length);
-        this.length += view.byteLength;
-    }
-
-    reset() {
-        this.length = 0;
-    }
-
-    private resizeBuffer(newSize: number) {
-        let newBuffer = new ArrayBuffer(newSize);
-        let newTypedArray = new Uint8Array(newBuffer);
-        let source = new Uint8Array(this.buffer, 0, this.length);
-        newTypedArray.set(source, 0);
-        this.buffer = newBuffer;
-    }
-}
 
 interface BrokerTestContext {
     connackOverrides? : mqtt5_packet.ConnackPacket,
@@ -296,7 +260,7 @@ class ProtocolTestFixture {
         return serviceResult.toSocket;
     }
 
-    handleToBrokerPacket(packet: mqtt5_packet.IPacket, responseBytes: DynamicArrayBuffer) {
+    handleToBrokerPacket(packet: mqtt5_packet.IPacket, responseBytes: test_mqtt_internal_client.DynamicArrayBuffer) {
         this.toServerPackets.push(packet);
 
         let responsePackets = new Array<mqtt5_packet.IPacket>();
@@ -330,7 +294,7 @@ class ProtocolTestFixture {
 
     writeToSocket(data: DataView) : DataView {
         let packets = this.brokerDecoder.decode(data);
-        let responseBytes = new DynamicArrayBuffer(4096);
+        let responseBytes = new test_mqtt_internal_client.DynamicArrayBuffer(4096);
 
         for (let packet of packets) {
             this.handleToBrokerPacket(packet, responseBytes);
@@ -340,7 +304,7 @@ class ProtocolTestFixture {
     }
 
     serviceWithDrain(elapsedMillis: number) : DataView {
-        let responseBytes = new DynamicArrayBuffer(4096);
+        let responseBytes = new test_mqtt_internal_client.DynamicArrayBuffer(4096);
 
         while (true) {
             let toSocket = this.service(elapsedMillis);
@@ -363,7 +327,7 @@ class ProtocolTestFixture {
     }
 
     serviceOnceWithDrain(elapsedMillis: number) : DataView {
-        let responseBytes = new DynamicArrayBuffer(4096);
+        let responseBytes = new test_mqtt_internal_client.DynamicArrayBuffer(4096);
 
         let toSocket = this.service(elapsedMillis);
         if (!toSocket) {
@@ -808,7 +772,7 @@ function encodePacketToBuffer(packet: mqtt5_packet.IPacket, mode: model.Protocol
 
     packetEncoder.initForPacket(test_mqtt_internal_client.convertDebugPacketToBinary(packet));
     let encodeBuffer = new ArrayBuffer(4096);
-    let dynamicBuffer = new DynamicArrayBuffer(4096);
+    let dynamicBuffer = new test_mqtt_internal_client.DynamicArrayBuffer(4096);
     let encodeResult: encoder.ServiceResult = {
         type: encoder.ServiceResultType.InProgress,
         nextView: new DataView(encodeBuffer)

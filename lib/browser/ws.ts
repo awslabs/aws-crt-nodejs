@@ -182,8 +182,9 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
 }
 
 import { Duplex } from 'stream';
+import * as WebSocket from 'ws';
 
-export type WsStream = Duplex & {socket: WebSocket, on(event: "ws-close", listener: (close: WebSocket.CloseEvent) => void)};
+export type WsStream = Duplex & {socket: WebSocket, on(event: "ws-close", listener: (close: WebSocket.CloseEvent) => void) : WsStream};
 
 /** @internal */
 export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) : WsStream {

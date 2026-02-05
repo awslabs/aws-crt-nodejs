@@ -4,9 +4,8 @@
  */
 
 import * as mqtt5_packet from '../../common/mqtt5_packet';
-import * as mqtt from "./mod";
+import * as mod from "./mod";
 import * as model from "./model";
-import * as client from "./client";
 import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as heap from "./heap";
@@ -59,8 +58,8 @@ export enum UserEventType {
 }
 
 export interface PublishOptionsInternal {
-    options: mqtt.PublishOptions,
-    resultHandler : ResultHandler<mqtt.PublishResult>
+    options: mod.PublishOptions,
+    resultHandler : ResultHandler<mod.PublishResult>
 }
 
 export interface PublishContext {
@@ -69,7 +68,7 @@ export interface PublishContext {
 }
 
 export interface SubscribeOptionsInternal {
-    options: mqtt.SubscribeOptions,
+    options: mod.SubscribeOptions,
     resultHandler : ResultHandler<mqtt5_packet.SubackPacket>
 }
 
@@ -79,11 +78,11 @@ export interface SubscribeContext {
 }
 
 export interface UnsubscribeOptionsInternal {
-    options: mqtt.UnsubscribeOptions,
+    options: mod.UnsubscribeOptions,
     resultHandler : ResultHandler<mqtt5_packet.UnsubackPacket>
 }
 
-type OperationResultType = mqtt.PublishResult | mqtt5_packet.SubackPacket | mqtt5_packet.UnsubackPacket | undefined;
+type OperationResultType = mod.PublishResult | mqtt5_packet.SubackPacket | mqtt5_packet.UnsubackPacket | undefined;
 
 export interface UnsubscribeContext {
     packet : mqtt5_packet.UnsubscribePacket,
@@ -148,8 +147,8 @@ export interface ClientOperation {
 
 export interface ProtocolStateConfig {
     protocolVersion : model.ProtocolMode,
-    offlineQueuePolicy : mqtt.OfflineQueuePolicy,
-    connectOptions : mqtt.ConnectOptions,
+    offlineQueuePolicy : mod.OfflineQueuePolicy,
+    connectOptions : mod.ConnectOptions,
     baseElapsedMillis : number,
     pingTimeoutMillis? : number,
 }
@@ -540,8 +539,8 @@ export class ProtocolState extends BufferedEventEmitter {
             if (operation.options) {
                 switch (operation.type) {
                     case mqtt5_packet.PacketType.Publish:
-                        let publishHandler = operation.options.resultHandler as ResultHandler<mqtt.PublishResult>;
-                        publishHandler.onCompletionSuccess(result as mqtt.PublishResult);
+                        let publishHandler = operation.options.resultHandler as ResultHandler<mod.PublishResult>;
+                        publishHandler.onCompletionSuccess(result as mod.PublishResult);
                         break;
                     case mqtt5_packet.PacketType.Subscribe:
                         let subscribeHandler = operation.options.resultHandler as ResultHandler<mqtt5_packet.SubackPacket>;
@@ -572,7 +571,7 @@ export class ProtocolState extends BufferedEventEmitter {
 
     private getNextServiceTimepointConnected() : number | undefined {
         let serviceTime = this.getQueueServiceTimepoint(ServiceQueueType.All);
-        serviceTime = utils.Min(serviceTime, this.nextOutboundPingElapsedMillis);
+        serviceTime = utils.foldTimeMin(serviceTime, this.nextOutboundPingElapsedMillis);
         serviceTime = utils.foldTimeMin(serviceTime, this.pendingPingrespTimeoutElapsedMillis);
         serviceTime = utils.foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
 
@@ -1281,7 +1280,7 @@ export class ProtocolState extends BufferedEventEmitter {
 
         this.pushOutNextPing(operation.flushTimepoint);
         this.completeOperation(operationId, {
-            type: client.PublishResultType.Qos1,
+            type: mod.PublishResultType.Qos1,
             packet: packet,
         });
     }
@@ -1368,13 +1367,13 @@ export class ProtocolState extends BufferedEventEmitter {
     }
 
     private computeCleanStart() : boolean {
-        let resumeSessionPolicy = this.config.connectOptions.resumeSessionPolicy ?? ResumeSessionPolicyType.Default;
+        let resumeSessionPolicy = this.config.connectOptions.resumeSessionPolicy ?? mod.ResumeSessionPolicyType.Default;
 
         switch (resumeSessionPolicy) {
-            case ResumeSessionPolicyType.Always:
+            case mod.ResumeSessionPolicyType.Always:
                 return false;
 
-            case ResumeSessionPolicyType.PostSuccess:
+            case mod.ResumeSessionPolicyType.PostSuccess:
                 return !this.hasSuccessfullyConnected;
 
             default:
@@ -1476,13 +1475,13 @@ export class ProtocolState extends BufferedEventEmitter {
         }
 
         let queuePolicy = this.config.offlineQueuePolicy;
-        if (queuePolicy == OfflineQueuePolicy.PreserveNothing) {
+        if (queuePolicy == mod.OfflineQueuePolicy.PreserveNothing) {
             return false;
         }
 
         switch (operation.type) {
             case mqtt5_packet.PacketType.Publish:
-                if (queuePolicy == OfflineQueuePolicy.PreserveAll) {
+                if (queuePolicy == mod.OfflineQueuePolicy.PreserveAll) {
                     return true;
                 }
 
@@ -1491,7 +1490,7 @@ export class ProtocolState extends BufferedEventEmitter {
 
             case mqtt5_packet.PacketType.Subscribe:
             case mqtt5_packet.PacketType.Unsubscribe:
-                return queuePolicy == OfflineQueuePolicy.PreserveAll || queuePolicy == OfflineQueuePolicy.PreserveAcknowledged;
+                return queuePolicy == mod.OfflineQueuePolicy.PreserveAll || queuePolicy == mod.OfflineQueuePolicy.PreserveAcknowledged;
 
             default:
                 return false;
