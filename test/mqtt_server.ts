@@ -10,7 +10,6 @@ import * as encoder from "../lib/browser/mqtt_internal/encoder";
 import * as decoder from "../lib/browser/mqtt_internal/decoder";
 import * as mqtt_internal_client from "./mqtt_internal_client";
 
-//import * as http from "http";
 import * as ws from "@httptoolkit/websocket-stream";
 import * as WebSocket from "ws";
 
@@ -144,10 +143,10 @@ function throwHandler(packet : mqtt5_packet.IPacket, server: MqttServer, respons
     throw new CrtError("Unexpected packet received");
 }
 
-function nullHandler(packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+export function nullHandler(packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
 }
 
-function buildDefaultHandlerSet() : PacketHandlerSet {
+export function buildDefaultHandlerSet() : PacketHandlerSet {
     return new Map<mqtt5_packet.PacketType, PacketHandlerType>([
         [mqtt5_packet.PacketType.Connect, defaultConnectHandler],
         [mqtt5_packet.PacketType.Subscribe, defaultSubscribeHandler],
@@ -259,27 +258,23 @@ class MqttServerConnection {
 
 export interface MqttServerConfig {
     protocolVersion : model.ProtocolMode;
-    port? : number;
     packetHandlers? : PacketHandlerSet;
     connackOverrides? : mqtt5_packet.ConnackPacket;
 }
 
 export class MqttServer {
 
-    // @ts-ignore
     private handlers: PacketHandlerSet;
-    private port : number;
     private server : ws.Server;
     private connections : Array<MqttServerConnection> = [];
     private setup : promise.LiftedPromise<void>;
 
     constructor(private config: MqttServerConfig) {
         this.handlers = config.packetHandlers ?? buildDefaultHandlerSet();
-        this.port = config.port ?? 8089;
         this.setup = promise.newLiftedPromise<void>();
 
         let opts : any = {
-            port : this.port,
+            port : 0,
             perMessageDeflate: false
         };
 
@@ -306,7 +301,9 @@ export class MqttServer {
     }
 
     public getPort() : number {
-        return this.port;
+        let addr = this.server.address() as any;
+
+        return addr.port;
     }
 
     public stop() {

@@ -124,16 +124,16 @@ export class Client extends BufferedEventEmitter {
             pingTimeoutMillis : config.pingTimeoutMillis
         });
 
-        this.protocolState.on("halted", (event : protocol.HaltedEvent) => {
+        this.protocolState.addListener("halted", (event : protocol.HaltedEvent) => {
             queueMicrotask(() => this.onProtocolStateHalted(event));
         });
-        this.protocolState.on("connackReceived", (event : protocol.ConnackReceivedEvent) => {
+        this.protocolState.addListener("connackReceived", (event : protocol.ConnackReceivedEvent) => {
             queueMicrotask(() => this.onConnackReceivedEvent(event));
         });
-        this.protocolState.on("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        this.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
             queueMicrotask(() => this.onPublishReceivedEvent(event));
         });
-        this.protocolState.on("disconnectReceived", (event : protocol.DisconnectReceivedEvent) => {
+        this.protocolState.addListener("disconnectReceived", (event : protocol.DisconnectReceivedEvent) => {
             queueMicrotask(() => this.onDisconnectReceivedEvent(event));
         });
 
@@ -536,26 +536,27 @@ export class Client extends BufferedEventEmitter {
 
         this.emit(Client.CONNECTING, {});
 
+        let client : Client = this;
         queueMicrotask(async () => {
             try {
-                let connectionPromise = this.config.connectionFactory();
+                let connectionPromise = client.config.connectionFactory();
                 let stream = await connectionPromise;
-                if (this.connectionId == expectedConnectionId && this.desiredState == ClientState.Connected && this.currentState == ClientState.Connecting) {
-                    this.connection = stream;
-                    this.transitionToState(ClientState.Connected);
+                if (client.connectionId == expectedConnectionId && client.desiredState == ClientState.Connected && client.currentState == ClientState.Connecting) {
+                    client.connection = stream;
+                    client.transitionToState(ClientState.Connected);
                 } else {
                     stream.socket.close();
                 }
             } catch (e) {
-                if (this.connectionCallbackState.crtError == undefined) {
+                if (client.connectionCallbackState.crtError == undefined) {
                     let err = e as Error;
-                    this.connectionCallbackState.crtError = new CrtError(err.toString());
+                    client.connectionCallbackState.crtError = new CrtError(err.toString());
                 }
 
-                this.shutdownConnection();
+                client.shutdownConnection();
             }
 
-            this.reevaluateService();
+            client.reevaluateService();
         });
 
         this.reevaluateService();
@@ -722,7 +723,7 @@ export class Client extends BufferedEventEmitter {
                 event.disconnect = this.connectionCallbackState.disconnect;
             }
             this.emit(Client.DISCONNECTION, event);
-        } else if (this.currentState == ClientState.Connected) {
+        } else {
             let event : ConnectionFailureEvent = {
                 error: this.connectionCallbackState.crtError ?? new CrtError("Unknown error")
             };
