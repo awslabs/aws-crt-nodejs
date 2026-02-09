@@ -164,14 +164,15 @@ export class Client extends BufferedEventEmitter {
 
                 case ClientState.Connected: {
                     if (disconnect) {
+                        let client : Client = this;
                         this.protocolState.handleUserEvent({
                             type: protocol.UserEventType.Disconnect,
                             elapsedMillis: this.getCurrentTime(),
                             context: {
                                 packet: disconnect,
                                 resultHandler: {
-                                    onCompletionSuccess: () => { this.shutdownConnection(); },
-                                    onCompletionFailure: () => { this.shutdownConnection(); },
+                                    onCompletionSuccess: () => { client.shutdownConnection(); },
+                                    onCompletionFailure: () => { client.shutdownConnection(); },
                                 }
                             }
                         });
@@ -207,7 +208,9 @@ export class Client extends BufferedEventEmitter {
                     options: {
                         options: options ?? {},
                         resultHandler: {
-                            onCompletionSuccess : (value : mod.PublishResult) => { liftedPublish.resolve(value); },
+                            onCompletionSuccess : (value : mod.PublishResult) => {
+                                liftedPublish.resolve(value);
+                                },
                             onCompletionFailure : (error : CrtError) => { liftedPublish.reject(error); }
                         }
                     }
@@ -647,7 +650,7 @@ export class Client extends BufferedEventEmitter {
 
     private onPublishReceivedEvent(event : protocol.PublishReceivedEvent) {
         this.emit(Client.PUBLISH_RECEIVED, {
-            packet: event.packet
+            publish: event.packet
         });
     }
 

@@ -8,10 +8,17 @@ import * as model from "./model";
 import * as mqtt_client from "./client";
 import * as mod from "./mod";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
+import * as promise from "../../common/promise";
+
 import {once} from "events";
 
 var websocket = require('@httptoolkit/websocket-stream')
 import * as ws from "../ws";
+
+
+async function sleep(millis: number) {
+    return new Promise((resolve, reject) => setTimeout(resolve, millis));
+}
 
 function connectToMockServer(port: number) : Promise<ws.WsStream> {
     return new Promise<ws.WsStream>((resolve, reject) => {
@@ -268,4 +275,365 @@ describe("ConnectionFailure Connack Timeout", () => {
     })
 });
 
+async function doStopWhileConnectingTest(protocolVersion : model.ProtocolMode, iterations: number) {
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
 
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildConnectionFailureSocketTimeoutUnboundedClientConfig(fixture, protocolVersion));
+
+    for (let i = 0; i < iterations; i++) {
+        let connecting = once(client, "connecting");
+        let stopped = once(client, "stopped");
+        let connectionFailure = once(client, 'connectionFailure');
+
+        client.start();
+        await connecting;
+
+        client.stop();
+        await stopped;
+
+        let connectionFailureEvent : mqtt_client.ConnectionFailureEvent = (await connectionFailure)[0];
+        expect(connectionFailureEvent.error.message).toMatch("Client stopped by user request");
+    }
+
+    fixture.getServer().stop();
+}
+
+describe("Stop during transport connection establishment", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doStopWhileConnectingTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+interface StopPendingConnackContext {
+    connectReceived: promise.LiftedPromise<void>
+}
+
+export function stopPendingConnackConnectHandler(packet : mqtt5_packet.IPacket, server: mqtt_server.MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+    let config = server.getConfig();
+
+    let context = config.context as StopPendingConnackContext;
+    context.connectReceived.resolve();
+}
+
+async function doStopWhilePendingConnackTest(protocolVersion : model.ProtocolMode, iterations: number) {
+    let context : StopPendingConnackContext = {
+        connectReceived: promise.newLiftedPromise<void>()
+    };
+
+    let packetHandlers = mqtt_server.buildDefaultHandlerSet();
+    packetHandlers.set(mqtt5_packet.PacketType.Connect, stopPendingConnackConnectHandler);
+
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        packetHandlers: packetHandlers,
+        context: context
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    for (let i = 0; i < iterations; i++) {
+        let connecting = once(client, "connecting");
+        let stopped = once(client, "stopped");
+        let connectionFailure = once(client, 'connectionFailure');
+
+        client.start();
+        await connecting;
+
+        await context.connectReceived.promise;
+
+        client.stop();
+        await stopped;
+
+        let connectionFailureEvent : mqtt_client.ConnectionFailureEvent = (await connectionFailure)[0];
+        expect(connectionFailureEvent.error.message).toMatch("Client stopped by user request");
+
+        // reset the promise for future iteration
+        context = {
+            connectReceived: promise.newLiftedPromise<void>()
+        };
+        fixture.getServer().getConfig().context = context;
+    }
+
+    fixture.getServer().stop();
+}
+
+describe("Stop during pending connack", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doStopWhilePendingConnackTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+interface StopWithDisconnectPacketContext {
+    disconnectReceived: promise.LiftedPromise<mqtt5_packet.DisconnectPacket>
+}
+
+export function stopDisconnectHandler(packet : mqtt5_packet.IPacket, server: mqtt_server.MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+    let config = server.getConfig();
+
+    let context = config.context as StopWithDisconnectPacketContext;
+    context.disconnectReceived.resolve(packet as mqtt5_packet.DisconnectPacket);
+}
+
+async function doStopWithDisconnectPacketTest(protocolVersion : model.ProtocolMode, iterations: number) {
+    let context : StopWithDisconnectPacketContext = {
+        disconnectReceived: promise.newLiftedPromise<mqtt5_packet.DisconnectPacket>()
+    };
+
+    let packetHandlers = mqtt_server.buildDefaultHandlerSet();
+    packetHandlers.set(mqtt5_packet.PacketType.Disconnect, stopDisconnectHandler);
+
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        packetHandlers: packetHandlers,
+        context: context
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    for (let i = 0; i < iterations; i++) {
+        let connectionSuccess = once(client, "connectionSuccess");
+        let stopped = once(client, "stopped");
+        let disconnection = once(client, 'disconnection');
+
+        client.start();
+        await connectionSuccess;
+
+        client.stop({
+            reasonCode: mqtt5_packet.DisconnectReasonCode.UnspecifiedError
+        });
+        await stopped;
+
+        let disconnect = await context.disconnectReceived.promise;
+        if (protocolVersion == model.ProtocolMode.Mqtt5) {
+            expect(disconnect.reasonCode).toEqual(mqtt5_packet.DisconnectReasonCode.UnspecifiedError);
+        }
+
+        let disconnectionEvent : mqtt_client.ConnectionFailureEvent = (await disconnection)[0];
+        expect(disconnectionEvent.error.message).toMatch("Client stopped by user request");
+
+        // reset the promise for future iteration
+        context = {
+            disconnectReceived: promise.newLiftedPromise<mqtt5_packet.DisconnectPacket>()
+        };
+        fixture.getServer().getConfig().context = context;
+    }
+
+    fixture.getServer().stop();
+}
+
+describe("Stop with disconnect packet while connected", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doStopWithDisconnectPacketTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+export function queueDisconnectConnectHandler(packet : mqtt5_packet.IPacket, server: mqtt_server.MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+    mqtt_server.defaultConnectHandler(packet, server, responsePackets);
+
+    setTimeout(() => {
+        server.closeConnections();
+    }, 10);
+}
+
+async function doStopDuringReconnectTest(protocolVersion : model.ProtocolMode, iterations: number) {
+
+    let packetHandlers = mqtt_server.buildDefaultHandlerSet();
+    packetHandlers.set(mqtt5_packet.PacketType.Connect, queueDisconnectConnectHandler);
+
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        packetHandlers: packetHandlers
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    for (let i = 0; i < iterations; i++) {
+        let connectionSuccess = once(client, "connectionSuccess");
+        let stopped = once(client, "stopped");
+        let disconnection = once(client, 'disconnection');
+
+        client.start();
+        await connectionSuccess;
+
+        await disconnection;
+
+        await sleep(10);
+        client.stop();
+
+        await stopped;
+    }
+
+    fixture.getServer().stop();
+}
+
+describe("Stop during reconnect", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doStopDuringReconnectTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+type OperationInvocationFunction<T> = (client: mqtt_client.Client) => Promise<T>;
+type OperationInvocationResultVerifier<T> = (result: T) => void;
+
+async function doOperationSuccessTest<T>(protocolVersion : model.ProtocolMode, iterations: number, operationFunction: OperationInvocationFunction<T>, verifierFunction: OperationInvocationResultVerifier<T>) {
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    for (let i = 0; i < iterations; i++) {
+        let connectionSuccess = once(client, "connectionSuccess");
+        let stopped = once(client, "stopped");
+
+        client.start();
+        await connectionSuccess;
+
+        let resultPromise = operationFunction(client);
+        let result = await resultPromise;
+        verifierFunction(result);
+
+        client.stop();
+        await stopped;
+    }
+
+    fixture.getServer().stop();
+}
+
+function doSubscribe(client: mqtt_client.Client) : Promise<mqtt5_packet.SubackPacket> {
+    return client.subscribe({
+        subscriptions: [{
+            topicFilter: "test/topic",
+            qos: mqtt5_packet.QoS.AtLeastOnce,
+        }]
+    });
+}
+
+function verifySuback(suback: mqtt5_packet.SubackPacket) {
+    expect(suback.reasonCodes.length).toEqual(1);
+    expect(suback.reasonCodes[0]).toEqual(mqtt5_packet.SubackReasonCode.GrantedQoS1);
+}
+
+describe("Subscribe success", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationSuccessTest<mqtt5_packet.SubackPacket>(protocolVersionToMode(protocolVersion), 4, doSubscribe, verifySuback);
+    })
+});
+
+function doUnsubscribe(client: mqtt_client.Client) : Promise<mqtt5_packet.UnsubackPacket> {
+    return client.unsubscribe({
+        topicFilters: ["test/topic"]
+    });
+}
+
+function verifyUnsuback5(suback: mqtt5_packet.UnsubackPacket) {
+    expect(suback.reasonCodes.length).toEqual(1);
+    expect(suback.reasonCodes[0]).toEqual(mqtt5_packet.UnsubackReasonCode.Success);
+}
+
+function verifyUnsuback311(suback: mqtt5_packet.UnsubackPacket) {
+}
+
+describe("Unsubscribe success", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        let mode = protocolVersionToMode(protocolVersion);
+        await doOperationSuccessTest<mqtt5_packet.UnsubackPacket>(mode, 4, doUnsubscribe, (mode == model.ProtocolMode.Mqtt5) ? verifyUnsuback5 : verifyUnsuback311);
+    })
+});
+
+function doQos0Publish(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+    return client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtMostOnce,
+    });
+}
+
+function verifyQos0PublishResult(result: mod.PublishResult) {
+    expect(result.type).toEqual(mod.PublishResultType.Qos0);
+    expect(result.packet).toBeUndefined();
+}
+
+describe("Publish QoS 0 success", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), 4, doQos0Publish, verifyQos0PublishResult);
+    })
+});
+
+function doQos1Publish(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+    return client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+    });
+}
+
+function verifyQos1PublishResult(result: mod.PublishResult) {
+    expect(result.type).toEqual(mod.PublishResultType.Qos1);
+    expect(result.packet).toBeDefined();
+
+    let puback = result.packet as mqtt5_packet.PubackPacket;
+    expect(puback.reasonCode).toEqual(mqtt5_packet.PubackReasonCode.Success);
+}
+
+describe("Publish QoS 1 success", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), 4, doQos1Publish, verifyQos1PublishResult);
+    })
+});
+
+async function doPublishReceivedTest(protocolVersion : model.ProtocolMode, iterations: number) {
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    for (let i = 0; i < iterations; i++) {
+        let connectionSuccess = once(client, "connectionSuccess");
+        let stopped = once(client, "stopped");
+
+        client.start();
+        await connectionSuccess;
+
+        let publishReceived = once(client, "publishReceived");
+
+        await client.publish({
+           topicName: "test/topic",
+           qos: mqtt5_packet.QoS.AtLeastOnce
+        });
+
+        let publishEvent : mqtt_client.PublishReceivedEvent = (await publishReceived)[0];
+        expect(publishEvent.publish.topicName).toEqual("test/topic");
+        expect(publishEvent.publish.qos).toEqual(mqtt5_packet.QoS.AtLeastOnce);
+
+        client.stop();
+        await stopped;
+    }
+
+    fixture.getServer().stop();
+}
+
+describe("PublishReceived", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doPublishReceivedTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});

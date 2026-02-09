@@ -1374,10 +1374,11 @@ function doPublish(fixture: ProtocolTestFixture, publishTime: number, pubackTime
     expect(publishIndex).toEqual(1);
 
     expect(resultHolder.state).toEqual(OperationResultStateType.Success);
+    let result = resultHolder.result;
+    expect(result).toBeDefined();
 
     if (qos == mqtt5_packet.QoS.AtLeastOnce) {
-        let result = resultHolder.result;
-        expect(result).toBeDefined();
+        expect(result!.type).toEqual(mod.PublishResultType.Qos1);
 
         // @ts-ignore
         let puback : mqtt5_packet.PubackPacket = (result as PublishResult).packet;
@@ -1385,6 +1386,8 @@ function doPublish(fixture: ProtocolTestFixture, publishTime: number, pubackTime
 
         let [pubackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Puback, 1);
         expect(pubackIndex).toEqual(1);
+    } else {
+        expect(result!.type).toEqual(mod.PublishResultType.Qos0);
     }
 
     fixture.verifyEmpty();
@@ -3151,7 +3154,7 @@ function doDisconnectPacketTriggersDisconnectReceivedEventTest() {
     expect(fixture.disconnectReceivedEvents.length).toEqual(1);
     expect(fixture.disconnectReceivedEvents[0].packet.reasonCode).toEqual(mqtt5_packet.DisconnectReasonCode.AdministrativeAction);
 
-    fixture.verifyHalted(protocol.HaltEventType.ProtocolError, "Server-side disconnect");
+    fixture.verifyHalted(protocol.HaltEventType.Normal, "Server-side disconnect");
 }
 
 test("DisconnectPacketTriggersDisconnectReceivedEvent", () => {

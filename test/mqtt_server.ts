@@ -19,7 +19,7 @@ import * as promise from "../lib/common/promise";
 export type PacketHandlerType = (packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) => void;
 export type PacketHandlerSet = Map<mqtt5_packet.PacketType, PacketHandlerType>;
 
-function defaultConnectHandler(packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+export function defaultConnectHandler(packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
     let connect = packet as model.ConnectPacketInternal;
     let config = server.getConfig();
 
@@ -232,20 +232,27 @@ class MqttServerConnection {
                 }
             }
 
-            queueMicrotask(async () => {
-                let writtenPromise = promise.newLiftedPromise<void>();
-                let writeView = responseBytes.getView();
-                let toWrite = new Uint8Array(writeView.buffer, writeView.byteOffset, writeView.byteLength);
-                this.connection.send(toWrite, (err) => {
-                    if (err) {
-                        writtenPromise.reject(err)
-                    } else {
-                        writtenPromise.resolve();
+            if (responseBytes.getView().byteLength > 0) {
+                queueMicrotask(async () => {
+                    try {
+                        let writtenPromise = promise.newLiftedPromise<void>();
+                        let writeView = responseBytes.getView();
+                        let toWrite = new Uint8Array(writeView.buffer, writeView.byteOffset, writeView.byteLength);
+
+                        this.connection.send(toWrite, (err) => {
+                            if (err) {
+                                writtenPromise.reject(err)
+                            } else {
+                                writtenPromise.resolve();
+                            }
+                        });
+
+                        await writtenPromise.promise;
+                    } catch (e) {
+                        ;
                     }
                 });
-
-                await writtenPromise.promise;
-            });
+            }
         } catch (e) {
             console.log(e);
         }
@@ -260,6 +267,7 @@ export interface MqttServerConfig {
     protocolVersion : model.ProtocolMode;
     packetHandlers? : PacketHandlerSet;
     connackOverrides? : mqtt5_packet.ConnackPacket;
+    context?: any
 }
 
 export class MqttServer {
@@ -291,7 +299,6 @@ export class MqttServer {
         });
     }
 
-
     public getConfig() : MqttServerConfig {
         return this.config;
     }
@@ -306,11 +313,15 @@ export class MqttServer {
         return addr.port;
     }
 
-    public stop() {
+    public closeConnections() {
         for (let stream of this.connections) {
             stream.close();
         }
+        this.connections = [];
+    }
 
+    public stop() {
+        this.closeConnections();
         this.server.close();
     }
 

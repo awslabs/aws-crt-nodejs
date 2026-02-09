@@ -540,7 +540,13 @@ export class ProtocolState extends BufferedEventEmitter {
                 switch (operation.type) {
                     case mqtt5_packet.PacketType.Publish:
                         let publishHandler = operation.options.resultHandler as ResultHandler<mod.PublishResult>;
-                        publishHandler.onCompletionSuccess(result as mod.PublishResult);
+                        if (result) {
+                            publishHandler.onCompletionSuccess(result as mod.PublishResult);
+                        } else {
+                            publishHandler.onCompletionSuccess({
+                                type: mod.PublishResultType.Qos0
+                            });
+                        }
                         break;
                     case mqtt5_packet.PacketType.Subscribe:
                         let subscribeHandler = operation.options.resultHandler as ResultHandler<mqtt5_packet.SubackPacket>;
@@ -1250,10 +1256,6 @@ export class ProtocolState extends BufferedEventEmitter {
                 return;
             }
 
-            this.emit(ProtocolState.PUBLISH_RECEIVED, {
-                packet: packet
-            });
-
             let puback : model.PubackPacketBinary = {
                 type: mqtt5_packet.PacketType.Puback,
                 packetId: packet.packetId,
@@ -1262,6 +1264,10 @@ export class ProtocolState extends BufferedEventEmitter {
 
             this.submitOperationHighPriority(puback, QueueEndType.Back);
         }
+
+        this.emit(ProtocolState.PUBLISH_RECEIVED, {
+            packet: packet
+        });
     }
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {
