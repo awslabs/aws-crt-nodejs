@@ -14,6 +14,7 @@ import {once} from "events";
 
 var websocket = require('@httptoolkit/websocket-stream')
 import * as ws from "../ws";
+import {MqttServer} from "../../../test/mqtt_server";
 
 
 async function sleep(millis: number) {
@@ -489,7 +490,7 @@ describe("Stop during reconnect", () => {
 type OperationInvocationFunction<T> = (client: mqtt_client.Client) => Promise<T>;
 type OperationInvocationResultVerifier<T> = (result: T) => void;
 
-async function doOperationSuccessTest<T>(protocolVersion : model.ProtocolMode, iterations: number, operationFunction: OperationInvocationFunction<T>, verifierFunction: OperationInvocationResultVerifier<T>) {
+async function doOperationSuccessTest<T>(protocolVersion : model.ProtocolMode, operationFunction: OperationInvocationFunction<T>, verifierFunction: OperationInvocationResultVerifier<T>) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -499,20 +500,18 @@ async function doOperationSuccessTest<T>(protocolVersion : model.ProtocolMode, i
 
     let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
 
-    for (let i = 0; i < iterations; i++) {
-        let connectionSuccess = once(client, "connectionSuccess");
-        let stopped = once(client, "stopped");
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
 
-        client.start();
-        await connectionSuccess;
+    client.start();
+    await connectionSuccess;
 
-        let resultPromise = operationFunction(client);
-        let result = await resultPromise;
-        verifierFunction(result);
+    let resultPromise = operationFunction(client);
+    let result = await resultPromise;
+    verifierFunction(result);
 
-        client.stop();
-        await stopped;
-    }
+    client.stop();
+    await stopped;
 
     fixture.getServer().stop();
 }
@@ -533,7 +532,7 @@ function verifySuback(suback: mqtt5_packet.SubackPacket) {
 
 describe("Subscribe success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationSuccessTest<mqtt5_packet.SubackPacket>(protocolVersionToMode(protocolVersion), 4, doSubscribe, verifySuback);
+        await doOperationSuccessTest<mqtt5_packet.SubackPacket>(protocolVersionToMode(protocolVersion),  doSubscribe, verifySuback);
     })
 });
 
@@ -554,7 +553,7 @@ function verifyUnsuback311(suback: mqtt5_packet.UnsubackPacket) {
 describe("Unsubscribe success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        await doOperationSuccessTest<mqtt5_packet.UnsubackPacket>(mode, 4, doUnsubscribe, (mode == model.ProtocolMode.Mqtt5) ? verifyUnsuback5 : verifyUnsuback311);
+        await doOperationSuccessTest<mqtt5_packet.UnsubackPacket>(mode, doUnsubscribe, (mode == model.ProtocolMode.Mqtt5) ? verifyUnsuback5 : verifyUnsuback311);
     })
 });
 
@@ -572,7 +571,7 @@ function verifyQos0PublishResult(result: mod.PublishResult) {
 
 describe("Publish QoS 0 success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), 4, doQos0Publish, verifyQos0PublishResult);
+        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos0Publish, verifyQos0PublishResult);
     })
 });
 
@@ -593,7 +592,7 @@ function verifyQos1PublishResult(result: mod.PublishResult) {
 
 describe("Publish QoS 1 success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), 4, doQos1Publish, verifyQos1PublishResult);
+        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos1Publish, verifyQos1PublishResult);
     })
 });
 
@@ -635,5 +634,325 @@ async function doPublishReceivedTest(protocolVersion : model.ProtocolMode, itera
 describe("PublishReceived", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         await doPublishReceivedTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+async function doOperationFailureTest<T>(protocolVersion : model.ProtocolMode, operationFunction: OperationInvocationFunction<T>, failureMessageMatch: string) {
+    let handlers = mqtt_server.buildDefaultHandlerSet();
+    handlers.set(mqtt5_packet.PacketType.Publish, mqtt_server.nullHandler);
+    handlers.set(mqtt5_packet.PacketType.Subscribe, mqtt_server.nullHandler);
+    handlers.set(mqtt5_packet.PacketType.Unsubscribe, mqtt_server.nullHandler);
+
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        packetHandlers: handlers
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    await connectionSuccess;
+
+    await expect(operationFunction(client)).rejects.toThrow(failureMessageMatch);
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+}
+
+const TIMEOUT_FAILURE_MESSAGE : string = "Operation timed out";
+
+function doSubscribeWithTimeout(client: mqtt_client.Client) : Promise<mqtt5_packet.SubackPacket> {
+    return client.subscribe({
+        subscriptions: [{
+            topicFilter: "test/topic",
+            qos: mqtt5_packet.QoS.AtLeastOnce,
+        }]
+    }, {
+        timeoutInMillis : 500
+    });
+}
+
+describe("Subscribe failure by timeout", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureTest<mqtt5_packet.SubackPacket>(protocolVersionToMode(protocolVersion), doSubscribeWithTimeout, TIMEOUT_FAILURE_MESSAGE);
+    })
+});
+
+function doUnsubscribeWithTimeout(client: mqtt_client.Client) : Promise<mqtt5_packet.UnsubackPacket> {
+    return client.unsubscribe({
+        topicFilters: ["test/topic"]
+    }, {
+        timeoutInMillis: 500
+    });
+}
+
+describe("Unsubscribe failure by timeout", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureTest<mqtt5_packet.UnsubackPacket>(protocolVersionToMode(protocolVersion), doUnsubscribeWithTimeout, TIMEOUT_FAILURE_MESSAGE);
+    })
+});
+
+function doQos1PublishWithTimeout(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+    return client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+    }, {
+        timeoutInMillis: 500
+    });
+}
+
+describe("Publish QoS 1 failure by timeout", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos1PublishWithTimeout, TIMEOUT_FAILURE_MESSAGE);
+    })
+});
+
+function doInvalidSubscribe(client: mqtt_client.Client) : Promise<mqtt5_packet.SubackPacket> {
+    return client.subscribe({
+        subscriptions: []
+    });
+}
+
+describe("Subscribe failure by validation", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureTest<mqtt5_packet.SubackPacket>(protocolVersionToMode(protocolVersion), doInvalidSubscribe, "Subscriptions cannot be empty");
+    })
+});
+
+function doInvalidUnsubscribe(client: mqtt_client.Client) : Promise<mqtt5_packet.UnsubackPacket> {
+    return client.unsubscribe({
+        topicFilters: [ "a/#/a" ]
+    });
+}
+
+describe("Unsubscribe failure by validation", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureTest<mqtt5_packet.UnsubackPacket>(protocolVersionToMode(protocolVersion), doInvalidUnsubscribe, "not a valid topic filter");
+    })
+});
+
+function doInvalidPublish(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+    return client.publish({
+        topicName: "a/#/a",
+        qos: mqtt5_packet.QoS.AtMostOnce,
+    });
+}
+
+describe("Publish failure by validation", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doInvalidPublish, "not a valid topic");
+    })
+});
+
+function disconnectHandler(packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+    setTimeout(() => { server.closeConnections(); }, 0);
+}
+
+async function doOperationFailureByInterruptionTest<T>(protocolVersion : model.ProtocolMode, operationFunction: OperationInvocationFunction<T>) {
+    let handlers = mqtt_server.buildDefaultHandlerSet();
+    handlers.set(mqtt5_packet.PacketType.Publish, disconnectHandler);
+    handlers.set(mqtt5_packet.PacketType.Subscribe, disconnectHandler);
+    handlers.set(mqtt5_packet.PacketType.Unsubscribe, disconnectHandler);
+
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        packetHandlers: handlers,
+        connackOverrides: {
+            reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+            sessionPresent: false // so that QoS 1 publish gets failed on reconnect
+        }
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
+    clientConfig.offlineQueuePolicy = mod.OfflineQueuePolicy.PreserveNothing;
+
+    let client = new mqtt_client.Client(clientConfig);
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    await connectionSuccess;
+
+    await expect(operationFunction(client)).rejects.toThrow("failed OfflineQueuePolicy");
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+}
+
+describe("Subscribe failure by offline policy", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureByInterruptionTest<mqtt5_packet.SubackPacket>(protocolVersionToMode(protocolVersion), doSubscribe);
+    })
+});
+
+describe("Unsubscribe failure by offline policy", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureByInterruptionTest<mqtt5_packet.UnsubackPacket>(protocolVersionToMode(protocolVersion), doUnsubscribe);
+    })
+});
+
+describe("Publish QoS 1 failure by offline policy", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doOperationFailureByInterruptionTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos1Publish);
+    })
+});
+
+async function doStartStopStartTest(protocolVersion : model.ProtocolMode) {
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    client.stop();
+    client.start();
+
+    await connectionSuccess;
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+}
+
+describe("Start Stop Start", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doStartStopStartTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function handleConnectWithDisconnect(packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) {
+    mqtt_server.defaultConnectHandler(packet, server, responsePackets);
+
+    responsePackets.push({
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: mqtt5_packet.DisconnectReasonCode.ImplementationSpecificError,
+        reasonString: "sketch"
+    } as mqtt5_packet.DisconnectPacket);
+}
+
+test('Server-side disconnect', async () => {
+    let handlers = mqtt_server.buildDefaultHandlerSet();
+    handlers.set(mqtt5_packet.PacketType.Connect, handleConnectWithDisconnect);
+
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: model.ProtocolMode.Mqtt5,
+        packetHandlers: handlers
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, model.ProtocolMode.Mqtt5));
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let disconnection = once(client, "disconnection");
+    let stopped = once(client, "stopped");
+
+    client.start();
+
+    await connectionSuccess;
+
+    connectionSuccess = once(client, "connectionSuccess");
+    let connecting = once(client, "connecting");
+
+    let disconnectionEvent : mqtt_client.DisconnectionEvent = (await disconnection)[0];
+    expect(disconnectionEvent.error.message).toEqual("Server-side disconnect");
+    expect(disconnectionEvent.disconnect).toBeDefined();
+    expect(disconnectionEvent.disconnect!.reasonCode).toEqual(mqtt5_packet.DisconnectReasonCode.ImplementationSpecificError);
+
+    // verify reconnect
+    await connecting;
+    await connectionSuccess;
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+});
+
+async function doIterativeReconnectTest(protocolVersion : model.ProtocolMode, maximumInitialFailureCount: number) {
+    for (let i = 1; i <= maximumInitialFailureCount; i++) {
+
+        let connectCount : number = 0;
+
+        let handlers = mqtt_server.buildDefaultHandlerSet();
+        handlers.set(mqtt5_packet.PacketType.Connect, (packet: mqtt5_packet.IPacket, server: MqttServer, responsePackets: Array<mqtt5_packet.IPacket>) => {
+            connectCount++;
+            if (connectCount <= i) {
+                responsePackets.push({
+                    type: mqtt5_packet.PacketType.Connack,
+                    reasonCode: mqtt5_packet.ConnectReasonCode.NotAuthorized,
+                    sessionPresent: false
+                } as mqtt5_packet.ConnackPacket);
+            } else {
+                mqtt_server.defaultConnectHandler(packet, server, responsePackets);
+            }
+        });
+
+        let config: mqtt_server.MqttServerConfig = {
+            protocolVersion: protocolVersion,
+            packetHandlers: handlers,
+        };
+
+        let fixture = new ClientTestFixture(config);
+        await fixture.start();
+
+        let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
+        clientConfig.minReconnectDelayMs = 100;
+        clientConfig.maxReconnectDelayMs = 1000;
+
+        let client = new mqtt_client.Client(clientConfig);
+
+        let connectionFailureCount: number = 0;
+        let connectingCount: number = 0;
+        let connectionSuccess = once(client, "connectionSuccess");
+        let stopped = once(client, "stopped");
+        client.addListener("connectionFailure", (event) => {
+            connectionFailureCount++;
+        });
+        client.addListener("connecting", (event) => {
+            connectingCount++;
+        });
+
+        client.start();
+
+        await connectionSuccess;
+
+        expect(connectionFailureCount).toEqual(i);
+        expect(connectingCount).toEqual(i + 1);
+        expect(connectCount).toEqual(i + 1);
+
+        client.stop();
+        await stopped;
+
+        fixture.getServer().stop();
+    }
+}
+
+describe("ConnectionSuccessAfterFailures", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doIterativeReconnectTest(protocolVersionToMode(protocolVersion), 4);
     })
 });

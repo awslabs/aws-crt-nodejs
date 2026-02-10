@@ -169,7 +169,7 @@ export class Client extends BufferedEventEmitter {
                             type: protocol.UserEventType.Disconnect,
                             elapsedMillis: this.getCurrentTime(),
                             context: {
-                                packet: disconnect,
+                                packet: model.cloneDisconnectShallow(disconnect),
                                 resultHandler: {
                                     onCompletionSuccess: () => { client.shutdownConnection(); },
                                     onCompletionFailure: () => { client.shutdownConnection(); },
@@ -204,7 +204,7 @@ export class Client extends BufferedEventEmitter {
             this.protocolState.handleUserEvent({
                 type: protocol.UserEventType.Publish,
                 context: {
-                    packet: publish,
+                    packet: model.clonePublishShallow(publish),
                     options: {
                         options: options ?? {},
                         resultHandler: {
@@ -236,7 +236,7 @@ export class Client extends BufferedEventEmitter {
             this.protocolState.handleUserEvent({
                 type: protocol.UserEventType.Subscribe,
                 context: {
-                    packet: subscribe,
+                    packet: model.cloneSubscribeShallow(subscribe),
                     options: {
                         options: options ?? {},
                         resultHandler: {
@@ -266,7 +266,7 @@ export class Client extends BufferedEventEmitter {
             this.protocolState.handleUserEvent({
                 type: protocol.UserEventType.Unsubscribe,
                 context: {
-                    packet: unsubscribe,
+                    packet: model.cloneUnsubscribeShallow(unsubscribe),
                     options: {
                         options: options ?? {},
                         resultHandler: {

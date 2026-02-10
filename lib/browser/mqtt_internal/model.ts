@@ -301,11 +301,11 @@ export interface DisconnectPacketBinary extends IPacketBinary {
     userProperties?: Array<UserPropertyBinary>;
 }
 
-export function isValidBinaryData(data: BinaryData) : boolean {
+export function isValidBinaryData(data: mqtt5_packet.BinaryData) : boolean {
     return data instanceof ArrayBuffer || data instanceof Uint8Array || data instanceof Buffer;
 }
 
-export function binaryDataToArrayBuffer(data: BinaryData) : ArrayBuffer {
+export function binaryDataToArrayBuffer(data: mqtt5_packet.BinaryData) : ArrayBuffer {
     if (data instanceof ArrayBuffer) {
         return data;
     } else if (data instanceof Uint8Array) {
@@ -676,3 +676,95 @@ export function convertInternalPacketToBinary(packet: mqtt5_packet.IPacket) : IP
     }
 }
 
+export function cloneSubscribeShallow(subscribe: mqtt5_packet.SubscribePacket) : mqtt5_packet.SubscribePacket {
+    let clone : mqtt5_packet.SubscribePacket = {
+        type: mqtt5_packet.PacketType.Subscribe,
+        subscriptions: subscribe.subscriptions
+    };
+
+    if (subscribe.userProperties) {
+        clone.userProperties = subscribe.userProperties;
+    }
+
+    return clone;
+}
+
+export function cloneUnsubscribeShallow(unsubscribe: mqtt5_packet.UnsubscribePacket) : mqtt5_packet.UnsubscribePacket {
+    let clone : mqtt5_packet.UnsubscribePacket = {
+        type: mqtt5_packet.PacketType.Unsubscribe,
+        topicFilters: unsubscribe.topicFilters
+    };
+
+    if (unsubscribe.userProperties) {
+        clone.userProperties = unsubscribe.userProperties;
+    }
+
+    return clone;
+}
+
+export function clonePublishShallow(publish: mqtt5_packet.PublishPacket) : mqtt5_packet.PublishPacket {
+    let clone : mqtt5_packet.PublishPacket = {
+        type: mqtt5_packet.PacketType.Publish,
+        topicName: publish.topicName,
+        qos: publish.qos
+    };
+
+    if (publish.payload) {
+        clone.payload = publish.payload;
+    }
+
+    if (publish.retain) {
+        clone.retain = publish.retain;
+    }
+
+    if (publish.payloadFormat) {
+        clone.payloadFormat = publish.payloadFormat;
+    }
+
+    if (publish.messageExpiryIntervalSeconds) {
+        clone.messageExpiryIntervalSeconds = publish.messageExpiryIntervalSeconds;
+    }
+
+    if (publish.responseTopic) {
+        clone.responseTopic = publish.responseTopic;
+    }
+
+    if (publish.correlationData) {
+        clone.correlationData = publish.correlationData;
+    }
+
+    if (publish.contentType) {
+        clone.contentType = publish.contentType;
+    }
+
+    if (publish.userProperties) {
+        clone.userProperties = publish.userProperties;
+    }
+
+    return clone;
+}
+
+export function cloneDisconnectShallow(disconnect: mqtt5_packet.DisconnectPacket) : mqtt5_packet.DisconnectPacket {
+    let clone : mqtt5_packet.DisconnectPacket = {
+        type: mqtt5_packet.PacketType.Disconnect,
+        reasonCode: disconnect.reasonCode
+    };
+
+    if (disconnect.sessionExpiryIntervalSeconds) {
+        clone.sessionExpiryIntervalSeconds = disconnect.sessionExpiryIntervalSeconds;
+    }
+
+    if (disconnect.reasonString) {
+        clone.reasonString = disconnect.reasonString;
+    }
+
+    if (disconnect.userProperties) {
+        clone.userProperties = disconnect.userProperties;
+    }
+
+    if (disconnect.serverReference) {
+        clone.serverReference = disconnect.serverReference;
+    }
+
+    return clone;
+}
