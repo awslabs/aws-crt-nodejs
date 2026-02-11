@@ -9,6 +9,7 @@ import * as mqtt_client from "./client";
 import * as mod from "./mod";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
 import * as promise from "../../common/promise";
+import * as mqtt5 from "../../common/mqtt5";
 
 import {once} from "events";
 
@@ -16,6 +17,7 @@ var websocket = require('@httptoolkit/websocket-stream')
 import * as ws from "../ws";
 import {MqttServer} from "../../../test/mqtt_server";
 
+jest.setTimeout(15000);
 
 async function sleep(millis: number) {
     return new Promise((resolve, reject) => setTimeout(resolve, millis));
@@ -954,5 +956,111 @@ async function doIterativeReconnectTest(protocolVersion : model.ProtocolMode, ma
 describe("ConnectionSuccessAfterFailures", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         await doIterativeReconnectTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+const RECONNECT_TEST_MIN_DELAY_MILLIS : number = 200;
+const RECONNECT_TEST_MAX_DELAY_MILLIS : number = 2000;
+const RECONNECT_TEST_RESET_BACKOFF_MILLIS : number = 3000;
+
+function validateReconnectionTimings(reconnectDelays: Array<number>, resetBackoffAttempt?: number) {
+    let currentExpectedDelay : number = RECONNECT_TEST_MIN_DELAY_MILLIS;
+
+    for (let i = 0; i < reconnectDelays.length; ++i) {
+        expect(reconnectDelays[i] >= .9 * currentExpectedDelay).toBeTruthy();
+
+        if (resetBackoffAttempt != undefined && i + 1 == resetBackoffAttempt) {
+            currentExpectedDelay = RECONNECT_TEST_MIN_DELAY_MILLIS;
+        } else {
+            currentExpectedDelay *= 2;
+            currentExpectedDelay = Math.min(currentExpectedDelay, RECONNECT_TEST_MAX_DELAY_MILLIS);
+        }
+    }
+}
+
+async function doReconnectBackoffTest(protocolVersion : model.ProtocolMode, connectionAttemptCount : number, resetBackoffAttempt? : number) {
+
+    let connectCount : number = 0;
+
+    let handlers = mqtt_server.buildDefaultHandlerSet();
+    handlers.set(mqtt5_packet.PacketType.Connect, (packet: mqtt5_packet.IPacket, server: MqttServer, responsePackets: Array<mqtt5_packet.IPacket>) => {
+        connectCount++;
+        if (resetBackoffAttempt && connectCount == resetBackoffAttempt + 1) {
+            mqtt_server.defaultConnectHandler(packet, server, responsePackets);
+            setTimeout(() => { server.closeConnections(); }, RECONNECT_TEST_RESET_BACKOFF_MILLIS + 1000);
+        } else {
+            responsePackets.push({
+                type: mqtt5_packet.PacketType.Connack,
+                reasonCode: mqtt5_packet.ConnectReasonCode.NotAuthorized,
+                sessionPresent: false
+            } as mqtt5_packet.ConnackPacket);
+        }
+    });
+
+    let config: mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        packetHandlers: handlers,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
+    clientConfig.minReconnectDelayMs = RECONNECT_TEST_MIN_DELAY_MILLIS;
+    clientConfig.maxReconnectDelayMs = RECONNECT_TEST_MAX_DELAY_MILLIS;
+    clientConfig.resetConnectionFailureCountMillis = RECONNECT_TEST_RESET_BACKOFF_MILLIS;
+    clientConfig.retryJitterMode = mqtt5.RetryJitterType.None;
+
+    let reconnectDelays : Array<number> = [];
+
+    let client = new mqtt_client.Client(clientConfig);
+    let stopped = once(client, "stopped");
+
+    let lastDisconnectionOrFailureTimestamp : number = 0;
+
+    client.addListener("disconnection", (event) => {
+        lastDisconnectionOrFailureTimestamp = Date.now();
+    });
+
+    client.addListener("connectionFailure", (event) => {
+        lastDisconnectionOrFailureTimestamp = Date.now();
+    });
+
+    let connectingCount : number = 0;
+    let sequenceComplete = promise.newLiftedPromise<void>();
+
+    client.addListener("connecting", (event) => {
+        if (connectingCount > 0) {
+            let currentTime = Date.now();
+            let reconnectDeltaMillis = currentTime - lastDisconnectionOrFailureTimestamp;
+            reconnectDelays.push(reconnectDeltaMillis);
+            if (reconnectDelays.length + 1 >= connectionAttemptCount) {
+                sequenceComplete.resolve();
+            }
+        }
+        connectingCount++;
+    });
+
+    client.start();
+
+    await sequenceComplete.promise;
+
+    client.stop();
+    await stopped;
+
+    validateReconnectionTimings(reconnectDelays, resetBackoffAttempt);
+
+    fixture.getServer().stop();
+}
+
+describe("ReconnectBackoffNoReset", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doReconnectBackoffTest(protocolVersionToMode(protocolVersion), 5);
+    })
+});
+
+describe("ReconnectBackoffWithReset", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doReconnectBackoffTest(protocolVersionToMode(protocolVersion), 10, 5);
     })
 });
