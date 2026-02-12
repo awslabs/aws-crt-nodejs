@@ -2339,18 +2339,13 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     napi_value node_metrics = *arg++;
     if (!aws_napi_is_null_or_undefined(env, node_metrics)) {
         napi_value node_libraryName = NULL;
-        AWS_NAPI_CALL(env, napi_get_named_property(env, node_metrics, "libraryName", &node_libraryName), {
-            napi_throw_type_error(env, NULL, "SDK Metrics must contain a libraryName string");
-            goto cleanup;
-        });
-
-        AWS_NAPI_CALL(env, aws_byte_buf_init_from_napi(&libraryName, env, node_libraryName), {
-            aws_napi_throw_last_error(env);
-            goto cleanup;
-        });
-
-        metrics.library_name = aws_byte_cursor_from_buf(&libraryName);
-        client_options.metrics = &metrics;
+        if (napi_get_named_property(env, node_metrics, "libraryName", &node_libraryName) == napi_ok &&
+            aws_byte_buf_init_from_napi(&libraryName, env, node_libraryName) == AWS_OP_SUCCESS) {
+            metrics.library_name = aws_byte_cursor_from_buf(&libraryName);
+            client_options.metrics = &metrics;
+        } else {
+            AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "Failed to set metrics, continuing without metrics");
+        }
     }
 
     client_options.publish_received_handler = s_on_publish_received;
