@@ -692,7 +692,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     // Set metrics
     napi_value node_metrics = *arg++;
-    struct aws_mqtt_iot_sdk_metrics metrics;
+    struct aws_mqtt_iot_metrics metrics;
     AWS_ZERO_STRUCT(metrics);
 
     bool set_metrics_success = false;

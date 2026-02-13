@@ -2146,7 +2146,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
 
-    struct aws_mqtt_iot_sdk_metrics metrics;
+    struct aws_mqtt_iot_metrics metrics;
     AWS_ZERO_STRUCT(metrics);
 
     struct aws_byte_buf libraryName;
