@@ -6,7 +6,6 @@
 import * as mqtt5_packet from "../../common/mqtt5_packet"
 import * as mqtt5 from "../../common/mqtt5"
 import * as protocol from "./protocol"
-import * as mod from "./mod"
 import * as model from "./model"
 import * as mqtt_shared from "../../common/mqtt_shared";
 import * as promise from "../../common/promise"
@@ -16,73 +15,192 @@ import * as utils from "./utils"
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
 
+import {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, SubscribeOptions, UnsubscribeOptions} from "./protocol";
+export {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, SubscribeOptions, UnsubscribeOptions};
 
+/**
+ * Emitted when the client begins a connection attempt
+ */
 export interface ConnectingEvent {
 }
 
+/**
+ * Type signature for a function that handles ConnectingEvent events
+ */
 export type ConnectingEventListener = (eventData: ConnectingEvent) => void;
 
+/**
+ * Emitted when the client successfully establishes an MQTT connection to the remote endpoint
+ */
 export interface ConnectionSuccessEvent {
     connack: mqtt5_packet.ConnackPacket,
 }
 
+/**
+ * Type signature for a function that handles ConnectionSuccessEvent events
+ */
 export type ConnectionSuccessEventListener = (eventData: ConnectionSuccessEvent) => void;
 
+/**
+ * Emitted when the client fails to establish an MQTT connection to the remote endpoint
+ */
 export interface ConnectionFailureEvent {
     error: CrtError,
     connack?: mqtt5_packet.ConnackPacket
 }
 
+/**
+ * Type signature for a function that handles ConnectionFailureEvent events
+ */
 export type ConnectionFailureEventListener = (eventData: ConnectionFailureEvent) => void;
 
+/**
+ * Emitted when a successfully-established MQTT connection is interrupted for any reason.  Can only follow
+ * a ConnectionSuccessEvent.
+ */
 export interface DisconnectionEvent {
     error: CrtError,
     disconnect?: mqtt5_packet.DisconnectPacket
 }
 
+/**
+ * Type signature for a function that handles DisconnectionEvent events
+ */
 export type DisconnectionEventListener = (eventData: DisconnectionEvent) => void;
 
+/**
+ * Emitted when the client enters the stopped state (no connection attempts will be made until restarted)
+ */
 export interface StoppedEvent {
 }
 
+/**
+ * Type signature for a function that handles StoppedEvent events
+ */
 export type StoppedEventListener = (eventData: StoppedEvent) => void;
 
+/**
+ * Emitted whenever the client receives a publish packet from the MQTT broker
+ */
 export interface PublishReceivedEvent {
     publish: mqtt5_packet.PublishPacket
 }
 
+/**
+ * Type signature for a function that handles PublishReceivedEvent events
+ */
 export type PublishReceivedEventListener = (eventData: PublishReceivedEvent) => void;
 
+/**
+ * Client-relevant configuration options
+ */
 export interface ClientConfig {
+
+    /**
+     * What version of MQTT to use.
+     */
     protocolVersion : model.ProtocolMode,
-    offlineQueuePolicy : mod.OfflineQueuePolicy,
-    connectOptions : mod.ConnectOptions,
+
+    /**
+     * How should queued packets be treated when the client is not connected?
+     */
+    offlineQueuePolicy : OfflineQueuePolicy,
+
+    /**
+     * Configuration for the initial CONNECT packet sent by the client once the transport is established
+     */
+    connectOptions : ConnectOptions,
+
+    /**
+     * Timeout, in milliseconds, to wait for a Pingresp after a Pingreq has been sent.  If the timeout is breached,
+     * the connection will be closed.
+     */
     pingTimeoutMillis? : number,
 
+    /**
+     * Function that creates a Websocket connection to the remote broker
+     */
     connectionFactory : () => Promise<ws.WsStream>,
+
+    /**
+     * Overarching timeout for MQTT connection establishment.  Failure to establish an MQTT connection by this timeout
+     * results in
+     */
     connectTimeoutMillis : number,
 
+    /**
+     * How should the reconnection delay be randomized, if at all?
+     */
     retryJitterMode?: mqtt5.RetryJitterType,
+
+    /**
+     * Minimum amount of time, in milliseconds, to wait between reconnection attempts
+     */
     minReconnectDelayMs? : number,
+
+    /**
+     * Maximum amount of time, in milliseconds, to wait between reconnection attempts
+     */
     maxReconnectDelayMs? : number,
+
+    /**
+     * The length of time a successful connection must persist before we clear the reconnect attempts state.
+     * This allows the client to persist its reconnect delay when connections are getting terminated shortly after
+     * establishment.
+     */
     resetConnectionFailureCountMillis? : number
 }
 
+/**
+ * The states that the client can be in
+ */
 enum ClientState {
+
+    /**
+     * The client is stopped and will not make any connection attempts
+     */
     Stopped,
+
+    /**
+     * The client is attempting to establish an MQTT connection.  This state includes socket connection, websocket
+     * connection, and MQTT Connect<->Connack exchange.
+     */
     Connecting,
+
+    /**
+     * The client has a successfully-established MQTT connection with the remote broker.
+     */
     Connected,
+
+    /**
+     * The client is waiting to reconnect to the remote broker.
+     */
     PendingReconnect
 }
 
+/*
+ * State related to auxiliary data for the ConnectionFailed, ConnectionSucceeded, Disconnected events
+ *
+ * Sometimes we need to hold these values beyond when they are initially known
+ */
 interface ConnectionCallbackState {
     connack?: mqtt5_packet.ConnackPacket,
     disconnect?: mqtt5_packet.DisconnectPacket,
     crtError?: CrtError,
 }
 
+/*
+ * If not overridden in the client config, this is the length of time a successful connection must persist before
+ * we clear the reconnect attempts state.  This allows the client to persist its reconnect delay when connections
+ * are getting terminated shortly after establishment (like when "poisoned" packets are resubmitted on
+ * connection success).
+ */
 const DEFAULT_RESET_CONNECTION_FAILURE_COUNT_MILLIS : number = 30 * 1000;
 
+/**
+ * Internal MQTT client implementation that supports both 311 and 5.  Restricted to match IoT Core's
+ * feature set (no QoS 2 support).
+ */
 export class Client extends BufferedEventEmitter {
 
     private protocolState: protocol.ProtocolState;
@@ -92,11 +210,27 @@ export class Client extends BufferedEventEmitter {
 
     private creationTime: number = new Date().getTime();
 
+    /*
+     * connectionId and nextConnectionId are used to ensure that async connection completion callbacks are for
+     * the "current" connection attempt.  They keep scenarios like the following from confusing the client:
+     *
+     * 1. Kick off connection attempt #1
+     * 2. User timeout kicks in causing a connection failure event, client enters reconnecting state
+     * 3. Reconnection delay completes
+     * 4. Kick off connection attempt #2
+     * 5. Connection attempt #1 completes with a socket level timeout, client incorrectly thinks attempt #2 failed
+     *
+     * We fix this by lambda capturing the current connectionId in the connection attempt function and then comparing
+     * the captured value and the current value on connection attempt completion.
+     */
     private connection? : ws.WsStream = undefined;
     private connectionId : number = 0;
     private pendingConnectionTimeout? : number = undefined;
     private nextConnectionId : number = 1;
 
+    /*
+     * Reconnect state
+     */
     private reconnectTimepoint? : number = undefined;
     private lastReconnectDelay? : number = undefined;
     private connectionFailureCount : number = 0;
@@ -108,6 +242,9 @@ export class Client extends BufferedEventEmitter {
 
     private socketWriteBuffer : ArrayBuffer = new ArrayBuffer(4096);
 
+    /*
+     * Callbacks for the websocket stream
+     */
     private onConnectionClosedCallback : () => void;
     private onConnectionDataCallback : (data: any) => void;
 
@@ -141,6 +278,9 @@ export class Client extends BufferedEventEmitter {
         this.onConnectionDataCallback = (data : any) => { queueMicrotask(() => this.onConnectionData(data))};
     }
 
+    /**
+     * Initiates the transition to a connected state if appropriate
+     */
     start() {
         if (this.desiredState == ClientState.Stopped) {
             this.desiredState = ClientState.Connected;
@@ -150,6 +290,14 @@ export class Client extends BufferedEventEmitter {
         }
     }
 
+    /**
+     * Initiates the transition to a stopped state if appropriate.
+     *
+     * If a disconnect packet is passed in and the client is currently connected, the client will delay connection
+     * close until the packet can be flushed.
+     *
+     * @param disconnect - optional disconnect packet to send before closing an active connection
+     */
     stop(disconnect?: mqtt5_packet.DisconnectPacket) {
         if (this.desiredState == ClientState.Connected) {
             this.desiredState = ClientState.Stopped;
@@ -194,11 +342,18 @@ export class Client extends BufferedEventEmitter {
         }
     }
 
-    async publish(publish: mqtt5_packet.PublishPacket, options?: mod.PublishOptions) : Promise<mod.PublishResult> {
+    /**
+     * Queues a publish packet to be sent to the remote broker.  If successfully queued, the packet will be sent
+     * as soon as it reaches the head of the queue while the client is connected.
+     *
+     * @param publish publish packet to send
+     * @param options additional configuration options
+     */
+    async publish(publish: mqtt5_packet.PublishPacket, options?: PublishOptions) : Promise<PublishResult> {
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
         // async promise bodies synchronously until the first await, but doing it this way keeps us independent of that
         // runtime internal behavior.
-        let liftedPublish = promise.newLiftedPromise<mod.PublishResult>();
+        let liftedPublish = promise.newLiftedPromise<PublishResult>();
 
         try {
             this.protocolState.handleUserEvent({
@@ -208,7 +363,7 @@ export class Client extends BufferedEventEmitter {
                     options: {
                         options: options ?? {},
                         resultHandler: {
-                            onCompletionSuccess : (value : mod.PublishResult) => {
+                            onCompletionSuccess : (value : PublishResult) => {
                                 liftedPublish.resolve(value);
                                 },
                             onCompletionFailure : (error : CrtError) => { liftedPublish.reject(error); }
@@ -226,7 +381,14 @@ export class Client extends BufferedEventEmitter {
         return liftedPublish.promise;
     }
 
-    async subscribe(subscribe: mqtt5_packet.SubscribePacket, options?: mod.SubscribeOptions) : Promise<mqtt5_packet.SubackPacket> {
+    /**
+     * Queues a subscribe packet to be sent to the remote broker.  If successfully queued, the packet will be sent
+     * as soon as it reaches the head of the queue while the client is connected.
+     *
+     * @param subscribe subscribe packet to send
+     * @param options additional configuration options
+     */
+    async subscribe(subscribe: mqtt5_packet.SubscribePacket, options?: SubscribeOptions) : Promise<mqtt5_packet.SubackPacket> {
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
         // async promise bodies synchronously until the first await, but doing it this way keeps us independent of that
         // runtime internal behavior.
@@ -256,7 +418,14 @@ export class Client extends BufferedEventEmitter {
         return liftedSubscribe.promise;
     }
 
-    async unsubscribe(unsubscribe: mqtt5_packet.UnsubscribePacket, options?: mod.UnsubscribeOptions) : Promise<mqtt5_packet.UnsubackPacket> {
+    /**
+     * Queues an unsubscribe packet to be sent to the remote broker.  If successfully queued, the packet will be sent
+     * as soon as it reaches the head of the queue while the client is connected.
+     *
+     * @param unsubscribe unsubscribe packet to send
+     * @param options additional configuration options
+     */
+    async unsubscribe(unsubscribe: mqtt5_packet.UnsubscribePacket, options?: UnsubscribeOptions) : Promise<mqtt5_packet.UnsubackPacket> {
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
         // async promise bodies synchronously until the first await, but doing it this way keeps us independent of that
         // runtime internal behavior.

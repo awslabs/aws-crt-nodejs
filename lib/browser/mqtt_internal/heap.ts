@@ -5,6 +5,9 @@
 
 import {CrtError} from "../error";
 
+/**
+ * A generic array-based min-heap implementation for priority queue usage.  Used to track operation timeouts.
+ */
 export class MinHeap<T> {
 
     private heap : Array<T | undefined> = [undefined];
@@ -13,12 +16,20 @@ export class MinHeap<T> {
     constructor(private lessThanOperator: (lhs: T, rhs: T) => boolean) {
     }
 
+    /**
+     * Push a value into the min-heap
+     *
+     * @param value value to add
+     */
     push(value: T) {
         this.currentSize++;
         this.heap[this.currentSize] = value;
         this.heapifyUp(this.currentSize);
     }
 
+    /**
+     * Gets the minimum value of the heap.  Returns undefined if the heap is empty.
+     */
     peek() : T | undefined {
         if (this.currentSize == 0) {
             return undefined;
@@ -28,6 +39,9 @@ export class MinHeap<T> {
         return this.heap[1];
     }
 
+    /**
+     * Pops the minimum value from the heap.  Throws an exception if the heap is empty.
+     */
     pop() : T {
         if (this.empty()) {
             throw new CrtError("Heap is empty");
@@ -43,10 +57,16 @@ export class MinHeap<T> {
         return returnValue;
     }
 
+    /**
+     * Checks if the min-heap is empty or not
+     */
     empty() : boolean {
         return this.currentSize == 0;
     }
 
+    /**
+     * Removes all values from the min-heap
+     */
     clear() {
         this.heap = [undefined];
         this.currentSize = 0;

@@ -6,7 +6,6 @@
 import * as mqtt_server from "@test/mqtt_server";
 import * as model from "./model";
 import * as mqtt_client from "./client";
-import * as mod from "./mod";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
 import * as promise from "../../common/promise";
 import * as mqtt5 from "../../common/mqtt5";
@@ -53,7 +52,7 @@ class ClientTestFixture {
 function buildDefaultClientConfig(fixture : ClientTestFixture, mode: model.ProtocolMode) : mqtt_client.ClientConfig {
     return {
         protocolVersion: mode,
-        offlineQueuePolicy: mod.OfflineQueuePolicy.Default,
+        offlineQueuePolicy: mqtt_client.OfflineQueuePolicy.Default,
         connectOptions: {
             keepAliveIntervalSeconds: 120
         },
@@ -559,33 +558,33 @@ describe("Unsubscribe success", () => {
     })
 });
 
-function doQos0Publish(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+function doQos0Publish(client: mqtt_client.Client) : Promise<mqtt_client.PublishResult> {
     return client.publish({
         topicName: "test/topic",
         qos: mqtt5_packet.QoS.AtMostOnce,
     });
 }
 
-function verifyQos0PublishResult(result: mod.PublishResult) {
-    expect(result.type).toEqual(mod.PublishResultType.Qos0);
+function verifyQos0PublishResult(result: mqtt_client.PublishResult) {
+    expect(result.type).toEqual(mqtt_client.PublishResultType.Qos0);
     expect(result.packet).toBeUndefined();
 }
 
 describe("Publish QoS 0 success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos0Publish, verifyQos0PublishResult);
+        await doOperationSuccessTest<mqtt_client.PublishResult>(protocolVersionToMode(protocolVersion), doQos0Publish, verifyQos0PublishResult);
     })
 });
 
-function doQos1Publish(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+function doQos1Publish(client: mqtt_client.Client) : Promise<mqtt_client.PublishResult> {
     return client.publish({
         topicName: "test/topic",
         qos: mqtt5_packet.QoS.AtLeastOnce,
     });
 }
 
-function verifyQos1PublishResult(result: mod.PublishResult) {
-    expect(result.type).toEqual(mod.PublishResultType.Qos1);
+function verifyQos1PublishResult(result: mqtt_client.PublishResult) {
+    expect(result.type).toEqual(mqtt_client.PublishResultType.Qos1);
     expect(result.packet).toBeDefined();
 
     let puback = result.packet as mqtt5_packet.PubackPacket;
@@ -594,7 +593,7 @@ function verifyQos1PublishResult(result: mod.PublishResult) {
 
 describe("Publish QoS 1 success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationSuccessTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos1Publish, verifyQos1PublishResult);
+        await doOperationSuccessTest<mqtt_client.PublishResult>(protocolVersionToMode(protocolVersion), doQos1Publish, verifyQos1PublishResult);
     })
 });
 
@@ -702,7 +701,7 @@ describe("Unsubscribe failure by timeout", () => {
     })
 });
 
-function doQos1PublishWithTimeout(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+function doQos1PublishWithTimeout(client: mqtt_client.Client) : Promise<mqtt_client.PublishResult> {
     return client.publish({
         topicName: "test/topic",
         qos: mqtt5_packet.QoS.AtLeastOnce,
@@ -713,7 +712,7 @@ function doQos1PublishWithTimeout(client: mqtt_client.Client) : Promise<mod.Publ
 
 describe("Publish QoS 1 failure by timeout", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationFailureTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos1PublishWithTimeout, TIMEOUT_FAILURE_MESSAGE);
+        await doOperationFailureTest<mqtt_client.PublishResult>(protocolVersionToMode(protocolVersion), doQos1PublishWithTimeout, TIMEOUT_FAILURE_MESSAGE);
     })
 });
 
@@ -741,7 +740,7 @@ describe("Unsubscribe failure by validation", () => {
     })
 });
 
-function doInvalidPublish(client: mqtt_client.Client) : Promise<mod.PublishResult> {
+function doInvalidPublish(client: mqtt_client.Client) : Promise<mqtt_client.PublishResult> {
     return client.publish({
         topicName: "a/#/a",
         qos: mqtt5_packet.QoS.AtMostOnce,
@@ -750,7 +749,7 @@ function doInvalidPublish(client: mqtt_client.Client) : Promise<mod.PublishResul
 
 describe("Publish failure by validation", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationFailureTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doInvalidPublish, "not a valid topic");
+        await doOperationFailureTest<mqtt_client.PublishResult>(protocolVersionToMode(protocolVersion), doInvalidPublish, "not a valid topic");
     })
 });
 
@@ -777,7 +776,7 @@ async function doOperationFailureByInterruptionTest<T>(protocolVersion : model.P
     await fixture.start();
 
     let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
-    clientConfig.offlineQueuePolicy = mod.OfflineQueuePolicy.PreserveNothing;
+    clientConfig.offlineQueuePolicy = mqtt_client.OfflineQueuePolicy.PreserveNothing;
 
     let client = new mqtt_client.Client(clientConfig);
 
@@ -809,7 +808,7 @@ describe("Unsubscribe failure by offline policy", () => {
 
 describe("Publish QoS 1 failure by offline policy", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
-        await doOperationFailureByInterruptionTest<mod.PublishResult>(protocolVersionToMode(protocolVersion), doQos1Publish);
+        await doOperationFailureByInterruptionTest<mqtt_client.PublishResult>(protocolVersionToMode(protocolVersion), doQos1Publish);
     })
 });
 

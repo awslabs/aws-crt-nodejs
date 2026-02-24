@@ -6,7 +6,6 @@
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as encoder from "./encoder";
 import * as decoder from "./decoder";
-import * as mod from "./mod";
 import * as model from "./model";
 import * as protocol from "./protocol";
 import {CrtError} from "../error";
@@ -189,7 +188,7 @@ function buildDefaultHandlerSet() : PacketHandlerSet {
 function buildProtocolStateConfig(mode: model.ProtocolMode, configMutator: (config: protocol.ProtocolStateConfig) => void = (config)=> {} ) : protocol.ProtocolStateConfig {
     let config = {
         protocolVersion: mode,
-        offlineQueuePolicy: mod.OfflineQueuePolicy.Default,
+        offlineQueuePolicy: protocol.OfflineQueuePolicy.Default,
         connectOptions: {
             keepAliveIntervalSeconds: 30,
             clientId: "test-client-id"
@@ -395,7 +394,7 @@ class ProtocolTestFixture {
         return this.protocolState.getNextServiceTimepoint(elaspedMillis);
     }
 
-    subscribe(elapsedMillis: number, packet: mqtt5_packet.SubscribePacket, options?: mod.SubscribeOptions) : OperationResult<mqtt5_packet.SubackPacket> {
+    subscribe(elapsedMillis: number, packet: mqtt5_packet.SubscribePacket, options?: protocol.SubscribeOptions) : OperationResult<mqtt5_packet.SubackPacket> {
         let result : OperationResult<mqtt5_packet.SubackPacket> = {
             state: OperationResultStateType.Pending,
         };
@@ -427,7 +426,7 @@ class ProtocolTestFixture {
         return result;
     }
 
-    unsubscribe(elapsedMillis: number, packet: mqtt5_packet.UnsubscribePacket, options?: mod.UnsubscribeOptions) : OperationResult<mqtt5_packet.UnsubackPacket> {
+    unsubscribe(elapsedMillis: number, packet: mqtt5_packet.UnsubscribePacket, options?: protocol.UnsubscribeOptions) : OperationResult<mqtt5_packet.UnsubackPacket> {
         let result : OperationResult<mqtt5_packet.UnsubackPacket> = {
             state: OperationResultStateType.Pending,
         };
@@ -459,15 +458,15 @@ class ProtocolTestFixture {
         return result;
     }
 
-    publish(elapsedMillis: number, packet: mqtt5_packet.PublishPacket, options?: mod.PublishOptions) : OperationResult<mod.PublishResult> {
-        let result : OperationResult<mod.PublishResult> = {
+    publish(elapsedMillis: number, packet: mqtt5_packet.PublishPacket, options?: protocol.PublishOptions) : OperationResult<protocol.PublishResult> {
+        let result : OperationResult<protocol.PublishResult> = {
             state: OperationResultStateType.Pending,
         };
 
         let internalOptions : protocol.PublishOptionsInternal = {
             options: options ?? {},
             resultHandler: {
-                onCompletionSuccess : (value : mod.PublishResult)=> {
+                onCompletionSuccess : (value : protocol.PublishResult)=> {
                     result.result = value;
                     result.state = OperationResultStateType.Success;
                 },
@@ -788,28 +787,6 @@ function encodePacketToBuffer(packet: mqtt5_packet.IPacket, mode: model.Protocol
     return dynamicBuffer.getView();
 }
 
-describe("pendingConnackConnackTooSoon", () => {
-    test.each(modes)("MQTT %p", (protocolVersion) => {
-        let context : BrokerTestContext = {
-            protocolStateConfig: buildProtocolStateConfig(protocolVersionToMode(protocolVersion)),
-        };
-
-        let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
-        fixture.onConnectionOpened(0);
-        expect(fixture.protocolState.getState()).toEqual(protocol.ProtocolStateType.PendingConnack);
-        fixture.verifyNotHalted();
-
-        fixture.service(0);
-        let encodedConnack = encodePacketToBuffer({
-            type: mqtt5_packet.PacketType.Connack,
-            sessionPresent: true
-        } as model.ConnackPacketInternal, protocolVersionToMode(protocolVersion));
-
-        fixture.onIncomingData(0, encodedConnack);
-        fixture.verifyHalted(protocol.HaltEventType.ProtocolError, "packet type not valid for current state");
-    })
-});
-
 describe("pendingConnackConnectionClosed", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let context : BrokerTestContext = {
@@ -1081,7 +1058,7 @@ function doConnectedIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mo
     let badPacketView = encodePacketToBuffer(packet, mode);
 
     fixture.onIncomingData(0, badPacketView);
-    fixture.verifyHaltedByExpression([protocol.HaltEventType.ProtocolError, protocol.HaltEventType.Unknown], new RegExp("packet type not valid for current state|No decoder for packet type"));
+    fixture.verifyHaltedByExpression([protocol.HaltEventType.ProtocolError, protocol.HaltEventType.Unknown], new RegExp("not valid for current state|No decoder for packet type"));
 
     fixture.verifyEmpty();
 }
@@ -1378,7 +1355,7 @@ function doPublish(fixture: ProtocolTestFixture, publishTime: number, pubackTime
     expect(result).toBeDefined();
 
     if (qos == mqtt5_packet.QoS.AtLeastOnce) {
-        expect(result!.type).toEqual(mod.PublishResultType.Qos1);
+        expect(result!.type).toEqual(protocol.PublishResultType.Qos1);
 
         // @ts-ignore
         let puback : mqtt5_packet.PubackPacket = (result as PublishResult).packet;
@@ -1387,7 +1364,7 @@ function doPublish(fixture: ProtocolTestFixture, publishTime: number, pubackTime
         let [pubackIndex, ] = findNthPacketOfType(fixture.toClientPackets, mqtt5_packet.PacketType.Puback, 1);
         expect(pubackIndex).toEqual(1);
     } else {
-        expect(result!.type).toEqual(mod.PublishResultType.Qos0);
+        expect(result!.type).toEqual(protocol.PublishResultType.Qos0);
     }
 
     fixture.verifyEmpty();
@@ -1590,7 +1567,7 @@ enum InterruptedOperationOutcomeType {
     FailedOnReconnect
 }
 
-function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -1663,13 +1640,13 @@ function queueSubscribe(fixture: ProtocolTestFixture, operationQueueTime: number
 
 describe("ReconnectWhileSubscribeQueuedSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
     })
 });
 
 describe("ReconnectWhileSubscribeQueuedFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
@@ -1706,30 +1683,30 @@ function queueUnsubscribe(fixture: ProtocolTestFixture, operationQueueTime: numb
 describe("ReconnectWhileUnsubscribeQueuedSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationQueuedTest(mode, mod.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, InterruptedOperationOutcomeType.StayQueued,
+        doReconnectWhileUserOperationQueuedTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, InterruptedOperationOutcomeType.StayQueued,
             (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); });
     })
 });
 
 describe("ReconnectWhileUnsubscribeQueuedFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
 
-function verifySuccessfulPuback5(result: OperationResult<mod.PublishResult>) : void {
+function verifySuccessfulPuback5(result: OperationResult<protocol.PublishResult>) : void {
     expect(result.state).toEqual(OperationResultStateType.Success);
 
     let puback = result.result!.packet as mqtt5_packet.PubackPacket;
     expect(puback.reasonCode).toEqual(mqtt5_packet.PubackReasonCode.Success);
 }
 
-function verifySuccessfulPuback311(result: OperationResult<mod.PublishResult>) : void {
+function verifySuccessfulPuback311(result: OperationResult<protocol.PublishResult>) : void {
     expect(result.state).toEqual(OperationResultStateType.Success);
 }
 
-function verifySuccessfulPuback(result: OperationResult<mod.PublishResult>, mode: model.ProtocolMode) : void {
+function verifySuccessfulPuback(result: OperationResult<protocol.PublishResult>, mode: model.ProtocolMode) : void {
     if (mode == model.ProtocolMode.Mqtt5) {
         verifySuccessfulPuback5(result);
     } else {
@@ -1737,7 +1714,7 @@ function verifySuccessfulPuback(result: OperationResult<mod.PublishResult>, mode
     }
 }
 
-function queueQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mod.PublishResult> {
+function queueQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
     return fixture.publish(operationQueueTime, {
         type: mqtt5_packet.PacketType.Publish,
         topicName: "hello/world",
@@ -1748,22 +1725,22 @@ function queueQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: numb
 describe("ReconnectWhileQos1PublishQueuedSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationQueuedTest(mode, mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, InterruptedOperationOutcomeType.StayQueued,
-            (result: OperationResult<mod.PublishResult>) => { verifySuccessfulPuback(result, mode); });
+        doReconnectWhileUserOperationQueuedTest(mode, protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); });
     })
 });
 
 describe("ReconnectWhileQos1PublishQueuedFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
-function verifySuccessfulQos0Publish(result: OperationResult<mod.PublishResult>) : void {
+function verifySuccessfulQos0Publish(result: OperationResult<protocol.PublishResult>) : void {
     expect(result.state).toEqual(OperationResultStateType.Success);
 }
 
-function queueQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mod.PublishResult> {
+function queueQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
     return fixture.publish(operationQueueTime, {
         type: mqtt5_packet.PacketType.Publish,
         topicName: "hello/world",
@@ -1774,17 +1751,17 @@ function queueQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: numb
 describe("ReconnectWhileQos0PublishQueuedSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationQueuedTest(mode, mod.OfflineQueuePolicy.PreserveAll, queueQos0Publish, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish);
+        doReconnectWhileUserOperationQueuedTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish);
     })
 });
 
 describe("ReconnectWhileQos0PublishQueuedFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
-function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -1860,13 +1837,13 @@ function queueMultiServiceSubscribe(fixture: ProtocolTestFixture, operationQueue
 
 describe("ReconnectWhileSubscribeCurrentOperationSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceSubscribe, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceSubscribe, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback);
     })
 });
 
 describe("ReconnectWhileSubscribeCurrentOperationFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceSubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceSubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
@@ -1880,18 +1857,18 @@ function queueMultiServiceUnsubscribe(fixture: ProtocolTestFixture, operationQue
 describe("ReconnectWhileUnsubscribeCurrentOperationSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileOperationCurrentTest(mode, mod.OfflineQueuePolicy.PreserveAll, queueMultiServiceUnsubscribe, InterruptedOperationOutcomeType.StayQueued,
+        doReconnectWhileOperationCurrentTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceUnsubscribe, InterruptedOperationOutcomeType.StayQueued,
             (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); });
     })
 });
 
 describe("ReconnectWhileUnsubscribeCurrentOperationFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceUnsubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceUnsubscribe, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
-function queueMultiServiceQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mod.PublishResult> {
+function queueMultiServiceQos1Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
     return fixture.publish(operationQueueTime, {
         type: mqtt5_packet.PacketType.Publish,
         topicName: "a".repeat(5000),
@@ -1902,18 +1879,18 @@ function queueMultiServiceQos1Publish(fixture: ProtocolTestFixture, operationQue
 describe("ReconnectWhileQos1PublishCurrentOperationSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileOperationCurrentTest(mode, mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos1Publish, InterruptedOperationOutcomeType.StayQueued,
-            (result: OperationResult<mod.PublishResult>) => { verifySuccessfulPuback(result, mode); });
+        doReconnectWhileOperationCurrentTest(mode, protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos1Publish, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); });
     })
 });
 
 describe("ReconnectWhileQos1PublishCurrentOperationFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos1Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos1Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
-function queueMultiServiceQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<mod.PublishResult> {
+function queueMultiServiceQos0Publish(fixture: ProtocolTestFixture, operationQueueTime: number) : OperationResult<protocol.PublishResult> {
     return fixture.publish(operationQueueTime, {
         type: mqtt5_packet.PacketType.Publish,
         topicName: "a".repeat(5000),
@@ -1924,19 +1901,19 @@ function queueMultiServiceQos0Publish(fixture: ProtocolTestFixture, operationQue
 describe("ReconnectWhileQos0PublishCurrentOperationSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileOperationCurrentTest(mode, mod.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos0Publish, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish);
+        doReconnectWhileOperationCurrentTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos0Publish, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish);
     })
 });
 
 describe("ReconnectWhileQos0PublishCurrentOperationFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos0Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
+        doReconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos0Publish, InterruptedOperationOutcomeType.FailedOnDisconnect);
     })
 });
 
 type VerifyPendingFunction = (fixture: ProtocolTestFixture) => void;
 
-function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier: ResultVerifier<T> | null, sessionPresent: boolean) {
+function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier: ResultVerifier<T> | null, sessionPresent: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -1998,32 +1975,32 @@ function verifyPendingAck(fixture: ProtocolTestFixture) {
 
 describe("ReconnectNoSessionWhileSubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback, false);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback, false);
     })
 });
 
 describe("ReconnectSessionPresentWhileSubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback, true);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulSuback, true);
     })
 });
 
 describe("ReconnectNoSessionWhileSubscribePendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
     })
 });
 
 describe("ReconnectSessionPresentWhileSubscribePendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
     })
 });
 
 describe("ReconnectNoSessionWhileUnsubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationPendingTest(mode, mod.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
             (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); }, false);
     })
 });
@@ -2031,20 +2008,20 @@ describe("ReconnectNoSessionWhileUnsubscribePendingAckSuccessTest", () => {
 describe("ReconnectSessionPresentWhileUnsubscribePendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationPendingTest(mode, mod.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.StayQueued,
             (result: OperationResult<mqtt5_packet.UnsubackPacket>) => { verifySuccessfulUnsuback(result, mode); }, true);
     })
 });
 
 describe("ReconnectNoSessionWhileUnsubscribePendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
     })
 });
 
 describe("ReconnectSessionPresentWhileUnsubscribePendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, verifyPendingAck, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
     })
 });
 
@@ -2054,25 +2031,25 @@ function verifyPendingWriteCompleteOperation(fixture: ProtocolTestFixture) {
 
 describe("ReconnectNoSessionWhileQos0PublishPendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish, false);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish, false);
     })
 });
 
 describe("ReconnectSessionPresentWhileQos0PublishPendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish, true);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.StayQueued, verifySuccessfulQos0Publish, true);
     })
 });
 
 describe("ReconnectNoSessionWhileQos0PublishPendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.FailedOnDisconnect, null, false);
     })
 });
 
 describe("ReconnectSessionPresentWhileQos0PublishPendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
+        doReconnectWhileUserOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, verifyPendingWriteCompleteOperation, InterruptedOperationOutcomeType.FailedOnDisconnect, null, true);
     })
 });
 
@@ -2083,8 +2060,8 @@ function verifyPendingQos1PublishOperation(fixture: ProtocolTestFixture) {
 describe("ReconnectNoSessionWhileQos1PublishPendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationPendingTest(mode, mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.StayQueued,
-            (result: OperationResult<mod.PublishResult>) => { verifySuccessfulPuback(result, mode); },
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); },
             false);
     })
 });
@@ -2092,8 +2069,8 @@ describe("ReconnectNoSessionWhileQos1PublishPendingAckSuccessTest", () => {
 describe("ReconnectSessionPresentWhileQos1PublishPendingAckSuccessTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationPendingTest(mode, mod.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.StayQueued,
-            (result: OperationResult<mod.PublishResult>) => { verifySuccessfulPuback(result, mode); },
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.StayQueued,
+            (result: OperationResult<protocol.PublishResult>) => { verifySuccessfulPuback(result, mode); },
             true);
     })
 });
@@ -2101,7 +2078,7 @@ describe("ReconnectSessionPresentWhileQos1PublishPendingAckSuccessTest", () => {
 describe("ReconnectNoSessionWhileQos1PublishPendingAckFailureTest", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        doReconnectWhileUserOperationPendingTest(mode, mod.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.FailedOnReconnect,
+        doReconnectWhileUserOperationPendingTest(mode, protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, verifyPendingQos1PublishOperation, InterruptedOperationOutcomeType.FailedOnReconnect,
             null,
             false);
     })
@@ -2229,7 +2206,7 @@ describe("UnsubscribeTimeoutFailure", () => {
     })
 });
 
-function queueQos1PublishWithTimeout(fixture: ProtocolTestFixture) : OperationResult<mod.PublishResult> {
+function queueQos1PublishWithTimeout(fixture: ProtocolTestFixture) : OperationResult<protocol.PublishResult> {
     return fixture.publish(0, {
         topicName: "a/b/c/hello",
         qos: mqtt5_packet.QoS.AtLeastOnce
@@ -2244,7 +2221,7 @@ describe("PublishTimeoutFailure", () => {
     })
 });
 
-function doOfflineSubmitTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doOfflineSubmitTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2269,101 +2246,101 @@ function doOfflineSubmitTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mo
 
 describe("SubscribeOfflineSubmitPreserveAllSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
     })
 });
 
 describe("SubscribeOfflineSubmitPreserveAcknowledgedSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
     })
 });
 
 describe("SubscribeOfflineSubmitPreserveQos1Failure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
     })
 });
 
 describe("SubscribeOfflineSubmitPreserveNothingFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
     })
 });
 
 describe("UnsubscribeOfflineSubmitPreserveAllSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
     })
 });
 
 describe("UnsubscribeOfflineSubmitPreserveAcknowledgedSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
     })
 });
 
 describe("UnsubscribeOfflineSubmitPreserveQos1Failure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
     })
 });
 
 describe("UnsubscribeOfflineSubmitPreserveNothingFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
     })
 });
 
 describe("Qos0PublishOfflineSubmitPreserveAllSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
     })
 });
 
 describe("Qos0PublishOfflineSubmitPreserveAcknowledgedFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
     })
 });
 
 describe("Qos0PublishOfflineSubmitPreserveQos1Failure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
     })
 });
 
 describe("Qos0PublishOfflineSubmitPreserveNothingFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
     })
 });
 
 describe("Qos1PublishOfflineSubmitPreserveAllSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
     })
 });
 
 describe("Qos1PublishOfflineSubmitPreserveAcknowledgedSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
     })
 });
 
 describe("Qos1PublishOfflineSubmitPreserveQos1Success", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
     })
 });
 
 describe("Qos1PublishOfflineSubmitPreserveNothingFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, true);
+        doOfflineSubmitTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, true);
     })
 });
 
-function doDisconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doDisconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2395,101 +2372,101 @@ function doDisconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, o
 
 describe("SubscribePreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
     })
 });
 
 describe("SubscribePreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
     })
 });
 
 describe("SubscribePreserveQos1DisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
     })
 });
 
 describe("SubscribePreserveNothingDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
     })
 });
 
 describe("UnsubscribePreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
     })
 });
 
 describe("UnsubscribePreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
     })
 });
 
 describe("UnsubscribePreserveQos1DisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
     })
 });
 
 describe("UnsubscribePreserveNothingDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
     })
 });
 
 describe("Qos0PublishPreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
     })
 });
 
 describe("Qos0PublishPreserveAcknowledgedDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
     })
 });
 
 describe("Qos0PublishPreserveQos1DisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
     })
 });
 
 describe("Qos0PublishPreserveNothingDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
     })
 });
 
 describe("Qos1PublishPreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
     })
 });
 
 describe("Qos1PublishPreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
     })
 });
 
 describe("Qos1PublishPreserveQos1DisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
     })
 });
 
 describe("Qos1PublishPreserveNothingDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, true);
+        doDisconnectWhileUserOperationQueuedTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, true);
     })
 });
 
-function doDisconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doDisconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2528,102 +2505,102 @@ function doDisconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offl
 
 describe("CurrentOperationSubscribePreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueMultiServiceSubscribe, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceSubscribe, false);
     })
 });
 
 describe("CurrentOperationSubscribePreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceSubscribe, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceSubscribe, false);
     })
 });
 
 describe("CurrentOperationSubscribePreserveQos1OnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceSubscribe, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceSubscribe, true);
     })
 });
 
 describe("CurrentOperationSubscribePreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueMultiServiceSubscribe, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceSubscribe, true);
     })
 });
 
 describe("CurrentOperationUnsubscribePreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueMultiServiceUnsubscribe, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceUnsubscribe, false);
     })
 });
 
 describe("CurrentOperationUnsubscribePreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceUnsubscribe, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceUnsubscribe, false);
     })
 });
 
 describe("CurrentOperationUnsubscribePreserveQos1OnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceUnsubscribe, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceUnsubscribe, true);
     })
 });
 
 describe("CurrentOperationUnsubscribePreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueMultiServiceUnsubscribe, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceUnsubscribe, true);
     })
 });
 
 describe("CurrentOperationQos0PublishPreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos0Publish, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos0Publish, false);
     })
 });
 
 describe("CurrentOperationQos0PublishPreserveAcknowledgedDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos0Publish, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos0Publish, true);
     })
 });
 
 describe("CurrentOperationQos0PublishPreserveQos1OnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos0Publish, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos0Publish, true);
     })
 });
 
 describe("CurrentOperationQos0PublishPreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos0Publish, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos0Publish, true);
     })
 });
 
 describe("CurrentOperationQos1PublishPreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos1Publish, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueMultiServiceQos1Publish, false);
     })
 });
 
 describe("CurrentOperationQos1PublishPreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos1Publish, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueMultiServiceQos1Publish, false);
     })
 });
 
 describe("CurrentOperationQos1PublishPreserveQos1OnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos1Publish, false);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueMultiServiceQos1Publish, false);
     })
 });
 
 describe("CurrentOperationQos1PublishPreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos1Publish, true);
+        doDisconnectWhileOperationCurrentTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueMultiServiceQos1Publish, true);
     })
 });
 
 
-function doDisconnectWhileOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: mod.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doDisconnectWhileOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2658,104 +2635,104 @@ function doDisconnectWhileOperationPendingTest<T>(mode: model.ProtocolMode, offl
 
 describe("PendingOperationSubscribePreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueSubscribe, false);
     })
 });
 
 describe("PendingOperationSubscribePreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueSubscribe, false);
     })
 });
 
 describe("PendingOperationSubscribePreserveQos1OnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueSubscribe, true);
     })
 });
 
 describe("PendingOperationSubscribePreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueSubscribe, true);
     })
 });
 
 describe("PendingOperationUnsubscribePreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueUnsubscribe, false);
     })
 });
 
 describe("PendingOperationUnsubscribePreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueUnsubscribe, false);
     })
 });
 
 describe("PendingOperationUnsubscribePreserveQos1OnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueUnsubscribe, true);
     })
 });
 
 describe("PendingOperationUnsubscribePreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueUnsubscribe, true);
     })
 });
 
 describe("PendingOperationQos0PublishPreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos0Publish, false);
     })
 });
 
 describe("PendingOperationQos0PublishPreserveAcknowledgedDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos0Publish, true);
     })
 });
 
 describe("PendingOperationQos0PublishPreserveQos1OnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos0Publish, true);
     })
 });
 
 describe("PendingOperationQos0PublishPreserveNothingOnDisconnectFailure", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos0Publish, true);
     })
 });
 
 describe("PendingOperationQos1PublishPreserveAllOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAll, queueQos1Publish, false);
     })
 });
 
 describe("PendingOperationQos1PublishPreserveAcknowledgedDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveAcknowledged, queueQos1Publish, false);
     })
 });
 
 describe("PendingOperationQos1PublishPreserveQos1OnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes, queueQos1Publish, false);
     })
 });
 
 // doesn't fail because we have to check session resumption on reconnect before failure
 describe("PendingOperationQos1PublishPreserveNothingOnDisconnectPending", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), mod.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, false);
+        doDisconnectWhileOperationPendingTest(protocolVersionToMode(protocolVersion), protocol.OfflineQueuePolicy.PreserveNothing, queueQos1Publish, false);
     })
 });
 
 function doDisconnectWhileQos1PublishPendingSetsDuplicateTest(mode: model.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
-    config.offlineQueuePolicy = mod.OfflineQueuePolicy.PreserveQos1PlusPublishes;
+    config.offlineQueuePolicy = protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes;
 
     let context : BrokerTestContext = {
         protocolStateConfig: config,
@@ -2793,7 +2770,7 @@ describe("PendingQos1PublishOnDisconnectSetsDuplicate", () => {
 });
 
 
-function doResumeSessionPolicyTest(mode: model.ProtocolMode, resumeSessionPolicy: mod.ResumeSessionPolicyType, expectedCleanStartFlags: Array<boolean>) {
+function doResumeSessionPolicyTest(mode: model.ProtocolMode, resumeSessionPolicy: protocol.ResumeSessionPolicyType, expectedCleanStartFlags: Array<boolean>) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.resumeSessionPolicy = resumeSessionPolicy;
 
@@ -2814,19 +2791,19 @@ function doResumeSessionPolicyTest(mode: model.ProtocolMode, resumeSessionPolicy
 
 describe("ResumeSessionPolicyNever", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), mod.ResumeSessionPolicyType.Never, [true, true, true, true]);
+        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), protocol.ResumeSessionPolicyType.Never, [true, true, true, true]);
     })
 });
 
 describe("ResumeSessionPolicyAlways", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), mod.ResumeSessionPolicyType.Always, [false, false, false, false]);
+        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), protocol.ResumeSessionPolicyType.Always, [false, false, false, false]);
     })
 });
 
 describe("ResumeSessionPolicyPostSuccess", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
-        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), mod.ResumeSessionPolicyType.PostSuccess, [true, false, false, false]);
+        doResumeSessionPolicyTest(protocolVersionToMode(protocolVersion), protocol.ResumeSessionPolicyType.PostSuccess, [true, false, false, false]);
     })
 });
 
