@@ -768,3 +768,360 @@ export function cloneDisconnectShallow(disconnect: mqtt5_packet.DisconnectPacket
 
     return clone;
 }
+
+function appendBooleanPacketPropertyLine(current: string, prefix: string, propertyName: string, value: boolean) : string {
+    return current + `${prefix}  ${propertyName}: ${value ? "true" : "false"}\n`;
+}
+
+function appendOptionalBooleanPacketPropertyLine(current: string, prefix: string, propertyName: string, value?: boolean) : string {
+    if (value == undefined) {
+        return current;
+    } else {
+        return appendBooleanPacketPropertyLine(current, prefix, propertyName, value);
+    }
+}
+
+function appendNumericPacketPropertyLine(current: string, prefix: string, propertyName: string, value: number) : string {
+    return current + `${prefix}  ${propertyName}: ${value}\n`;
+}
+
+function appendOptionalNumericPacketPropertyLine(current: string, prefix: string, propertyName: string, value?: number) : string {
+    if (value == undefined) {
+        return current;
+    } else {
+        return appendNumericPacketPropertyLine(current, prefix, propertyName, value);
+    }
+}
+
+function appendOptionalNumericArrayPacketPropertyLine(current: string, prefix: string, propertyName: string, values?: Array<number>) : string {
+    if (values == undefined) {
+        return current;
+    } else {
+        current += `${prefix}  ${propertyName}: [`;
+        for (let i = 0; i < values.length; i++) {
+            if (i > 0) {
+                current += ", ";
+            }
+
+            current += values[i];
+        }
+        current += "]\n";
+
+        return current;
+    }
+}
+
+function appendEnumPacketPropertyLine(current: string, prefix: string, propertyName: string, valueNameConverter: (val : number) => string, value: number) : string {
+    return current + `${prefix}  ${propertyName}: ${valueNameConverter(value)}(${value})\n`;
+}
+
+function appendOptionalEnumPacketPropertyLine(current: string, prefix: string, propertyName: string, valueNameConverter: (val : number) => string, value?: number) : string {
+    if (value == undefined) {
+        return current;
+    } else {
+        return appendEnumPacketPropertyLine(current, prefix, propertyName, valueNameConverter, value);
+    }
+}
+
+function appendEnumArrayPacketPropertyLine<T>(current: string, prefix: string, propertyName: string, valueNameConverter: (val : number) => string, values: Array<T>) : string {
+    current += `${prefix}  ${propertyName}: [\n`;
+    for (let i = 0; i < values.length; i++) {
+        let value = values[i];
+        current += `${prefix}    ${valueNameConverter(value as number)}(${value})\n`;
+    }
+    current += `${prefix}  ]\n`;
+
+    return current;
+}
+
+function appendStringPacketPropertyLine(current: string, prefix: string, propertyName: string, value: string) : string {
+    return current + `${prefix}  ${propertyName}: ${value}\n`;
+}
+
+function appendOptionalStringPacketPropertyLine(current: string, prefix: string, propertyName: string, value?: string) : string {
+    if (value == undefined) {
+        return current;
+    } else {
+        return appendStringPacketPropertyLine(current, prefix, propertyName, value);
+    }
+}
+
+function appendStringArrayPacketPropertyLine(current: string, prefix: string, propertyName: string, values: Array<string>) : string {
+    current += `${prefix}  ${propertyName}: [\n`;
+    for (let value of values) {
+        current += `${prefix}    ${value}\n`;
+    }
+    current += `${prefix}  ]\n`;
+
+    return current;
+}
+
+function appendBinaryPacketPropertyLine(current: string, prefix: string, propertyName: string, value: BinaryData) : string {
+    return current + `${prefix}  ${propertyName}: [..${value.byteLength} bytes..]\n`;
+}
+
+function appendOptionalBinaryPacketPropertyLine(current: string, prefix: string, propertyName: string, value?: BinaryData) : string {
+    if (value == undefined) {
+        return current;
+    } else {
+        return appendBinaryPacketPropertyLine(current, prefix, propertyName, value);
+    }
+}
+
+function appendPayloadPacketPropertyLine(current: string, prefix: string, propertyName: string, value?: mqtt5_packet.Payload) : string {
+    let payloadLength : number = 0;
+    if (value != undefined) {
+        if (value instanceof ArrayBuffer) {
+            payloadLength = (value as ArrayBuffer).byteLength;
+        } else if (value instanceof Uint8Array) {
+            payloadLength = (value as Uint8Array).buffer.byteLength;
+        } else if (value instanceof Buffer) {
+            payloadLength = value.byteLength;
+        } else if (typeof(value) === 'string') {
+            let encoder = new TextEncoder();
+            payloadLength = encoder.encode(value).buffer.byteLength;
+        }
+    }
+
+    return current + `${prefix}  ${propertyName}: [..${payloadLength} bytes..]\n`;
+}
+
+function appendUserProperties(current: string, prefix: string, userProperties?: Array<mqtt5_packet.UserProperty>) : string {
+    if (!userProperties) {
+        return current;
+    }
+
+    current += `${prefix}  UserProperties: [\n`
+    for (let userProperty of userProperties) {
+        current += `${prefix}    ${userProperty.name}: "${userProperty.value}"\n`;
+    }
+    current += `${prefix}]\n`
+
+    return current;
+}
+
+function connectPacketToLogString(packet: ConnectPacketInternal, prefix : string) : string {
+    let result = `${prefix}Connect: {\n`;
+
+    result = appendBooleanPacketPropertyLine(result, "", "CleanStart", packet.cleanStart);
+    result = appendNumericPacketPropertyLine(result, "", "KeepAliveInterval", packet.keepAliveIntervalSeconds);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ClientId", packet.clientId);
+    result = appendOptionalStringPacketPropertyLine(result, "", "Username", packet.username);
+    result = appendOptionalBinaryPacketPropertyLine(result, "", "Password", packet.password);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "SessionExpiryIntervalSeconds", packet.sessionExpiryIntervalSeconds);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "RequestResponseInformation", packet.requestResponseInformation);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "RequestProblemInformation", packet.requestProblemInformation);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "ReceiveMaximum", packet.receiveMaximum);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "MaximumPacketSize", packet.maximumPacketSizeBytes);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "TopicAliasMaximum", packet.topicAliasMaximum);
+    result = appendOptionalStringPacketPropertyLine(result, "", "AuthenticationMethod", packet.authenticationMethod);
+    result = appendOptionalBinaryPacketPropertyLine(result, "", "AuthenticationData", packet.authenticationData);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "WillDelayIntervalSeconds", packet.willDelayIntervalSeconds);
+
+    if (packet.will) {
+        result += `${prefix}  Will: {\n`;
+        result += publishPacketToLogString(packet.will as PublishPacketInternal, "  ");
+        result += `${prefix}  }\n`;
+    }
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function connackPacketToLogString(packet: ConnackPacketInternal, prefix : string) : string {
+    let result = `${prefix}Connack: {\n`;
+
+    result = appendBooleanPacketPropertyLine(result, "", "SessionPresent", packet.sessionPresent);
+    result = appendEnumPacketPropertyLine(result, "", "ReasonCode", (val : number) => mqtt5_packet.ConnectReasonCode[val], packet.reasonCode);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "SessionExpiryInterval", packet.sessionExpiryInterval);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "ReceiveMaximum", packet.receiveMaximum);
+    result = appendOptionalEnumPacketPropertyLine(result, "", "MaximumQos", (val : number) => mqtt5_packet.QoS[val], packet.maximumQos);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "RetainAvailable", packet.retainAvailable);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "MaximumPacketSize", packet.maximumPacketSize);
+    result = appendOptionalStringPacketPropertyLine(result, "", "AssignedClientIdentifier", packet.assignedClientIdentifier);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "TopicAliasMaximum", packet.topicAliasMaximum);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ReasonString", packet.reasonString);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "WildcardSubscriptionsAvailable", packet.wildcardSubscriptionsAvailable);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "SubscriptionIdentifiersAvailable", packet.subscriptionIdentifiersAvailable);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "SharedSubscriptionsAvailable", packet.sharedSubscriptionsAvailable);
+
+    result = appendOptionalNumericPacketPropertyLine(result, "", "ServerKeepAlive", packet.serverKeepAlive);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ResponseInformation", packet.responseInformation);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ServerReference", packet.serverReference);
+    result = appendOptionalStringPacketPropertyLine(result, "", "AuthenticationMethod", packet.authenticationMethod);
+    result = appendOptionalBinaryPacketPropertyLine(result, "", "AuthenticationData", packet.authenticationData);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function publishPacketToLogString(packet: PublishPacketInternal, prefix : string) : string {
+    let result = `${prefix}Publish: {\n`;
+
+    result = appendOptionalNumericPacketPropertyLine(result, "", "PacketId", packet.packetId);
+    result = appendBooleanPacketPropertyLine(result, "", "Duplicate", packet.duplicate);
+    result = appendStringPacketPropertyLine(result, "", "TopicName", packet.topicName);
+    result = appendPayloadPacketPropertyLine(result, "", "Payload", packet.payload);
+    result = appendEnumPacketPropertyLine(result, "", "Qos", (val : number) => mqtt5_packet.QoS[val], packet.qos);
+    result = appendOptionalBooleanPacketPropertyLine(result, "", "Retain", packet.retain);
+    result = appendOptionalEnumPacketPropertyLine(result, "", "PayloadFormat", (val : number) => mqtt5_packet.PayloadFormatIndicator[val], packet.payloadFormat);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "MessageExpiryIntervalSeconds", packet.messageExpiryIntervalSeconds);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "TopicAlias", packet.topicAlias);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ResponseTopic", packet.responseTopic);
+    result = appendOptionalBinaryPacketPropertyLine(result, "", "CorrelationData", packet.correlationData);
+    result = appendOptionalNumericArrayPacketPropertyLine(result, "", "SubscriptionIdentifiers", packet.subscriptionIdentifiers);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ContentType", packet.contentType);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function pubackPacketToLogString(packet: PubackPacketInternal, prefix : string) : string {
+    let result = `${prefix}Puback: {\n`;
+
+    result = appendNumericPacketPropertyLine(result, "", "PacketId", packet.packetId);
+    result = appendEnumPacketPropertyLine(result, "", "ReasonCode", (val : number) => mqtt5_packet.PubackReasonCode[val], packet.reasonCode);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ReasonString", packet.reasonString);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function appendSubscription(current: string, prefix : string, subscription: mqtt5_packet.Subscription) : string {
+    let localPrefix = `${prefix}  `;
+    let result = `${localPrefix}{`;
+
+    result = appendStringPacketPropertyLine(result, localPrefix, "TopicFilter", subscription.topicFilter);
+    result = appendEnumPacketPropertyLine(result, localPrefix, "Qos", (val : number) => mqtt5_packet.QoS[val], subscription.qos);
+    result = appendOptionalBooleanPacketPropertyLine(result, localPrefix, "NoLocal", subscription.noLocal);
+    result = appendOptionalBooleanPacketPropertyLine(result, localPrefix, "RetainAsPublished", subscription.retainAsPublished);
+    result = appendOptionalEnumPacketPropertyLine(result, localPrefix, "RetainHandlingType", (val : number) => mqtt5_packet.RetainHandlingType[val], subscription.retainHandlingType);
+
+    result += `${localPrefix}}`;
+
+    return result;
+}
+
+function subscribePacketToLogString(packet: SubscribePacketInternal, prefix : string) : string {
+    let result = `${prefix}Subscribe: {\n`;
+
+    result = appendOptionalNumericPacketPropertyLine(result, "", "PacketId", packet.packetId);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "SubscriptionIdentifier", packet.subscriptionIdentifier);
+    result += `${prefix}  Subscriptions: [\n`;
+    for (let subscription of packet.subscriptions) {
+        result += appendSubscription(result, "  ", subscription);
+    }
+    result += `${prefix}  ]\n`;
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function subackPacketToLogString(packet: SubackPacketInternal, prefix : string) : string {
+    let result = `${prefix}Suback: {\n`;
+
+    result = appendNumericPacketPropertyLine(result, "", "PacketId", packet.packetId);
+    result = appendEnumArrayPacketPropertyLine(result, "", "ReasonCodes", (val : number) => mqtt5_packet.SubackReasonCode[val], packet.reasonCodes);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ReasonString", packet.reasonString);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function unsubscribePacketToLogString(packet: UnsubscribePacketInternal, prefix : string) : string {
+    let result = `${prefix}Unsubscribe: {\n`;
+
+    result = appendOptionalNumericPacketPropertyLine(result, "", "PacketId", packet.packetId);
+    result = appendStringArrayPacketPropertyLine(result, "", "TopicFilters", packet.topicFilters);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function unsubackPacketToLogString(packet: UnsubackPacketInternal, prefix : string) : string {
+    let result = `${prefix}Unsuback: {\n`;
+
+    result = appendNumericPacketPropertyLine(result, "", "PacketId", packet.packetId);
+    result = appendEnumArrayPacketPropertyLine(result, "", "ReasonCodes", (val : number) => mqtt5_packet.UnsubackReasonCode[val], packet.reasonCodes);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ReasonString", packet.reasonString);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function disconnectPacketToLogString(packet: DisconnectPacketInternal, prefix : string) : string {
+    let result = `${prefix}Disconnect: {\n`;
+
+    result = appendEnumPacketPropertyLine(result, "", "ReasonCode", (val : number) => mqtt5_packet.DisconnectReasonCode[val], packet.reasonCode);
+    result = appendOptionalNumericPacketPropertyLine(result, "", "SessionExpiryIntervalSeconds", packet.sessionExpiryIntervalSeconds);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ReasonString", packet.reasonString);
+    result = appendOptionalStringPacketPropertyLine(result, "", "ServerReference", packet.serverReference);
+
+    result = appendUserProperties(result, "", packet.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+// support all user-submitted packets + all valid inbound packets + Connect
+export function internalPacketToLogString(packet: mqtt5_packet.IPacket, prefix : string = "" ) : string {
+    switch(packet.type) {
+        case mqtt5_packet.PacketType.Connect:
+            return connectPacketToLogString(packet as ConnectPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Connack:
+            return connackPacketToLogString(packet as ConnackPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Publish:
+            return publishPacketToLogString(packet as PublishPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Puback:
+            return pubackPacketToLogString(packet as PubackPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Subscribe:
+            return subscribePacketToLogString(packet as SubscribePacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Suback:
+            return subackPacketToLogString(packet as SubackPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Unsubscribe:
+            return unsubscribePacketToLogString(packet as UnsubscribePacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Unsuback:
+            return unsubackPacketToLogString(packet as UnsubackPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Disconnect:
+            return disconnectPacketToLogString(packet as DisconnectPacketInternal, prefix);
+
+        case mqtt5_packet.PacketType.Pingresp:
+            return `${prefix}Pingresp: {}`;
+
+        default:
+            return `${prefix}UnexpectedPacketType: ${packet.type}`;
+    }
+}

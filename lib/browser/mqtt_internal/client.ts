@@ -11,6 +11,7 @@ import * as mqtt_shared from "../../common/mqtt_shared";
 import * as promise from "../../common/promise"
 import * as ws from "../ws"
 import * as utils from "./utils"
+import {flogError, flogDebug, flogWarn, flogInfo, flogTrace, logError, logDebug, logWarn, logInfo, logTrace} from "../../common/io";
 
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
@@ -197,6 +198,8 @@ interface ConnectionCallbackState {
  */
 const DEFAULT_RESET_CONNECTION_FAILURE_COUNT_MILLIS : number = 30 * 1000;
 
+const CLIENT_LOG_SUBJECT : string = "InternalMqttClient";
+
 /**
  * Internal MQTT client implementation that supports both 311 and 5.  Restricted to match IoT Core's
  * feature set (no QoS 2 support).
@@ -283,6 +286,7 @@ export class Client extends BufferedEventEmitter {
      */
     start() {
         if (this.desiredState == ClientState.Stopped) {
+            logInfo(CLIENT_LOG_SUBJECT, "Starting MQTT client" );
             this.desiredState = ClientState.Connected;
             if (this.currentState == ClientState.Stopped) {
                 this.transitionToState(ClientState.Connecting);

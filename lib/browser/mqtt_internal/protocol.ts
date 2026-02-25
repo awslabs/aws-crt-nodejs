@@ -1918,7 +1918,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             connect_packet.willDelayIntervalSeconds = connectOptions.willDelayIntervalSeconds;
         }
         if (connectOptions.will != undefined) {
-            connect_packet.will = connectOptions.will;
+            connect_packet.will = model.clonePublishShallow(connectOptions.will);
         }
         if (connectOptions.userProperties != undefined) {
             connect_packet.userProperties = connectOptions.userProperties;
