@@ -12,6 +12,7 @@ import * as heap from "./heap";
 import * as validate from "./validate";
 import * as utils from "./utils";
 import {CrtError} from "../error";
+import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
 
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_shared from "../../common/mqtt_shared";
@@ -650,6 +651,8 @@ export type ConnackReceivedEventListener = (eventData: ConnackReceivedEvent) => 
 const MAXIMUM_NUMBER_OF_PACKET_IDS : number = 65535;
 const MAXIMUM_PACKET_ID : number = 65535;
 
+const PROTOCOL_STATE_LOG_SUBJECT : string = "MQTT ProtocolState";
+
 /**
  * Encapsulates all MQTT  protocol-related behavior over the course of repeated connections to a remote broker.
  */
@@ -934,6 +937,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      * Reset ping-related state.  Invoked after a Pingreq is sent.
      */
     private resetNextPing() {
+        logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Resetting next ping state");
+
         this.pendingPingrespTimeoutElapsedMillis = undefined;
         this.pushOutNextPing(this.elapsedMillis);
     }
@@ -949,8 +954,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
         if (baseTime != undefined) {
             let pingTime = baseTime + this.config.connectOptions.keepAliveIntervalSeconds * 1000;
-
             this.nextOutboundPingElapsedMillis = utils.foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
+
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Adjusting next ping time to ${this.nextOutboundPingElapsedMillis ?? 0 - this.elapsedMillis} millis in the future`);
         }
     }
 
@@ -962,12 +968,16 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             return;
         }
 
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Releasing packet id ${id}`);
+
         this.boundPacketIds.delete(id);
         this.pendingPublishAcks.delete(id);
         this.pendingNonPublishAcks.delete(id);
     }
 
     private failOperation(id: number, error: CrtError) {
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Failing operation ${id} with error "${error.toString()}"`);
+
         let operation = this.operations.get(id);
         if (operation) {
             this.unbindPacketId(operation.packetId);
@@ -980,6 +990,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private completeOperation(id: number, result: OperationResultType) {
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Completing operation ${id} successfully`);
+
         let operation = this.operations.get(id);
         if (operation) {
             this.unbindPacketId(operation.packetId);
@@ -1015,7 +1027,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private changeState(newState: ProtocolStateType) {
-        this.state = newState;
+        if (newState != this.state) {
+            flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Changing state from ${ProtocolStateType[this.state]} to ${ProtocolStateType[newState]}`);
+
+            this.state = newState;
+        }
     }
 
     /**
@@ -1160,6 +1176,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      * Invoked on an operation after it is fully encoded to an output buffer.
      */
     private onOperationProcessed(operation: ClientOperation) : boolean {
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Operation ${operation.id} moved to post-processed state`);
+
         operation.numAttempts++;
         this.pendingFlushOperations.push(operation.id);
 
@@ -1271,6 +1289,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             }
         }
 
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Packet id ${packetId} bound to operation ${operationId}`);
+
         this.boundPacketIds.set(packetId, operationId);
         return packetId;
     }
@@ -1302,6 +1322,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private serviceOutboundOperations(serviceQueueType : ServiceQueueType, socketBuffer: ArrayBuffer) : ServiceResult {
+        logDebug(PROTOCOL_STATE_LOG_SUBJECT, "Begin servicing outbound operations");
+
         let done : boolean = false;
         let remainingView = new DataView(socketBuffer);
 
@@ -1327,6 +1349,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 }
 
                 if (validationError == undefined) {
+                    // @ts-ignore
+                    flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Initializing encoder state for operation ${currentOperation.id}`);
+
                     this.currentOperation = currentOperation.id;
                     this.encoder.initForPacket(currentOperation.packet);
                 } else {
@@ -1339,6 +1364,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 // nothing to do
                 done = true;
             } else {
+                logDebug(PROTOCOL_STATE_LOG_SUBJECT, "Encoding current operation");
+
                 let encodeResult = this.encoder.service(remainingView);
                 if (encodeResult.type == encoder.ServiceResultType.InProgress) {
                     // ran out of room in the output buffer
@@ -1355,9 +1382,14 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let result : ServiceResult = {};
         if (remainingView.byteLength < socketBuffer.byteLength) {
             // there's data that should be written to the socket.  That's the caller's responsibility.
-            result.toSocket = new DataView(socketBuffer, 0, socketBuffer.byteLength - remainingView.byteLength);
+            let byteLength : number = socketBuffer.byteLength - remainingView.byteLength
+            result.toSocket = new DataView(socketBuffer, 0, byteLength);
             this.pendingWriteCompletion = true;
+
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Outbound operation processing generated ${byteLength} bytes to be written`);
         }
+
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `End servicing outbound operations`);
 
         return result;
     }
@@ -1367,6 +1399,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         // check for and handle connack timeout
         if (this.pendingConnackTimeoutElapsedMillis != undefined) {
             if (this.elapsedMillis >= this.pendingConnackTimeoutElapsedMillis) {
+                logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Connack timeout breached");
+
                 this.halt(HaltEventType.Timeout, new CrtError("Connack timeout"));
                 return {};
             }
@@ -1385,6 +1419,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         // check for and handle sending a pingreq
         if (this.nextOutboundPingElapsedMillis) {
             if (this.elapsedMillis >= this.nextOutboundPingElapsedMillis) {
+                logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Next ping timeout exceeded.  Queuing Pingreq packet.");
+
                 let pingreq : model.PingreqPacketBinary = {
                     type: mqtt5_packet.PacketType.Pingreq
                 };
@@ -1393,12 +1429,16 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 this.pushOutNextPing(this.elapsedMillis);
                 let timeoutMillis = utils.foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
                 this.pendingPingrespTimeoutElapsedMillis = this.elapsedMillis + timeoutMillis;
+
+                flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Pingresp timeout in ${timeoutMillis} millis`);
             }
         }
 
         // check for and handle a pingresp timeout
         if (this.pendingPingrespTimeoutElapsedMillis) {
             if (this.elapsedMillis >= this.pendingPingrespTimeoutElapsedMillis) {
+                logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Pingresp timeout exceede.");
+
                 this.halt(HaltEventType.Timeout, new CrtError("Pingresp timeout"));
             }
         }
@@ -1415,6 +1455,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 break;
             }
 
+            // @ts-ignore
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Operation ${top.operationId} timeout breached`);
+
             this.operationTimeouts.pop();
             this.failOperation(top.operationId, new CrtError("Operation timed out"));
         }
@@ -1430,7 +1473,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private updateElapsedMillis(elapsedMillis: number) : void {
-        this.elapsedMillis = elapsedMillis;
+        if (elapsedMillis != this.elapsedMillis) {
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Elapsed millis updated from ${this.elapsedMillis} to ${elapsedMillis}`);
+
+            this.elapsedMillis = elapsedMillis;
+        }
     }
 
     /**
@@ -1449,6 +1496,12 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             if (userPacket) {
                 // perform initial user-packet validation
                 validate.validateUserSubmittedOutboundPacket(userPacket, this.config.protocolVersion);
+
+                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Submitting user operation ${operation.id}:`);
+                // don't want to log the packet until it passes initial validation
+                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => model.internalPacketToLogString(userPacket, "  "));
+            } else {
+                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Submitting internal operation ${operation.id} of type ${mqtt5_packet.PacketType[operation.type]}`);
             }
 
             // ofline queue policy check
@@ -1463,8 +1516,12 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
             let queue = this.getOperationQueue(queueType);
             if (submitLocation == QueueEndType.Front) {
+                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Operation ${operation.id} enqueued to front of ${OperationQueueType[queueType]} operation queue`);
+
                 queue.unshift(operation.id);
             } else {
+                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Operation ${operation.id} enqueued to back of ${OperationQueueType[queueType]} operation queue`);
+
                 queue.push(operation.id);
             }
         } catch (e) {
@@ -1539,7 +1596,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private submitDisconnect(context: DisconnectContext) : void {
         if (this.state != ProtocolStateType.Connected) {
-            // TODO: Log
+            logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Ignoring disconnect packet submission; not connected");
             return;
         }
 
@@ -1555,6 +1612,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private handleConnectionOpened(context: ConnectionOpenedContext) : void {
+        logInfo(PROTOCOL_STATE_LOG_SUBJECT, "handleConnectionOpened called");
+
         if (this.state != ProtocolStateType.Disconnected) {
             throw new CrtError("Connection opened while not disconnected");
         }
@@ -1573,6 +1632,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private handleConnectionClosed() : void {
+        logInfo(PROTOCOL_STATE_LOG_SUBJECT, "handleConnectionClosed called");
+
         if (this.state == ProtocolStateType.Disconnected) {
             throw new CrtError("Connection closed while disconnected");
         }
@@ -1656,6 +1717,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private handleIncomingData(context: NetworkEventContext) : void {
+        logInfo(PROTOCOL_STATE_LOG_SUBJECT, "handleIncomingData called");
+
         if (this.haltState) {
             return;
         }
@@ -1676,6 +1739,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             try {
                 validate.validateInboundPacket(packet, this.config.protocolVersion);
             } catch (e) {
+                flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Invalid packet of type ${mqtt5_packet.PacketType[packet.type ?? -1]} received`);
+
                 this.halt(HaltEventType.ProtocolError, e as CrtError);
                 continue;
             }
@@ -1686,6 +1751,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private handleIncomingPacket(packet: mqtt5_packet.IPacket) : void {
         // at this point we can assume the packet is valid for the current state
+
+        flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Received packet of type ${mqtt5_packet.PacketType[packet.type ?? -1]}:`);
+        flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => model.internalPacketToLogString(packet, "  "));
 
         switch(packet.type) {
             case mqtt5_packet.PacketType.Connack:
@@ -1765,13 +1833,13 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let id = packet.packetId;
         let operationId = this.pendingPublishAcks.get(id);
         if (!operationId) {
-            // TODO: log, this is not an error, can happen due to timeouts
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Puback with packet id ${id} received with no corresponding pending QoS1+ publish`);
             return;
         }
 
         let operation = this.operations.get(operationId);
         if (!operation) {
-            // TODO: log, this is not an error, can happen due to timeouts, etc...
+            flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Puback with packet id ${id} corresponding to operation ${operationId} has no operation entry`);
             return;
         }
 
@@ -1786,13 +1854,13 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let id = packet.packetId;
         let operationId = this.pendingNonPublishAcks.get(id);
         if (!operationId) {
-            // TODO: log, this is not an error, can happen due to timeouts
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Suback with packet id ${id} received with no corresponding pending subscribe`);
             return;
         }
 
         let operation = this.operations.get(operationId);
         if (!operation) {
-            // TODO: log
+            flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Suback with packet id ${id} corresponding to operation ${operationId} has no operation entry`);
             return;
         }
 
@@ -1804,13 +1872,13 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let id = packet.packetId;
         let operationId = this.pendingNonPublishAcks.get(id);
         if (!operationId) {
-            // TODO: log, this is not an error, can happen due to timeouts
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Unsuback with packet id ${id} received with no corresponding pending unsubscribe`);
             return;
         }
 
         let operation = this.operations.get(operationId);
         if (!operation) {
-            // TODO: log
+            flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Unsuback with packet id ${id} corresponding to operation ${operationId} has no operation entry`);
             return;
         }
 
@@ -1831,6 +1899,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private handleWriteCompletion() : void {
+        logDebug(PROTOCOL_STATE_LOG_SUBJECT, "handleWriteCompletion called");
+
         if (this.haltState) {
             return;
         }
@@ -1942,6 +2012,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             reason: error
         };
 
+        flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Halted with category ${HaltEventType[type]} and reason "${error.toString()}"`);
+
         this.emit(ProtocolState.HALTED, this.haltState);
     }
 
@@ -1966,11 +2038,14 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             }
 
             if (resubmit) {
+                flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Requeuing current operation ${this.currentOperation} to Resubmit operation queue`)
                 this.resubmitOperationQueue.unshift(this.currentOperation);
             } else {
+                flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Requeuing current operation ${this.currentOperation} to User operation queue`)
                 this.userOperationQueue.unshift(this.currentOperation);
             }
         } else {
+            flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Requeuing current operation ${this.currentOperation} to HighPriority operation queue`)
             this.highPriorityOperationQueue.unshift(this.currentOperation);
         }
 

@@ -11,13 +11,15 @@ import * as mqtt_shared from "../../common/mqtt_shared";
 import * as promise from "../../common/promise"
 import * as ws from "../ws"
 import * as utils from "./utils"
-import {flogError, flogDebug, flogWarn, flogInfo, flogTrace, logError, logDebug, logWarn, logInfo, logTrace} from "../../common/io";
+import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
+import * as log from "../../common/log";
 
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
 
-import {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, SubscribeOptions, UnsubscribeOptions} from "./protocol";
-export {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, SubscribeOptions, UnsubscribeOptions};
+import {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions} from "./protocol";
+import {PublishPacketInternal} from "./model";
+export {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions};
 
 /**
  * Emitted when the client begins a connection attempt
@@ -152,6 +154,53 @@ export interface ClientConfig {
     resetConnectionFailureCountMillis? : number
 }
 
+function buildConnectOptionsLogString(prefix: string, options: ConnectOptions) : string {
+    let result = `${prefix}ConnectOptions: {\n`;
+
+    result = log.appendNumericPropertyLine(result, prefix, "KeepAliveIntervalSeconds", options.keepAliveIntervalSeconds);
+    result = log.appendOptionalEnumPropertyLine(result, prefix, "ResumeSessionPolicy", (val) => ResumeSessionPolicyType[val], options.resumeSessionPolicy);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ClientId", options.clientId);
+    // keep username opaque intentionally; there can be authentication-sensitive data in it
+    result = log.appendOptionalBytesPropertyLine(result, prefix, "Username", options.username);
+    result = log.appendOptionalBytesPropertyLine(result, prefix, "Password", options.password);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "SessionExpiryIntervalSeconds", options.sessionExpiryIntervalSeconds);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "RequestResponseInformation", options.requestResponseInformation);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "RequestProblemInformation", options.requestProblemInformation);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "ReceiveMaximum", options.receiveMaximum);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "MaximumPacketSizeBytes", options.maximumPacketSizeBytes);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "willDelayIntervalSeconds", options.willDelayIntervalSeconds);
+
+    if (options.will) {
+        result += `${prefix}  Will: {\n`;
+        result += model.publishPacketToLogString(options.will as PublishPacketInternal, prefix + "  ");
+        result += `${prefix}  }\n`;
+    }
+
+    result = model.appendUserProperties(result, prefix, options.userProperties);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
+function buildClientConfigLogString(prefix: string, config: ClientConfig) : string {
+    let result = `${prefix}ClientConfig: {\n`;
+
+    result = log.appendEnumPropertyLine(result, prefix, "ProtocolVersion", (val) => model.ProtocolMode[val], config.protocolVersion);
+    result = log.appendEnumPropertyLine(result, prefix, "OfflineQueuePolicy", (val) => OfflineQueuePolicy[val], config.offlineQueuePolicy);
+    result += buildConnectOptionsLogString(prefix + "  ", config.connectOptions);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "PingTimeoutMillis", config.pingTimeoutMillis);
+    result = log.appendNumericPropertyLine(result, prefix, "ConnectTimeoutMillis", config.connectTimeoutMillis);
+    result = log.appendOptionalEnumPropertyLine(result, prefix, "RetryJitterMode", (val) => mqtt5.RetryJitterType[val], config.retryJitterMode);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "MinReconnectDelayMs", config.minReconnectDelayMs);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "MaxReconnectDelayMs", config.maxReconnectDelayMs);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "ResetConnectionFailureCountMillis", config.resetConnectionFailureCountMillis);
+
+    result += `${prefix}}\n`;
+
+    return result;
+}
+
 /**
  * The states that the client can be in
  */
@@ -256,6 +305,9 @@ export class Client extends BufferedEventEmitter {
     constructor(private config: ClientConfig) {
         super();
 
+        logInfo(CLIENT_LOG_SUBJECT, "Creating MQTT client with configuration:");
+        flogInfo(CLIENT_LOG_SUBJECT, () => { return buildClientConfigLogString("", config); });
+
         this.protocolState = new protocol.ProtocolState({
             protocolVersion : config.protocolVersion,
             offlineQueuePolicy : config.offlineQueuePolicy,
@@ -304,6 +356,7 @@ export class Client extends BufferedEventEmitter {
      */
     stop(disconnect?: mqtt5_packet.DisconnectPacket) {
         if (this.desiredState == ClientState.Connected) {
+            logInfo(CLIENT_LOG_SUBJECT, "Stopping MQTT client" );
             this.desiredState = ClientState.Stopped;
             if (this.connectionCallbackState.crtError == undefined) {
                 this.connectionCallbackState.crtError = new CrtError("Client stopped by user request");
@@ -354,6 +407,8 @@ export class Client extends BufferedEventEmitter {
      * @param options additional configuration options
      */
     async publish(publish: mqtt5_packet.PublishPacket, options?: PublishOptions) : Promise<PublishResult> {
+        logInfo(CLIENT_LOG_SUBJECT, "publish called" );
+
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
         // async promise bodies synchronously until the first await, but doing it this way keeps us independent of that
         // runtime internal behavior.
@@ -379,6 +434,8 @@ export class Client extends BufferedEventEmitter {
 
             this.reevaluateService();
         } catch (e) {
+            flogError(CLIENT_LOG_SUBJECT, () => { return `Failed to submit publish operation: ${e}`; });
+
             liftedPublish.reject(e);
         }
 
@@ -393,6 +450,8 @@ export class Client extends BufferedEventEmitter {
      * @param options additional configuration options
      */
     async subscribe(subscribe: mqtt5_packet.SubscribePacket, options?: SubscribeOptions) : Promise<mqtt5_packet.SubackPacket> {
+        logInfo(CLIENT_LOG_SUBJECT, "subscribe called" );
+
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
         // async promise bodies synchronously until the first await, but doing it this way keeps us independent of that
         // runtime internal behavior.
@@ -416,6 +475,8 @@ export class Client extends BufferedEventEmitter {
 
             this.reevaluateService();
         } catch (e) {
+            flogError(CLIENT_LOG_SUBJECT, () => { return `Failed to submit subscribe operation: ${e}`; });
+
             liftedSubscribe.reject(e);
         }
 
@@ -430,6 +491,8 @@ export class Client extends BufferedEventEmitter {
      * @param options additional configuration options
      */
     async unsubscribe(unsubscribe: mqtt5_packet.UnsubscribePacket, options?: UnsubscribeOptions) : Promise<mqtt5_packet.UnsubackPacket> {
+        logInfo(CLIENT_LOG_SUBJECT, "unsubscribe called" );
+
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
         // async promise bodies synchronously until the first await, but doing it this way keeps us independent of that
         // runtime internal behavior.
@@ -453,6 +516,8 @@ export class Client extends BufferedEventEmitter {
 
             this.reevaluateService();
         } catch (e) {
+            flogError(CLIENT_LOG_SUBJECT, () => { return `Failed to submit unsubscribe operation: ${e}`; });
+
             liftedUnsubscribe.reject(e);
         }
 
@@ -576,6 +641,12 @@ export class Client extends BufferedEventEmitter {
     }
 
     private onSocketWrite(error: Error | null | undefined) {
+        if (error) {
+            logDebug(CLIENT_LOG_SUBJECT, `onSocketWrite called with error: ${error.toString()}`);
+        } else {
+            logDebug(CLIENT_LOG_SUBJECT, "onSocketWrite called");
+        }
+
         if (this.currentState != ClientState.Connected) {
             return;
         }
@@ -598,7 +669,11 @@ export class Client extends BufferedEventEmitter {
         this.nextServiceTimepoint = undefined;
         let currentTime = this.getCurrentTime();
 
+        logDebug(CLIENT_LOG_SUBJECT, "begin servicing client");
+
         if (this.pendingConnectionTimeout != undefined && currentTime >= this.pendingConnectionTimeout) {
+            logInfo(CLIENT_LOG_SUBJECT, "pending connection timeout exceeded");
+
             if (this.connectionCallbackState.crtError == undefined) {
                 this.connectionCallbackState.crtError = new CrtError("Connection establishment timeout");
             }
@@ -606,6 +681,8 @@ export class Client extends BufferedEventEmitter {
         }
 
         if (this.reconnectTimepoint != undefined && currentTime >= this.reconnectTimepoint) {
+            logInfo(CLIENT_LOG_SUBJECT, "reconnect interval exceeded, reconnecting");
+
             this.reconnectTimepoint = undefined;
             if (this.desiredState == ClientState.Connected) {
                 this.transitionToState(ClientState.Connecting);
@@ -615,6 +692,8 @@ export class Client extends BufferedEventEmitter {
         }
 
         if (this.resetConnectionFailuresTimepoint != undefined && currentTime >= this.resetConnectionFailuresTimepoint) {
+            logInfo(CLIENT_LOG_SUBJECT, "reset connection failures interval exceeded, resetting failure count to zero");
+
             if (this.currentState == ClientState.Connected) {
                 this.connectionFailureCount = 0;
             }
@@ -630,6 +709,9 @@ export class Client extends BufferedEventEmitter {
 
             let toSocketView = serviceResult.toSocket;
             if (toSocketView != undefined && toSocketView.byteLength > 0) {
+                // @ts-ignore
+                flogDebug(CLIENT_LOG_SUBJECT, () => { return `writing ${toSocketView.byteLength} bytes to socket`; });
+
                 const dataAsUint8Array = new Uint8Array(
                     toSocketView.buffer,
                     toSocketView.byteOffset,
@@ -643,6 +725,8 @@ export class Client extends BufferedEventEmitter {
         this.inService = false;
 
         this.reevaluateService();
+
+        logDebug(CLIENT_LOG_SUBJECT, "end servicing client");
     }
 
     private reevaluateService() {
@@ -660,17 +744,21 @@ export class Client extends BufferedEventEmitter {
         }
 
         if (serviceTime != undefined && this.nextServiceTimepoint != undefined && serviceTime >= this.nextServiceTimepoint) {
+            logDebug(CLIENT_LOG_SUBJECT, "next service time already covered by existing scheduled task");
             return;
         }
 
         if (this.serviceTask != undefined) {
+            logDebug(CLIENT_LOG_SUBJECT, "clearing scheduled service task");
             clearTimeout(this.serviceTask);
             this.serviceTask = undefined;
             this.nextServiceTimepoint = undefined;
         }
 
         if (serviceTime != undefined) {
-            setTimeout(this.service.bind(this), Math.max(0, serviceTime - currentTime));
+            let futureMillis = serviceTime - currentTime;
+            flogDebug(CLIENT_LOG_SUBJECT, () => { return `scheduling next service for ${futureMillis} millis from now`; });
+            setTimeout(this.service.bind(this), Math.max(0, futureMillis));
         }
     }
 
@@ -679,10 +767,15 @@ export class Client extends BufferedEventEmitter {
     }
 
     private changeState(state: ClientState) {
-        this.currentState = state;
+        if (state != this.currentState) {
+            flogInfo(CLIENT_LOG_SUBJECT, () => { return `changing client state from ${ClientState[this.currentState]} to ${ClientState[state]}`; });
+            this.currentState = state;
+        }
     }
 
     private transitionToState(state : ClientState) {
+        flogInfo(CLIENT_LOG_SUBJECT, () => { return `transitioning client state from ${ClientState[this.currentState]} to ${ClientState[state]}`; });
+
         switch (state) {
             case ClientState.Connecting:
                 this.transitionToStateConnecting();
@@ -711,6 +804,8 @@ export class Client extends BufferedEventEmitter {
         this.clearConnectionCallbackState();
 
         this.emit(Client.CONNECTING, {});
+
+        logDebug(CLIENT_LOG_SUBJECT, "queuing connection attempt");
 
         let client : Client = this;
         queueMicrotask(async () => {
@@ -771,6 +866,8 @@ export class Client extends BufferedEventEmitter {
         this.lastReconnectDelay = nextDelay;
         this.connectionFailureCount += 1;
 
+        flogInfo(CLIENT_LOG_SUBJECT, () => { return `Waiting ${nextDelay} millis to reconnect`; });
+
         this.reconnectTimepoint = this.getCurrentTime() + nextDelay;
         this.reevaluateService();
     }
@@ -790,6 +887,8 @@ export class Client extends BufferedEventEmitter {
     }
 
     private shutdownConnection() {
+        logInfo(CLIENT_LOG_SUBJECT, "Shutting down connection");
+
         this.pendingConnectionTimeout = undefined;
         this.unlinkFromConnection();
         if (this.currentState == ClientState.Connected) {
@@ -819,6 +918,8 @@ export class Client extends BufferedEventEmitter {
                 connack: event.packet
             });
         }
+
+        this.reevaluateService();
     }
 
     private onPublishReceivedEvent(event : protocol.PublishReceivedEvent) {
@@ -898,6 +999,9 @@ export class Client extends BufferedEventEmitter {
             if (this.connectionCallbackState.disconnect) {
                 event.disconnect = this.connectionCallbackState.disconnect;
             }
+            logInfo(CLIENT_LOG_SUBJECT, "Emitting disconnection event");
+            flogDebug(CLIENT_LOG_SUBJECT, () => { return `Disconnection event: ${event.toString()}`; });
+
             this.emit(Client.DISCONNECTION, event);
         } else {
             let event : ConnectionFailureEvent = {
@@ -906,6 +1010,10 @@ export class Client extends BufferedEventEmitter {
             if (this.connectionCallbackState.connack) {
                 event.connack = this.connectionCallbackState.connack;
             }
+
+            logInfo(CLIENT_LOG_SUBJECT, "Emitting connection failure event");
+            flogDebug(CLIENT_LOG_SUBJECT, () => { return `Connection failure event: ${event.toString()}`; });
+
             this.emit(Client.CONNECTION_FAILURE, event);
         }
     }
