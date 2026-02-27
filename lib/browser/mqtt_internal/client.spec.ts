@@ -6,15 +6,17 @@
 import * as mqtt_server from "@test/mqtt_server";
 import * as model from "./model";
 import * as mqtt_client from "./client";
+import {ResumeSessionPolicyType} from "./client";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
 import * as promise from "../../common/promise";
 import * as mqtt5 from "../../common/mqtt5";
+import * as io from "../../common/io";
 
 import {once} from "events";
-
-var websocket = require('@httptoolkit/websocket-stream')
 import * as ws from "../ws";
 import {MqttServer} from "../../../test/mqtt_server";
+
+var websocket = require('@httptoolkit/websocket-stream')
 
 jest.setTimeout(15000);
 
@@ -1062,4 +1064,81 @@ describe("ReconnectBackoffWithReset", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         await doReconnectBackoffTest(protocolVersionToMode(protocolVersion), 10, 5);
     })
+});
+
+function buildMaximalClientConfig(fixture: ClientTestFixture, protocolVersion : model.ProtocolMode) : mqtt_client.ClientConfig {
+    let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
+    clientConfig.pingTimeoutMillis = 30 * 1000;
+    clientConfig.minReconnectDelayMs = RECONNECT_TEST_MIN_DELAY_MILLIS;
+    clientConfig.maxReconnectDelayMs = RECONNECT_TEST_MAX_DELAY_MILLIS;
+    clientConfig.resetConnectionFailureCountMillis = RECONNECT_TEST_RESET_BACKOFF_MILLIS;
+    clientConfig.retryJitterMode = mqtt5.RetryJitterType.None;
+
+    let encoder = new TextEncoder();
+
+    let connectOptions = clientConfig.connectOptions as mqtt_client.ConnectOptions;
+    connectOptions.resumeSessionPolicy = ResumeSessionPolicyType.Always;
+    connectOptions.clientId = "AWellBehavedApplication";
+    connectOptions.username = "SomeoneNice";
+    connectOptions.password = encoder.encode('notapassword');
+    connectOptions.sessionExpiryIntervalSeconds = 3600;
+    connectOptions.requestResponseInformation = true;
+    connectOptions.requestProblemInformation = true;
+    connectOptions.receiveMaximum = 100;
+    connectOptions.maximumPacketSizeBytes = 128 * 1024;
+    connectOptions.willDelayIntervalSeconds = 60;
+    connectOptions.will = {
+        topicName : "hello/there",
+        payload : "Something",
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        retain: true,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Bytes,
+        messageExpiryIntervalSeconds: 60,
+        responseTopic: "dunno",
+        correlationData: encoder.encode("Something"),
+        contentType: "freejazz",
+        userProperties: [
+            { name : "Robert", value : "McRobertson" }
+        ]
+    };
+    connectOptions.userProperties = [
+        { name: "Hey", value : "Youguys" }
+    ];
+
+    return clientConfig;
+}
+
+async function doAllOptionsAllOperationsTest(protocolVersion : model.ProtocolMode) {
+    io.setLogLevel(io.LogLevel.DEBUG);
+
+    let config: mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let clientConfig = buildMaximalClientConfig(fixture, protocolVersion);
+    let client = new mqtt_client.Client(clientConfig);
+    let stopped = once(client, "stopped");
+    let connected = once(client, "connectionSuccess");
+
+    client.start();
+
+    await connected;
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+}
+
+describe("AllOptionsAllOperations", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doAllOptionsAllOperationsTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+test('Derpderp', async () => {
+    await doAllOptionsAllOperationsTest(model.ProtocolMode.Mqtt5);
 });

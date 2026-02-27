@@ -172,7 +172,7 @@ function buildConnectOptionsLogString(prefix: string, options: ConnectOptions) :
 
     if (options.will) {
         result += `${prefix}  Will: {\n`;
-        result += model.publishPacketToLogString(options.will as PublishPacketInternal, prefix + "  ");
+        result += model.publishPacketToLogString(options.will as PublishPacketInternal, prefix + "    ");
         result += `${prefix}  }\n`;
     }
 
@@ -312,7 +312,7 @@ export class Client extends BufferedEventEmitter {
             protocolVersion : config.protocolVersion,
             offlineQueuePolicy : config.offlineQueuePolicy,
             connectOptions : config.connectOptions,
-            baseElapsedMillis : this.creationTime,
+            baseElapsedMillis : 0,
             pingTimeoutMillis : config.pingTimeoutMillis
         });
 
@@ -880,10 +880,9 @@ export class Client extends BufferedEventEmitter {
         this.connectionFailureCount = 0;
 
         this.changeState(ClientState.Stopped);
+        this.reevaluateService();
 
         this.emit(Client.STOPPED, {});
-
-        this.reevaluateService();
     }
 
     private shutdownConnection() {

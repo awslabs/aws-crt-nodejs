@@ -956,7 +956,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             let pingTime = baseTime + this.config.connectOptions.keepAliveIntervalSeconds * 1000;
             this.nextOutboundPingElapsedMillis = utils.foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
 
-            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Adjusting next ping time to ${this.nextOutboundPingElapsedMillis ?? 0 - this.elapsedMillis} millis in the future`);
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Adjusting next ping time to ${(this.nextOutboundPingElapsedMillis ?? 0) - this.elapsedMillis} millis in the future`);
         }
     }
 

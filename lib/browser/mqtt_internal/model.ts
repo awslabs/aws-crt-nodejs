@@ -5,7 +5,7 @@
 
 import {CrtError} from "../error";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
-import * as log from "../../log";
+import * as log from "../../common/log";
 
 export enum ProtocolMode {
     Mqtt311,
@@ -795,9 +795,9 @@ export function appendUserProperties(current: string, prefix: string, userProper
 
     current += `${prefix}  UserProperties: [\n`
     for (let userProperty of userProperties) {
-        current += `${prefix}    ${userProperty.name}: "${userProperty.value}"\n`;
+        current += `${prefix}    "${userProperty.name}" : "${userProperty.value}"\n`;
     }
-    current += `${prefix}]\n`
+    current += `${prefix}  ]\n`
 
     return current;
 }
@@ -810,7 +810,7 @@ function connectPacketToLogString(packet: ConnectPacketInternal, prefix : string
     result = log.appendOptionalStringPropertyLine(result, prefix, "ClientId", packet.clientId);
     // keep username opaque intentionally; there can be authentication-sensitive data in it
     result = log.appendOptionalBytesPropertyLine(result, prefix, "Username", packet.username);
-    result = log.appendOptionalBinaryPropertyLine(result, prefix, "Password", packet.password);
+    result = log.appendOptionalBytesPropertyLine(result, prefix, "Password", packet.password);
     result = log.appendOptionalNumericPropertyLine(result, prefix, "SessionExpiryIntervalSeconds", packet.sessionExpiryIntervalSeconds);
     result = log.appendOptionalBooleanPropertyLine(result, prefix, "RequestResponseInformation", packet.requestResponseInformation);
     result = log.appendOptionalBooleanPropertyLine(result, prefix, "RequestProblemInformation", packet.requestProblemInformation);
@@ -818,7 +818,7 @@ function connectPacketToLogString(packet: ConnectPacketInternal, prefix : string
     result = log.appendOptionalNumericPropertyLine(result, prefix, "MaximumPacketSize", packet.maximumPacketSizeBytes);
     result = log.appendOptionalNumericPropertyLine(result, prefix, "TopicAliasMaximum", packet.topicAliasMaximum);
     result = log.appendOptionalStringPropertyLine(result, prefix, "AuthenticationMethod", packet.authenticationMethod);
-    result = log.appendOptionalBinaryPropertyLine(result, prefix, "AuthenticationData", packet.authenticationData);
+    result = log.appendOptionalBytesPropertyLine(result, prefix, "AuthenticationData", packet.authenticationData);
     result = log.appendOptionalNumericPropertyLine(result, prefix, "WillDelayIntervalSeconds", packet.willDelayIntervalSeconds);
 
     if (packet.will) {
@@ -827,7 +827,7 @@ function connectPacketToLogString(packet: ConnectPacketInternal, prefix : string
         result += `${prefix}  }\n`;
     }
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -837,27 +837,27 @@ function connectPacketToLogString(packet: ConnectPacketInternal, prefix : string
 function connackPacketToLogString(packet: ConnackPacketInternal, prefix : string) : string {
     let result = `${prefix}Connack: {\n`;
 
-    result = log.appendBooleanPropertyLine(result, "", "SessionPresent", packet.sessionPresent);
-    result = log.appendEnumPropertyLine(result, "", "ReasonCode", (val : number) => mqtt5_packet.ConnectReasonCode[val], packet.reasonCode);
-    result = log.appendOptionalNumericPropertyLine(result, "", "SessionExpiryInterval", packet.sessionExpiryInterval);
-    result = log.appendOptionalNumericPropertyLine(result, "", "ReceiveMaximum", packet.receiveMaximum);
-    result = log.appendOptionalEnumPropertyLine(result, "", "MaximumQos", (val : number) => mqtt5_packet.QoS[val], packet.maximumQos);
-    result = log.appendOptionalBooleanPropertyLine(result, "", "RetainAvailable", packet.retainAvailable);
-    result = log.appendOptionalNumericPropertyLine(result, "", "MaximumPacketSize", packet.maximumPacketSize);
-    result = log.appendOptionalStringPropertyLine(result, "", "AssignedClientIdentifier", packet.assignedClientIdentifier);
-    result = log.appendOptionalNumericPropertyLine(result, "", "TopicAliasMaximum", packet.topicAliasMaximum);
-    result = log.appendOptionalStringPropertyLine(result, "", "ReasonString", packet.reasonString);
-    result = log.appendOptionalBooleanPropertyLine(result, "", "WildcardSubscriptionsAvailable", packet.wildcardSubscriptionsAvailable);
-    result = log.appendOptionalBooleanPropertyLine(result, "", "SubscriptionIdentifiersAvailable", packet.subscriptionIdentifiersAvailable);
-    result = log.appendOptionalBooleanPropertyLine(result, "", "SharedSubscriptionsAvailable", packet.sharedSubscriptionsAvailable);
+    result = log.appendBooleanPropertyLine(result, prefix, "SessionPresent", packet.sessionPresent);
+    result = log.appendEnumPropertyLine(result, prefix, "ReasonCode", (val : number) => mqtt5_packet.ConnectReasonCode[val], packet.reasonCode);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "SessionExpiryInterval", packet.sessionExpiryInterval);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "ReceiveMaximum", packet.receiveMaximum);
+    result = log.appendOptionalEnumPropertyLine(result, prefix, "MaximumQos", (val : number) => mqtt5_packet.QoS[val], packet.maximumQos);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "RetainAvailable", packet.retainAvailable);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "MaximumPacketSize", packet.maximumPacketSize);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "AssignedClientIdentifier", packet.assignedClientIdentifier);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "TopicAliasMaximum", packet.topicAliasMaximum);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ReasonString", packet.reasonString);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "WildcardSubscriptionsAvailable", packet.wildcardSubscriptionsAvailable);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "SubscriptionIdentifiersAvailable", packet.subscriptionIdentifiersAvailable);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "SharedSubscriptionsAvailable", packet.sharedSubscriptionsAvailable);
 
-    result = log.appendOptionalNumericPropertyLine(result, "", "ServerKeepAlive", packet.serverKeepAlive);
-    result = log.appendOptionalStringPropertyLine(result, "", "ResponseInformation", packet.responseInformation);
-    result = log.appendOptionalStringPropertyLine(result, "", "ServerReference", packet.serverReference);
-    result = log.appendOptionalStringPropertyLine(result, "", "AuthenticationMethod", packet.authenticationMethod);
-    result = log.appendOptionalBinaryPropertyLine(result, "", "AuthenticationData", packet.authenticationData);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "ServerKeepAlive", packet.serverKeepAlive);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ResponseInformation", packet.responseInformation);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ServerReference", packet.serverReference);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "AuthenticationMethod", packet.authenticationMethod);
+    result = log.appendOptionalBytesPropertyLine(result, prefix, "AuthenticationData", packet.authenticationData);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -867,21 +867,21 @@ function connackPacketToLogString(packet: ConnackPacketInternal, prefix : string
 export function publishPacketToLogString(packet: PublishPacketInternal, prefix : string) : string {
     let result = `${prefix}Publish: {\n`;
 
-    result = log.appendOptionalNumericPropertyLine(result, "", "PacketId", packet.packetId);
-    result = log.appendBooleanPropertyLine(result, "", "Duplicate", packet.duplicate);
-    result = log.appendStringPropertyLine(result, "", "TopicName", packet.topicName);
-    result = appendPayloadPropertyLine(result, "", "Payload", packet.payload);
-    result = log.appendEnumPropertyLine(result, "", "Qos", (val : number) => mqtt5_packet.QoS[val], packet.qos);
-    result = log.appendOptionalBooleanPropertyLine(result, "", "Retain", packet.retain);
-    result = log.appendOptionalEnumPropertyLine(result, "", "PayloadFormat", (val : number) => mqtt5_packet.PayloadFormatIndicator[val], packet.payloadFormat);
-    result = log.appendOptionalNumericPropertyLine(result, "", "MessageExpiryIntervalSeconds", packet.messageExpiryIntervalSeconds);
-    result = log.appendOptionalNumericPropertyLine(result, "", "TopicAlias", packet.topicAlias);
-    result = log.appendOptionalStringPropertyLine(result, "", "ResponseTopic", packet.responseTopic);
-    result = log.appendOptionalBinaryPropertyLine(result, "", "CorrelationData", packet.correlationData);
-    result = log.appendOptionalNumericArrayPropertyLine(result, "", "SubscriptionIdentifiers", packet.subscriptionIdentifiers);
-    result = log.appendOptionalStringPropertyLine(result, "", "ContentType", packet.contentType);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "PacketId", packet.packetId);
+    result = log.appendBooleanPropertyLine(result, prefix, "Duplicate", packet.duplicate);
+    result = log.appendStringPropertyLine(result, prefix, "TopicName", packet.topicName);
+    result = appendPayloadPropertyLine(result, prefix, "Payload", packet.payload);
+    result = log.appendEnumPropertyLine(result, prefix, "Qos", (val : number) => mqtt5_packet.QoS[val], packet.qos);
+    result = log.appendOptionalBooleanPropertyLine(result, prefix, "Retain", packet.retain);
+    result = log.appendOptionalEnumPropertyLine(result, prefix, "PayloadFormat", (val : number) => mqtt5_packet.PayloadFormatIndicator[val], packet.payloadFormat);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "MessageExpiryIntervalSeconds", packet.messageExpiryIntervalSeconds);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "TopicAlias", packet.topicAlias);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ResponseTopic", packet.responseTopic);
+    result = log.appendOptionalBytesPropertyLine(result, prefix, "CorrelationData", packet.correlationData);
+    result = log.appendOptionalNumericArrayPropertyLine(result, prefix, "SubscriptionIdentifiers", packet.subscriptionIdentifiers);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ContentType", packet.contentType);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -891,11 +891,11 @@ export function publishPacketToLogString(packet: PublishPacketInternal, prefix :
 function pubackPacketToLogString(packet: PubackPacketInternal, prefix : string) : string {
     let result = `${prefix}Puback: {\n`;
 
-    result = log.appendNumericPropertyLine(result, "", "PacketId", packet.packetId);
-    result = log.appendEnumPropertyLine(result, "", "ReasonCode", (val : number) => mqtt5_packet.PubackReasonCode[val], packet.reasonCode);
-    result = log.appendOptionalStringPropertyLine(result, "", "ReasonString", packet.reasonString);
+    result = log.appendNumericPropertyLine(result, prefix, "PacketId", packet.packetId);
+    result = log.appendEnumPropertyLine(result, prefix, "ReasonCode", (val : number) => mqtt5_packet.PubackReasonCode[val], packet.reasonCode);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ReasonString", packet.reasonString);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -920,15 +920,15 @@ function appendSubscription(current: string, prefix : string, subscription: mqtt
 function subscribePacketToLogString(packet: SubscribePacketInternal, prefix : string) : string {
     let result = `${prefix}Subscribe: {\n`;
 
-    result = log.appendOptionalNumericPropertyLine(result, "", "PacketId", packet.packetId);
-    result = log.appendOptionalNumericPropertyLine(result, "", "SubscriptionIdentifier", packet.subscriptionIdentifier);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "PacketId", packet.packetId);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "SubscriptionIdentifier", packet.subscriptionIdentifier);
     result += `${prefix}  Subscriptions: [\n`;
     for (let subscription of packet.subscriptions) {
-        result += appendSubscription(result, "  ", subscription);
+        result += appendSubscription(result, prefix + "  ", subscription);
     }
     result += `${prefix}  ]\n`;
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -938,11 +938,11 @@ function subscribePacketToLogString(packet: SubscribePacketInternal, prefix : st
 function subackPacketToLogString(packet: SubackPacketInternal, prefix : string) : string {
     let result = `${prefix}Suback: {\n`;
 
-    result = log.appendNumericPropertyLine(result, "", "PacketId", packet.packetId);
-    result = log.appendEnumArrayPropertyLine(result, "", "ReasonCodes", (val : number) => mqtt5_packet.SubackReasonCode[val], packet.reasonCodes);
-    result = log.appendOptionalStringPropertyLine(result, "", "ReasonString", packet.reasonString);
+    result = log.appendNumericPropertyLine(result, prefix, "PacketId", packet.packetId);
+    result = log.appendEnumArrayPropertyLine(result, prefix, "ReasonCodes", (val : number) => mqtt5_packet.SubackReasonCode[val], packet.reasonCodes);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ReasonString", packet.reasonString);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -952,10 +952,10 @@ function subackPacketToLogString(packet: SubackPacketInternal, prefix : string) 
 function unsubscribePacketToLogString(packet: UnsubscribePacketInternal, prefix : string) : string {
     let result = `${prefix}Unsubscribe: {\n`;
 
-    result = log.appendOptionalNumericPropertyLine(result, "", "PacketId", packet.packetId);
-    result = log.appendStringArrayPropertyLine(result, "", "TopicFilters", packet.topicFilters);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "PacketId", packet.packetId);
+    result = log.appendStringArrayPropertyLine(result, prefix, "TopicFilters", packet.topicFilters);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -965,11 +965,11 @@ function unsubscribePacketToLogString(packet: UnsubscribePacketInternal, prefix 
 function unsubackPacketToLogString(packet: UnsubackPacketInternal, prefix : string) : string {
     let result = `${prefix}Unsuback: {\n`;
 
-    result = log.appendNumericPropertyLine(result, "", "PacketId", packet.packetId);
-    result = log.appendEnumArrayPropertyLine(result, "", "ReasonCodes", (val : number) => mqtt5_packet.UnsubackReasonCode[val], packet.reasonCodes);
-    result = log.appendOptionalStringPropertyLine(result, "", "ReasonString", packet.reasonString);
+    result = log.appendNumericPropertyLine(result, prefix, "PacketId", packet.packetId);
+    result = log.appendEnumArrayPropertyLine(result, prefix, "ReasonCodes", (val : number) => mqtt5_packet.UnsubackReasonCode[val], packet.reasonCodes);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ReasonString", packet.reasonString);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
@@ -979,12 +979,12 @@ function unsubackPacketToLogString(packet: UnsubackPacketInternal, prefix : stri
 function disconnectPacketToLogString(packet: DisconnectPacketInternal, prefix : string) : string {
     let result = `${prefix}Disconnect: {\n`;
 
-    result = log.appendEnumPropertyLine(result, "", "ReasonCode", (val : number) => mqtt5_packet.DisconnectReasonCode[val], packet.reasonCode);
-    result = log.appendOptionalNumericPropertyLine(result, "", "SessionExpiryIntervalSeconds", packet.sessionExpiryIntervalSeconds);
-    result = log.appendOptionalStringPropertyLine(result, "", "ReasonString", packet.reasonString);
-    result = log. appendOptionalStringPropertyLine(result, "", "ServerReference", packet.serverReference);
+    result = log.appendEnumPropertyLine(result, prefix, "ReasonCode", (val : number) => mqtt5_packet.DisconnectReasonCode[val], packet.reasonCode);
+    result = log.appendOptionalNumericPropertyLine(result, prefix, "SessionExpiryIntervalSeconds", packet.sessionExpiryIntervalSeconds);
+    result = log.appendOptionalStringPropertyLine(result, prefix, "ReasonString", packet.reasonString);
+    result = log. appendOptionalStringPropertyLine(result, prefix, "ServerReference", packet.serverReference);
 
-    result = appendUserProperties(result, "", packet.userProperties);
+    result = appendUserProperties(result, prefix, packet.userProperties);
 
     result += `${prefix}}\n`;
 
