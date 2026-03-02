@@ -316,8 +316,8 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
         websocketHandshakeTransform: (request: HttpRequest, done: (error_code?: number) => void) => { done(0); },
         connectProperties : {
             keepAliveIntervalSeconds: 1200,
-            username: test_utils.ClientEnvironmentalConfig.AWS_TEST_MQTT311_BASIC_AUTH_USERNAME,
-            password: test_utils.ClientEnvironmentalConfig.AWS_TEST_MQTT311_BASIC_AUTH_PASSWORD,
+            username: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_USERNAME,
+            password: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_PASSWORD,
         },
         enableMetrics: true,
     }));
