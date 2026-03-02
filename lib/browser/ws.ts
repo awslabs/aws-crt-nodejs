@@ -181,8 +181,13 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
     throw new URIError(`Invalid url factory requested: ${urlFactory}`);
 }
 
+import { Duplex } from 'stream';
+import * as WebSocket from 'ws';
+
+export type WsStream = Duplex & {socket: WebSocket, on(event: "ws-close", listener: (close: WebSocket.CloseEvent) => void) : WsStream};
+
 /** @internal */
-export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) {
+export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) : WsStream {
     const url = create_mqtt5_websocket_url(config);
     let ws = websocket(url, ['mqtt'], config.websocketOptions?.wsOptions);
 
