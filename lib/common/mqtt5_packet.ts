@@ -737,58 +737,6 @@ export enum PacketType {
     Auth = 15,
 }
 
-export function packetTypeToString(type: PacketType): string {
-    switch(type) {
-        case PacketType.Connect:
-            return "Connect";
-
-        case PacketType.Connack:
-            return "Connack";
-
-        case PacketType.Publish:
-            return "Publish";
-
-        case PacketType.Puback:
-            return "Puback";
-
-        case PacketType.Pubrec:
-            return "Pubrec";
-
-        case PacketType.Pubrel:
-            return "Pubrel";
-
-        case PacketType.Pubcomp:
-            return "Pubcomp";
-
-        case PacketType.Subscribe:
-            return "Subscribe";
-
-        case PacketType.Suback:
-            return "Suback";
-
-        case PacketType.Unsubscribe:
-            return "Unsubscribe";
-
-        case PacketType.Unsuback:
-            return "Unsuback";
-
-        case PacketType.Pingreq:
-            return "Pingreq";
-
-        case PacketType.Pingresp:
-            return "Pingresp";
-
-        case PacketType.Disconnect:
-            return "Disconnect";
-
-        case PacketType.Auth:
-            return "Auth";
-
-        default:
-            return "Unknown";
-    }
-}
-
 /**
  * Common interface for all packet types.
  */
