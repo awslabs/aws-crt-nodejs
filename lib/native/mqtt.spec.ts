@@ -89,6 +89,38 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
     })
 });
 
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt())('MQTT311 Connection - basic auth with metrics', async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
+        const config: MqttConnectionConfig = {
+            client_id: `node-mqtt-unit-test-${uuid()}`,
+            host_name: test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_HOST,
+            port: parseInt(test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_PORT),
+            clean_session: true,
+            username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
+            password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
+            socket_options: new SocketOptions(),
+            enable_metrics: true
+        }
+
+        const client = new MqttClient(new ClientBootstrap())
+        const connection = client.new_connection(config);
+        const promise = new Promise(async (resolve, reject) => {
+        let onConnectionFailureCalled = false;
+
+        connection.on('connection_failure', async (callback_data) => {
+            onConnectionFailureCalled = true;
+            reject(callback_data.error);
+        })
+
+        const connected = connection.connect();
+        await expect(connected).resolves.toBeTruthy();
+        await expect(onConnectionFailureCalled).toBeTruthy();
+    });
+    await expect(promise).resolves.toBeTruthy();
+
+    })
+});
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_tls_mqtt())('MQTT311 Connection - TLS', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         const tls_ctx_options = new TlsContextOptions();
