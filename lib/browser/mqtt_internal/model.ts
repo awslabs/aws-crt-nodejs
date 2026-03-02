@@ -834,7 +834,7 @@ function connectPacketToLogString(packet: ConnectPacketInternal, prefix : string
     return result;
 }
 
-function connackPacketToLogString(packet: ConnackPacketInternal, prefix : string) : string {
+export function connackPacketToLogString(packet: ConnackPacketInternal, prefix : string) : string {
     let result = `${prefix}Connack: {\n`;
 
     result = log.appendBooleanPropertyLine(result, prefix, "SessionPresent", packet.sessionPresent);
@@ -976,7 +976,7 @@ function unsubackPacketToLogString(packet: UnsubackPacketInternal, prefix : stri
     return result;
 }
 
-function disconnectPacketToLogString(packet: DisconnectPacketInternal, prefix : string) : string {
+export function disconnectPacketToLogString(packet: DisconnectPacketInternal, prefix : string) : string {
     let result = `${prefix}Disconnect: {\n`;
 
     result = log.appendEnumPropertyLine(result, prefix, "ReasonCode", (val : number) => mqtt5_packet.DisconnectReasonCode[val], packet.reasonCode);

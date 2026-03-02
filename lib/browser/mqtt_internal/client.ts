@@ -18,7 +18,6 @@ import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
 
 import {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions} from "./protocol";
-import {PublishPacketInternal} from "./model";
 export {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions};
 
 /**
@@ -172,7 +171,7 @@ function buildConnectOptionsLogString(prefix: string, options: ConnectOptions) :
 
     if (options.will) {
         result += `${prefix}  Will: {\n`;
-        result += model.publishPacketToLogString(options.will as PublishPacketInternal, prefix + "    ");
+        result += model.publishPacketToLogString(options.will as model.PublishPacketInternal, prefix + "    ");
         result += `${prefix}  }\n`;
     }
 
@@ -759,6 +758,7 @@ export class Client extends BufferedEventEmitter {
             let futureMillis = serviceTime - currentTime;
             flogDebug(CLIENT_LOG_SUBJECT, () => { return `scheduling next service for ${futureMillis} millis from now`; });
             setTimeout(this.service.bind(this), Math.max(0, futureMillis));
+            this.nextServiceTimepoint = serviceTime;
         }
     }
 
@@ -999,7 +999,7 @@ export class Client extends BufferedEventEmitter {
                 event.disconnect = this.connectionCallbackState.disconnect;
             }
             logInfo(CLIENT_LOG_SUBJECT, "Emitting disconnection event");
-            flogDebug(CLIENT_LOG_SUBJECT, () => { return `Disconnection event: ${event.toString()}`; });
+            flogDebug(CLIENT_LOG_SUBJECT, () => buildDisconnectionEventLogString(event, ""));
 
             this.emit(Client.DISCONNECTION, event);
         } else {
@@ -1011,10 +1011,35 @@ export class Client extends BufferedEventEmitter {
             }
 
             logInfo(CLIENT_LOG_SUBJECT, "Emitting connection failure event");
-            flogDebug(CLIENT_LOG_SUBJECT, () => { return `Connection failure event: ${event.toString()}`; });
+            flogDebug(CLIENT_LOG_SUBJECT, () => buildConnectionFailureEventLogString(event, ""));
 
             this.emit(Client.CONNECTION_FAILURE, event);
         }
     }
 }
 
+function buildDisconnectionEventLogString(event: DisconnectionEvent, prefix: string) : string {
+    let result = `${prefix}DisconnectionEvent: {\n`;
+
+    result += `${prefix}  error: "${event.error.toString()}"\n`;
+    if (event.disconnect) {
+        result += `${prefix}  disconnect: ${model.disconnectPacketToLogString(event.disconnect as model.DisconnectPacketInternal, prefix + "  ")}`;
+    }
+
+    result += `${prefix}}`
+
+    return result;
+}
+
+function buildConnectionFailureEventLogString(event: ConnectionFailureEvent, prefix: string) : string {
+    let result = `${prefix}ConnectionFailureEvent: {\n`;
+
+    result += `${prefix}  error: "${event.error.toString()}\n"`;
+    if (event.connack) {
+        result += `${prefix}  connack: ${model.connackPacketToLogString(event.connack as model.ConnackPacketInternal, prefix + "  ")}`;
+    }
+
+    result += `${prefix}}`
+
+    return result;
+}

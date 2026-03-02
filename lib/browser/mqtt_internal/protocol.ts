@@ -1424,7 +1424,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 let pingreq : model.PingreqPacketBinary = {
                     type: mqtt5_packet.PacketType.Pingreq
                 };
-                this.submitOperationHighPriority(model.convertInternalPacketToBinary(pingreq), QueueEndType.Front);
+                this.submitOperationHighPriority(pingreq, QueueEndType.Front);
 
                 this.pushOutNextPing(this.elapsedMillis);
                 let timeoutMillis = utils.foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
@@ -1489,20 +1489,16 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      * @param submitLocation whether to submit to the front of back of the queue
      * @private
      */
-    private submitOperation(operation: ClientOperation, userPacket: mqtt5_packet.IPacket | undefined, queueType: OperationQueueType, submitLocation : QueueEndType) : void {
+    private submitOperation(operation: ClientOperation, packet: mqtt5_packet.IPacket, queueType: OperationQueueType, submitLocation : QueueEndType) : void {
         this.operations.set(operation.id, operation);
 
         try {
-            if (userPacket) {
-                // perform initial user-packet validation
-                validate.validateUserSubmittedOutboundPacket(userPacket, this.config.protocolVersion);
+            // perform initial user-packet validation
+            validate.validateInitialOutboundPacket(packet, this.config.protocolVersion);
 
-                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Submitting user operation ${operation.id}:`);
-                // don't want to log the packet until it passes initial validation
-                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => model.internalPacketToLogString(userPacket, "  "));
-            } else {
-                flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Submitting internal operation ${operation.id} of type ${mqtt5_packet.PacketType[operation.type]}`);
-            }
+            flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Submitting operation ${operation.id} of type ${mqtt5_packet.PacketType[operation.type]}`);
+            // don't want to log the packet until it passes initial validation
+            flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => model.internalPacketToLogString(packet, "  "));
 
             // ofline queue policy check
             if (queueType == OperationQueueType.User) {
@@ -1539,7 +1535,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     /**
      * Helper function to submit internal high-priority operations: connect, pingreq, puback
      */
-    private submitOperationHighPriority(packet : model.IPacketBinary, queueEnd: QueueEndType, resultHandler: ResultHandler<void> = this.createDefaultResultHandler()) {
+    private submitOperationHighPriority(packet : mqtt5_packet.IPacket, queueEnd: QueueEndType, resultHandler: ResultHandler<void> = this.createDefaultResultHandler()) {
         if (packet.type == undefined) {
             this.halt(HaltEventType.Unknown, new CrtError("Packet type not set"));
             return;
@@ -1548,14 +1544,14 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let operation : ClientOperation = {
             type: packet.type,
             id: this.nextOperationId++,
-            packet: packet,
+            packet: model.convertInternalPacketToBinary(packet),
             options: {
                 resultHandler: resultHandler
             },
             numAttempts: 0,
         };
 
-        this.submitOperation(operation, undefined, OperationQueueType.HighPriority, queueEnd);
+        this.submitOperation(operation, packet, OperationQueueType.HighPriority, queueEnd);
     }
 
     private submitPublish(context: PublishContext) : void {
@@ -1628,7 +1624,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let connect = this.buildConnectPacket();
         this.lastOutboundConnect = connect;
 
-        this.submitOperationHighPriority(model.convertInternalPacketToBinary(connect), QueueEndType.Front);
+        this.submitOperationHighPriority(connect, QueueEndType.Front);
     }
 
     private handleConnectionClosed() : void {
@@ -1815,7 +1811,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             }
 
             // TODO: eventually support manual puback control
-            let puback : model.PubackPacketBinary = {
+            let puback : model.PubackPacketInternal = {
                 type: mqtt5_packet.PacketType.Puback,
                 packetId: packet.packetId,
                 reasonCode: mqtt5_packet.PubackReasonCode.Success

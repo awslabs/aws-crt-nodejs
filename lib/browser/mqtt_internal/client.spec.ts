@@ -1127,7 +1127,79 @@ async function doAllOptionsAllOperationsTest(protocolVersion : model.ProtocolMod
 
     await connected;
 
-    client.stop();
+    let subscribe : mqtt5_packet.SubscribePacket = {
+        subscriptions : [
+            {
+                topicFilter: "a/b",
+                qos: mqtt5_packet.QoS.AtLeastOnce,
+                noLocal: true,
+                retainAsPublished: false,
+                retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribeIfNew
+            },
+            {
+                topicFilter: "c/d",
+                qos: mqtt5_packet.QoS.ExactlyOnce,
+                noLocal: false,
+                retainAsPublished: true,
+                retainHandlingType: mqtt5_packet.RetainHandlingType.SendOnSubscribe
+            }
+        ],
+        subscriptionIdentifier : 5,
+        userProperties: [
+            { name : "derp", value : "atron" },
+            { name : "hello", value : "world" }
+        ]
+    };
+
+    let suback = await client.subscribe(subscribe);
+    expect(suback).toBeDefined();
+
+    let encoder = new TextEncoder();
+    let publish : mqtt5_packet.PublishPacket = {
+        topicName: "a/b",
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        payload: encoder.encode("Derpderp"),
+        retain: true,
+        payloadFormat: mqtt5_packet.PayloadFormatIndicator.Utf8,
+        messageExpiryIntervalSeconds : 60,
+        responseTopic: "uff/dah",
+        correlationData: encoder.encode("27degrees"),
+        contentType: "grindcore",
+        userProperties: [
+            { name : "Mac", value : "McMac" },
+            { name : "Tire", value : "replacement" }
+        ]
+    };
+
+    let puback = await client.publish(publish);
+    expect(puback).toBeDefined();
+
+    let unsubscribe : mqtt5_packet.UnsubscribePacket = {
+        topicFilters: [
+            "a/b",
+            "c/d"
+        ],
+        userProperties : [
+            { name : "Sponge", value : "Bob" },
+            { name : "Patrick", value : "Star" }
+        ]
+    };
+
+    let unsuback = await client.unsubscribe(unsubscribe);
+    expect(unsuback).toBeDefined();
+
+    let disconnect : mqtt5_packet.DisconnectPacket = {
+        reasonCode: mqtt5_packet.DisconnectReasonCode.ProtocolError,
+        sessionExpiryIntervalSeconds : 60,
+        reasonString : "Feel weird",
+        serverReference : "uffdah.com",
+        userProperties: [
+            { name: "gon", value : "gon" },
+            { name: "beast", value : "boy" }
+        ]
+    };
+
+    client.stop(disconnect);
     await stopped;
 
     fixture.getServer().stop();

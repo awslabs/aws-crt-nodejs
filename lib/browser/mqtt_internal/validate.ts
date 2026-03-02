@@ -36,7 +36,7 @@ import * as model from "./model";
  * submitted packet into the internal model.
  */
 
-export function validateUserSubmittedOutboundPacket(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode) {
+export function validateInitialOutboundPacket(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode) {
     switch(packet.type) {
         case mqtt5_packet.PacketType.Publish:
             validateUserSubmittedPublish(packet as mqtt5_packet.PublishPacket, mode);
