@@ -104,20 +104,15 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
 
         const client = new MqttClient(new ClientBootstrap())
         const connection = client.new_connection(config);
-        const promise = new Promise(async (resolve, reject) => {
+        
         let onConnectionFailureCalled = false;
-
         connection.on('connection_failure', async (callback_data) => {
             onConnectionFailureCalled = true;
-            reject(callback_data.error);
         })
 
         const connected = connection.connect();
         await expect(connected).rejects.toBeDefined();
         await expect(onConnectionFailureCalled).toBeTruthy();
-    });
-    await expect(promise).resolves.toBeDefined();
-
     })
 });
 
