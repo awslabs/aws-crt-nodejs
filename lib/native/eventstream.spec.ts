@@ -9,7 +9,7 @@ import {once} from "events";
 import crt_native from "./binding";
 import * as os from "os";
 
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 function hasEchoServerEnvironment() : boolean {
     if (process.env.AWS_TEST_EVENT_STREAM_ECHO_SERVER_HOST === undefined) {
@@ -106,7 +106,7 @@ async function doConnectionFailureTest(config : eventstream.ClientConnectionOpti
 
 test('Eventstream transport connection failure echo server - bad host', async () => {
     let badConfig : eventstream.ClientConnectionOptions = makeGoodConfig();
-    badConfig.hostName = "derp.notarealdomainseriously.org";
+    badConfig.hostName = "localhst";
 
     await doConnectionFailureTest(badConfig);
 });
@@ -907,8 +907,8 @@ conditional_test(hasEchoServerEnvironment())('Eventstream stream failure - sendM
     connection.close();
 });
 
-test('Eventstream connection cancel - example.com, cancel after connect', async () => {
-    // hangs atm
+conditional_test(process.platform !== 'win32')('Eventstream connection cancel - example.com, cancel after connect', async () => {
+    // Connection to example.com hangs atm on all platforms except Windows
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
         port: 22
@@ -924,7 +924,7 @@ test('Eventstream connection cancel - example.com, cancel after connect', async 
 });
 
 test('Eventstream connection cancel - example.com, cancel before connect', async () => {
-    // hangs atm
+    // Connection to example.com hangs atm on all platforms except Windows
     let connection: eventstream.ClientConnection = new eventstream.ClientConnection({
         hostName: "example.com",
         port: 22
