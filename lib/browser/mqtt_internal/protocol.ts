@@ -8,7 +8,7 @@ import {PacketType} from '../../common/mqtt5_packet';
 import * as model from "./model";
 import * as encoder from "./encoder";
 import * as decoder from "./decoder";
-import * as heap from "./heap";
+import * as heap from "../heap";
 import * as validate from "./validate";
 import * as utils from "./utils";
 import {CrtError} from "../error";

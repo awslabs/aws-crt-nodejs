@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {CrtError} from "../error";
+import {CrtError} from "./error";
 
 /**
  * A generic array-based min-heap implementation for priority queue usage.  Used to track operation timeouts.
