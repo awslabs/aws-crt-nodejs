@@ -10,7 +10,6 @@ import * as encoder from "./encoder";
 import * as decoder from "./decoder";
 import * as heap from "../heap";
 import * as validate from "./validate";
-import * as utils from "./utils";
 import {CrtError} from "../error";
 import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
 
@@ -954,7 +953,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
         if (baseTime != undefined) {
             let pingTime = baseTime + this.config.connectOptions.keepAliveIntervalSeconds * 1000;
-            this.nextOutboundPingElapsedMillis = utils.foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
+            this.nextOutboundPingElapsedMillis = foldTimeMax(this.nextOutboundPingElapsedMillis, pingTime);
 
             flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Adjusting next ping time to ${(this.nextOutboundPingElapsedMillis ?? 0) - this.elapsedMillis} millis in the future`);
         }
@@ -1039,7 +1038,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      * (connect) and the pending connack timeout.
      */
     private getNextServiceTimepointPendingConnack() : number | undefined {
-        return utils.foldTimeMin(this.getQueueServiceTimepoint(ServiceQueueType.HighPriorityOnly), this.pendingConnackTimeoutElapsedMillis);
+        return foldTimeMin(this.getQueueServiceTimepoint(ServiceQueueType.HighPriorityOnly), this.pendingConnackTimeoutElapsedMillis);
     }
 
     /**
@@ -1048,9 +1047,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      */
     private getNextServiceTimepointConnected() : number | undefined {
         let serviceTime = this.getQueueServiceTimepoint(ServiceQueueType.All);
-        serviceTime = utils.foldTimeMin(serviceTime, this.nextOutboundPingElapsedMillis);
-        serviceTime = utils.foldTimeMin(serviceTime, this.pendingPingrespTimeoutElapsedMillis);
-        serviceTime = utils.foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
+        serviceTime = foldTimeMin(serviceTime, this.nextOutboundPingElapsedMillis);
+        serviceTime = foldTimeMin(serviceTime, this.pendingPingrespTimeoutElapsedMillis);
+        serviceTime = foldTimeMin(serviceTime, this.operationTimeouts.peek()?.timeoutElapsedMillis);
 
         return serviceTime;
     }
@@ -1427,7 +1426,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 this.submitOperationHighPriority(pingreq, QueueEndType.Front);
 
                 this.pushOutNextPing(this.elapsedMillis);
-                let timeoutMillis = utils.foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
+                let timeoutMillis = foldTimeMin(this.config.connectOptions.keepAliveIntervalSeconds * 1000 / 2, this.config.pingTimeoutMillis) ?? 0;
                 this.pendingPingrespTimeoutElapsedMillis = this.elapsedMillis + timeoutMillis;
 
                 flogInfo(PROTOCOL_STATE_LOG_SUBJECT, () => `Pingresp timeout in ${timeoutMillis} millis`);
@@ -2169,4 +2168,28 @@ function createDefaultConnect() : model.ConnectPacketInternal {
         keepAliveIntervalSeconds: mqtt_shared.DEFAULT_KEEP_ALIVE,
         cleanStart: true
     };
+}
+
+export function foldTimeMin(lhs : number | undefined, rhs : number | undefined) : number | undefined {
+    if (lhs == undefined) {
+        return rhs;
+    }
+
+    if (rhs == undefined) {
+        return lhs;
+    }
+
+    return Math.min(lhs, rhs);
+}
+
+export function foldTimeMax(lhs : number | undefined, rhs : number | undefined) : number | undefined {
+    if (lhs == undefined) {
+        return rhs;
+    }
+
+    if (rhs == undefined) {
+        return lhs;
+    }
+
+    return Math.max(lhs, rhs);
 }

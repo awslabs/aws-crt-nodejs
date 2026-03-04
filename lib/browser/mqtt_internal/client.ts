@@ -10,7 +10,6 @@ import * as model from "./model"
 import * as mqtt_shared from "../../common/mqtt_shared";
 import * as promise from "../../common/promise"
 import * as ws from "../ws"
-import * as utils from "./utils"
 import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
 import * as log from "../../common/log";
 
@@ -736,10 +735,10 @@ export class Client extends BufferedEventEmitter {
         let currentTime = this.getCurrentTime();
 
         let serviceTime = this.pendingConnectionTimeout;
-        serviceTime = utils.foldTimeMin(serviceTime, this.reconnectTimepoint);
+        serviceTime = protocol.foldTimeMin(serviceTime, this.reconnectTimepoint);
         if (this.currentState == ClientState.Connected) {
-            serviceTime = utils.foldTimeMin(serviceTime, this.protocolState.getNextServiceTimepoint(currentTime));
-            serviceTime = utils.foldTimeMin(serviceTime, this.resetConnectionFailuresTimepoint);
+            serviceTime = protocol.foldTimeMin(serviceTime, this.protocolState.getNextServiceTimepoint(currentTime));
+            serviceTime = protocol.foldTimeMin(serviceTime, this.resetConnectionFailuresTimepoint);
         }
 
         if (serviceTime != undefined && this.nextServiceTimepoint != undefined && serviceTime >= this.nextServiceTimepoint) {
