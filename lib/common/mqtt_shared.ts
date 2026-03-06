@@ -55,7 +55,7 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
     let normalized = normalize_payload(payload);
     if (typeof normalized === 'string') {
         // pass string through
-        return Buffer.from(normalized);
+        return Buffer.from(new TextEncoder().encode(normalized).buffer);
     }
 
     return normalized;
