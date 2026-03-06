@@ -16,6 +16,9 @@ import * as log from "../../common/log";
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
 
+import {ProtocolMode} from "./model";
+export {ProtocolMode};
+
 import {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions} from "./protocol";
 export {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions};
 
@@ -100,7 +103,7 @@ export interface ClientConfig {
     /**
      * What version of MQTT to use.
      */
-    protocolVersion : model.ProtocolMode,
+    protocolVersion : ProtocolMode,
 
     /**
      * How should queued packets be treated when the client is not connected?
