@@ -747,6 +747,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_stopped = (event : internal_mqtt_client.StoppedEvent) => {
         this.emit("closed");
+        this.emit("disconnect");
     }
 
     private on_publish_received = (event : internal_mqtt_client.PublishReceivedEvent) => {
