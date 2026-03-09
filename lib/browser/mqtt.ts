@@ -367,7 +367,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
         let internalConfig : internal_mqtt_client.ClientConfig = {
             protocolVersion: internal_mqtt_client.ProtocolMode.Mqtt311,
-            offlineQueuePolicy: internal_mqtt_client.OfflineQueuePolicy.PreserveAll,
+            offlineQueuePolicy: internal_mqtt_client.OfflineQueuePolicy.PreserveQos1PlusPublishes,
             connectOptions: internalConnectOptions,
             pingTimeoutMillis: this.config.ping_timeout ? this.config.ping_timeout : 30 * 1000,
             connectionFactory: connectionFactory,
@@ -570,25 +570,25 @@ export class MqttClientConnection extends BufferedEventEmitter {
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
         let payload_data = normalize_payload(payload);
-        return new Promise(async (resolve, reject) => {
-            try {
-                let publishResult = await this.internalClient.publish({
-                    topicName: topic,
-                    qos: qos,
-                    payload: payload_data,
-                    retain: retain
-                });
 
-                let id = undefined;
-                if (qos == QoS.AtLeastOnce) {
-                    id = (publishResult.packet as model.PubackPacketInternal).packetId;
-                }
+        let options : internal_mqtt_client.PublishOptions = {};
+        if (this.config.protocol_operation_timeout) {
+            options.timeoutInMillis = this.config.protocol_operation_timeout;
+        }
 
-                resolve({packet_id: id});
-            } catch (e) {
-                reject(e);
-            }
-        });
+        let publishResult = await this.internalClient.publish({
+            topicName: topic,
+            qos: qos,
+            payload: payload_data,
+            retain: retain
+        }, options);
+
+        let id = undefined;
+        if (qos == QoS.AtLeastOnce) {
+            id = (publishResult.packet as model.PubackPacketInternal).packetId;
+        }
+
+        return {packet_id: id};
     }
 
     /**
@@ -619,35 +619,35 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         this.subscriptions.insert(topic, on_message);
-        return new Promise( async (resolve, reject) => {
-            try {
-                let suback = await this.internalClient.subscribe({
-                    subscriptions: [
-                        {
-                            topicFilter: topic,
-                            qos: qos
-                        }
-                    ]
-                });
 
-                resolve({
-                    topic: topic,
-                    /*
-                     * 128 is not modeled in QoS, either on our side nor mqtt-js's side.
-                     * We have always passed this 128 to the user and it is not reasonable to extend
-                     * our output type with 128 since it's also our input type and we don't want anyone
-                     * to pass 128 to us.
-                     *
-                     * The 5 client solves this by making the output type a completely separate enum.
-                     *
-                     * By doing this cast, we make the type checker ignore this edge case.
-                     */
-                    qos: (suback.reasonCodes[0] as number) as QoS
-                });
-            } catch (e) {
-                reject(e);
-            }
-        });
+        let options : internal_mqtt_client.SubscribeOptions = {};
+        if (this.config.protocol_operation_timeout) {
+            options.timeoutInMillis = this.config.protocol_operation_timeout;
+        }
+
+        let suback = await this.internalClient.subscribe({
+            subscriptions: [
+                {
+                    topicFilter: topic,
+                    qos: qos
+                }
+            ]
+        }, options);
+
+        return {
+            topic: topic,
+            /*
+             * 128 is not modeled in QoS, either on our side nor mqtt-js's side.
+             * We have always passed this 128 to the user and it is not reasonable to extend
+             * our output type with 128 since it's also our input type and we don't want anyone
+             * to pass 128 to us.
+             *
+             * The 5 client solves this by making the output type a completely separate enum.
+             *
+             * By doing this cast, we make the type checker ignore this edge case.
+             */
+            qos: (suback.reasonCodes[0] as number) as QoS
+        }
     }
 
     /**
@@ -664,21 +664,21 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         this.subscriptions.remove(topic);
-        return new Promise( async (resolve, reject) => {
-            try {
-                let unsuback = await this.internalClient.unsubscribe({
-                    topicFilters: [
-                        topic
-                    ]
-                });
 
-                resolve({
-                    packet_id: (unsuback as model.UnsubackPacketInternal).packetId
-                })
-            } catch (e) {
-                reject(e);
-            }
-        });
+        let options : internal_mqtt_client.UnsubscribeOptions = {};
+        if (this.config.protocol_operation_timeout) {
+            options.timeoutInMillis = this.config.protocol_operation_timeout;
+        }
+
+        let unsuback = await this.internalClient.unsubscribe({
+            topicFilters: [
+                topic
+            ]
+        }, options);
+
+        return {
+            packet_id: (unsuback as model.UnsubackPacketInternal).packetId
+        };
     }
 
     /**
