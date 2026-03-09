@@ -309,10 +309,10 @@ export function isValidBinaryData(data: mqtt5_packet.BinaryData) : boolean {
 export function binaryDataToArrayBuffer(data: mqtt5_packet.BinaryData) : ArrayBuffer {
     if (data instanceof ArrayBuffer) {
         return data;
-    } else if (data instanceof Uint8Array) {
-        return data.buffer;
     } else if (data instanceof Buffer) {
         return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    } else if (data instanceof Uint8Array) {
+        return data.buffer;
     } else {
         throw new CrtError("Invalid binary data");
     }
@@ -428,10 +428,10 @@ export function isValidPayload(payload: mqtt5_packet.Payload) : boolean {
 function payloadToArrayBuffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     if (payload instanceof ArrayBuffer) {
         return payload;
-    } else if (payload instanceof Uint8Array) {
-        return payload.buffer;
     } else if (payload instanceof Buffer) {
         return payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength);
+    } else if (payload instanceof Uint8Array) {
+        return payload.buffer;
     } else if (typeof(payload) === 'string') {
         let encoder = new TextEncoder();
         return encoder.encode(payload).buffer;
@@ -775,10 +775,10 @@ function appendPayloadPropertyLine(current: string, prefix: string, propertyName
     if (value != undefined) {
         if (value instanceof ArrayBuffer) {
             payloadLength = (value as ArrayBuffer).byteLength;
-        } else if (value instanceof Uint8Array) {
-            payloadLength = (value as Uint8Array).buffer.byteLength;
         } else if (value instanceof Buffer) {
             payloadLength = value.byteLength;
+        } else if (value instanceof Uint8Array) {
+            payloadLength = (value as Uint8Array).buffer.byteLength;
         } else if (typeof(value) === 'string') {
             let encoder = new TextEncoder();
             payloadLength = encoder.encode(value).buffer.byteLength;
