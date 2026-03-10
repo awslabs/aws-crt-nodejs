@@ -7,9 +7,7 @@
  * @packageDocumentation
  */
 
-
 import * as mqtt5 from "./mqtt5";
-import * as mqtt_utils from "../browser/mqtt5_utils";
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -165,6 +163,22 @@ export interface ReconnectDelayContext {
     connectionFailureCount : number,
 }
 
+const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
+const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
+export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
+export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
+export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
+
+function getOrderedReconnectDelayBounds(configMin: number | undefined, configMax: number | undefined) : [number, number] {
+    const minDelay : number = Math.max(1, configMin ?? DEFAULT_MIN_RECONNECT_DELAY_MS);
+    const maxDelay : number = Math.max(1, configMax ?? DEFAULT_MAX_RECONNECT_DELAY_MS);
+    if (minDelay > maxDelay) {
+        return [maxDelay, minDelay];
+    } else {
+        return [minDelay, maxDelay];
+    }
+}
+
 /**
  * Computes the next reconnect delay based on the Jitter/Retry configuration.
  * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
@@ -172,7 +186,7 @@ export interface ReconnectDelayContext {
  */
 export function calculateNextReconnectDelay(context: ReconnectDelayContext) : number {
     const jitterType : mqtt5.RetryJitterType = context.retryJitterMode ?? mqtt5.RetryJitterType.Default;
-    const [minDelay, maxDelay] : [number, number] = mqtt_utils.getOrderedReconnectDelayBounds(context.minReconnectDelayMs, context.maxReconnectDelayMs);
+    const [minDelay, maxDelay] : [number, number] = getOrderedReconnectDelayBounds(context.minReconnectDelayMs, context.maxReconnectDelayMs);
     const clampedFailureCount : number = Math.min(52, context.connectionFailureCount);
     let delay : number = 0;
 
