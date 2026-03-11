@@ -363,7 +363,7 @@ function decodeConnectPacket311(firstByte: number, payload: DataView) : model.Co
 
     if (flags & model.CONNECT_FLAGS_HAS_WILL) {
         let willTopic : string = "";
-        let willPayload : ArrayBuffer | null = null;
+        let willPayload : BinaryData | null = null;
 
         [willTopic, index] = decoder.decodeLengthPrefixedString(payload, index);
         [willPayload, index] = decoder.decodeLengthPrefixedBytes(payload, index);
@@ -1131,7 +1131,7 @@ function areConnectPacketsEqual(lhs: model.ConnectPacketInternal, rhs: model.Con
     return optionalBooleansEqual(lhs.cleanStart, rhs.cleanStart) &&
         optionalNumbersEqual(lhs.topicAliasMaximum, rhs.topicAliasMaximum) &&
         optionalStringsEqual(lhs.authenticationMethod, rhs.authenticationMethod) &&
-        optionalBuffersEqual(lhs.authenticationData, rhs.authenticationData) &&
+        optionalBuffersEqual(binaryAsOptionalBuffer(lhs.authenticationData), binaryAsOptionalBuffer(rhs.authenticationData)) &&
         optionalNumbersEqual(lhs.keepAliveIntervalSeconds, rhs.keepAliveIntervalSeconds) &&
         optionalStringsEqual(lhs.clientId, rhs.clientId) &&
         optionalStringsEqual(lhs.username, rhs.username) &&
@@ -1148,7 +1148,7 @@ function areConnectPacketsEqual(lhs: model.ConnectPacketInternal, rhs: model.Con
 
 function areConnackPacketsEqual(lhs: model.ConnackPacketInternal, rhs: model.ConnackPacketInternal) : boolean {
     return optionalStringsEqual(lhs.authenticationMethod, rhs.authenticationMethod) &&
-        optionalBuffersEqual(lhs.authenticationData, rhs.authenticationData) &&
+        optionalBuffersEqual(binaryAsOptionalBuffer(lhs.authenticationData), binaryAsOptionalBuffer(rhs.authenticationData)) &&
         lhs.sessionPresent == rhs.sessionPresent &&
         lhs.reasonCode == rhs.reasonCode &&
         optionalNumbersEqual(lhs.sessionExpiryInterval, rhs.sessionExpiryInterval) &&
@@ -1173,7 +1173,7 @@ function binaryAsOptionalBuffer(source: BinaryData | undefined) : ArrayBuffer | 
         return undefined;
     }
 
-    return source as ArrayBuffer;
+    return model.binaryDataToArrayBuffer(source);
 }
 
 function payloadAsOptionalBuffer(source: mqtt5_packet.Payload | undefined) : ArrayBuffer | undefined {
@@ -1181,7 +1181,7 @@ function payloadAsOptionalBuffer(source: mqtt5_packet.Payload | undefined) : Arr
         return undefined;
     }
 
-    return source as ArrayBuffer;
+    return model.payloadToArrayBuffer(source);
 }
 
 function numberArraysEqual(lhs: Array<number> | undefined, rhs: Array<number> | undefined) : boolean {

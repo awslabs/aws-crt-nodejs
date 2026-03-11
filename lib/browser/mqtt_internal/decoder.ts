@@ -47,13 +47,17 @@ export function decodeLengthPrefixedString(payload: DataView, offset: number) : 
     return [toUtf8(new Uint8Array(payload.buffer, index, stringLength)), index + stringLength];
 }
 
-export function decodeBytes(payload: DataView, offset: number, length: number) : [ArrayBuffer, number] {
-    return [payload.buffer.slice(offset, offset + length), offset + length];
+//Buffer.from(arrayBuffer, view.byteOffset, view.byteLength)
+
+export function decodeBytes(payload: DataView, offset: number, length: number) : [ArrayBufferView, number] {
+    // return [payload.buffer.slice(offset, offset + length), offset + length];
+    return [Buffer.from(payload.buffer, offset, length), offset + length];
 }
 
-export function decodeLengthPrefixedBytes(payload: DataView, offset: number) : [ArrayBuffer, number] {
+export function decodeLengthPrefixedBytes(payload: DataView, offset: number) : [ArrayBufferView, number] {
     let [bytesLength, index] = decodeU16(payload, offset);
-    return [payload.buffer.slice(index, index + bytesLength), index + bytesLength];
+    // return [payload.buffer.slice(index, index + bytesLength), index + bytesLength];
+    return [Buffer.from(payload.buffer, index, bytesLength), index + bytesLength];
 }
 
 export function decodeUserProperty(payload: DataView, offset: number, userProperties: Array<mqtt5_packet.UserProperty>) : number {
