@@ -134,7 +134,7 @@ export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
 
     authenticationMethod?: string;
 
-    authenticationData?: ArrayBuffer;
+    authenticationData?: BinaryData;
 }
 
 export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
@@ -158,7 +158,7 @@ export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
 export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
     authenticationMethod?: string;
 
-    authenticationData?: ArrayBuffer;
+    authenticationData?: BinaryData;
 }
 
 export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
@@ -414,7 +414,7 @@ function convertConnectPacketInternalToBinary(packet: ConnectPacketInternal, inc
         }
 
         if (packet.authenticationData != undefined) {
-            binary_packet.authenticationData = packet.authenticationData;
+            binary_packet.authenticationData = binaryDataToArrayBuffer(packet.authenticationData);
         }
     }
 
@@ -425,7 +425,7 @@ export function isValidPayload(payload: mqtt5_packet.Payload) : boolean {
     return payload instanceof ArrayBuffer || payload instanceof Uint8Array || payload instanceof Buffer || typeof(payload) === 'string';
 }
 
-function payloadToArrayBuffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
+export function payloadToArrayBuffer(payload: mqtt5_packet.Payload) : ArrayBuffer {
     if (payload instanceof ArrayBuffer) {
         return payload;
     } else if (payload instanceof Buffer) {
