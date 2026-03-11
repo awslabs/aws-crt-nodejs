@@ -757,8 +757,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         let payload = packet.payload;
         let retain = packet.retain ?? false;
 
-        // we know the internal client decodes binary fields into ArrayBuffers
-        const array_buffer = payload as ArrayBuffer;
+        const array_buffer = payload ? model.payloadToArrayBuffer(payload) : new ArrayBuffer(0);
 
         const callback = this.subscriptions.find(topic);
         if (callback) {
