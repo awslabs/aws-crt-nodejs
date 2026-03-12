@@ -216,47 +216,47 @@ function applyConnectPacketToInternalConnectOptions(internalConnectOptions : int
         return;
     }
 
-    if (connectProperties.clientId) {
+    if (connectProperties.clientId !== undefined) {
         internalConnectOptions.clientId = connectProperties.clientId;
     }
 
-    if (connectProperties.username) {
+    if (connectProperties.username !== undefined) {
         internalConnectOptions.username = connectProperties.username;
     }
 
-    if (connectProperties.password) {
+    if (connectProperties.password !== undefined) {
         internalConnectOptions.password = connectProperties.password;
     }
 
-    if (connectProperties.sessionExpiryIntervalSeconds) {
+    if (connectProperties.sessionExpiryIntervalSeconds !== undefined) {
         internalConnectOptions.sessionExpiryIntervalSeconds = connectProperties.sessionExpiryIntervalSeconds;
     }
 
-    if (connectProperties.requestResponseInformation) {
+    if (connectProperties.requestResponseInformation !== undefined) {
         internalConnectOptions.requestResponseInformation = connectProperties.requestResponseInformation;
     }
 
-    if (connectProperties.requestProblemInformation) {
+    if (connectProperties.requestProblemInformation !== undefined) {
         internalConnectOptions.requestProblemInformation = connectProperties.requestProblemInformation;
     }
 
-    if (connectProperties.receiveMaximum) {
+    if (connectProperties.receiveMaximum !== undefined) {
         internalConnectOptions.receiveMaximum = connectProperties.receiveMaximum;
     }
 
-    if (connectProperties.maximumPacketSizeBytes) {
+    if (connectProperties.maximumPacketSizeBytes !== undefined) {
         internalConnectOptions.maximumPacketSizeBytes = connectProperties.maximumPacketSizeBytes;
     }
 
-    if (connectProperties.willDelayIntervalSeconds) {
+    if (connectProperties.willDelayIntervalSeconds !== undefined) {
         internalConnectOptions.willDelayIntervalSeconds = connectProperties.willDelayIntervalSeconds;
     }
 
-    if (connectProperties.will) {
+    if (connectProperties.will !== undefined) {
         internalConnectOptions.will = connectProperties.will;
     }
 
-    if (connectProperties.userProperties) {
+    if (connectProperties.userProperties !== undefined) {
         internalConnectOptions.userProperties = connectProperties.userProperties;
     }
 }
