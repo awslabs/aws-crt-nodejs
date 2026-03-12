@@ -139,16 +139,16 @@ test('External publish packet validation - undefined qos', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     delete packet.qos;
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid u8");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External publish packet validation - bad qos type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.qos = "hi";
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid u8");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External publish packet validation - bad qos value', async () => {
@@ -172,7 +172,7 @@ test('External publish packet validation - bad payload format type', async () =>
     // @ts-ignore
     packet.payloadFormat = "hi";
     validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid PayloadFormatIndicator");
 });
 
 test('External publish packet validation - bad payload format value', async () => {
@@ -691,8 +691,8 @@ test('External subscribe packet validation - undefined qos', async () => {
     // @ts-ignore
     delete packet.subscriptions[0].qos;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid u8");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External subscribe packet validation - qos bad type', async () => {
@@ -700,8 +700,8 @@ test('External subscribe packet validation - qos bad type', async () => {
     // @ts-ignore
     packet.subscriptions[0].qos = "qos";
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid u8");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External subscribe packet validation - qos invalid', async () => {
@@ -719,7 +719,7 @@ test('External subscribe packet validation - retain handling type bad type', asy
     packet.subscriptions[1].retainHandlingType = "qos";
 
     validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid RetainHandlingType");
 });
 
 test('External subscribe packet validation - retain handling type invalid', async () => {
@@ -1274,7 +1274,7 @@ test('External disconnect packet validation - undefined reason code', async () =
     delete packet.reasonCode;
 
     validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
 });
 
 test('External disconnect packet validation - reason code bad type', async () => {
@@ -1283,7 +1283,7 @@ test('External disconnect packet validation - reason code bad type', async () =>
     packet.reasonCode = "Success";
 
     validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u8");
+    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
 });
 
 test('External disconnect packet validation - reason code bad value', async () => {
