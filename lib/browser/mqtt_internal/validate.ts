@@ -131,7 +131,7 @@ function validateU8(value: number, fieldName: string) {
     }
 }
 
-function validateU16(value: number, fieldName: string) {
+export function validateU16(value: number, fieldName: string) {
     if (!Number.isInteger(value) || value < 0 || value > 65535) {
         throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid u16`);
     }
@@ -152,7 +152,7 @@ function validateU32(value: number, fieldName: string) {
     }
 }
 
-function validateOptionalU32(value: number | undefined, fieldName: string) {
+export function validateOptionalU32(value: number | undefined, fieldName: string) {
     if (value != undefined) {
         validateU32(value, fieldName);
     }
@@ -180,7 +180,7 @@ function validateString(value: any, fieldName: string) {
     throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid string`);
 }
 
-function validateOptionalString(value: string | undefined, fieldName: string) {
+export function validateOptionalString(value: string | undefined, fieldName: string) {
     if (value === undefined) {
         return;
     }
@@ -244,42 +244,18 @@ function validateSubackReasonCode(value: mqtt5_packet.SubackReasonCode, mode: mo
 }
 
 function validatePubackReasonCode(value: mqtt5_packet.PubackReasonCode, mode: model.ProtocolMode) {
-    validateU8(value, 'reasonCode');
-    if (mode == model.ProtocolMode.Mqtt5) {
-        switch(value) {
-            case mqtt5_packet.PubackReasonCode.Success:
-            case mqtt5_packet.PubackReasonCode.NoMatchingSubscribers:
-            case mqtt5_packet.PubackReasonCode.UnspecifiedError:
-            case mqtt5_packet.PubackReasonCode.ImplementationSpecificError:
-            case mqtt5_packet.PubackReasonCode.NotAuthorized:
-            case mqtt5_packet.PubackReasonCode.TopicNameInvalid:
-            case mqtt5_packet.PubackReasonCode.PacketIdentifierInUse:
-            case mqtt5_packet.PubackReasonCode.QuotaExceeded:
-            case mqtt5_packet.PubackReasonCode.PayloadFormatInvalid:
-                break;
-
-            default:
-                throw new CrtError(`"${value}" is not a valid MQTT5 PubackReasonCode`);
-        }
+    if (mqtt5_packet.PubackReasonCode[value] === undefined) {
+        throw new CrtError(`"${value}" is not a valid MQTT5 PubackReasonCode`);
     }
 }
 
 function validateUnsubackReasonCode(value: mqtt5_packet.UnsubackReasonCode, mode: model.ProtocolMode) {
-    validateU8(value, 'reasonCodes');
-    if (mode == model.ProtocolMode.Mqtt5) {
-        switch(value) {
-            case mqtt5_packet.UnsubackReasonCode.Success:
-            case mqtt5_packet.UnsubackReasonCode.NoSubscriptionExisted:
-            case mqtt5_packet.UnsubackReasonCode.UnspecifiedError:
-            case mqtt5_packet.UnsubackReasonCode.ImplementationSpecificError:
-            case mqtt5_packet.UnsubackReasonCode.NotAuthorized:
-            case mqtt5_packet.UnsubackReasonCode.TopicFilterInvalid:
-            case mqtt5_packet.UnsubackReasonCode.PacketIdentifierInUse:
-                break;
+    if (mode == model.ProtocolMode.Mqtt311) {
+        return;
+    }
 
-            default:
-                throw new CrtError(`"${value}" is not a valid MQTT5 UnsubackReasonCode`);
-        }
+    if (mqtt5_packet.UnsubackReasonCode[value] === undefined) {
+        throw new CrtError(`"${value}" is not a valid MQTT5 UnsubackReasonCode`);
     }
 }
 
@@ -333,56 +309,18 @@ function validateConnectReasonCode(value: mqtt5_packet.ConnectReasonCode, mode: 
 }
 
 function validateDisconnectReasonCode(value: mqtt5_packet.DisconnectReasonCode, mode: model.ProtocolMode) {
-    validateU8(value, 'reasonCode');
-    if (mode == model.ProtocolMode.Mqtt5) {
-        switch(value) {
-            case mqtt5_packet.DisconnectReasonCode.NormalDisconnection:
-            case mqtt5_packet.DisconnectReasonCode.DisconnectWithWillMessage:
-            case mqtt5_packet.DisconnectReasonCode.UnspecifiedError:
-            case mqtt5_packet.DisconnectReasonCode.MalformedPacket:
-            case mqtt5_packet.DisconnectReasonCode.ProtocolError:
-            case mqtt5_packet.DisconnectReasonCode.ImplementationSpecificError:
-            case mqtt5_packet.DisconnectReasonCode.NotAuthorized:
-            case mqtt5_packet.DisconnectReasonCode.ServerBusy:
-            case mqtt5_packet.DisconnectReasonCode.ServerShuttingDown:
-            case mqtt5_packet.DisconnectReasonCode.KeepAliveTimeout:
-            case mqtt5_packet.DisconnectReasonCode.SessionTakenOver:
-            case mqtt5_packet.DisconnectReasonCode.TopicFilterInvalid:
-            case mqtt5_packet.DisconnectReasonCode.TopicNameInvalid:
-            case mqtt5_packet.DisconnectReasonCode.ReceiveMaximumExceeded:
-            case mqtt5_packet.DisconnectReasonCode.TopicAliasInvalid:
-            case mqtt5_packet.DisconnectReasonCode.PacketTooLarge:
-            case mqtt5_packet.DisconnectReasonCode.MessageRateTooHigh:
-            case mqtt5_packet.DisconnectReasonCode.QuotaExceeded:
-            case mqtt5_packet.DisconnectReasonCode.AdministrativeAction:
-            case mqtt5_packet.DisconnectReasonCode.PayloadFormatInvalid:
-            case mqtt5_packet.DisconnectReasonCode.RetainNotSupported:
-            case mqtt5_packet.DisconnectReasonCode.QosNotSupported:
-            case mqtt5_packet.DisconnectReasonCode.UseAnotherServer:
-            case mqtt5_packet.DisconnectReasonCode.ServerMoved:
-            case mqtt5_packet.DisconnectReasonCode.SharedSubscriptionsNotSupported:
-            case mqtt5_packet.DisconnectReasonCode.ConnectionRateExceeded:
-            case mqtt5_packet.DisconnectReasonCode.MaximumConnectTime:
-            case mqtt5_packet.DisconnectReasonCode.SubscriptionIdentifiersNotSupported:
-            case mqtt5_packet.DisconnectReasonCode.WildcardSubscriptionsNotSupported:
-                break;
+    if (mode == model.ProtocolMode.Mqtt311) {
+        return;
+    }
 
-            default:
-                throw new CrtError(`"${value}" is not a valid MQTT5 DisconnectReasonCode`);
-        }
+    if (mqtt5_packet.DisconnectReasonCode[value] === undefined) {
+        throw new CrtError(`"${value}" is not a valid MQTT5 DisconnectReasonCode`);
     }
 }
 
 function validateQos(qos: mqtt5_packet.QoS) {
-    validateU8(qos, 'QoS');
-    switch (qos) {
-        case mqtt5_packet.QoS.AtLeastOnce:
-        case mqtt5_packet.QoS.AtMostOnce:
-        case mqtt5_packet.QoS.ExactlyOnce:
-            break;
-
-        default:
-            throw new CrtError(`"${qos}" is not a valid QualityOfService`);
+    if (mqtt5_packet.QoS[qos] === undefined) {
+        throw new CrtError(`"${qos}" is not a valid QualityOfService`);
     }
 }
 
@@ -391,14 +329,8 @@ function validateOptionalPayloadFormat(payloadFormat: mqtt5_packet.PayloadFormat
         return;
     }
 
-    validateU8(payloadFormat, fieldName);
-    switch (payloadFormat) {
-        case mqtt5_packet.PayloadFormatIndicator.Bytes:
-        case mqtt5_packet.PayloadFormatIndicator.Utf8:
-            break;
-
-        default:
-            throw new CrtError(`Field "${fieldName}" with value "${payloadFormat}" is not a valid PayloadFormatIndicator`);
+    if (mqtt5_packet.PayloadFormatIndicator[payloadFormat] === undefined) {
+        throw new CrtError(`Field "${fieldName}" with value "${payloadFormat}" is not a valid PayloadFormatIndicator`);
     }
 }
 
@@ -407,21 +339,14 @@ function validateOptionalRetainHandlingType(retainHandling: mqtt5_packet.RetainH
         return;
     }
 
-    validateU8(retainHandling, fieldName);
-    switch (retainHandling) {
-        case mqtt5_packet.RetainHandlingType.SendOnSubscribe:
-        case mqtt5_packet.RetainHandlingType.SendOnSubscribeIfNew:
-        case mqtt5_packet.RetainHandlingType.DontSend:
-            break;
-
-        default:
-            throw new CrtError(`Field "${fieldName}" with value "${retainHandling}" is not a valid RetainHandlingType`);
+    if (mqtt5_packet.RetainHandlingType[retainHandling] === undefined) {
+        throw new CrtError(`Field "${fieldName}" with value "${retainHandling}" is not a valid RetainHandlingType`);
     }
 }
 
 // misc validation utilities
 
-function validateUserProperties(userProperties: Array<mqtt5_packet.UserProperty> | undefined) {
+export function validateUserProperties(userProperties: Array<mqtt5_packet.UserProperty> | undefined) {
     if (!userProperties) {
         return;
     }
@@ -452,7 +377,7 @@ function validateBinaryData(value: mqtt5_packet.BinaryData, fieldName: string) {
     }
 }
 
-function validateOptionalBinaryData(value: mqtt5_packet.BinaryData | undefined, fieldName: string) {
+export function validateOptionalBinaryData(value: mqtt5_packet.BinaryData | undefined, fieldName: string) {
     if (!value) {
         return;
     }
