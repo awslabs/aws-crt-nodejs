@@ -12,6 +12,7 @@ import * as promise from "../../common/promise"
 import * as ws from "../ws"
 import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
 import * as log from "../../common/log";
+import * as validate from "./validate";
 
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
@@ -202,6 +203,79 @@ function buildClientConfigLogString(prefix: string, config: ClientConfig) : stri
     return result;
 }
 
+function validateUnsignedInteger(value: number, fieldName: string) {
+    if (!Number.isInteger(value) || value < 0) {
+        throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid unsigned integer`);
+    }
+}
+
+function validateOptionalUnsignedInteger(value: number | undefined, fieldName: string) {
+    if (value === undefined) {
+        return;
+    }
+
+    validateUnsignedInteger(value, fieldName);
+}
+
+function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
+    if (options.connectPacketTransformer && (typeof options.connectPacketTransformer !== "function")) {
+        throw new CrtError("connectPacketTransformer must be a function");
+    }
+
+    validate.validateU16(options.keepAliveIntervalSeconds, "keepAliveIntervalSeconds");
+
+    if (options.resumeSessionPolicy !== undefined && ResumeSessionPolicyType[options.resumeSessionPolicy] == undefined) {
+        throw new CrtError("Invalid value for resumeSessionPolicy");
+    }
+
+    validate.validateOptionalString(options.clientId, "clientId");
+    validate.validateOptionalString(options.username, "username");
+    validate.validateOptionalBinaryData(options.password, "password");
+
+    validate.validateOptionalU32(options.sessionExpiryIntervalSeconds, "sessionExpiryIntervalSeconds");
+
+    if (options.receiveMaximum !== undefined) {
+        validate.validateU16(options.receiveMaximum, "receiveMaximum");
+    }
+
+    validate.validateOptionalU32(options.maximumPacketSizeBytes, "maximumPacketSizeBytes");
+    validate.validateOptionalU32(options.willDelayIntervalSeconds, "willDelayIntervalSeconds");
+
+    if (options.will !== undefined) {
+        validate.validateInitialOutboundPacket(options.will, mode);
+    }
+
+    validate.validateUserProperties(options.userProperties);
+}
+
+function validateConfig(config: ClientConfig) {
+    if (ProtocolMode[config.protocolVersion] == undefined) {
+        throw new CrtError("Invalid value for protocolVersion");
+    }
+
+    if (OfflineQueuePolicy[config.offlineQueuePolicy] == undefined) {
+        throw new CrtError("Invalid value for offlineQueuePolicy");
+    }
+
+    validateConnectOptions(config.connectOptions, config.protocolVersion);
+
+    validateOptionalUnsignedInteger(config.pingTimeoutMillis, "pingTimeoutMillis");
+
+    if (!config.connectionFactory || (typeof config.connectionFactory !== "function")) {
+        throw new CrtError("connectionFactory must be a valid function");
+    }
+
+    validateUnsignedInteger(config.connectTimeoutMillis, "connectTimeoutMillis");
+
+    if (config.retryJitterMode !== undefined && mqtt5.RetryJitterType[config.retryJitterMode] == undefined) {
+        throw new CrtError("Invalid value for retryJitterMode");
+    }
+
+    validateOptionalUnsignedInteger(config.minReconnectDelayMs, "minReconnectDelayMs");
+    validateOptionalUnsignedInteger(config.maxReconnectDelayMs, "maxReconnectDelayMs");
+    validateOptionalUnsignedInteger(config.resetConnectionFailureCountMillis, "resetConnectionFailureCountMillis");
+}
+
 /**
  * The states that the client can be in
  */
@@ -305,6 +379,8 @@ export class Client extends BufferedEventEmitter {
 
     constructor(private config: ClientConfig) {
         super();
+
+        validateConfig(config);
 
         logInfo(CLIENT_LOG_SUBJECT, "Creating MQTT client with configuration:");
         flogInfo(CLIENT_LOG_SUBJECT, () => { return buildClientConfigLogString("", config); });
