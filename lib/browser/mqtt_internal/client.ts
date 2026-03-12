@@ -217,6 +217,16 @@ function validateOptionalUnsignedInteger(value: number | undefined, fieldName: s
     validateUnsignedInteger(value, fieldName);
 }
 
+function validateOptionalPositiveU32(value: number | undefined, fieldName: string) {
+    if (value === undefined) {
+        return;
+    }
+
+    if (!Number.isInteger(value) || value <= 0 || value > (256 * 256 * 256 * 256 - 1)) {
+        throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid positive 32 bit integer`);
+    }
+}
+
 function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
     if (options.connectPacketTransformer && (typeof options.connectPacketTransformer !== "function")) {
         throw new CrtError("connectPacketTransformer must be a function");
@@ -238,7 +248,7 @@ function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
         validate.validateU16(options.receiveMaximum, "receiveMaximum");
     }
 
-    validate.validateOptionalU32(options.maximumPacketSizeBytes, "maximumPacketSizeBytes");
+    validateOptionalPositiveU32(options.maximumPacketSizeBytes, "maximumPacketSizeBytes");
     validate.validateOptionalU32(options.willDelayIntervalSeconds, "willDelayIntervalSeconds");
 
     if (options.will !== undefined) {
