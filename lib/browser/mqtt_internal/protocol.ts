@@ -1595,10 +1595,15 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             return;
         }
 
+        let disconnectOptions : GenericOptionsInternal = {
+            resultHandler: context.resultHandler
+        };
+
         let operation = {
             type: mqtt5_packet.PacketType.Disconnect,
             id: this.nextOperationId++,
             packet: model.convertDisconnectPacketToBinary(context.packet),
+            options: disconnectOptions,
             numAttempts: 0,
         };
 
