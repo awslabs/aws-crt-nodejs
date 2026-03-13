@@ -683,6 +683,10 @@ export function cloneSubscribeShallow(subscribe: mqtt5_packet.SubscribePacket) :
         subscriptions: subscribe.subscriptions
     };
 
+    if (subscribe.subscriptionIdentifier) {
+        clone.subscriptionIdentifier = subscribe.subscriptionIdentifier;
+    }
+
     if (subscribe.userProperties) {
         clone.userProperties = subscribe.userProperties;
     }
