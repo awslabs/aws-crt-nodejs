@@ -386,12 +386,12 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      * @param packet SUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the SUBACK response
      */
-    async subscribe(packet: mqtt5_packet.SubscribePacket) : Promise<mqtt5_packet.SubackPacket> {
+    subscribe(packet: mqtt5_packet.SubscribePacket) : Promise<mqtt5_packet.SubackPacket> {
         if (!packet) {
             throw new CrtError("Invalid subscribe packet");
         }
 
-        return await this.internalClient.subscribe(packet);
+        return this.internalClient.subscribe(packet);
     }
 
     /**
@@ -400,12 +400,12 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      * @param packet UNSUBSCRIBE packet to send to the server
      * @returns a promise that will be rejected with an error or resolved with the UNSUBACK response
      */
-    async unsubscribe(packet: mqtt5_packet.UnsubscribePacket) : Promise<mqtt5_packet.UnsubackPacket> {
+    unsubscribe(packet: mqtt5_packet.UnsubscribePacket) : Promise<mqtt5_packet.UnsubackPacket> {
         if (!packet) {
             throw new CrtError("Invalid unsubscribe packet");
         }
 
-        return await this.internalClient.unsubscribe(packet);
+        return this.internalClient.unsubscribe(packet);
     }
 
     /**
@@ -415,19 +415,21 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      * @returns a promise that will be rejected with an error or resolved with the PUBACK response (QoS 1), or
      * undefined (QoS 0)
      */
-    async publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5.PublishCompletionResult> {
+    publish(packet: mqtt5_packet.PublishPacket) : Promise<mqtt5.PublishCompletionResult> {
         if (!packet) {
             throw new CrtError("Invalid publish packet");
         }
 
-        let publishResult = await this.internalClient.publish(packet);
-        switch (publishResult.type) {
-            case PublishResultType.Qos1:
-                return publishResult.packet as mqtt5_packet.PubackPacket;
+        let publishResultPromise = this.internalClient.publish(packet);
+        return publishResultPromise.then((result) => {
+            switch (result.type) {
+                case PublishResultType.Qos1:
+                    return result.packet as mqtt5_packet.PubackPacket;
 
-            default:
-                return undefined;
-        }
+                default:
+                    return undefined;
+            }
+        });
     }
 
     /**
