@@ -14,6 +14,7 @@ import * as ws from "@httptoolkit/websocket-stream";
 import * as WebSocket from "ws";
 
 import * as promise from "../lib/common/promise";
+import {BufferedEventEmitter} from "../lib/common/event";
 
 
 export type PacketHandlerType = (packet : mqtt5_packet.IPacket, server: MqttServer, responsePackets : Array<mqtt5_packet.IPacket>) => void;
@@ -168,13 +169,15 @@ export function buildDefaultHandlerSet() : PacketHandlerSet {
     ]);
 }
 
-class MqttServerConnection {
+class MqttServerConnection extends BufferedEventEmitter {
     private connection : WebSocket;
     private server : MqttServer;
     private encoder: encoder.Encoder;
     private decoder: decoder.Decoder;
 
     constructor(connection : WebSocket, server: MqttServer) {
+        super();
+
         this.connection = connection;
         this.server = server;
 
@@ -195,12 +198,20 @@ class MqttServerConnection {
         connection.on('message', function message(data) {
             mqttConnection.onData(data as Buffer);
         });
+
+        this.uncork();
     }
 
     onData(data: Buffer) {
         try {
             let dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
             let packets = this.decoder.decode(dataView);
+
+            let connection : MqttServerConnection = this;
+            packets.forEach((packet) => {
+                queueMicrotask(() => { connection.emit('packetReceived', packet); });
+            });
+
             let handlers = this.server.getPacketHandlers();
 
             let responsePackets: Array<mqtt5_packet.IPacket> = [];
@@ -261,6 +272,13 @@ class MqttServerConnection {
     close() {
         this.connection.close();
     }
+
+    on(event: 'packetReceived', listener: PacketReceivedEventListener): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
+    }
 }
 
 export interface MqttServerConfig {
@@ -270,7 +288,9 @@ export interface MqttServerConfig {
     context?: any
 }
 
-export class MqttServer {
+export type PacketReceivedEventListener = (packet: mqtt5_packet.IPacket) => void;
+
+export class MqttServer extends BufferedEventEmitter {
 
     private handlers: PacketHandlerSet;
     private server : ws.Server;
@@ -278,6 +298,8 @@ export class MqttServer {
     private setup : promise.LiftedPromise<void>;
 
     constructor(private config: MqttServerConfig) {
+        super();
+
         this.handlers = config.packetHandlers ?? buildDefaultHandlerSet();
         this.setup = promise.newLiftedPromise<void>();
 
@@ -289,14 +311,21 @@ export class MqttServer {
 
         let mqttServer = this;
 
-        this.server = ws.createServer(opts, this.serverCallback.bind(this));
+        this.server = ws.createServer(opts, this.serverCallback.bind(mqttServer));
 
         this.server.on('listening', () => this.serverCallback());
 
         this.server.on('connection', function connection(ws : WebSocket) {
             let connection = new MqttServerConnection(ws, mqttServer);
+
+            connection.addListener('packetReceived', (packet) => {
+                queueMicrotask(() => { mqttServer.emit('packetReceived', packet); });
+            });
+
             mqttServer.connections.push(connection);
         });
+
+        this.uncork();
     }
 
     public getConfig() : MqttServerConfig {
@@ -330,4 +359,11 @@ export class MqttServer {
     }
 
     public start() : Promise<void> { return this.setup.promise; }
+
+    on(event: 'packetReceived', listener: PacketReceivedEventListener): this;
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
+    }
 }

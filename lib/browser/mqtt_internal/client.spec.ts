@@ -6,11 +6,9 @@
 import * as mqtt_server from "@test/mqtt_server";
 import * as model from "./model";
 import * as mqtt_client from "./client";
-import {ResumeSessionPolicyType} from "./client";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
 import * as promise from "../../common/promise";
 import * as mqtt5 from "../../common/mqtt5";
-import * as io from "../../common/io";
 
 import {once} from "events";
 import * as ws from "../ws";
@@ -1077,7 +1075,7 @@ function buildMaximalClientConfig(fixture: ClientTestFixture, protocolVersion : 
     let encoder = new TextEncoder();
 
     let connectOptions = clientConfig.connectOptions as mqtt_client.ConnectOptions;
-    connectOptions.resumeSessionPolicy = ResumeSessionPolicyType.Always;
+    connectOptions.resumeSessionPolicy = mqtt_client.ResumeSessionPolicyType.Always;
     connectOptions.clientId = "AWellBehavedApplication";
     connectOptions.username = "SomeoneNice";
     connectOptions.password = encoder.encode('notapassword');
@@ -1109,8 +1107,6 @@ function buildMaximalClientConfig(fixture: ClientTestFixture, protocolVersion : 
 }
 
 async function doAllOptionsAllOperationsTest(protocolVersion : model.ProtocolMode) {
-    io.setLogLevel(io.LogLevel.DEBUG);
-
     let config: mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -1211,6 +1207,117 @@ describe("AllOptionsAllOperations", () => {
     })
 });
 
-test('Derpderp', async () => {
-    await doAllOptionsAllOperationsTest(model.ProtocolMode.Mqtt5);
+function shouldResubscribe(resubscribeMode : mqtt_client.ResubscribeModeType, sessionPresent: boolean) : boolean {
+    switch (resubscribeMode) {
+        case mqtt_client.ResubscribeModeType.Disabled:
+            return false;
+
+        case mqtt_client.ResubscribeModeType.EnabledAlways:
+            return true;
+
+        case mqtt_client.ResubscribeModeType.EnabledOnSessionResumptionFail:
+            return sessionPresent == false;
+    }
+}
+
+async function doResubscribeTest(protocolVersion : model.ProtocolMode, resubscribeMode : mqtt_client.ResubscribeModeType) {
+    let config: mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+        connackOverrides: {
+            reasonCode: mqtt5_packet.ConnectReasonCode.Success,
+            sessionPresent: false
+        }
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
+    clientConfig.resubscribeMode = resubscribeMode;
+
+    let client = new mqtt_client.Client(clientConfig);
+    let stopped = once(client, "stopped");
+    let connected = once(client, "connectionSuccess");
+
+    client.start();
+    await connected;
+
+    // Do test
+
+    await client.subscribe({
+        subscriptions : [
+            {
+                topicFilter : "a/b",
+                qos: mqtt5_packet.QoS.AtLeastOnce
+            }
+        ]
+    });
+
+    let disconnectionCount : number = 0;
+    client.addListener('disconnection', (event) => {
+        disconnectionCount++;
+    });
+
+    let firstResubscribe : mqtt5_packet.SubscribePacket | undefined = undefined;
+    let secondResubscribe : mqtt5_packet.SubscribePacket | undefined = undefined;
+
+    fixture.getServer().addListener('packetReceived', (packet : mqtt5_packet.IPacket) => {
+        if (packet.type == mqtt5_packet.PacketType.Subscribe) {
+            if (disconnectionCount == 1) {
+                firstResubscribe = packet as mqtt5_packet.SubscribePacket;
+            } else if (disconnectionCount == 2) {
+                secondResubscribe = packet as mqtt5_packet.SubscribePacket;
+            }
+        }
+    });
+
+    let reconnect1 = once(client, "connectionSuccess");
+    fixture.getServer().closeConnections();
+
+    let reconnectSuccess1 = (await reconnect1)[0] as mqtt_client.ConnectionSuccessEvent;
+    expect(reconnectSuccess1.connack.sessionPresent).toBeFalsy();
+
+    // seems easiest to use time rather than trying to reason about unresolved promises (negative events)
+    await new Promise<void>((resolve) => { setTimeout(() => { resolve(); }, 2000)});
+
+    // @ts-ignore
+    config.connackOverrides.sessionPresent = true;
+    let reconnect2 = once(client, "connectionSuccess");
+    fixture.getServer().closeConnections();
+
+    let reconnectSuccess2 = (await reconnect2)[0] as mqtt_client.ConnectionSuccessEvent;
+    expect(reconnectSuccess2.connack.sessionPresent).toBeTruthy();
+
+    // seems easiest to use time rather than trying to reason about unresolved promises (negative events)
+    await new Promise<void>((resolve) => { setTimeout(() => { resolve(); }, 2000)});
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+
+    // Now check the resubscribes vs. our expectations based on configuration
+    let shouldFirstResubscribeBeSet = shouldResubscribe(resubscribeMode, false);
+    let shouldSecondResubscribeBeSet = shouldResubscribe(resubscribeMode, true);
+
+    expect(firstResubscribe != undefined).toEqual(shouldFirstResubscribeBeSet);
+    expect(secondResubscribe != undefined).toEqual(shouldSecondResubscribeBeSet);
+}
+
+describe("Resubscribe - Disabled", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doResubscribeTest(protocolVersionToMode(protocolVersion), mqtt_client.ResubscribeModeType.Disabled);
+    })
+});
+
+describe("Resubscribe - Enabled Always", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doResubscribeTest(protocolVersionToMode(protocolVersion), mqtt_client.ResubscribeModeType.EnabledAlways);
+    })
+});
+
+describe("Resubscribe - Enabled on session lost", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doResubscribeTest(protocolVersionToMode(protocolVersion), mqtt_client.ResubscribeModeType.EnabledOnSessionResumptionFail);
+    })
 });
