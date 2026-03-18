@@ -13,6 +13,7 @@ import * as ws from "../ws"
 import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
 import * as log from "../../common/log";
 import * as validate from "./validate";
+import * as resubscribe from "./resubscribe";
 
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
@@ -97,6 +98,29 @@ export interface PublishReceivedEvent {
 export type PublishReceivedEventListener = (eventData: PublishReceivedEvent) => void;
 
 /**
+ * Controls how the client should automatically resubscribe to topics upon reconnection
+ */
+export enum ResubscribeModeType {
+
+    /**
+     * Do not attempt to resubscribe to topics under any circumstance
+     */
+    Disabled,
+
+    /**
+     * Always resubscribe to topics on reconnect, regardless of session resumption
+     */
+    EnabledAlways,
+
+    /**
+     * Only resubscribe to topics on reconnect if a session could not be rejoined
+     */
+    EnabledOnSessionResumptionFail,
+
+    Default = 0,
+}
+
+/**
  * Client-relevant configuration options
  */
 export interface ClientConfig {
@@ -154,6 +178,11 @@ export interface ClientConfig {
      * establishment.
      */
     resetConnectionFailureCountMillis? : number
+
+    /**
+     * What kind of resubscribe behavior should the use?
+     */
+    resubscribeMode?: ResubscribeModeType
 }
 
 function buildConnectOptionsLogString(prefix: string, options: ConnectOptions) : string {
@@ -197,6 +226,7 @@ function buildClientConfigLogString(prefix: string, config: ClientConfig) : stri
     result = log.appendOptionalNumericPropertyLine(result, prefix, "MinReconnectDelayMs", config.minReconnectDelayMs);
     result = log.appendOptionalNumericPropertyLine(result, prefix, "MaxReconnectDelayMs", config.maxReconnectDelayMs);
     result = log.appendOptionalNumericPropertyLine(result, prefix, "ResetConnectionFailureCountMillis", config.resetConnectionFailureCountMillis);
+    result = log.appendOptionalEnumPropertyLine(result, prefix, "ResubscribeMode", (val) => ResubscribeModeType[val], config.resubscribeMode);
 
     result += `${prefix}}\n`;
 
@@ -284,6 +314,10 @@ function validateConfig(config: ClientConfig) {
     validateOptionalUnsignedInteger(config.minReconnectDelayMs, "minReconnectDelayMs");
     validateOptionalUnsignedInteger(config.maxReconnectDelayMs, "maxReconnectDelayMs");
     validateOptionalUnsignedInteger(config.resetConnectionFailureCountMillis, "resetConnectionFailureCountMillis");
+
+    if (config.resubscribeMode !== undefined && ResubscribeModeType[config.resubscribeMode] == undefined) {
+        throw new CrtError("Invalid value for resubscribeMode");
+    }
 }
 
 /**
@@ -386,6 +420,8 @@ export class Client extends BufferedEventEmitter {
     private onConnectionDataCallback : (data: any) => void;
 
     private connectionCallbackState : ConnectionCallbackState = {};
+
+    private resubscribeManager : resubscribe.ResubscribeManager = new resubscribe.ResubscribeManager();
 
     constructor(private config: ClientConfig) {
         super();
@@ -493,7 +529,7 @@ export class Client extends BufferedEventEmitter {
      * @param publish publish packet to send
      * @param options additional configuration options
      */
-    async publish(publish: mqtt5_packet.PublishPacket, options?: PublishOptions) : Promise<PublishResult> {
+    publish(publish: mqtt5_packet.PublishPacket, options?: PublishOptions) : Promise<PublishResult> {
         logInfo(CLIENT_LOG_SUBJECT, "publish called" );
 
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
@@ -536,7 +572,7 @@ export class Client extends BufferedEventEmitter {
      * @param subscribe subscribe packet to send
      * @param options additional configuration options
      */
-    async subscribe(subscribe: mqtt5_packet.SubscribePacket, options?: SubscribeOptions) : Promise<mqtt5_packet.SubackPacket> {
+    subscribe(subscribe: mqtt5_packet.SubscribePacket, options?: SubscribeOptions) : Promise<mqtt5_packet.SubackPacket> {
         logInfo(CLIENT_LOG_SUBJECT, "subscribe called" );
 
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
@@ -545,6 +581,8 @@ export class Client extends BufferedEventEmitter {
         let liftedSubscribe = promise.newLiftedPromise<mqtt5_packet.SubackPacket>();
 
         try {
+            subscribe.subscriptions.forEach((subscription) => { this.resubscribeManager.onSubscribeRequest(subscription.topicFilter, subscription.qos); });
+
             this.protocolState.handleUserEvent({
                 type: protocol.UserEventType.Subscribe,
                 context: {
@@ -577,7 +615,7 @@ export class Client extends BufferedEventEmitter {
      * @param unsubscribe unsubscribe packet to send
      * @param options additional configuration options
      */
-    async unsubscribe(unsubscribe: mqtt5_packet.UnsubscribePacket, options?: UnsubscribeOptions) : Promise<mqtt5_packet.UnsubackPacket> {
+    unsubscribe(unsubscribe: mqtt5_packet.UnsubscribePacket, options?: UnsubscribeOptions) : Promise<mqtt5_packet.UnsubackPacket> {
         logInfo(CLIENT_LOG_SUBJECT, "unsubscribe called" );
 
         // use lifted promise to guarantee submission is not conditional on an await invocation.  JS may execute
@@ -586,6 +624,8 @@ export class Client extends BufferedEventEmitter {
         let liftedUnsubscribe = promise.newLiftedPromise<mqtt5_packet.UnsubackPacket>();
 
         try {
+            unsubscribe.topicFilters.forEach((topicFilter) => { this.resubscribeManager.onUnsubscribeRequest(topicFilter); });
+
             this.protocolState.handleUserEvent({
                 type: protocol.UserEventType.Unsubscribe,
                 context: {
@@ -1004,6 +1044,14 @@ export class Client extends BufferedEventEmitter {
             this.emit(Client.CONNECTION_SUCCESS, {
                 connack: event.packet
             });
+        }
+
+        if (this.config.resubscribeMode == ResubscribeModeType.EnabledAlways ||
+            (this.config.resubscribeMode == ResubscribeModeType.EnabledOnSessionResumptionFail && !event.packet.sessionPresent)) {
+            let subscribes = this.resubscribeManager.buildResubscribePacketList();
+            for (let subscribe of subscribes) {
+                this.subscribe(subscribe);
+            }
         }
 
         this.reevaluateService();

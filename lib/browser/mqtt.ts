@@ -12,7 +12,6 @@
  * @mergeTarget
  */
 
-// import * as mqtt from "mqtt";
 import * as internal_mqtt_client from "./mqtt_internal/client";
 import * as mqtt5 from "../common/mqtt5";
 import * as ws from "./ws"
