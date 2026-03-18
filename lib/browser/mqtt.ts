@@ -375,6 +375,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
             // ideally, we'd use the socket options timeout value here
             connectTimeoutMillis: this.config.ping_timeout ? this.config.ping_timeout : 30 * 1000,
             retryJitterMode: mqtt5.RetryJitterType.Default,
+            resubscribeMode: internal_mqtt_client.ResubscribeModeType.EnabledAlways // this was how the previous mqtt-js integration behaved
         };
 
         if (config.reconnect_min_sec !== undefined) {
