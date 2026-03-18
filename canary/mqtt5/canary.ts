@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import {ICrtError, mqtt5} from "aws-crt";
+import {ICrtError, mqtt5, crt} from "aws-crt";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
 var weightedRandom = require('weighted-random');
+
+const MEMORY_CHECK_INTERVAL_SECONDS = 600; // 10 minutes
 
 type Args = { [index: string]: any };
 
@@ -77,6 +79,15 @@ interface CanaryContext {
 
 function sleep(millisecond: number) {
     return new Promise((resolve) => setTimeout(resolve, millisecond));
+}
+
+function printMemoryUsageReport(elapsedSeconds: number, operationsExecuted: number) {
+    const nativeMemoryBytes = crt.native_memory();
+    console.log(`\n=== Memory Usage Report ===`);
+    console.log(`   Elapsed time: ${elapsedSeconds.toFixed(0)} seconds`);
+    console.log(`   Native memory (bytes): ${nativeMemoryBytes}`);
+    console.log(`   Operations executed: ${operationsExecuted}`);
+    console.log(`===========================\n`);
 }
 
 function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
@@ -207,6 +218,9 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         context.subscriptions.push(new Array());
     }
 
+    // Print initial memory usage report
+    printMemoryUsageReport(0, 0);
+
     let operationTable = [
         { weight : 1, op: async () => { await doSubscribe(context); }},
         { weight : 1, op: async () => { await doUnsubscribe(context); }},
@@ -218,6 +232,8 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         return operation.weight;
     });
 
+    let nextMemoryCheckSeconds = MEMORY_CHECK_INTERVAL_SECONDS;
+
     while (secondsElapsed < testContext.duration) {
 
         let index: number = weightedRandom(weightedOperations);
@@ -228,8 +244,16 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         currentTime = new Date();
 
         secondsElapsed = (currentTime.getTime() - startTime.getTime()) / 1000;
+
+        // Check if it's time to print memory usage report
+        if (secondsElapsed >= nextMemoryCheckSeconds) {
+            printMemoryUsageReport(secondsElapsed, context.mqttStats.totalOperation);
+            nextMemoryCheckSeconds += MEMORY_CHECK_INTERVAL_SECONDS;
+        }
     }
 
+    // Print final memory usage report
+    printMemoryUsageReport(secondsElapsed, context.mqttStats.totalOperation);
 
     // Stop and close clients
     for (let client of context.clients) {
