@@ -260,7 +260,7 @@ export interface Mqtt5ClientConfig {
 
 
     /**
-     * Options for enable/disable Aws IoT Metrics
+     * Options for enable/disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
      * 
      * @group Node-only
      */

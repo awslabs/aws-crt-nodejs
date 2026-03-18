@@ -217,7 +217,7 @@ export interface MqttConnectionConfig {
     /** Optional proxy options */
     proxy_options?: HttpProxyOptions;
 
-    /** Optional enable Aws IoT SDK Metrics 
+    /** Optional enable Aws IoT SDK Metrics. The metrics includes SDK name, version, and platform.
      * 
      * @group Node-only
      */
