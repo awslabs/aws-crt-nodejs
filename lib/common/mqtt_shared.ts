@@ -225,9 +225,7 @@ export class PublishAcknowledgementHandleWrapper {
      */
     acquireHandle() : PublishAcknowledgementHandle | null {
         let handle = this.ackHandle;
-        if (this.ackHandle) {
-            this.ackHandle = null;
-        }
+        this.ackHandle = null;
 
         return handle;
     }
