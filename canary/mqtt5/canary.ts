@@ -243,7 +243,6 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 
         // Check if it's time to print memory usage report
         if (secondsElapsed >= nextMemoryCheckSeconds) {
-            printMemoryUsageReport(secondsElapsed, context.mqttStats.totalOperation);
             nextMemoryCheckSeconds += MEMORY_CHECK_INTERVAL_SECONDS;
         }
     }
