@@ -614,6 +614,15 @@ export interface PublishReceivedEvent {
 
     /** The decoded publish packet */
     packet: mqtt5_packet.PublishPacket,
+
+    /**
+     * An object that allows the event recipient to take control of when the Publish packet's acknowledgement
+     * packet is sent.  If the acknowledgement handle is not acquired by an event listener during the emission
+     * process, the client will automatically send the acknowledgement itself.
+     *
+     * Undefined if this publish is not acknowledgeable (QoS 0).
+     */
+    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper
 }
 
 /** Type for a PublishReceivedEvent event listener function */
@@ -650,6 +659,11 @@ const MAXIMUM_NUMBER_OF_PACKET_IDS : number = 65535;
 const MAXIMUM_PACKET_ID : number = 65535;
 
 const PROTOCOL_STATE_LOG_SUBJECT : string = "MQTT ProtocolState";
+
+interface PendingPublishAcknowledgement {
+    packetId: number,
+    qos: mqtt5_packet.QoS
+}
 
 /**
  * Encapsulates all MQTT  protocol-related behavior over the course of repeated connections to a remote broker.
@@ -688,6 +702,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private pendingPublishAcks : Map<number, number> = new Map<number, number>();
     private pendingNonPublishAcks : Map<number, number> = new Map<number, number>();
+
+    private nextPublishAcknowledgementControlId : number = 1;
+    private pendingPublishAcknowledgements : Map<number, PendingPublishAcknowledgement> = new Map<number, PendingPublishAcknowledgement>();
 
     private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
@@ -1645,6 +1662,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         this.nextOutboundPingElapsedMillis = undefined;
         this.pendingPingrespTimeoutElapsedMillis = undefined;
         this.pendingConnackTimeoutElapsedMillis = undefined;
+        this.pendingPublishAcknowledgements.clear();
 
         let failError = new CrtError("failed OfflineQueuePolicy check on disconnect");
 
@@ -1806,26 +1824,64 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         }
     }
 
-    private handleIncomingPublish(packet: model.PublishPacketInternal) : void {
-        if (packet.qos == mqtt5_packet.QoS.AtLeastOnce) {
-            if (!packet.packetId) {
-                this.halt(HaltEventType.ProtocolError, new CrtError("QoS 1 publish received with illegal packet id"));
-                return;
-            }
+    private acquirePublishAcknowledgementControlId(packet: model.PublishPacketInternal) : number | undefined {
+        if (packet.qos != mqtt5_packet.QoS.AtMostOnce && packet.packetId) {
+            let controlId : number = this.nextPublishAcknowledgementControlId++;
+            this.pendingPublishAcknowledgements.set(controlId, {
+                packetId: packet.packetId,
+                qos: packet.qos
+            });
 
-            // TODO: eventually support manual puback control
+            return controlId;
+        }
+
+        return undefined;
+    }
+
+    private submitAcknowledgement(controlId: number) {
+        let entry = this.pendingPublishAcknowledgements.get(controlId);
+        if (!entry) {
+            return;
+        }
+
+        if (entry.qos == mqtt5_packet.QoS.AtLeastOnce) {
             let puback : model.PubackPacketInternal = {
                 type: mqtt5_packet.PacketType.Puback,
-                packetId: packet.packetId,
+                packetId: entry.packetId,
                 reasonCode: mqtt5_packet.PubackReasonCode.Success
             };
 
             this.submitOperationHighPriority(puback, QueueEndType.Back);
         }
+    }
 
-        this.emit(ProtocolState.PUBLISH_RECEIVED, {
+    private handleIncomingPublish(packet: model.PublishPacketInternal) : void {
+        let acknowledgementControl : mqtt_shared.PublishAcknowledgementHandleWrapper | undefined = undefined;
+        let controlId : number | undefined = this.acquirePublishAcknowledgementControlId(packet);
+
+        if (controlId) {
+            let acknowledgementFunction = this.submitAcknowledgement.bind(this, controlId);
+            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(acknowledgementFunction);
+        }
+
+        let event : PublishReceivedEvent = {
             packet: packet
-        });
+        };
+
+        if (acknowledgementControl) {
+            event.acknowledgementControl = acknowledgementControl;
+        }
+
+        this.emit(ProtocolState.PUBLISH_RECEIVED, event);
+
+        // event emission is synchronous, so by this point, all listeners have had a chance to react to the event
+        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+        if (acknowledgementControl) {
+            let handle = acknowledgementControl.acquireHandle();
+            if (handle) {
+                handle.invokeAcknowledgement();
+            }
+        }
     }
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {

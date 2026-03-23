@@ -202,3 +202,56 @@ export function calculateNextReconnectDelay(context: ReconnectDelayContext) : nu
 
     return delay;
 }
+
+export type PublishAcknowledgementFunctor = () => void;
+
+/**
+ * Wrapper class containing a one-use singleton handle that can be used to trigger sending the acknowledgement (Puback in
+ * QoS 1, Pubrec in QoS 2) packet for an incoming publish.
+ */
+export class PublishAcknowledgementHandleWrapper {
+
+    private ackHandle : PublishAcknowledgementHandle | null;
+
+    constructor(acknowledgementFunction : PublishAcknowledgementFunctor) {
+        this.ackHandle = new PublishAcknowledgementHandle(acknowledgementFunction);
+    }
+
+    /**
+     * Attempt to take the acknowledgement handle held by the wrapper.  This will only succeed for the first caller;
+     * after the initial call, null will be returned.  By taking the handle, the caller assumes responsibility
+     * for sending the acknowledgement packet associated with the incoming publish packet.  Failing to trigger the
+     * acknowledgement will cause the broker to potentially re-send the publish.
+     */
+    acquireHandle() : PublishAcknowledgementHandle | null {
+        let handle = this.ackHandle;
+        if (this.ackHandle) {
+            this.ackHandle = null;
+        }
+
+        return handle;
+    }
+}
+
+/**
+ * Object that allows the holder to trigger the acknowledgement for an associated publish packet.
+ */
+export class PublishAcknowledgementHandle {
+
+    private acknowledgementFunction? : PublishAcknowledgementFunctor;
+
+    constructor(acknowledgementFunction : PublishAcknowledgementFunctor) {
+        this.acknowledgementFunction = acknowledgementFunction;
+    }
+
+    /**
+     * trigger the acknowledgement for an associated Publish packet
+     */
+    invokeAcknowledgement() : void {
+        let acknowledgementFunction = this.acknowledgementFunction;
+        this.acknowledgementFunction = undefined;
+        if (acknowledgementFunction) {
+            acknowledgementFunction();
+        }
+    }
+}
