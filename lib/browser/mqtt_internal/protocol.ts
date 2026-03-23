@@ -1838,6 +1838,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 packetId: packet.packetId,
                 qos: packet.qos
             });
+            this.pendingPublishAcknowledgementsByPacketId.set(packet.packetId, controlId);
 
             return controlId;
         }
@@ -1860,6 +1861,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
             this.submitOperationHighPriority(puback, QueueEndType.Back);
         }
+
+        this.pendingPublishAcknowledgements.delete(controlId);
+        this.pendingPublishAcknowledgementsByPacketId.delete(entry.packetId);
     }
 
     private handleIncomingPublish(packet: model.PublishPacketInternal) : void {
