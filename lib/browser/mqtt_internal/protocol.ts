@@ -705,6 +705,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private nextPublishAcknowledgementControlId : number = 1;
     private pendingPublishAcknowledgements : Map<number, PendingPublishAcknowledgement> = new Map<number, PendingPublishAcknowledgement>();
+    private pendingPublishAcknowledgementsByPacketId : Map<number, number> = new Map<number, number>();
 
     private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
@@ -1663,6 +1664,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         this.pendingPingrespTimeoutElapsedMillis = undefined;
         this.pendingConnackTimeoutElapsedMillis = undefined;
         this.pendingPublishAcknowledgements.clear();
+        this.pendingPublishAcknowledgementsByPacketId.clear();
 
         let failError = new CrtError("failed OfflineQueuePolicy check on disconnect");
 
@@ -1826,6 +1828,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private acquirePublishAcknowledgementControlId(packet: model.PublishPacketInternal) : number | undefined {
         if (packet.qos != mqtt5_packet.QoS.AtMostOnce && packet.packetId) {
+            let existingAckControlId = this.pendingPublishAcknowledgementsByPacketId.get(packet.packetId);
+            if (existingAckControlId != undefined) {
+                return existingAckControlId;
+            }
+
             let controlId : number = this.nextPublishAcknowledgementControlId++;
             this.pendingPublishAcknowledgements.set(controlId, {
                 packetId: packet.packetId,
