@@ -89,7 +89,20 @@ export type StoppedEventListener = (eventData: StoppedEvent) => void;
  * Emitted whenever the client receives a publish packet from the MQTT broker
  */
 export interface PublishReceivedEvent {
+
+    /**
+     * Incoming Publish packet
+     */
     publish: mqtt5_packet.PublishPacket
+
+    /**
+     * An object that allows the event recipient to take control of when the Publish packet's acknowledgement
+     * packet is sent.  If the acknowledgement handle is not acquired by an event listener during the emission
+     * process, the client will automatically send the acknowledgement itself.
+     *
+     * Undefined if this publish is not acknowledgeable (QoS 0).
+     */
+    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper
 }
 
 /**
@@ -1058,9 +1071,40 @@ export class Client extends BufferedEventEmitter {
     }
 
     private onPublishReceivedEvent(event : protocol.PublishReceivedEvent) {
-        this.emit(Client.PUBLISH_RECEIVED, {
+        let acknowledgementHandle : mqtt_shared.PublishAcknowledgementHandle | null = null;
+        if (event.acknowledgementControl) {
+            acknowledgementHandle = event.acknowledgementControl.acquireHandle();
+        }
+
+        let relayWrapper : mqtt_shared.PublishAcknowledgementHandleWrapper | null = null;
+        if (acknowledgementHandle) {
+            let client : Client = this;
+            let wrappedFunctor : mqtt_shared.PublishAcknowledgementFunctor = () => {
+                // @ts-ignore
+                acknowledgementHandle.invokeAcknowledgement();
+                client.reevaluateService();
+            };
+            relayWrapper = new mqtt_shared.PublishAcknowledgementHandleWrapper(wrappedFunctor);
+        }
+
+        let relayedEvent : PublishReceivedEvent = {
             publish: event.packet
-        });
+        }
+
+        if (relayWrapper) {
+            relayedEvent.acknowledgementControl = relayWrapper;
+        }
+
+        this.emit(Client.PUBLISH_RECEIVED, relayedEvent);
+
+        // event emission is synchronous, so by this point, all listeners have had a chance to react to the event
+        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+        if (relayWrapper) {
+            let handle = relayWrapper.acquireHandle();
+            if (handle) {
+                handle.invokeAcknowledgement();
+            }
+        }
     }
 
     private onDisconnectReceivedEvent(event : protocol.DisconnectReceivedEvent) {
