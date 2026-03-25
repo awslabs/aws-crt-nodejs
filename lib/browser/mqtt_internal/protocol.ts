@@ -870,6 +870,9 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     getPendingPublishAcks() : Map<number, number> { return this.pendingPublishAcks; }
     getPendingNonPublishAcks() : Map<number, number> { return this.pendingNonPublishAcks; }
 
+    getPendingPublishAcknowledgements() : Map<number, PendingPublishAcknowledgement> { return this.pendingPublishAcknowledgements; }
+    getPendingPublishAcknowledgementsByPacketId() : Map<number, number> { return this.pendingPublishAcknowledgementsByPacketId; }
+
     /**
      * Event emitted when the protocol object becomes halted.
      *
@@ -1883,16 +1886,18 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             event.acknowledgementControl = acknowledgementControl;
         }
 
-        this.emit(ProtocolState.PUBLISH_RECEIVED, event);
-
-        // event emission is synchronous, so by this point, all listeners have had a chance to react to the event
-        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
-        if (acknowledgementControl) {
-            let handle = acknowledgementControl.acquireHandle();
-            if (handle) {
-                handle.invokeAcknowledgement();
+        this.emitWithCallback(ProtocolState.PUBLISH_RECEIVED, () => {
+            // Even if corked, all listeners have had a chance to react to the event
+            // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+            if (acknowledgementControl) {
+                let handle = acknowledgementControl.acquireHandle();
+                if (handle) {
+                    handle.invokeAcknowledgement();
+                }
             }
-        }
+        }, event);
+
+
     }
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {
