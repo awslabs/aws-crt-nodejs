@@ -8,7 +8,7 @@ import * as retry from "@test/retry";
 import * as mqtt5 from "./mqtt5";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
-import {v4 as uuid} from "uuid";
+import {NIL, v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
@@ -600,13 +600,12 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
 
-        let qos: mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
         let receivedCount: number = 0;
         client.on(`messageReceived`, (eventData: mqtt5.MessageReceivedEvent) => {
-            let packet: mqtt5.PublishPacket = eventData.message;
             if (eventData.acknowledgementControl) {
                 // Take control of the publish acknowledgement and don't use it.
                 let handle = eventData.acknowledgementControl.acquireHandle();
+                handle = null;
             }
             receivedCount++;
         });
