@@ -12,7 +12,7 @@ import {v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
-jest.setTimeout(30000);
+jest.setTimeout(40000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
@@ -589,6 +589,31 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         await test_utils.subPubUnsubTest(client, qos, topic, testPayload);
 
         expect(receivedCount).toEqual(1);
+    })
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Acquire and hold', async() =>{
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        let qos: mqtt5.QoS = mqtt5.QoS.AtLeastOnce;
+        let receivedCount: number = 0;
+        client.on(`messageReceived`, (eventData: mqtt5.MessageReceivedEvent) => {
+            let packet: mqtt5.PublishPacket = eventData.message;
+            if (eventData.acknowledgementControl) {
+                // Take control of the publish acknowledgement and don't use it.
+                let handle = eventData.acknowledgementControl.acquireHandle();
+            }
+            receivedCount++;
+        });
+
+        await test_utils.subPubAcquireControlTest(client, topic, testPayload);
+
+        expect(receivedCount).toEqual(2);
     })
 });
 

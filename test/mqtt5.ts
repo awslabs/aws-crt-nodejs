@@ -410,6 +410,43 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
     client.close();
 }
 
+export async function subPubAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let messageReceived = once(client, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await messageReceived;
+
+    let redrivenMessageReceived = once(client, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
+
+    await redrivenMessageReceived;
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
 export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.Mqtt5Client, willTopic: string) {
     let publisherConnected = once(publisher, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
     let publisherStopped = once(publisher, mqtt5.Mqtt5Client.STOPPED);
