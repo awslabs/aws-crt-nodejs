@@ -4,6 +4,7 @@
  */
 
 import * as mqtt5 from "@awscrt/mqtt5";
+import * as mqtt_shared from "../lib/common/mqtt_shared";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
 import {CrtError} from "@awscrt";
@@ -544,7 +545,7 @@ export async function subPubPostCallbackAcquireControlTest(client: mqtt5.Mqtt5Cl
         ]
     });
 
-    let capturedAcknowledgementControl: mqtt5.PublishAcknowledgementHandleWrapper | undefined = undefined;
+    let capturedAcknowledgementControl: mqtt_shared.PublishAcknowledgementHandleWrapper | undefined = undefined;
     let firstMessageReceived: boolean = false;
 
     let firstMessagePromise = new Promise<void>((resolve) => {
@@ -570,7 +571,7 @@ export async function subPubPostCallbackAcquireControlTest(client: mqtt5.Mqtt5Cl
     await new Promise(resolve => setImmediate(resolve));
 
     // Now attempt acquireHandle() after the event has completed
-    let postCallbackHandle: mqtt5.PublishAcknowledgementHandle | null = null;
+    let postCallbackHandle: mqtt_shared.PublishAcknowledgementHandle | null = null;
     if (capturedAcknowledgementControl) {
         postCallbackHandle = capturedAcknowledgementControl.acquireHandle();
     }
