@@ -572,8 +572,9 @@ export async function subPubPostCallbackAcquireControlTest(client: mqtt5.Mqtt5Cl
 
     // Now attempt acquireHandle() after the event has completed
     let postCallbackHandle: mqtt_shared.PublishAcknowledgementHandle | null = null;
-    if (capturedAcknowledgementControl) {
-        postCallbackHandle = capturedAcknowledgementControl.acquireHandle();
+    const wrapper = capturedAcknowledgementControl as mqtt_shared.PublishAcknowledgementHandleWrapper | undefined;
+    if (wrapper) {
+        postCallbackHandle = wrapper.acquireHandle();
     }
 
     expect(postCallbackHandle).toBeNull();
