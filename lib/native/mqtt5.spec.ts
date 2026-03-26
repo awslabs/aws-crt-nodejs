@@ -8,7 +8,6 @@ import * as retry from "@test/retry";
 import * as mqtt5 from "./mqtt5";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
-import {NIL, v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
@@ -604,8 +603,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         client.on(`messageReceived`, (eventData: mqtt5.MessageReceivedEvent) => {
             if (eventData.acknowledgementControl) {
                 // Take control of the publish acknowledgement and don't use it.
-                let handle = eventData.acknowledgementControl.acquireHandle();
-                handle = null;
+                eventData.acknowledgementControl.acquireHandle();
             }
             receivedCount++;
         });
