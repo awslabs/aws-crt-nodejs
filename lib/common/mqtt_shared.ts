@@ -8,6 +8,7 @@
  */
 
 import * as mqtt5 from "./mqtt5";
+import * as event from "./event";
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -213,8 +214,8 @@ export class PublishAcknowledgementHandleWrapper {
 
     private ackHandle : PublishAcknowledgementHandle | null;
 
-    constructor(acknowledgementFunction : PublishAcknowledgementFunctor) {
-        this.ackHandle = new PublishAcknowledgementHandle(acknowledgementFunction);
+    constructor(handle : PublishAcknowledgementHandle | null) {
+        this.ackHandle = handle;
     }
 
     /**
@@ -229,6 +230,73 @@ export class PublishAcknowledgementHandleWrapper {
 
         return handle;
     }
+
+    compose(followupFunctor: PublishAcknowledgementFunctor) {
+        if (this.ackHandle) {
+            let handleCopy = this.ackHandle;
+            this.ackHandle = new PublishAcknowledgementHandle(() => {
+                handleCopy.invokeAcknowledgement();
+                followupFunctor();
+            });
+        }
+    }
+
+    move() : PublishAcknowledgementHandleWrapper {
+        let handle = this.ackHandle;
+        this.ackHandle = null;
+
+        return new PublishAcknowledgementHandleWrapper(handle);
+    }
+}
+
+export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    if (ackHandleWrapper) {
+        if (compositionFunctor) {
+           ackHandleWrapper.compose(compositionFunctor);
+        }
+
+        emitter.emitWithCallback(ackEvent, () => {
+            if (ackHandleWrapper) {
+                let handle = ackHandleWrapper.acquireHandle();
+                if (handle) {
+                    // Even if corked, all listeners have had a chance to react to the event
+                    // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                    handle.invokeAcknowledgement();
+                }
+            }
+        }, ackEventPayload);
+    } else {
+        emitter.emit(ackEvent, ackEventPayload);
+    }
+}
+
+export function queueAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    let wrapper : PublishAcknowledgementHandleWrapper | undefined = ackHandleWrapper;
+    if (wrapper) {
+        wrapper = wrapper.move();
+        (ackEventPayload as any)[wrapperFieldName] = wrapper;
+    }
+
+    queueMicrotask(() => {
+        if (wrapper) {
+            if (compositionFunctor) {
+                wrapper.compose(compositionFunctor);
+            }
+
+            emitter.emitWithCallback(ackEvent, () => {
+                if (wrapper) {
+                    let handle = wrapper.acquireHandle();
+                    if (handle) {
+                        // Even if corked, all listeners have had a chance to react to the event
+                        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                        handle.invokeAcknowledgement();
+                    }
+                }
+            }, ackEventPayload);
+        } else {
+            emitter.emit(ackEvent, ackEventPayload);
+        }
+    });
 }
 
 /**

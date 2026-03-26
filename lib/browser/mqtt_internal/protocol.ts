@@ -1875,7 +1875,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
         if (controlId) {
             let acknowledgementFunction = this.submitAcknowledgement.bind(this, controlId);
-            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(acknowledgementFunction);
+            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(new mqtt_shared.PublishAcknowledgementHandle(acknowledgementFunction));
         }
 
         let event : PublishReceivedEvent = {
@@ -1886,18 +1886,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             event.acknowledgementControl = acknowledgementControl;
         }
 
-        this.emitWithCallback(ProtocolState.PUBLISH_RECEIVED, () => {
-            // Even if corked, all listeners have had a chance to react to the event
-            // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
-            if (acknowledgementControl) {
-                let handle = acknowledgementControl.acquireHandle();
-                if (handle) {
-                    handle.invokeAcknowledgement();
-                }
-            }
-        }, event);
-
-
+        mqtt_shared.emitAcknowledgeableEvent(this, ProtocolState.PUBLISH_RECEIVED, event, event.acknowledgementControl);
     }
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {

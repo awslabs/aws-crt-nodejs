@@ -452,21 +452,22 @@ export class Client extends BufferedEventEmitter {
             pingTimeoutMillis : config.pingTimeoutMillis
         });
 
+        let client : Client = this;
         this.protocolState.addListener("halted", (event : protocol.HaltedEvent) => {
-            queueMicrotask(() => this.onProtocolStateHalted(event));
+            client.onProtocolStateHalted(event);
         });
         this.protocolState.addListener("connackReceived", (event : protocol.ConnackReceivedEvent) => {
-            queueMicrotask(() => this.onConnackReceivedEvent(event));
+            client.onConnackReceivedEvent(event);
         });
         this.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
-            queueMicrotask(() => this.onPublishReceivedEvent(event));
+            client.onPublishReceivedEvent(event);
         });
         this.protocolState.addListener("disconnectReceived", (event : protocol.DisconnectReceivedEvent) => {
-            queueMicrotask(() => this.onDisconnectReceivedEvent(event));
+            client.onDisconnectReceivedEvent(event);
         });
 
-        this.onConnectionClosedCallback = () => { queueMicrotask(() => this.onConnectionClosed())};
-        this.onConnectionDataCallback = (data : any) => { queueMicrotask(() => this.onConnectionData(data))};
+        this.onConnectionClosedCallback = () => { queueMicrotask(() => client.onConnectionClosed())};
+        this.onConnectionDataCallback = (data : any) => { queueMicrotask(() => client.onConnectionData(data))};
     }
 
     /**
@@ -1070,41 +1071,16 @@ export class Client extends BufferedEventEmitter {
         this.reevaluateService();
     }
 
-    private onPublishReceivedEvent(event : protocol.PublishReceivedEvent) {
-        let acknowledgementHandle : mqtt_shared.PublishAcknowledgementHandle | null = null;
-        if (event.acknowledgementControl) {
-            acknowledgementHandle = event.acknowledgementControl.acquireHandle();
-        }
-
-        let relayWrapper : mqtt_shared.PublishAcknowledgementHandleWrapper | null = null;
-        if (acknowledgementHandle) {
-            let client : Client = this;
-            let wrappedFunctor : mqtt_shared.PublishAcknowledgementFunctor = () => {
-                // @ts-ignore
-                acknowledgementHandle.invokeAcknowledgement();
-                client.reevaluateService();
-            };
-            relayWrapper = new mqtt_shared.PublishAcknowledgementHandleWrapper(wrappedFunctor);
-        }
+    private onPublishReceivedEvent(event: protocol.PublishReceivedEvent) {
+        let client : Client = this;
 
         let relayedEvent : PublishReceivedEvent = {
             publish: event.packet
         }
 
-        if (relayWrapper) {
-            relayedEvent.acknowledgementControl = relayWrapper;
-        }
-
-        this.emit(Client.PUBLISH_RECEIVED, relayedEvent);
-
-        // event emission is synchronous, so by this point, all listeners have had a chance to react to the event
-        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
-        if (relayWrapper) {
-            let handle = relayWrapper.acquireHandle();
-            if (handle) {
-                handle.invokeAcknowledgement();
-            }
-        }
+        mqtt_shared.queueAcknowledgeableEvent(client, Client.PUBLISH_RECEIVED, relayedEvent, 'acknowledgementControl', event.acknowledgementControl, () => {
+            client.reevaluateService();
+        }, );
     }
 
     private onDisconnectReceivedEvent(event : protocol.DisconnectReceivedEvent) {
