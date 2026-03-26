@@ -291,7 +291,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             (client: Mqtt5Client, connack : mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
             (client: Mqtt5Client, errorCode: number, connack? : mqtt5_packet.ConnackPacket) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
             (client: Mqtt5Client, errorCode: number, disconnect? : mqtt5_packet.DisconnectPacket) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
-            (client: Mqtt5Client, message : mqtt5_packet.PublishPacket) => { Mqtt5Client._s_on_message_received(client, message); },
+            (client: Mqtt5Client, message : mqtt5_packet.PublishPacket, pubackControlId?: bigint) => { Mqtt5Client._s_on_message_received(client, message, pubackControlId); },
             config.clientBootstrap ? config.clientBootstrap.native_handle() : null,
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
@@ -662,13 +662,38 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         }
     }
 
-    private static _s_on_message_received(client: Mqtt5Client, message : mqtt5_packet.PublishPacket) {
+    private static _s_on_message_received(client: Mqtt5Client, message : mqtt5_packet.PublishPacket, pubackControlId? : bigint) {
+        let acknowledgementControl : mqtt_shared.PublishAcknowledgementHandleWrapper | undefined = undefined;
+
+        if (pubackControlId !== undefined && pubackControlId !== BigInt(0)) {
+            const controlId = pubackControlId;
+            const functor : mqtt_shared.PublishAcknowledgementFunctor = () => {
+                crt_native.mqtt5_client_invoke_publish_acknowledgement(client.native_handle(), controlId);
+            };
+            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(functor);
+        }
+
         let messageReceivedEvent: mqtt5.MessageReceivedEvent = {
             message: message
         };
 
+        if (acknowledgementControl) {
+            messageReceivedEvent.acknowledgementControl = acknowledgementControl;
+        }
+
         process.nextTick(() => {
-            client.emit(Mqtt5Client.MESSAGE_RECEIVED, messageReceivedEvent);
+            client.emitWithCallback(Mqtt5Client.MESSAGE_RECEIVED, () => {
+                /*
+                 * Even if corked, all listeners have had a chance to react to the event
+                 * and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                 */
+                if (acknowledgementControl) {
+                    const handle = acknowledgementControl.acquireHandle();
+                    if (handle) {
+                        handle.invokeAcknowledgement();
+                    }
+                }
+            }, messageReceivedEvent);
         });
     }
 }

@@ -228,6 +228,8 @@ struct on_message_received_user_data {
 
     struct aws_byte_buf *payload;
     struct aws_byte_buf *correlation_data;
+
+    uint64_t puback_control_id; /* 0 if QoS 0 or acquire failed */
 };
 
 static void s_on_message_received_user_data_destroy(struct on_message_received_user_data *user_data) {
@@ -311,6 +313,17 @@ static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *pu
     if (message_received_ud == NULL) {
         return;
     }
+
+    /*
+     * Eagerly acquire manual PUBACK control for QoS 1 publishes.  This MUST be called synchronously
+     * before this function returns.  A return value of 0 means the acquire
+     * failed or the publish is not QoS 1.
+     */
+    uint64_t puback_control_id = 0;
+    if (publish_packet->qos == AWS_MQTT5_QOS_AT_LEAST_ONCE) {
+        puback_control_id = aws_mqtt5_client_acquire_puback(binding->client, publish_packet);
+    }
+    message_received_ud->puback_control_id = puback_control_id;
 
     /* queue a callback in node's libuv thread */
     AWS_NAPI_ENSURE(NULL, aws_napi_queue_threadsafe_function(binding->on_message_received, message_received_ud));
@@ -1195,7 +1208,7 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
     struct aws_mqtt5_client_binding *binding = on_message_received_ud->binding;
 
     if (env) {
-        napi_value params[2];
+        napi_value params[3];
         const size_t num_params = AWS_ARRAY_SIZE(params);
 
         /*
@@ -1217,6 +1230,18 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
                 "id=%p s_napi_on_message_received - failed to create publish object",
                 (void *)binding->client);
             goto done;
+        }
+
+        /*
+         * Pass the puback_control_id as a BigInt (3rd param).  A value of 0 means QoS 0 or acquire failed;
+         * pass undefined in that case so the JS layer can distinguish.
+         */
+        if (on_message_received_ud->puback_control_id != 0) {
+            AWS_NAPI_CALL(env, napi_create_bigint_uint64(env, on_message_received_ud->puback_control_id, &params[2]), {
+                goto done;
+            });
+        } else {
+            AWS_NAPI_CALL(env, napi_get_undefined(env, &params[2]), { goto done; });
         }
 
         AWS_NAPI_ENSURE(

@@ -147,7 +147,7 @@ export class PublishAcknowledgementHandleWrapper {
         let handle = this.ackHandle;
         this.ackHandle = null;
 
-        return handle;``
+        return handle;
     }
 }
 
