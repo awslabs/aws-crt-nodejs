@@ -412,8 +412,18 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
 
 export async function subPubAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
     let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
-    let messageReceived = once(client, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
     let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    let receivedCount: number = 0;
+
+    client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        if (eventData.acknowledgementControl) {
+            // Take control of the publish acknowledgement but do not invoke it,
+            // causing the broker to re-drive the message.
+            eventData.acknowledgementControl.acquireHandle();
+        }
+        receivedCount++;
+    });
 
     client.start();
 
@@ -431,11 +441,19 @@ export async function subPubAcquireControlTest(client: mqtt5.Mqtt5Client, topic:
         payload: testPayload
     });
 
-    await messageReceived;
+    // Wait for the initial delivery and the re-driven message
+    await new Promise<void>((resolve) => {
+        const checkCount = () => {
+            if (receivedCount >= 2) {
+                resolve();
+            } else {
+                setTimeout(checkCount, 100);
+            }
+        };
+        checkCount();
+    });
 
-    let redrivenMessageReceived = once(client, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
-
-    await redrivenMessageReceived;
+    expect(receivedCount).toEqual(2);
 
     await client.unsubscribe({
         topicFilters: [ topic ]

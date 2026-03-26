@@ -592,7 +592,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     })
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish - acknowledgment hold', async() =>{
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - acknowledgment hold', async() =>{
     // hold publish acknowledgement and verify broker re-delivers the message
     await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
@@ -601,22 +601,11 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
         let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
 
-        let receivedCount: number = 0;
-        client.on(`messageReceived`, (eventData: mqtt5.MessageReceivedEvent) => {
-            if (eventData.acknowledgementControl) {
-                // Take control of the publish acknowledgement and don't use it.
-                eventData.acknowledgementControl.acquireHandle();
-            }
-            receivedCount++;
-        });
-
         await test_utils.subPubAcquireControlTest(client, topic, testPayload);
-
-        expect(receivedCount).toEqual(2);
     })
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish - acknowledgment invoke', async() =>{
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - acknowledgment invoke', async() =>{
     // invoke publish acknowledgement, verify no re-delivery after 35 seconds
     jest.setTimeout(60000);
     await retry.networkTimeoutRetryWrapper( async () => {
@@ -630,7 +619,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     })
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish - double-call', async() =>{
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - double-call', async() =>{
     // acquireHandle() twice: first call returns a handle, second call returns null
     await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
@@ -643,7 +632,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     })
 });
 
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish - post-calback test', async() =>{
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - post-calback acquire', async() =>{
     // acquireHandle() after the messageReceived callback has returned results in null
     await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
