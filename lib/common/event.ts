@@ -107,22 +107,22 @@ export class BufferedEventEmitter extends EventEmitter {
 
         return super.emit(event, ...args);
     }
-}
 
-emitWithCallback(event: EventKey, emissionCallback: EventEmissionCallback, ...args: any[]) : boolean {
-    if (this.corked) {
-        // queue requests in order
-        let last = this.lastQueuedEvent;
-        this.lastQueuedEvent = BufferedEvent.newWithEmissionCallback(event, emissionCallback, args);
-        if (last) {
-            last.next = this.lastQueuedEvent;
-        } else {
-            this.eventQueue = this.lastQueuedEvent;
+    emitWithCallback(event: EventKey, emissionCallback: EventEmissionCallback, ...args: any[]) : boolean {
+        if (this.corked) {
+            // queue requests in order
+            let last = this.lastQueuedEvent;
+            this.lastQueuedEvent = BufferedEvent.newWithEmissionCallback(event, emissionCallback, args);
+            if (last) {
+                last.next = this.lastQueuedEvent;
+            } else {
+                this.eventQueue = this.lastQueuedEvent;
+            }
+            return this.listeners(event).length > 0;
         }
-        return this.listeners(event).length > 0;
-    }
 
-    let result = super.emeit(event, ...args);
-    emissionCallback();
-    return result;
+        let result = super.emit(event, ...args);
+        emissionCallback();
+        return result;
+    }
 }
