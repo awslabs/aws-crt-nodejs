@@ -447,6 +447,71 @@ export async function subPubAcquireControlTest(client: mqtt5.Mqtt5Client, topic:
     client.close();
 }
 
+export async function subPubDoubleAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+
+    let firstAcquireResult: any = undefined;
+    let secondAcquireResult: any = undefined;
+    let firstMessageReceived: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+
+                if (eventData.acknowledgementControl) {
+                    // First call should return a handle
+                    firstAcquireResult = eventData.acknowledgementControl.acquireHandle();
+                    // Second call should return null
+                    secondAcquireResult = eventData.acknowledgementControl.acquireHandle();
+                }
+
+                resolve();
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // First acquire should have returned a valid handle
+    expect(firstAcquireResult).not.toBeNull();
+    expect(firstAcquireResult).toBeDefined();
+
+    // Second acquire should have returned null
+    expect(secondAcquireResult).toBeNull();
+
+    // Invoke the handle we acquired to send the PUBACK and clean up
+    if (firstAcquireResult) {
+        firstAcquireResult.invokeAcknowledgement();
+    }
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
 export async function subPubAcquireInvokeControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
     let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
     let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);

@@ -6,7 +6,6 @@
 import * as test_utils from "@test/mqtt5";
 import * as retry from "@test/retry";
 import * as mqtt5 from "./mqtt5";
-import * as mqtt_shared from "../common/mqtt_shared";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
@@ -631,6 +630,18 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     })
 });
 
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish - double-call', async() =>{
+    // acquireHandle() twice: first call returns a handle, second call returns null
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubDoubleAcquireControlTest(client, topic, testPayload);
+    })
+});
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
