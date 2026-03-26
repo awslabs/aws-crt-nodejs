@@ -643,6 +643,19 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     })
 });
 
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish - post-calback test', async() =>{
+    // acquireHandle() after the messageReceived callback has returned results in null
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubPostCallbackAcquireControlTest(client, topic, testPayload);
+    })
+});
+
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         let willPayload: Buffer = Buffer.from("ToMyChildrenIBequeathNothing", "utf-8");

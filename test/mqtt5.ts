@@ -512,6 +512,63 @@ export async function subPubDoubleAcquireControlTest(client: mqtt5.Mqtt5Client, 
     client.close();
 }
 
+export async function subPubPostCallbackAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+
+    let capturedAcknowledgementControl: mqtt5.PublishAcknowledgementHandleWrapper | undefined = undefined;
+    let firstMessageReceived: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+                // Capture the wrapper but do NOT call acquireHandle() yet — let the callback return first
+                capturedAcknowledgementControl = eventData.acknowledgementControl;
+                resolve();
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // Allow the emitWithCallback post-emission callback to run
+    await new Promise(resolve => setImmediate(resolve));
+
+    // Now attempt acquireHandle() after the event has completed
+    let postCallbackHandle: mqtt5.PublishAcknowledgementHandle | null = null;
+    if (capturedAcknowledgementControl) {
+        postCallbackHandle = capturedAcknowledgementControl.acquireHandle();
+    }
+
+    expect(postCallbackHandle).toBeNull();
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
 export async function subPubAcquireInvokeControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
     let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
     let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
