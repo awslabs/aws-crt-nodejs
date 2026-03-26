@@ -315,13 +315,13 @@ static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *pu
     }
 
     /*
-     * Eagerly acquire manual PUBACK control for QoS 1 publishes.  This MUST be called synchronously
+     * Eagerly acquire manual publish acknowledgement control for QoS 1 publishes.  This MUST be called synchronously
      * before this function returns.  A return value of 0 means the acquire
      * failed or the publish is not QoS 1.
      */
     uint64_t puback_control_id = 0;
     if (publish_packet->qos == AWS_MQTT5_QOS_AT_LEAST_ONCE) {
-        puback_control_id = aws_mqtt5_client_acquire_puback(binding->client, publish_packet);
+        puback_control_id = aws_mqtt5_client_acquire_publish_acknowledgement(binding->client, publish_packet);
     }
     message_received_ud->puback_control_id = puback_control_id;
 
@@ -1233,11 +1233,15 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
         }
 
         /*
-         * Pass the puback_control_id as a BigInt (3rd param).  A value of 0 means QoS 0 or acquire failed;
-         * pass undefined in that case so the JS layer can distinguish.
+         * Pass the puback_control_id as a napi_external wrapping a heap-allocated uint64_t*
+         * (due to no napi_create_bigint_uint64 available). A value of 0 means QoS 0 or acquire failed
+         * and we pass undefined.
          */
         if (on_message_received_ud->puback_control_id != 0) {
-            AWS_NAPI_CALL(env, napi_create_bigint_uint64(env, on_message_received_ud->puback_control_id, &params[2]), {
+            uint64_t *control_id_ptr = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(uint64_t));
+            *control_id_ptr = on_message_received_ud->puback_control_id;
+            AWS_NAPI_CALL(env, napi_create_external(env, control_id_ptr, NULL, NULL, &params[2]), {
+                aws_mem_release(aws_napi_get_allocator(), control_id_ptr);
                 goto done;
             });
         } else {
@@ -3638,6 +3642,65 @@ napi_value aws_napi_mqtt5_client_get_queue_statistics(napi_env env, napi_callbac
     }
 
     return napi_stats;
+}
+
+napi_value aws_napi_mqtt5_client_invoke_publish_acknowledgement(napi_env env, napi_callback_info info) {
+    napi_value node_args[2];
+    size_t num_args = AWS_ARRAY_SIZE(node_args);
+    napi_value *arg = &node_args[0];
+    AWS_NAPI_CALL(env, napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL), {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_invoke_publish_acknowledgement - Failed to retrieve arguments");
+        return NULL;
+    });
+
+    if (num_args != AWS_ARRAY_SIZE(node_args)) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_invoke_publish_acknowledgement - needs exactly 2 arguments");
+        return NULL;
+    }
+
+    struct aws_mqtt5_client_binding *binding = NULL;
+    napi_value node_binding = *arg++;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_binding, (void **)&binding), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt5_client_invoke_publish_acknowledgement - Failed to extract client binding from first "
+            "argument");
+        return NULL;
+    });
+
+    if (binding == NULL || binding->client == NULL) {
+        napi_throw_error(env, NULL, "aws_napi_mqtt5_client_invoke_publish_acknowledgement - client binding was null");
+        return NULL;
+    }
+
+    /* Extract the uint64_t* from the napi_external */
+    napi_value node_control_id_external = *arg++;
+    uint64_t *control_id_ptr = NULL;
+    AWS_NAPI_CALL(env, napi_get_value_external(env, node_control_id_external, (void **)&control_id_ptr), {
+        napi_throw_error(
+            env,
+            NULL,
+            "aws_napi_mqtt5_client_invoke_publish_acknowledgement - Failed to extract control id from second argument");
+        return NULL;
+    });
+
+    if (control_id_ptr == NULL) {
+        napi_throw_error(
+            env, NULL, "aws_napi_mqtt5_client_invoke_publish_acknowledgement - control id pointer was null");
+        return NULL;
+    }
+
+    uint64_t control_id = *control_id_ptr;
+    aws_mem_release(aws_napi_get_allocator(), control_id_ptr);
+
+    if (aws_mqtt5_client_invoke_publish_acknowledgement(binding->client, control_id, NULL)) {
+        aws_napi_throw_last_error_with_context(
+            env, "aws_napi_mqtt5_client_invoke_publish_acknowledgement - failed to invoke publish acknowledgement");
+    }
+
+    return NULL;
 }
 
 napi_value aws_napi_mqtt5_client_close(napi_env env, napi_callback_info info) {

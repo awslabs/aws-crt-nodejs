@@ -200,7 +200,7 @@ export function mqtt5_client_new(
     on_connection_success_handler: (client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void,
     on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: mqtt5_packet.ConnackPacket) => void,
     on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: mqtt5_packet.DisconnectPacket) => void,
-    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket, pubackControlId?: bigint) => void,
+    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket, pubackControlId?: any) => void,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
@@ -226,7 +226,7 @@ export function mqtt5_client_publish(client: NativeHandle, publish_packet: mqtt5
 export function mqtt5_client_get_queue_statistics(client: NativeHandle) : ClientStatistics;
 
 /** @internal */
-export function mqtt5_client_invoke_publish_acknowledgement(client: NativeHandle, pubackControlId: bigint) : void;
+export function mqtt5_client_invoke_publish_acknowledgement(client: NativeHandle, pubackControlId: NativeHandle) : void;
 
 /** @internal */
 export function mqtt5_client_close(client: NativeHandle) : void;
