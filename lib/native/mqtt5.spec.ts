@@ -8,6 +8,7 @@ import * as retry from "@test/retry";
 import * as mqtt5 from "./mqtt5";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
+import {v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
