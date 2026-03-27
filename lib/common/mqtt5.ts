@@ -9,6 +9,8 @@
  */
 
 import * as mqtt5_packet from "./mqtt5_packet";
+import * as mqtt_shared from "./mqtt_shared";
+
 import { ICrtError } from "./error";
 
 /**
@@ -339,6 +341,15 @@ export interface MessageReceivedEvent {
      * PUBLISH packet received from the server
      */
     message: mqtt5_packet.PublishPacket;
+
+    /**
+     * Allows the event recipient to take control of when the Publish packet's acknowledgement
+     * packet is sent.  If the acknowledgement handle is not acquired by an event listener during the emission
+     * process, the client will automatically send the acknowledgement itself.
+     *
+     * Undefined if this publish is not acknowledgeable (QoS 0).
+     */
+    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper;
 }
 
 /**

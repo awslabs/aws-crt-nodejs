@@ -194,7 +194,7 @@ export interface Mqtt5ClientConfig {
     websocketOptions?: Mqtt5WebsocketConfig;
 }
 
-function convertSessionBehavuiorToSessionPolicy(behavior?: mqtt5.ClientSessionBehavior) : internal_mqtt_client.ResumeSessionPolicyType {
+function convertSessionBehaviorToSessionPolicy(behavior?: mqtt5.ClientSessionBehavior) : internal_mqtt_client.ResumeSessionPolicyType {
     switch (behavior) {
         case mqtt5.ClientSessionBehavior.Default:
         case mqtt5.ClientSessionBehavior.Clean:
@@ -287,7 +287,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
 
         let internalConnectOptions : internal_mqtt_client.ConnectOptions = {
             keepAliveIntervalSeconds: this.config.connectProperties?.keepAliveIntervalSeconds ?? 1200,
-            resumeSessionPolicy: convertSessionBehavuiorToSessionPolicy(this.config.sessionBehavior),
+            resumeSessionPolicy: convertSessionBehaviorToSessionPolicy(this.config.sessionBehavior),
         };
 
         applyConnectPacketToInternalConnectOptions(internalConnectOptions, config.connectProperties);
@@ -668,9 +668,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             message: event.publish
         };
 
-        setTimeout(() => {
-            this.emit(Mqtt5Client.MESSAGE_RECEIVED, messageReceivedEvent);
-        }, 0);
+        mqtt_shared.queueAcknowledgeableEvent(this, Mqtt5Client.MESSAGE_RECEIVED, messageReceivedEvent, "acknowledgementControl", event.acknowledgementControl);
     }
 }
 
