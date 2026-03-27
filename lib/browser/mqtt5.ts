@@ -23,11 +23,10 @@ import {CrtError} from "./error";
 import * as ws from "./ws";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as auth from "./auth";
-import {PublishAcknowledgementFunctor, PublishAcknowledgementHandleWrapper, PublishAcknowledgementHandle} from "../common/mqtt_shared";
 
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
-export {PublishAcknowledgementFunctor, PublishAcknowledgementHandleWrapper, PublishAcknowledgementHandle};
+export {PublishAcknowledgementFunctor, PublishAcknowledgementHandleWrapper, PublishAcknowledgementHandle} from "../common/mqtt_shared";
 
 
 /**
