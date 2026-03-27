@@ -61,6 +61,11 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 
+/** 
+ * SDK name used for metrics and identification
+ * @internal
+ */
+export const SDK_NAME : string = "IoTDeviceSDK/JS";
 
 /** 
  * IoT Device SDK Metrics Structure 
@@ -70,7 +75,7 @@ export class AwsIoTDeviceSDKMetrics {
     /**
      * Name of the library
      */
-    libraryName: string = "IoTDeviceSDK/JS";
+    libraryName: string = SDK_NAME;
 }
 
 function isValidTopicInternal(topic: string, isFilter: boolean) : boolean {
