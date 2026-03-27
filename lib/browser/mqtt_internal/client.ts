@@ -454,16 +454,18 @@ export class Client extends BufferedEventEmitter {
 
         let client : Client = this;
         this.protocolState.addListener("halted", (event : protocol.HaltedEvent) => {
-            client.onProtocolStateHalted(event);
+            queueMicrotask(() => { client.onProtocolStateHalted(event); });
         });
         this.protocolState.addListener("connackReceived", (event : protocol.ConnackReceivedEvent) => {
-            client.onConnackReceivedEvent(event);
-        });
-        this.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
-            client.onPublishReceivedEvent(event);
+            queueMicrotask(() => { client.onConnackReceivedEvent(event); });
         });
         this.protocolState.addListener("disconnectReceived", (event : protocol.DisconnectReceivedEvent) => {
-            client.onDisconnectReceivedEvent(event);
+            queueMicrotask(() => { client.onDisconnectReceivedEvent(event); });
+        });
+
+        // no need to queue the publish received event because it queues its relay event emission internally
+        this.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+            client.onPublishReceivedEvent(event);
         });
 
         this.onConnectionClosedCallback = () => { queueMicrotask(() => client.onConnectionClosed())};

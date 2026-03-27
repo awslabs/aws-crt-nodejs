@@ -230,31 +230,29 @@ export class PublishAcknowledgementHandleWrapper {
 
         return handle;
     }
+}
 
-    compose(followupFunctor: PublishAcknowledgementFunctor) {
-        if (this.ackHandle) {
-            let handleCopy = this.ackHandle;
-            this.ackHandle = new PublishAcknowledgementHandle(() => {
-                handleCopy.invokeAcknowledgement();
-                followupFunctor();
+function movePublishAcknowledgementHandleWrapper(wrapper: PublishAcknowledgementHandleWrapper | undefined, compositionFunctor?: PublishAcknowledgementFunctor) : PublishAcknowledgementHandleWrapper | undefined {
+    if (wrapper) {
+        let handle = wrapper.acquireHandle();
+        if (compositionFunctor && handle) {
+            let interiorHandle = handle;
+            handle = new PublishAcknowledgementHandle(() => {
+                interiorHandle.invokeAcknowledgement();
+                compositionFunctor();
             });
         }
-    }
-
-    move() : PublishAcknowledgementHandleWrapper {
-        let handle = this.ackHandle;
-        this.ackHandle = null;
 
         return new PublishAcknowledgementHandleWrapper(handle);
     }
+
+    return undefined;
 }
 
-export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    ackHandleWrapper = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
     if (ackHandleWrapper) {
-        if (compositionFunctor) {
-           ackHandleWrapper.compose(compositionFunctor);
-        }
-
+        (ackEventPayload as any)[wrapperFieldName] = ackHandleWrapper;
         emitter.emitWithCallback(ackEvent, () => {
             if (ackHandleWrapper) {
                 let handle = ackHandleWrapper.acquireHandle();
@@ -271,18 +269,11 @@ export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter,
 }
 
 export function queueAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
-    let wrapper : PublishAcknowledgementHandleWrapper | undefined = ackHandleWrapper;
-    if (wrapper) {
-        wrapper = wrapper.move();
-        (ackEventPayload as any)[wrapperFieldName] = wrapper;
-    }
+    let wrapper : PublishAcknowledgementHandleWrapper | undefined = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
 
     queueMicrotask(() => {
         if (wrapper) {
-            if (compositionFunctor) {
-                wrapper.compose(compositionFunctor);
-            }
-
+            (ackEventPayload as any)[wrapperFieldName] = wrapper;
             emitter.emitWithCallback(ackEvent, () => {
                 if (wrapper) {
                     let handle = wrapper.acquireHandle();

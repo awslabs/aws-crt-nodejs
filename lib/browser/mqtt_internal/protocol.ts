@@ -1886,7 +1886,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             event.acknowledgementControl = acknowledgementControl;
         }
 
-        mqtt_shared.emitAcknowledgeableEvent(this, ProtocolState.PUBLISH_RECEIVED, event, event.acknowledgementControl);
+        mqtt_shared.emitAcknowledgeableEvent(this, ProtocolState.PUBLISH_RECEIVED, event, 'acknowledgementControl', event.acknowledgementControl);
     }
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {
