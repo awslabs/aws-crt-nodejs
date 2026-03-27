@@ -5,6 +5,8 @@
 
 /**
  * @packageDocumentation
+ * @module mqtt_shared
+ * @mergeTarget
  */
 
 import * as mqtt5 from "./mqtt5";
@@ -63,12 +65,14 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 
+/** @internal */
 export interface TopicProperties {
     isValid: boolean;
     isShared: boolean;
     hasWildcard: boolean;
 }
 
+/** @internal */
 export function computeTopicProperties(topic: string, isFilter: boolean) : TopicProperties {
     let properties : TopicProperties = {
         isValid: false,
@@ -134,6 +138,7 @@ export function computeTopicProperties(topic: string, isFilter: boolean) : Topic
     return properties;
 }
 
+/** @internal */
 export function isValidTopicFilter(topicFilter: any) : boolean {
     if (typeof(topicFilter) !== 'string') {
         return false;
@@ -143,6 +148,7 @@ export function isValidTopicFilter(topicFilter: any) : boolean {
     return properties.isValid;
 }
 
+/** @internal */
 export function isValidTopic(topic: any) : boolean {
     if (typeof(topic) !== 'string') {
         return false;
@@ -156,6 +162,7 @@ function randomInRange(min: number, max: number) : number {
     return min + (max - min) * Math.random();
 }
 
+/** @internal */
 export interface ReconnectDelayContext {
     retryJitterMode?: mqtt5.RetryJitterType,
     minReconnectDelayMs? : number,
@@ -166,8 +173,14 @@ export interface ReconnectDelayContext {
 
 const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
 const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
+
+/** @internal */
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
+
+/** @internal */
 export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
+
+/** @internal */
 export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
 
 function getOrderedReconnectDelayBounds(configMin: number | undefined, configMax: number | undefined) : [number, number] {
@@ -249,6 +262,7 @@ function movePublishAcknowledgementHandleWrapper(wrapper: PublishAcknowledgement
     return undefined;
 }
 
+/** @internal */
 export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
     ackHandleWrapper = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
     if (ackHandleWrapper) {
@@ -268,6 +282,7 @@ export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter,
     }
 }
 
+/** @internal */
 export function queueAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
     let wrapper : PublishAcknowledgementHandleWrapper | undefined = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
 

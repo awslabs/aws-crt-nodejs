@@ -26,7 +26,6 @@ import * as auth from "./auth";
 
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
-export {PublishAcknowledgementFunctor, PublishAcknowledgementHandleWrapper, PublishAcknowledgementHandle} from "../common/mqtt_shared";
 
 
 /**
