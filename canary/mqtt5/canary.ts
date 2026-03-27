@@ -84,6 +84,7 @@ function sleep(millisecond: number) {
 function printMemoryUsageReport(elapsedSeconds: number, operationsExecuted: number) {
     const nativeMemoryBytes = crt.native_memory();
     console.log(`   Native memory (bytes): ${nativeMemoryBytes}`);
+    console.log(process.memoryUsage());
 }
 
 function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
