@@ -83,8 +83,16 @@ function sleep(millisecond: number) {
 
 function printMemoryUsageReport() {
     const nativeMemoryBytes = crt.native_memory();
+    const processMemory = process.memoryUsage();
     console.log(`   Native memory (bytes): ${nativeMemoryBytes}`);
-    console.log(`   Process memory : ${process.memoryUsage()}`);
+    console.log(`   Process memory (bytes):`);
+    console.log(`     - RSS (Resident Set Size): ${processMemory.rss}`);
+    console.log(`     - Heap Total: ${processMemory.heapTotal}`);
+    console.log(`     - Heap Used: ${processMemory.heapUsed}`);
+    console.log(`     - External: ${processMemory.external}`);
+    if ((processMemory as any).arrayBuffers !== undefined) {
+        console.log(`     - Array Buffers: ${(processMemory as any).arrayBuffers}`);
+    }
 }
 
 function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
@@ -245,9 +253,8 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         // Check if it's time to print memory usage report
         if (secondsElapsed >= nextMemoryCheckSeconds) {
             nextMemoryCheckSeconds += MEMORY_CHECK_INTERVAL_SECONDS;
+            printMemoryUsageReport()
         }
-
-        printMemoryUsageReport()
     }
 
     // Stop and close clients
