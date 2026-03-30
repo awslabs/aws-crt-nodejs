@@ -81,10 +81,10 @@ function sleep(millisecond: number) {
     return new Promise((resolve) => setTimeout(resolve, millisecond));
 }
 
-function printMemoryUsageReport(elapsedSeconds: number, operationsExecuted: number) {
+function printMemoryUsageReport() {
     const nativeMemoryBytes = crt.native_memory();
     console.log(`   Native memory (bytes): ${nativeMemoryBytes}`);
-    console.log(process.memoryUsage());
+    console.log(`   Process memory : ${process.memoryUsage()}`);
 }
 
 function getRandomIndex(clients : mqtt5.Mqtt5Client[]): number
@@ -216,7 +216,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
     }
 
     // Print initial memory usage report
-    printMemoryUsageReport(0, 0);
+    printMemoryUsageReport();
 
     let operationTable = [
         { weight : 1, op: async () => { await doSubscribe(context); }},
@@ -246,6 +246,8 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         if (secondsElapsed >= nextMemoryCheckSeconds) {
             nextMemoryCheckSeconds += MEMORY_CHECK_INTERVAL_SECONDS;
         }
+
+        printMemoryUsageReport()
     }
 
     // Stop and close clients
