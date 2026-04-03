@@ -77,6 +77,8 @@ interface CanaryContext {
     subscriptions: string[][];
 }
 
+function sleep(millisecond: number) {
+    return new Promise((resolve) => setTimeout(resolve, millisecond));
 
 function printMemoryUsageReport() {
     const nativeMemoryBytes = crt.native_memory();
@@ -242,6 +244,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 
         await (operationTable[index].op)();
         ++context.mqttStats.totalOperation;
+        await sleep(testContext.tps_sleep_time);
         currentTime = new Date();
 
         secondsElapsed = (currentTime.getTime() - startTime.getTime()) / 1000;
