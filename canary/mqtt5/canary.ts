@@ -79,6 +79,7 @@ interface CanaryContext {
 
 function sleep(millisecond: number) {
     return new Promise((resolve) => setTimeout(resolve, millisecond));
+}
 
 function printMemoryUsageReport() {
     const nativeMemoryBytes = crt.native_memory();
