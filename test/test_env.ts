@@ -343,3 +343,7 @@ export class AWS_IOT_ENV {
     public static AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY ?? "";
 
 }
+
+export async function sleep(millis: number) {
+    await new Promise(resolve => setTimeout(resolve, millis));
+}

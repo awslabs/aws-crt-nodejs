@@ -16,6 +16,7 @@ import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_shared from "../../common/mqtt_shared";
 import {BufferedEventEmitter} from "../../common/event";
+import {v4 as uuid} from "uuid";
 
 /**
  * Additional options that can be applied to a publish operation
@@ -696,6 +697,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     constructor(config : ProtocolStateConfig) {
         super();
+
+        if (!config.connectOptions.clientId) {
+            config.connectOptions.clientId = `autogen-${uuid()}`;
+        }
+
         this.config = config;
         this.encoder = new encoder.Encoder(encoder.buildClientEncodingFunctionSet(config.protocolVersion));
         this.decoder = new decoder.Decoder(decoder.buildClientDecodingFunctionSet(config.protocolVersion));

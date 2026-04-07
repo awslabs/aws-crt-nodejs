@@ -396,18 +396,18 @@ export class Client extends BufferedEventEmitter {
      */
     private connection? : ws.WsStream = undefined;
     private connectionId : number = 0;
-    private pendingConnectionTimeout? : number = undefined;
+    private pendingConnectionTimeout? : number = undefined; // relative to creationTime
     private nextConnectionId : number = 1;
 
     /*
      * Reconnect state
      */
-    private reconnectTimepoint? : number = undefined;
+    private reconnectTimepoint? : number = undefined; // relative to creationTime
     private lastReconnectDelay? : number = undefined;
     private connectionFailureCount : number = 0;
-    private resetConnectionFailuresTimepoint? : number = undefined;
+    private resetConnectionFailuresTimepoint? : number = undefined; // relative to creationTime
 
-    private nextServiceTimepoint? : number = undefined;
+    private nextServiceTimepoint? : number = undefined; // relative to creationTime
     private serviceTask? : number = undefined;
     private inService : boolean = false;
 
@@ -967,7 +967,7 @@ export class Client extends BufferedEventEmitter {
         let currentTime = this.getCurrentTime();
         this.resetConnectionFailuresTimepoint = currentTime + (this.config.resetConnectionFailureCountMillis ?? DEFAULT_RESET_CONNECTION_FAILURE_COUNT_MILLIS);
 
-        let connackTimeout = this.pendingConnectionTimeout ?? this.creationTime;
+        let connackTimeout = this.pendingConnectionTimeout ?? 0;
         this.protocolState.handleNetworkEvent({
             type: protocol.NetworkEventType.ConnectionOpened,
             context: {
