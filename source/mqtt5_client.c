@@ -320,7 +320,7 @@ static void s_on_publish_received(const struct aws_mqtt5_packet_publish_view *pu
      * failed or the publish is not QoS 1.
      */
     uint64_t puback_control_id = 0;
-    if (publish_packet->qos == AWS_MQTT5_QOS_AT_LEAST_ONCE) {
+    if (publish_packet->qos != AWS_MQTT5_QOS_AT_MOST_ONCE) {
         puback_control_id = aws_mqtt5_client_acquire_publish_acknowledgement(binding->client, publish_packet);
     }
     message_received_ud->puback_control_id = puback_control_id;
@@ -1233,9 +1233,8 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
         }
 
         /*
-         * Pass the puback_control_id as a napi_external wrapping a heap-allocated uint64_t*
-         * (due to no napi_create_bigint_uint64 available). A value of 0 means QoS 0 or acquire failed
-         * and we pass undefined.
+         * Pass the puback_control_id as a napi_external wrapping a heap-allocated uint64_t*.
+         * A value of 0 means QoS 0 or acquire failed and we pass undefined.
          */
         if (on_message_received_ud->puback_control_id != 0) {
             uint64_t *control_id_ptr = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(uint64_t));

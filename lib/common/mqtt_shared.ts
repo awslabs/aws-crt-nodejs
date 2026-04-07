@@ -7,6 +7,8 @@
  * @packageDocumentation
  */
 
+import * as event from "./event";
+
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -133,8 +135,8 @@ export class PublishAcknowledgementHandleWrapper {
 
     private ackHandle : PublishAcknowledgementHandle | null;
 
-    constructor(acknowledgementFunction : PublishAcknowledgementFunctor) {
-        this.ackHandle = new PublishAcknowledgementHandle(acknowledgementFunction);
+    constructor(handle : PublishAcknowledgementHandle | null) {
+        this.ackHandle = handle;
     }
 
     /**
@@ -149,6 +151,66 @@ export class PublishAcknowledgementHandleWrapper {
 
         return handle;
     }
+}
+
+function movePublishAcknowledgementHandleWrapper(wrapper: PublishAcknowledgementHandleWrapper | undefined, compositionFunctor?: PublishAcknowledgementFunctor) : PublishAcknowledgementHandleWrapper | undefined {
+    if (wrapper) {
+        let handle = wrapper.acquireHandle();
+        if (compositionFunctor && handle) {
+            let interiorHandle = handle;
+            handle = new PublishAcknowledgementHandle(() => {
+                interiorHandle.invokeAcknowledgement();
+                compositionFunctor();
+            });
+        }
+
+        return new PublishAcknowledgementHandleWrapper(handle);
+    }
+
+    return undefined;
+}
+
+/** @internal */
+export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    ackHandleWrapper = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
+    if (ackHandleWrapper) {
+        (ackEventPayload as any)[wrapperFieldName] = ackHandleWrapper;
+        emitter.emitWithCallback(ackEvent, () => {
+            if (ackHandleWrapper) {
+                let handle = ackHandleWrapper.acquireHandle();
+                if (handle) {
+                    // Even if corked, all listeners have had a chance to react to the event
+                    // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                    handle.invokeAcknowledgement();
+                }
+            }
+        }, ackEventPayload);
+    } else {
+        emitter.emit(ackEvent, ackEventPayload);
+    }
+}
+
+/** @internal */
+export function queueAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    let wrapper : PublishAcknowledgementHandleWrapper | undefined = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
+
+    queueMicrotask(() => {
+        if (wrapper) {
+            (ackEventPayload as any)[wrapperFieldName] = wrapper;
+            emitter.emitWithCallback(ackEvent, () => {
+                if (wrapper) {
+                    let handle = wrapper.acquireHandle();
+                    if (handle) {
+                        // Even if corked, all listeners have had a chance to react to the event
+                        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                        handle.invokeAcknowledgement();
+                    }
+                }
+            }, ackEventPayload);
+        } else {
+            emitter.emit(ackEvent, ackEventPayload);
+        }
+    });
 }
 
 /**

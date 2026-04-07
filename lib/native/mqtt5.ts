@@ -667,10 +667,11 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
 
         if (pubackControlId !== undefined) {
             const controlId = pubackControlId;
-            const functor : mqtt_shared.PublishAcknowledgementFunctor = () => {
-                crt_native.mqtt5_client_invoke_publish_acknowledgement(client.native_handle(), controlId);
-            };
-            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(functor);
+            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(
+                new mqtt_shared.PublishAcknowledgementHandle(() => {
+                    crt_native.mqtt5_client_invoke_publish_acknowledgement(client.native_handle(), controlId);
+                })
+            );
         }
 
         let messageReceivedEvent: mqtt5.MessageReceivedEvent = {
