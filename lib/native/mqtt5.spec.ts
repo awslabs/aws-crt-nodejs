@@ -12,7 +12,7 @@ import {v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
-jest.setTimeout(30000);
+jest.setTimeout(45000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
@@ -594,7 +594,6 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - acknowledgment hold', async() =>{
     // hold publish acknowledgement and verify broker re-delivers the message
-    jest.setTimeout(45000);
     await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
         let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
@@ -608,7 +607,6 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - acknowledgment invoke', async() =>{
     // invoke publish acknowledgement, verify no re-delivery after 35 seconds
-    jest.setTimeout(45000);
     await retry.networkTimeoutRetryWrapper( async () => {
         let topic: string = `test-${uuid()}`;
         let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
