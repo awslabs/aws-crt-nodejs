@@ -40,12 +40,19 @@ function doSimplePushPopTest(testHeap : heap.MinHeap<ElementType>, timestamps: A
         testHeap.push({timestamp: timestamp, id: currentId++});
     }
 
+    let peekedIds : Array<number> = [];
+    let poppedIds : Array<number> = [];
     let poppedTimestamps : Array<number> = [];
     let peekedTimestamps : Array<number> = [];
     while (!testHeap.empty()) {
         // @ts-ignore
         peekedTimestamps.push(testHeap.peek().timestamp);
-        poppedTimestamps.push(testHeap.pop().timestamp);
+        // @ts-ignore
+        peekedIds.push(testHeap.peek().id);
+
+        let entry = testHeap.pop();
+        poppedTimestamps.push(entry.timestamp);
+        poppedIds.push(entry.id);
     }
 
     let sortedTimestamps = timestamps.sort((lhs, rhs) => {
@@ -60,6 +67,13 @@ function doSimplePushPopTest(testHeap : heap.MinHeap<ElementType>, timestamps: A
 
     expect(poppedTimestamps).toEqual(sortedTimestamps);
     expect(peekedTimestamps).toEqual(sortedTimestamps);
+
+    // when there are timestamps ties, we expect the ids to be in increasing order
+    for (let i = 0; i + 1 < timestamps.length; i++) {
+        if (poppedTimestamps[i] == poppedTimestamps[i + 1]) {
+            expect(poppedIds[i] < poppedIds[i + 1]).toBeTruthy();
+        }
+    }
 }
 
 test('reverseOrderPushPop', async () => {
@@ -85,6 +99,13 @@ test('randomOrderPushPop', async () => {
         timestamps.push(Math.floor(Math.random() * 1000 + .5));
     }
 
+    doSimplePushPopTest(testHeap, timestamps);
+});
+
+test('duplicate timestamps', async () => {
+    let testHeap : heap.MinHeap<ElementType> = new heap.MinHeap<ElementType>(compareElements);
+
+    let timestamps = [7, 2, 5, 2, -1, 0, 5, 0];
     doSimplePushPopTest(testHeap, timestamps);
 });
 
