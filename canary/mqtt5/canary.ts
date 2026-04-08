@@ -13,6 +13,7 @@ const MEMORY_CHECK_INTERVAL_SECONDS = 600; // 10 minutes
 type Args = { [index: string]: any };
 
 const yargs = require('yargs');
+const payload = Buffer.alloc(65536, 'a', "utf-8");
 
 yargs.command('*', false, (yargs: any) => {
     yargs.option({
@@ -172,21 +173,11 @@ async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
         context.mqttStats.publishesAttempted++;
 
         // Generate random binary payload data
-        let payload = Buffer.alloc(10000, 'a', "utf-8");
         let index = getRandomIndex(context.clients);
         await context.clients[index].publish({
             topicName: RECEIVED_TOPIC,
             qos: qos,
-            payload: payload,
-            retain: false,
-            payloadFormat: mqtt5.PayloadFormatIndicator.Utf8,
-            messageExpiryIntervalSeconds: 60,
-            responseTopic: "talk/to/me",
-            correlationData: Buffer.alloc(3000),
-            contentType: "not-json",
-            userProperties: [
-                { name: "name", value: "value" }
-            ]
+            payload: payload
         });
 
         context.mqttStats.publishesSucceeded++;
@@ -227,10 +218,10 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
     printMemoryUsageReport();
 
     let operationTable = [
-        { weight : 1, op: async () => { await doSubscribe(context); }},
-        { weight : 1, op: async () => { await doUnsubscribe(context); }},
-        { weight : 1, op: async () => { await doPublish(context, mqtt5.QoS.AtMostOnce); }},
-        { weight : 1, op: async () => { await doPublish(context, mqtt5.QoS.AtLeastOnce); }}
+        { weight : 1, op: () => { doSubscribe(context); }},
+        { weight : 1, op: () => { doUnsubscribe(context); }},
+        { weight : 1, op: () => { doPublish(context, mqtt5.QoS.AtMostOnce); }},
+        { weight : 1, op: () => { doPublish(context, mqtt5.QoS.AtLeastOnce); }}
     ];
 
     let weightedOperations = operationTable.map(function (operation) {
@@ -243,7 +234,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 
         let index: number = weightedRandom(weightedOperations);
 
-        await (operationTable[index].op)();
+        (operationTable[index].op)();
         ++context.mqttStats.totalOperation;
         await sleep(testContext.tps_sleep_time);
         currentTime = new Date();
