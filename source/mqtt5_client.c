@@ -1200,6 +1200,14 @@ static int s_create_napi_publish_packet(
     return AWS_OP_SUCCESS;
 }
 
+static void s_aws_mqtt5_publish_control_id_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
+    (void)finalize_hint;
+    (void)env;
+
+    uint64_t *control_id_ptr = finalize_data;
+    aws_mem_release(aws_napi_get_allocator(), control_id_ptr);
+}
+
 /* in-node/libuv-thread function to trigger the emission of a PUBLISH packet on the messageReceived event */
 static void s_napi_on_message_received(napi_env env, napi_value function, void *context, void *user_data) {
     (void)context;
@@ -1239,10 +1247,13 @@ static void s_napi_on_message_received(napi_env env, napi_value function, void *
         if (on_message_received_ud->puback_control_id != 0) {
             uint64_t *control_id_ptr = aws_mem_calloc(aws_napi_get_allocator(), 1, sizeof(uint64_t));
             *control_id_ptr = on_message_received_ud->puback_control_id;
-            AWS_NAPI_CALL(env, napi_create_external(env, control_id_ptr, NULL, NULL, &params[2]), {
-                aws_mem_release(aws_napi_get_allocator(), control_id_ptr);
-                goto done;
-            });
+            AWS_NAPI_CALL(
+                env,
+                napi_create_external(env, control_id_ptr, s_aws_mqtt5_publish_control_id_finalize, NULL, &params[2]),
+                {
+                    aws_mem_release(aws_napi_get_allocator(), control_id_ptr);
+                    goto done;
+                });
         } else {
             AWS_NAPI_CALL(env, napi_get_undefined(env, &params[2]), { goto done; });
         }
