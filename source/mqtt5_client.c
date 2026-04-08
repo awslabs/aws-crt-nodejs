@@ -3703,7 +3703,6 @@ napi_value aws_napi_mqtt5_client_invoke_publish_acknowledgement(napi_env env, na
     }
 
     uint64_t control_id = *control_id_ptr;
-    aws_mem_release(aws_napi_get_allocator(), control_id_ptr);
 
     if (aws_mqtt5_client_invoke_publish_acknowledgement(binding->client, control_id, NULL)) {
         aws_napi_throw_last_error_with_context(
