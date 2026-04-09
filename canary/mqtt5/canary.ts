@@ -245,6 +245,7 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         if (secondsElapsed >= nextMemoryCheckSeconds) {
             nextMemoryCheckSeconds += MEMORY_CHECK_INTERVAL_SECONDS;
             printMemoryUsageReport()
+            console.log(`Operations: ${context.mqttStats.totalOperation}`);
         }
     }
 
