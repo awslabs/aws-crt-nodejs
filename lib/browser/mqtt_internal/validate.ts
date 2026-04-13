@@ -243,7 +243,7 @@ function validateSubackReasonCode(value: mqtt5_packet.SubackReasonCode, mode: mo
     }
 }
 
-function validatePubackReasonCode(value: mqtt5_packet.PubackReasonCode, mode: model.ProtocolMode) {
+function validatePubackReasonCode(value: mqtt5_packet.PubackReasonCode) {
     if (mqtt5_packet.PubackReasonCode[value] === undefined) {
         throw new CrtError(`"${value}" is not a valid MQTT5 PubackReasonCode`);
     }
@@ -510,7 +510,11 @@ function validateBinaryUserProperties(userProperties: Array<model.UserPropertyBi
 
 function validateBinaryPublish(packet: model.PublishPacketBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings, isWill: boolean) {
     if (isWill) {
-        validatePacketLength(packet, mode, 65535);
+        // topic will be checked below
+
+        if (packet.payload && packet.payload.byteLength > 65535) {
+            throw new CrtError("will payload too long");
+        }
     } else {
         validatePacketLength(packet, mode, settings.maximumPacketSizeToServer);
     }
@@ -676,7 +680,7 @@ function validateInboundPublish(packet: model.PublishPacketInternal, mode: model
 
 function validateInboundPuback(packet: model.PubackPacketInternal, mode: model.ProtocolMode) {
     validateRequiredPacketId(packet.packetId, "packetId");
-    validatePubackReasonCode(packet.reasonCode, mode);
+    validatePubackReasonCode(packet.reasonCode);
 }
 
 function validateInboundConnack(packet: model.ConnackPacketInternal, mode: model.ProtocolMode) {
