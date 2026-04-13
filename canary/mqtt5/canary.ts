@@ -60,6 +60,7 @@ interface CanaryMqttStatistics {
     publishesSucceeded: number;
     publishesFailed: number;
     totalOperation: number;
+    totalOperationAttempted: number;
 }
 
 interface TestContext {
@@ -145,6 +146,7 @@ async function doSubscribe(context: CanaryContext) {
 
     context.subscriptions[index].push(topicFilter);
     context.mqttStats.subscribesSucceeded++;
+    context.mqttStats.totalOperationAttempted++;
 }
 
 async function doUnsubscribe(context: CanaryContext) {
@@ -166,6 +168,7 @@ async function doUnsubscribe(context: CanaryContext) {
         context.mqttStats.unsubscribesFailed++;
         context.subscriptions[index].push(topicFilter);
     }
+    context.mqttStats.totalOperationAttempted++;
 }
 
 async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
@@ -185,11 +188,11 @@ async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
         context.mqttStats.publishesFailed++;
         console.log("Publish Failed with " + err);
     }
+    context.mqttStats.totalOperationAttempted++;
 }
 
 async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatistics) {
-    let startTime: Date = new Date();
-    let currentTime: Date = startTime;
+    const startTime = Date.now();
     let secondsElapsed: number = 0;
 
     let context: CanaryContext = {
@@ -231,20 +234,19 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
     let nextMemoryCheckSeconds = MEMORY_CHECK_INTERVAL_SECONDS;
 
     while (secondsElapsed < testContext.duration) {
-
         let index: number = weightedRandom(weightedOperations);
-
         (operationTable[index].op)();
         ++context.mqttStats.totalOperation;
-        await sleep(testContext.tps_sleep_time);
-        currentTime = new Date();
+        if (testContext.tps_sleep_time > 0) {
+            await sleep(testContext.tps_sleep_time);
+        }
 
-        secondsElapsed = (currentTime.getTime() - startTime.getTime()) / 1000;
+        secondsElapsed = (Date.now() - startTime) / 1000;
 
         // Check if it's time to print memory usage report
         if (secondsElapsed >= nextMemoryCheckSeconds) {
             nextMemoryCheckSeconds += MEMORY_CHECK_INTERVAL_SECONDS;
-            printMemoryUsageReport()
+            // printMemoryUsageReport()
             console.log(`Operations: ${context.mqttStats.totalOperation}`);
         }
     }
@@ -272,6 +274,7 @@ async function main(args : Args){
         publishesSucceeded: 0,
         publishesFailed: 0,
         totalOperation: 0,
+        totalOperationAttempted: 0,
     };
 
     let testContext: TestContext = {
