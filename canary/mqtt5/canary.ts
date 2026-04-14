@@ -77,6 +77,8 @@ interface CanaryContext {
     mqttStats: CanaryMqttStatistics;
 
     subscriptions: string[][];
+
+    clientStarted: boolean[];
 }
 
 function sleep(millisecond: number) {
@@ -126,11 +128,24 @@ function createCanaryClients(testContext: TestContext, mqttStats: CanaryMqttStat
     return clients;
 }
 
+async function ensureClientStarted(context: CanaryContext, index: number) {
+    if (!context.clientStarted[index]) {
+        context.clients[index].start();
+        const connectionSuccess = once(context.clients[index], "connectionSuccess");
+        await connectionSuccess;
+        context.clientStarted[index] = true;
+    }
+}
+
 async function doSubscribe(context: CanaryContext) {
     let topicFilter: string = `Mqtt5/Canary/RandomSubscribe${uuid()}`;
 
     let index = getRandomIndex(context.clients);
+    
+    await ensureClientStarted(context, index);
+    
     try {
+
         context.mqttStats.subscribesAttempted++;
 
         await context.clients[index].subscribe({
@@ -149,16 +164,27 @@ async function doSubscribe(context: CanaryContext) {
     context.mqttStats.totalOperationAttempted++;
 }
 
+async function doStop(context: CanaryContext) {
+    let index = getRandomIndex(context.clients);
+    if (context.clientStarted[index]) {
+        context.clients[index].stop();
+        context.clientStarted[index] = false;
+    }
+}
+
 async function doUnsubscribe(context: CanaryContext) {
     let index = getRandomIndex(context.clients);
     if (context.subscriptions[index].length == 0) {
         return;
     }
+    
+    await ensureClientStarted(context, index);
+    
     let topicFilter: string = context.subscriptions[index].pop() ?? "canthappen";
 
     try {
         context.mqttStats.unsubscribesAttempted++;
-
+        
         await context.clients[index].unsubscribe({
             topicFilters: [topicFilter]
         });
@@ -172,11 +198,14 @@ async function doUnsubscribe(context: CanaryContext) {
 }
 
 async function doPublish(context: CanaryContext, qos: mqtt5.QoS) {
+    let index = getRandomIndex(context.clients);
+    
+    await ensureClientStarted(context, index);
+    
     try {
         context.mqttStats.publishesAttempted++;
 
         // Generate random binary payload data
-        let index = getRandomIndex(context.clients);
         await context.clients[index].publish({
             topicName: RECEIVED_TOPIC,
             qos: qos,
@@ -198,7 +227,8 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
     let context: CanaryContext = {
         clients: createCanaryClients(testContext, mqttStats),
         mqttStats: mqttStats,
-        subscriptions: []
+        subscriptions: [],
+        clientStarted: []
     };
 
     // Start clients
@@ -215,16 +245,19 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
         });
         // setup empty subscription string array
         context.subscriptions.push(new Array());
+        // track client started state
+        context.clientStarted.push(true);
     }
 
     // Print initial memory usage report
     printMemoryUsageReport();
 
     let operationTable = [
-        { weight : 1, op: () => { doSubscribe(context); }},
-        { weight : 1, op: () => { doUnsubscribe(context); }},
-        { weight : 1, op: () => { doPublish(context, mqtt5.QoS.AtMostOnce); }},
-        { weight : 1, op: () => { doPublish(context, mqtt5.QoS.AtLeastOnce); }}
+        { weight : 1, op: () => { doStop(context) }},
+        { weight : 200, op: () => { doSubscribe(context); }},
+        { weight : 200, op: () => { doUnsubscribe(context); }},
+        { weight : 200, op: () => { doPublish(context, mqtt5.QoS.AtMostOnce); }},
+        { weight : 200, op: () => { doPublish(context, mqtt5.QoS.AtLeastOnce); }}
     ];
 
     let weightedOperations = operationTable.map(function (operation) {
