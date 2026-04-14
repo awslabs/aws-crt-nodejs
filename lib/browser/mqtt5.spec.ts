@@ -201,6 +201,38 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
     }));
 });
 
+test('Connection Failure - mqtt-js error during CONNECT emits connectionFailure', async () => {
+    /*
+     * When mqtt-js rejects the password during CONNECT packet serialisation
+     * (e.g. Uint8Array instead of string|Buffer), the error must surface as a
+     * connectionFailure event rather than being silently swallowed.
+     *
+     * This test does not need a running MQTT broker because the failure
+     * occurs locally inside mqtt-js writeToStream before any data is sent.
+     */
+    let config: mqtt5.Mqtt5ClientConfig = {
+        hostName: "localhost",
+        port: 9999,
+        connectProperties: {
+            keepAliveIntervalSeconds: 1200,
+            username: "testuser",
+            // @ts-ignore — deliberately passing an invalid type to trigger the bug
+            password: new Uint8Array([116, 101, 115, 116]), // "test" as Uint8Array
+        },
+        websocketOptions: {
+            urlFactoryOptions: {
+                urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws,
+            },
+        },
+        connectTimeoutMs: 3000,
+    };
+
+    let client = new mqtt5.Mqtt5Client(config);
+
+    // @ts-ignore
+    await test_utils.testFailedConnection(client);
+});
+
 function testFailedClientConstruction(config: mqtt5.Mqtt5ClientConfig) {
     expect(() => {
         new mqtt5.Mqtt5Client(config);

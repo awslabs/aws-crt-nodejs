@@ -839,6 +839,21 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         setTimeout(() => {
             this.emit(Mqtt5Client.INFO, new CrtError(error));
         }, 0);
+
+        /*
+         * If the error occurs while we are still connecting (before the
+         * mqtt-js 'close' event fires), the underlying stream may never
+         * close on its own — for example, when mqtt-js rejects the
+         * password during CONNECT packet serialisation the WebSocket
+         * stays open but no MQTT frames are ever sent.
+         *
+         * Force-close the mqtt-js client so that the normal
+         * on_browser_close path fires and emits CONNECTION_FAILURE,
+         * which lets consumers (and the reconnection scheduler) react.
+         */
+        if (this.lifecycleEventState == Mqtt5ClientLifecycleEventState.Connecting) {
+            this.browserClient?.end(true);
+        }
     }
 
     private on_attempting_connect () {
