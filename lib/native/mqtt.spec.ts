@@ -376,6 +376,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 
             const connection = make_test_iot_core_connection(
                 false /* clean start */);
+            connection.on('error', (e) => { reject(e); });
+
             await connection.connect();
             const closed = once(connection, "closed");
             await connection.disconnect();
@@ -399,6 +401,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 
             const connection = make_test_iot_core_connection(
                 false /* clean start */);
+            connection.on('error', (e) => { reject(e); });
+            
             await connection.connect();
             const closed = once(connection, "closed");
             await connection.disconnect();

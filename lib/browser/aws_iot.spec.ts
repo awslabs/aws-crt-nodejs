@@ -13,6 +13,22 @@ import {once} from "events";
 
 jest.setTimeout(30000);
 
+async function doSuccessfulConnectTest(builder: aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder) : Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        let config = builder.build();
+        let client = new mqtt311.MqttClient();
+        let connection = client.new_connection(config);
+        connection.on('error', (e) => {
+            reject(e);
+        });
+
+        await connection.connect();
+        await connection.disconnect();
+
+        resolve();
+    });
+}
+
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsigned())('Aws Iot Core Mqtt over websockets with Non-Signing Custom Auth - Connection Success', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_default_builder();
@@ -24,11 +40,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_unsi
         )
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        let config = builder.build();
-        let client = new mqtt311.MqttClient();
-        let connection = client.new_connection(config);
-        await connection.connect();
-        await connection.disconnect();
+        return doSuccessfulConnectTest(builder);
     })
 });
 
@@ -45,11 +57,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
         )
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        let config = builder.build();
-        let client = new mqtt311.MqttClient();
-        let connection = client.new_connection(config);
-        await connection.connect();
-        await connection.disconnect();
+        return doSuccessfulConnectTest(builder);
     })
 });
 
@@ -66,68 +74,78 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
         )
         builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
         builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        let config = builder.build();
-        let client = new mqtt311.MqttClient();
-        let connection = client.new_connection(config);
-        await connection.connect();
-        await connection.disconnect();
+        return doSuccessfulConnectTest(builder);
     })
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
-        let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
-        builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
-        builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        builder.with_credentials(
-            test_env.AWS_IOT_ENV.MQTT311_REGION,
-            test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
-            test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
-            test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
-        );
-        let config = builder.build();
-        let client = new mqtt311.MqttClient(new io.ClientBootstrap());
-        let connection = client.new_connection(config);
+        let errorEventWrapper: Promise<void> = new Promise(async (resolve, reject) => {
+            let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
+            builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
+            builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            builder.with_credentials(
+                test_env.AWS_IOT_ENV.MQTT311_REGION,
+                test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
+                test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
+                test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
+            );
+            let config = builder.build();
+            let client = new mqtt311.MqttClient(new io.ClientBootstrap());
+            let connection = client.new_connection(config);
+            connection.on('error', (e) => { reject(e); });
 
-        const connectionSuccess = once(connection, "connection_success");
-        await connection.connect();
+            const connectionSuccess = once(connection, "connection_success");
+            await connection.connect();
 
-        let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = (await connectionSuccess)[0];
-        expect(connectionSuccessEvent.session_present).toBeFalsy();
-        expect(connectionSuccessEvent.reason_code).toBeUndefined();
+            let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = (await connectionSuccess)[0];
+            expect(connectionSuccessEvent.session_present).toBeFalsy();
+            expect(connectionSuccessEvent.reason_code).toBeUndefined();
 
-        const closed = once(connection, "closed");
-        await connection.disconnect();
-        await closed;
+            const closed = once(connection, "closed");
+            await connection.disconnect();
+            await closed;
+
+            resolve();
+        });
+
+        return errorEventWrapper;
     })
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_cred())('MQTT Browser Websocket Connect/Disconnect No Bootstrap', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
-        let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
-        builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
-        builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
-        builder.with_credentials(
-            test_env.AWS_IOT_ENV.MQTT311_REGION,
-            test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
-            test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
-            test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
-        );
-        let config = builder.build();
+        let errorEventWrapper: Promise<void> = new Promise(async (resolve, reject) => {
+            let builder = aws_iot_mqtt311.AwsIotMqttConnectionConfigBuilder.new_with_websockets();
+            builder.with_endpoint(test_env.AWS_IOT_ENV.MQTT311_HOST);
+            builder.with_client_id(`node-mqtt-unit-test-${uuid()}`)
+            builder.with_credentials(
+                test_env.AWS_IOT_ENV.MQTT311_REGION,
+                test_env.AWS_IOT_ENV.MQTT311_CRED_ACCESS_KEY,
+                test_env.AWS_IOT_ENV.MQTT311_CRED_SECRET_ACCESS_KEY,
+                test_env.AWS_IOT_ENV.MQTT311_CRED_SESSION_TOKEN
+            );
+            let config = builder.build();
 
-        let client = new mqtt311.MqttClient();
-        let connection = client.new_connection(config);
+            let client = new mqtt311.MqttClient();
+            let connection = client.new_connection(config);
+            connection.on('error', (e) => { reject(e); });
 
-        const connectionSuccess = once(connection, "connection_success");
-        await connection.connect();
+            const connectionSuccess = once(connection, "connection_success");
+            await connection.connect();
 
-        let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = (await connectionSuccess)[0];
-        expect(connectionSuccessEvent.session_present).toBeFalsy();
-        expect(connectionSuccessEvent.reason_code).toBeUndefined();
+            let connectionSuccessEvent: mqtt311.OnConnectionSuccessResult = (await connectionSuccess)[0];
+            expect(connectionSuccessEvent.session_present).toBeFalsy();
+            expect(connectionSuccessEvent.reason_code).toBeUndefined();
 
-        const closed = once(connection, "closed");
-        await connection.disconnect();
-        await closed;
+            const closed = once(connection, "closed");
+            await connection.disconnect();
+            await closed;
+
+            resolve();
+        });
+
+        return errorEventWrapper;
     })
 });
 
@@ -147,6 +165,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
         let config = builder.build();
         let client = new mqtt311.MqttClient();
         let connection = client.new_connection(config);
+        connection.on('error', (e) => {});
 
         const connectionFailure = once(connection, "connection_failure")
         try {
