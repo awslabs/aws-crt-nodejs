@@ -32,6 +32,8 @@
   * [Unsubscribe](#unsubscribe)
   * [Publish](#publish)
   * [Disconnect](#disconnect-1)
+  * [Advanced Operations and Settings](#advanced-operations-and-settings)
+    * [Manual Publish Acknowledgement](#manual-publish-acknowledgement)
 
 Complete API documentation for the CRT's MQTT5 client can be found for
 * [NodeJS](https://awslabs.github.io/aws-crt-nodejs/node/modules/mqtt5.html)
@@ -485,3 +487,56 @@ let disconnect: DisconnectPacket = {
 };
 client.stop(disconnect);
 ```
+
+## Advanced Operations and Settings
+
+### Manual Publish Acknowledgement
+
+By default, the MQTT5 client automatically sends a PUBACK for every QoS 1 PUBLISH it receives, immediately after all `messageReceived` event listeners have been called. Manual publish acknowledgement gives you control over when that PUBACK is sent, allowing you to defer acknowledgement until after your application has fully processed the message — for example, after persisting it to a database or forwarding it to another service.
+
+When a QoS 1 PUBLISH is received, the `MessageReceivedEvent` will include an `acknowledgementControl` field of type `PublishAcknowledgementHandleWrapper`. To take manual control of the PUBACK, call `acknowledgementControl.acquireHandle()` **within** the `messageReceived` event listener. This returns a `PublishAcknowledgementHandle` that you can store and use later to send the PUBACK by calling `handle.invokeAcknowledgement()`.
+
+**Important constraints:**
+* `acquireHandle()` must be called **synchronously** within a `messageReceived` event listener. Once a listener returns (or yields via `await`), the window to acquire the handle has closed. Calling `acquireHandle()` after all listeners have synchronously returned — including from asynchronous continuations within a listener — will return `null`.
+* `acquireHandle()` may only be called once. Subsequent calls return `null`.
+* This is only relevant for QoS 1 messages. For QoS 0 messages, `acknowledgementControl` will be `undefined`.
+* If `acquireHandle()` is not called by any listener, the client will automatically send the PUBACK after all listeners have returned.
+
+The following example shows how to acquire the acknowledgement handle within the event listener and invoke it later:
+
+```typescript
+import { mqtt5, mqtt5_packet } from "aws-crt";
+
+// A variable to hold the acknowledgement handle for later use
+let pendingAck: mqtt5.PublishAcknowledgementHandle | null = null;
+
+client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent): void => {
+    console.log("Message received on topic: " + eventData.message.topicName);
+
+    if (eventData.message.qos === mqtt5_packet.QoS.AtLeastOnce && eventData.acknowledgementControl) {
+        // Acquire manual control of the PUBACK for this QoS 1 message.
+        // This must be called within the event listener. After all listeners
+        // have returned, acquireHandle() will return null.
+        pendingAck = eventData.acknowledgementControl.acquireHandle();
+
+        // The PUBACK will NOT be sent automatically because we acquired the handle.
+        // Process the message here (e.g., persist to storage, forward to another service).
+    }
+});
+
+// ... connect and subscribe ...
+
+// After processing is complete, send the PUBACK by invoking the acknowledgement.
+if (pendingAck !== null) {
+    pendingAck.invokeAcknowledgement();
+    pendingAck = null;
+}
+```
+
+**AWS IoT broker redelivery behavior**
+
+The AWS IoT broker will periodically resend unacknowledged QoS 1 PUBLISH packets. These redeliveries should be treated as duplicates even if the DUP flag in the PUBLISH packet is not set. If `acknowledgementControl.acquireHandle()` is not called again for a redelivered packet, the acknowledgement will be sent automatically.
+
+**Session resumption after disconnect/reconnect**
+
+Upon a disconnect and reconnect of the MQTT5 client, if a session is resumed, any previously acquired `PublishAcknowledgementHandle` is void. The broker will resend the unacknowledged PUBLISH packet, and `acknowledgementControl.acquireHandle()` must be called again within the event listener for that resent packet. If the resent packet is not handled for manual acknowledgement, the acknowledgement will be sent automatically.
