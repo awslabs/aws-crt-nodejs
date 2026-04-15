@@ -54,6 +54,16 @@ export interface VliDecodeResult {
 }
 
 export function decodeVli(data: DataView, offset: number) : VliDecodeResult {
+    if (offset < 0) {
+        throw new CrtError("Invalid DataView offset");
+    }
+
+    if (offset >= data.byteLength) {
+        return {
+            type: VliDecodeResultType.MoreData
+        };
+    }
+
     let value: number = 0;
     let index: number = 0;
     let shift: number = 0;

@@ -47,16 +47,12 @@ export function decodeLengthPrefixedString(payload: DataView, offset: number) : 
     return [toUtf8(new Uint8Array(payload.buffer, index, stringLength)), index + stringLength];
 }
 
-//Buffer.from(arrayBuffer, view.byteOffset, view.byteLength)
-
 export function decodeBytes(payload: DataView, offset: number, length: number) : [ArrayBufferView, number] {
-    // return [payload.buffer.slice(offset, offset + length), offset + length];
     return [Buffer.from(payload.buffer, offset, length), offset + length];
 }
 
 export function decodeLengthPrefixedBytes(payload: DataView, offset: number) : [ArrayBufferView, number] {
     let [bytesLength, index] = decodeU16(payload, offset);
-    // return [payload.buffer.slice(index, index + bytesLength), index + bytesLength];
     return [Buffer.from(payload.buffer, index, bytesLength), index + bytesLength];
 }
 
@@ -77,6 +73,10 @@ export function decodeUserProperty(payload: DataView, offset: number, userProper
 // MQTT 311 Packet decoding functions
 
 function decodeConnackPacket311(firstByte: number, payload: DataView) : model.ConnackPacketInternal {
+    if (firstByte != model.PACKET_TYPE_FIRST_BYTE_CONNACK) {
+        throw new CrtError("Connack with invalid first byte: " + firstByte);
+    }
+
     if (payload.byteLength != 2) {
         throw new CrtError("Connack packet invalid payload length");
     }
@@ -310,6 +310,10 @@ function decodeConnackPacket5(firstByte: number, payload: DataView) : model.Conn
     };
 
     [flags, index] = decodeU8(payload, index);
+    if ((flags & (~0x01)) != 0) {
+        throw new CrtError("Connack invalid flags");
+    }
+
     connack.sessionPresent = (flags & model.CONNACK_FLAGS_SESSION_PRESENT) != 0;
     [connack.reasonCode, index] = decodeU8(payload, index);
 

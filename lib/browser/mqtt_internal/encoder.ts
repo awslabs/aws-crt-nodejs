@@ -355,7 +355,7 @@ function getConnectPacketRemainingLengths5(packet: model.ConnectPacketBinary) : 
     }
 
     if (packet.will) {
-        remaining_length += vli.getVliByteLength(will_properties_length) + will_properties_length
+        remaining_length += vli.getVliByteLength(will_properties_length) + will_properties_length;
         remaining_length += 2 + packet.will.topicName.byteLength;
         remaining_length += 2; // payload length
         if (packet.will.payload) {
