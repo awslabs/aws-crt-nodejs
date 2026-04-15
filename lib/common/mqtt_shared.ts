@@ -7,6 +7,8 @@
  * @packageDocumentation
  */
 
+import * as event from "./event";
+
 
 import * as mqtt5 from "./mqtt5";
 import * as mqtt_utils from "../browser/mqtt5_utils";
@@ -157,6 +159,9 @@ function randomInRange(min: number, max: number) : number {
     return min + (max - min) * Math.random();
 }
 
+/**
+ * @internal
+ */
 export interface ReconnectDelayContext {
     retryJitterMode?: mqtt5.RetryJitterType,
     minReconnectDelayMs? : number,
@@ -168,7 +173,7 @@ export interface ReconnectDelayContext {
 /**
  * Computes the next reconnect delay based on the Jitter/Retry configuration.
  * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
- * @private
+ * @internal
  */
 export function calculateNextReconnectDelay(context: ReconnectDelayContext) : number {
     const jitterType : mqtt5.RetryJitterType = context.retryJitterMode ?? mqtt5.RetryJitterType.Default;
@@ -188,3 +193,115 @@ export function calculateNextReconnectDelay(context: ReconnectDelayContext) : nu
 
     return delay;
 }
+
+export type PublishAcknowledgementFunctor = () => void;
+
+/**
+ * Wrapper class containing a one-use singleton handle that can be used to trigger sending the acknowledgement (Puback in
+ * QoS 1, Pubrec in QoS 2) packet for an incoming publish.
+ */
+export class PublishAcknowledgementHandleWrapper {
+
+    private ackHandle : PublishAcknowledgementHandle | null;
+
+    constructor(handle : PublishAcknowledgementHandle | null) {
+        this.ackHandle = handle;
+    }
+
+    /**
+     * Attempt to take the acknowledgement handle held by the wrapper.  This will only succeed for the first caller;
+     * after the initial call, null will be returned.  By taking the handle, the caller assumes responsibility
+     * for sending the acknowledgement packet associated with the incoming publish packet.  Failing to trigger the
+     * acknowledgement will cause the broker to potentially re-send the publish.
+     */
+    acquireHandle() : PublishAcknowledgementHandle | null {
+        let handle = this.ackHandle;
+        this.ackHandle = null;
+
+        return handle;
+    }
+}
+
+function movePublishAcknowledgementHandleWrapper(wrapper: PublishAcknowledgementHandleWrapper | undefined, compositionFunctor?: PublishAcknowledgementFunctor) : PublishAcknowledgementHandleWrapper | undefined {
+    if (wrapper) {
+        let handle = wrapper.acquireHandle();
+        if (compositionFunctor && handle) {
+            let interiorHandle = handle;
+            handle = new PublishAcknowledgementHandle(() => {
+                interiorHandle.invokeAcknowledgement();
+                compositionFunctor();
+            });
+        }
+
+        return new PublishAcknowledgementHandleWrapper(handle);
+    }
+
+    return undefined;
+}
+
+/** @internal */
+export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    ackHandleWrapper = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
+    if (ackHandleWrapper) {
+        (ackEventPayload as any)[wrapperFieldName] = ackHandleWrapper;
+        emitter.emitWithCallback(ackEvent, () => {
+            if (ackHandleWrapper) {
+                let handle = ackHandleWrapper.acquireHandle();
+                if (handle) {
+                    // Even if corked, all listeners have had a chance to react to the event
+                    // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                    handle.invokeAcknowledgement();
+                }
+            }
+        }, ackEventPayload);
+    } else {
+        emitter.emit(ackEvent, ackEventPayload);
+    }
+}
+
+/** @internal */
+export function queueAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    let wrapper : PublishAcknowledgementHandleWrapper | undefined = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
+
+    queueMicrotask(() => {
+        if (wrapper) {
+            (ackEventPayload as any)[wrapperFieldName] = wrapper;
+            emitter.emitWithCallback(ackEvent, () => {
+                if (wrapper) {
+                    let handle = wrapper.acquireHandle();
+                    if (handle) {
+                        // Even if corked, all listeners have had a chance to react to the event
+                        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                        handle.invokeAcknowledgement();
+                    }
+                }
+            }, ackEventPayload);
+        } else {
+            emitter.emit(ackEvent, ackEventPayload);
+        }
+    });
+}
+
+/**
+ * Object that allows the holder to trigger the acknowledgement for an associated publish packet.
+ */
+export class PublishAcknowledgementHandle {
+
+    private acknowledgementFunction? : PublishAcknowledgementFunctor;
+
+    constructor(acknowledgementFunction : PublishAcknowledgementFunctor) {
+        this.acknowledgementFunction = acknowledgementFunction;
+    }
+
+    /**
+     * trigger the acknowledgement for an associated Publish packet
+     */
+    invokeAcknowledgement() : void {
+        let acknowledgementFunction = this.acknowledgementFunction;
+        this.acknowledgementFunction = undefined;
+        if (acknowledgementFunction) {
+            acknowledgementFunction();
+        }
+    }
+}
+
