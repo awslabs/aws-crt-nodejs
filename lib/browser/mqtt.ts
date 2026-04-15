@@ -739,11 +739,6 @@ export class MqttClientConnection extends BufferedEventEmitter {
     private on_disconnection = (event : internal_mqtt_client.DisconnectionEvent)=> {
         this.currentState = MqttBrowserClientState.Stopped;
         this.emit('interrupt', -1);
-
-        /* Did we intend to disconnect? If so, then emit the event */
-        if (this.desiredState == MqttBrowserClientState.Stopped) {
-            this.emit("closed");
-        }
     }
 
     private on_stopped = (event : internal_mqtt_client.StoppedEvent) => {
