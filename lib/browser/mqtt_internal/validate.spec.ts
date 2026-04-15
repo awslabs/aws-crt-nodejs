@@ -1241,8 +1241,8 @@ test('Binary connect packet validation - will too long', async () => {
     // @ts-ignore
     packet.will.payload = new Uint8Array(65537);
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("will payload too long");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("will payload too long");
 });
 
 // Disconnect Validation

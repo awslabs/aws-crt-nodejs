@@ -19,14 +19,24 @@ import { EventEmitter } from 'events';
  */
 export type EventKey = string | symbol;
 
+export type EventEmissionCallback = () => void
+
 /**
  * @internal
  */
 class BufferedEvent {
+    public callback?: EventEmissionCallback;
     public next?: BufferedEvent;
     public args: any[];
     constructor(public event: EventKey, args: any[]) {
         this.args = args;
+    }
+
+    static newWithEmissionCallback(key: EventKey, callback: EventEmissionCallback, args: any[]) : BufferedEvent {
+        let bufferedEvent : BufferedEvent = new BufferedEvent(key, args);
+        bufferedEvent.callback = callback;
+
+        return bufferedEvent;
     }
 }
 
@@ -68,6 +78,9 @@ export class BufferedEventEmitter extends EventEmitter {
         while (this.eventQueue) {
             const event = this.eventQueue;
             super.emit(event.event, ...event.args);
+            if (event.callback) {
+                event.callback();
+            }
             this.eventQueue = this.eventQueue.next;
         }
         this.lastQueuedEvent = undefined;
@@ -94,5 +107,23 @@ export class BufferedEventEmitter extends EventEmitter {
         }
 
         return super.emit(event, ...args);
+    }
+
+    emitWithCallback(event: EventKey, emissionCallback: EventEmissionCallback, ...args: any[]) : boolean {
+        if (this.corked) {
+            // queue requests in order
+            let last = this.lastQueuedEvent;
+            this.lastQueuedEvent = BufferedEvent.newWithEmissionCallback(event, emissionCallback, args);
+            if (last) {
+                last.next = this.lastQueuedEvent;
+            } else {
+                this.eventQueue = this.lastQueuedEvent;
+            }
+            return this.listeners(event).length > 0;
+        }
+
+        let result = super.emit(event, ...args);
+        emissionCallback();
+        return result;
     }
 }
