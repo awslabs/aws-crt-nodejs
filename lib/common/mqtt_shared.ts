@@ -62,6 +62,23 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
     return normalized;
 }
 
+/**
+ * SDK name used for metrics and identification
+ * @internal
+ */
+export const SDK_NAME : string = "IoTDeviceSDK/JS";
+
+/**
+ * IoT Device SDK Metrics Structure
+ * @internal
+ */
+export class AwsIoTDeviceSDKMetrics {
+    /**
+     * Name of the library
+     */
+    libraryName: string = SDK_NAME;
+}
+
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
 
