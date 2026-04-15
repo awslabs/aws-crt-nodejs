@@ -9,8 +9,7 @@
  */
 
 import * as mqtt5_packet from "./mqtt5_packet";
-import * as mqtt_shared from "./mqtt_shared";
-
+import * as mqtt_shared from "../common/mqtt_shared";
 import { ICrtError } from "./error";
 
 /**

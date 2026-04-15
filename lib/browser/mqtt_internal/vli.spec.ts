@@ -160,6 +160,35 @@ test('VLI encoding overflow', () => {
     expect(() => { vli.encodeVli(view1, 128 * 128 * 128 * 128) }).toThrow("Invalid VLI value");
 });
 
+test('VLI decoding invalid offset', () => {
+    let buffer1 = new Uint8Array([0, 128, 0]);
+    expect(() => { vli.decodeVli(new DataView(buffer1.buffer, 1, 1), -1) }).toThrow("Invalid DataView offset");
+});
+
+test('VLI decoding - insufficient data', () => {
+    let buffer0 = new Uint8Array([0]);
+    expect(vli.decodeVli(new DataView(buffer0.buffer, 0, 0), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+
+    let buffer1 = new Uint8Array([0, 128, 0]);
+    expect(vli.decodeVli(new DataView(buffer1.buffer, 1, 0), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer1.buffer, 1, 1), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+
+    let buffer2 = new Uint8Array([0, 0, 128, 128, 0]);
+    expect(vli.decodeVli(new DataView(buffer2.buffer, 2, 0), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer2.buffer, 2, 1), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer2.buffer, 2, 2), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+
+    let buffer3 = new Uint8Array([0, 0, 0, 128, 128, 128, 0]);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 3, 0), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 3, 1), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 3, 2), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 3, 3), 0).type).toBe(vli.VliDecodeResultType.MoreData);
+
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 1, 2), 2).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 1, 3), 2).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 1, 4), 2).type).toBe(vli.VliDecodeResultType.MoreData);
+    expect(vli.decodeVli(new DataView(buffer3.buffer, 1, 5), 2).type).toBe(vli.VliDecodeResultType.MoreData);
+});
 
 test('VLI decoding - 1 byte', () => {
     let buffer_0 = new Uint8Array([0]);
@@ -173,6 +202,11 @@ test('VLI decoding - 1 byte', () => {
 
     let buffer_127 = new Uint8Array([127]);
     expect(vli.decodeVli(new DataView(buffer_127.buffer), 0).value).toBe(127);
+
+    let buffer_127_offset = new Uint8Array([0, 127, 0]);
+    let result = vli.decodeVli(new DataView(buffer_127_offset.buffer), 1);
+    expect(result.value).toBe(127);
+    expect(result.nextOffset).toBe(2);
 });
 
 test('VLI decoding - 2 byte', () => {
@@ -193,6 +227,11 @@ test('VLI decoding - 2 byte', () => {
 
     let buffer_16382 = new Uint8Array([254, 127]);
     expect(vli.decodeVli(new DataView(buffer_16382.buffer), 0).value).toBe(16382);
+
+    let buffer_16382_offset = new Uint8Array([0, 0, 254, 127, 0]);
+    let result = vli.decodeVli(new DataView(buffer_16382_offset.buffer), 2);
+    expect(result.value).toBe(16382);
+    expect(result.nextOffset).toBe(4);
 });
 
 test('VLI decoding - 3 byte', () => {
@@ -210,6 +249,11 @@ test('VLI decoding - 3 byte', () => {
 
     let buffer5 = new Uint8Array([255, 255, 127]);
     expect(vli.decodeVli(new DataView(buffer5.buffer), 0).value).toBe(128 * 128 * 128 - 1);
+
+    let buffer5_offset = new Uint8Array([0, 0, 0, 255, 255, 127, 0]);
+    let result = vli.decodeVli(new DataView(buffer5_offset.buffer), 3);
+    expect(result.value).toBe(128 * 128 * 128 - 1);
+    expect(result.nextOffset).toBe(6);
 });
 
 test('VLI decoding - 4 byte', () => {
@@ -219,8 +263,13 @@ test('VLI decoding - 4 byte', () => {
     let buffer2 = new Uint8Array([129, 128, 128, 1]);
     expect(vli.decodeVli(new DataView(buffer2.buffer), 0).value).toBe(128 * 128 * 128 + 1);
 
-    let buffer5 = new Uint8Array([255, 255, 255, 127]);
-    expect(vli.decodeVli(new DataView(buffer5.buffer), 0).value).toBe(128 * 128 * 128 * 128 - 1);
+    let buffer3 = new Uint8Array([255, 255, 255, 127]);
+    expect(vli.decodeVli(new DataView(buffer3.buffer), 0).value).toBe(128 * 128 * 128 * 128 - 1);
+
+    let buffer3_offset = new Uint8Array([0, 0, 0, 0, 255, 255, 255, 127, 0]);
+    let result = vli.decodeVli(new DataView(buffer3_offset.buffer), 4);
+    expect(result.value).toBe(128 * 128 * 128 * 128 - 1);
+    expect(result.nextOffset).toBe(8);
 });
 
 function doRoundTripEncodeDecodeVliTest(value: number) {

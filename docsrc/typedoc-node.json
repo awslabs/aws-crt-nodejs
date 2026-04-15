@@ -15,7 +15,8 @@
         "../lib/common/http.ts",
         "../lib/common/mqtt_shared.ts",
         "../lib/common/platform.ts",
-        "../lib/common/resource_safety.ts"
+        "../lib/common/resource_safety.ts",
+        "../lib/common/mqtt_shared.ts"
     ],
     "out": "../docs/node",
     "excludeExternals": true,

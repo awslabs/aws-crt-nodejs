@@ -1549,6 +1549,7 @@ static bool s_create_and_register_function(
     CREATE_AND_REGISTER_FN(mqtt5_client_unsubscribe)
     CREATE_AND_REGISTER_FN(mqtt5_client_publish)
     CREATE_AND_REGISTER_FN(mqtt5_client_get_queue_statistics)
+    CREATE_AND_REGISTER_FN(mqtt5_client_invoke_publish_acknowledgement)
     CREATE_AND_REGISTER_FN(mqtt5_client_close)
 
     /* MQTT Client */

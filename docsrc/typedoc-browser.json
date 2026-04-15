@@ -10,8 +10,8 @@
         "../lib/browser/mqtt5.ts",
         "../lib/browser/ws.ts",
         "../lib/common/event.ts",
-        "../lib/common/mqtt_shared.ts",
-        "../lib/common/http.ts"
+        "../lib/common/http.ts",
+        "../lib/common/mqtt_shared.ts"
     ],
     "tsconfig": "../tsconfig.browser.json",
     "out": "../docs/browser",

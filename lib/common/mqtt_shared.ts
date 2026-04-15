@@ -196,7 +196,7 @@ function getOrderedReconnectDelayBounds(configMin: number | undefined, configMax
 /**
  * Computes the next reconnect delay based on the Jitter/Retry configuration.
  * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
- * @private
+ * @internal
  */
 export function calculateNextReconnectDelay(context: ReconnectDelayContext) : number {
     const jitterType : mqtt5.RetryJitterType = context.retryJitterMode ?? mqtt5.RetryJitterType.Default;
@@ -327,3 +327,4 @@ export class PublishAcknowledgementHandle {
         }
     }
 }
+
