@@ -44,8 +44,6 @@ export interface WebsocketSigv4Config {
  * Builder pattern class to create an {@link mqtt5.Mqtt5ClientConfig} which can then be used to create
  * an {@link mqtt5.Mqtt5Client}, configured for use with AWS IoT.
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
- *
  * @category IoT
  */
 export class AwsIotMqtt5ClientConfigBuilder {
