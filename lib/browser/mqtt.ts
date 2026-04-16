@@ -39,7 +39,8 @@ import {
     Payload,
     QoS
 } from "../common/mqtt";
-import {normalize_payload, normalize_payload_to_buffer} from "../common/mqtt_shared";
+import {normalize_payload} from "../common/mqtt_shared";
+import {normalize_payload_to_buffer} from "./mqtt_shared_browser";
 import {once} from "events";
 
 export {

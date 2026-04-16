@@ -7,7 +7,7 @@ import {CrtError} from "../error";
 import * as encoder from "./encoder";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as mqtt5_common from "../../common/mqtt5";
-import * as mqtt_shared from '../../common/mqtt_shared';
+import * as mqtt_shared_browser from "../mqtt_shared_browser";
 import * as model from "./model";
 
 /**
@@ -387,7 +387,7 @@ export function validateOptionalBinaryData(value: mqtt5_packet.BinaryData | unde
 
 function validateTopic(value: string, fieldName:string) {
     validateString(value, fieldName);
-    if (!mqtt_shared.isValidTopic(value)) {
+    if (!mqtt_shared_browser.isValidTopic(value)) {
         throw new CrtError(`value "${value}" of field "${fieldName}" is not a valid topic`);
     }
 }
@@ -402,7 +402,7 @@ function validateOptionalTopic(value: string | undefined, fieldName:string) {
 
 function validateTopicFilter(value: string, fieldName:string) {
     validateString(value, fieldName);
-    if (!mqtt_shared.isValidTopicFilter(value)) {
+    if (!mqtt_shared_browser.isValidTopicFilter(value)) {
         throw new CrtError(`value "${value}" of field "${fieldName}" is not a valid topic filter`);
     }
 }
@@ -574,7 +574,7 @@ function validateBinaryPuback(packet: model.PubackPacketBinary, mode: model.Prot
 }
 
 function validateSubscription(subscription: model.SubscriptionBinary, mode: model.ProtocolMode, settings: mqtt5_common.NegotiatedSettings) {
-    let properties = mqtt_shared.computeTopicProperties(subscription.topicFilterAsString, true);
+    let properties = mqtt_shared_browser.computeTopicProperties(subscription.topicFilterAsString, true);
     if (properties.isShared) {
         if (!settings.sharedSubscriptionsAvailable) {
             throw new CrtError("Shared subscriptions are not supported by the server");

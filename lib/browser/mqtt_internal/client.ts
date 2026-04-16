@@ -8,6 +8,7 @@ import * as mqtt5 from "../../common/mqtt5"
 import * as protocol from "./protocol"
 import * as model from "./model"
 import * as mqtt_shared from "../../common/mqtt_shared";
+import * as mqtt_shared_browser from "../mqtt_shared_browser";
 import * as promise from "../../common/promise"
 import * as ws from "../ws"
 import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
@@ -1005,7 +1006,7 @@ export class Client extends BufferedEventEmitter {
             lastReconnectDelay : this.lastReconnectDelay,
             connectionFailureCount : this.connectionFailureCount,
         };
-        let nextDelay : number = mqtt_shared.calculateNextReconnectDelay(reconnectContext);
+        let nextDelay : number = mqtt_shared_browser.calculateNextReconnectDelay(reconnectContext);
 
         this.lastReconnectDelay = nextDelay;
         this.connectionFailureCount += 1;
