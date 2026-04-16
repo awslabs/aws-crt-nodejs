@@ -538,8 +538,7 @@ class ProtocolTestFixture {
         expect(this.protocolState.getOperationTimeouts().empty()).toEqual(true);
         expect(this.protocolState.getBoundPacketIds().size).toEqual(0);
 
-        expect(this.protocolState.getPendingPublishAcks().size).toEqual(0);
-        expect(this.protocolState.getPendingNonPublishAcks().size).toEqual(0);
+        expect(this.protocolState.getPendingAcks().size).toEqual(0);
         expect(this.protocolState.getPendingWriteCompletionOperations().length).toEqual(0);
     }
 
@@ -1970,7 +1969,7 @@ function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, o
 }
 
 function verifyPendingAck(fixture: ProtocolTestFixture) {
-    expect(fixture.protocolState.getPendingNonPublishAcks().size).toEqual(1);
+    expect(fixture.protocolState.getPendingAcks().size).toEqual(1);
 }
 
 describe("ReconnectNoSessionWhileSubscribePendingAckSuccessTest", () => {
@@ -2054,7 +2053,12 @@ describe("ReconnectSessionPresentWhileQos0PublishPendingAckFailureTest", () => {
 });
 
 function verifyPendingQos1PublishOperation(fixture: ProtocolTestFixture) {
-    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(1);
+    expect(fixture.protocolState.getPendingAcks().size).toEqual(1);
+
+    let operationId : number = fixture.protocolState.getPendingAcks().values().next().value;
+    let operation = fixture.protocolState.getOperations().get(operationId);
+    expect(operation).toBeDefined();
+    expect(operation?.type).toEqual(mqtt5_packet.PacketType.Publish);
 }
 
 describe("ReconnectNoSessionWhileQos1PublishPendingAckSuccessTest", () => {
@@ -2620,7 +2624,7 @@ function doDisconnectWhileOperationPendingTest<T>(mode: model.ProtocolMode, offl
     expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
     fixture.service(0);
-    expect(fixture.protocolState.getPendingPublishAcks().size + fixture.protocolState.getPendingNonPublishAcks().size + fixture.protocolState.getPendingWriteCompletionOperations().length).toEqual(1);
+    expect(fixture.protocolState.getPendingAcks().size + fixture.protocolState.getPendingWriteCompletionOperations().length).toEqual(1);
 
     fixture.onConnectionClosed(0);
 
@@ -2755,7 +2759,7 @@ function doDisconnectWhileQos1PublishPendingSetsDuplicateTest(mode: model.Protoc
     expect(publishPacket.duplicate ?? 0).toEqual(0);
 
     fixture.service(0);
-    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(1);
+    expect(fixture.protocolState.getPendingAcks().size).toEqual(1);
 
     fixture.onConnectionClosed(0);
     expect(result.state).toEqual(OperationResultStateType.Pending);
@@ -2988,7 +2992,7 @@ function doAckOrderTest(mode: model.ProtocolMode) {
 
     fixture.serviceRoundTrip(0);
     fixture.serviceRoundTrip(0);
-    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(0);
+    expect(fixture.protocolState.getPendingAcks().size).toEqual(0);
     expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
 
     let incomingPublishes : Array<model.PublishPacketInternal> = fixture.toClientPackets.filter((packet) => {
@@ -3057,7 +3061,7 @@ function doDisconnectTest(mode: model.ProtocolMode) {
     expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(2);
     expect(fixture.protocolState.getCurrentOperation()).toBeDefined();
     expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
-    expect(fixture.protocolState.getPendingPublishAcks().size).toEqual(2);
+    expect(fixture.protocolState.getPendingAcks().size).toEqual(2);
 
     fixture.disconnect(0, {
             reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
