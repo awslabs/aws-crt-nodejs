@@ -6,8 +6,6 @@
 /**
  * Browser specific MQTT5 client implementation
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
- *
  * @packageDocumentation
  * @module mqtt5
  * @mergeTarget
@@ -267,8 +265,6 @@ const DEFAULT_CONNECT_TIMEOUT_MS : number = 10 * 1000;
 
 /**
  * Browser specific MQTT5 client implementation
- *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
  */
 export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Client {
     private internalClient: internal_mqtt_client.Client;
