@@ -408,7 +408,7 @@ export class Client extends BufferedEventEmitter {
     private resetConnectionFailuresTimepoint? : number = undefined; // relative to creationTime
 
     private nextServiceTimepoint? : number = undefined; // relative to creationTime
-    private serviceTask? : number = undefined;
+    private serviceTask? : any = undefined;
     private inService : boolean = false;
 
     private socketWriteBuffer : ArrayBuffer = new ArrayBuffer(4096);
@@ -885,7 +885,7 @@ export class Client extends BufferedEventEmitter {
         if (serviceTime != undefined) {
             let futureMillis = serviceTime - currentTime;
             flogDebug(CLIENT_LOG_SUBJECT, () => { return `scheduling next service for ${futureMillis} millis from now`; });
-            setTimeout(this.service.bind(this), Math.max(0, futureMillis));
+            this.serviceTask = setTimeout(this.service.bind(this), Math.max(0, futureMillis));
             this.nextServiceTimepoint = serviceTime;
         }
     }
@@ -1044,13 +1044,13 @@ export class Client extends BufferedEventEmitter {
             this.emit(Client.CONNECTION_SUCCESS, {
                 connack: event.packet
             });
-        }
 
-        if (this.config.resubscribeMode == ResubscribeModeType.EnabledAlways ||
-            (this.config.resubscribeMode == ResubscribeModeType.EnabledOnSessionResumptionFail && !event.packet.sessionPresent)) {
-            let subscribes = this.resubscribeManager.buildResubscribePacketList();
-            for (let subscribe of subscribes) {
-                this.subscribe(subscribe);
+            if (this.config.resubscribeMode == ResubscribeModeType.EnabledAlways ||
+                (this.config.resubscribeMode == ResubscribeModeType.EnabledOnSessionResumptionFail && !event.packet.sessionPresent)) {
+                let subscribes = this.resubscribeManager.buildResubscribePacketList();
+                for (let subscribe of subscribes) {
+                    this.subscribe(subscribe);
+                }
             }
         }
 
@@ -1170,7 +1170,7 @@ function buildDisconnectionEventLogString(event: DisconnectionEvent, prefix: str
 function buildConnectionFailureEventLogString(event: ConnectionFailureEvent, prefix: string) : string {
     let result = `${prefix}ConnectionFailureEvent: {\n`;
 
-    result += `${prefix}  error: "${event.error.toString()}\n"`;
+    result += `${prefix}  error: "${event.error.toString()}"\n`;
     if (event.connack) {
         result += `${prefix}  connack: ${model.connackPacketToLogString(event.connack as model.ConnackPacketInternal, prefix + "  ")}`;
     }
