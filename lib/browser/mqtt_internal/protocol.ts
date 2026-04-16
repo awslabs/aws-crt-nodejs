@@ -11,7 +11,7 @@ import * as decoder from "./decoder";
 import * as heap from "../heap";
 import * as validate from "./validate";
 import {CrtError} from "../error";
-import {flogError, flogDebug, flogInfo, logDebug, logInfo} from "../../common/io";
+import {flogError, flogDebug, flogInfo, logDebug, logInfo, flogWarn} from "../../common/io";
 
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_shared from "../../common/mqtt_shared";
@@ -140,7 +140,7 @@ export interface ConnectOptions {
     /** Value to use for the will property in the Connect packet */
     will?: mqtt5_packet.PublishPacket;
 
-    /** u\User properties to use in the Connect packet */
+    /** User properties to use in the Connect packet */
     userProperties?: Array<mqtt5_packet.UserProperty>;
 }
 
@@ -687,8 +687,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     private pendingWriteCompletionOperations : Array<number> = new Array<number>();
     private pendingFlushOperations: Array<number> = new Array<number>();
 
-    private pendingPublishAcks : Map<number, number> = new Map<number, number>();
-    private pendingNonPublishAcks : Map<number, number> = new Map<number, number>();
+    private pendingAcks : Map<number, number> = new Map<number, number>();
+    private unackedPublishCount : number = 0;
 
     private lastNegotiatedSettings : mqtt5.NegotiatedSettings = createDefaultNegotiatedSettings();
     private lastOutboundConnect : model.ConnectPacketInternal = createDefaultConnect();
@@ -855,8 +855,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     getPendingWriteCompletionOperations() : Array<number> { return this.pendingWriteCompletionOperations; }
     getPendingFlushOperations() : Array<number> { return this.pendingFlushOperations; }
 
-    getPendingPublishAcks() : Map<number, number> { return this.pendingPublishAcks; }
-    getPendingNonPublishAcks() : Map<number, number> { return this.pendingNonPublishAcks; }
+    getPendingAcks() : Map<number, number> { return this.pendingAcks; }
+    getUnackedPublishCount() : number { return this.unackedPublishCount; }
 
     /**
      * Event emitted when the protocol object becomes halted.
@@ -975,8 +975,14 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Releasing packet id ${id}`);
 
         this.boundPacketIds.delete(id);
-        this.pendingPublishAcks.delete(id);
-        this.pendingNonPublishAcks.delete(id);
+        this.pendingAcks.delete(id);
+    }
+
+    private onOperationFinished(operation: ClientOperation) {
+        this.unbindPacketId(operation.packetId);
+        if (operation.type == mqtt5_packet.PacketType.Publish && (operation.packetId ?? 0) != 0) {
+            this.unackedPublishCount--;
+        }
     }
 
     private failOperation(id: number, error: CrtError) {
@@ -984,7 +990,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
         let operation = this.operations.get(id);
         if (operation) {
-            this.unbindPacketId(operation.packetId);
+            this.onOperationFinished(operation);
+
             if (operation.options) {
                 operation.options.resultHandler.onCompletionFailure(error);
             }
@@ -998,7 +1005,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
         let operation = this.operations.get(id);
         if (operation) {
-            this.unbindPacketId(operation.packetId);
+            this.onOperationFinished(operation);
+
             if (operation.options) {
                 switch (operation.type) {
                     case mqtt5_packet.PacketType.Publish:
@@ -1100,7 +1108,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
     }
 
     private canAllocatePacketId() : boolean {
-        return this.pendingPublishAcks.size + this.pendingNonPublishAcks.size < MAXIMUM_NUMBER_OF_PACKET_IDS;
+        return this.pendingAcks.size < MAXIMUM_NUMBER_OF_PACKET_IDS;
     }
 
     private wouldOperationBreachReceiveMaximum(id: number) : boolean {
@@ -1115,7 +1123,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
         let publishPacket = operation.packet as model.PublishPacketBinary;
         if (publishPacket.qos != mqtt5_packet.QoS.AtMostOnce) {
-            if (this.pendingPublishAcks.size >= this.lastNegotiatedSettings.receiveMaximumFromServer) {
+            if (this.unackedPublishCount >= this.lastNegotiatedSettings.receiveMaximumFromServer) {
                 return true;
             }
         }
@@ -1191,7 +1199,8 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             case mqtt5_packet.PacketType.Publish:
                 if (operation.packetId != undefined) {
                     // track the expected ack for qos 1 completion
-                    this.pendingPublishAcks.set(operation.packetId, operation.id);
+                    this.unackedPublishCount++;
+                    this.pendingAcks.set(operation.packetId, operation.id);
 
                     let publishOptions = operation.options as PublishOptionsInternal;
                     timeoutMillis = publishOptions.options.timeoutInMillis;
@@ -1204,7 +1213,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             case mqtt5_packet.PacketType.Subscribe:
                 if (operation.packetId != undefined) {
                     // setup operation completion for corresponding suback
-                    this.pendingNonPublishAcks.set(operation.packetId, operation.id);
+                    this.pendingAcks.set(operation.packetId, operation.id);
                     let subscribeOptions = operation.options as SubscribeOptionsInternal;
                     timeoutMillis = subscribeOptions.options.timeoutInMillis;
                 } else {
@@ -1215,7 +1224,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             case mqtt5_packet.PacketType.Unsubscribe:
                 if (operation.packetId != undefined) {
                     // setup operation completion for corresponding unsuback
-                    this.pendingNonPublishAcks.set(operation.packetId, operation.id);
+                    this.pendingAcks.set(operation.packetId, operation.id);
                     let unsubscribeOptions = operation.options as UnsubscribeOptionsInternal;
                     timeoutMillis = unsubscribeOptions.options.timeoutInMillis;
                 } else {
@@ -1441,7 +1450,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         // check for and handle a pingresp timeout
         if (this.pendingPingrespTimeoutElapsedMillis) {
             if (this.elapsedMillis >= this.pendingPingrespTimeoutElapsedMillis) {
-                logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Pingresp timeout exceede.");
+                logInfo(PROTOCOL_STATE_LOG_SUBJECT, "Pingresp timeout exceeded.");
 
                 this.halt(HaltEventType.Timeout, new CrtError("Pingresp timeout"));
             }
@@ -1504,7 +1513,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             // don't want to log the packet until it passes initial validation
             flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => model.internalPacketToLogString(packet, "  "));
 
-            // ofline queue policy check
+            // offline queue policy check
             if (queueType == OperationQueueType.User) {
                 if (this.state != ProtocolStateType.Connected) {
                     if (!this.operationPassesOfflineQueuePolicy(operation.id)) {
@@ -1662,35 +1671,31 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let remainingWriteCompletions = this.partitionAndFailQueueByOfflineQueuePolicy(this.pendingWriteCompletionOperations, failError);
         this.pendingWriteCompletionOperations = [];
 
-        // 2. filter non-publish pending ack and append to user queue
-        this.pendingNonPublishAcks.forEach((operationId) => {
-            if (this.operationPassesOfflineQueuePolicy(operationId)) {
-                this.userOperationQueue.push(operationId);
-            } else {
-                this.failOperation(operationId, failError);
-            }
-        });
-        this.pendingNonPublishAcks.clear();
-
-        // 3. mark publish pending ack as duplicate and append to resubmit queue
-        this.pendingPublishAcks.forEach((operationId) => {
+        // 2. process pending acks:
+        //   (a) mark publish pending ack as duplicate and append to resubmit queue
+        //   (b) filter non-publish pending ack and append to resubmit queue
+        this.pendingAcks.forEach((operationId) => {
             let operation = this.operations.get(operationId);
             if (operation) {
-                let publish = operation.packet as model.PublishPacketBinary;
-                publish.duplicate = 1;
+                if (operation.type == mqtt5_packet.PacketType.Publish) {
+                    let publish = operation.packet as model.PublishPacketBinary;
+                    publish.duplicate = 1;
+                    this.resubmitOperationQueue.push(operationId);
+                } else if (this.operationPassesOfflineQueuePolicy(operationId)) {
+                    this.resubmitOperationQueue.push(operationId);
+                } else {
+                    this.failOperation(operationId, failError);
+                }
             }
-
-            this.resubmitOperationQueue.push(operationId);
         });
-        this.pendingPublishAcks.clear();
 
-        // 4. filter user queue
+        // 3. filter user queue
         this.userOperationQueue = this.partitionAndFailQueueByOfflineQueuePolicy(this.userOperationQueue, failError);
 
-        // 5. append preserved write completion operations to user queue
-        this.userOperationQueue = this.userOperationQueue.concat(remainingWriteCompletions);
+        // 4. append preserved write completion operations to resubmit queue
+        this.resubmitOperationQueue = this.resubmitOperationQueue.concat(remainingWriteCompletions);
 
-        // side-affected queues (user and resubmit) will be sorted on the transition to connected state
+        // side-affected queues (resubmit) will be sorted on the transition to connected state
     }
 
     private isReceivedPacketTypeValidForState(type: mqtt5_packet.PacketType | undefined) : boolean {
@@ -1745,9 +1750,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 validate.validateInboundPacket(packet, this.config.protocolVersion);
             } catch (e) {
                 flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Invalid packet of type ${mqtt5_packet.PacketType[packet.type ?? -1]} received`);
-
                 this.halt(HaltEventType.ProtocolError, e as CrtError);
-                continue;
+
+                // Inbound validation checks critical protocol invariants (like packet ids, reason codes, etc...).  So early out here rather than
+                // continue processing.
+                return;
             }
 
             this.handleIncomingPacket(packet);
@@ -1836,7 +1843,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private handleIncomingPuback(packet: model.PubackPacketInternal) : void {
         let id = packet.packetId;
-        let operationId = this.pendingPublishAcks.get(id);
+        let operationId = this.pendingAcks.get(id);
         if (!operationId) {
             flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Puback with packet id ${id} received with no corresponding pending QoS1+ publish`);
             return;
@@ -1845,6 +1852,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let operation = this.operations.get(operationId);
         if (!operation) {
             flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Puback with packet id ${id} corresponding to operation ${operationId} has no operation entry`);
+            return;
+        }
+
+        if (operation.type != mqtt5_packet.PacketType.Publish) {
+            flogWarn(PROTOCOL_STATE_LOG_SUBJECT, () => `Puback with packet id ${id} corresponding to operation ${operationId} has operation that is not a Publish.  This is usually because of a preceding operation timeout conflicting with packet id reuse.`);
             return;
         }
 
@@ -1857,7 +1869,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
 
     private handleIncomingSuback(packet: model.SubackPacketInternal) : void {
         let id = packet.packetId;
-        let operationId = this.pendingNonPublishAcks.get(id);
+        let operationId = this.pendingAcks.get(id);
         if (!operationId) {
             flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Suback with packet id ${id} received with no corresponding pending subscribe`);
             return;
@@ -1869,13 +1881,18 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
             return;
         }
 
+        if (operation.type != mqtt5_packet.PacketType.Subscribe) {
+            flogWarn(PROTOCOL_STATE_LOG_SUBJECT, () => `Suback with packet id ${id} corresponding to operation ${operationId} has operation that is not a Subscribe.  This is usually because of a preceding operation timeout conflicting with packet id reuse.`);
+            return;
+        }
+
         this.pushOutNextPing(operation.flushTimepoint);
         this.completeOperation(operationId, packet);
     }
 
     private handleIncomingUnsuback(packet: model.UnsubackPacketInternal) : void {
         let id = packet.packetId;
-        let operationId = this.pendingNonPublishAcks.get(id);
+        let operationId = this.pendingAcks.get(id);
         if (!operationId) {
             flogDebug(PROTOCOL_STATE_LOG_SUBJECT, () => `Unsuback with packet id ${id} received with no corresponding pending unsubscribe`);
             return;
@@ -1884,6 +1901,11 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         let operation = this.operations.get(operationId);
         if (!operation) {
             flogError(PROTOCOL_STATE_LOG_SUBJECT, () => `Unsuback with packet id ${id} corresponding to operation ${operationId} has no operation entry`);
+            return;
+        }
+
+        if (operation.type != mqtt5_packet.PacketType.Unsubscribe) {
+            flogWarn(PROTOCOL_STATE_LOG_SUBJECT, () => `Unsuback with packet id ${id} corresponding to operation ${operationId} has operation that is not an Unsubscribe.  This is usually because of a preceding operation timeout conflicting with packet id reuse.`);
             return;
         }
 
