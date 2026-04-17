@@ -166,10 +166,8 @@ async function doSubscribe(context: CanaryContext) {
 
 async function doStop(context: CanaryContext) {
     let index = getRandomIndex(context.clients);
-    if (context.clientStarted[index]) {
-        context.clients[index].stop();
-        context.clientStarted[index] = false;
-    }
+    context.clients[index].stop();
+    context.clientStarted[index] = false;
 }
 
 async function doUnsubscribe(context: CanaryContext) {
@@ -254,10 +252,10 @@ async function runCanary(testContext: TestContext, mqttStats: CanaryMqttStatisti
 
     let operationTable = [
         { weight : 1, op: () => { doStop(context) }},
-        { weight : 200, op: () => { doSubscribe(context); }},
-        { weight : 200, op: () => { doUnsubscribe(context); }},
-        { weight : 200, op: () => { doPublish(context, mqtt5.QoS.AtMostOnce); }},
-        { weight : 200, op: () => { doPublish(context, mqtt5.QoS.AtLeastOnce); }}
+        { weight : 100, op: () => { doSubscribe(context); }},
+        { weight : 100, op: () => { doUnsubscribe(context); }},
+        { weight : 100, op: () => { doPublish(context, mqtt5.QoS.AtMostOnce); }},
+        { weight : 100, op: () => { doPublish(context, mqtt5.QoS.AtLeastOnce); }}
     ];
 
     let weightedOperations = operationTable.map(function (operation) {
