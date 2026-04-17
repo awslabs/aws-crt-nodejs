@@ -171,3 +171,84 @@ export function calculateNextReconnectDelay(context: ReconnectDelayContext) : nu
 
     return delay;
 }
+
+interface QueryParsedUsername {
+    prefix?: string,
+    queryParams: [string, string][]
+}
+
+function parseUsernameAsQueryString(username?: string) : QueryParsedUsername {
+    if (!username) {
+        return {
+            queryParams: []
+        };
+    }
+
+    let queryIndex = username.lastIndexOf('?');
+    if (queryIndex < 0) {
+        return {
+            prefix: username,
+            queryParams: []
+        }
+    }
+
+    let parsed : QueryParsedUsername = {
+        prefix: username.substring(0, queryIndex),
+        queryParams: []
+    }
+
+    let remaining = username.substring(queryIndex + 1);
+    while (remaining.length > 0) {
+        let ampersandIndex = remaining.indexOf('&');
+        let pair : string;
+        if (ampersandIndex < 0) {
+            pair = remaining;
+            remaining = "";
+        } else {
+            pair = remaining.substring(0, ampersandIndex);
+            remaining = remaining.substring(ampersandIndex + 1);
+        }
+
+        let equalsIndex = pair.indexOf('=');
+        if (equalsIndex < 0) {
+            // @ts-ignore
+            parsed.queryParams.push([
+                pair,
+                ""
+            ]);
+        } else {
+            // @ts-ignore
+            parsed.queryParams.push([
+                pair.substring(0, equalsIndex),
+                pair.substring(equalsIndex + 1)
+            ]);
+        }
+    }
+
+    return parsed;
+}
+
+function addTopLevelQueryParamIfNonexistent(parsed: QueryParsedUsername, pair: [string, string]) {
+    let key = pair[0];
+
+    let existingIndex = parsed.queryParams.findIndex((element) => element[0] === key);
+    if (existingIndex < 0) {
+        parsed.queryParams.push(pair);
+    }
+}
+
+function buildUsernameFromQueryParse(parsed: QueryParsedUsername) : string {
+    let prefix = parsed.prefix ?? "";
+    return prefix + "?" + parsed.queryParams.map((pair) => pair.join("=")).join("&");
+}
+
+export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics, username?: string) : string {
+    let parsedAsQuery = parseUsernameAsQueryString(username);
+
+    addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["SDK", metrics.libraryName]);
+
+    let browserInfo = window?.navigator?.userAgent ?? "unknown";
+    addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["Platform", `Browser(${browserInfo})`]);
+
+    return buildUsernameFromQueryParse(parsedAsQuery);
+}
