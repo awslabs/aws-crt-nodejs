@@ -82,7 +82,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
             clean_session: true,
             username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
             password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
-            socket_options: new SocketOptions()
+            socket_options: new SocketOptions(),
+            disable_metrics: true
         }
         await test_connection(config, new MqttClient(new ClientBootstrap()));
     })
@@ -97,7 +98,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
             clean_session: true,
             username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
             password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
-            socket_options: new SocketOptions(),
+            socket_options: new SocketOptions()
         }
 
         const client = new MqttClient(new ClientBootstrap())
