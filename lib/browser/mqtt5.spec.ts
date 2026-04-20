@@ -330,40 +330,15 @@ function createOperationFailureClient() : mqtt5.IMqtt5Client {
     return new mqtt5.Mqtt5Client(createWsIotCoreClientConfig());
 }
 
-/* Variant of the shared version that doesn't expect the stop call to throw */
-async function testDisconnectValidationFailure(client : mqtt5.Mqtt5Client, sessionExpiry: number) {
-    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
-    let disconnection = once(client, mqtt5.Mqtt5Client.DISCONNECTION);
-
-    client.start();
-
-    await connectionSuccess;
-
-    client.stop({
-        reasonCode: mqtt5.DisconnectReasonCode.NormalDisconnection,
-        sessionExpiryIntervalSeconds: sessionExpiry
-    });
-
-    // even though validation fails, we should still see the connection drop (on failure result handler)
-    await disconnection;
-
-    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
-
-    client.stop();
-    await stopped;
-
-    client.close();
-}
-
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry underflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
-        await testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, -5);
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry overflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
-        await testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, 4294967296);
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), 4294967296);
     })
 });
 
