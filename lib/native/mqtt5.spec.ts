@@ -12,7 +12,7 @@ import {v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
 
-jest.setTimeout(30000);
+jest.setTimeout(45000);
 
 function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnectionTestType) : mqtt5.Mqtt5ClientConfig {
 
@@ -606,6 +606,58 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         await test_utils.subPubUnsubTest(client, qos, topic, testPayload);
 
         expect(receivedCount).toEqual(1);
+    })
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - acknowledgment hold', async() =>{
+    // hold publish acknowledgement and verify broker re-delivers the message
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubAcquireControlTest(client, topic, testPayload);
+    })
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - acknowledgment invoke', async() =>{
+    // invoke publish acknowledgement, verify no re-delivery after 35 seconds
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubAcquireInvokeControlTest(client, topic, testPayload);
+    })
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - double-call', async() =>{
+    // acquireHandle() twice: first call returns a handle, second call returns null
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubDoubleAcquireControlTest(client, topic, testPayload);
+    })
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Manual publish acknowledgement - post-calback acquire', async() =>{
+    // acquireHandle() after the messageReceived callback has returned results in null
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from(`redrive-${uuid()}`, "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubPostCallbackAcquireControlTest(client, topic, testPayload);
     })
 });
 

@@ -20,7 +20,7 @@ import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
 import * as mqtt_request_response from "../native/mqtt_request_response";
-import { AwsIoTDeviceSDKMetrics } from "../common/mqtt_shared";
+import * as mqtt_shared from "../common/mqtt_shared";
 
 
 /**
@@ -200,12 +200,12 @@ export function mqtt5_client_new(
     on_connection_success_handler: (client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void,
     on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: mqtt5_packet.ConnackPacket) => void,
     on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: mqtt5_packet.DisconnectPacket) => void,
-    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket) => void,
+    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket, pubackControlId?: any) => void,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
     proxy_options?: NativeHandle,
-    metrics? : AwsIoTDeviceSDKMetrics
+    metrics? : mqtt_shared.AwsIoTDeviceSDKMetrics
 ): NativeHandle;
 
 /** @internal */
@@ -225,6 +225,9 @@ export function mqtt5_client_publish(client: NativeHandle, publish_packet: mqtt5
 
 /** @internal */
 export function mqtt5_client_get_queue_statistics(client: NativeHandle) : ClientStatistics;
+
+/** @internal */
+export function mqtt5_client_invoke_publish_acknowledgement(client: NativeHandle, pubackControlId: NativeHandle) : void;
 
 /** @internal */
 export function mqtt5_client_close(client: NativeHandle) : void;
@@ -253,7 +256,7 @@ export function mqtt_client_connection_new(
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
     reconnect_min_sec?: number,
     reconnect_max_sec?: number,
-    metrics? : AwsIoTDeviceSDKMetrics
+    metrics? : mqtt_shared.AwsIoTDeviceSDKMetrics
 ): NativeHandle;
 
 /** @internal */
