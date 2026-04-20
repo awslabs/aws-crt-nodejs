@@ -10,7 +10,6 @@ import {v4 as uuid} from "uuid";
 import url from "url";
 import {HttpsProxyAgent} from "https-proxy-agent";
 import * as auth from "./auth";
-import {once} from "events";
 
 jest.setTimeout(30000);
 
@@ -332,13 +331,15 @@ function createOperationFailureClient() : mqtt5.IMqtt5Client {
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry underflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
-        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), -5);
+        // @ts-ignore
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry overflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
-        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), 4294967296);
+        // @ts-ignore
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, 4294967296);
     })
 });
 
