@@ -41,6 +41,7 @@ export {
     QoS, Payload, MqttRequest, MqttSubscribeRequest, MqttWill, OnMessageCallback, MqttConnectionConnected, MqttConnectionDisconnected,
     MqttConnectionResumed, OnConnectionSuccessResult, OnConnectionFailedResult, OnConnectionClosedResult
 } from "../common/mqtt";
+export { MqttConnectionConfigBase } from "../common/mqtt_shared";
 
 /**
  * Listener signature for event emitted from an {@link MqttClientConnection} when an error occurs
