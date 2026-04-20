@@ -142,7 +142,6 @@ export interface MqttConnectionConfig extends crt.MqttConnectionConfigBase {
     /** Optional proxy options */
     proxy_options?: HttpProxyOptions;
 
-
     /**
      * Optional function to transform websocket handshake request.
      * If provided, function is called each time a websocket connection is attempted.
