@@ -25,6 +25,7 @@ import {CrtError} from "./error";
 export { HttpProxyOptions } from './http';
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
+export { Mqtt5ClientConfigBase } from "../common/mqtt_shared";
 
 /**
  * Websocket handshake http request transformation function signature
@@ -123,58 +124,15 @@ export enum ClientExtendedValidationAndFlowControl {
 /**
  * Configuration options for mqtt5 client creation.
  */
-export interface Mqtt5ClientConfig {
-
-    /**
-     * Host name of the MQTT server to connect to.
-     */
-    hostName: string;
-
-    /**
-     * Network port of the MQTT server to connect to.
-     */
-    port: number;
-
-    /**
-     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
-     */
-    sessionBehavior? : mqtt5.ClientSessionBehavior;
-
-    /**
-     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
-     * timepoints for a large set of reconnecting clients.
-     */
-    retryJitterMode? : mqtt5.RetryJitterType;
-
-    /**
-     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    minReconnectDelayMs? : number;
-
-    /**
-     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    maxReconnectDelayMs? : number;
-
-    /**
-     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
-     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
-     */
-    minConnectedTimeToResetReconnectDelayMs? : number;
+export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
 
     /**
      * Time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not arrive, the
      * connection will be shut down.
+     *
+     * @group Node-only
      */
     connackTimeoutMs? : number;
-
-    /**
-     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
-     * connect properties will be used for every connection attempt made by the client.
-     */
-    connectProperties?: mqtt5_packet.ConnectPacket;
 
     /**
      * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
@@ -200,13 +158,6 @@ export interface Mqtt5ClientConfig {
      * @group Node-only
      */
     ackTimeoutSeconds? : number;
-
-    /**
-     * Additional controls for client behavior with respect to topic alias usage.
-     *
-     * If this setting is left undefined, then topic aliasing behavior will be disabled.
-     */
-    topicAliasingOptions? : mqtt5.TopicAliasingOptions
 
     /**
      * Client bootstrap to use.  In almost all cases, this can be left undefined.
@@ -256,13 +207,12 @@ export interface Mqtt5ClientConfig {
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
 
-
     /**
-     * Options for enable/disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
-     * 
+     * Options for disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
+     *
      * @group Node-only
      */
-    enableMetrics? : boolean
+    disableMetrics? : boolean;
 }
 
 /**
@@ -300,7 +250,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
             config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null,
-            config.enableMetrics == false ? undefined : new mqtt_shared.AwsIoTDeviceSDKMetrics()
+            config.disableMetrics == true ? undefined : new mqtt_shared.AwsIoTDeviceSDKMetrics()
         ));
     }
 
