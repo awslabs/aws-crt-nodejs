@@ -19,6 +19,8 @@ import * as WebsocketUtils from "./ws"
 import * as auth from "./auth";
 import * as promise from "../common/promise";
 import * as model from "./mqtt_internal/model";
+import * as mqtt_shared from "../common/mqtt_shared";
+import * as mqtt_shared_browser from "./mqtt_shared_browser";
 
 import {Node as TrieNode, Trie, TrieOp} from "./trie";
 
@@ -39,8 +41,6 @@ import {
     Payload,
     QoS
 } from "../common/mqtt";
-import {normalize_payload} from "../common/mqtt_shared";
-import {normalize_payload_to_buffer} from "./mqtt_shared_browser";
 import {once} from "events";
 
 export {
@@ -205,6 +205,9 @@ export interface MqttConnectionConfig {
 
     /** Options for the underlying credentials provider */
     credentials_provider?: auth.CredentialsProvider;
+
+    /** Optional metrics configuration to be applied to the username and sent with the CONNECT packet */
+    sdkMetrics?: mqtt_shared.AwsIoTDeviceSDKMetrics;
 }
 
 /**
@@ -319,18 +322,16 @@ export class MqttClientConnection extends BufferedEventEmitter {
             internalConnectOptions.clientId = this.config.client_id;
         }
 
-        if (this.config.username) {
-            internalConnectOptions.username = this.config.username;
-        }
+        internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(this.config.sdkMetrics ?? new mqtt_shared.AwsIoTDeviceSDKMetrics(), this.config.username);
 
         if (this.config.password) {
-            internalConnectOptions.password = normalize_payload_to_buffer(this.config.password);
+            internalConnectOptions.password = mqtt_shared_browser.normalize_payload_to_buffer(this.config.password);
         }
 
         if (this.config.will) {
             internalConnectOptions.will = {
                 topicName: this.config.will.topic,
-                payload: normalize_payload_to_buffer(this.config.will.payload),
+                payload: mqtt_shared_browser.normalize_payload_to_buffer(this.config.will.payload),
                 qos: this.config.will.qos,
                 retain: this.config.will.retain,
             };
@@ -571,7 +572,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * * For QoS 2, completes when PUBCOMP is received.
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
-        let payload_data = normalize_payload(payload);
+        let payload_data = mqtt_shared.normalize_payload(payload);
 
         let options : internal_mqtt_client.PublishOptions = {};
         if (this.config.protocol_operation_timeout) {

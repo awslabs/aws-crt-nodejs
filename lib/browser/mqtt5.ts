@@ -23,6 +23,7 @@ import {CrtError} from "./error";
 import * as ws from "./ws";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as auth from "./auth";
+import * as mqtt_shared_browser from "./mqtt_shared_browser";
 
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
@@ -193,6 +194,9 @@ export interface Mqtt5ClientConfig {
      * @group Browser-only
      */
     websocketOptions?: Mqtt5WebsocketConfig;
+
+    /** Optional metrics configuration to be applied to the username and sent with the CONNECT packet */
+    sdkMetrics?: mqtt_shared.AwsIoTDeviceSDKMetrics;
 }
 
 function convertSessionBehaviorToSessionPolicy(behavior?: mqtt5.ClientSessionBehavior) : internal_mqtt_client.ResumeSessionPolicyType {
@@ -212,7 +216,9 @@ function convertSessionBehaviorToSessionPolicy(behavior?: mqtt5.ClientSessionBeh
     }
 }
 
-function applyConnectPacketToInternalConnectOptions(internalConnectOptions : internal_mqtt_client.ConnectOptions, connectProperties?: mqtt5_packet.ConnectPacket) {
+function buildInternalConnectOptions(internalConnectOptions : internal_mqtt_client.ConnectOptions, clientConfig: Mqtt5ClientConfig, connectProperties?: mqtt5_packet.ConnectPacket) {
+    internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(clientConfig.sdkMetrics ?? new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
+
     if (!connectProperties) {
         return;
     }
@@ -291,7 +297,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             resumeSessionPolicy: convertSessionBehaviorToSessionPolicy(this.config.sessionBehavior),
         };
 
-        applyConnectPacketToInternalConnectOptions(internalConnectOptions, config.connectProperties);
+        buildInternalConnectOptions(internalConnectOptions, config, config.connectProperties);
 
         let provider : auth.CredentialsProvider | undefined = undefined;
         if (this.config.websocketOptions) {
