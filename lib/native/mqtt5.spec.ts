@@ -45,7 +45,8 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
             HttpProxyConnectionType.Tunneling);
     }
 
-    let enableMetrics = test_utils.ClientEnvironmentalConfig.isTestBasicAuth(testType) == false
+    // Disable metrics for basic auth as moqsuitto test broker would not filter out metrics.
+    let disableMetrics = test_utils.ClientEnvironmentalConfig.isTestBasicAuth(testType)
 
     return {
         hostName: "unknown",
@@ -53,7 +54,7 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
         tlsCtx: tlsCtx,
         httpProxyOptions: proxyOptions,
         websocketHandshakeTransform: wsTransform,
-        enableMetrics: enableMetrics
+        disableMetrics: disableMetrics
     };
 }
 
@@ -318,8 +319,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
             keepAliveIntervalSeconds: 1200,
             username: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_USERNAME,
             password: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_PASSWORD,
-        },
-        enableMetrics: true,
+        }
     }));
 });
 
