@@ -56,7 +56,6 @@ export const SDK_NAME : string = "IoTDeviceSDK/JS";
 
 /**
  * IoT Device SDK Metrics Structure
- * @internal
  */
 export class AwsIoTDeviceSDKMetrics {
     /**
