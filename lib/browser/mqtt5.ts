@@ -22,7 +22,6 @@ import * as ws from "./ws";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as auth from "./auth";
 import * as validate from "./mqtt_internal/validate";
-import * as model from "./mqtt_internal/model";
 
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
@@ -378,7 +377,8 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         // maintain backwards comaptibility with previous implementation which let validation errors
         // trump the stop request
         if (disconnectPacket) {
-            validate.validateInitialOutboundPacket(model.cloneDisconnectShallow(disconnectPacket), internal_mqtt_client.ProtocolMode.Mqtt5);
+            disconnectPacket.type = mqtt5_packet.PacketType.Disconnect;
+            validate.validateInitialOutboundPacket(disconnectPacket, internal_mqtt_client.ProtocolMode.Mqtt5);
         }
 
         this.internalClient.stop(disconnectPacket);
