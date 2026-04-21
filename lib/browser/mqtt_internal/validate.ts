@@ -170,6 +170,30 @@ function validateOptionalVli(value: number | undefined, fieldName: string) {
     }
 }
 
+export function validateUnsignedInteger(value: number, fieldName: string) {
+    if (!Number.isInteger(value) || value < 0) {
+        throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid unsigned integer`);
+    }
+}
+
+export function validateOptionalUnsignedInteger(value: number | undefined, fieldName: string) {
+    if (value === undefined) {
+        return;
+    }
+
+    validateUnsignedInteger(value, fieldName);
+}
+
+export function validateOptionalPositiveU32(value: number | undefined, fieldName: string) {
+    if (value === undefined) {
+        return;
+    }
+
+    if (!Number.isInteger(value) || value <= 0 || value > (256 * 256 * 256 * 256 - 1)) {
+        throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid positive 32 bit integer`);
+    }
+}
+
 // we don't validate length here because we don't know encoding length without doing a utf-8 conversion.
 // This means we validate string length in the internal validators which checks ArrayBuffer lengths.
 function validateString(value: any, fieldName: string) {

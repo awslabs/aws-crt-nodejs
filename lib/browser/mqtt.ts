@@ -15,7 +15,6 @@
 import * as internal_mqtt_client from "./mqtt_internal/client";
 import * as mqtt5 from "../common/mqtt5";
 import * as ws from "./ws"
-import * as WebsocketUtils from "./ws"
 import * as auth from "./auth";
 import * as promise from "../common/promise";
 import * as model from "./mqtt_internal/model";
@@ -105,7 +104,7 @@ export type MqttConnectionClosed = (callback_data: OnConnectionClosedResult) => 
 /**
  * @category MQTT
  */
-export type WebsocketOptions = WebsocketUtils.WebsocketOptions;
+export type WebsocketOptions = ws.WebsocketOptions;
 
 /**
  * @category MQTT
@@ -719,6 +718,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
     }
 
     private on_online = (session_present: boolean) => {
+        this.isSessionPresent = session_present;
         this.currentState = MqttBrowserClientState.Connected;
 
         if (++this.connection_count == 1) {

@@ -6,8 +6,6 @@
 /**
  * Browser specific MQTT5 client implementation
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
- *
  * @packageDocumentation
  * @module mqtt5
  * @mergeTarget
@@ -24,6 +22,7 @@ import * as ws from "./ws";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as auth from "./auth";
 import * as mqtt_shared_browser from "./mqtt_shared_browser";
+import * as validate from "./mqtt_internal/validate";
 
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
@@ -273,8 +272,6 @@ const DEFAULT_CONNECT_TIMEOUT_MS : number = 10 * 1000;
 
 /**
  * Browser specific MQTT5 client implementation
- *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
  */
 export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Client {
     private internalClient: internal_mqtt_client.Client;
@@ -384,6 +381,13 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
      * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
     stop(disconnectPacket?: mqtt5_packet.DisconnectPacket) {
+        // maintain backwards comaptibility with previous implementation which let validation errors
+        // trump the stop request
+        if (disconnectPacket) {
+            disconnectPacket.type = mqtt5_packet.PacketType.Disconnect;
+            validate.validateInitialOutboundPacket(disconnectPacket, internal_mqtt_client.ProtocolMode.Mqtt5);
+        }
+
         this.internalClient.stop(disconnectPacket);
     }
 

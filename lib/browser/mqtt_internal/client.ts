@@ -247,30 +247,6 @@ function buildClientConfigLogString(prefix: string, config: ClientConfig) : stri
     return result;
 }
 
-function validateUnsignedInteger(value: number, fieldName: string) {
-    if (!Number.isInteger(value) || value < 0) {
-        throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid unsigned integer`);
-    }
-}
-
-function validateOptionalUnsignedInteger(value: number | undefined, fieldName: string) {
-    if (value === undefined) {
-        return;
-    }
-
-    validateUnsignedInteger(value, fieldName);
-}
-
-function validateOptionalPositiveU32(value: number | undefined, fieldName: string) {
-    if (value === undefined) {
-        return;
-    }
-
-    if (!Number.isInteger(value) || value <= 0 || value > (256 * 256 * 256 * 256 - 1)) {
-        throw new CrtError(`Field "${fieldName}" with value "${value}" is not a valid positive 32 bit integer`);
-    }
-}
-
 function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
     if (options.connectPacketTransformer && (typeof options.connectPacketTransformer !== "function")) {
         throw new CrtError("connectPacketTransformer must be a function");
@@ -292,7 +268,7 @@ function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
         validate.validateU16(options.receiveMaximum, "receiveMaximum");
     }
 
-    validateOptionalPositiveU32(options.maximumPacketSizeBytes, "maximumPacketSizeBytes");
+    validate.validateOptionalPositiveU32(options.maximumPacketSizeBytes, "maximumPacketSizeBytes");
     validate.validateOptionalU32(options.willDelayIntervalSeconds, "willDelayIntervalSeconds");
 
     if (options.will !== undefined) {
@@ -313,21 +289,21 @@ function validateConfig(config: ClientConfig) {
 
     validateConnectOptions(config.connectOptions, config.protocolVersion);
 
-    validateOptionalUnsignedInteger(config.pingTimeoutMillis, "pingTimeoutMillis");
+    validate.validateOptionalUnsignedInteger(config.pingTimeoutMillis, "pingTimeoutMillis");
 
     if (!config.connectionFactory || (typeof config.connectionFactory !== "function")) {
         throw new CrtError("connectionFactory must be a valid function");
     }
 
-    validateUnsignedInteger(config.connectTimeoutMillis, "connectTimeoutMillis");
+    validate.validateUnsignedInteger(config.connectTimeoutMillis, "connectTimeoutMillis");
 
     if (config.retryJitterMode !== undefined && mqtt5.RetryJitterType[config.retryJitterMode] == undefined) {
         throw new CrtError("Invalid value for retryJitterMode");
     }
 
-    validateOptionalUnsignedInteger(config.minReconnectDelayMs, "minReconnectDelayMs");
-    validateOptionalUnsignedInteger(config.maxReconnectDelayMs, "maxReconnectDelayMs");
-    validateOptionalUnsignedInteger(config.resetConnectionFailureCountMillis, "resetConnectionFailureCountMillis");
+    validate.validateOptionalUnsignedInteger(config.minReconnectDelayMs, "minReconnectDelayMs");
+    validate.validateOptionalUnsignedInteger(config.maxReconnectDelayMs, "maxReconnectDelayMs");
+    validate.validateOptionalUnsignedInteger(config.resetConnectionFailureCountMillis, "resetConnectionFailureCountMillis");
 
     if (config.resubscribeMode !== undefined && ResubscribeModeType[config.resubscribeMode] == undefined) {
         throw new CrtError("Invalid value for resubscribeMode");
@@ -422,7 +398,7 @@ export class Client extends BufferedEventEmitter {
     private resetConnectionFailuresTimepoint? : number = undefined; // relative to creationTime
 
     private nextServiceTimepoint? : number = undefined; // relative to creationTime
-    private serviceTask? : number = undefined;
+    private serviceTask? : any = undefined;
     private inService : boolean = false;
 
     private socketWriteBuffer : ArrayBuffer = new ArrayBuffer(4096);
@@ -902,7 +878,7 @@ export class Client extends BufferedEventEmitter {
         if (serviceTime != undefined) {
             let futureMillis = serviceTime - currentTime;
             flogDebug(CLIENT_LOG_SUBJECT, () => { return `scheduling next service for ${futureMillis} millis from now`; });
-            setTimeout(this.service.bind(this), Math.max(0, futureMillis));
+            this.serviceTask = setTimeout(this.service.bind(this), Math.max(0, futureMillis));
             this.nextServiceTimepoint = serviceTime;
         }
     }
@@ -1061,13 +1037,13 @@ export class Client extends BufferedEventEmitter {
             this.emit(Client.CONNECTION_SUCCESS, {
                 connack: event.packet
             });
-        }
 
-        if (this.config.resubscribeMode == ResubscribeModeType.EnabledAlways ||
-            (this.config.resubscribeMode == ResubscribeModeType.EnabledOnSessionResumptionFail && !event.packet.sessionPresent)) {
-            let subscribes = this.resubscribeManager.buildResubscribePacketList();
-            for (let subscribe of subscribes) {
-                this.subscribe(subscribe);
+            if (this.config.resubscribeMode == ResubscribeModeType.EnabledAlways ||
+                (this.config.resubscribeMode == ResubscribeModeType.EnabledOnSessionResumptionFail && !event.packet.sessionPresent)) {
+                let subscribes = this.resubscribeManager.buildResubscribePacketList();
+                for (let subscribe of subscribes) {
+                    this.subscribe(subscribe);
+                }
             }
         }
 
@@ -1193,7 +1169,7 @@ function buildDisconnectionEventLogString(event: DisconnectionEvent, prefix: str
 function buildConnectionFailureEventLogString(event: ConnectionFailureEvent, prefix: string) : string {
     let result = `${prefix}ConnectionFailureEvent: {\n`;
 
-    result += `${prefix}  error: "${event.error.toString()}\n"`;
+    result += `${prefix}  error: "${event.error.toString()}"\n`;
     if (event.connack) {
         result += `${prefix}  connack: ${model.connackPacketToLogString(event.connack as model.ConnackPacketInternal, prefix + "  ")}`;
     }
