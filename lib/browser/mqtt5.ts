@@ -144,9 +144,6 @@ export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
      * @group Browser-only
      */
     websocketOptions?: Mqtt5WebsocketConfig;
-
-    /** Optional metrics configuration to be applied to the username and sent with the CONNECT packet */
-    sdkMetrics?: mqtt_shared.AwsIoTDeviceSDKMetrics;
 }
 
 function convertSessionBehaviorToSessionPolicy(behavior?: mqtt5.ClientSessionBehavior) : internal_mqtt_client.ResumeSessionPolicyType {
@@ -167,7 +164,15 @@ function convertSessionBehaviorToSessionPolicy(behavior?: mqtt5.ClientSessionBeh
 }
 
 function buildInternalConnectOptions(internalConnectOptions : internal_mqtt_client.ConnectOptions, clientConfig: Mqtt5ClientConfig, connectProperties?: mqtt5_packet.ConnectPacket) {
-    internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(clientConfig.sdkMetrics ?? new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
+    if (clientConfig.disableMetrics) {
+        if (connectProperties?.username) {
+            internalConnectOptions.username = connectProperties.username;
+        }
+    } else {
+        internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
+    }
+
+    internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
 
     if (!connectProperties) {
         return;

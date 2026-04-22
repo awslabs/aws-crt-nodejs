@@ -343,5 +343,10 @@ export interface Mqtt5ClientConfigBase {
      * If this setting is left undefined, then topic aliasing behavior will be disabled.
      */
     topicAliasingOptions? : mqtt5.TopicAliasingOptions;
+
+    /**
+     * Options for disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
+     */
+    disableMetrics? : boolean;
 }
 

@@ -130,9 +130,6 @@ export interface MqttConnectionConfig extends mqtt_shared.MqttConnectionConfigBa
 
     /** Options for the underlying credentials provider */
     credentials_provider?: auth.CredentialsProvider;
-
-    /** Optional metrics configuration to be applied to the username and sent with the CONNECT packet */
-    sdkMetrics?: mqtt_shared.AwsIoTDeviceSDKMetrics;
 }
 
 /**
@@ -247,7 +244,13 @@ export class MqttClientConnection extends BufferedEventEmitter {
             internalConnectOptions.clientId = this.config.client_id;
         }
 
-        internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(this.config.sdkMetrics ?? new mqtt_shared.AwsIoTDeviceSDKMetrics(), this.config.username);
+        if (this.config.disable_metrics) {
+            if (this.config.username) {
+                internalConnectOptions.username = this.config.username;
+            }
+        } else {
+            internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), this.config.username);
+        }
 
         if (this.config.password) {
             internalConnectOptions.password = mqtt_shared_browser.normalize_payload_to_buffer(this.config.password);
