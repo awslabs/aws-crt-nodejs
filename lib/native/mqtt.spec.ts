@@ -82,9 +82,36 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
             clean_session: true,
             username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
             password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
-            socket_options: new SocketOptions()
+            socket_options: new SocketOptions(),
+            disable_metrics: true
         }
         await test_connection(config, new MqttClient(new ClientBootstrap()));
+    })
+});
+
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt())('MQTT311 Connection - basic auth with metrics', async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
+        const config: MqttConnectionConfig = {
+            client_id: `node-mqtt-unit-test-${uuid()}`,
+            host_name: test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_HOST,
+            port: parseInt(test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_PORT),
+            clean_session: true,
+            username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
+            password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
+            socket_options: new SocketOptions()
+        }
+
+        const client = new MqttClient(new ClientBootstrap())
+        const connection = client.new_connection(config);
+        
+        let onConnectionFailureCalled = false;
+        connection.on('connection_failure', async (callback_data) => {
+            onConnectionFailureCalled = true;
+        })
+
+        const connected = connection.connect();
+        await expect(connected).rejects.toBeDefined();
+        await expect(onConnectionFailureCalled).toBeTruthy();
     })
 });
 
@@ -194,7 +221,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_auth_mqtt())(
             use_websocket: true,
             username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
             password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
-            socket_options: new SocketOptions()
+            socket_options: new SocketOptions(),
+            disable_metrics: true
         }
         config.websocket_handshake_transform = async (request, done) => {
             done();

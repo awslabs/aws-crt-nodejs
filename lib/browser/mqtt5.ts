@@ -26,6 +26,7 @@ import * as validate from "./mqtt_internal/validate";
 
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
+export { Mqtt5ClientConfigBase } from "../common/mqtt_shared";
 
 
 /**
@@ -126,66 +127,16 @@ export interface Mqtt5WebsocketConfig {
 /**
  * Configuration options for mqtt5 client creation.
  */
-export interface Mqtt5ClientConfig {
-
-    /**
-     * Host name of the MQTT server to connect to.
-     */
-    hostName: string;
-
-    /**
-     * Network port of the MQTT server to connect to.
-     */
-    port: number;
-
-    /**
-     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
-     */
-    sessionBehavior? : mqtt5.ClientSessionBehavior;
-
-    /**
-     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
-     * timepoints for a large set of reconnecting clients.
-     */
-    retryJitterMode? : mqtt5.RetryJitterType;
-
-    /**
-     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    minReconnectDelayMs? : number;
-
-    /**
-     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    maxReconnectDelayMs? : number;
-
-    /**
-     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
-     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
-     */
-    minConnectedTimeToResetReconnectDelayMs? : number;
-
-    /**
-     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
-     * connect properties will be used for every connection attempt made by the client.
-     */
-    connectProperties?: mqtt5_packet.ConnectPacket;
+export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
 
     /**
      * Overall time interval to wait to establish an MQTT connection.  If a complete MQTT connection (from socket
      * establishment all the way up to CONNACK receipt) has not been established before this timeout expires,
      * the connection attempt will be considered a failure.
+     *
+     * @group Browser-only
      */
     connectTimeoutMs? : number;
-
-    /**
-     * Additional controls for client behavior with respect to topic alias usage.
-     *
-     * If this setting is left undefined, then topic aliasing behavior will be disabled.
-     */
-    topicAliasingOptions? : mqtt5.TopicAliasingOptions
 
     /**
      * Options for the underlying websocket connection
