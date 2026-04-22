@@ -15,6 +15,7 @@
 import * as platform from "./platform";
 import * as mqtt5_packet from "./mqtt5_packet";
 import * as utils from "./utils";
+import { SDK_NAME } from "./mqtt_shared";
 
 /**
  * A helper function to add parameters to the username in with_custom_authorizer function
@@ -204,7 +205,7 @@ function addParam(paramName: string, paramValue: string | undefined, paramSet: [
  *
  * @internal
  */
-export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig) : string {
+export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig): string {
 
     let path : string = "";
     let paramList : [string, string][] = [];
@@ -241,7 +242,7 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
         }
     }
 
-    paramList.push(["SDK", "NodeJSv2"]);
+    paramList.push(["SDK", SDK_NAME]);
     paramList.push(["Version", platform.crt_version()]);
 
     return (path ?? "") + "?" + paramList.map((value : [string, string]) => `${value[0]}=${value[1]}`).join("&");
