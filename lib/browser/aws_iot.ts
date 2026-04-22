@@ -14,6 +14,7 @@ import { SocketOptions } from "./io";
 import { MqttClientConnection, MqttConnectionConfig, MqttWill } from "./mqtt";
 import * as platform from "../common/platform";
 import * as iot_shared from "../common/aws_iot_shared"
+import { SDK_NAME } from "../common/mqtt_shared";
 
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
@@ -328,12 +329,12 @@ export class AwsIotMqttConnectionConfigBuilder {
 
         // Add the metrics string
         if (this.params.username == undefined || this.params.username == null || this.params.username == "") {
-            this.params.username = "?SDK=NodeJSv2&Version="
+            this.params.username = `?SDK=${SDK_NAME}&Version=`
         } else {
             if (this.params.username.indexOf("?") != -1) {
-                this.params.username += "&SDK=NodeJSv2&Version="
+                this.params.username += `&SDK=${SDK_NAME}&Version=`
             } else {
-                this.params.username += "?SDK=NodeJSv2&Version="
+                this.params.username += `?SDK=${SDK_NAME}&Version=`
             }
         }
         this.params.username += platform.crt_version()
