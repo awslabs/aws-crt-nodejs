@@ -45,12 +45,16 @@ function createNodeSpecificTestConfig (testType: test_utils.SuccessfulConnection
             HttpProxyConnectionType.Tunneling);
     }
 
+    // Disable metrics for basic auth as moqsuitto test broker would not filter out metrics.
+    let disableMetrics = test_utils.ClientEnvironmentalConfig.isTestBasicAuth(testType)
+
     return {
         hostName: "unknown",
         port: 0,
         tlsCtx: tlsCtx,
         httpProxyOptions: proxyOptions,
-        websocketHandshakeTransform: wsTransform
+        websocketHandshakeTransform: wsTransform,
+        disableMetrics: disableMetrics
     };
 }
 
@@ -302,6 +306,19 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
             keepAliveIntervalSeconds: 1200,
             username: "Wrong",
             password: Buffer.from("NotAPassword", "utf-8")
+        }
+    }));
+});
+
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH))('Connection Failure - Websocket Mqtt connection with basic authentication with metrics', async () => {
+    await test_utils.testFailedConnection(new mqtt5.Mqtt5Client({
+        hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_BASIC_AUTH_HOST,
+        port: test_utils.ClientEnvironmentalConfig.WS_MQTT_BASIC_AUTH_PORT,
+        websocketHandshakeTransform: (request: HttpRequest, done: (error_code?: number) => void) => { done(0); },
+        connectProperties : {
+            keepAliveIntervalSeconds: 1200,
+            username: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_USERNAME,
+            password: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_PASSWORD,
         }
     }));
 });
