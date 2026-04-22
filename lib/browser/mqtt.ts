@@ -728,11 +728,11 @@ export class MqttClientConnection extends BufferedEventEmitter {
 
     private on_message = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
         // pass payload as ArrayBuffer
-        const array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
+        let array_buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength);
 
         const callback = this.subscriptions.find(topic);
         if (callback) {
-            callback(topic, array_buffer, packet.dup, packet.qos, packet.retain);
+            callback(topic, array_buffer as ArrayBuffer, packet.dup, packet.qos, packet.retain);
         }
         this.emit('message', topic, array_buffer, packet.dup, packet.qos, packet.retain);
     }

@@ -8,13 +8,15 @@ module.exports = {
     ],
     preset: 'jest-puppeteer',
     globals: {
-        'ts-jest': {
-            tsconfig: '<rootDir>/tsconfig.browser.json'
-        },
         "window": {}
     },
     transform: {
-        "^.+\\.ts?$": ['ts-jest'],
+        "^.+\\.ts?$": [
+            'ts-jest',
+            {
+                tsconfig: '<rootDir>/tsconfig.browser.json'
+            }
+        ],
     },
     testPathIgnorePatterns: [
         '/node_modules/'

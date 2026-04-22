@@ -8,13 +8,20 @@ module.exports = {
     ],
     preset: 'ts-jest',
     globals: {
-        'ts-jest': {
-            tsconfig: '<rootDir>/tsconfig.json'
-        }
     },
     transform: {
-        "binding.js$": ['ts-jest'],
-        "^.+\\.ts?$": ['ts-jest'],
+        "binding.js$": [
+            'ts-jest',
+            {
+                tsconfig: '<rootDir>/tsconfig.json'
+            }
+        ],
+        "^.+\\.ts?$": [
+            'ts-jest',
+            {
+                tsconfig: '<rootDir>/tsconfig.json'
+            }
+        ],
     },
     testPathIgnorePatterns: [
         '/node_modules/'

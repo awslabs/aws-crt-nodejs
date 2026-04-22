@@ -54,11 +54,11 @@ function make_signing_key(credentials: AWSCredentials, day: string, service_name
     if (credentials == null || credentials == undefined) {
         throw new CrtError("make_signing_key: credentials not defined");
     }
-    const hash_opts = { asBytes: true };
-    let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key, hash_opts);
-    hash = Crypto.HmacSHA256(credentials.aws_region || '', hash, hash_opts);
-    hash = Crypto.HmacSHA256(service_name, hash, hash_opts);
-    hash = Crypto.HmacSHA256('aws4_request', hash, hash_opts);
+
+    let hash = Crypto.HmacSHA256(day, 'AWS4' + credentials.aws_secret_key);
+    hash = Crypto.HmacSHA256(credentials.aws_region || '', hash);
+    hash = Crypto.HmacSHA256(service_name, hash);
+    hash = Crypto.HmacSHA256('aws4_request', hash);
     return hash;
 }
 
@@ -86,7 +86,7 @@ function sign_url(method: string,
     const canonical_request_hash = Crypto.SHA256(canonical_request, { asBytes: true });
     const signature_raw = `AWS4-HMAC-SHA256\n${time}\n${day}/${region}/${service}/aws4_request\n${canonical_request_hash}`;
     const signing_key = make_signing_key(signing_config.credentials, day, service);
-    const signature = Crypto.HmacSHA256(signature_raw, signing_key, { asBytes: true });
+    const signature = Crypto.HmacSHA256(signature_raw, signing_key);
     let query_params = `${url.search}&X-Amz-Signature=${signature}`;
     if (signing_config.credentials.aws_sts_token) {
         query_params += `&X-Amz-Security-Token=${encodeURIComponent(signing_config.credentials.aws_sts_token)}`;

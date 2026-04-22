@@ -1,4 +1,5 @@
-const { setup: setupPuppeteer } = require('jest-environment-puppeteer');
+const setupPuppeteer = require("jest-environment-puppeteer/setup");
+
 /**
  * Sets up the environment for running tests with Jest + Puppeteer
  */

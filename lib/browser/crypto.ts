@@ -24,7 +24,8 @@ export { Hashable } from "../common/crypto";
  * @param hash 
  * @returns 
  */
-function wordArrayToUint8Array(hash: Crypto.WordArray) {
+
+function wordArrayToUint8Array(hash: Crypto.lib.WordArray) {
     return Uint8Array.from(hash.toString(Crypto.enc.Latin1).split('').map(c => c.charCodeAt(0)));;
 }
 

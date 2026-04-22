@@ -7,15 +7,16 @@
         "lib/native/binding.js",
     ],
     "compilerOptions": {
+        "types": ["node", "jest"],
         "paths": {
             "@awscrt": [
-                "lib/index.ts"
+                "./lib/index.ts"
             ],
             "@awscrt/*": [
-                "lib/native/*"
+                "./lib/native/*"
             ],
             "@test/*": [
-                "test/*"
+                "./test/*"
             ]
         }
     }

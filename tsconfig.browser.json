@@ -7,17 +7,18 @@
         "lib/browser/mqtt_request_response/*.ts"
     ],
     "compilerOptions": {
-        "target": "es5",
+        "types": ["node", "jest"],
+        // "target": "es5",
         "outDir": "dist.browser",
         "paths": {
             "@awscrt": [
-                "lib/browser.ts"
+                "./lib/browser.ts"
             ],
             "@awscrt/*": [
-                "lib/browser/*"
+                "./lib/browser/*"
             ],
             "@test/*": [
-                "test/*"
+                "./test/*"
             ]
         }
     }
