@@ -10,6 +10,7 @@
 #include "http_message.h"
 
 #include <aws/mqtt/client.h>
+#include <aws/mqtt/mqtt.h>
 
 #include <aws/http/proxy.h>
 
@@ -23,6 +24,7 @@ static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_COUNT = "incompleteOperatio
 static const char *AWS_NAPI_KEY_INCOMPLETE_OPERATION_SIZE = "incompleteOperationSize";
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_COUNT = "unackedOperationCount";
 static const char *AWS_NAPI_KEY_UNACKED_OPERATION_SIZE = "unackedOperationSize";
+static const char *AWS_NAPI_KEY_METRICS_LIBRARYNAME = "libraryName";
 
 static void s_transform_websocket_call(napi_env env, napi_value transform_websocket, void *context, void *user_data);
 void s_transform_websocket(
@@ -390,7 +392,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    napi_value node_args[14];
+    napi_value node_args[15];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -430,6 +432,8 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     AWS_ZERO_STRUCT(username);
     struct aws_byte_buf password;
     AWS_ZERO_STRUCT(password);
+    struct aws_byte_buf libraryName;
+    AWS_ZERO_STRUCT(libraryName);
 
     napi_value node_client_external = *arg++;
     struct mqtt_nodejs_client *node_client;
@@ -687,6 +691,32 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         goto cleanup;
     }
 
+    // Set metrics
+    napi_value node_metrics = *arg++;
+    struct aws_mqtt_iot_metrics metrics;
+    AWS_ZERO_STRUCT(metrics);
+
+    bool set_metrics_success = false;
+    if (!aws_napi_is_null_or_undefined(env, node_metrics)) {
+        napi_value node_libraryName = NULL;
+        if (napi_get_named_property(env, node_metrics, AWS_NAPI_KEY_METRICS_LIBRARYNAME, &node_libraryName) ==
+                napi_ok &&
+            aws_byte_buf_init_from_napi(&libraryName, env, node_libraryName) == AWS_OP_SUCCESS) {
+            metrics.library_name = aws_byte_cursor_from_buf(&libraryName);
+            set_metrics_success = true;
+        } else {
+            AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "Failed to retrieve SDK metrics");
+        }
+    }
+
+    if (aws_mqtt_client_connection_set_metrics(binding->connection, set_metrics_success ? &metrics : NULL)) {
+        AWS_LOGF_DEBUG(
+            AWS_LS_NODEJS_CRT_GENERAL,
+            "Failed to set metrics with error code %d(%s)",
+            aws_last_error(),
+            aws_error_debug_str(aws_last_error()));
+    }
+
     /* napi_create_reference() must be the last thing called by this function.
      * Once this succeeds, the external will not be cleaned up automatically */
     AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_external), {
@@ -701,6 +731,7 @@ cleanup:
     aws_byte_buf_clean_up(&will_payload);
     aws_byte_buf_clean_up(&username);
     aws_byte_buf_clean_up(&password);
+    aws_byte_buf_clean_up(&libraryName);
     return result;
 }
 
