@@ -197,4 +197,4 @@ export const DEFAULT_RECONNECT_MAX_SEC = 128;
  *
  * @category MQTT
  */
- export const DEFAULT_RECONNECT_MIN_SEC = 1;
+export const DEFAULT_RECONNECT_MIN_SEC = 1;
