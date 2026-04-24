@@ -19,9 +19,6 @@ import * as resubscribe from "./resubscribe";
 import {CrtError} from "../error";
 import {BufferedEventEmitter} from "../../common/event";
 
-import {ProtocolMode} from "./model";
-export {ProtocolMode};
-
 import {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions} from "./protocol";
 export {OfflineQueuePolicy, ConnectOptions, PublishOptions, PublishResult, PublishResultType, ResumeSessionPolicyType, SubscribeOptions, UnsubscribeOptions};
 
@@ -142,7 +139,7 @@ export interface ClientConfig {
     /**
      * What version of MQTT to use.
      */
-    protocolVersion : ProtocolMode,
+    protocolVersion : mqtt_shared.ProtocolMode,
 
     /**
      * How should queued packets be treated when the client is not connected?
@@ -231,7 +228,7 @@ function buildConnectOptionsLogString(prefix: string, options: ConnectOptions) :
 function buildClientConfigLogString(prefix: string, config: ClientConfig) : string {
     let result = `${prefix}ClientConfig: {\n`;
 
-    result = log.appendEnumPropertyLine(result, prefix, "ProtocolVersion", (val) => model.ProtocolMode[val], config.protocolVersion);
+    result = log.appendEnumPropertyLine(result, prefix, "ProtocolVersion", (val) => mqtt_shared.ProtocolMode[val], config.protocolVersion);
     result = log.appendEnumPropertyLine(result, prefix, "OfflineQueuePolicy", (val) => OfflineQueuePolicy[val], config.offlineQueuePolicy);
     result += buildConnectOptionsLogString(prefix + "  ", config.connectOptions);
     result = log.appendOptionalNumericPropertyLine(result, prefix, "PingTimeoutMillis", config.pingTimeoutMillis);
@@ -247,7 +244,7 @@ function buildClientConfigLogString(prefix: string, config: ClientConfig) : stri
     return result;
 }
 
-function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
+function validateConnectOptions(options : ConnectOptions, mode : mqtt_shared.ProtocolMode) {
     if (options.connectPacketTransformer && (typeof options.connectPacketTransformer !== "function")) {
         throw new CrtError("connectPacketTransformer must be a function");
     }
@@ -279,7 +276,7 @@ function validateConnectOptions(options : ConnectOptions, mode : ProtocolMode) {
 }
 
 function validateConfig(config: ClientConfig) {
-    if (ProtocolMode[config.protocolVersion] == undefined) {
+    if (mqtt_shared.ProtocolMode[config.protocolVersion] == undefined) {
         throw new CrtError("Invalid value for protocolVersion");
     }
 

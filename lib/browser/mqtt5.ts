@@ -278,7 +278,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         };
 
         let internalConfig : internal_mqtt_client.ClientConfig = {
-            protocolVersion: internal_mqtt_client.ProtocolMode.Mqtt5,
+            protocolVersion: mqtt_shared.ProtocolMode.Mqtt5,
             offlineQueuePolicy: internal_mqtt_client.OfflineQueuePolicy.PreserveQos1PlusPublishes,
             connectOptions: internalConnectOptions,
             pingTimeoutMillis: DEFAULT_MQTT_PING_TIMEOUT_MS,
@@ -341,7 +341,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         // trump the stop request
         if (disconnectPacket) {
             disconnectPacket.type = mqtt5_packet.PacketType.Disconnect;
-            validate.validateInitialOutboundPacket(disconnectPacket, internal_mqtt_client.ProtocolMode.Mqtt5);
+            validate.validateInitialOutboundPacket(disconnectPacket, mqtt_shared.ProtocolMode.Mqtt5);
         }
 
         this.internalClient.stop(disconnectPacket);

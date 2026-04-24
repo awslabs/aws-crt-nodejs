@@ -295,7 +295,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         let internalConfig : internal_mqtt_client.ClientConfig = {
-            protocolVersion: internal_mqtt_client.ProtocolMode.Mqtt311,
+            protocolVersion: mqtt_shared.ProtocolMode.Mqtt311,
             offlineQueuePolicy: internal_mqtt_client.OfflineQueuePolicy.PreserveQos1PlusPublishes,
             connectOptions: internalConnectOptions,
             pingTimeoutMillis: this.config.ping_timeout ? this.config.ping_timeout : 30 * 1000,

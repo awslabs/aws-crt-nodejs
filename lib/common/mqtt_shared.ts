@@ -15,6 +15,14 @@ import * as mqtt5_packet from "./mqtt5_packet";
 import { MqttWill } from "./mqtt";
 
 /**
+ * @internal
+ */
+export enum ProtocolMode {
+    Mqtt311,
+    Mqtt5
+}
+
+/**
  * Converts payload to Buffer or string regardless of the supplied type
  * @param payload The payload to convert
  * @internal

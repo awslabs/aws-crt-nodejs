@@ -247,8 +247,10 @@ export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTDeviceS
 
     addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["SDK", metrics.libraryName]);
 
-    let browserInfo = window?.navigator?.userAgent ?? "unknown";
-    addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["Platform", `Browser(${browserInfo})`]);
+    //let browserInfo = window?.navigator?.userAgent ?? "unknown";
+    //addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["Platform", `Browser(${browserInfo})`]);
+    // TODO: add browserInfo as a metadata field
+    addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["Platform", "Browser"]);
 
     return buildUsernameFromQueryParse(parsedAsQuery);
 }

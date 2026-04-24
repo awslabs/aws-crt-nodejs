@@ -4,13 +4,17 @@
  */
 
 import * as test_utils from "@test/mqtt5";
+import * as mqtt_server from "@test/mqtt_server";
 import * as retry from "@test/retry";
+import * as test_metrics from "@test/metrics";
 import * as mqtt5 from "./mqtt5";
 import {ClientBootstrap, ClientTlsContext, SocketDomain, SocketOptions, SocketType, TlsContextOptions} from "./io";
 import {HttpProxyAuthenticationType, HttpProxyConnectionType, HttpRequest} from "./http";
 import {v4 as uuid} from "uuid";
 import * as io from "./io";
 import {once} from "events";
+import * as mqtt_shared from "../common/mqtt_shared";
+import * as http from "./http";
 
 jest.setTimeout(45000);
 
@@ -306,19 +310,6 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccess
             keepAliveIntervalSeconds: 1200,
             username: "Wrong",
             password: Buffer.from("NotAPassword", "utf-8")
-        }
-    }));
-});
-
-test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasValidSuccessfulConnectionTestConfig(test_utils.SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH))('Connection Failure - Websocket Mqtt connection with basic authentication with metrics', async () => {
-    await test_utils.testFailedConnection(new mqtt5.Mqtt5Client({
-        hostName: test_utils.ClientEnvironmentalConfig.WS_MQTT_BASIC_AUTH_HOST,
-        port: test_utils.ClientEnvironmentalConfig.WS_MQTT_BASIC_AUTH_PORT,
-        websocketHandshakeTransform: (request: HttpRequest, done: (error_code?: number) => void) => { done(0); },
-        connectProperties : {
-            keepAliveIntervalSeconds: 1200,
-            username: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_USERNAME,
-            password: test_utils.ClientEnvironmentalConfig.BASIC_AUTH_PASSWORD,
         }
     }));
 });
@@ -859,4 +850,46 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
 
         client.close();
     })
+});
+
+async function doMetricsTestConnect5(server: mqtt_server.MqttServer, disableMetrics: boolean, username?: string) {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = {
+        hostName: "localhost",
+        port: server.getPort(),
+        socketOptions: new SocketOptions(),
+        disableMetrics: disableMetrics,
+        websocketHandshakeTransform: (request: http.HttpRequest, done: (error_code?: number) => void) => {
+            done();
+        },
+    };
+
+    if (username !== undefined) {
+        clientConfig.connectProperties = {
+            keepAliveIntervalSeconds: 1200,
+            username: username
+        };
+    }
+
+    let client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, 'connectionSuccess');
+    client.start();
+
+    await connectionSuccess;
+}
+
+test('mqtt5 metrics - enabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, false);
+});
+
+test('mqtt5 metrics - disabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, true);
+});
+
+test('mqtt5 metrics - enabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, false, "hello");
+});
+
+test('mqtt5 metrics - disabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, true, "world");
 });
