@@ -52,6 +52,7 @@ if (BUILD_DEPS)
             CMAKE_ARGUMENTS
                 -DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF
                 -DBUILD_TESTING=OFF
+                -DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON
         )
     endif()
 
