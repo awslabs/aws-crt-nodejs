@@ -185,6 +185,52 @@ jobs:
         python3 codebuild/macos_compatibility_check.py arm64
         python3 codebuild/macos_compatibility_check.py x64
 
+  macos-s2n:
+    runs-on: macos-14 # latest
+    env:
+      AWS_CRT_USE_NON_FIPS_TLS_13: 1
+    steps:
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ env.CRT_CI_ROLE }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+    - name: Build ${{ env.PACKAGE_NAME }} + consumers
+      run: |
+        python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
+        chmod a+x builder
+        ./builder build -p ${{ env.PACKAGE_NAME }} --spec=downstream
+    - name: Check backward compatibility for Macos
+      run: |
+        cd aws-crt-nodejs
+        python3 codebuild/macos_compatibility_check.py arm64
+
+  macos-x64-s2n:
+    runs-on: macos-14-large # latest
+    env:
+      AWS_CRT_USE_NON_FIPS_TLS_13: 1
+    steps:
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ env.CRT_CI_ROLE }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+    - name: Build ${{ env.PACKAGE_NAME }} + consumers
+      run: |
+        python3 -c "from urllib.request import urlretrieve; urlretrieve('${{ env.BUILDER_HOST }}/${{ env.BUILDER_SOURCE }}/${{ env.BUILDER_VERSION }}/builder.pyz?run=${{ env.RUN }}', 'builder')"
+        chmod a+x builder
+        ./builder build -p ${{ env.PACKAGE_NAME }} --spec=downstream
+    # check that OSX can build arm64 binaries from an x64 machine (which happens during release)
+    - name: Cross-compile arm64
+      run: |
+        cd aws-crt-nodejs
+        node ./scripts/build --target-arch arm64 -DAWS_WARNINGS_ARE_ERRORS=ON
+        test `lipo dist/bin/darwin-arm64-cruntime/aws-crt-nodejs.node -archs` = "arm64"
+        test `lipo dist/bin/darwin-x64-cruntime/aws-crt-nodejs.node -archs` = "x86_64"
+    - name: Check backward compatibility for Macos
+      run: |
+        cd aws-crt-nodejs
+        python3 codebuild/macos_compatibility_check.py arm64
+        python3 codebuild/macos_compatibility_check.py x64
+
   # check that docs can still build
   check-docs:
     runs-on: ubuntu-24.04 # latest
