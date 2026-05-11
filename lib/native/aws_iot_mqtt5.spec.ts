@@ -291,7 +291,7 @@ test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV
     })
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12() && !(platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13))('Aws Iot Core PKCS12 - Connection Success', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
@@ -352,9 +352,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder per-platform conditional support of PQ default TlsCipherPreference", () => {
-    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux");
+    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux" || (platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13));
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder per-platform conditional support of latest 1.2 policy TlsCipherPreference", () => {
-    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux");
+    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux" || (platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13));
 });

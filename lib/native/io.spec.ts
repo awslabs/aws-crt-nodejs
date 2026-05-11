@@ -80,10 +80,10 @@ test("Supports default TlsCipherPreference", () => {
 });
 
 test("Per-Platform PQ default TlsCipherPreference", () => {
-    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux");
+    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux" || (platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13));
 });
 
 test("Per-Platform latest 1.2 policy TlsCipherPreference", () => {
-    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux");
+    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux" || (platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13));
 });
 
