@@ -172,85 +172,120 @@ export function calculateNextReconnectDelay(context: ReconnectDelayContext) : nu
     return delay;
 }
 
-interface QueryParsedUsername {
-    prefix?: string,
-    queryParams: [string, string][]
+class ParsedUsername {
+    prefix: string = "";
+    queryParams: [string, string][] = new Array<[string, string]>;
+//    metadata: [string, string][] = new Array<[string, string]>;
 }
 
-function parseUsernameAsQueryString(username?: string) : QueryParsedUsername {
+const METADATA_KEY : string = "Metadata";
+const SDK_KEY : string = "SDK";
+const PLATFORM_KEY : string = "Platform";
+const BROWSER_PLATFORM_VALUE : string = "Browser";
+const BROWSER_METADATA_KEY : string = "Browser";
+
+function parseDelimitedKeyValueString(input: string, pairDelimiter: string, kvDelimeter: string) : Array<[string, string]> | null {
+    let kvPairs = new Array<[string, string]>;
+
+    let pairs = input.split(pairDelimiter);
+    for (let pair of pairs) {
+        let kvDelimeterIndex = pair.indexOf(kvDelimeter);
+        if (kvDelimeterIndex < 0) {
+            kvPairs.push([pair, ""]);
+        }
+
+        let value = pair.substring(kvDelimeterIndex + 1);
+        kvPairs.push([pair.substring(0, kvDelimeterIndex), value]);
+    }
+
+    if (kvPairs.length > 0) {
+        return kvPairs;
+    }
+
+    return null;
+}
+
+function parseUsername(username?: string) : ParsedUsername {
+    let parsed = new ParsedUsername();
+
     if (!username) {
-        return {
-            queryParams: []
-        };
+        return parsed;
     }
 
     let queryIndex = username.lastIndexOf('?');
     if (queryIndex < 0) {
-        return {
-            prefix: username,
-            queryParams: []
-        }
+        parsed.prefix = username;
+        return parsed;
     }
 
-    let parsed : QueryParsedUsername = {
-        prefix: username.substring(0, queryIndex),
-        queryParams: []
-    }
+    parsed.prefix = username.substring(0, queryIndex);
 
     let remaining = username.substring(queryIndex + 1);
-    while (remaining.length > 0) {
-        let ampersandIndex = remaining.indexOf('&');
-        let pair : string;
-        if (ampersandIndex < 0) {
-            pair = remaining;
-            remaining = "";
-        } else {
-            pair = remaining.substring(0, ampersandIndex);
-            remaining = remaining.substring(ampersandIndex + 1);
-        }
-
-        let equalsIndex = pair.indexOf('=');
-        if (equalsIndex < 0) {
-            // @ts-ignore
-            parsed.queryParams.push([
-                pair,
-                ""
-            ]);
-        } else {
-            // @ts-ignore
-            parsed.queryParams.push([
-                pair.substring(0, equalsIndex),
-                pair.substring(equalsIndex + 1)
-            ]);
-        }
+    let topLevelPairs = parseDelimitedKeyValueString(remaining, "&", "=");
+    if (topLevelPairs) {
+        parsed.queryParams = topLevelPairs;
+        /*
+        let metadataValue = topLevelPairs.get(METADATA_KEY);
+        if (metadataValue !== undefined && metadataValue.length >= 2 && metadataValue[0] == '(' && metadataValue[metadataValue.length - 1] == ')') {
+            metadataValue = metadataValue.substring(1, metadataValue.length - 2);
+            let metadataMap = parseDelimitedKeyValueString(metadataValue, ";", "=");
+            if (metadataMap) {
+                parsed.metadata = metadataMap;
+                parsed.queryParams.delete(METADATA_KEY);
+            }
+        }*/
     }
 
     return parsed;
 }
 
-function addTopLevelQueryParamIfNonexistent(parsed: QueryParsedUsername, pair: [string, string]) {
-    let key = pair[0];
-
-    let existingIndex = parsed.queryParams.findIndex((element) => element[0] === key);
-    if (existingIndex < 0) {
-        parsed.queryParams.push(pair);
+function addTopLevelPairIfNonexistent(parsed: ParsedUsername, key: string, value: string) {
+    if (parsed.queryParams.has(key)) {
+        return;
     }
+
+    parsed.queryParams.set(key, value);
 }
 
-function buildUsernameFromQueryParse(parsed: QueryParsedUsername) : string {
-    let prefix = parsed.prefix ?? "";
-    return prefix + "?" + parsed.queryParams.map((pair) => pair.join("=")).join("&");
+function addMetadataPairIfNonExistent(parsed: ParsedUsername, key: string, value: string) {
+    // can't add metadata pairs if there's an existing top-level metadata entry that is malformed
+    if (parsed.queryParams.has(METADATA_KEY)) {
+        return;
+    }
+
+    let metadataValue = parsed.metadata.get(key);
+    if (metadataValue !== undefined) {
+        return;
+    }
+
+    parsed.metadata.set(key, value);
+}
+
+function buildUsernameFromQueryParse(parsed: ParsedUsername) : string {
+    let metadataValue = undefined;
+    if (!parsed.queryParams.get(METADATA_KEY) && parsed.metadata.size > 0) {
+        let innerValue = Array.from(parsed.metadata.entries()).map((pair) => pair.join("=")).join(";");
+        metadataValue = "(" + innerValue + ")";
+    }
+
+    let topLevelParamArray = Array.from(parsed.queryParams.entries());
+    if (metadataValue !== undefined) {
+        topLevelParamArray.push([METADATA_KEY, metadataValue]);
+    }
+
+    let queryParamValue = topLevelParamArray.map((pair) => pair.join("=")).join(":");
+
+    return parsed.prefix + "?" + queryParamValue;
 }
 
 export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics, username?: string) : string {
-    let parsedAsQuery = parseUsernameAsQueryString(username);
+    let parsed = parseUsername(username);
 
-    addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["SDK", metrics.libraryName]);
+    addTopLevelPairIfNonexistent(parsed, SDK_KEY, metrics.libraryName);
+    addTopLevelPairIfNonexistent(parsed, PLATFORM_KEY, BROWSER_PLATFORM_VALUE);
 
-    //let browserInfo = window?.navigator?.userAgent ?? "unknown";
-    //addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["Platform", `Browser(${browserInfo})`]);
-    // TODO: add browserInfo as a metadata field
-    addTopLevelQueryParamIfNonexistent(parsedAsQuery, ["Platform", "Browser"]);
+    let browserInfo = window?.navigator?.userAgent ?? "unknown";
+    addMetadataPairIfNonExistent(parsed, BROWSER_METADATA_KEY, browserInfo);
 
-    return buildUsernameFromQueryParse(parsedAsQuery);
+    return buildUsernameFromQueryParse(parsed);
 }

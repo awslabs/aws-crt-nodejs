@@ -73,6 +73,8 @@ export class AwsIoTDeviceSDKMetrics {
      * Name of the library
      */
     libraryName: string = SDK_NAME;
+
+    metadata: [string, string][] = new Array<[string, string]> ;
 }
 
 /** @internal */
