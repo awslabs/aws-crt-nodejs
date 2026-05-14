@@ -76,6 +76,7 @@ test('MQTT topic properties - invalid topic', async () => {
 test('metrics username construction - undefined username', async () => {
     let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics());
     expect(username.startsWith(`?SDK=${mqtt_shared.SDK_NAME}&Platform=Browser`)).toBeTruthy();
+    expect(username.indexOf("&Metadata=(Browser=")).toBeGreaterThanOrEqual(0);
 });
 
 test('metrics username construction - empty username', async () => {
@@ -104,8 +105,8 @@ test('metrics username construction - query username with no overlap 3', async (
 });
 
 test('metrics username construction - query username with sdk overlap 1', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&SDK=derp");
-    expect(username.startsWith(`hello?a=b&SDK=derp&Platform=Browser`)).toBeTruthy();
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&SDK");
+    expect(username.startsWith(`hello?a=b&SDK=&Platform=Browser`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with sdk overlap 2', async () => {

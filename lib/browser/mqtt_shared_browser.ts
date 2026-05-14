@@ -175,7 +175,7 @@ export function calculateNextReconnectDelay(context: ReconnectDelayContext) : nu
 class ParsedUsername {
     prefix: string = "";
     queryParams: [string, string][] = new Array<[string, string]>;
-//    metadata: [string, string][] = new Array<[string, string]>;
+    metadata?: [string, string][] = undefined;
 }
 
 const METADATA_KEY : string = "Metadata";
@@ -183,26 +183,29 @@ const SDK_KEY : string = "SDK";
 const PLATFORM_KEY : string = "Platform";
 const BROWSER_PLATFORM_VALUE : string = "Browser";
 const BROWSER_METADATA_KEY : string = "Browser";
+const QUERY_PARAM_START_DELIMITER : string = "?";
+const QUERY_PAIR_DELIMITER : string = "&";
+const METADATA_PAIR_DELIMITER : string = ";";
+const KEY_VALUE_SEPARATOR : string = "=";
+const METADATA_PREFIX : string = "(";
+const METADATA_SUFFIX : string = ")";
 
-function parseDelimitedKeyValueString(input: string, pairDelimiter: string, kvDelimeter: string) : Array<[string, string]> | null {
+function parseDelimitedKeyValueString(input: string, pairDelimiter: string, kvDelimiter: string) : Array<[string, string]> {
     let kvPairs = new Array<[string, string]>;
 
     let pairs = input.split(pairDelimiter);
     for (let pair of pairs) {
-        let kvDelimeterIndex = pair.indexOf(kvDelimeter);
-        if (kvDelimeterIndex < 0) {
+        let kvDelimiterIndex = pair.indexOf(kvDelimiter);
+        // just a key, no value?
+        if (kvDelimiterIndex < 0) {
             kvPairs.push([pair, ""]);
         }
 
-        let value = pair.substring(kvDelimeterIndex + 1);
-        kvPairs.push([pair.substring(0, kvDelimeterIndex), value]);
+        let value = pair.substring(kvDelimiterIndex + 1);
+        kvPairs.push([pair.substring(0, kvDelimiterIndex), value]);
     }
 
-    if (kvPairs.length > 0) {
-        return kvPairs;
-    }
-
-    return null;
+    return kvPairs;
 }
 
 function parseUsername(username?: string) : ParsedUsername {
@@ -212,8 +215,9 @@ function parseUsername(username?: string) : ParsedUsername {
         return parsed;
     }
 
-    let queryIndex = username.lastIndexOf('?');
+    let queryIndex = username.lastIndexOf(QUERY_PARAM_START_DELIMITER);
     if (queryIndex < 0) {
+        // no '?'
         parsed.prefix = username;
         return parsed;
     }
@@ -221,71 +225,110 @@ function parseUsername(username?: string) : ParsedUsername {
     parsed.prefix = username.substring(0, queryIndex);
 
     let remaining = username.substring(queryIndex + 1);
-    let topLevelPairs = parseDelimitedKeyValueString(remaining, "&", "=");
-    if (topLevelPairs) {
-        parsed.queryParams = topLevelPairs;
-        /*
-        let metadataValue = topLevelPairs.get(METADATA_KEY);
-        if (metadataValue !== undefined && metadataValue.length >= 2 && metadataValue[0] == '(' && metadataValue[metadataValue.length - 1] == ')') {
-            metadataValue = metadataValue.substring(1, metadataValue.length - 2);
-            let metadataMap = parseDelimitedKeyValueString(metadataValue, ";", "=");
-            if (metadataMap) {
-                parsed.metadata = metadataMap;
-                parsed.queryParams.delete(METADATA_KEY);
+    parsed.queryParams = parseDelimitedKeyValueString(remaining, QUERY_PAIR_DELIMITER, KEY_VALUE_SEPARATOR);
+    let seenMetadata = false;
+    for (let pair of parsed.queryParams) {
+        if (pair[0] === METADATA_KEY && !seenMetadata) {
+            // only process the first instance of metadata
+            seenMetadata = true;
+            let metadataValue = pair[1];
+            if (metadataValue !== undefined && metadataValue.length >= 2 && metadataValue.startsWith(METADATA_PREFIX) && metadataValue.endsWith(METADATA_SUFFIX)) {
+                metadataValue = metadataValue.substring(METADATA_PREFIX.length, metadataValue.length - (METADATA_PREFIX.length + METADATA_SUFFIX.length));
+                parsed.metadata = parseDelimitedKeyValueString(metadataValue, METADATA_PAIR_DELIMITER, KEY_VALUE_SEPARATOR);
             }
-        }*/
+            break;
+        }
     }
 
     return parsed;
 }
 
-function addTopLevelPairIfNonexistent(parsed: ParsedUsername, key: string, value: string) {
-    if (parsed.queryParams.has(key)) {
-        return;
-    }
-
-    parsed.queryParams.set(key, value);
+// if this is ever public, we need to handle attempting to set metadata in a special way
+function addTopLevelPair(parsed: ParsedUsername, key: string, value: string) {
+    // no need to check for duplicates; when we build the final username we use the first value only
+    parsed.queryParams.push([key, value]);
 }
 
-function addMetadataPairIfNonExistent(parsed: ParsedUsername, key: string, value: string) {
-    // can't add metadata pairs if there's an existing top-level metadata entry that is malformed
-    if (parsed.queryParams.has(METADATA_KEY)) {
-        return;
+function addMetadataPair(parsed: ParsedUsername, key: string, value: string) {
+    let hasMetadataKey = false;
+    for (let pair of parsed.queryParams) {
+        if (pair[0] === METADATA_KEY) {
+            hasMetadataKey = true;
+            break;
+        }
     }
 
-    let metadataValue = parsed.metadata.get(key);
-    if (metadataValue !== undefined) {
-        return;
+    // If we have malformed metadata (top level entry, but no parsed pairs), then don't do anything
+    if (!parsed.metadata) {
+        if (hasMetadataKey) {
+            return;
+        }
+
+        parsed.metadata = new Array<[string, string]>();
     }
 
-    parsed.metadata.set(key, value);
+    // no need to check for duplicates; when we build the final username we use the first value only
+    let strippedValue = value.replace(METADATA_PAIR_DELIMITER, "");
+    parsed.metadata.push([key, strippedValue]);
+}
+
+function buildOrderedKeyValues(pairs?: Array<[string, string]>) : [Array<string>, Map<string, string>] {
+    let keys: Array<string> = new Array<string>();
+    let kvMap = new Map<string, string>();
+    if (!pairs) {
+        return [keys, kvMap];
+    }
+
+    pairs.forEach((pair) => {
+       if (!kvMap.has(pair[0])) {
+           kvMap.set(pair[0], pair[1]);
+           keys.push(pair[0]);
+       }
+    });
+
+    return [keys, kvMap];
 }
 
 function buildUsernameFromQueryParse(parsed: ParsedUsername) : string {
-    let metadataValue = undefined;
-    if (!parsed.queryParams.get(METADATA_KEY) && parsed.metadata.size > 0) {
-        let innerValue = Array.from(parsed.metadata.entries()).map((pair) => pair.join("=")).join(";");
-        metadataValue = "(" + innerValue + ")";
+    let [queryKeys, queryValues] = buildOrderedKeyValues(parsed.queryParams);
+    let [metadataKeys, metadataValues] = buildOrderedKeyValues(parsed.metadata);
+
+    if (parsed.queryParams.length == 0 && !parsed.metadata) {
+        return parsed.prefix;
     }
 
-    let topLevelParamArray = Array.from(parsed.queryParams.entries());
+    // if we have valid metadata pairs, build the final metadata value
+    let metadataValue : string | undefined = undefined;
+    if (parsed.metadata && metadataKeys.length > 0) {
+        let innerValue = metadataKeys.map((key) => {
+            return `${key}${KEY_VALUE_SEPARATOR}${metadataValues.get(key) ?? ""}`;
+        }).join(METADATA_PAIR_DELIMITER);
+        metadataValue = METADATA_PREFIX + innerValue + METADATA_SUFFIX;
+    }
+
+    // if we have a constructed metadata value, replace the value and make sure it's in the key list
     if (metadataValue !== undefined) {
-        topLevelParamArray.push([METADATA_KEY, metadataValue]);
+        if (queryValues.get(METADATA_KEY) === undefined) {
+            queryKeys.push(METADATA_KEY);
+        }
+        queryValues.set(METADATA_KEY, metadataValue);
     }
 
-    let queryParamValue = topLevelParamArray.map((pair) => pair.join("=")).join(":");
+    let queryParamValue = queryKeys.map((key) => {
+        return `${key}${KEY_VALUE_SEPARATOR}${queryValues.get(key) ?? ""}`;
+    }).join(QUERY_PAIR_DELIMITER);
 
-    return parsed.prefix + "?" + queryParamValue;
+    return parsed.prefix + QUERY_PARAM_START_DELIMITER + queryParamValue;
 }
 
 export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics, username?: string) : string {
     let parsed = parseUsername(username);
 
-    addTopLevelPairIfNonexistent(parsed, SDK_KEY, metrics.libraryName);
-    addTopLevelPairIfNonexistent(parsed, PLATFORM_KEY, BROWSER_PLATFORM_VALUE);
+    addTopLevelPair(parsed, SDK_KEY, metrics.libraryName);
+    addTopLevelPair(parsed, PLATFORM_KEY, BROWSER_PLATFORM_VALUE);
 
     let browserInfo = window?.navigator?.userAgent ?? "unknown";
-    addMetadataPairIfNonExistent(parsed, BROWSER_METADATA_KEY, browserInfo);
+    addMetadataPair(parsed, BROWSER_METADATA_KEY, browserInfo);
 
     return buildUsernameFromQueryParse(parsed);
 }
