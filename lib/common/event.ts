@@ -83,6 +83,7 @@ export class BufferedEventEmitter extends EventEmitter {
             }
             this.eventQueue = this.eventQueue.next;
         }
+        this.lastQueuedEvent = undefined;
     }
 
     /**

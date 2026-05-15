@@ -188,7 +188,14 @@ class ReconnectionScheduler {
     onConnectionFailureOrDisconnection() : void {
         this.clearTasks();
 
-        let nextDelay : number = this.calculateNextReconnectDelay();
+        let reconnectContext = {
+            retryJitterMode: this.clientConfig.retryJitterMode,
+            minReconnectDelayMs : this.clientConfig.minReconnectDelayMs,
+            maxReconnectDelayMs : this.clientConfig.maxReconnectDelayMs,
+            lastReconnectDelay : this.lastReconnectDelay,
+            connectionFailureCount : this.connectionFailureCount,
+        };
+        let nextDelay : number = mqtt_shared.calculateNextReconnectDelay(reconnectContext);
 
         this.lastReconnectDelay = nextDelay;
         this.connectionFailureCount += 1;
@@ -216,35 +223,6 @@ class ReconnectionScheduler {
         if (this.resetConnectionFailureCountTask) {
             clearTimeout(this.resetConnectionFailureCountTask);
         }
-    }
-
-    private randomInRange(min: number, max: number) : number {
-        return min + (max - min) * Math.random();
-    }
-
-    /**
-     * Computes the next reconnect delay based on the Jitter/Retry configuration.
-     * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
-     * @private
-     */
-    private calculateNextReconnectDelay() : number {
-        const jitterType : mqtt5.RetryJitterType = this.clientConfig.retryJitterMode ?? mqtt5.RetryJitterType.Default;
-        const [minDelay, maxDelay] : [number, number] = mqtt_utils.getOrderedReconnectDelayBounds(this.clientConfig.minReconnectDelayMs, this.clientConfig.maxReconnectDelayMs);
-        const clampedFailureCount : number = Math.min(52, this.connectionFailureCount);
-        let delay : number = 0;
-
-        if (jitterType == mqtt5.RetryJitterType.None) {
-            delay = minDelay * Math.pow(2, clampedFailureCount);
-        } else if (jitterType == mqtt5.RetryJitterType.Decorrelated && this.lastReconnectDelay) {
-            delay = this.randomInRange(minDelay, 3 * this.lastReconnectDelay);
-        } else {
-            delay = this.randomInRange(minDelay, Math.min(maxDelay, minDelay * Math.pow(2, clampedFailureCount)));
-        }
-
-        delay = Math.min(maxDelay, delay);
-        this.lastReconnectDelay = delay;
-
-        return delay;
     }
 }
 

@@ -19,6 +19,10 @@ import { CrtError } from "./error";
 var websocket = require('@httptoolkit/websocket-stream')
 import * as Crypto from "crypto-js";
 import * as iot_shared from "../common/aws_iot_shared";
+import { Duplex } from 'stream';
+import * as WebSocket from 'ws';
+
+export type WsStream = Duplex & {socket: WebSocket, on(event: "ws-close", listener: (close: WebSocket.CloseEvent) => void) : WsStream};
 
 /**
  * Options for websocket based connections in browser
@@ -126,7 +130,7 @@ export function create_websocket_url(config: MqttConnectionConfig) {
 }
 
 /** @internal */
-export function create_websocket_stream(config: MqttConnectionConfig) {
+export function create_websocket_stream(config: MqttConnectionConfig) : WsStream {
     const url = create_websocket_url(config);
     return websocket(url, ['mqttv3.1'], config.websocket);
 }
@@ -182,7 +186,7 @@ export function create_mqtt5_websocket_url(config: mqtt5.Mqtt5ClientConfig) {
 }
 
 /** @internal */
-export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) {
+export function create_mqtt5_websocket_stream(config: mqtt5.Mqtt5ClientConfig) : WsStream {
     const url = create_mqtt5_websocket_url(config);
     let ws = websocket(url, ['mqtt'], config.websocketOptions?.wsOptions);
 
