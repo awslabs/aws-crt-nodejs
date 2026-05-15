@@ -18,6 +18,8 @@ import * as ws from "./ws"
 import * as auth from "./auth";
 import * as promise from "../common/promise";
 import * as model from "./mqtt_internal/model";
+import * as mqtt_shared from "../common/mqtt_shared";
+import * as mqtt_shared_browser from "./mqtt_shared_browser";
 
 import {Node as TrieNode, Trie, TrieOp} from "./trie";
 
@@ -37,8 +39,6 @@ import {
     Payload,
     QoS
 } from "../common/mqtt";
-
-import {normalize_payload, normalize_payload_to_buffer, MqttConnectionConfigBase} from "../common/mqtt_shared";
 import {once} from "events";
 
 export {
@@ -118,7 +118,7 @@ export type AWSCredentials = auth.AWSCredentials;
  *
  * @category MQTT
  */
-export interface MqttConnectionConfig extends MqttConnectionConfigBase {
+export interface MqttConnectionConfig extends mqtt_shared.MqttConnectionConfigBase {
     /** Socket options, ignored in browser */
     socket_options: SocketOptions;
 
@@ -244,18 +244,22 @@ export class MqttClientConnection extends BufferedEventEmitter {
             internalConnectOptions.clientId = this.config.client_id;
         }
 
-        if (this.config.username) {
-            internalConnectOptions.username = this.config.username;
+        if (this.config.disable_metrics) {
+            if (this.config.username) {
+                internalConnectOptions.username = this.config.username;
+            }
+        } else {
+            internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), this.config.username);
         }
 
         if (this.config.password) {
-            internalConnectOptions.password = normalize_payload_to_buffer(this.config.password);
+            internalConnectOptions.password = mqtt_shared_browser.normalize_payload_to_buffer(this.config.password);
         }
 
         if (this.config.will) {
             internalConnectOptions.will = {
                 topicName: this.config.will.topic,
-                payload: normalize_payload_to_buffer(this.config.will.payload),
+                payload: mqtt_shared_browser.normalize_payload_to_buffer(this.config.will.payload),
                 qos: this.config.will.qos,
                 retain: this.config.will.retain,
             };
@@ -291,7 +295,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
         }
 
         let internalConfig : internal_mqtt_client.ClientConfig = {
-            protocolVersion: internal_mqtt_client.ProtocolMode.Mqtt311,
+            protocolVersion: mqtt_shared.ProtocolMode.Mqtt311,
             offlineQueuePolicy: internal_mqtt_client.OfflineQueuePolicy.PreserveQos1PlusPublishes,
             connectOptions: internalConnectOptions,
             pingTimeoutMillis: this.config.ping_timeout ? this.config.ping_timeout : 30 * 1000,
@@ -496,7 +500,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      * * For QoS 2, completes when PUBCOMP is received.
      */
     async publish(topic: string, payload: Payload, qos: QoS, retain: boolean = false): Promise<MqttRequest> {
-        let payload_data = normalize_payload(payload);
+        let payload_data = mqtt_shared.normalize_payload(payload);
 
         let options : internal_mqtt_client.PublishOptions = {};
         if (this.config.protocol_operation_timeout) {

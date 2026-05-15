@@ -9,6 +9,7 @@ import * as encoder from "./encoder";
 import * as model from "./model";
 import * as test_mqtt_internal_client from "@test/mqtt_internal_client";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
+import * as mqtt_shared from "../../common/mqtt_shared";
 
 function appendView(dest: DataView, source: DataView) : DataView {
     if (source.byteLength > dest.byteLength) {
@@ -22,7 +23,7 @@ function appendView(dest: DataView, source: DataView) : DataView {
     return new DataView(dest.buffer, dest.byteOffset + source.byteLength, dest.byteLength - source.byteLength);
 }
 
-function doSingleRoundTripEncodeDecodeTest(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode, packet_count: number, encode_buffer_size: number, decode_view_size: number) {
+function doSingleRoundTripEncodeDecodeTest(packet: mqtt5_packet.IPacket, mode: mqtt_shared.ProtocolMode, packet_count: number, encode_buffer_size: number, decode_view_size: number) {
     let encoder_set = encoder.buildClientEncodingFunctionSet(mode);
     test_mqtt_internal_client.applyDebugEncodersToEncodingFunctionSet(encoder_set, mode);
 
@@ -79,7 +80,7 @@ function doSingleRoundTripEncodeDecodeTest(packet: mqtt5_packet.IPacket, mode: m
     }
 }
 
-function doFragmentedRoundTripEncodeDecodeTest(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode, packet_count: number) {
+function doFragmentedRoundTripEncodeDecodeTest(packet: mqtt5_packet.IPacket, mode: mqtt_shared.ProtocolMode, packet_count: number) {
     let encode_buffer_sizes = [4, 7, 13, 31, 127, 1027];
     let decode_view_sizes = [1, 2, 3, 5, 9, 17];
 
@@ -95,7 +96,7 @@ test('Pingreq - 311', () => {
         type: mqtt5_packet.PacketType.Pingreq
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(pingreq, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(pingreq, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Pingreq - 5', () => {
@@ -103,7 +104,7 @@ test('Pingreq - 5', () => {
         type: mqtt5_packet.PacketType.Pingreq
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(pingreq, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(pingreq, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Pingresp - 311', () => {
@@ -111,7 +112,7 @@ test('Pingresp - 311', () => {
         type: mqtt5_packet.PacketType.Pingreq
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(pingreq, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(pingreq, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Pingresp - 5', () => {
@@ -119,7 +120,7 @@ test('Pingresp - 5', () => {
         type: mqtt5_packet.PacketType.Pingreq
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(pingreq, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(pingreq, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Puback - 311', () => {
@@ -129,7 +130,7 @@ test('Puback - 311', () => {
         reasonCode: mqtt5_packet.PubackReasonCode.Success
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(puback, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(puback, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Puback - Minimal 5', () => {
@@ -139,7 +140,7 @@ test('Puback - Minimal 5', () => {
         reasonCode: mqtt5_packet.PubackReasonCode.Success
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(puback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(puback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Puback - Minimal With Non-Zero ReasonCode 5', () => {
@@ -149,7 +150,7 @@ test('Puback - Minimal With Non-Zero ReasonCode 5', () => {
         reasonCode: mqtt5_packet.PubackReasonCode.NotAuthorized
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(puback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(puback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 function createDummyUserProperties() : Array<mqtt5_packet.UserProperty> {
@@ -169,7 +170,7 @@ test('Puback - Maximal 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(puback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(puback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Puback - Maximal Falsy 5', () => {
@@ -181,7 +182,7 @@ test('Puback - Maximal Falsy 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(puback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(puback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Publish - Empty Payload 311', () => {
@@ -193,7 +194,7 @@ test('Publish - Empty Payload 311', () => {
         retain: true
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Publish - With Payload 311', () => {
@@ -210,7 +211,7 @@ test('Publish - With Payload 311', () => {
         payload: payload
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Publish - Minimal Empty Payload 5', () => {
@@ -223,7 +224,7 @@ test('Publish - Minimal Empty Payload 5', () => {
         retain: false
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Publish - Minimal With Payload 5', () => {
@@ -240,7 +241,7 @@ test('Publish - Minimal With Payload 5', () => {
         payload: payload
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Publish - Maximal Empty Payload 5', () => {
@@ -260,7 +261,7 @@ test('Publish - Maximal Empty Payload 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Publish - Maximal Empty Payload Falsy 5', () => {
@@ -280,7 +281,7 @@ test('Publish - Maximal Empty Payload Falsy 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Publish - Maximal With Payload 5', () => {
@@ -305,7 +306,7 @@ test('Publish - Maximal With Payload 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Publish - Maximal With Payload Falsy 5', () => {
@@ -329,7 +330,7 @@ test('Publish - Maximal With Payload Falsy 5', () => {
         userProperties: new Array<mqtt5_packet.UserProperty>()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(publish, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(publish, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Disconnect - 311', () => {
@@ -338,7 +339,7 @@ test('Disconnect - 311', () => {
         reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(disconnect, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(disconnect, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Disconnect - Minimal zero reason code 5', () => {
@@ -347,7 +348,7 @@ test('Disconnect - Minimal zero reason code 5', () => {
         reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection,
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(disconnect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(disconnect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Disconnect - Minimal non-zero reason code 5', () => {
@@ -356,7 +357,7 @@ test('Disconnect - Minimal non-zero reason code 5', () => {
         reasonCode: mqtt5_packet.DisconnectReasonCode.KeepAliveTimeout,
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(disconnect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(disconnect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Disconnect - Maximal 5', () => {
@@ -369,7 +370,7 @@ test('Disconnect - Maximal 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(disconnect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(disconnect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Disconnect - Maximal Falsy 5', () => {
@@ -382,7 +383,7 @@ test('Disconnect - Maximal Falsy 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(disconnect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(disconnect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Subscribe - 311', () => {
@@ -396,7 +397,7 @@ test('Subscribe - 311', () => {
         )
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(subscribe, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(subscribe, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Subscribe - Minimal 5', () => {
@@ -410,7 +411,7 @@ test('Subscribe - Minimal 5', () => {
         )
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(subscribe, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(subscribe, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Subscribe - Maximal 5', () => {
@@ -426,7 +427,7 @@ test('Subscribe - Maximal 5', () => {
         subscriptionIdentifier: 47,
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(subscribe, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(subscribe, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Subscribe - Maximal Falsy 5', () => {
@@ -442,7 +443,7 @@ test('Subscribe - Maximal Falsy 5', () => {
         subscriptionIdentifier: 0,
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(subscribe, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(subscribe, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Suback - 311', () => {
@@ -457,7 +458,7 @@ test('Suback - 311', () => {
         )
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(suback, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(suback, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Suback - Minimal 5', () => {
@@ -472,7 +473,7 @@ test('Suback - Minimal 5', () => {
         )
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(suback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(suback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Suback - Maximal 5', () => {
@@ -489,7 +490,7 @@ test('Suback - Maximal 5', () => {
         userProperties: createDummyUserProperties(),
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(suback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(suback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Suback - Maximal Falsy 5', () => {
@@ -506,7 +507,7 @@ test('Suback - Maximal Falsy 5', () => {
         userProperties: new Array<mqtt5_packet.UserProperty>(),
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(suback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(suback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Unsubscribe - 311', () => {
@@ -516,7 +517,7 @@ test('Unsubscribe - 311', () => {
         topicFilters: new Array<string>("three", "fortysix/and/two", "squarepants")
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Unsubscribe - Minimal 5', () => {
@@ -526,7 +527,7 @@ test('Unsubscribe - Minimal 5', () => {
         topicFilters: new Array<string>("three", "fortysix/and/two", "squidward")
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Unsubscribe - Maximal 5', () => {
@@ -537,7 +538,7 @@ test('Unsubscribe - Maximal 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Unsubscribe - Falsy 5', () => {
@@ -548,7 +549,7 @@ test('Unsubscribe - Falsy 5', () => {
         userProperties: new Array<mqtt5_packet.UserProperty>()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsubscribe, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Unsuback - 311', () => {
@@ -558,7 +559,7 @@ test('Unsuback - 311', () => {
         reasonCodes: new Array<mqtt5_packet.UnsubackReasonCode>()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsuback, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsuback, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Unsuback - Minimal 5', () => {
@@ -573,7 +574,7 @@ test('Unsuback - Minimal 5', () => {
         )
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsuback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsuback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Unsuback - Maximal 5', () => {
@@ -590,7 +591,7 @@ test('Unsuback - Maximal 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsuback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsuback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Unsuback - Maximal Falsy 5', () => {
@@ -604,7 +605,7 @@ test('Unsuback - Maximal Falsy 5', () => {
         userProperties: new Array<mqtt5_packet.UserProperty>()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(unsuback, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(unsuback, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Connect - Minimal 311', () => {
@@ -614,7 +615,7 @@ test('Connect - Minimal 311', () => {
         keepAliveIntervalSeconds: 1200
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connect, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connect, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Connect - Maximal 311', () => {
@@ -634,7 +635,7 @@ test('Connect - Maximal 311', () => {
         },
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connect, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connect, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Connect - Maximal Falsy 311', () => {
@@ -654,7 +655,7 @@ test('Connect - Maximal Falsy 311', () => {
         },
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connect, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connect, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Connect - Minimal 5', () => {
@@ -664,7 +665,7 @@ test('Connect - Minimal 5', () => {
         keepAliveIntervalSeconds: 1200
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Connect - Maximal 5', () => {
@@ -700,7 +701,7 @@ test('Connect - Maximal 5', () => {
         },
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Connect - Maximal Falsy 5', () => {
@@ -735,7 +736,7 @@ test('Connect - Maximal Falsy 5', () => {
         },
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connect, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connect, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Connack - 311', () => {
@@ -745,7 +746,7 @@ test('Connack - 311', () => {
         sessionPresent: true
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connack, model.ProtocolMode.Mqtt311, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connack, mqtt_shared.ProtocolMode.Mqtt311, 20);
 });
 
 test('Connack - Minimal 5', () => {
@@ -755,7 +756,7 @@ test('Connack - Minimal 5', () => {
         sessionPresent: false
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connack, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connack, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Connack - Maximal 5', () => {
@@ -782,7 +783,7 @@ test('Connack - Maximal 5', () => {
         userProperties: createDummyUserProperties()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connack, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connack, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });
 
 test('Connack - Maximal Falsy 5', () => {
@@ -809,5 +810,5 @@ test('Connack - Maximal Falsy 5', () => {
         userProperties: new Array<mqtt5_packet.UserProperty>()
     };
 
-    doFragmentedRoundTripEncodeDecodeTest(connack, model.ProtocolMode.Mqtt5, 20);
+    doFragmentedRoundTripEncodeDecodeTest(connack, mqtt_shared.ProtocolMode.Mqtt5, 20);
 });

@@ -9,6 +9,7 @@ import * as model from "../lib/browser/mqtt_internal/model";
 import * as vli from "../lib/browser/mqtt_internal/vli";
 import {CrtError} from "@awscrt";
 import * as mqtt5_packet from '../lib/common/mqtt5_packet';
+import * as mqtt_shared from '../lib/common/mqtt_shared';
 
 function encodeConnackPacket311(steps: Array<encoder.EncodingStep>, packet: ConnackPacketBinary) {
     steps.push({ type: encoder.EncodingStepType.U8, value: model.PACKET_TYPE_FIRST_BYTE_CONNACK });
@@ -290,16 +291,16 @@ function encodeUnsubackPacket5(steps: Array<encoder.EncodingStep>, packet: Unsub
     }
 }
 
-export function applyDebugEncodersToEncodingFunctionSet(encoders: encoder.EncodingFunctionSet, mode: model.ProtocolMode) {
+export function applyDebugEncodersToEncodingFunctionSet(encoders: encoder.EncodingFunctionSet, mode: mqtt_shared.ProtocolMode) {
     switch(mode) {
-        case model.ProtocolMode.Mqtt5:
+        case mqtt_shared.ProtocolMode.Mqtt5:
             encoders.set(mqtt5_packet.PacketType.Connack, (steps, packet) => { encodeConnackPacket5(steps, packet as ConnackPacketBinary); });
             encoders.set(mqtt5_packet.PacketType.Suback, (steps, packet) => { encodeSubackPacket5(steps, packet as SubackPacketBinary); });
             encoders.set(mqtt5_packet.PacketType.Unsuback, (steps, packet) => { encodeUnsubackPacket5(steps, packet as UnsubackPacketBinary); });
             encoders.set(mqtt5_packet.PacketType.Pingresp, (steps, packet) => { encodePingrespPacket(steps); });
             return;
 
-        case model.ProtocolMode.Mqtt311:
+        case mqtt_shared.ProtocolMode.Mqtt311:
             encoders.set(mqtt5_packet.PacketType.Connack, (steps, packet) => { encodeConnackPacket311(steps, packet as ConnackPacketBinary); });
             encoders.set(mqtt5_packet.PacketType.Suback, (steps, packet) => { encodeSubackPacket311(steps, packet as SubackPacketBinary); });
             encoders.set(mqtt5_packet.PacketType.Unsuback, (steps, packet) => { encodeUnsubackPacket311(steps, packet as UnsubackPacketBinary); });
@@ -774,17 +775,17 @@ function decodeConnectPacket5(firstByte: number, payload: DataView) : model.Conn
     return connect;
 }
 
-export function applyDebugDecodersToDecodingFunctionSet(decoders: decoder.DecodingFunctionSet, mode: model.ProtocolMode) {
+export function applyDebugDecodersToDecodingFunctionSet(decoders: decoder.DecodingFunctionSet, mode: mqtt_shared.ProtocolMode) {
 
     switch(mode) {
-        case model.ProtocolMode.Mqtt5:
+        case mqtt_shared.ProtocolMode.Mqtt5:
             decoders.set(mqtt5_packet.PacketType.Pingreq, (firstByte, payload) => { return decodePingreqPacket(firstByte, payload); });
             decoders.set(mqtt5_packet.PacketType.Subscribe, (firstByte, payload) => { return decodeSubscribePacket5(firstByte, payload); });
             decoders.set(mqtt5_packet.PacketType.Unsubscribe, (firstByte, payload) => { return decodeUnsubscribePacket5(firstByte, payload); });
             decoders.set(mqtt5_packet.PacketType.Connect, (firstByte, payload) => { return decodeConnectPacket5(firstByte, payload); });
             return;
 
-        case model.ProtocolMode.Mqtt311:
+        case mqtt_shared.ProtocolMode.Mqtt311:
             decoders.set(mqtt5_packet.PacketType.Pingreq, (firstByte, payload) => { return decodePingreqPacket(firstByte, payload); });
             decoders.set(mqtt5_packet.PacketType.Subscribe, (firstByte, payload) => { return decodeSubscribePacket311(firstByte, payload); });
             decoders.set(mqtt5_packet.PacketType.Unsubscribe, (firstByte, payload) => { return decodeUnsubscribePacket311(firstByte, payload); });

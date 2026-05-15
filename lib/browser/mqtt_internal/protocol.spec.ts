@@ -46,7 +46,7 @@ function defaultConnectHandler(packet : mqtt5_packet.IPacket, fixture: ProtocolT
         sessionPresent: context.connackOverrides?.sessionPresent ?? false
     };
 
-    if (context.protocolStateConfig.protocolVersion == model.ProtocolMode.Mqtt5) {
+    if (context.protocolStateConfig.protocolVersion == mqtt_shared.ProtocolMode.Mqtt5) {
         if (!connect.clientId || !connect.clientId.length) {
             connack.assignedClientIdentifier = context.connackOverrides?.assignedClientIdentifier ?? `test-${uuid()}`;
         }
@@ -186,7 +186,7 @@ function buildDefaultHandlerSet() : PacketHandlerSet {
     ]);
 }
 
-function buildProtocolStateConfig(mode: model.ProtocolMode, configMutator: (config: protocol.ProtocolStateConfig) => void = (config)=> {} ) : protocol.ProtocolStateConfig {
+function buildProtocolStateConfig(mode: mqtt_shared.ProtocolMode, configMutator: (config: protocol.ProtocolStateConfig) => void = (config)=> {} ) : protocol.ProtocolStateConfig {
     let config = {
         protocolVersion: mode,
         offlineQueuePolicy: protocol.OfflineQueuePolicy.Default,
@@ -605,12 +605,12 @@ function findNthPacketOfType(packets: Array<mqtt5_packet.IPacket>, packetType: m
 
 let modes = [311, 5];
 
-function protocolVersionToMode(protocolVersion: number) : model.ProtocolMode {
+function protocolVersionToMode(protocolVersion: number) : mqtt_shared.ProtocolMode {
     switch (protocolVersion) {
         case 311:
-            return model.ProtocolMode.Mqtt311;
+            return mqtt_shared.ProtocolMode.Mqtt311;
         case 5:
-            return model.ProtocolMode.Mqtt5;
+            return mqtt_shared.ProtocolMode.Mqtt5;
         default:
             throw new Error("Unsupported protocol version");
     }
@@ -737,7 +737,7 @@ describe("pendingConnackTimeout", () => {
 describe("pendingConnackFailedConnack", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        let reason = (mode == model.ProtocolMode.Mqtt5) ? mqtt5_packet.ConnectReasonCode.ServerBusy : mqtt5_packet.ConnectReasonCode.ServerUnavailable311;
+        let reason = (mode == mqtt_shared.ProtocolMode.Mqtt5) ? mqtt5_packet.ConnectReasonCode.ServerBusy : mqtt5_packet.ConnectReasonCode.ServerUnavailable311;
         let context : BrokerTestContext = {
             protocolStateConfig: buildProtocolStateConfig(mode),
             connackOverrides: {
@@ -764,7 +764,7 @@ describe("pendingConnackFailedConnack", () => {
     })
 });
 
-function encodePacketToBuffer(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode) : DataView {
+function encodePacketToBuffer(packet: mqtt5_packet.IPacket, mode: mqtt_shared.ProtocolMode) : DataView {
     let encoder_set = encoder.buildClientEncodingFunctionSet(mode);
     test_mqtt_internal_client.applyDebugEncodersToEncodingFunctionSet(encoder_set, mode);
     let packetEncoder = new encoder.Encoder(encoder_set);
@@ -893,7 +893,7 @@ let pendingConnackResponsePackets : Map<string, mqtt5_packet.IPacket> = new Map<
 
 let pendingConnackResponsePacketNames : Array<string> = Array.from(pendingConnackResponsePackets.keys());
 
-function doPendingConnackIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mode: model.ProtocolMode) {
+function doPendingConnackIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mode: mqtt_shared.ProtocolMode) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -918,14 +918,14 @@ function doPendingConnackIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacke
 describe("pendingConnackIncomingForbiddenPacket - Mqtt311", () => {
     test.each(pendingConnackResponsePacketNames)("Packet %p", (name) => {
         // @ts-ignore
-        doPendingConnackIncomingForbiddenPacketTest(pendingConnackResponsePackets.get(name), model.ProtocolMode.Mqtt311);
+        doPendingConnackIncomingForbiddenPacketTest(pendingConnackResponsePackets.get(name), mqtt_shared.ProtocolMode.Mqtt311);
     })
 });
 
 describe("pendingConnackIncomingForbiddenPacket - Mqtt5", () => {
     test.each(pendingConnackResponsePacketNames)("Packet %p", (name) => {
         // @ts-ignore
-        doPendingConnackIncomingForbiddenPacketTest(pendingConnackResponsePackets.get(name), model.ProtocolMode.Mqtt5);
+        doPendingConnackIncomingForbiddenPacketTest(pendingConnackResponsePackets.get(name), mqtt_shared.ProtocolMode.Mqtt5);
     })
 });
 
@@ -1047,7 +1047,7 @@ let connectedResponsePackets : Map<string, mqtt5_packet.IPacket> = new Map<strin
 
 let connectedResponsePacketNames : Array<string> = Array.from(connectedResponsePackets.keys());
 
-function doConnectedIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mode : model.ProtocolMode) {
+function doConnectedIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mode : mqtt_shared.ProtocolMode) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1066,14 +1066,14 @@ function doConnectedIncomingForbiddenPacketTest(packet: mqtt5_packet.IPacket, mo
 describe("connectedIncomingForbiddenPacket - Mqtt311", () => {
     test.each(connectedResponsePacketNames)("Packet %p", (name) => {
         // @ts-ignore
-        doConnectedIncomingForbiddenPacketTest(connectedResponsePackets.get(name), model.ProtocolMode.Mqtt311);
+        doConnectedIncomingForbiddenPacketTest(connectedResponsePackets.get(name), mqtt_shared.ProtocolMode.Mqtt311);
     })
 });
 
 describe("connectedIncomingForbiddenPacket - Mqtt5", () => {
     test.each(connectedResponsePacketNames)("Packet %p", (name) => {
         // @ts-ignore
-        doConnectedIncomingForbiddenPacketTest(connectedResponsePackets.get(name), model.ProtocolMode.Mqtt5);
+        doConnectedIncomingForbiddenPacketTest(connectedResponsePackets.get(name), mqtt_shared.ProtocolMode.Mqtt5);
     })
 });
 
@@ -1081,10 +1081,10 @@ test("connectedIncomingForbiddenDisconnectPacket - Mqtt311", () => {
     doConnectedIncomingForbiddenPacketTest({
         type: mqtt5_packet.PacketType.Disconnect,
         reasonCode: mqtt5_packet.DisconnectReasonCode.NormalDisconnection
-    } as model.DisconnectPacketInternal, model.ProtocolMode.Mqtt311);
+    } as model.DisconnectPacketInternal, mqtt_shared.ProtocolMode.Mqtt311);
 });
 
-function doUnknownAckPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.ProtocolMode) {
+function doUnknownAckPacketIdTest(packet: mqtt5_packet.IPacket, mode : mqtt_shared.ProtocolMode) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1116,7 +1116,7 @@ describe("connectedIncomingUnknownSuback", () => {
         doUnknownAckPacketIdTest({
                 type: mqtt5_packet.PacketType.Suback,
                 packetId: 42,
-                reasonCodes: [mqtt5_packet.SubackReasonCode.GrantedQoS1, (mode == model.ProtocolMode.Mqtt5) ? mqtt5_packet.SubackReasonCode.TopicFilterInvalid: mqtt5_packet.SubackReasonCode.Failure311]
+                reasonCodes: [mqtt5_packet.SubackReasonCode.GrantedQoS1, (mode == mqtt_shared.ProtocolMode.Mqtt5) ? mqtt5_packet.SubackReasonCode.TopicFilterInvalid: mqtt5_packet.SubackReasonCode.Failure311]
             } as mqtt5_packet.SubackPacket,
             mode);
     })
@@ -1133,7 +1133,7 @@ describe("connectedIncomingUnknownUnsuback", () => {
     })
 });
 
-function doInvalidPacketIdTest(packet: mqtt5_packet.IPacket, mode : model.ProtocolMode) {
+function doInvalidPacketIdTest(packet: mqtt5_packet.IPacket, mode : mqtt_shared.ProtocolMode) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1203,7 +1203,7 @@ describe("connectedIncomingUnsubackInvalidPacketId", () => {
     })
 });
 
-function doPingSequenceTest(mode: model.ProtocolMode, connackDelayMillis: number, responseDelayMillis: number, requestDelayMillis: number) {
+function doPingSequenceTest(mode: mqtt_shared.ProtocolMode, connackDelayMillis: number, responseDelayMillis: number, requestDelayMillis: number) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1323,7 +1323,7 @@ function doUnsubscribeWithAck(fixture: ProtocolTestFixture, unsubscribeTime: num
     let result = resultHolder.result;
     expect(result).toBeDefined();
 
-    if (fixture.protocolState.getConfig().protocolVersion != model.ProtocolMode.Mqtt311) {
+    if (fixture.protocolState.getConfig().protocolVersion != mqtt_shared.ProtocolMode.Mqtt311) {
         let unsuback = result as mqtt5_packet.UnsubackPacket;
         expect(unsuback.reasonCodes.length).toEqual(1);
         expect(unsuback.reasonCodes[0]).toEqual(reasonCode);
@@ -1380,7 +1380,7 @@ function doQos0Publish(fixture: ProtocolTestFixture, publishTime: number, puback
 
 type AckedOperationFunction<T> = (fixture: ProtocolTestFixture, outboundTime: number, ackTime: number, reasonCode: T) => void;
 
-function doConnectedPingPushOutTest<T>(mode: model.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T, operationTime: number, ackTime: number, expectedPushout: number) {
+function doConnectedPingPushOutTest<T>(mode: mqtt_shared.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T, operationTime: number, ackTime: number, expectedPushout: number) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1436,7 +1436,7 @@ describe("connectedPingNoPushOutByQos0PublishCompletion", () => {
     })
 });
 
-function doPingTimeoutTest(mode: model.ProtocolMode, pingTimeoutMillis: number, keepAliveSeconds: number) {
+function doPingTimeoutTest(mode: mqtt_shared.ProtocolMode, pingTimeoutMillis: number, keepAliveSeconds: number) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1485,7 +1485,7 @@ describe("connectedPingTimeoutMisconfigured", () => {
     })
 });
 
-function doConnectedNoPingsIfZeroKeepAlive(mode: model.ProtocolMode) {
+function doConnectedNoPingsIfZeroKeepAlive(mode: mqtt_shared.ProtocolMode) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1516,7 +1516,7 @@ describe("connectedNoPingsIfZeroKeepAlive", () => {
     })
 });
 
-function doSuccessfulOperationTest<T>(mode: model.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T) {
+function doSuccessfulOperationTest<T>(mode: mqtt_shared.ProtocolMode, operationFunction: AckedOperationFunction<T>, reasonCode: T) {
     let context : BrokerTestContext = {
         protocolStateConfig: buildProtocolStateConfig(mode)
     };
@@ -1567,7 +1567,7 @@ enum InterruptedOperationOutcomeType {
     FailedOnReconnect
 }
 
-function doReconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+function doReconnectWhileUserOperationQueuedTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -1665,8 +1665,8 @@ function verifySuccessfulUnsuback311(result: OperationResult<mqtt5_packet.Unsuba
     expect(unsuback.reasonCodes.length).toEqual(0);
 }
 
-function verifySuccessfulUnsuback(result: OperationResult<mqtt5_packet.UnsubackPacket>, mode: model.ProtocolMode) : void {
-    if (mode == model.ProtocolMode.Mqtt5) {
+function verifySuccessfulUnsuback(result: OperationResult<mqtt5_packet.UnsubackPacket>, mode: mqtt_shared.ProtocolMode) : void {
+    if (mode == mqtt_shared.ProtocolMode.Mqtt5) {
         verifySuccessfulUnsuback5(result);
     } else {
         verifySuccessfulUnsuback311(result);
@@ -1706,8 +1706,8 @@ function verifySuccessfulPuback311(result: OperationResult<protocol.PublishResul
     expect(result.state).toEqual(OperationResultStateType.Success);
 }
 
-function verifySuccessfulPuback(result: OperationResult<protocol.PublishResult>, mode: model.ProtocolMode) : void {
-    if (mode == model.ProtocolMode.Mqtt5) {
+function verifySuccessfulPuback(result: OperationResult<protocol.PublishResult>, mode: mqtt_shared.ProtocolMode) : void {
+    if (mode == mqtt_shared.ProtocolMode.Mqtt5) {
         verifySuccessfulPuback5(result);
     } else {
         verifySuccessfulPuback311(result);
@@ -1761,7 +1761,7 @@ describe("ReconnectWhileQos0PublishQueuedFailureTest", () => {
     })
 });
 
-function doReconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
+function doReconnectWhileOperationCurrentTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, operationOutcome: InterruptedOperationOutcomeType, verifier?: ResultVerifier<T>) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -1913,7 +1913,7 @@ describe("ReconnectWhileQos0PublishCurrentOperationFailureTest", () => {
 
 type VerifyPendingFunction = (fixture: ProtocolTestFixture) => void;
 
-function doReconnectWhileUserOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier: ResultVerifier<T> | null, sessionPresent: boolean) {
+function doReconnectWhileUserOperationPendingTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, verifyPendingFunction: VerifyPendingFunction, operationOutcome: InterruptedOperationOutcomeType, verifier: ResultVerifier<T> | null, sessionPresent: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2090,7 +2090,7 @@ describe("ReconnectNoSessionWhileQos1PublishPendingAckFailureTest", () => {
 });
 
 function doOperationInternalValidationFailureTest<T>(queueOperationFunction: QueueOperationFunction<T>, failureVerifier: ResultVerifier<T>) {
-    let config = buildProtocolStateConfig(model.ProtocolMode.Mqtt5);
+    let config = buildProtocolStateConfig(mqtt_shared.ProtocolMode.Mqtt5);
 
     let context : BrokerTestContext = {
         protocolStateConfig: config,
@@ -2136,7 +2136,7 @@ test("PublishInternalOutboundValidationFailure", () => {
     doOperationInternalValidationFailureTest(queueQos1Publish, verifyValidationFailure);
 });
 
-function doOperationTimeoutFailureTest<T>(mode: model.ProtocolMode, queueOperationFunction: QueueOperationFunction<T>, pendingVerifier: VerifyPendingFunction) {
+function doOperationTimeoutFailureTest<T>(mode: mqtt_shared.ProtocolMode, queueOperationFunction: QueueOperationFunction<T>, pendingVerifier: VerifyPendingFunction) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.keepAliveIntervalSeconds = 0;
 
@@ -2226,7 +2226,7 @@ describe("PublishTimeoutFailure", () => {
     })
 });
 
-function doOfflineSubmitTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doOfflineSubmitTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2345,7 +2345,7 @@ describe("Qos1PublishOfflineSubmitPreserveNothingFailure", () => {
     })
 });
 
-function doDisconnectWhileUserOperationQueuedTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doDisconnectWhileUserOperationQueuedTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2471,7 +2471,7 @@ describe("Qos1PublishPreserveNothingDisconnectFailure", () => {
     })
 });
 
-function doDisconnectWhileOperationCurrentTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doDisconnectWhileOperationCurrentTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2605,7 +2605,7 @@ describe("CurrentOperationQos1PublishPreserveNothingOnDisconnectFailure", () => 
 });
 
 
-function doDisconnectWhileOperationPendingTest<T>(mode: model.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
+function doDisconnectWhileOperationPendingTest<T>(mode: mqtt_shared.ProtocolMode, offlineQueuePolicy: protocol.OfflineQueuePolicy, queueOperationFunction: QueueOperationFunction<T>, shouldFail: boolean) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = offlineQueuePolicy;
 
@@ -2735,7 +2735,7 @@ describe("PendingOperationQos1PublishPreserveNothingOnDisconnectPending", () => 
     })
 });
 
-function doDisconnectWhileQos1PublishPendingSetsDuplicateTest(mode: model.ProtocolMode) {
+function doDisconnectWhileQos1PublishPendingSetsDuplicateTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
     config.offlineQueuePolicy = protocol.OfflineQueuePolicy.PreserveQos1PlusPublishes;
 
@@ -2775,7 +2775,7 @@ describe("PendingQos1PublishOnDisconnectSetsDuplicate", () => {
 });
 
 
-function doResumeSessionPolicyTest(mode: model.ProtocolMode, resumeSessionPolicy: protocol.ResumeSessionPolicyType, expectedCleanStartFlags: Array<boolean>) {
+function doResumeSessionPolicyTest(mode: mqtt_shared.ProtocolMode, resumeSessionPolicy: protocol.ResumeSessionPolicyType, expectedCleanStartFlags: Array<boolean>) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.resumeSessionPolicy = resumeSessionPolicy;
 
@@ -2815,7 +2815,7 @@ describe("ResumeSessionPolicyPostSuccess", () => {
 const RECEIVE_MAXIMUM_ITERATIONS : number = 10;
 
 function doReceiveMaximumBackpressureTest(receiveMaximum: number) {
-    let config = buildProtocolStateConfig(model.ProtocolMode.Mqtt5);
+    let config = buildProtocolStateConfig(mqtt_shared.ProtocolMode.Mqtt5);
     config.connectOptions.keepAliveIntervalSeconds = 0;
 
     let context : BrokerTestContext = {
@@ -2873,7 +2873,7 @@ describe("ReceiveMaximumFlowControl", () => {
 
 const EXHAUST_ID_PACKET_COUNT : number = 66000;
 
-function doOutOfPacketIdsBackpressureTest(mode: model.ProtocolMode, queueOperationFunction: (fixture: ProtocolTestFixture, elapsed: number) => void) {
+function doOutOfPacketIdsBackpressureTest(mode: mqtt_shared.ProtocolMode, queueOperationFunction: (fixture: ProtocolTestFixture, elapsed: number) => void) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.keepAliveIntervalSeconds = 0;
 
@@ -2972,7 +2972,7 @@ describe("UnackedPublishesBackpressureTest", () => {
 
 const ACK_TEST_PUBLISH_TEST : number = 100;
 
-function doAckOrderTest(mode: model.ProtocolMode) {
+function doAckOrderTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.keepAliveIntervalSeconds = 0;
 
@@ -3030,7 +3030,7 @@ function createReflectOrIgnorePublishHandler(reflectCount: number) : PacketHandl
     };
 }
 
-function doDisconnectTest(mode: model.ProtocolMode) {
+function doDisconnectTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
     config.connectOptions.keepAliveIntervalSeconds = 0;
 
@@ -3115,7 +3115,7 @@ describe("MixedDisconnect", () => {
 });
 
 function doDisconnectPacketTriggersDisconnectReceivedEventTest() {
-    let config = buildProtocolStateConfig(model.ProtocolMode.Mqtt5);
+    let config = buildProtocolStateConfig(mqtt_shared.ProtocolMode.Mqtt5);
 
     let context : BrokerTestContext = {
         protocolStateConfig: config
@@ -3129,7 +3129,7 @@ function doDisconnectPacketTriggersDisconnectReceivedEventTest() {
     let encodedDisconnect = encodePacketToBuffer({
         type: mqtt5_packet.PacketType.Disconnect,
         reasonCode: mqtt5_packet.DisconnectReasonCode.AdministrativeAction
-    } as model.DisconnectPacketInternal, model.ProtocolMode.Mqtt5);
+    } as model.DisconnectPacketInternal, mqtt_shared.ProtocolMode.Mqtt5);
 
     fixture.onIncomingData(0, encodedDisconnect);
 
@@ -3143,7 +3143,7 @@ test("DisconnectPacketTriggersDisconnectReceivedEvent", () => {
     doDisconnectPacketTriggersDisconnectReceivedEventTest();
 });
 
-function doPublishPacketTriggersPublishReceivedEvent(mode: model.ProtocolMode) {
+function doPublishPacketTriggersPublishReceivedEvent(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
@@ -3175,7 +3175,7 @@ describe("PublishPacketTriggersPublishReceivedEvent", () => {
     })
 });
 
-function doAcquireManualAcknowledgementQos0Test(mode: model.ProtocolMode) {
+function doAcquireManualAcknowledgementQos0Test(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
@@ -3209,7 +3209,7 @@ describe("AcquireManualAcknowledgement - QoS 0 No Handle", () => {
     })
 });
 
-function doAcquireManualAcknowledgementQos1StandardTest(mode: model.ProtocolMode) {
+function doAcquireManualAcknowledgementQos1StandardTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
@@ -3261,7 +3261,7 @@ describe("AcquireManualAcknowledgement - QoS 1 Acquire", () => {
     })
 });
 
-function doAcquireManualAcknowledgementQos1NoAcquireTest(mode: model.ProtocolMode) {
+function doAcquireManualAcknowledgementQos1NoAcquireTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
@@ -3301,7 +3301,7 @@ describe("AcquireManualAcknowledgement - QoS 1 No Acquire", () => {
     })
 });
 
-function doAcquireManualAcknowledgementQos1DoubleAcquireTest(mode: model.ProtocolMode) {
+function doAcquireManualAcknowledgementQos1DoubleAcquireTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
@@ -3343,7 +3343,7 @@ describe("AcquireManualAcknowledgement - Double Acquire Gets Null", () => {
     })
 });
 
-function doAcquireManualAcknowledgementAckAfterConnectionResetTest(mode: model.ProtocolMode) {
+function doAcquireManualAcknowledgementAckAfterConnectionResetTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
@@ -3406,7 +3406,7 @@ describe("AcquireManualAcknowledgement - Ack after connection reset", () => {
     })
 });
 
-function doAcquireManualAcknowledgementDoubleAcquireDoesNothingTest(mode: model.ProtocolMode) {
+function doAcquireManualAcknowledgementDoubleAcquireDoesNothingTest(mode: mqtt_shared.ProtocolMode) {
     let config = buildProtocolStateConfig(mode);
 
     let context : BrokerTestContext = {
