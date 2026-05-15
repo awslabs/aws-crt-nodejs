@@ -5,6 +5,8 @@
 
 /**
  * @packageDocumentation
+ * @module mqtt_shared
+ * @mergeTarget
  */
 
 import { MqttWill } from './mqtt';
@@ -88,6 +90,7 @@ export interface TopicProperties {
     hasWildcard: boolean;
 }
 
+/** @internal */
 export function computeTopicProperties(topic: string, isFilter: boolean) : TopicProperties {
     let properties : TopicProperties = {
         isValid: false,
@@ -153,6 +156,7 @@ export function computeTopicProperties(topic: string, isFilter: boolean) : Topic
     return properties;
 }
 
+/** @internal */
 export function isValidTopicFilter(topicFilter: any) : boolean {
     if (typeof(topicFilter) !== 'string') {
         return false;
@@ -162,6 +166,7 @@ export function isValidTopicFilter(topicFilter: any) : boolean {
     return properties.isValid;
 }
 
+/** @internal */
 export function isValidTopic(topic: any) : boolean {
     if (typeof(topic) !== 'string') {
         return false;
@@ -175,9 +180,7 @@ function randomInRange(min: number, max: number) : number {
     return min + (max - min) * Math.random();
 }
 
-/**
- * @internal
- */
+/** @internal */
 export interface ReconnectDelayContext {
     retryJitterMode?: mqtt5.RetryJitterType,
     minReconnectDelayMs? : number,
@@ -188,8 +191,14 @@ export interface ReconnectDelayContext {
 
 const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
 const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
+
+/** @internal */
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
+
+/** @internal */
 export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
+
+/** @internal */
 export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
 
 function getOrderedReconnectDelayBounds(configMin: number | undefined, configMax: number | undefined) : [number, number] {

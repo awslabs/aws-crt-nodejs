@@ -7,12 +7,14 @@ import * as mqtt_server from "@test/mqtt_server";
 import * as model from "./model";
 import * as mqtt_client from "./client";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
+import * as mqtt_shared from "../../common/mqtt_shared";
 import * as promise from "../../common/promise";
 import * as mqtt5 from "../../common/mqtt5";
 
 import {once} from "events";
 import * as ws from "../ws";
 import {MqttServer} from "../../../test/mqtt_server";
+import {PublishReceivedEvent} from "./client";
 
 var websocket = require('@httptoolkit/websocket-stream')
 
@@ -1278,7 +1280,7 @@ async function doResubscribeTest(protocolVersion : model.ProtocolMode, resubscri
     expect(reconnectSuccess1.connack.sessionPresent).toBeFalsy();
 
     // seems easiest to use time rather than trying to reason about unresolved promises (negative events)
-    await new Promise<void>((resolve) => { setTimeout(() => { resolve(); }, 2000)});
+    await sleep( 2000);
 
     // @ts-ignore
     config.connackOverrides.sessionPresent = true;
@@ -1289,7 +1291,7 @@ async function doResubscribeTest(protocolVersion : model.ProtocolMode, resubscri
     expect(reconnectSuccess2.connack.sessionPresent).toBeTruthy();
 
     // seems easiest to use time rather than trying to reason about unresolved promises (negative events)
-    await new Promise<void>((resolve) => { setTimeout(() => { resolve(); }, 2000)});
+    await sleep(2000);
 
     client.stop();
     await stopped;
@@ -1319,5 +1321,113 @@ describe("Resubscribe - Enabled Always", () => {
 describe("Resubscribe - Enabled on session lost", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         await doResubscribeTest(protocolVersionToMode(protocolVersion), mqtt_client.ResubscribeModeType.EnabledOnSessionResumptionFail);
+    })
+});
+
+async function doManualAcknowledgementNoAcquireTest(protocolVersion : model.ProtocolMode, iterations: number) {
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    await connectionSuccess;
+
+    let serverPuback= promise.newLiftedPromise<mqtt5_packet.PubackPacket>();
+    fixture.getServer().addListener('packetReceived', (packet : mqtt5_packet.IPacket) => {
+        if (packet.type == mqtt5_packet.PacketType.Puback) {
+            serverPuback.resolve(packet as mqtt5_packet.PubackPacket);
+        }
+    });
+
+    await client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    });
+    
+    await serverPuback.promise;
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+}
+
+describe("Manual Acknowledgement - No Acquire", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doManualAcknowledgementNoAcquireTest(protocolVersionToMode(protocolVersion), 4);
+    })
+});
+
+async function doManualAcknowledgementAcquireTest(protocolVersion : model.ProtocolMode, iterations: number) {
+    let config : mqtt_server.MqttServerConfig = {
+        protocolVersion: protocolVersion,
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, protocolVersion));
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    await connectionSuccess;
+
+    let pubackReceived : boolean = false;
+    let ackHandlePromise : promise.LiftedPromise<mqtt_shared.PublishAcknowledgementHandle> = promise.newLiftedPromise<mqtt_shared.PublishAcknowledgementHandle>();
+
+    client.addListener('publishReceived', (event : PublishReceivedEvent) => {
+        if (event.publish.qos != mqtt5_packet.QoS.AtMostOnce) {
+            expect(event.acknowledgementControl).toBeDefined();
+
+            // @ts-ignore
+            ackHandlePromise.resolve(event.acknowledgementControl.acquireHandle());
+        }
+    });
+
+    let serverPuback= promise.newLiftedPromise<mqtt5_packet.PubackPacket>();
+    fixture.getServer().addListener('packetReceived', (packet : mqtt5_packet.IPacket) => {
+        if (packet.type == mqtt5_packet.PacketType.Puback) {
+            pubackReceived = true;
+            serverPuback.resolve(packet as mqtt5_packet.PubackPacket);
+        }
+    });
+
+    await client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    });
+
+    let ackHandle : mqtt_shared.PublishAcknowledgementHandle = await ackHandlePromise.promise;
+
+    // Awkward way of trying to check that a puback didn't get automatically sent.  We wait for a generous period of
+    // time and verify that the flag is still false (we can't check the promise for non-resolution).
+    await sleep(1000);
+
+    expect(pubackReceived).toBe(false);
+
+    ackHandle.invokeAcknowledgement();
+
+    await serverPuback.promise;
+    expect(pubackReceived).toBe(true);
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+}
+
+describe("Manual Acknowledgement - Acquire", () => {
+    test.each(modes)("MQTT %p", async (protocolVersion) => {
+        await doManualAcknowledgementAcquireTest(protocolVersionToMode(protocolVersion), 4);
     })
 });

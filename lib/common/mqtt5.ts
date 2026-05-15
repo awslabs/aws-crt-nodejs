@@ -342,13 +342,13 @@ export interface MessageReceivedEvent {
     message: mqtt5_packet.PublishPacket;
 
     /**
-     * An object that allows the event recipient to take control of when the Publish packet's acknowledgement
+     * Allows the event recipient to take control of when the Publish packet's acknowledgement
      * packet is sent.  If the acknowledgement handle is not acquired by an event listener during the emission
      * process, the client will automatically send the acknowledgement itself.
      *
      * Undefined if this publish is not acknowledgeable (QoS 0).
      */
-    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper
+    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper;
 }
 
 /**

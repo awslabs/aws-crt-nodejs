@@ -89,7 +89,20 @@ export type StoppedEventListener = (eventData: StoppedEvent) => void;
  * Emitted whenever the client receives a publish packet from the MQTT broker
  */
 export interface PublishReceivedEvent {
+
+    /**
+     * Incoming Publish packet
+     */
     publish: mqtt5_packet.PublishPacket
+
+    /**
+     * An object that allows the event recipient to take control of when the Publish packet's acknowledgement
+     * packet is sent.  If the acknowledgement handle is not acquired by an event listener during the emission
+     * process, the client will automatically send the acknowledgement itself.
+     *
+     * Undefined if this publish is not acknowledgeable (QoS 0).
+     */
+    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper
 }
 
 /**
@@ -415,21 +428,24 @@ export class Client extends BufferedEventEmitter {
             pingTimeoutMillis : config.pingTimeoutMillis
         });
 
+        let client : Client = this;
         this.protocolState.addListener("halted", (event : protocol.HaltedEvent) => {
-            queueMicrotask(() => this.onProtocolStateHalted(event));
+            queueMicrotask(() => { client.onProtocolStateHalted(event); });
         });
         this.protocolState.addListener("connackReceived", (event : protocol.ConnackReceivedEvent) => {
-            queueMicrotask(() => this.onConnackReceivedEvent(event));
-        });
-        this.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
-            queueMicrotask(() => this.onPublishReceivedEvent(event));
+            queueMicrotask(() => { client.onConnackReceivedEvent(event); });
         });
         this.protocolState.addListener("disconnectReceived", (event : protocol.DisconnectReceivedEvent) => {
-            queueMicrotask(() => this.onDisconnectReceivedEvent(event));
+            queueMicrotask(() => { client.onDisconnectReceivedEvent(event); });
         });
 
-        this.onConnectionClosedCallback = () => { queueMicrotask(() => this.onConnectionClosed())};
-        this.onConnectionDataCallback = (data : any) => { queueMicrotask(() => this.onConnectionData(data))};
+        // no need to queue the publish received event because it queues its relay event emission internally
+        this.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+            client.onPublishReceivedEvent(event);
+        });
+
+        this.onConnectionClosedCallback = () => { queueMicrotask(() => client.onConnectionClosed())};
+        this.onConnectionDataCallback = (data : any) => { queueMicrotask(() => client.onConnectionData(data))};
     }
 
     /**
@@ -1033,10 +1049,16 @@ export class Client extends BufferedEventEmitter {
         this.reevaluateService();
     }
 
-    private onPublishReceivedEvent(event : protocol.PublishReceivedEvent) {
-        this.emit(Client.PUBLISH_RECEIVED, {
+    private onPublishReceivedEvent(event: protocol.PublishReceivedEvent) {
+        let client : Client = this;
+
+        let relayedEvent : PublishReceivedEvent = {
             publish: event.packet
-        });
+        }
+
+        mqtt_shared.queueAcknowledgeableEvent(client, Client.PUBLISH_RECEIVED, relayedEvent, 'acknowledgementControl', event.acknowledgementControl, () => {
+            client.reevaluateService();
+        }, );
     }
 
     private onDisconnectReceivedEvent(event : protocol.DisconnectReceivedEvent) {
