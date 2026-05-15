@@ -332,14 +332,14 @@ function createOperationFailureClient() : mqtt5.IMqtt5Client {
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry underflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
-        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), -5);
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry overflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
-        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), 4294967296);
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, 4294967296);
     })
 });
 
