@@ -175,6 +175,8 @@ export function calculateNextReconnectDelay(context: ReconnectDelayContext) : nu
 class ParsedUsername {
     prefix: string = "";
     queryParams: [string, string][] = new Array<[string, string]>;
+
+    // will be defined only if there is a metadata query param entry and it is formatted correctly
     metadata?: [string, string][] = undefined;
 }
 
@@ -190,24 +192,31 @@ const KEY_VALUE_SEPARATOR : string = "=";
 const METADATA_PREFIX : string = "(";
 const METADATA_SUFFIX : string = ")";
 
+// used to break up the query param string into key value pairs or the metadata value into key value pairs
 function parseDelimitedKeyValueString(input: string, pairDelimiter: string, kvDelimiter: string) : Array<[string, string]> {
     let kvPairs = new Array<[string, string]>;
 
     let pairs = input.split(pairDelimiter);
     for (let pair of pairs) {
+        if (pair.length == 0) {
+            continue;
+        }
+
         let kvDelimiterIndex = pair.indexOf(kvDelimiter);
         // just a key, no value?
         if (kvDelimiterIndex < 0) {
             kvPairs.push([pair, ""]);
+        } else {
+            let value = pair.substring(kvDelimiterIndex + 1);
+            kvPairs.push([pair.substring(0, kvDelimiterIndex), value]);
         }
-
-        let value = pair.substring(kvDelimiterIndex + 1);
-        kvPairs.push([pair.substring(0, kvDelimiterIndex), value]);
     }
 
     return kvPairs;
 }
 
+// splits the username into a prefix and query param key values.  If metadata is present and correctly formatted,
+// it also splits the metadata into key value pairs.
 function parseUsername(username?: string) : ParsedUsername {
     let parsed = new ParsedUsername();
 
@@ -233,7 +242,7 @@ function parseUsername(username?: string) : ParsedUsername {
             seenMetadata = true;
             let metadataValue = pair[1];
             if (metadataValue !== undefined && metadataValue.length >= 2 && metadataValue.startsWith(METADATA_PREFIX) && metadataValue.endsWith(METADATA_SUFFIX)) {
-                metadataValue = metadataValue.substring(METADATA_PREFIX.length, metadataValue.length - (METADATA_PREFIX.length + METADATA_SUFFIX.length));
+                metadataValue = metadataValue.substring(METADATA_PREFIX.length, metadataValue.length - METADATA_SUFFIX.length);
                 parsed.metadata = parseDelimitedKeyValueString(metadataValue, METADATA_PAIR_DELIMITER, KEY_VALUE_SEPARATOR);
             }
             break;
@@ -272,6 +281,7 @@ function addMetadataPair(parsed: ParsedUsername, key: string, value: string) {
     parsed.metadata.push([key, strippedValue]);
 }
 
+// builds an ordered list of de-duped keys as well as a map of their values
 function buildOrderedKeyValues(pairs?: Array<[string, string]>) : [Array<string>, Map<string, string>] {
     let keys: Array<string> = new Array<string>();
     let kvMap = new Map<string, string>();
@@ -306,7 +316,7 @@ function buildUsernameFromQueryParse(parsed: ParsedUsername) : string {
         metadataValue = METADATA_PREFIX + innerValue + METADATA_SUFFIX;
     }
 
-    // if we have a constructed metadata value, replace the value and make sure it's in the key list
+    // if we have a final metadata value, replace any existing value and make sure it's in the key list
     if (metadataValue !== undefined) {
         if (queryValues.get(METADATA_KEY) === undefined) {
             queryKeys.push(METADATA_KEY);
@@ -314,10 +324,7 @@ function buildUsernameFromQueryParse(parsed: ParsedUsername) : string {
         queryValues.set(METADATA_KEY, metadataValue);
     }
 
-    let queryParamValue = queryKeys.map((key) => {
-        return `${key}${KEY_VALUE_SEPARATOR}${queryValues.get(key) ?? ""}`;
-    }).join(QUERY_PAIR_DELIMITER);
-
+    let queryParamValue = queryKeys.map((key) => `${key}${KEY_VALUE_SEPARATOR}${queryValues.get(key) ?? ""}` ).join(QUERY_PAIR_DELIMITER);
     return parsed.prefix + QUERY_PARAM_START_DELIMITER + queryParamValue;
 }
 
