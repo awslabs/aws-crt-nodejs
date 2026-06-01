@@ -291,6 +291,7 @@ test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV
     })
 });
 
+// Skip when AWS_CRT_USE_NON_FIPS_TLS_13 is set: TLS backend on macOS switches from Secure Transport to s2n-tls, which doesn't support PKCS#12.
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12() && !(platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13))('Aws Iot Core PKCS12 - Connection Success', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(

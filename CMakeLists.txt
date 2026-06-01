@@ -32,7 +32,8 @@ if (BUILD_DEPS)
     add_subdirectory(crt/aws-c-common)
     # On Linux and BSD, we use S2N for TLS and AWS-LC crypto.
     # On Windows, we use the default OS libraries.
-    # On Apple, we use the default OS libraries by default, but support S2N usage.
+    # On macOS (Darwin), both Secure Transport and s2n are built; the TLS backend
+    # is selected at runtime via the AWS_CRT_USE_NON_FIPS_TLS_13 environment variable.
     if (UNIX)
         include(AwsPrebuildDependency)
         # s2n-tls uses libcrypto during its configuration, so we need to prebuild aws-lc.
