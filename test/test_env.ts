@@ -12,6 +12,7 @@ export class AWS_IOT_ENV {
     // ====================
 
     public static MQTT5_HOST = process.env.AWS_TEST_MQTT5_IOT_CORE_HOST ?? "";
+    public static MQTT5_TLS13_HOST = process.env.AWS_TEST_MQTT5_IOT_CORE_TLS13_HOST ?? "";
     public static MQTT5_REGION = process.env.AWS_TEST_MQTT5_IOT_CORE_REGION ?? "";
 
     public static MQTT5_RSA_CERT = process.env.AWS_TEST_MQTT5_IOT_CORE_RSA_CERT ?? "";
@@ -125,6 +126,12 @@ export class AWS_IOT_ENV {
             AWS_IOT_ENV.MQTT5_X509_KEY !== "" &&
             AWS_IOT_ENV.MQTT5_X509_ROLE_ALIAS !== "" &&
             AWS_IOT_ENV.MQTT5_X509_THING_NAME !== "";
+    }
+
+    public static mqtt5_is_valid_tls13() {
+        return AWS_IOT_ENV.MQTT5_TLS13_HOST !== "" &&
+            AWS_IOT_ENV.MQTT5_RSA_CERT !== "" &&
+            AWS_IOT_ENV.MQTT5_RSA_KEY !== "";
     }
 
     // ====================

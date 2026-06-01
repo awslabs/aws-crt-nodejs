@@ -315,6 +315,18 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_windows_cert())('A
     })
 });
 
+// TLS 1.3 is supported on all platforms except macOS with Secure Transport (which only supports up to TLS 1.2).
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_tls13() && !(platform() === "darwin" && !process.env.AWS_CRT_USE_NON_FIPS_TLS_13))('Aws Iot Core TLS 1.3 - Connection Success', async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
+            test_env.AWS_IOT_ENV.MQTT5_TLS13_HOST,
+            test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
+            test_env.AWS_IOT_ENV.MQTT5_RSA_KEY
+        );
+        await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+    })
+});
+
 function do_successful_cipher_preference_test(tls_cipher_preference: TlsCipherPreference) {
     let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
         test_env.AWS_IOT_ENV.MQTT5_HOST,
