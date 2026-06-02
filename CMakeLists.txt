@@ -32,6 +32,7 @@ if (BUILD_DEPS)
     add_subdirectory(crt/aws-c-common)
     # On Linux and BSD, we use S2N for TLS and AWS-LC crypto.
     # On Windows, we use the default OS libraries.
+    # Build s2n-tls and aws-lc on all Unix platforms except non-macOS Apple (iOS, tvOS).
     # On macOS (Darwin), both Secure Transport and s2n are built; the TLS backend
     # is selected at runtime via the AWS_CRT_USE_NON_FIPS_TLS_13 environment variable.
     if (UNIX AND (NOT APPLE OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"))
@@ -46,6 +47,14 @@ if (BUILD_DEPS)
                 -DBUILD_LIBSSL=OFF
                 -DBUILD_TESTING=OFF
         )
+        # On Intel Macs, Homebrew installs to /usr/local which is in the default system header
+        # search path. Without CMAKE_NO_SYSTEM_FROM_IMPORTED, s2n picks up Homebrew's OpenSSL
+        # headers instead of the bundled aws-lc headers. Not needed on ARM (/opt/homebrew)
+        # or Linux.
+        set(S2N_EXTRA_CMAKE_ARGUMENTS "")
+        if (APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+            list(APPEND S2N_EXTRA_CMAKE_ARGUMENTS -DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON)
+        endif()
         # prebuild s2n-tls.
         aws_prebuild_dependency(
             DEPENDENCY_NAME S2N
@@ -53,7 +62,7 @@ if (BUILD_DEPS)
             CMAKE_ARGUMENTS
                 -DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF
                 -DBUILD_TESTING=OFF
-                -DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON
+                ${S2N_EXTRA_CMAKE_ARGUMENTS}
         )
     endif()
 
