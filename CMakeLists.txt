@@ -34,7 +34,7 @@ if (BUILD_DEPS)
     # On Windows, we use the default OS libraries.
     # On macOS (Darwin), both Secure Transport and s2n are built; the TLS backend
     # is selected at runtime via the AWS_CRT_USE_NON_FIPS_TLS_13 environment variable.
-    if (UNIX)
+    if (UNIX AND (NOT APPLE OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"))
         include(AwsPrebuildDependency)
         # s2n-tls uses libcrypto during its configuration, so we need to prebuild aws-lc.
         aws_prebuild_dependency(
