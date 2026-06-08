@@ -11,7 +11,7 @@ import { MqttWill } from './mqtt';
 import * as event from "./event";
 import * as mqtt5 from "./mqtt5";
 import * as mqtt5_packet from "./mqtt5_packet";
-
+import * as mqtt_utils from "../browser/mqtt5_utils";
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -57,7 +57,7 @@ export function normalize_payload_to_buffer(payload: any): Buffer {
     let normalized = normalize_payload(payload);
     if (typeof normalized === 'string') {
         // pass string through
-        return Buffer.from(normalized);
+        return Buffer.from(new TextEncoder().encode(normalized).buffer);
     }
 
     return normalized;
@@ -83,45 +83,75 @@ export class AwsIoTDeviceSDKMetrics {
     libraryName: string = SDK_NAME;
 }
 
-function isValidTopicInternal(topic: string, isFilter: boolean) : boolean {
-    if (topic.length === 0 || topic.length > 65535) {
-        return false;
+export interface TopicProperties {
+    isValid: boolean;
+    isShared: boolean;
+    hasWildcard: boolean;
+}
+
+export function computeTopicProperties(topic: string, isFilter: boolean) : TopicProperties {
+    let properties : TopicProperties = {
+        isValid: false,
+        isShared: false,
+        hasWildcard: false
+    };
+
+    if (topic.length === 0) {
+        return properties;
     }
 
+    let hasSharePrefix : boolean = false;
+    let hasShareName : boolean = false;
     let sawHash : boolean = false;
+    let index : number = 0;
     for (let segment of topic.split('/')) {
         if (sawHash) {
-            return false;
-        }
-
-        if (segment.length === 0) {
-            continue;
+            return properties;
         }
 
         if (segment.includes("+")) {
             if (!isFilter) {
-                return false;
+                return properties;
             }
 
             if (segment.length > 1) {
-                return false;
+                return properties;
             }
+
+            properties.hasWildcard = true;
         }
 
         if (segment.includes("#")) {
             if (!isFilter) {
-                return false;
+                return properties;
             }
 
             if (segment.length > 1) {
-                return false;
+                return properties;
             }
 
+            properties.hasWildcard = true;
             sawHash = true;
         }
+
+        if (index == 0 && segment === "$share") {
+            hasSharePrefix = true;
+        }
+
+        if (index == 1 && hasSharePrefix && segment.length > 0 && !properties.hasWildcard) {
+            hasShareName = true;
+        }
+
+        if (hasShareName && ((index == 2 && segment.length > 0) || index > 2)) {
+            properties.isShared = true;
+        }
+
+        index += 1;
     }
 
-    return true;
+    properties.isValid = true;
+
+    return properties;
 }
 
 export function isValidTopicFilter(topicFilter: any) : boolean {
@@ -129,9 +159,8 @@ export function isValidTopicFilter(topicFilter: any) : boolean {
         return false;
     }
 
-    let topicFilterAsString = topicFilter as string;
-
-    return isValidTopicInternal(topicFilterAsString, true);
+    let properties = computeTopicProperties(topicFilter as string, true);
+    return properties.isValid;
 }
 
 export function isValidTopic(topic: any) : boolean {
@@ -139,9 +168,47 @@ export function isValidTopic(topic: any) : boolean {
         return false;
     }
 
-    let topicAsString = topic as string;
+    let properties = computeTopicProperties(topic as string, false);
+    return properties.isValid;
+}
 
-    return isValidTopicInternal(topicAsString, false);
+function randomInRange(min: number, max: number) : number {
+    return min + (max - min) * Math.random();
+}
+
+/**
+ * @internal
+ */
+export interface ReconnectDelayContext {
+    retryJitterMode?: mqtt5.RetryJitterType,
+    minReconnectDelayMs? : number,
+    maxReconnectDelayMs? : number,
+    lastReconnectDelay? : number,
+    connectionFailureCount : number,
+}
+
+/**
+ * Computes the next reconnect delay based on the Jitter/Retry configuration.
+ * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+ * @internal
+ */
+export function calculateNextReconnectDelay(context: ReconnectDelayContext) : number {
+    const jitterType : mqtt5.RetryJitterType = context.retryJitterMode ?? mqtt5.RetryJitterType.Default;
+    const [minDelay, maxDelay] : [number, number] = mqtt_utils.getOrderedReconnectDelayBounds(context.minReconnectDelayMs, context.maxReconnectDelayMs);
+    const clampedFailureCount : number = Math.min(52, context.connectionFailureCount);
+    let delay : number = 0;
+
+    if (jitterType == mqtt5.RetryJitterType.None) {
+        delay = minDelay * Math.pow(2, clampedFailureCount);
+    } else if (jitterType == mqtt5.RetryJitterType.Decorrelated && context.lastReconnectDelay) {
+        delay = randomInRange(minDelay, 3 * context.lastReconnectDelay);
+    } else {
+        delay = randomInRange(minDelay, Math.min(maxDelay, minDelay * Math.pow(2, clampedFailureCount)));
+    }
+
+    delay = Math.min(maxDelay, delay);
+
+    return delay;
 }
 
 /**
@@ -409,3 +476,4 @@ export interface Mqtt5ClientConfigBase {
      */
     topicAliasingOptions? : mqtt5.TopicAliasingOptions;
 }
+

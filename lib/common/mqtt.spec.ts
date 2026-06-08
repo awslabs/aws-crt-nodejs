@@ -91,6 +91,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         });
         await expect(sub).resolves.toBeTruthy();
 
+        await test_env.sleep(1000);
+
         const publishResult = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
         await expect(publishResult).resolves.toBeTruthy();
 
@@ -138,7 +140,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         await connectionWaitingForWill.subscribe(willTopic, QoS.AtLeastOnce);
 
         // pause for a couple of seconds to try and minimize chance for a service-side race
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await test_env.sleep(2000);
 
         // The third connection that will cause the first one to be disconnected because it has the same client ID.
         const connectionDuplicate = await makeConnection(undefined, client_id);
@@ -154,7 +156,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
                 await onConnectDuplicate;
                 continueConnecting = false;
             } catch (err) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await test_env.sleep(1000);
             }
         }
 
@@ -201,6 +203,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         let onMessage = once(connection, 'message');
 
         await connection.subscribe(test_topic, QoS.AtLeastOnce);
+
+        await test_env.sleep(1000);
 
         await connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
 
@@ -284,6 +288,8 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         });
 
         await connection.subscribe(`test/types/${id}/#`, QoS.AtLeastOnce);
+
+        await test_env.sleep(1000);
 
         for (const topic in tests) {
             await connection.publish(topic, tests[topic].send, QoS.AtLeastOnce);
