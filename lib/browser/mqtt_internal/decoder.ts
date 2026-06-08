@@ -5,6 +5,7 @@
 
 import {CrtError} from "../error";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
+import * as mqtt_shared from "../../common/mqtt_shared";
 import * as vli from "./vli";
 import * as model from "./model";
 import {toUtf8} from "@aws-sdk/util-utf8-browser";
@@ -668,9 +669,9 @@ export type DecodingFunction = (firstByte: number, payload: DataView) => mqtt5_p
 export type DecodingFunctionSet = Map<mqtt5_packet.PacketType, DecodingFunction>;
 
 // decoders for server-decoded packets are found in the spec file
-export function buildClientDecodingFunctionSet(mode: model.ProtocolMode) : DecodingFunctionSet {
+export function buildClientDecodingFunctionSet(mode: mqtt_shared.ProtocolMode) : DecodingFunctionSet {
     switch (mode) {
-        case model.ProtocolMode.Mqtt311:
+        case mqtt_shared.ProtocolMode.Mqtt311:
             return new Map<mqtt5_packet.PacketType, DecodingFunction>([
                 [mqtt5_packet.PacketType.Connack, decodeConnackPacket311],
                 [mqtt5_packet.PacketType.Publish, decodePublishPacket311],
@@ -680,7 +681,7 @@ export function buildClientDecodingFunctionSet(mode: model.ProtocolMode) : Decod
                 [mqtt5_packet.PacketType.Pingresp, decodePingrespPacket],
             ]);
 
-        case model.ProtocolMode.Mqtt5:
+        case mqtt_shared.ProtocolMode.Mqtt5:
             return new Map<mqtt5_packet.PacketType, DecodingFunction>([
                 [mqtt5_packet.PacketType.Connack, decodeConnackPacket5],
                 [mqtt5_packet.PacketType.Publish, decodePublishPacket5],

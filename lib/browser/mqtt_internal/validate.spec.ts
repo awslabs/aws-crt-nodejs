@@ -6,6 +6,7 @@
 import * as model from "./model";
 import * as mqtt5_common from "../../common/mqtt5";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
+import * as mqtt_shared from "../../common/mqtt_shared";
 import * as validate from "./validate";
 
 function doBinaryUserPropertyNameTooLongTest(packet: model.IPacketBinary) {
@@ -14,8 +15,8 @@ function doBinaryUserPropertyNameTooLongTest(packet: model.IPacketBinary) {
     // @ts-ignore
     packet.userProperties[0].name = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 }
 
 function doBinaryUserPropertyValueTooLongTest(packet: model.IPacketBinary) {
@@ -24,8 +25,8 @@ function doBinaryUserPropertyValueTooLongTest(packet: model.IPacketBinary) {
     // @ts-ignore
     packet.userProperties[1].value = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 }
 
 function doBinaryZeroPacketIdTest(packet: model.IPacketBinary) {
@@ -34,8 +35,8 @@ function doBinaryZeroPacketIdTest(packet: model.IPacketBinary) {
     // @ts-ignore
     packet.packetId = 0;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a valid packetId");
 }
 
 function doBinaryUndefinedPacketIdTest(packet: model.IPacketBinary) {
@@ -44,43 +45,43 @@ function doBinaryUndefinedPacketIdTest(packet: model.IPacketBinary) {
     // @ts-ignore
     delete packet.packetId;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("must be defined");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("must be defined");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("must be defined");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("must be defined");
 }
 
 function doBadUserPropertiesTypeTest(packet: mqtt5_packet.IPacket) {
     // @ts-ignore
     packet.userProperties = true;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("is not an array");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("is not an array");
 }
 
 function doBadUserPropertiesUndefinedNameTest(packet: mqtt5_packet.IPacket) {
     // @ts-ignore
     delete packet.userProperties[0].name;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 }
 
 function doBadUserPropertiesBadNameTypeTest(packet: mqtt5_packet.IPacket) {
     // @ts-ignore
     packet.userProperties[0].name = false;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 }
 
 function doBadUserPropertiesUndefinedValueTest(packet: mqtt5_packet.IPacket) {
     // @ts-ignore
     delete packet.userProperties[1].value;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 }
 
 function doBadUserPropertiesBadValueTypeTest(packet: mqtt5_packet.IPacket) {
     // @ts-ignore
     packet.userProperties[1].value = 21;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 }
 
 // Publish Validation
@@ -108,109 +109,109 @@ function createExternalPublishPacketMaximal() : mqtt5_packet.PublishPacket {
 // user-submitted publishes
 
 test('External publish packet validation - isValid', async () => {
-    validate.validateInitialOutboundPacket(createExternalPublishPacketMaximal(), model.ProtocolMode.Mqtt311);
-    validate.validateInitialOutboundPacket(createExternalPublishPacketMaximal(), model.ProtocolMode.Mqtt5);
+    validate.validateInitialOutboundPacket(createExternalPublishPacketMaximal(), mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInitialOutboundPacket(createExternalPublishPacketMaximal(), mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('External publish packet validation - undefined topic', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     delete packet.topicName;
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External publish packet validation - bad topic type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.topicName = 6;
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External publish packet validation - bad topic value', async () => {
     let packet = createExternalPublishPacketMaximal();
     packet.topicName = "#/#";
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid topic");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid topic");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid topic");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid topic");
 });
 
 test('External publish packet validation - undefined qos', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     delete packet.qos;
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External publish packet validation - bad qos type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.qos = "hi";
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External publish packet validation - bad qos value', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.qos = 3;
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External publish packet validation - bad payload type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.payload = [3, "derp"];
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("Invalid payload value");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("Invalid payload value");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("Invalid payload value");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("Invalid payload value");
 });
 
 test('External publish packet validation - bad payload format type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.payloadFormat = "hi";
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid PayloadFormatIndicator");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid PayloadFormatIndicator");
 });
 
 test('External publish packet validation - bad payload format value', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.payloadFormat = 2;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid PayloadFormatIndicator");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid PayloadFormatIndicator");
 });
 
 test('External publish packet validation - bad message expiry interval type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.messageExpiryIntervalSeconds = "hi";
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
 });
 
 test('External publish packet validation - bad message expiry interval value', async () => {
     let packet = createExternalPublishPacketMaximal();
     packet.messageExpiryIntervalSeconds = -5;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
 });
 
 test('External publish packet validation - bad topic alias type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.topicAlias = "hi";
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u16");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid u16");
 });
 
 test('External publish packet validation - bad topic alias value', async () => {
     let packet = createExternalPublishPacketMaximal();
     packet.topicAlias = 0;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("cannot be 0");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("cannot be 0");
 });
 
 
@@ -218,31 +219,31 @@ test('External publish packet validation - bad response topic type', async () =>
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.responseTopic = 3;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External publish packet validation - bad response topic value', async () => {
     let packet = createExternalPublishPacketMaximal();
     packet.responseTopic = "#/+";
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid topic");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid topic");
 });
 
 test('External publish packet validation - bad correlation data type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.correlationData = [3, "derp"];
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not valid binary data");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not valid binary data");
 });
 
 test('External publish packet validation - bad content type type', async () => {
     let packet = createExternalPublishPacketMaximal();
     // @ts-ignore
     packet.contentType = false;
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External publish packet validation - bad user properties type', async () => {
@@ -298,8 +299,8 @@ function createStandardNegotiatedSettings() : mqtt5_common.NegotiatedSettings {
 test('Binary publish packet validation - success', async () => {
     let packet = createBinaryPublishPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings);
 });
 
 test('Binary publish packet validation - packet too long', async () => {
@@ -307,8 +308,8 @@ test('Binary publish packet validation - packet too long', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.payload = new Uint8Array(128 * 1024 + 1);
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
 });
 
 test('Binary publish packet validation - qos 0 packet id', async () => {
@@ -317,8 +318,8 @@ test('Binary publish packet validation - qos 0 packet id', async () => {
     packet.qos = 0;
     packet.packetId = 5;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("packetId must not be set");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("packetId must not be set");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("packetId must not be set");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("packetId must not be set");
 });
 
 test('Binary publish packet validation - qos 1 no packet id', async () => {
@@ -327,8 +328,8 @@ test('Binary publish packet validation - qos 1 no packet id', async () => {
     packet.qos = 1;
     delete packet.packetId;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("must be defined");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("must be defined");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("must be defined");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("must be defined");
 });
 
 test('Binary publish packet validation - qos 1 zero-valued packet id', async () => {
@@ -337,8 +338,8 @@ test('Binary publish packet validation - qos 1 zero-valued packet id', async () 
     packet.qos = 1;
     packet.packetId = 0;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a valid packetId");
 });
 
 test('Binary publish packet validation - qos 1 too-large packet id', async () => {
@@ -347,8 +348,8 @@ test('Binary publish packet validation - qos 1 too-large packet id', async () =>
     packet.qos = 65536;
     packet.packetId = 0;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a valid packetId");
 });
 
 test('Binary publish packet validation - retain not available', async () => {
@@ -357,8 +358,8 @@ test('Binary publish packet validation - retain not available', async () => {
     packet.retain = 1;
     settings.retainAvailable = false;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("does not support retained messages");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("does not support retained messages");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("does not support retained messages");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("does not support retained messages");
 });
 
 test('Binary publish packet validation - qos exceeds maximum', async () => {
@@ -366,8 +367,8 @@ test('Binary publish packet validation - qos exceeds maximum', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.qos = 2;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("greater than the maximum QoS");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("greater than the maximum QoS");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("greater than the maximum QoS");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("greater than the maximum QoS");
 });
 
 test('Binary publish packet validation - topic too long', async () => {
@@ -375,8 +376,8 @@ test('Binary publish packet validation - topic too long', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.topicName = new Uint8Array(65536);
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary publish packet validation - subscription identifiers set', async () => {
@@ -384,8 +385,8 @@ test('Binary publish packet validation - subscription identifiers set', async ()
     let settings = createStandardNegotiatedSettings();
     packet.subscriptionIdentifiers = [1];
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("may not be set on outbound publish packets");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("may not be set on outbound publish packets");
 });
 
 test('Binary publish packet validation - topic alias zero', async () => {
@@ -393,8 +394,8 @@ test('Binary publish packet validation - topic alias zero', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.topicAlias = 0;
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("cannot be zero");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("cannot be zero");
 });
 
 test('Binary publish packet validation - topic alias too big', async () => {
@@ -402,8 +403,8 @@ test('Binary publish packet validation - topic alias too big', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.topicAlias = 256;
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("greater than the maximum topic alias");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("greater than the maximum topic alias");
 });
 
 test('Binary publish packet validation - response topic too long', async () => {
@@ -411,8 +412,8 @@ test('Binary publish packet validation - response topic too long', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.responseTopic = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary publish packet validation - correlation data too long', async () => {
@@ -420,8 +421,8 @@ test('Binary publish packet validation - correlation data too long', async () =>
     let settings = createStandardNegotiatedSettings();
     packet.correlationData = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary publish packet validation - content type too long', async () => {
@@ -429,8 +430,8 @@ test('Binary publish packet validation - content type too long', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.contentType = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary publish packet validation - user property name too long', async () => {
@@ -468,8 +469,8 @@ function createInternalPublishPacketMaximal() : model.PublishPacketInternal {
 test('Inbound publish packet validation - success', async () => {
     let packet = createInternalPublishPacketMaximal();
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('Inbound publish packet validation - invalid qos', async () => {
@@ -477,8 +478,8 @@ test('Inbound publish packet validation - invalid qos', async () => {
     // @ts-ignore
     packet.qos = 255;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('Inbound publish packet validation - qos 1 with zero packet id', async () => {
@@ -486,16 +487,16 @@ test('Inbound publish packet validation - qos 1 with zero packet id', async () =
     // @ts-ignore
     packet.packetId = 0;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
 });
 
 test('Inbound publish packet validation - unresolved topic alias', async () => {
     let packet = createInternalPublishPacketMaximal();
     packet.topicName = "";
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("topicName is empty");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("topicName is empty");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("topicName is empty");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("topicName is empty");
 });
 
 // Puback Validation
@@ -525,8 +526,8 @@ test('Binary puback packet validation - success', async () => {
     let packet = createBinaryPubackPacketMaximal();
     let settings = createStandardNegotiatedSettings();
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings);
 });
 
 test('Binary puback packet validation - packet too long', async () => {
@@ -534,8 +535,8 @@ test('Binary puback packet validation - packet too long', async () => {
     let settings = createStandardNegotiatedSettings();
     settings.maximumPacketSizeToServer = 1;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
 });
 
 test('Binary puback packet validation - zero packet id', async () => {
@@ -551,8 +552,8 @@ test('Binary puback packet validation - reason string too long', async () => {
     let settings = createStandardNegotiatedSettings();
     packet.reasonString = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary puback packet validation - user property name too long', async () => {
@@ -561,8 +562,8 @@ test('Binary puback packet validation - user property name too long', async () =
     // @ts-ignore
     packet.userProperties[0].name = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary puback packet validation - user property value too long', async () => {
@@ -571,8 +572,8 @@ test('Binary puback packet validation - user property value too long', async () 
     // @ts-ignore
     packet.userProperties[1].value = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 // Inbound pubacks
@@ -580,23 +581,23 @@ test('Binary puback packet validation - user property value too long', async () 
 test('Inbound puback packet validation - success', async () => {
     let packet = createInternalPubackPacketMaximal();
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('Inbound puback packet validation - bad packet id', async () => {
     let packet = createInternalPubackPacketMaximal();
     packet.packetId = 0;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
 });
 
 test('Inbound puback packet validation - bad reason code', async () => {
     let packet = createInternalPubackPacketMaximal();
     packet.reasonCode = 255;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 PubackReasonCode");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 PubackReasonCode");
 });
 
 // Subscribe Validation
@@ -630,8 +631,8 @@ function createExternalSubscribePacketMaximal() : mqtt5_packet.SubscribePacket {
 test('External subscribe packet validation - success', async () => {
     let packet = createExternalSubscribePacketMaximal();
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('External subscribe packet validation - undefined subscriptions', async () => {
@@ -639,8 +640,8 @@ test('External subscribe packet validation - undefined subscriptions', async () 
     // @ts-ignore
     delete packet.subscriptions;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("must be an array");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("must be an array");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("must be an array");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("must be an array");
 });
 
 test('External subscribe packet validation - subscriptions bad type', async () => {
@@ -648,16 +649,16 @@ test('External subscribe packet validation - subscriptions bad type', async () =
     // @ts-ignore
     packet.subscriptions = "oops";
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("must be an array");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("must be an array");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("must be an array");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("must be an array");
 });
 
 test('External subscribe packet validation - empty subscriptions', async () => {
     let packet = createExternalSubscribePacketMaximal();
     packet.subscriptions = [];
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("cannot be empty");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("cannot be empty");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("cannot be empty");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("cannot be empty");
 });
 
 test('External subscribe packet validation - undefined topic filter', async () => {
@@ -665,8 +666,8 @@ test('External subscribe packet validation - undefined topic filter', async () =
     // @ts-ignore
     delete packet.subscriptions[0].topicFilter;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External subscribe packet validation - topic filter bad type', async () => {
@@ -674,16 +675,16 @@ test('External subscribe packet validation - topic filter bad type', async () =>
     // @ts-ignore
     packet.subscriptions[0].topicFilter = 0;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External subscribe packet validation - topic filter invalid', async () => {
     let packet = createExternalSubscribePacketMaximal();
     packet.subscriptions[0].topicFilter = "###";
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid topic filter");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid topic filter");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid topic filter");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid topic filter");
 });
 
 test('External subscribe packet validation - undefined qos', async () => {
@@ -691,8 +692,8 @@ test('External subscribe packet validation - undefined qos', async () => {
     // @ts-ignore
     delete packet.subscriptions[0].qos;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External subscribe packet validation - qos bad type', async () => {
@@ -700,8 +701,8 @@ test('External subscribe packet validation - qos bad type', async () => {
     // @ts-ignore
     packet.subscriptions[0].qos = "qos";
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External subscribe packet validation - qos invalid', async () => {
@@ -709,8 +710,8 @@ test('External subscribe packet validation - qos invalid', async () => {
     // @ts-ignore
     packet.subscriptions[0].qos = 4;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid QualityOfService");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid QualityOfService");
 });
 
 test('External subscribe packet validation - retain handling type bad type', async () => {
@@ -718,8 +719,8 @@ test('External subscribe packet validation - retain handling type bad type', asy
     // @ts-ignore
     packet.subscriptions[1].retainHandlingType = "qos";
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid RetainHandlingType");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid RetainHandlingType");
 });
 
 test('External subscribe packet validation - retain handling type invalid', async () => {
@@ -727,8 +728,8 @@ test('External subscribe packet validation - retain handling type invalid', asyn
     // @ts-ignore
     packet.subscriptions[1].retainHandlingType = 7;
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid RetainHandlingType");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid RetainHandlingType");
 });
 
 test('External subscribe packet validation - subscription identifier wrong type', async () => {
@@ -736,16 +737,16 @@ test('External subscribe packet validation - subscription identifier wrong type'
     // @ts-ignore
     packet.subscriptionIdentifier = "uffdah";
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("cannot be VLI-encoded");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("cannot be VLI-encoded");
 });
 
 test('External subscribe packet validation - subscription identifier too big', async () => {
     let packet = createExternalSubscribePacketMaximal();
     packet.subscriptionIdentifier = 256 * 256 * 256 * 128;
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("cannot be VLI-encoded");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("cannot be VLI-encoded");
 });
 
 test('External subscribe packet validation - bad user properties type', async () => {
@@ -783,8 +784,8 @@ test('Binary subscribe packet validation - success', async () => {
     let packet = creatdBinarySubscribePacketMaximal();
     let settings = createStandardNegotiatedSettings();
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings);
 });
 
 test('Binary subscribe packet validation - packet length too long', async () => {
@@ -792,8 +793,8 @@ test('Binary subscribe packet validation - packet length too long', async () => 
     let settings = createStandardNegotiatedSettings();
     settings.maximumPacketSizeToServer = 15;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
 });
 
 test('Binary subscribe packet validation - zero packet id', async () => {
@@ -814,8 +815,8 @@ test('Binary subscribe packet validation - shared subs unavailable', async () =>
     packet.subscriptions[0].topicFilter = encoder.encode(sharedTopicFilter).buffer;
     settings.sharedSubscriptionsAvailable = false;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not supported by the server");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not supported by the server");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not supported by the server");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not supported by the server");
 });
 
 test('Binary subscribe packet validation - no local and shared', async () => {
@@ -828,8 +829,8 @@ test('Binary subscribe packet validation - no local and shared', async () => {
     packet.subscriptions[0].topicFilter = encoder.encode(sharedTopicFilter).buffer;
     packet.subscriptions[0].noLocal = 1;
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("may not be set on a shared subscriptions");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("may not be set on a shared subscriptions");
 });
 
 test('Binary subscribe packet validation - wildcard subs unavailable', async () => {
@@ -842,8 +843,8 @@ test('Binary subscribe packet validation - wildcard subs unavailable', async () 
     packet.subscriptions[0].topicFilter = encoder.encode(wildcardTopicFilter).buffer;
     settings.wildcardSubscriptionsAvailable = false;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not supported by the server");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not supported by the server");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not supported by the server");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not supported by the server");
 });
 
 test('Binary subscribe packet validation - topic filter too long', async () => {
@@ -855,8 +856,8 @@ test('Binary subscribe packet validation - topic filter too long', async () => {
     packet.subscriptions[0].topicFilterAsString = newTopicFilter;
     packet.subscriptions[0].topicFilter = encoder.encode(newTopicFilter).buffer;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary subscribe packet validation - user property name too long', async () => {
@@ -890,24 +891,24 @@ function createInternalSubackPacketMaximal() : model.SubackPacketInternal {
 test('Inbound suback packet validation - success', async () => {
     let packet = createInternalSubackPacketMaximal();
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('Inbound suback packet validation - zero packet id', async () => {
     let packet = createInternalSubackPacketMaximal();
     packet.packetId = 0;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
 });
 
 test('Inbound suback packet validation - bad reason code', async () => {
     let packet = createInternalSubackPacketMaximal();
     packet.reasonCodes[0] = 3;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid MQTT311 SubackReasonCode");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 SubackReasonCode");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid MQTT311 SubackReasonCode");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 SubackReasonCode");
 });
 
 // Unsubscribe Validation
@@ -931,8 +932,8 @@ function createExternalUnsubscribePacketMaximal() : mqtt5_packet.UnsubscribePack
 test('External unsubscribe packet validation - success', async () => {
     let packet = createExternalUnsubscribePacketMaximal();
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('External unsubscribe packet validation - undefined subscriptions', async () => {
@@ -940,16 +941,16 @@ test('External unsubscribe packet validation - undefined subscriptions', async (
     // @ts-ignore
     delete packet.topicFilters;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("cannot be empty");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("cannot be empty");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("cannot be empty");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("cannot be empty");
 });
 
 test('External unsubscribe packet validation - empty subscriptions', async () => {
     let packet = createExternalUnsubscribePacketMaximal();
     packet.topicFilters = [];
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("cannot be empty");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("cannot be empty");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("cannot be empty");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("cannot be empty");
 });
 
 test('External unsubscribe packet validation - undefined topic filter', async () => {
@@ -957,8 +958,8 @@ test('External unsubscribe packet validation - undefined topic filter', async ()
     // @ts-ignore
     delete packet.topicFilters[0];
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External unsubscribe packet validation - null topic filter', async () => {
@@ -966,8 +967,8 @@ test('External unsubscribe packet validation - null topic filter', async () => {
     // @ts-ignore
     packet.topicFilters[0] = null;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External unsubscribe packet validation - topic filter bad type', async () => {
@@ -975,8 +976,8 @@ test('External unsubscribe packet validation - topic filter bad type', async () 
     // @ts-ignore
     packet.topicFilters[0] = 5;
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid string");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External unsubscribe packet validation - topic filter invalid', async () => {
@@ -984,8 +985,8 @@ test('External unsubscribe packet validation - topic filter invalid', async () =
     // @ts-ignore
     packet.topicFilters[0] = "#/a";
 
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid topic filter");
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid topic filter");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid topic filter");
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid topic filter");
 });
 
 test('External unsubscribe packet validation - bad user properties type', async () => {
@@ -1023,8 +1024,8 @@ test('Binary unsubscribe packet validation - success', async () => {
     let packet = creatdBinaryUnsubscribePacketMaximal();
     let settings = createStandardNegotiatedSettings();
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings);
 });
 
 test('Binary unsubscribe packet validation - packet length too long', async () => {
@@ -1032,8 +1033,8 @@ test('Binary unsubscribe packet validation - packet length too long', async () =
     let settings = createStandardNegotiatedSettings();
     settings.maximumPacketSizeToServer = 15;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
 });
 
 test('Binary unsubscribe packet validation - zero packet id', async () => {
@@ -1053,8 +1054,8 @@ test('Binary unsubscribe packet validation - topic filter too long', async () =>
     packet.topicFiltersAsStrings[0] = newTopicFilter;
     packet.topicFilters[0] = encoder.encode(newTopicFilter).buffer;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary unsubscribe packet validation - user property name too long', async () => {
@@ -1087,24 +1088,24 @@ function createInternalUnsubackPacketMaximal() : model.UnsubackPacketInternal {
 test('Inbound unsuback packet validation - success', async () => {
     let packet = createInternalUnsubackPacketMaximal();
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('Inbound unsuback packet validation - zero packet id', async () => {
     let packet = createInternalUnsubackPacketMaximal();
     packet.packetId = 0;
 
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid packetId");
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid packetId");
 });
 
 test('Inbound unsuback packet validation - bad reason code', async () => {
     let packet = createInternalUnsubackPacketMaximal();
     packet.reasonCodes[0] = 3;
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 UnsubackReasonCode");
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 UnsubackReasonCode");
 });
 
 // Connect Validation
@@ -1155,8 +1156,8 @@ test('Binary connect packet validation - success', async () => {
     let packet = createBinaryConnectPacketMaximal();
     let settings = createStandardNegotiatedSettings();
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings);
 });
 
 test('Binary connect packet validation - packet length too long', async () => {
@@ -1164,8 +1165,8 @@ test('Binary connect packet validation - packet length too long', async () => {
     let settings = createStandardNegotiatedSettings();
     settings.maximumPacketSizeToServer = 15;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
 });
 
 test('Binary connect packet validation - client id too long', async () => {
@@ -1176,8 +1177,8 @@ test('Binary connect packet validation - client id too long', async () => {
     let newClientId = "a".repeat(65536);
     packet.clientId = encoder.encode(newClientId).buffer;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary connect packet validation - username too long', async () => {
@@ -1188,8 +1189,8 @@ test('Binary connect packet validation - username too long', async () => {
     let newUsername = "o".repeat(65536);
     packet.username = encoder.encode(newUsername).buffer;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary connect packet validation - password too long', async () => {
@@ -1200,8 +1201,8 @@ test('Binary connect packet validation - password too long', async () => {
     let newPassword = "o".repeat(65536);
     packet.password = encoder.encode(newPassword).buffer;
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary connect packet validation - authentication method too long', async () => {
@@ -1212,8 +1213,8 @@ test('Binary connect packet validation - authentication method too long', async 
     let newMethod = "a".repeat(65536);
     packet.authenticationMethod = encoder.encode(newMethod).buffer;
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary connect packet validation - authentication data too long', async () => {
@@ -1222,8 +1223,8 @@ test('Binary connect packet validation - authentication data too long', async ()
 
     packet.authenticationData = new Uint8Array(65537);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary connect packet validation - user property name too long', async () => {
@@ -1241,8 +1242,8 @@ test('Binary connect packet validation - will too long', async () => {
     // @ts-ignore
     packet.will.payload = new Uint8Array(65537);
 
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings); }).toThrow("will payload too long");
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("will payload too long");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("will payload too long");
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("will payload too long");
 });
 
 // Disconnect Validation
@@ -1264,8 +1265,8 @@ function createExternalDisconnectPacketMaximal() : mqtt5_packet.DisconnectPacket
 // user-submitted disconnects
 
 test('External disconnect packet validation - isValid', async () => {
-    validate.validateInitialOutboundPacket(createExternalDisconnectPacketMaximal(), model.ProtocolMode.Mqtt311);
-    validate.validateInitialOutboundPacket(createExternalDisconnectPacketMaximal(), model.ProtocolMode.Mqtt5);
+    validate.validateInitialOutboundPacket(createExternalDisconnectPacketMaximal(), mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInitialOutboundPacket(createExternalDisconnectPacketMaximal(), mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('External disconnect packet validation - undefined reason code', async () => {
@@ -1273,8 +1274,8 @@ test('External disconnect packet validation - undefined reason code', async () =
     // @ts-ignore
     delete packet.reasonCode;
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
 });
 
 test('External disconnect packet validation - reason code bad type', async () => {
@@ -1282,8 +1283,8 @@ test('External disconnect packet validation - reason code bad type', async () =>
     // @ts-ignore
     packet.reasonCode = "Success";
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
 });
 
 test('External disconnect packet validation - reason code bad value', async () => {
@@ -1291,8 +1292,8 @@ test('External disconnect packet validation - reason code bad value', async () =
     // @ts-ignore
     packet.reasonCode = 127;
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 DisconnectReasonCode");
 });
 
 test('External disconnect packet validation - session expiry bad type', async () => {
@@ -1300,24 +1301,24 @@ test('External disconnect packet validation - session expiry bad type', async ()
     // @ts-ignore
     packet.sessionExpiryIntervalSeconds = "Tomorrow";
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
 });
 
 test('External disconnect packet validation - session expiry too large', async () => {
     let packet = createExternalDisconnectPacketMaximal();
     packet.sessionExpiryIntervalSeconds = 256 * 256 * 256 * 256;
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
 });
 
 test('External disconnect packet validation - session expiry too small', async () => {
     let packet = createExternalDisconnectPacketMaximal();
     packet.sessionExpiryIntervalSeconds = -1;
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid u32");
 });
 
 test('External disconnect packet validation - reason string bad type', async () => {
@@ -1325,8 +1326,8 @@ test('External disconnect packet validation - reason string bad type', async () 
     // @ts-ignore
     packet.reasonString = {};
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External disconnect packet validation - server reference bad type', async () => {
@@ -1334,8 +1335,8 @@ test('External disconnect packet validation - server reference bad type', async 
     // @ts-ignore
     packet.serverReference = [];
 
-    validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInitialOutboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
+    validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInitialOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid string");
 });
 
 test('External disconnect packet validation - bad user properties type', async () => {
@@ -1370,8 +1371,8 @@ function createBinaryDisconnectPacketMaximal() : model.DisconnectPacketBinary {
 test('Binary disconnect packet validation - success', async () => {
     let packet = createBinaryDisconnectPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings);
 });
 
 test('Binary disconnect packet validation - packet too long', async () => {
@@ -1379,8 +1380,8 @@ test('Binary disconnect packet validation - packet too long', async () => {
     let settings = createStandardNegotiatedSettings();
     settings.maximumPacketSizeToServer = 20;
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
 });
 
 test('Binary disconnect packet validation - positive session expiry interval when previously established zero-length', async () => {
@@ -1388,8 +1389,8 @@ test('Binary disconnect packet validation - positive session expiry interval whe
     let settings = createStandardNegotiatedSettings();
     settings.sessionExpiryInterval = 0;
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("cannot be positive");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("cannot be positive");
 });
 
 test('Binary disconnect packet validation - reason string too long', async () => {
@@ -1397,8 +1398,8 @@ test('Binary disconnect packet validation - reason string too long', async () =>
     let settings = createStandardNegotiatedSettings();
     packet.reasonString = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary disconnect packet validation - server reference too long', async () => {
@@ -1406,8 +1407,8 @@ test('Binary disconnect packet validation - server reference too long', async ()
     let settings = createStandardNegotiatedSettings();
     packet.serverReference = new Uint8Array(65536);
 
-    validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt311, settings);
-    expect(() => { validate.validateBinaryOutboundPacket(packet, model.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
+    validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
+    expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
 });
 
 test('Binary disconnect packet validation - user property name too long', async () => {
@@ -1431,14 +1432,14 @@ function createInternalDisconnectPacketMaximal() : model.DisconnectPacketInterna
 test('Inbound disconnect packet validation - success', async () => {
     let packet = createInternalDisconnectPacketMaximal();
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5);
 });
 
 test('Inbound disconnect packet validation - server-side session expiry', async () => {
     let packet = createInternalDisconnectPacketMaximal();
     packet.sessionExpiryIntervalSeconds = 30;
 
-    validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt311);
-    expect(() => { validate.validateInboundPacket(packet, model.ProtocolMode.Mqtt5); }).toThrow("must not define");
+    validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
+    expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("must not define");
 });

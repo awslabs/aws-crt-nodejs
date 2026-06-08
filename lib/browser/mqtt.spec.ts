@@ -5,9 +5,12 @@
 
 import * as test_env from "@test/test_env";
 import * as retry from "@test/retry";
+import * as mqtt_server from "@test/mqtt_server";
+import * as test_metrics from "@test/metrics";
 import { ClientBootstrap, SocketOptions } from './io';
-import { MqttClient, MqttConnectionConfig } from './mqtt';
+import { MqttClient, MqttConnectionConfig, MqttClientConnection } from './mqtt';
 import { v4 as uuid } from 'uuid';
+import * as mqtt_shared from "../common/mqtt_shared";
 
 jest.setTimeout(30000);
 
@@ -60,4 +63,39 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_auth_mqtt())(
         }
         await test_connection(config, new MqttClient(new ClientBootstrap()));
     })
+});
+
+async function doMetricsTestConnect311(server: mqtt_server.MqttServer, disableMetrics: boolean, username?: string) {
+    let clientConfig : MqttConnectionConfig = {
+        client_id: "irrelevant",
+        host_name: "localhost",
+        port: server.getPort(),
+        socket_options: new SocketOptions(),
+        disable_metrics: disableMetrics,
+    };
+
+    if (username !== undefined) {
+        clientConfig.username = username;
+    }
+
+    let client = new MqttClient();
+    let connection = new MqttClientConnection(client, clientConfig);
+
+    await connection.connect();
+}
+
+test('mqtt311 metrics - enabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, false);
+});
+
+test('mqtt311 metrics - disabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, true);
+});
+
+test('mqtt311 metrics - enabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, false, "squidward");
+});
+
+test('mqtt311 metrics - disabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, true, "krustykrab");
 });

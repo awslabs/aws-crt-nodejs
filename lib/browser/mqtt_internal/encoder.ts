@@ -6,6 +6,7 @@
 import {CrtError} from "../error";
 import * as model from "./model";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
+import * as mqtt_shared from "../../common/mqtt_shared";
 import * as vli from "./vli";
 
 /**
@@ -870,12 +871,12 @@ function computePacketEncodingLength5(packet: model.IPacketBinary) : number {
     return 1 + remaining_length + vli.getVliByteLength(remaining_length);
 }
 
-export function computePacketEncodingLength(packet: model.IPacketBinary, mode: model.ProtocolMode) : number {
+export function computePacketEncodingLength(packet: model.IPacketBinary, mode: mqtt_shared.ProtocolMode) : number {
     switch (mode) {
-        case model.ProtocolMode.Mqtt311:
+        case mqtt_shared.ProtocolMode.Mqtt311:
             return computePacketEncodingLength311(packet);
 
-        case model.ProtocolMode.Mqtt5:
+        case mqtt_shared.ProtocolMode.Mqtt5:
             return computePacketEncodingLength5(packet);
 
         default:
@@ -889,9 +890,9 @@ export type EncodingFunction = (steps: Array<EncodingStep>, packet: model.IPacke
 export type EncodingFunctionSet = Map<mqtt5_packet.PacketType, EncodingFunction>;
 
 // Encoders for packets sent by the client.  Packets sent by the server have encoders defined in the spec file.
-export function buildClientEncodingFunctionSet(mode: model.ProtocolMode) : EncodingFunctionSet {
+export function buildClientEncodingFunctionSet(mode: mqtt_shared.ProtocolMode) : EncodingFunctionSet {
     switch (mode) {
-        case model.ProtocolMode.Mqtt311:
+        case mqtt_shared.ProtocolMode.Mqtt311:
             return new Map<mqtt5_packet.PacketType, EncodingFunction>([
                 [mqtt5_packet.PacketType.Connect, (steps, packet) => { encodeConnectPacket311(steps, packet as model.ConnectPacketBinary); }],
                 [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encodeSubscribePacket311(steps, packet as model.SubscribePacketBinary); }],
@@ -902,7 +903,7 @@ export function buildClientEncodingFunctionSet(mode: model.ProtocolMode) : Encod
                 [mqtt5_packet.PacketType.Pingreq, (steps, packet) => { encodePingreqPacket(steps); }],
             ]);
 
-        case model.ProtocolMode.Mqtt5:
+        case mqtt_shared.ProtocolMode.Mqtt5:
             return new Map<mqtt5_packet.PacketType, EncodingFunction>([
                 [mqtt5_packet.PacketType.Connect, (steps, packet) => { encodeConnectPacket5(steps, packet as model.ConnectPacketBinary); }],
                 [mqtt5_packet.PacketType.Subscribe, (steps, packet) => { encodeSubscribePacket5(steps, packet as model.SubscribePacketBinary); }],

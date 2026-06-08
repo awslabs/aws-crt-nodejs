@@ -21,6 +21,7 @@ import {CrtError} from "./error";
 import * as ws from "./ws";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as auth from "./auth";
+import * as mqtt_shared_browser from "./mqtt_shared_browser";
 import * as validate from "./mqtt_internal/validate";
 
 export * from "../common/mqtt5";
@@ -162,7 +163,17 @@ function convertSessionBehaviorToSessionPolicy(behavior?: mqtt5.ClientSessionBeh
     }
 }
 
-function applyConnectPacketToInternalConnectOptions(internalConnectOptions : internal_mqtt_client.ConnectOptions, connectProperties?: mqtt5_packet.ConnectPacket) {
+function buildInternalConnectOptions(internalConnectOptions : internal_mqtt_client.ConnectOptions, clientConfig: Mqtt5ClientConfig, connectProperties?: mqtt5_packet.ConnectPacket) {
+    if (clientConfig.disableMetrics) {
+        if (connectProperties?.username) {
+            internalConnectOptions.username = connectProperties.username;
+        }
+    } else {
+        internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
+    }
+
+    internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
+
     if (!connectProperties) {
         return;
     }
@@ -239,7 +250,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
             resumeSessionPolicy: convertSessionBehaviorToSessionPolicy(this.config.sessionBehavior),
         };
 
-        applyConnectPacketToInternalConnectOptions(internalConnectOptions, config.connectProperties);
+        buildInternalConnectOptions(internalConnectOptions, config, config.connectProperties);
 
         let provider : auth.CredentialsProvider | undefined = undefined;
         if (this.config.websocketOptions) {
@@ -267,7 +278,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         };
 
         let internalConfig : internal_mqtt_client.ClientConfig = {
-            protocolVersion: internal_mqtt_client.ProtocolMode.Mqtt5,
+            protocolVersion: mqtt_shared.ProtocolMode.Mqtt5,
             offlineQueuePolicy: internal_mqtt_client.OfflineQueuePolicy.PreserveQos1PlusPublishes,
             connectOptions: internalConnectOptions,
             pingTimeoutMillis: DEFAULT_MQTT_PING_TIMEOUT_MS,
@@ -330,7 +341,7 @@ export class Mqtt5Client extends BufferedEventEmitter implements mqtt5.IMqtt5Cli
         // trump the stop request
         if (disconnectPacket) {
             disconnectPacket.type = mqtt5_packet.PacketType.Disconnect;
-            validate.validateInitialOutboundPacket(disconnectPacket, internal_mqtt_client.ProtocolMode.Mqtt5);
+            validate.validateInitialOutboundPacket(disconnectPacket, mqtt_shared.ProtocolMode.Mqtt5);
         }
 
         this.internalClient.stop(disconnectPacket);

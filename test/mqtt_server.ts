@@ -4,6 +4,7 @@
  */
 import * as model from "../lib/browser/mqtt_internal/model";
 import * as mqtt5_packet from "../lib/common/mqtt5_packet";
+import * as mqtt_shared from "../lib/common/mqtt_shared";
 import {CrtError} from "../lib/browser/error";
 import {v4 as uuid} from "uuid";
 import * as encoder from "../lib/browser/mqtt_internal/encoder";
@@ -30,7 +31,7 @@ export function defaultConnectHandler(packet : mqtt5_packet.IPacket, server: Mqt
         sessionPresent: config.connackOverrides?.sessionPresent ?? false
     };
 
-    if (config.protocolVersion == model.ProtocolMode.Mqtt5) {
+    if (config.protocolVersion == mqtt_shared.ProtocolMode.Mqtt5) {
         if (!connect.clientId || !connect.clientId.length) {
             connack.assignedClientIdentifier = config.connackOverrides?.assignedClientIdentifier ?? `test-${uuid()}`;
         }
@@ -282,7 +283,7 @@ class MqttServerConnection extends BufferedEventEmitter {
 }
 
 export interface MqttServerConfig {
-    protocolVersion : model.ProtocolMode;
+    protocolVersion : mqtt_shared.ProtocolMode;
     packetHandlers? : PacketHandlerSet;
     connackOverrides? : mqtt5_packet.ConnackPacket;
     context?: any
