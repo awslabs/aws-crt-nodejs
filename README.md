@@ -49,7 +49,19 @@ After building the package locally, use ```node ./scripts/build.js --debug``` to
 
 ## Mac-Only TLS Behavior
 
-Please note that on Mac, once a private key is used with a certificate, that certificate-key pair is imported into the Mac Keychain.  All subsequent uses of that certificate will use the stored private key and ignore anything passed in programmatically.  Beginning in v1.1.11, when a stored private key from the Keychain is used, the following will be logged at the "info" log level:
+On macOS, both Apple Secure Transport and s2n-tls are compiled into the binary. By default, Apple Secure Transport is used as the TLS backend. You can switch to s2n-tls at runtime by setting the `AWS_CRT_USE_NON_FIPS_TLS_13` environment variable.
+
+This variable has no effect on Linux (which always uses s2n-tls) or Windows (which always uses Schannel).
+
+| | Secure Transport (default) | s2n-tls (`AWS_CRT_USE_NON_FIPS_TLS_13=1`) |
+|---|---|---|
+| TLS versions | Up to TLS 1.2 | Up to TLS 1.3 |
+| FIPS compliance | Yes | No |
+| macOS Keychain integration | Yes (PKCS#12, system certs) | No |
+
+### Keychain Behavior (Secure Transport only)
+
+When using the default Secure Transport backend, once a private key is used with a certificate, that certificate-key pair is imported into the Mac Keychain.  All subsequent uses of that certificate will use the stored private key and ignore anything passed in programmatically.  Beginning in v1.1.11, when a stored private key from the Keychain is used, the following will be logged at the "info" log level:
 
 ```
 static: certificate has an existing certificate-key pair that was previously imported into the Keychain.  Using key from Keychain instead of the one provided.
