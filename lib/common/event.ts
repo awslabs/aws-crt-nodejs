@@ -19,7 +19,7 @@ import { EventEmitter } from 'events';
  */
 export type EventKey = string | symbol;
 
-export type EventEmissionCallback = () => void
+export type EventEmissionCallback = () => void;
 
 /**
  * @internal
