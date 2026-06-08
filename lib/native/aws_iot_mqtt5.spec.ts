@@ -291,7 +291,8 @@ test_env.conditional_test(cRuntime !== CRuntimeType.MUSL && test_env.AWS_IOT_ENV
     })
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12())('Aws Iot Core PKCS12 - Connection Success', async () => {
+// Skip when AWS_CRT_USE_NON_FIPS_TLS_13 is set: TLS backend on macOS switches from Secure Transport to s2n-tls, which doesn't support PKCS#12.
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_pkcs12() && !(platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13))('Aws Iot Core PKCS12 - Connection Success', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPkcs12(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
@@ -309,6 +310,18 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_windows_cert())('A
         let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromWindowsCertStorePath(
             test_env.AWS_IOT_ENV.MQTT5_HOST,
             test_env.AWS_IOT_ENV.MQTT5_WINDOWS_CERT
+        );
+        await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
+    })
+});
+
+// TLS 1.3 is supported on all platforms except macOS with Secure Transport (which only supports up to TLS 1.2).
+test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_tls13() && !(platform() === "darwin" && !process.env.AWS_CRT_USE_NON_FIPS_TLS_13))('Aws Iot Core TLS 1.3 - Connection Success', async () => {
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let builder = iot.AwsIotMqtt5ClientConfigBuilder.newDirectMqttBuilderWithMtlsFromPath(
+            test_env.AWS_IOT_ENV.MQTT5_TLS13_HOST,
+            test_env.AWS_IOT_ENV.MQTT5_RSA_CERT,
+            test_env.AWS_IOT_ENV.MQTT5_RSA_KEY
         );
         await test_utils.testConnect(new mqtt5.Mqtt5Client(builder.build()));
     })
@@ -352,9 +365,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder per-platform conditional support of PQ default TlsCipherPreference", () => {
-    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux");
+    do_cipher_preference_test(TlsCipherPreference.PQ_Default, platform() === "linux" || (platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13));
 });
 
 test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt5_is_valid_mtls_rsa())("Mqtt5 client builder per-platform conditional support of latest 1.2 policy TlsCipherPreference", () => {
-    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux");
+    do_cipher_preference_test(TlsCipherPreference.TLSv1_2_2025_07, platform() === "linux" || (platform() === "darwin" && !!process.env.AWS_CRT_USE_NON_FIPS_TLS_13));
 });
