@@ -372,7 +372,7 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
     napi_status status = napi_ok;
     (void)status;
 
-    napi_value node_args[15];
+    napi_value node_args[16];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     if (napi_ok != napi_get_cb_info(env, info, &num_args, node_args, NULL, NULL)) {
@@ -688,6 +688,19 @@ napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info) {
 
     aws_tls_ctx_options_set_verify_peer(&ctx_options, verify_peer);
     aws_tls_ctx_options_set_tls_cipher_preference(&ctx_options, tls_cipher_preferences);
+
+    bool no_certificate_revocation = false;
+    napi_value node_no_cert_revocation = *arg++;
+    if (!aws_napi_is_null_or_undefined(env, node_no_cert_revocation)) {
+        napi_value node_bool;
+        if (napi_ok != napi_coerce_to_bool(env, node_no_cert_revocation, &node_bool)) {
+            napi_throw_type_error(env, NULL, "no_certificate_revocation must be a boolean");
+            goto cleanup;
+        }
+        status = napi_get_value_bool(env, node_bool, &no_certificate_revocation);
+        AWS_FATAL_ASSERT(status == napi_ok);
+    }
+    ctx_options.no_certificate_revocation = no_certificate_revocation;
 
     struct aws_tls_ctx *tls_ctx = aws_tls_client_ctx_new(alloc, &ctx_options);
     if (!tls_ctx) {
