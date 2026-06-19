@@ -158,6 +158,19 @@ export interface Pkcs12Options {
 }
 
 /**
+ * Certificate source tracking.
+ * Tracks how the TLS context was created for metrics reporting.
+ * JAVA_KEY_STORE = 3 is reserved for Java Key Store
+ * @internal
+ */
+export enum CertificateSource {
+    CERTIFICATE_FILES = 0,
+    PKCS11 = 1,
+    WINDOWS_CERT_STORE = 2,
+    PKCS12_FILE = 4,
+}
+
+/**
  * Each TlsCipherPreference represents an ordered list of TLS Ciphers to use when negotiating a TLS Connection. At
  * present, the ability to configure arbitrary orderings of TLS Ciphers is not allowed, and only a curated list of
  * vetted TlsCipherPref's are exposed.
@@ -244,6 +257,12 @@ export class TlsContextOptions {
     public tls_cipher_preference?: TlsCipherPreference;
 
     /**
+     * Tracks how the TLS context was created, for metrics reporting.
+     * @internal
+     */
+    public certificate_source?: CertificateSource;
+
+    /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
      * It is much better to just override the default trust store and pass the self-signed
      * certificate as the ca_file argument.
@@ -285,6 +304,7 @@ export class TlsContextOptions {
         opt.certificate = certificate;
         opt.private_key = private_key;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.CERTIFICATE_FILES;
         return opt;
     }
 
@@ -301,6 +321,7 @@ export class TlsContextOptions {
         opt.certificate_filepath = certificate_filepath;
         opt.private_key_filepath = private_key_filepath;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.CERTIFICATE_FILES;
         return opt;
     }
 
@@ -317,6 +338,7 @@ export class TlsContextOptions {
         opt.pkcs12_filepath = pkcs12_filepath;
         opt.pkcs12_password = pkcs12_password;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.PKCS12_FILE;
         return opt;
     }
 
@@ -341,6 +363,7 @@ export class TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs11_options = options;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.PKCS11;
         return opt;
     }
 
@@ -358,6 +381,7 @@ export class TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.windows_cert_store_path = certificate_path;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.WINDOWS_CERT_STORE;
         return opt;
     }
 
@@ -461,6 +485,13 @@ export namespace TlsContextOptions {
  * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
+    /** Certificate source used to create this TLS context, for metrics tracking. @internal */
+    readonly certificate_source?: CertificateSource;
+    /** TLS cipher preference configured on this context, for metrics tracking. @internal */
+    readonly tls_cipher_preference?: TlsCipherPreference;
+    /** Minimum TLS version configured on this context, for metrics tracking. @internal */
+    readonly min_tls_version?: TlsVersion;
+
     constructor(ctx_opt: TlsContextOptions) {
         if (ctx_opt == null || ctx_opt == undefined) {
             throw new CrtError("TlsContext constructor: ctx_opt not defined");
@@ -481,6 +512,9 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.windows_cert_store_path,
             ctx_opt.tls_cipher_preference,
             ctx_opt.verify_peer));
+        this.certificate_source = ctx_opt.certificate_source;
+        this.tls_cipher_preference = ctx_opt.tls_cipher_preference;
+        this.min_tls_version = ctx_opt.min_tls_version;
     }
 }
 
