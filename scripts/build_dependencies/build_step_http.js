@@ -3,10 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  *
  * This module provides HTTP download and checksum verification utilities for the
- * build process. It previously used the axios library for HTTP requests. Axios was
- * removed to eliminate recurring CVE exposure from its transitive dependencies and
- * reduce the package's install footprint. The functionality is now implemented using
- * Node.js built-in https/http modules which require no external dependencies.
+ * build process.
  */
 const fs = require("fs");
 const crypto = require('crypto');
