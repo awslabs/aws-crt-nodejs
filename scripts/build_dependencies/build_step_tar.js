@@ -50,8 +50,6 @@ module.exports = {
      * Will NOT download or check to see if cmake-js is in the node_modules or otherwise exists.
      */
     fetchNativeCode: async function (url, version, source_path, nativeSourceDir) {
-        build_step_axios.loadAxios();
-
         const sourceURL = `${url}/aws-crt-${version}-source.tgz`
         const tarballPath = source_path + "source.tgz";
         await build_step_axios.downloadFile(sourceURL, tarballPath);
