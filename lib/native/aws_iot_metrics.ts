@@ -457,3 +457,46 @@ export function create_metrics_mqtt3(config: MqttConnectionConfig): mqtt_shared.
     const crtFeatureList = get_encoded_feature_list_mqtt3(config);
     return create_metrics(config.metrics, crtFeatureList);
 }
+
+// ---- SDK metrics factory hook ----
+
+/**
+ * Factory function that returns a fresh AwsIoTDeviceSDKMetrics instance
+ * populated with upstream IoT device SDK identity (libraryName + metadata).
+ *
+ * Returning a fresh object on each call avoids cross-client mutation when
+ * the encoder appends transport features to metadata.
+ *
+ * @internal
+ */
+export type SdkMetricsFactory = () => mqtt_shared.AwsIoTDeviceSDKMetrics;
+
+let _sdkMetricsFactory: SdkMetricsFactory | undefined;
+
+/**
+ * Registers a factory that supplies the upstream IoT device SDK's metrics
+ * (libraryName + IoTSDKVersion + IoTSDKMetricsVersion metadata).
+ *
+ * Called once by the device SDK at module load time (e.g. aws-iot-device-sdk-v2).
+ * Not part of the public API and must not be used by customer code.
+ *
+ * If no factory is registered, the CRT falls back to an empty
+ * AwsIoTDeviceSDKMetrics (CRT-only feature metrics, no SDK identity).
+ *
+ * @param factory function returning a fresh AwsIoTDeviceSDKMetrics on each call
+ * @internal
+ */
+export function _setSdkMetricsFactory(factory: SdkMetricsFactory): void {
+    _sdkMetricsFactory = factory;
+}
+
+/**
+ * Returns a fresh metrics object from the registered SDK factory if any,
+ * otherwise undefined. Used by the IoT builders' build() methods to populate
+ * config.metrics with SDK identity before client construction.
+ *
+ * @internal
+ */
+export function _buildSdkMetrics(): mqtt_shared.AwsIoTDeviceSDKMetrics | undefined {
+    return _sdkMetricsFactory ? _sdkMetricsFactory() : undefined;
+}

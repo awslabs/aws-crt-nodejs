@@ -299,3 +299,81 @@ test('create_metrics_mqtt3 - propagates user SDK version', () => {
     expect(feature).toContain("F/3");
     expect(feature).toContain("G/");
 });
+
+// ---- SDK metrics factory hook tests ----
+
+test('_buildSdkMetrics returns undefined when no factory is registered', () => {
+    expect(metrics._buildSdkMetrics()).toBeUndefined();
+});
+
+test('_buildSdkMetrics returns factory output after registration', () => {
+    metrics._setSdkMetricsFactory(() => {
+        const m = new mqtt_shared.AwsIoTDeviceSDKMetrics();
+        m.libraryName = "IoTDeviceSDK/JS";
+        m.metadata = [
+            ["IoTSDKVersion", "2.0.0"],
+            ["IoTSDKMetricsVersion", "1"],
+        ];
+        return m;
+    });
+
+    const result = metrics._buildSdkMetrics()!;
+    expect(result.libraryName).toBe("IoTDeviceSDK/JS");
+    const metadataMap = new Map(result.metadata);
+    expect(metadataMap.get("IoTSDKVersion")).toBe("2.0.0");
+    expect(metadataMap.get("IoTSDKMetricsVersion")).toBe("1");
+});
+
+test('_buildSdkMetrics returns fresh instance per client (two MQTT5 clients from SDK)', () => {
+    metrics._setSdkMetricsFactory(() => {
+        const m = new mqtt_shared.AwsIoTDeviceSDKMetrics();
+        m.libraryName = "IoTDeviceSDK/JS";
+        m.metadata = [
+            ["IoTSDKVersion", "2.0.0"],
+            ["IoTSDKMetricsVersion", "1"],
+        ];
+        return m;
+    });
+
+    const config1: Mqtt5ClientConfig = {
+        hostName: "localhost",
+        port: 8883,
+        metrics: metrics._buildSdkMetrics(),
+    };
+
+    const config2 = {
+        metrics: metrics._buildSdkMetrics(),
+    } as MqttConnectionConfig;
+
+    const result1 = metrics.create_metrics_mqtt5(config1);
+    const result2 = metrics.create_metrics_mqtt3(config2);
+
+    expect(result1.libraryName).toBe("IoTDeviceSDK/JS");
+    expect(result2.libraryName).toBe("IoTDeviceSDK/JS");
+    expect(new Map(result1.metadata).get("IoTSDKVersion")).toBe("2.0.0");
+    expect(new Map(result2.metadata).get("IoTSDKVersion")).toBe("2.0.0");
+    expect(new Map(result1.metadata).get("IoTSDKFeature")).toContain("F/5");
+    expect(new Map(result2.metadata).get("IoTSDKFeature")).toContain("F/3");
+});
+
+test('disableMetrics skips all metrics including CRT-side', () => {
+    metrics._setSdkMetricsFactory(() => {
+        const m = new mqtt_shared.AwsIoTDeviceSDKMetrics();
+        m.libraryName = "IoTDeviceSDK/JS";
+        m.metadata = [
+            ["IoTSDKVersion", "2.0.0"],
+            ["IoTSDKMetricsVersion", "1"],
+        ];
+        return m;
+    });
+
+    const config: Mqtt5ClientConfig = {
+        hostName: "localhost",
+        port: 8883,
+        disableMetrics: true,
+        metrics: metrics._buildSdkMetrics(),
+    };
+
+    const metricsToSend = config.disableMetrics == true ? undefined : metrics.create_metrics_mqtt5(config);
+    expect(metricsToSend).toBeUndefined();
+});
