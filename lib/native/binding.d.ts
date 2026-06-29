@@ -76,6 +76,7 @@ export function io_tls_ctx_new(
     windows_cert_store_path?: StringLike,
     tls_cipher_policy?: number,
     verify_peer?: boolean,
+    no_certificate_revocation?: boolean,
 ): NativeHandle;
 /* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */
 /** @internal */
