@@ -254,6 +254,21 @@ export class TlsContextOptions {
     public verify_peer: boolean = true;
 
     /**
+     * Set to true to disable certificate revocation checking during TLS negotiation.
+     * 
+     * On Windows (SChannel), this prevents the TLS handshake from making outbound network calls
+     * to CRL/OCSP revocation endpoints, which can block for minutes when the endpoints are unreachable
+     * (e.g., in private subnets without internet access).
+     *
+     * On Linux (s2n), this disables validation of OCSP stapled responses provided by the server.
+     *
+     * On Apple platforms, this is a no-op as revocation checking is not enabled by default.
+     * 
+     * Default is false (revocation checking enabled where available).
+     */
+    public no_certificate_revocation: boolean = false;
+
+    /**
      * Overrides the default system trust store.
      * @param ca_dirpath - Only used on Unix-style systems where all trust anchors are
      * stored in a directory (e.g. /etc/ssl/certs).
@@ -480,7 +495,8 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.pkcs11_options,
             ctx_opt.windows_cert_store_path,
             ctx_opt.tls_cipher_preference,
-            ctx_opt.verify_peer));
+            ctx_opt.verify_peer,
+            ctx_opt.no_certificate_revocation));
     }
 }
 
