@@ -180,10 +180,6 @@ function buildInternalConnectOptions(internalConnectOptions : internal_mqtt_clie
         internalConnectOptions.clientId = connectProperties.clientId;
     }
 
-    if (connectProperties.username !== undefined) {
-        internalConnectOptions.username = connectProperties.username;
-    }
-
     if (connectProperties.password !== undefined) {
         internalConnectOptions.password = connectProperties.password;
     }
