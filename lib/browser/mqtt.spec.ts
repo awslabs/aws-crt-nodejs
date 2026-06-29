@@ -72,6 +72,9 @@ async function doMetricsTestConnect311(server: mqtt_server.MqttServer, disableMe
         port: server.getPort(),
         socket_options: new SocketOptions(),
         disable_metrics: disableMetrics,
+        websocket: {
+            protocol: "ws"
+        }
     };
 
     if (username !== undefined) {
@@ -84,18 +87,18 @@ async function doMetricsTestConnect311(server: mqtt_server.MqttServer, disableMe
     await connection.connect();
 }
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('mqtt311 metrics - enabled, undefined username', async () => {
+test('mqtt311 metrics - enabled, undefined username', async () => {
     await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, false);
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('mqtt311 metrics - disabled, undefined username', async () => {
+test('mqtt311 metrics - disabled, undefined username', async () => {
     await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, true);
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('mqtt311 metrics - enabled, non-empty username', async () => {
+test('mqtt311 metrics - enabled, non-empty username', async () => {
     await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, false, "squidward");
 });
 
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_ws_mqtt())('mqtt311 metrics - disabled, non-empty username', async () => {
+test('mqtt311 metrics - disabled, non-empty username', async () => {
     await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, true, "krustykrab");
 });

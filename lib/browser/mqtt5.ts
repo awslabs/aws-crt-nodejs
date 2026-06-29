@@ -172,8 +172,6 @@ function buildInternalConnectOptions(internalConnectOptions : internal_mqtt_clie
         internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
     }
 
-    internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
-
     if (!connectProperties) {
         return;
     }
