@@ -172,7 +172,13 @@ export class HttpHeaders implements CommonHttpHeaders {
 }
 
 /**
- * Options used when connecting to an HTTP endpoint via a proxy
+ * Options used when connecting to an HTTP endpoint via a proxy.
+ *
+ * NOTE: In the browser implementation, the fetch() API does not support per-request proxy
+ * configuration. These options are accepted for API compatibility with the native implementation
+ * but will not be applied to HTTP requests made via fetch(). A warning will be emitted at
+ * runtime if proxy options are provided. For full proxy support, use the native (Node.js)
+ * implementation.
  *
  * @category HTTP
  */
@@ -208,6 +214,8 @@ export class HttpRequest {
  * @category HTTP
  */
 export class HttpClientConnection extends BufferedEventEmitter {
+    private static _proxyWarningEmitted = false;
+
     public _baseURL: string;
     protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
@@ -222,7 +230,13 @@ export class HttpClientConnection extends BufferedEventEmitter {
      * @param port - port to connect to
      * @param socketOptions - (native only) leave undefined
      * @param tlsOptions - instantiate for TLS, but actual value is unused in browse implementation
-     * @param proxyOptions - options to control proxy usage when establishing the connection
+     * @param proxyOptions - options to control proxy usage when establishing the connection.
+     *
+     * NOTE: In the browser implementation, the fetch() API does not support per-request proxy
+     * configuration. When proxyOptions are provided, they are stored on the connection but will
+     * NOT be applied to fetch() requests. In browser environments, proxy routing is controlled
+     * by the browser/OS network settings. Use the native (Node.js) implementation for full
+     * HTTP proxy support.
      */
     constructor(
         bootstrap: ClientBootstrap | undefined,
@@ -242,6 +256,17 @@ export class HttpClientConnection extends BufferedEventEmitter {
         const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
         this._baseURL = `${scheme}://${host_name}:${port}/`;
+
+        if (this.proxy_options && !HttpClientConnection._proxyWarningEmitted) {
+            HttpClientConnection._proxyWarningEmitted = true;
+            console.warn(
+                'aws-crt: HttpClientConnection proxy_options were provided, but the browser ' +
+                'fetch() API does not support per-request proxy configuration. Proxy settings ' +
+                'will not be applied to HTTP requests. Use the native (Node.js) implementation ' +
+                'for full HTTP proxy support.'
+            );
+        }
+
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -320,7 +345,10 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
         }
         return obj;
     }
-    let body = (request.body) ? (request.body as InputStream).data as BodyInit : undefined;
+    let body: BodyInit | undefined = undefined;
+    if (request.body && !['GET', 'HEAD'].includes(request.method.toUpperCase())) {
+        body = (request.body as InputStream).data as BodyInit;
+    }
     let stream = HttpClientStream._create(connection);
     const url = new URL(request.path, connection._baseURL).toString();
     fetch(url, {

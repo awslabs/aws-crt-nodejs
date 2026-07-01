@@ -14,11 +14,15 @@ function getClient(url) {
     return url.startsWith('https') ? https : http;
 }
 
-function httpGet(url) {
+function httpGet(url, redirectCount = 0) {
+    if (redirectCount > 5) {
+        return Promise.reject(new Error(`Too many redirects (max 5) for ${url}`));
+    }
     return new Promise((resolve, reject) => {
         getClient(url).get(url, (response) => {
             if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                return httpGet(response.headers.location).then(resolve, reject);
+                response.resume(); // drain socket before following redirect
+                return httpGet(response.headers.location, redirectCount + 1).then(resolve, reject);
             }
             if (response.statusCode !== 200) {
                 reject(new Error(`HTTP ${response.statusCode} for ${url}`));
