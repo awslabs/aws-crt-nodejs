@@ -7,10 +7,6 @@ import {CrtError} from "../error";
 import * as mqtt5_packet from '../../common/mqtt5_packet';
 import * as log from "../../common/log";
 
-export enum ProtocolMode {
-    Mqtt311,
-    Mqtt5
-}
 
 // A variety of constants related to the MQTT311 and MQTT5 protocols
 

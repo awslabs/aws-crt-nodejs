@@ -4,7 +4,6 @@
  */
 
 import * as mqtt_server from "@test/mqtt_server";
-import * as model from "./model";
 import * as mqtt_client from "./client";
 import * as mqtt5_packet from "../../common/mqtt5_packet";
 import * as mqtt_shared from "../../common/mqtt_shared";
@@ -51,7 +50,7 @@ class ClientTestFixture {
     getServer() : mqtt_server.MqttServer { return this.server; }
 }
 
-function buildDefaultClientConfig(fixture : ClientTestFixture, mode: model.ProtocolMode) : mqtt_client.ClientConfig {
+function buildDefaultClientConfig(fixture : ClientTestFixture, mode: mqtt_shared.ProtocolMode) : mqtt_client.ClientConfig {
     return {
         protocolVersion: mode,
         offlineQueuePolicy: mqtt_client.OfflineQueuePolicy.Default,
@@ -67,18 +66,18 @@ function buildDefaultClientConfig(fixture : ClientTestFixture, mode: model.Proto
 
 let modes = [311, 5];
 
-function protocolVersionToMode(protocolVersion: number) : model.ProtocolMode {
+function protocolVersionToMode(protocolVersion: number) : mqtt_shared.ProtocolMode {
     switch (protocolVersion) {
         case 311:
-            return model.ProtocolMode.Mqtt311;
+            return mqtt_shared.ProtocolMode.Mqtt311;
         case 5:
-            return model.ProtocolMode.Mqtt5;
+            return mqtt_shared.ProtocolMode.Mqtt5;
         default:
             throw new Error("Unsupported protocol version");
     }
 }
 
-async function doStartConnectStopTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doStartConnectStopTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -125,7 +124,7 @@ describe("start-connect-stop 5 times", () => {
     })
 });
 
-function buildConnectionFailureSocketExceptionClientConfig(fixture : ClientTestFixture, mode: model.ProtocolMode) : mqtt_client.ClientConfig {
+function buildConnectionFailureSocketExceptionClientConfig(fixture : ClientTestFixture, mode: mqtt_shared.ProtocolMode) : mqtt_client.ClientConfig {
     let config = buildDefaultClientConfig(fixture, mode);
     config.connectionFactory = () => {
         return new Promise<ws.WsStream>((resolve, reject) => {
@@ -138,7 +137,7 @@ function buildConnectionFailureSocketExceptionClientConfig(fixture : ClientTestF
     return config;
 }
 
-type ClientConfigFactory = (fixture : ClientTestFixture, protocolVersion : model.ProtocolMode) => mqtt_client.ClientConfig;
+type ClientConfigFactory = (fixture : ClientTestFixture, protocolVersion : mqtt_shared.ProtocolMode) => mqtt_client.ClientConfig;
 type ConnackVerifier = (connack?: mqtt5_packet.ConnackPacket) => void;
 type ServerConfigTransformer = (config : mqtt_server.MqttServerConfig) => void;
 
@@ -146,7 +145,7 @@ function noConnackVerifier(connack?: mqtt5_packet.ConnackPacket) {
     expect(connack).toBeUndefined();
 }
 
-async function doConnectionFailureTest(protocolVersion : model.ProtocolMode, iterations: number, configFactory: ClientConfigFactory, failureMessage : string, connackVerifier: ConnackVerifier, serverConfigTransform?: ServerConfigTransformer) {
+async function doConnectionFailureTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number, configFactory: ClientConfigFactory, failureMessage : string, connackVerifier: ConnackVerifier, serverConfigTransform?: ServerConfigTransformer) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -187,7 +186,7 @@ describe("ConnectionFailure Socket Exception", () => {
     })
 });
 
-function buildConnectionFailureSocketTimeoutClientConfigAux(fixture : ClientTestFixture, mode: model.ProtocolMode, connectTimeout: number, resolutionTime: number) : mqtt_client.ClientConfig {
+function buildConnectionFailureSocketTimeoutClientConfigAux(fixture : ClientTestFixture, mode: mqtt_shared.ProtocolMode, connectTimeout: number, resolutionTime: number) : mqtt_client.ClientConfig {
     let port = fixture.getServer().getPort();
     let config = buildDefaultClientConfig(fixture, mode);
     config.connectTimeoutMillis = connectTimeout;
@@ -206,7 +205,7 @@ function buildConnectionFailureSocketTimeoutClientConfigAux(fixture : ClientTest
     return config;
 }
 
-function buildConnectionFailureSocketTimeoutUnboundedClientConfig(fixture : ClientTestFixture, mode: model.ProtocolMode) : mqtt_client.ClientConfig {
+function buildConnectionFailureSocketTimeoutUnboundedClientConfig(fixture : ClientTestFixture, mode: mqtt_shared.ProtocolMode) : mqtt_client.ClientConfig {
     return buildConnectionFailureSocketTimeoutClientConfigAux(fixture, mode, 10, 1000);
 }
 
@@ -216,7 +215,7 @@ describe("ConnectionFailure Timeout Unbound", () => {
     })
 });
 
-function buildConnectionFailureSocketTimeoutOverlappingClientConfig(fixture : ClientTestFixture, mode: model.ProtocolMode) : mqtt_client.ClientConfig {
+function buildConnectionFailureSocketTimeoutOverlappingClientConfig(fixture : ClientTestFixture, mode: mqtt_shared.ProtocolMode) : mqtt_client.ClientConfig {
     return buildConnectionFailureSocketTimeoutClientConfigAux(fixture, mode, 100, 200);
 }
 
@@ -254,8 +253,8 @@ describe("ConnectionFailure Failed Connack", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
         await doConnectionFailureTest(mode, 1, buildDefaultClientConfig, "Connection rejected with reason code",
-            (mode == model.ProtocolMode.Mqtt5) ? unauthorizedConnackVerifier5 : unauthorizedConnackVerifier311,
-            (mode == model.ProtocolMode.Mqtt5) ? failingConnackServerConfig5 : failingConnackServerConfig311);
+            (mode == mqtt_shared.ProtocolMode.Mqtt5) ? unauthorizedConnackVerifier5 : unauthorizedConnackVerifier311,
+            (mode == mqtt_shared.ProtocolMode.Mqtt5) ? failingConnackServerConfig5 : failingConnackServerConfig311);
     })
 });
 
@@ -266,7 +265,7 @@ function noConnackServerConfig(config : mqtt_server.MqttServerConfig){
     config.packetHandlers = newPacketHandlers;
 }
 
-function connackTimeoutConfig(fixture : ClientTestFixture, mode: model.ProtocolMode) : mqtt_client.ClientConfig {
+function connackTimeoutConfig(fixture : ClientTestFixture, mode: mqtt_shared.ProtocolMode) : mqtt_client.ClientConfig {
     let config = buildDefaultClientConfig(fixture, mode);
     config.connectTimeoutMillis = 1000;
 
@@ -279,7 +278,7 @@ describe("ConnectionFailure Connack Timeout", () => {
     })
 });
 
-async function doStopWhileConnectingTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doStopWhileConnectingTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -324,7 +323,7 @@ export function stopPendingConnackConnectHandler(packet : mqtt5_packet.IPacket, 
     context.connectReceived.resolve();
 }
 
-async function doStopWhilePendingConnackTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doStopWhilePendingConnackTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let context : StopPendingConnackContext = {
         connectReceived: promise.newLiftedPromise<void>()
     };
@@ -386,7 +385,7 @@ export function stopDisconnectHandler(packet : mqtt5_packet.IPacket, server: mqt
     context.disconnectReceived.resolve(packet as mqtt5_packet.DisconnectPacket);
 }
 
-async function doStopWithDisconnectPacketTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doStopWithDisconnectPacketTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let context : StopWithDisconnectPacketContext = {
         disconnectReceived: promise.newLiftedPromise<mqtt5_packet.DisconnectPacket>()
     };
@@ -419,7 +418,7 @@ async function doStopWithDisconnectPacketTest(protocolVersion : model.ProtocolMo
         await stopped;
 
         let disconnect = await context.disconnectReceived.promise;
-        if (protocolVersion == model.ProtocolMode.Mqtt5) {
+        if (protocolVersion == mqtt_shared.ProtocolMode.Mqtt5) {
             expect(disconnect.reasonCode).toEqual(mqtt5_packet.DisconnectReasonCode.UnspecifiedError);
         }
 
@@ -450,7 +449,7 @@ export function queueDisconnectConnectHandler(packet : mqtt5_packet.IPacket, ser
     }, 10);
 }
 
-async function doStopDuringReconnectTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doStopDuringReconnectTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
 
     let packetHandlers = mqtt_server.buildDefaultHandlerSet();
     packetHandlers.set(mqtt5_packet.PacketType.Connect, queueDisconnectConnectHandler);
@@ -493,7 +492,7 @@ describe("Stop during reconnect", () => {
 type OperationInvocationFunction<T> = (client: mqtt_client.Client) => Promise<T>;
 type OperationInvocationResultVerifier<T> = (result: T) => void;
 
-async function doOperationSuccessTest<T>(protocolVersion : model.ProtocolMode, operationFunction: OperationInvocationFunction<T>, verifierFunction: OperationInvocationResultVerifier<T>) {
+async function doOperationSuccessTest<T>(protocolVersion : mqtt_shared.ProtocolMode, operationFunction: OperationInvocationFunction<T>, verifierFunction: OperationInvocationResultVerifier<T>) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -556,7 +555,7 @@ function verifyUnsuback311(suback: mqtt5_packet.UnsubackPacket) {
 describe("Unsubscribe success", () => {
     test.each(modes)("MQTT %p", async (protocolVersion) => {
         let mode = protocolVersionToMode(protocolVersion);
-        await doOperationSuccessTest<mqtt5_packet.UnsubackPacket>(mode, doUnsubscribe, (mode == model.ProtocolMode.Mqtt5) ? verifyUnsuback5 : verifyUnsuback311);
+        await doOperationSuccessTest<mqtt5_packet.UnsubackPacket>(mode, doUnsubscribe, (mode == mqtt_shared.ProtocolMode.Mqtt5) ? verifyUnsuback5 : verifyUnsuback311);
     })
 });
 
@@ -599,7 +598,7 @@ describe("Publish QoS 1 success", () => {
     })
 });
 
-async function doPublishReceivedTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doPublishReceivedTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -640,7 +639,7 @@ describe("PublishReceived", () => {
     })
 });
 
-async function doOperationFailureTest<T>(protocolVersion : model.ProtocolMode, operationFunction: OperationInvocationFunction<T>, failureMessageMatch: string) {
+async function doOperationFailureTest<T>(protocolVersion : mqtt_shared.ProtocolMode, operationFunction: OperationInvocationFunction<T>, failureMessageMatch: string) {
     let handlers = mqtt_server.buildDefaultHandlerSet();
     handlers.set(mqtt5_packet.PacketType.Publish, mqtt_server.nullHandler);
     handlers.set(mqtt5_packet.PacketType.Subscribe, mqtt_server.nullHandler);
@@ -759,7 +758,7 @@ function disconnectHandler(packet : mqtt5_packet.IPacket, server: MqttServer, re
     setTimeout(() => { server.closeConnections(); }, 0);
 }
 
-async function doOperationFailureByInterruptionTest<T>(protocolVersion : model.ProtocolMode, operationFunction: OperationInvocationFunction<T>) {
+async function doOperationFailureByInterruptionTest<T>(protocolVersion : mqtt_shared.ProtocolMode, operationFunction: OperationInvocationFunction<T>) {
     let handlers = mqtt_server.buildDefaultHandlerSet();
     handlers.set(mqtt5_packet.PacketType.Publish, disconnectHandler);
     handlers.set(mqtt5_packet.PacketType.Subscribe, disconnectHandler);
@@ -814,7 +813,7 @@ describe("Publish QoS 1 failure by offline policy", () => {
     })
 });
 
-async function doStartStopStartTest(protocolVersion : model.ProtocolMode) {
+async function doStartStopStartTest(protocolVersion : mqtt_shared.ProtocolMode) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -860,14 +859,14 @@ test('Server-side disconnect', async () => {
     handlers.set(mqtt5_packet.PacketType.Connect, handleConnectWithDisconnect);
 
     let config : mqtt_server.MqttServerConfig = {
-        protocolVersion: model.ProtocolMode.Mqtt5,
+        protocolVersion: mqtt_shared.ProtocolMode.Mqtt5,
         packetHandlers: handlers
     };
 
     let fixture = new ClientTestFixture(config);
     await fixture.start();
 
-    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, model.ProtocolMode.Mqtt5));
+    let client = new mqtt_client.Client(buildDefaultClientConfig(fixture, mqtt_shared.ProtocolMode.Mqtt5));
 
     let connectionSuccess = once(client, "connectionSuccess");
     let disconnection = once(client, "disconnection");
@@ -895,7 +894,7 @@ test('Server-side disconnect', async () => {
     fixture.getServer().stop();
 });
 
-async function doIterativeReconnectTest(protocolVersion : model.ProtocolMode, maximumInitialFailureCount: number) {
+async function doIterativeReconnectTest(protocolVersion : mqtt_shared.ProtocolMode, maximumInitialFailureCount: number) {
     for (let i = 1; i <= maximumInitialFailureCount; i++) {
 
         let connectCount : number = 0;
@@ -979,7 +978,7 @@ function validateReconnectionTimings(reconnectDelays: Array<number>, resetBackof
     }
 }
 
-async function doReconnectBackoffTest(protocolVersion : model.ProtocolMode, connectionAttemptCount : number, resetBackoffAttempt? : number) {
+async function doReconnectBackoffTest(protocolVersion : mqtt_shared.ProtocolMode, connectionAttemptCount : number, resetBackoffAttempt? : number) {
 
     let connectCount : number = 0;
 
@@ -1066,7 +1065,7 @@ describe("ReconnectBackoffWithReset", () => {
     })
 });
 
-function buildMaximalClientConfig(fixture: ClientTestFixture, protocolVersion : model.ProtocolMode) : mqtt_client.ClientConfig {
+function buildMaximalClientConfig(fixture: ClientTestFixture, protocolVersion : mqtt_shared.ProtocolMode) : mqtt_client.ClientConfig {
     let clientConfig = buildDefaultClientConfig(fixture, protocolVersion);
     clientConfig.pingTimeoutMillis = 30 * 1000;
     clientConfig.minReconnectDelayMs = RECONNECT_TEST_MIN_DELAY_MILLIS;
@@ -1108,7 +1107,7 @@ function buildMaximalClientConfig(fixture: ClientTestFixture, protocolVersion : 
     return clientConfig;
 }
 
-async function doAllOptionsAllOperationsTest(protocolVersion : model.ProtocolMode) {
+async function doAllOptionsAllOperationsTest(protocolVersion : mqtt_shared.ProtocolMode) {
     let config: mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -1222,7 +1221,7 @@ function shouldResubscribe(resubscribeMode : mqtt_client.ResubscribeModeType, se
     }
 }
 
-async function doResubscribeTest(protocolVersion : model.ProtocolMode, resubscribeMode : mqtt_client.ResubscribeModeType) {
+async function doResubscribeTest(protocolVersion : mqtt_shared.ProtocolMode, resubscribeMode : mqtt_client.ResubscribeModeType) {
     let config: mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
         connackOverrides: {
@@ -1324,7 +1323,7 @@ describe("Resubscribe - Enabled on session lost", () => {
     })
 });
 
-async function doManualAcknowledgementNoAcquireTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doManualAcknowledgementNoAcquireTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };
@@ -1366,7 +1365,7 @@ describe("Manual Acknowledgement - No Acquire", () => {
     })
 });
 
-async function doManualAcknowledgementAcquireTest(protocolVersion : model.ProtocolMode, iterations: number) {
+async function doManualAcknowledgementAcquireTest(protocolVersion : mqtt_shared.ProtocolMode, iterations: number) {
     let config : mqtt_server.MqttServerConfig = {
         protocolVersion: protocolVersion,
     };

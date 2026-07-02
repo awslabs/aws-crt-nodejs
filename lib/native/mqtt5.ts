@@ -206,13 +206,6 @@ export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
      * @group Node-only
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
-
-    /**
-     * Options for disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
-     *
-     * @group Node-only
-     */
-    disableMetrics? : boolean;
 }
 
 /**

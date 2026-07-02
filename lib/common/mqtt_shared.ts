@@ -9,10 +9,18 @@
  * @mergeTarget
  */
 
-import { MqttWill } from './mqtt';
 import * as event from "./event";
 import * as mqtt5 from "./mqtt5";
 import * as mqtt5_packet from "./mqtt5_packet";
+import { MqttWill } from "./mqtt";
+
+/**
+ * @internal
+ */
+export enum ProtocolMode {
+    Mqtt311,
+    Mqtt5
+}
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -49,148 +57,28 @@ export function normalize_payload(payload: any): Buffer | string {
     throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
+
+
 /**
- * Converts payload to Buffer only, regardless of the supplied type
- * @param payload The payload to convert
- * @internal
- */
-export function normalize_payload_to_buffer(payload: any): Buffer {
-    let normalized = normalize_payload(payload);
-    if (typeof normalized === 'string') {
-        // pass string through
-        return Buffer.from(new TextEncoder().encode(normalized).buffer);
-    }
-
-    return normalized;
-}
-
-/** @internal */
-export const DEFAULT_KEEP_ALIVE : number = 1200;
-
-/** 
  * SDK name used for metrics and identification
  * @internal
  */
 export const SDK_NAME : string = "IoTDeviceSDK/JS";
 
-/** 
- * IoT Device SDK Metrics Structure 
- * @internal
-*/
+/**
+ * IoT Device SDK Metrics Structure
+ */
 export class AwsIoTDeviceSDKMetrics {
     /**
      * Name of the library
      */
     libraryName: string = SDK_NAME;
-}
 
-export interface TopicProperties {
-    isValid: boolean;
-    isShared: boolean;
-    hasWildcard: boolean;
+    metadata: [string, string][] = new Array<[string, string]> ;
 }
 
 /** @internal */
-export function computeTopicProperties(topic: string, isFilter: boolean) : TopicProperties {
-    let properties : TopicProperties = {
-        isValid: false,
-        isShared: false,
-        hasWildcard: false
-    };
-
-    if (topic.length === 0) {
-        return properties;
-    }
-
-    let hasSharePrefix : boolean = false;
-    let hasShareName : boolean = false;
-    let sawHash : boolean = false;
-    let index : number = 0;
-    for (let segment of topic.split('/')) {
-        if (sawHash) {
-            return properties;
-        }
-
-        if (segment.includes("+")) {
-            if (!isFilter) {
-                return properties;
-            }
-
-            if (segment.length > 1) {
-                return properties;
-            }
-
-            properties.hasWildcard = true;
-        }
-
-        if (segment.includes("#")) {
-            if (!isFilter) {
-                return properties;
-            }
-
-            if (segment.length > 1) {
-                return properties;
-            }
-
-            properties.hasWildcard = true;
-            sawHash = true;
-        }
-
-        if (index == 0 && segment === "$share") {
-            hasSharePrefix = true;
-        }
-
-        if (index == 1 && hasSharePrefix && segment.length > 0 && !properties.hasWildcard) {
-            hasShareName = true;
-        }
-
-        if (hasShareName && ((index == 2 && segment.length > 0) || index > 2)) {
-            properties.isShared = true;
-        }
-
-        index += 1;
-    }
-
-    properties.isValid = true;
-
-    return properties;
-}
-
-/** @internal */
-export function isValidTopicFilter(topicFilter: any) : boolean {
-    if (typeof(topicFilter) !== 'string') {
-        return false;
-    }
-
-    let properties = computeTopicProperties(topicFilter as string, true);
-    return properties.isValid;
-}
-
-/** @internal */
-export function isValidTopic(topic: any) : boolean {
-    if (typeof(topic) !== 'string') {
-        return false;
-    }
-
-    let properties = computeTopicProperties(topic as string, false);
-    return properties.isValid;
-}
-
-function randomInRange(min: number, max: number) : number {
-    return min + (max - min) * Math.random();
-}
-
-/** @internal */
-export interface ReconnectDelayContext {
-    retryJitterMode?: mqtt5.RetryJitterType,
-    minReconnectDelayMs? : number,
-    maxReconnectDelayMs? : number,
-    lastReconnectDelay? : number,
-    connectionFailureCount : number,
-}
-
-const DEFAULT_MIN_RECONNECT_DELAY_MS : number = 1000;
-const DEFAULT_MAX_RECONNECT_DELAY_MS : number = 120000;
+export const DEFAULT_KEEP_ALIVE : number = 1200;
 
 /** @internal */
 export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
@@ -200,40 +88,6 @@ export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
 
 /** @internal */
 export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
-
-function getOrderedReconnectDelayBounds(configMin: number | undefined, configMax: number | undefined) : [number, number] {
-    const minDelay : number = Math.max(1, configMin ?? DEFAULT_MIN_RECONNECT_DELAY_MS);
-    const maxDelay : number = Math.max(1, configMax ?? DEFAULT_MAX_RECONNECT_DELAY_MS);
-    if (minDelay > maxDelay) {
-        return [maxDelay, minDelay];
-    } else {
-        return [minDelay, maxDelay];
-    }
-}
-
-/**
- * Computes the next reconnect delay based on the Jitter/Retry configuration.
- * Implements jitter calculations in https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
- * @internal
- */
-export function calculateNextReconnectDelay(context: ReconnectDelayContext) : number {
-    const jitterType : mqtt5.RetryJitterType = context.retryJitterMode ?? mqtt5.RetryJitterType.Default;
-    const [minDelay, maxDelay] : [number, number] = getOrderedReconnectDelayBounds(context.minReconnectDelayMs, context.maxReconnectDelayMs);
-    const clampedFailureCount : number = Math.min(52, context.connectionFailureCount);
-    let delay : number = 0;
-
-    if (jitterType == mqtt5.RetryJitterType.None) {
-        delay = minDelay * Math.pow(2, clampedFailureCount);
-    } else if (jitterType == mqtt5.RetryJitterType.Decorrelated && context.lastReconnectDelay) {
-        delay = randomInRange(minDelay, 3 * context.lastReconnectDelay);
-    } else {
-        delay = randomInRange(minDelay, Math.min(maxDelay, minDelay * Math.pow(2, clampedFailureCount)));
-    }
-
-    delay = Math.min(maxDelay, delay);
-
-    return delay;
-}
 
 /**
  * Base configuration options shared by all MQTT connections.
@@ -499,5 +353,10 @@ export interface Mqtt5ClientConfigBase {
      * If this setting is left undefined, then topic aliasing behavior will be disabled.
      */
     topicAliasingOptions? : mqtt5.TopicAliasingOptions;
+
+    /**
+     * Options for disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
+     */
+    disableMetrics? : boolean;
 }
 

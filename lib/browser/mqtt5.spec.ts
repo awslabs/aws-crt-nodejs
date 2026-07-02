@@ -11,8 +11,8 @@ import url from "url";
 import {HttpsProxyAgent} from "https-proxy-agent";
 import * as auth from "./auth";
 import {once} from "events";
-import * as model from "./mqtt_internal/model";
 import * as mqtt_server from "@test/mqtt_server";
+import * as test_metrics from "@test/metrics";
 import * as promise from "../common/promise";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as mqtt5_packet from "../common/mqtt5_packet";
@@ -595,7 +595,7 @@ function buildDefaultClientConfig(fixture : ClientTestFixture) : mqtt5.Mqtt5Clie
 
 test('Manual Puback - Acquire', async () => {
     let config: mqtt_server.MqttServerConfig = {
-        protocolVersion: model.ProtocolMode.Mqtt5
+        protocolVersion: mqtt_shared.ProtocolMode.Mqtt5
     };
 
     let fixture = new ClientTestFixture(config);
@@ -656,7 +656,7 @@ test('Manual Puback - Acquire', async () => {
 
 test('Manual Puback - No Acquire', async () => {
     let config: mqtt_server.MqttServerConfig = {
-        protocolVersion: model.ProtocolMode.Mqtt5
+        protocolVersion: mqtt_shared.ProtocolMode.Mqtt5
     };
 
     let fixture = new ClientTestFixture(config);
@@ -692,4 +692,47 @@ test('Manual Puback - No Acquire', async () => {
     await stopped;
 
     fixture.getServer().stop();
+});
+
+async function doMetricsTestConnect5(server: mqtt_server.MqttServer, disableMetrics: boolean, username?: string) {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = {
+        hostName: "localhost",
+        port: server.getPort(),
+        disableMetrics: disableMetrics,
+        websocketOptions: {
+            urlFactoryOptions: {
+                urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws
+            }
+        }
+    };
+
+    if (username !== undefined) {
+        clientConfig.connectProperties = {
+            keepAliveIntervalSeconds: 1200,
+            username: username
+        };
+    }
+
+    let client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, 'connectionSuccess');
+    client.start();
+
+    await connectionSuccess;
+}
+
+test('mqtt5 metrics - enabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, false);
+});
+
+test('mqtt5 metrics - disabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, true);
+});
+
+test('mqtt5 metrics - enabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, false, "hello");
+});
+
+test('mqtt5 metrics - disabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, true, "world");
 });

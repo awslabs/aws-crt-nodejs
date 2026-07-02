@@ -500,7 +500,7 @@ export interface ClientOperation {
 export interface ProtocolStateConfig {
 
     /** Version of MQTT (5 or 311) to use */
-    protocolVersion : model.ProtocolMode,
+    protocolVersion : mqtt_shared.ProtocolMode,
 
     /** How operations should be treated when there is no established MQTT connection */
     offlineQueuePolicy : OfflineQueuePolicy,
@@ -1733,7 +1733,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
                 }
 
                 if (type == mqtt5_packet.PacketType.Disconnect) {
-                    return this.config.protocolVersion == model.ProtocolMode.Mqtt5;
+                    return this.config.protocolVersion == mqtt_shared.ProtocolMode.Mqtt5;
                 }
 
                 return false;
