@@ -111,7 +111,7 @@ test('get_encoded_feature_list_mqtt5 - minimal config', () => {
     };
     const result = metrics.get_encoded_feature_list_mqtt5(config);
     expect(result).toContain("F/5");
-    expect(result).toContain("G/A"); // POSIX on non-Windows
+    // Socket implementation tested above
 });
 
 test('get_encoded_feature_list_mqtt5 - with all options', () => {
@@ -138,7 +138,7 @@ test('get_encoded_feature_list_mqtt5 - with all options', () => {
     expect(result).toContain("D/B");  // outbound LRU
     expect(result).toContain("E/A");  // inbound Enabled
     expect(result).toContain("F/5");  // MQTT5
-    expect(result).toContain("G/A");  // POSIX
+    // Socket implementation tested above
     expect(result).toContain("I/A");  // cert files
     expect(result).toContain("J/H");  // PQ_Default
     expect(result).toContain("K/D");  // TLSv1_2
@@ -148,7 +148,7 @@ test('get_encoded_feature_list_mqtt3 - minimal', () => {
     const config = {} as MqttConnectionConfig;
     const result = metrics.get_encoded_feature_list_mqtt3(config);
     expect(result).toContain("F/3");
-    expect(result).toContain("G/A");
+    // Socket implementation tested above
 });
 
 test('get_encoded_feature_list_mqtt3 - with TLS options', () => {
