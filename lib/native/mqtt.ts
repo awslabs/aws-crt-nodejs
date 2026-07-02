@@ -18,6 +18,7 @@ import { BufferedEventEmitter } from '../common/event';
 import * as crt from "../common/mqtt_shared";
 import { CrtError } from './error';
 import * as io from "./io";
+import { create_metrics_mqtt3 } from "./aws_iot_metrics";
 import { HttpProxyOptions, HttpRequest } from './http';
 export { HttpProxyOptions } from './http';
 import {
@@ -148,6 +149,15 @@ export interface MqttConnectionConfig extends crt.MqttConnectionConfigBase {
      * The function may modify the HTTP request before it is sent to the server.
      */
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
+
+    /**
+     * Optional metrics configuration for IoT SDK metrics reporting.
+     * If provided, the CRT will merge with CRT-generated metrics.
+     * If undefined, default metrics will be created.
+     *
+     * @group Node-only
+     */
+    metrics?: crt.AwsIoTDeviceSDKMetrics;
 }
 
 /**
@@ -246,7 +256,7 @@ export class MqttClientConnection extends NativeResourceMixin(BufferedEventEmitt
             config.websocket_handshake_transform,
             min_sec,
             max_sec,
-            config.disable_metrics == true ? undefined : new crt.AwsIoTDeviceSDKMetrics()
+            config.disable_metrics == true ? undefined : create_metrics_mqtt3(config)
         ));
         this.tls_ctx = config.tls_ctx;
         crt_native.mqtt_client_connection_on_message(this.native_handle(), this._on_any_publish.bind(this));

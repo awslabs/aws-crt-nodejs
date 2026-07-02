@@ -16,6 +16,7 @@ import {CrtError} from "./error";
 import * as iot_shared from "../common/aws_iot_shared";
 import * as http from "./http";
 import * as mqtt_shared from "../common/mqtt_shared";
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
@@ -480,6 +481,32 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
+     * Provides SDK-level metrics to be sent in the MQTT CONNECT packet's
+     * username field. The CRT will merge these with its own auto-detected
+     * transport-level feature metrics (TLS settings, certificate source,
+     * proxy, retry behavior, etc.) and embed the combined result.
+     *
+     * @param metrics SDK-level metrics containing library name and metadata
+     */
+    withMetrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.metrics = metrics;
+        return this;
+    }
+
+    /**
+     * Sets whether to disable IoT SDK metrics.
+     *
+     * When disabled, no metrics (SDK or CRT) are included in the CONNECT packet.
+     * Defaults to false (metrics enabled).
+     *
+     * @param disable true to disable metrics, false to enable (default)
+     */
+    withDisableMetrics(disable: boolean) : AwsIotMqtt5ClientConfigBuilder {
+        this.config.disableMetrics = disable;
+        return this;
+    }
+
+    /**
      * Constructs an MQTT5 Client configuration object for creating mqtt5 clients.
      */
     build() : mqtt5.Mqtt5ClientConfig {
@@ -493,6 +520,14 @@ export class AwsIotMqtt5ClientConfigBuilder {
             if (this.customAuthConfig?.password) {
                 this.config.connectProperties.password = this.customAuthConfig?.password;
             }
+        }
+
+        // Populate SDK identity metrics if not disabled and not already set.
+        // The registered factory (if any) is supplied by the upstream IoT device
+        // SDK at module load. Without one, this.config.metrics stays undefined and
+        // the encoder will produce CRT-only feature metrics with no IoTSDKVersion.
+        if (!this.config.disableMetrics && !this.config.metrics) {
+            this.config.metrics = _buildSdkMetrics();
         }
 
         return this.config;

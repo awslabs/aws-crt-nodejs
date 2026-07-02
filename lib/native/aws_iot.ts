@@ -26,6 +26,8 @@ import {
     AwsSigningConfig
 } from "./auth";
 import * as iot_shared from "../common/aws_iot_shared"
+import * as mqtt_shared from "../common/mqtt_shared"
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -468,6 +470,31 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Provides SDK-level metrics to be sent in the MQTT CONNECT packet's
+     * username field. The CRT will merge these with its own auto-detected
+     * transport-level feature metrics and embed the combined result.
+     *
+     * @param metrics SDK-level metrics containing library name and metadata
+     */
+    with_metrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics) {
+        this.params.metrics = metrics;
+        return this;
+    }
+
+    /**
+     * Sets whether to disable IoT SDK metrics.
+     *
+     * When disabled, no metrics (SDK or CRT) are included in the CONNECT packet.
+     * Defaults to false (metrics enabled).
+     *
+     * @param disable true to disable metrics, false to enable (default)
+     */
+    with_disable_metrics(disable: boolean) {
+        this.params.disable_metrics = disable;
+        return this;
+    }
+
+    /**
      * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the TLS context is cached
      * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
@@ -501,6 +528,14 @@ export class AwsIotMqttConnectionConfigBuilder {
          */
         if (this.params.tls_ctx === undefined) {
             this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        }
+
+        // Populate SDK identity metrics if not disabled and not already set.
+        // The registered factory (if any) is supplied by the upstream IoT device
+        // SDK at module load. Without one, this.params.metrics stays undefined and
+        // the encoder will produce CRT-only feature metrics with no IoTSDKVersion.
+        if (!this.params.disable_metrics && !this.params.metrics) {
+            this.params.metrics = _buildSdkMetrics();
         }
 
         return this.params;

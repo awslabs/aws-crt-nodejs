@@ -21,6 +21,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as mqtt5 from "../common/mqtt5";
 import * as mqtt_shared from "../common/mqtt_shared";
 import {CrtError} from "./error";
+import { create_metrics_mqtt5 } from "./aws_iot_metrics";
 
 export { HttpProxyOptions } from './http';
 export * from "../common/mqtt5";
@@ -62,35 +63,6 @@ export interface ClientStatistics {
     unackedOperationSize : number;
 };
 
-/**
- * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
- * how operations are handled while the client is not connected.  In particular, if the client is not connected,
- * then any operation that would be failed on disconnect (according to these rules) will be rejected.
- */
-export enum ClientOperationQueueBehavior {
-
-    /** Same as FailQos0PublishOnDisconnect */
-    Default = 0,
-
-    /**
-     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
-     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
-     */
-    FailNonQos1PublishOnDisconnect = 1,
-
-    /**
-     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
-     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
-     * are requeued in original order behind any retransmissions.
-     */
-    FailQos0PublishOnDisconnect = 2,
-
-    /**
-     * All operations that are not complete at the time of disconnection are failed, except operations that
-     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
-     */
-    FailAllOnDisconnect = 3,
-}
 
 /**
  * Additional controls for client behavior with respect to operation validation and flow control; these checks
@@ -141,7 +113,7 @@ export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
      *
      * @group Node-only
      */
-    offlineQueueBehavior? : ClientOperationQueueBehavior;
+    offlineQueueBehavior? : mqtt5.ClientOperationQueueBehavior;
 
     /**
      * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
@@ -206,6 +178,15 @@ export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
      * @group Node-only
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
+
+    /**
+     * Optional metrics configuration for IoT SDK metrics reporting.
+     * If provided, the CRT will merge with CRT-generated metrics.
+     * If undefined, default metrics will be created.
+     *
+     * @group Node-only
+     */
+    metrics?: mqtt_shared.AwsIoTDeviceSDKMetrics;
 }
 
 /**
@@ -243,7 +224,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
             config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null,
-            config.disableMetrics == true ? undefined : new mqtt_shared.AwsIoTDeviceSDKMetrics()
+            config.disableMetrics == true ? undefined : create_metrics_mqtt5(config)
         ));
     }
 
