@@ -11,6 +11,7 @@ import * as protocol from "./protocol";
 import {CrtError} from "../error";
 import {v4 as uuid} from "uuid";
 import * as test_mqtt_internal_client from "@test/mqtt_internal_client";
+import * as mqtt_shared from "../../common/mqtt_shared";
 
 enum OperationResultStateType {
     Success,
@@ -3171,5 +3172,294 @@ function doPublishPacketTriggersPublishReceivedEvent(mode: model.ProtocolMode) {
 describe("PublishPacketTriggersPublishReceivedEvent", () => {
     test.each(modes)("MQTT %p", (protocolVersion) => {
         doPublishPacketTriggersPublishReceivedEvent(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doAcquireManualAcknowledgementQos0Test(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    let publishReceived : boolean = false;
+    fixture.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        expect(event.acknowledgementControl).toBeUndefined();
+        publishReceived = true;
+    });
+
+    let topic = "hello/there";
+    let encodedPublish = encodePacketToBuffer({
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtMostOnce,
+        topicName: topic
+    } as model.PublishPacketInternal, mode);
+
+    fixture.onIncomingData(0, encodedPublish);
+
+    expect(publishReceived).toBeTruthy();
+}
+
+describe("AcquireManualAcknowledgement - QoS 0 No Handle", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAcquireManualAcknowledgementQos0Test(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doAcquireManualAcknowledgementQos1StandardTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    let ackControl : mqtt_shared.PublishAcknowledgementHandle | null = null;
+    fixture.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        expect(event.acknowledgementControl).toBeDefined();
+        // @ts-ignore
+        ackControl = event.acknowledgementControl.acquireHandle();
+    });
+
+    let topic = "hello/there";
+    let encodedPublish = encodePacketToBuffer({
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        topicName: topic,
+        packetId: 1,
+    } as model.PublishPacketInternal, mode);
+
+    fixture.onIncomingData(0, encodedPublish);
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(1);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    // @ts-ignore
+    ackControl.invokeAcknowledgement();
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(0);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(1);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    fixture.serviceRoundTrip(0);
+
+    let [index, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1);
+    expect(index).toEqual(1);  // 0:Connect, 1:PubAck
+}
+
+describe("AcquireManualAcknowledgement - QoS 1 Acquire", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAcquireManualAcknowledgementQos1StandardTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doAcquireManualAcknowledgementQos1NoAcquireTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    fixture.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        expect(event.acknowledgementControl).toBeDefined();
+    });
+
+    let topic = "hello/there";
+    let encodedPublish = encodePacketToBuffer({
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        topicName: topic,
+        packetId: 1,
+    } as model.PublishPacketInternal, mode);
+
+    fixture.onIncomingData(0, encodedPublish);
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(0);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(1);
+
+    fixture.serviceRoundTrip(0);
+
+    let [index, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1);
+    expect(index).toEqual(1);  // 0:Connect, 1:PubAck
+}
+
+describe("AcquireManualAcknowledgement - QoS 1 No Acquire", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAcquireManualAcknowledgementQos1NoAcquireTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doAcquireManualAcknowledgementQos1DoubleAcquireTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    let publishReceived : boolean = false;
+    fixture.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        expect(event.acknowledgementControl).toBeDefined();
+
+        // @ts-ignore
+        let handle = event.acknowledgementControl.acquireHandle();
+
+        // @ts-ignore
+        expect(event.acknowledgementControl.acquireHandle()).toBeNull();
+
+        publishReceived = true;
+    });
+
+    let topic = "hello/there";
+    let encodedPublish = encodePacketToBuffer({
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        topicName: topic,
+        packetId: 1,
+    } as model.PublishPacketInternal, mode);
+
+    fixture.onIncomingData(0, encodedPublish);
+
+    expect(publishReceived).toEqual(true);
+}
+
+describe("AcquireManualAcknowledgement - Double Acquire Gets Null", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAcquireManualAcknowledgementQos1DoubleAcquireTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doAcquireManualAcknowledgementAckAfterConnectionResetTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    let ackControl : mqtt_shared.PublishAcknowledgementHandle | null = null;
+    fixture.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        expect(event.acknowledgementControl).toBeDefined();
+        // @ts-ignore
+        ackControl = event.acknowledgementControl.acquireHandle();
+    });
+
+    let topic = "hello/there";
+    let encodedPublish = encodePacketToBuffer({
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        topicName: topic,
+        packetId: 1,
+    } as model.PublishPacketInternal, mode);
+
+    fixture.onIncomingData(0, encodedPublish);
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(1);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    fixture.onConnectionClosed(0);
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(0);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    // @ts-ignore
+    ackControl.invokeAcknowledgement();
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(0);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    fixture.serviceRoundTrip(0);
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(0);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+}
+
+describe("AcquireManualAcknowledgement - Ack after connection reset", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAcquireManualAcknowledgementAckAfterConnectionResetTest(protocolVersionToMode(protocolVersion));
+    })
+});
+
+function doAcquireManualAcknowledgementDoubleAcquireDoesNothingTest(mode: model.ProtocolMode) {
+    let config = buildProtocolStateConfig(mode);
+
+    let context : BrokerTestContext = {
+        protocolStateConfig: config
+    };
+
+    let fixture = new ProtocolTestFixture(context, buildDefaultHandlerSet());
+    fixture.advanceFromDisconnected(0, protocol.ProtocolStateType.Connected);
+
+    let ackControl : mqtt_shared.PublishAcknowledgementHandle | null = null;
+    fixture.protocolState.addListener("publishReceived", (event : protocol.PublishReceivedEvent) => {
+        expect(event.acknowledgementControl).toBeDefined();
+        // @ts-ignore
+        ackControl = event.acknowledgementControl.acquireHandle();
+    });
+
+    let topic = "hello/there";
+    let encodedPublish = encodePacketToBuffer({
+        type: mqtt5_packet.PacketType.Publish,
+        qos: mqtt5_packet.QoS.AtLeastOnce,
+        topicName: topic,
+        packetId: 1,
+    } as model.PublishPacketInternal, mode);
+
+    fixture.onIncomingData(0, encodedPublish);
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(1);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(1);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(0);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    // @ts-ignore
+    ackControl.invokeAcknowledgement();
+
+    // @ts-ignore
+    ackControl.invokeAcknowledgement();
+
+    // @ts-ignore
+    ackControl.invokeAcknowledgement();
+
+    expect(fixture.protocolState.getPendingPublishAcknowledgements().size).toEqual(0);
+    expect(fixture.protocolState.getPendingPublishAcknowledgementsByPacketId().size).toEqual(0);
+    expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.HighPriority).length).toEqual(1);
+    expect(() => { findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1); }).toThrow("Failed to find packet");
+
+    fixture.serviceRoundTrip(0);
+
+    let [index, ] = findNthPacketOfType(fixture.toServerPackets, mqtt5_packet.PacketType.Puback, 1);
+    expect(index).toEqual(1);  // 0:Connect, 1:PubAck
+}
+
+describe("AcquireManualAcknowledgement - Double Acquire Does Nothing", () => {
+    test.each(modes)("MQTT %p", (protocolVersion) => {
+        doAcquireManualAcknowledgementDoubleAcquireDoesNothingTest(protocolVersionToMode(protocolVersion));
     })
 });
