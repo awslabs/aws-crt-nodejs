@@ -110,11 +110,11 @@ export function create_websocket_url(config: MqttConnectionConfig) {
         const websocketoptions = config.websocket!;
         const credentials = config.credentials_provider?.getCredentials();
         const signing_config_value = websocketoptions.create_signing_config?.()
-                    ?? {
-                    service: websocketoptions.service ?? "iotdevicegateway",
-                    credentials: credentials,
-                    date: new Date()
-                };
+            ?? {
+                service: websocketoptions.service ?? "iotdevicegateway",
+                credentials: credentials,
+                date: new Date()
+            };
         const signing_config = signing_config_value as AwsSigningConfig;
         const time = canonical_time(signing_config.date);
         const day = canonical_day(time);
@@ -122,9 +122,10 @@ export function create_websocket_url(config: MqttConnectionConfig) {
             `%2F${day}%2F${signing_config.credentials.aws_region}%2F${signing_config.service}%2Faws4_request&X-Amz-Date=${time}&X-Amz-SignedHeaders=host`;
         const url = new URL(`wss://${config.host_name}:${config.port}${path}?${query_params}`);
         return sign_url('GET', url, signing_config, time, day);
-    }
-    else if (protocol === 'wss-custom-auth') {
+    } else if (protocol === 'wss-custom-auth') {
         return `wss://${config.host_name}:${config.port}${path}`;
+    } else if (protocol === 'ws') {
+        return `ws://${config.host_name}:${config.port}${path}`;
     }
     throw new URIError(`Invalid protocol requested: ${protocol}`);
 }

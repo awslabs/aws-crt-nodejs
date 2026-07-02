@@ -72,6 +72,9 @@ async function doMetricsTestConnect311(server: mqtt_server.MqttServer, disableMe
         port: server.getPort(),
         socket_options: new SocketOptions(),
         disable_metrics: disableMetrics,
+        websocket: {
+            protocol: "ws"
+        }
     };
 
     if (username !== undefined) {
