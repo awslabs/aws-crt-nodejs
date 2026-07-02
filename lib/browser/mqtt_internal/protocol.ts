@@ -15,7 +15,6 @@ import {flogError, flogDebug, flogInfo, logDebug, logInfo, flogWarn} from "../..
 
 import * as mqtt5 from "../mqtt5";
 import * as mqtt_shared from "../../common/mqtt_shared";
-import * as mqtt5_utils from "../mqtt5_utils";
 import {BufferedEventEmitter} from "../../common/event";
 import {v4 as uuid} from "uuid";
 
@@ -2164,8 +2163,8 @@ function createNegotiatedSettings(connect: model.ConnectPacketInternal, connack:
     return {
         maximumQos: Math.min(connack.maximumQos ?? mqtt5.QoS.ExactlyOnce, mqtt5.QoS.AtLeastOnce),
         sessionExpiryInterval: connack.sessionExpiryInterval ?? connect.sessionExpiryIntervalSeconds ?? 0,
-        receiveMaximumFromServer: connack.receiveMaximum ?? mqtt5_utils.DEFAULT_RECEIVE_MAXIMUM,
-        maximumPacketSizeToServer: connack.maximumPacketSize ?? mqtt5_utils.MAXIMUM_PACKET_SIZE,
+        receiveMaximumFromServer: connack.receiveMaximum ?? mqtt_shared.DEFAULT_RECEIVE_MAXIMUM,
+        maximumPacketSizeToServer: connack.maximumPacketSize ?? mqtt_shared.MAXIMUM_PACKET_SIZE,
         topicAliasMaximumToServer: 0, // TODO
         topicAliasMaximumToClient: 0, // TODO
         serverKeepAlive: connack.serverKeepAlive ?? connect.keepAliveIntervalSeconds ?? mqtt_shared.DEFAULT_KEEP_ALIVE,
@@ -2182,8 +2181,8 @@ function createDefaultNegotiatedSettings() : mqtt5.NegotiatedSettings {
     return {
         maximumQos: mqtt5.QoS.AtLeastOnce,
         sessionExpiryInterval: 0,
-        receiveMaximumFromServer: mqtt5_utils.DEFAULT_RECEIVE_MAXIMUM,
-        maximumPacketSizeToServer: mqtt5_utils.MAXIMUM_PACKET_SIZE,
+        receiveMaximumFromServer: mqtt_shared.DEFAULT_RECEIVE_MAXIMUM,
+        maximumPacketSizeToServer: mqtt_shared.MAXIMUM_PACKET_SIZE,
         topicAliasMaximumToServer: 0,
         topicAliasMaximumToClient: 0,
         serverKeepAlive: mqtt_shared.DEFAULT_KEEP_ALIVE,
