@@ -16,7 +16,6 @@ import {
     CommonHttpProxyOptions,
     HttpHeader,
     HttpHeaders as CommonHttpHeaders,
-    HttpProxyAuthenticationType,
     HttpClientConnectionConnected,
     HttpClientConnectionError,
     HttpClientConnectionClosed,
@@ -27,9 +26,7 @@ import {
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
 import { CrtError } from './error';
-import * as axios from "axios";
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
-import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
 
 /**
  * A collection of HTTP headers
@@ -175,7 +172,13 @@ export class HttpHeaders implements CommonHttpHeaders {
 }
 
 /**
- * Options used when connecting to an HTTP endpoint via a proxy
+ * Options used when connecting to an HTTP endpoint via a proxy.
+ *
+ * NOTE: In the browser implementation, the fetch() API does not support per-request proxy
+ * configuration. These options are accepted for API compatibility with the native implementation
+ * but will not be applied to HTTP requests made via fetch(). A warning will be emitted at
+ * runtime if proxy options are provided. For full proxy support, use the native (Node.js)
+ * implementation.
  *
  * @category HTTP
  */
@@ -211,8 +214,9 @@ export class HttpRequest {
  * @category HTTP
  */
 export class HttpClientConnection extends BufferedEventEmitter {
-    public _axios: any;
-    private axios_options: axios.AxiosRequestConfig;
+    private static _proxyWarningEmitted = false;
+
+    public _baseURL: string;
     protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
@@ -226,7 +230,13 @@ export class HttpClientConnection extends BufferedEventEmitter {
      * @param port - port to connect to
      * @param socketOptions - (native only) leave undefined
      * @param tlsOptions - instantiate for TLS, but actual value is unused in browse implementation
-     * @param proxyOptions - options to control proxy usage when establishing the connection
+     * @param proxyOptions - options to control proxy usage when establishing the connection.
+     *
+     * NOTE: In the browser implementation, the fetch() API does not support per-request proxy
+     * configuration. When proxyOptions are provided, they are stored on the connection but will
+     * NOT be applied to fetch() requests. In browser environments, proxy routing is controlled
+     * by the browser/OS network settings. Use the native (Node.js) implementation for full
+     * HTTP proxy support.
      */
     constructor(
         bootstrap: ClientBootstrap | undefined,
@@ -245,24 +255,18 @@ export class HttpClientConnection extends BufferedEventEmitter {
         this.proxy_options = proxyOptions;
         const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
-        this.axios_options = {
-            baseURL: `${scheme}://${host_name}:${port}/`
-        };
+        this._baseURL = `${scheme}://${host_name}:${port}/`;
 
-        if (this.proxy_options) {
-            this.axios_options.proxy = {
-                host: this.proxy_options.host_name,
-                port: this.proxy_options.port,
-            };
-
-            if (this.proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
-                this.axios_options.proxy.auth = {
-                    username: this.proxy_options.auth_username || "",
-                    password: this.proxy_options.auth_password || "",
-                };
-            }
+        if (this.proxy_options && !HttpClientConnection._proxyWarningEmitted) {
+            HttpClientConnection._proxyWarningEmitted = true;
+            console.warn(
+                'aws-crt: HttpClientConnection proxy_options were provided, but the browser ' +
+                'fetch() API does not support per-request proxy configuration. Proxy settings ' +
+                'will not be applied to HTTP requests. Use the native (Node.js) implementation ' +
+                'for full HTTP proxy support.'
+            );
         }
-        this._axios = axios.default.create(this.axios_options);
+
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -320,7 +324,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
      */
     close() {
         this.emit('close');
-        this._axios = undefined;
+        this._baseURL = "";
     }
 }
 
@@ -341,15 +345,23 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
         }
         return obj;
     }
-    let body = (request.body) ? (request.body as InputStream).data : undefined;
+    let body: BodyInit | undefined = undefined;
+    if (request.body && !['GET', 'HEAD'].includes(request.method.toUpperCase())) {
+        body = (request.body as InputStream).data as BodyInit;
+    }
     let stream = HttpClientStream._create(connection);
-    stream.connection._axios.request({
-        url: request.path,
-        method: request.method.toLowerCase(),
+    const url = new URL(request.path, connection._baseURL).toString();
+    fetch(url, {
+        method: request.method,
         headers: _to_object(request.headers),
         body: body
-    }).then((response: any) => {
-        stream._on_response(response);
+    }).then(async (response: Response) => {
+        const data = await response.arrayBuffer();
+        if (!response.ok) {
+            stream._on_error_response(response.status, response.headers, data);
+        } else {
+            stream._on_response(response.status, response.headers, data);
+        }
     }).catch((error: any) => {
         stream._on_error(error);
     });
@@ -449,43 +461,39 @@ export class HttpClientStream extends BufferedEventEmitter {
         return new HttpClientStream(connection);
     }
 
-    // Convert axios' single response into a series of events
+    // Convert fetch response into a series of events
     /** @internal */
-    _on_response(response: any) {
-        this.response_status_code = response.status;
+    _on_response(status_code: number, responseHeaders: Headers, data: ArrayBuffer) {
+        this.response_status_code = status_code;
         let headers = new HttpHeaders();
-        for (let header in response.headers) {
-            headers.add(header, response.headers[header]);
-        }
+        responseHeaders.forEach((value: string, key: string) => {
+            headers.add(key, value);
+        });
         this.emit('response', this.response_status_code, headers);
-        let data = response.data;
-        if (data && !(data instanceof ArrayBuffer)) {
-            data = fromUtf8(data.toString());
-        }
         this.emit('data', data);
         this.emit('end');
     }
 
-    // Gather as much information as possible from the axios error
-    // and pass it on to the user
+    // Handle HTTP error responses (non-2xx status codes)
+    /** @internal */
+    _on_error_response(status_code: number, responseHeaders: Headers, data: ArrayBuffer) {
+        this.response_status_code = status_code;
+        let info = `status_code=${status_code}`;
+        const headersObj: { [key: string]: string } = {};
+        responseHeaders.forEach((value, key) => { headersObj[key] = value; });
+        info += ` headers=${JSON.stringify(headersObj)}`;
+        if (data.byteLength > 0) {
+            info += ` data=${new TextDecoder().decode(data)}`;
+        }
+        this.connection.close();
+        this.emit('error', new Error(`msg=Request failed with status ${status_code}, connection=${JSON.stringify(this.connection)}, info=${info}`));
+    }
+
+    // Handle network errors from fetch
     /** @internal */
     _on_error(error: any) {
-        let info = "";
-        if (error.response) {
-            this.response_status_code = error.response.status;
-            info += `status_code=${error.response.status}`;
-            if (error.response.headers) {
-                info += ` headers=${JSON.stringify(error.response.headers)}`;
-            }
-            if (error.response.data) {
-                info += ` data=${error.response.data}`;
-            }
-        } else {
-            info = "No response from server";
-        }
-
         this.connection.close();
-        this.emit('error', new Error(`msg=${error.message}, connection=${JSON.stringify(this.connection)}, info=${info}`));
+        this.emit('error', new Error(`msg=${error.message}, connection=${JSON.stringify(this.connection)}`));
     }
 }
 
