@@ -655,6 +655,60 @@ export async function subPubAcquireInvokeControlTest(client: mqtt5.Mqtt5Client, 
     client.close();
 }
 
+export async function subPubAutoPubackNoDuplicateTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+
+    // Verify client sends PUBACK automatically. We do NOT call acquireHandle().
+    let unexpectedRedelivery: boolean = false;
+    let firstMessageReceived: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+                // Intentionally do NOT call acquireHandle(), let auto-PUBACK happen
+                resolve();
+            } else {
+                // Any subsequent message is an unexpected re-delivery
+                unexpectedRedelivery = true;
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // Wait 35 seconds to confirm the broker does not re-deliver the message
+    await new Promise(resolve => setTimeout(resolve, 35000));
+
+    expect(unexpectedRedelivery).toEqual(false);
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
 export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.Mqtt5Client, willTopic: string) {
     let publisherConnected = once(publisher, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
     let publisherStopped = once(publisher, mqtt5.Mqtt5Client.STOPPED);
