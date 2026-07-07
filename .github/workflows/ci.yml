@@ -26,10 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - al2023-x64
-          # - al2-x64
-          # - manylinux2014-aarch64
-          # - manylinux2014-x64
+          - al2012-x64
+          - al2-x64
+          - manylinux2014-aarch64
+          - manylinux2014-x64
           - fedora-34-x64
           - opensuse-leap
           - rhel8-x64
