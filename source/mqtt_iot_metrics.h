@@ -27,9 +27,9 @@ struct aws_napi_metrics_storage {
 /**
  * Parse an AwsIoTDeviceSDKMetrics JS object into aws_mqtt_iot_metrics struct.
  *
- * `out_storage` MUST be zero-initialized (e.g. via AWS_ZERO_STRUCT) or already
- * cleaned up via aws_napi_metrics_clean_up() before being passed in. Passing in
- * a storage struct that still owns allocations will leak those allocations.
+ * `out_storage` MUST be zero-initialized or already cleaned up via
+ * aws_napi_metrics_clean_up() before being passed in. Passing in a storage
+ * struct that still owns memory will leak it.
  *
  * Returns AWS_OP_SUCCESS on success (including the null-metrics),
  * AWS_OP_ERR with aws_last_error set on malformed input.

@@ -15,9 +15,9 @@ static const char *AWS_NAPI_KEY_METADATA = "metadata";
  * for the C MQTT layer. The JS object has the shape:
  *   { libraryName: "IoTDeviceSDK/JS", metadata: [["CRTVersion","1.0.0"], ["IoTSDKFeature","F/5,G/A"], ...] }
  *
- * `out_storage` MUST be zero-initialized (via AWS_ZERO_STRUCT) or already
- * cleaned up via aws_napi_metrics_clean_up() before being passed in. Passing in
- * a storage struct that still owns allocations will leak those allocations.
+ * `out_storage` MUST be zero-initialized or already cleaned up via
+ * aws_napi_metrics_clean_up() before being passed in. Passing in a storage
+ * struct that still owns memory will leak it.
  *
  * Caller must call aws_napi_metrics_clean_up(out_storage) after the metrics are
  * no longer needed. Shared by both MQTT5 (mqtt5_client.c) and MQTT3
