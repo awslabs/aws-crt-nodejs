@@ -8,6 +8,7 @@
 
 #include "http_connection.h"
 #include "http_message.h"
+#include "mqtt_iot_metrics.h"
 
 #include <aws/mqtt/client.h>
 #include <aws/mqtt/mqtt.h>

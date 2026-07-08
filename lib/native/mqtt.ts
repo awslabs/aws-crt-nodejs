@@ -149,15 +149,6 @@ export interface MqttConnectionConfig extends crt.MqttConnectionConfigBase {
      * The function may modify the HTTP request before it is sent to the server.
      */
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void;
-
-    /**
-     * Optional metrics configuration for IoT SDK metrics reporting.
-     * If provided, the CRT will merge with CRT-generated metrics.
-     * If undefined, default metrics will be created.
-     *
-     * @group Node-only
-     */
-    metrics?: crt.AwsIoTDeviceSDKMetrics;
 }
 
 /**

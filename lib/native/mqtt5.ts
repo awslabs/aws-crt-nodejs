@@ -178,15 +178,6 @@ export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
      * @group Node-only
      */
     extendedValidationAndFlowControlOptions? : ClientExtendedValidationAndFlowControl;
-
-    /**
-     * Optional metrics configuration for IoT SDK metrics reporting.
-     * If provided, the CRT will merge with CRT-generated metrics.
-     * If undefined, default metrics will be created.
-     *
-     * @group Node-only
-     */
-    metrics?: mqtt_shared.AwsIoTDeviceSDKMetrics;
 }
 
 /**

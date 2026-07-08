@@ -53,8 +53,8 @@ test('inbound_topic_alias_metrics_value', () => {
 });
 
 test('protocol_version_metrics_value', () => {
-    expect(metrics.protocol_version_metrics_value("MQTT5")).toBe("5");
-    expect(metrics.protocol_version_metrics_value("MQTT311")).toBe("3");
+    expect(metrics.protocol_version_metrics_value(mqtt_shared.ProtocolMode.Mqtt5)).toBe("5");
+    expect(metrics.protocol_version_metrics_value(mqtt_shared.ProtocolMode.Mqtt311)).toBe("3");
 });
 
 test('socket_implementation_metrics_value', () => {

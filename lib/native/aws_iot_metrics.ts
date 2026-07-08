@@ -134,12 +134,12 @@ export function inbound_topic_alias_metrics_value(behavior?: mqtt5.InboundTopicA
 /**
  * Map protocol version to its single-character metrics value.
  *
- * Mapping: MQTT311->3, MQTT5->5.
+ * Mapping: Mqtt311->3, Mqtt5->5.
  * Always emitted because every connection has a known protocol version.
  * @internal
  */
-export function protocol_version_metrics_value(protocol: "MQTT311" | "MQTT5"): string {
-    return protocol === "MQTT5" ? "5" : "3";
+export function protocol_version_metrics_value(protocol: mqtt_shared.ProtocolMode): string {
+    return protocol === mqtt_shared.ProtocolMode.Mqtt5 ? "5" : "3";
 }
 
 /**
@@ -230,7 +230,7 @@ export function minimum_tls_version_metrics_value(version?: TlsVersion): string 
  * offlineQueueBehavior=FailNonQos1PublishOnDisconnect, protocol=MQTT5, socket=POSIX.
  *
  * MQTT5 connections always include:
- *  - F (protocolVersion): set to MQTT5
+ *  - F (protocolVersion): set to Mqtt5
  *  - G (socketImplementation): detected from platform (POSIX or IOCP)
  *
  * Conditionally includes (only when the option is explicitly set and not default):
@@ -269,7 +269,7 @@ export function get_encoded_feature_list_mqtt5(config: Mqtt5ClientConfig): strin
     }
 
     // Always included
-    features.push(`${MetricsFeatureId.PROTOCOL_VERSION}/${protocol_version_metrics_value("MQTT5")}`);
+    features.push(`${MetricsFeatureId.PROTOCOL_VERSION}/${protocol_version_metrics_value(mqtt_shared.ProtocolMode.Mqtt5)}`);
     features.push(`${MetricsFeatureId.SOCKET_IMPLEMENTATION}/${socket_implementation_metrics_value()}`);
 
     if (config.httpProxyOptions) {
@@ -294,7 +294,7 @@ export function get_encoded_feature_list_mqtt5(config: Mqtt5ClientConfig): strin
  * Format: "ID/Value,ID/Value..."
  *
  * MQTT3 connections always include:
- *  - F (protocolVersion): set to MQTT311
+ *  - F (protocolVersion): set to Mqtt311
  *  - G (socketImplementation): detected from platform (POSIX or IOCP)
  *
  * Conditionally includes:
@@ -310,7 +310,7 @@ export function get_encoded_feature_list_mqtt5(config: Mqtt5ClientConfig): strin
 export function get_encoded_feature_list_mqtt3(config: MqttConnectionConfig): string {
     const features: string[] = [];
 
-    features.push(`${MetricsFeatureId.PROTOCOL_VERSION}/${protocol_version_metrics_value("MQTT311")}`);
+    features.push(`${MetricsFeatureId.PROTOCOL_VERSION}/${protocol_version_metrics_value(mqtt_shared.ProtocolMode.Mqtt311)}`);
     features.push(`${MetricsFeatureId.SOCKET_IMPLEMENTATION}/${socket_implementation_metrics_value()}`);
 
     if (config.proxy_options) {
