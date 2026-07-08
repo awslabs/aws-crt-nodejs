@@ -469,19 +469,6 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
-     * Sets whether to disable IoT SDK metrics.
-     *
-     * When disabled, no metrics (SDK or CRT) are included in the CONNECT packet.
-     * Defaults to false (metrics enabled).
-     *
-     * @param disable true to disable metrics, false to enable (default)
-     */
-    with_disable_metrics(disable: boolean) {
-        this.params.disable_metrics = disable;
-        return this;
-    }
-
-    /**
      * Returns the configured MqttConnectionConfig.  On the first invocation of this function, the TLS context is cached
      * and re-used on all subsequent calls to build().
      * @returns The configured MqttConnectionConfig
@@ -499,7 +486,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                 }
             }
         }
-
+        
         // Is the user trying to connect using a custom authorizer?
         if (this.is_using_custom_authorizer == true) {
             if (this.params.port != 443) {

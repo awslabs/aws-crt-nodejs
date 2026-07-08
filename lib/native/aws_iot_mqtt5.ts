@@ -479,20 +479,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
         this.config.topicAliasingOptions = topicAliasingOptions;
         return this;
     }
-
-    /**
-     * Sets whether to disable IoT SDK metrics.
-     *
-     * When disabled, no metrics (SDK or CRT) are included in the CONNECT packet.
-     * Defaults to false (metrics enabled).
-     *
-     * @param disable true to disable metrics, false to enable (default)
-     */
-    withDisableMetrics(disable: boolean) : AwsIotMqtt5ClientConfigBuilder {
-        this.config.disableMetrics = disable;
-        return this;
-    }
-
+    
     /**
      * Constructs an MQTT5 Client configuration object for creating mqtt5 clients.
      */
