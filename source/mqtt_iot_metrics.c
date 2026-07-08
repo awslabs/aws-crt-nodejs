@@ -15,29 +15,35 @@ static const char *AWS_NAPI_KEY_METADATA = "metadata";
  * for the C MQTT layer. The JS object has the shape:
  *   { libraryName: "IoTDeviceSDK/JS", metadata: [["CRTVersion","1.0.0"], ["IoTSDKFeature","F/5,G/A"], ...] }
  *
- * Caller must call aws_napi_metrics_clean_up(storage) after the metrics are no longer needed.
- * Shared by both MQTT5 (mqtt5_client.c) and MQTT3 (mqtt_client_connection.c).
+ * `out_storage` MUST be zero-initialized (via AWS_ZERO_STRUCT) or already
+ * cleaned up via aws_napi_metrics_clean_up() before being passed in. Passing in
+ * a storage struct that still owns allocations will leak those allocations.
  *
- * Returns AWS_OP_SUCCESS if metrics were successfully parsed (out_metrics is usable),
- * or AWS_OP_ERR if the metrics object was null/invalid (out_metrics should not be used).
+ * Caller must call aws_napi_metrics_clean_up(out_storage) after the metrics are
+ * no longer needed. Shared by both MQTT5 (mqtt5_client.c) and MQTT3
+ * (mqtt_client_connection.c).
+ *
+ * Returns AWS_OP_SUCCESS on success (including the null-metrics),
+ * AWS_OP_ERR with aws_last_error set on malformed input.
  */
 
 int aws_napi_metrics_parse(
     napi_env env,
     napi_value node_metrics,
-    struct aws_mqtt_iot_metrics *out_metrics,
-    struct aws_napi_metrics_storage *storage) {
+    struct aws_mqtt_iot_metrics **out_metrics,
+    struct aws_napi_metrics_storage *out_storage) {
 
-    /* Zero-initialize so all fields are safe for cleanup on any error path */
-    AWS_ZERO_STRUCT(*out_metrics);
-    AWS_ZERO_STRUCT(*storage);
+    /* Default out to NULL. */
+    *out_metrics = NULL;
 
+    /* Null/undefined metrics - no metrics to attach. */
     if (aws_napi_is_null_or_undefined(env, node_metrics)) {
         AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse - metrics object is null/undefined");
-        return AWS_OP_ERR;
+        return AWS_OP_SUCCESS;
     }
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
+    struct aws_mqtt_iot_metrics *metrics = &out_storage->metrics;
 
     AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse: Creating metrics from JS object");
 
@@ -48,16 +54,16 @@ int aws_napi_metrics_parse(
      */
     napi_value node_library_name = NULL;
     if (napi_get_named_property(env, node_metrics, AWS_NAPI_KEY_LIBRARY_NAME, &node_library_name) != napi_ok ||
-        aws_byte_buf_init_from_napi(&storage->library_name_buf, env, node_library_name) != AWS_OP_SUCCESS) {
-        AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse - failed to read libraryName");
-        return AWS_OP_ERR;
+        aws_byte_buf_init_from_napi(&out_storage->library_name_buf, env, node_library_name) != AWS_OP_SUCCESS) {
+        AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse - failed to read libraryName");
+        return aws_raise_error(AWS_ERROR_INVALID_ARGUMENT);
     }
-    out_metrics->library_name = aws_byte_cursor_from_buf(&storage->library_name_buf);
+    metrics->library_name = aws_byte_cursor_from_buf(&out_storage->library_name_buf);
 
     AWS_LOGF_TRACE(
         AWS_LS_NODEJS_CRT_GENERAL,
         "aws_napi_metrics_parse - libraryName: " PRInSTR,
-        AWS_BYTE_CURSOR_PRI(out_metrics->library_name));
+        AWS_BYTE_CURSOR_PRI(metrics->library_name));
 
     /* Read the JS metadata array: [[key, value], ...] */
     napi_value node_metadata = NULL;
@@ -66,6 +72,7 @@ int aws_napi_metrics_parse(
         /* Null metadata is valid — return metrics with just library name */
         AWS_LOGF_DEBUG(
             AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse: no metadata entries, using libraryName only");
+        *out_metrics = metrics;
         return AWS_OP_SUCCESS;
     }
 
@@ -79,6 +86,7 @@ int aws_napi_metrics_parse(
     /* Empty array is valid — return metrics with just library name */
     if (count == 0) {
         AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse: metadata array is empty");
+        *out_metrics = metrics;
         return AWS_OP_SUCCESS;
     }
 
@@ -137,12 +145,12 @@ int aws_napi_metrics_parse(
 
     /* Pre-allocate entries array since we know the count */
     if (aws_array_list_init_dynamic(
-            &storage->metadata_entries, allocator, count, sizeof(struct aws_mqtt_metadata_entry))) {
+            &out_storage->metadata_entries, allocator, count, sizeof(struct aws_mqtt_metadata_entry))) {
         AWS_LOGF_ERROR(AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse - failed to allocate metadata entries");
         return AWS_OP_ERR;
     }
 
-    if (aws_byte_buf_init(&storage->metadata_storage, allocator, total_length) != AWS_OP_SUCCESS) {
+    if (aws_byte_buf_init(&out_storage->metadata_storage, allocator, total_length) != AWS_OP_SUCCESS) {
         AWS_LOGF_ERROR(
             AWS_LS_NODEJS_CRT_GENERAL, "aws_napi_metrics_parse - failed to allocate metadata storage buffer");
         return AWS_OP_ERR;
@@ -193,15 +201,15 @@ int aws_napi_metrics_parse(
 
         /* Copy key/value bytes into contiguous storage and update cursors to point there.
          * After this, the cursors point at heap memory owned by metadata_storage. */
-        aws_byte_buf_append_and_update(&storage->metadata_storage, &metadata_entry.key);
-        aws_byte_buf_append_and_update(&storage->metadata_storage, &metadata_entry.value);
+        aws_byte_buf_append_and_update(&out_storage->metadata_storage, &metadata_entry.key);
+        aws_byte_buf_append_and_update(&out_storage->metadata_storage, &metadata_entry.value);
 
         /* Release temporary napi buffers — data now lives in metadata_storage */
         aws_byte_buf_clean_up(&key_buf);
         aws_byte_buf_clean_up(&value_buf);
 
         /* Store entry with stable cursors into the array */
-        aws_array_list_push_back(&storage->metadata_entries, &metadata_entry);
+        aws_array_list_push_back(&out_storage->metadata_entries, &metadata_entry);
 
         AWS_LOGF_TRACE(
             AWS_LS_NODEJS_CRT_GENERAL,
@@ -212,14 +220,16 @@ int aws_napi_metrics_parse(
     }
 
     /* Set the output metrics struct to point to our parsed entries */
-    out_metrics->metadata_entries = storage->metadata_entries.data;
-    out_metrics->metadata_count = aws_array_list_length(&storage->metadata_entries);
+    metrics->metadata_entries = out_storage->metadata_entries.data;
+    metrics->metadata_count = aws_array_list_length(&out_storage->metadata_entries);
 
     AWS_LOGF_TRACE(
         AWS_LS_NODEJS_CRT_GENERAL,
         "aws_napi_metrics_parse - successfully parsed %u metadata entries",
         (unsigned int)count);
 
+    /* Hand back the populated metrics view */
+    *out_metrics = metrics;
     return AWS_OP_SUCCESS;
 }
 

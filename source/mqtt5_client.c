@@ -2188,8 +2188,7 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     struct aws_napi_metrics_storage metrics_storage;
     AWS_ZERO_STRUCT(metrics_storage);
-    struct aws_mqtt_iot_metrics metrics;
-    AWS_ZERO_STRUCT(metrics);
+    struct aws_mqtt_iot_metrics *metrics = NULL;
 
     s_init_default_mqtt5_client_options(&client_options, &connect_options);
 
@@ -2377,7 +2376,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     // Set metrics
     napi_value node_metrics = *arg++;
     if (aws_napi_metrics_parse(env, node_metrics, &metrics, &metrics_storage) == AWS_OP_SUCCESS) {
-        client_options.metrics = &metrics;
+        /* metrics is NULL when node_metrics was null/undefined;
+         * otherwise it points into metrics_storage. */
+        client_options.metrics = metrics;
     }
 
     client_options.publish_received_handler = s_on_publish_received;

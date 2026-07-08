@@ -481,19 +481,6 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
-     * Provides SDK-level metrics to be sent in the MQTT CONNECT packet's
-     * username field. The CRT will merge these with its own auto-detected
-     * transport-level feature metrics (TLS settings, certificate source,
-     * proxy, retry behavior, etc.) and embed the combined result.
-     *
-     * @param metrics SDK-level metrics containing library name and metadata
-     */
-    withMetrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics) : AwsIotMqtt5ClientConfigBuilder {
-        this.config.metrics = metrics;
-        return this;
-    }
-
-    /**
      * Sets whether to disable IoT SDK metrics.
      *
      * When disabled, no metrics (SDK or CRT) are included in the CONNECT packet.

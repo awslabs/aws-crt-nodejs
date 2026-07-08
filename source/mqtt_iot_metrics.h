@@ -8,12 +8,14 @@
 
 #include "module.h"
 
-struct aws_mqtt_iot_metrics;
+#include <aws/mqtt/mqtt.h>
 
 /**
  * Storage for parsed metrics data. Must be cleaned up with aws_napi_metrics_clean_up().
  */
 struct aws_napi_metrics_storage {
+    /* Metrics view populated by aws_napi_metrics_parse; cursors point into the buffers below */
+    struct aws_mqtt_iot_metrics metrics;
     /* Buffer holding the library name string */
     struct aws_byte_buf library_name_buf;
     /* Single buffer holding all metadata key/value strings contiguously */
@@ -24,13 +26,19 @@ struct aws_napi_metrics_storage {
 
 /**
  * Parse an AwsIoTDeviceSDKMetrics JS object into aws_mqtt_iot_metrics struct.
- * Returns AWS_OP_SUCCESS on success, AWS_OP_ERR on failure.
+ *
+ * `out_storage` MUST be zero-initialized (e.g. via AWS_ZERO_STRUCT) or already
+ * cleaned up via aws_napi_metrics_clean_up() before being passed in. Passing in
+ * a storage struct that still owns allocations will leak those allocations.
+ *
+ * Returns AWS_OP_SUCCESS on success (including the null-metrics),
+ * AWS_OP_ERR with aws_last_error set on malformed input.
  */
 int aws_napi_metrics_parse(
     napi_env env,
     napi_value node_metrics,
-    struct aws_mqtt_iot_metrics *out_metrics,
-    struct aws_napi_metrics_storage *storage);
+    struct aws_mqtt_iot_metrics **out_metrics,
+    struct aws_napi_metrics_storage *out_storage);
 
 /**
  * Clean up resources allocated by aws_napi_metrics_parse.

@@ -435,8 +435,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     struct aws_napi_metrics_storage metrics_storage;
     AWS_ZERO_STRUCT(metrics_storage);
-    struct aws_mqtt_iot_metrics metrics;
-    AWS_ZERO_STRUCT(metrics);
+    struct aws_mqtt_iot_metrics *metrics = NULL;
 
     napi_value node_client_external = *arg++;
     struct mqtt_nodejs_client *node_client;
@@ -697,7 +696,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     // Set metrics
     napi_value node_metrics = *arg++;
     if (aws_napi_metrics_parse(env, node_metrics, &metrics, &metrics_storage) == AWS_OP_SUCCESS) {
-        if (aws_mqtt_client_connection_set_metrics(binding->connection, &metrics)) {
+        if (aws_mqtt_client_connection_set_metrics(binding->connection, metrics)) {
             AWS_LOGF_DEBUG(
                 AWS_LS_NODEJS_CRT_GENERAL,
                 "Failed to set metrics with error code %d(%s)",

@@ -26,7 +26,6 @@ import {
     AwsSigningConfig
 } from "./auth";
 import * as iot_shared from "../common/aws_iot_shared"
-import * as mqtt_shared from "../common/mqtt_shared"
 import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 /**
@@ -466,18 +465,6 @@ export class AwsIotMqttConnectionConfigBuilder {
      */
     with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
-        return this;
-    }
-
-    /**
-     * Provides SDK-level metrics to be sent in the MQTT CONNECT packet's
-     * username field. The CRT will merge these with its own auto-detected
-     * transport-level feature metrics and embed the combined result.
-     *
-     * @param metrics SDK-level metrics containing library name and metadata
-     */
-    with_metrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics) {
-        this.params.metrics = metrics;
         return this;
     }
 
