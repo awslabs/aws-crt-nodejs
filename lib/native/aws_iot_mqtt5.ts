@@ -479,7 +479,7 @@ export class AwsIotMqtt5ClientConfigBuilder {
         this.config.topicAliasingOptions = topicAliasingOptions;
         return this;
     }
-    
+
     /**
      * Constructs an MQTT5 Client configuration object for creating mqtt5 clients.
      */

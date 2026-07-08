@@ -486,7 +486,7 @@ export class AwsIotMqttConnectionConfigBuilder {
                 }
             }
         }
-        
+
         // Is the user trying to connect using a custom authorizer?
         if (this.is_using_custom_authorizer == true) {
             if (this.params.port != 443) {
