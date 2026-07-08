@@ -36,8 +36,6 @@
 
 #include <aws/http/http.h>
 
-#include <aws/mqtt/mqtt.h>
-
 #include <aws/auth/auth.h>
 
 #include <uv.h>
