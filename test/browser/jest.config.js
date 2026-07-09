@@ -7,6 +7,7 @@ module.exports = {
         '<rootDir>/lib/browser/mqtt_request_response/*.spec.ts'
     ],
     preset: 'jest-puppeteer',
+    testEnvironment: '<rootDir>/test/browser/puppeteer-fetch-environment.js',
     globals: {
         'ts-jest': {
             tsconfig: '<rootDir>/tsconfig.browser.json'
