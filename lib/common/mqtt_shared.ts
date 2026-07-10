@@ -68,7 +68,7 @@ export const SDK_NAME : string = "IoTDeviceSDK/JS";
 /**
  * IoT Device SDK Metrics Structure
  */
-export class AwsIoTDeviceSDKMetrics {
+export class AwsIoTMetrics {
     /**
      * Name of the library
      */
@@ -183,7 +183,7 @@ export interface MqttConnectionConfigBase {
      * If provided, the CRT will merge with CRT-generated metrics.
      * If undefined, default metrics will be created.
      */
-    metrics?: AwsIoTDeviceSDKMetrics;
+    metrics?: AwsIoTMetrics;
 
 }
 
@@ -371,6 +371,6 @@ export interface Mqtt5ClientConfigBase {
      * If provided, the CRT will merge with CRT-generated metrics.
      * If undefined, default metrics will be created.
      */
-    metrics?: AwsIoTDeviceSDKMetrics;
+    metrics?: AwsIoTMetrics;
 }
 

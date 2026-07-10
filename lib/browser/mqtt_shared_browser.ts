@@ -328,11 +328,16 @@ function buildUsernameFromQueryParse(parsed: ParsedUsername) : string {
     return parsed.prefix + QUERY_PARAM_START_DELIMITER + queryParamValue;
 }
 
-export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTDeviceSDKMetrics, username?: string) : string {
+export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTMetrics, username?: string) : string {
     let parsed = parseUsername(username);
 
     addTopLevelPair(parsed, SDK_KEY, metrics.libraryName);
     addTopLevelPair(parsed, PLATFORM_KEY, BROWSER_PLATFORM_VALUE);
+    if (metrics.metadata) {
+        for (const [key, value] of metrics.metadata) {
+            addMetadataPair(parsed, key, value);
+        }
+    }
 
     let browserInfo = window?.navigator?.userAgent ?? "unknown";
     addMetadataPair(parsed, BROWSER_METADATA_KEY, browserInfo);

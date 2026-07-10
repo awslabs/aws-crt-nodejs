@@ -25,7 +25,7 @@ struct aws_napi_metrics_storage {
 };
 
 /**
- * Parse an AwsIoTDeviceSDKMetrics JS object into aws_mqtt_iot_metrics struct.
+ * Parse an AwsIoTMetrics JS object into aws_mqtt_iot_metrics struct.
  *
  * `out_storage` MUST be zero-initialized or already cleaned up via
  * aws_napi_metrics_clean_up() before being passed in. Passing in a storage

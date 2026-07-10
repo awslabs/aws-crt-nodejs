@@ -206,7 +206,7 @@ export function mqtt5_client_new(
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
     proxy_options?: NativeHandle,
-    metrics? : mqtt_shared.AwsIoTDeviceSDKMetrics
+    metrics? : mqtt_shared.AwsIoTMetrics
 ): NativeHandle;
 
 /** @internal */
@@ -257,7 +257,7 @@ export function mqtt_client_connection_new(
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
     reconnect_min_sec?: number,
     reconnect_max_sec?: number,
-    metrics? : mqtt_shared.AwsIoTDeviceSDKMetrics
+    metrics? : mqtt_shared.AwsIoTMetrics
 ): NativeHandle;
 
 /** @internal */

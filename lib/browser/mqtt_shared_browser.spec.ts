@@ -74,78 +74,78 @@ test('MQTT topic properties - invalid topic', async () => {
 });
 
 test('metrics username construction - undefined username', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics());
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics());
     expect(username.startsWith(`?SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - empty username', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "");
     expect(username.startsWith(`?SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - non-query username', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello");
     expect(username.startsWith(`hello?SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with no overlap 1', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?");
     expect(username.startsWith(`hello?SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with no overlap 2', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=");
     expect(username.startsWith(`hello?a=&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with no overlap 3', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&c=d&e=f");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&c=d&e=f");
     expect(username.startsWith(`hello?a=b&c=d&e=f&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with sdk overlap 1', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&SDK");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&SDK");
     expect(username.startsWith(`hello?a=b&SDK=&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with sdk overlap 2', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&SDK=wut&c=d");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&SDK=wut&c=d");
     expect(username.startsWith(`hello?a=b&SDK=wut&c=d&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with platform overlap', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?Platform=oof&c=d&e=f");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?Platform=oof&c=d&e=f");
     expect(username.startsWith(`hello?Platform=oof&c=d&e=f&SDK=${mqtt_shared.SDK_NAME}&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username with sdk and platform overlap', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?Platform=oof&c=d&SDK=squidward");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?Platform=oof&c=d&SDK=squidward");
     expect(username.startsWith("hello?Platform=oof&c=d&SDK=squidward&Metadata=(Browser=")).toBeTruthy();
 });
 
 test('metrics username construction - query username no key', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?=b&c=d&e=f");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?=b&c=d&e=f");
     expect(username.startsWith(`hello?=b&c=d&e=f&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username empty value', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=&c=d&e=f");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=&c=d&e=f");
     expect(username.startsWith(`hello?a=&c=d&e=f&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - query username deduped', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&c=d&a=x&c=");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&c=d&a=x&c=");
     expect(username.startsWith(`hello?a=b&c=d&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser&Metadata=(Browser=`)).toBeTruthy();
 });
 
 test('metrics username construction - invalid metadata', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&Metadata=invalid&c=d");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&Metadata=invalid&c=d");
     expect(username.startsWith(`hello?a=b&Metadata=invalid&c=d`)).toBeTruthy();
     expect(username.indexOf("Browser=")).toEqual(-1);
 });
 
 test('metrics username construction - empty metadata', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&Metadata=()&c=d");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&Metadata=()&c=d");
     expect(username.startsWith(`hello?a=b&Metadata=(Browser=`)).toBeTruthy();
 
     // c=d... exists and comes after metadata
@@ -157,7 +157,7 @@ test('metrics username construction - empty metadata', async () => {
 });
 
 test('metrics username construction - existing metadata single', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&Metadata=(x=y)&c=d");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&Metadata=(x=y)&c=d");
     expect(username.startsWith(`hello?a=b&Metadata=(x=y;Browser=`)).toBeTruthy();
 
     // c=d... exists and comes after metadata
@@ -169,7 +169,7 @@ test('metrics username construction - existing metadata single', async () => {
 });
 
 test('metrics username construction - existing metadata multi', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&Metadata=(x=y;foo=bar)&c=d");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&Metadata=(x=y;foo=bar)&c=d");
     expect(username.startsWith(`hello?a=b&Metadata=(x=y;foo=bar;Browser=`)).toBeTruthy();
 
     // c=d... exists and comes after metadata
@@ -181,6 +181,82 @@ test('metrics username construction - existing metadata multi', async () => {
 });
 
 test('metrics username construction - metadata overlap', async () => {
-    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), "hello?a=b&Metadata=(Browser=gopher;foo=bar)&c=d");
+    let username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTMetrics(), "hello?a=b&Metadata=(Browser=gopher;foo=bar)&c=d");
     expect(username ===`hello?a=b&Metadata=(Browser=gopher;foo=bar)&c=d&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser`).toBeTruthy();
+});
+
+// ---- Phase 3: metrics.metadata folded into the Metadata block ----
+// Prior to Phase 3, buildFinalUsernameFromMetrics only read metrics.libraryName.
+// Now it also folds every [key, value] entry from metrics.metadata into the
+// Metadata=(...) block, before appending Browser=<userAgent>. These tests
+// exercise the new loop directly with a populated AwsIoTMetrics.
+
+function makeMetrics(metadataPairs: [string, string][]): mqtt_shared.AwsIoTMetrics {
+    const m = new mqtt_shared.AwsIoTMetrics();
+    m.metadata = metadataPairs;
+    return m;
+}
+
+test('metrics.metadata - single entry folded into Metadata block, followed by Browser', async () => {
+    const metrics = makeMetrics([["CRTVersion", "1.2.3"]]);
+    const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
+    // CRTVersion must appear inside Metadata=(...), before Browser=
+    expect(username).toMatch(/Metadata=\(CRTVersion=1\.2\.3;Browser=/);
+});
+
+test('metrics.metadata - full CRT-generated set folded in order (before Browser)', async () => {
+    const metrics = makeMetrics([
+        ["CRTVersion", "1.2.3"],
+        ["IoTSDKMetricsVersion", "1"],
+        ["IoTSDKFeature", "A/B,F/5"],
+        ["IoTSDKVersion", "2.0.0"],
+    ]);
+    const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
+    // Order preserved from the metadata array; Browser= appended last.
+    expect(username).toMatch(
+        /Metadata=\(CRTVersion=1\.2\.3;IoTSDKMetricsVersion=1;IoTSDKFeature=A\/B,F\/5;IoTSDKVersion=2\.0\.0;Browser=/
+    );
+});
+
+test('metrics.metadata - first-wins with existing URL metadata (URL takes precedence)', async () => {
+    const metrics = makeMetrics([["CRTVersion", "new-value"]]);
+    const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(
+        metrics,
+        "hello?a=b&Metadata=(CRTVersion=pre-existing)&c=d"
+    );
+    // Pre-existing URL metadata wins (first-value-wins semantic).
+    expect(username).toContain("CRTVersion=pre-existing");
+    expect(username).not.toContain("CRTVersion=new-value");
+});
+
+test('metrics.metadata - coexists with pre-existing URL metadata for a different key', async () => {
+    const metrics = makeMetrics([["CRTVersion", "1.2.3"]]);
+    const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(
+        metrics,
+        "hello?a=b&Metadata=(foo=bar)&c=d"
+    );
+    // Pre-existing "foo=bar" preserved, new CRTVersion appended, Browser last.
+    expect(username).toMatch(/Metadata=\(foo=bar;CRTVersion=1\.2\.3;Browser=/);
+});
+
+test('metrics.metadata - empty array behaves like before Phase 3 (no metadata entries except Browser)', async () => {
+    const metrics = makeMetrics([]);
+    const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
+    // Only Browser= should be in the Metadata block.
+    expect(username).toMatch(/Metadata=\(Browser=/);
+    // And no other metadata keys should sneak in.
+    expect(username).not.toMatch(/Metadata=\([^)]*CRTVersion/);
+    expect(username).not.toMatch(/Metadata=\([^)]*IoTSDKFeature/);
+});
+
+test('metrics.metadata - Browser key from metrics is deduped against auto-appended Browser', async () => {
+    // If the caller (or a mis-configured user metadata) somehow puts Browser=
+    // in metrics.metadata, first-wins means their value survives and the
+    // auto-appended navigator.userAgent one is dropped.
+    const metrics = makeMetrics([["Browser", "supplied-by-caller"]]);
+    const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
+    expect(username).toContain("Browser=supplied-by-caller");
+    // Assert there is exactly one Browser= entry.
+    const browserMatches = username.match(/Browser=/g) ?? [];
+    expect(browserMatches.length).toBe(1);
 });

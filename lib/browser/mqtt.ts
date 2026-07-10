@@ -20,6 +20,7 @@ import * as promise from "../common/promise";
 import * as model from "./mqtt_internal/model";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as mqtt_shared_browser from "./mqtt_shared_browser";
+import * as aws_iot_metrics from "./aws_iot_metrics";
 
 import {Node as TrieNode, Trie, TrieOp} from "./trie";
 
@@ -249,7 +250,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
                 internalConnectOptions.username = this.config.username;
             }
         } else {
-            internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), this.config.username);
+            internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(aws_iot_metrics.create_metrics_mqtt3(this.config), this.config.username);
         }
 
         if (this.config.password) {
