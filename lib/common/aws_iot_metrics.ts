@@ -11,7 +11,7 @@
  *  - Value mappers for platform-independent enums (retry, session, queue,
  *    topic aliasing, protocol version)
  *  - Feature list merging
- *  - Final AwsIoTMetrics object assembly
+ *  - Final AWSIoTMetrics object assembly
  *  - Upstream device-SDK factory hook (_setSdkMetricsFactory)
  *
  * Platform-specific mappers (socket implementation, HTTP proxy, certificate
@@ -171,7 +171,7 @@ export function merge_feature_lists(crtFeatures: string, userFeatures: string): 
 }
 
 /**
- * Create the final AwsIoTMetrics object by merging CRT and user-provided data.
+ * Create the final AWSIoTMetrics object by merging CRT and user-provided data.
  *
  * Applies the following rules to produce the final metrics:
  *  1. libraryName: Uses the value from userMetrics if provided,
@@ -196,10 +196,10 @@ export function merge_feature_lists(crtFeatures: string, userFeatures: string): 
  * @internal
  */
 export function create_metrics(
-    userMetrics: mqtt_shared.AwsIoTMetrics | undefined,
+    userMetrics: mqtt_shared.AWSIoTMetrics | undefined,
     crtFeatureList: string
-): mqtt_shared.AwsIoTMetrics {
-    const finalMetrics = new mqtt_shared.AwsIoTMetrics();
+): mqtt_shared.AWSIoTMetrics {
+    const finalMetrics = new mqtt_shared.AWSIoTMetrics();
     finalMetrics.libraryName = userMetrics?.libraryName ?? mqtt_shared.SDK_NAME;
 
     const metadata: Map<string, string> = new Map();
@@ -238,7 +238,7 @@ export function create_metrics(
 // ---- SDK metrics factory hook ----
 
 /**
- * Factory function that returns a fresh AwsIoTMetrics instance
+ * Factory function that returns a fresh AWSIoTMetrics instance
  * populated with upstream IoT device SDK identity (libraryName + metadata).
  *
  * Returning a fresh object on each call avoids cross-client mutation when
@@ -246,7 +246,7 @@ export function create_metrics(
  *
  * @internal
  */
-export type SdkMetricsFactory = () => mqtt_shared.AwsIoTMetrics;
+export type SdkMetricsFactory = () => mqtt_shared.AWSIoTMetrics;
 
 let _sdkMetricsFactory: SdkMetricsFactory | undefined;
 
@@ -258,9 +258,9 @@ let _sdkMetricsFactory: SdkMetricsFactory | undefined;
  * Not part of the public API and must not be used by customer code.
  *
  * If no factory is registered, the CRT falls back to an empty
- * AwsIoTMetrics (CRT-only feature metrics, no SDK identity).
+ * AWSIoTMetrics (CRT-only feature metrics, no SDK identity).
  *
- * @param factory function returning a fresh AwsIoTMetrics on each call
+ * @param factory function returning a fresh AWSIoTMetrics on each call
  * @internal
  */
 export function _setSdkMetricsFactory(factory: SdkMetricsFactory): void {
@@ -274,6 +274,6 @@ export function _setSdkMetricsFactory(factory: SdkMetricsFactory): void {
  *
  * @internal
  */
-export function _buildSdkMetrics(): mqtt_shared.AwsIoTMetrics | undefined {
+export function _buildSdkMetrics(): mqtt_shared.AWSIoTMetrics | undefined {
     return _sdkMetricsFactory ? _sdkMetricsFactory() : undefined;
 }

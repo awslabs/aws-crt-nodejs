@@ -11,7 +11,7 @@ static const char *AWS_NAPI_KEY_LIBRARY_NAME = "libraryName";
 static const char *AWS_NAPI_KEY_METADATA = "metadata";
 
 /**
- * Parses a JS AwsIoTMetrics object into a native aws_mqtt_iot_metrics struct
+ * Parses a JS AWSIoTMetrics object into a native aws_mqtt_iot_metrics struct
  * for the C MQTT layer. The JS object has the shape:
  *   { libraryName: "IoTDeviceSDK/JS", metadata: [["CRTVersion","1.0.0"], ["IoTSDKFeature","F/5,G/A"], ...] }
  *

@@ -328,7 +328,7 @@ function buildUsernameFromQueryParse(parsed: ParsedUsername) : string {
     return parsed.prefix + QUERY_PARAM_START_DELIMITER + queryParamValue;
 }
 
-export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AwsIoTMetrics, username?: string) : string {
+export function buildFinalUsernameFromMetrics(metrics: mqtt_shared.AWSIoTMetrics, username?: string) : string {
     let parsed = parseUsername(username);
 
     addTopLevelPair(parsed, SDK_KEY, metrics.libraryName);

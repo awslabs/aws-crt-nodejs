@@ -261,35 +261,35 @@ export function get_encoded_feature_list_mqtt3(config: MqttConnectionConfig): st
 }
 
 /**
- * Create the final AwsIoTMetrics object for an MQTT5 client on native.
+ * Create the final AWSIoTMetrics object for an MQTT5 client on native.
  *
  * Generates the CRT feature list from the full set of MQTT5 client config,
  * including detected certificate source from the TLS context, then delegates
  * to the shared create_metrics for merging with user-supplied SDK metrics.
  *
  * @param config - MQTT5 client configuration containing all connection
- *   configuration and optional user (AwsIoTMetrics) metrics.
+ *   configuration and optional user (AWSIoTMetrics) metrics.
  * @returns The final metrics object with merged CRT and SDK features.
  * @internal
  */
-export function create_metrics_mqtt5(config: Mqtt5ClientConfig): mqtt_shared.AwsIoTMetrics {
+export function create_metrics_mqtt5(config: Mqtt5ClientConfig): mqtt_shared.AWSIoTMetrics {
     const crtFeatureList = get_encoded_feature_list_mqtt5(config);
     return common_metrics.create_metrics(config.metrics, crtFeatureList);
 }
 
 /**
- * Create the final AwsIoTMetrics object for an MQTT3 connection on native.
+ * Create the final AWSIoTMetrics object for an MQTT3 connection on native.
  *
  * Generates the CRT feature list from the MQTT3 connection parameters,
  * including detected certificate source from the TLS context, then delegates
  * to the shared create_metrics for merging with user-supplied SDK metrics.
  *
  * @param config - MQTT3 connection configuration containing proxy options,
- *   TLS context, and optional user (AwsIoTMetrics) metrics.
+ *   TLS context, and optional user (AWSIoTMetrics) metrics.
  * @returns The final metrics object with merged CRT and SDK features.
  * @internal
  */
-export function create_metrics_mqtt3(config: MqttConnectionConfig): mqtt_shared.AwsIoTMetrics {
+export function create_metrics_mqtt3(config: MqttConnectionConfig): mqtt_shared.AWSIoTMetrics {
     const crtFeatureList = get_encoded_feature_list_mqtt3(config);
     return common_metrics.create_metrics(config.metrics, crtFeatureList);
 }

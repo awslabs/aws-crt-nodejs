@@ -164,7 +164,7 @@ test('create_metrics_mqtt5 - minimal config', () => {
 });
 
 test('create_metrics_mqtt5 - propagates user libraryName and SDK version', () => {
-    const userMetrics = new mqtt_shared.AwsIoTMetrics();
+    const userMetrics = new mqtt_shared.AWSIoTMetrics();
     userMetrics.libraryName = "IoTDeviceSDK/Custom";
     userMetrics.metadata = [
         ["IoTSDKMetricsVersion", String(metrics.IOT_SDK_METRICS_FEATURE_VERSION)],
@@ -197,7 +197,7 @@ test('create_metrics_mqtt3 - minimal config', () => {
 });
 
 test('create_metrics_mqtt3 - propagates user SDK version', () => {
-    const userMetrics = new mqtt_shared.AwsIoTMetrics();
+    const userMetrics = new mqtt_shared.AWSIoTMetrics();
     userMetrics.metadata = [
         ["IoTSDKMetricsVersion", String(metrics.IOT_SDK_METRICS_FEATURE_VERSION)],
         ["IoTSDKVersion", "3.1.4"],
@@ -217,7 +217,7 @@ test('create_metrics_mqtt3 - propagates user SDK version', () => {
 
 test('_buildSdkMetrics returns fresh instance per client (two MQTT5 clients from SDK)', () => {
     metrics._setSdkMetricsFactory(() => {
-        const m = new mqtt_shared.AwsIoTMetrics();
+        const m = new mqtt_shared.AWSIoTMetrics();
         m.libraryName = "IoTDeviceSDK/JS";
         m.metadata = [
             ["IoTSDKVersion", "2.0.0"],
@@ -249,7 +249,7 @@ test('_buildSdkMetrics returns fresh instance per client (two MQTT5 clients from
 
 test('disableMetrics skips all metrics including CRT-side', () => {
     metrics._setSdkMetricsFactory(() => {
-        const m = new mqtt_shared.AwsIoTMetrics();
+        const m = new mqtt_shared.AWSIoTMetrics();
         m.libraryName = "IoTDeviceSDK/JS";
         m.metadata = [
             ["IoTSDKVersion", "2.0.0"],

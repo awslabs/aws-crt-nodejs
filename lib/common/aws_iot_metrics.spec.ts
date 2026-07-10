@@ -86,7 +86,7 @@ test('create_metrics - no user metrics', () => {
 });
 
 test('create_metrics - with user metrics matching version', () => {
-    const userMetrics = new mqtt_shared.AwsIoTMetrics();
+    const userMetrics = new mqtt_shared.AWSIoTMetrics();
     userMetrics.libraryName = "IoTDeviceSDK/Custom";
     userMetrics.metadata = [
         ["IoTSDKMetricsVersion", "1"],
@@ -104,7 +104,7 @@ test('create_metrics - with user metrics matching version', () => {
 });
 
 test('create_metrics - user metrics version mismatch ignores user features', () => {
-    const userMetrics = new mqtt_shared.AwsIoTMetrics();
+    const userMetrics = new mqtt_shared.AWSIoTMetrics();
     userMetrics.metadata = [
         ["IoTSDKMetricsVersion", "5"],
         ["IoTSDKFeature", "I/B"]
@@ -117,7 +117,7 @@ test('create_metrics - user metrics version mismatch ignores user features', () 
 });
 
 test('create_metrics - CRTVersion cannot be overridden by user', () => {
-    const userMetrics = new mqtt_shared.AwsIoTMetrics();
+    const userMetrics = new mqtt_shared.AWSIoTMetrics();
     userMetrics.metadata = [
         ["CRTVersion", "fake-version"]
     ];
@@ -136,7 +136,7 @@ test('_buildSdkMetrics returns undefined when no factory is registered', () => {
 
 test('_buildSdkMetrics returns factory output after registration', () => {
     metrics._setSdkMetricsFactory(() => {
-        const m = new mqtt_shared.AwsIoTMetrics();
+        const m = new mqtt_shared.AWSIoTMetrics();
         m.libraryName = "IoTDeviceSDK/JS";
         m.metadata = [
             ["IoTSDKVersion", "2.0.0"],
