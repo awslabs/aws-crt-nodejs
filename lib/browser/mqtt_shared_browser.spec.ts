@@ -185,12 +185,6 @@ test('metrics username construction - metadata overlap', async () => {
     expect(username ===`hello?a=b&Metadata=(Browser=gopher;foo=bar)&c=d&SDK=${mqtt_shared.SDK_NAME}&Platform=Browser`).toBeTruthy();
 });
 
-// ---- Phase 3: metrics.metadata folded into the Metadata block ----
-// Prior to Phase 3, buildFinalUsernameFromMetrics only read metrics.libraryName.
-// Now it also folds every [key, value] entry from metrics.metadata into the
-// Metadata=(...) block, before appending Browser=<userAgent>. These tests
-// exercise the new loop directly with a populated AWSIoTMetrics.
-
 function makeMetrics(metadataPairs: [string, string][]): mqtt_shared.AWSIoTMetrics {
     const m = new mqtt_shared.AWSIoTMetrics();
     m.metadata = metadataPairs;
@@ -200,7 +194,6 @@ function makeMetrics(metadataPairs: [string, string][]): mqtt_shared.AWSIoTMetri
 test('metrics.metadata - single entry folded into Metadata block, followed by Browser', async () => {
     const metrics = makeMetrics([["CRTVersion", "1.2.3"]]);
     const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
-    // CRTVersion must appear inside Metadata=(...), before Browser=
     expect(username).toMatch(/Metadata=\(CRTVersion=1\.2\.3;Browser=/);
 });
 
@@ -212,7 +205,6 @@ test('metrics.metadata - full CRT-generated set folded in order (before Browser)
         ["IoTSDKVersion", "2.0.0"],
     ]);
     const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
-    // Order preserved from the metadata array; Browser= appended last.
     expect(username).toMatch(
         /Metadata=\(CRTVersion=1\.2\.3;IoTSDKMetricsVersion=1;IoTSDKFeature=A\/B,F\/5;IoTSDKVersion=2\.0\.0;Browser=/
     );
@@ -224,7 +216,6 @@ test('metrics.metadata - first-wins with existing URL metadata (URL takes preced
         metrics,
         "hello?a=b&Metadata=(CRTVersion=pre-existing)&c=d"
     );
-    // Pre-existing URL metadata wins (first-value-wins semantic).
     expect(username).toContain("CRTVersion=pre-existing");
     expect(username).not.toContain("CRTVersion=new-value");
 });
@@ -242,21 +233,15 @@ test('metrics.metadata - coexists with pre-existing URL metadata for a different
 test('metrics.metadata - empty array behaves like before Phase 3 (no metadata entries except Browser)', async () => {
     const metrics = makeMetrics([]);
     const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
-    // Only Browser= should be in the Metadata block.
     expect(username).toMatch(/Metadata=\(Browser=/);
-    // And no other metadata keys should sneak in.
     expect(username).not.toMatch(/Metadata=\([^)]*CRTVersion/);
     expect(username).not.toMatch(/Metadata=\([^)]*IoTSDKFeature/);
 });
 
 test('metrics.metadata - Browser key from metrics is deduped against auto-appended Browser', async () => {
-    // If the caller (or a mis-configured user metadata) somehow puts Browser=
-    // in metrics.metadata, first-wins means their value survives and the
-    // auto-appended navigator.userAgent one is dropped.
     const metrics = makeMetrics([["Browser", "supplied-by-caller"]]);
     const username = mqtt_shared_browser.buildFinalUsernameFromMetrics(metrics);
     expect(username).toContain("Browser=supplied-by-caller");
-    // Assert there is exactly one Browser= entry.
     const browserMatches = username.match(/Browser=/g) ?? [];
     expect(browserMatches.length).toBe(1);
 });

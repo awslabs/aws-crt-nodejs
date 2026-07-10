@@ -6,16 +6,6 @@
 /**
  * Native (Node) metrics encoding logic for IoT SDK metrics.
  *
- * Wraps the shared common metrics core (feature IDs, common mappers, merge,
- * and SDK factory hook) with native-only pieces: socket implementation,
- * HTTP proxy type, certificate source, TLS cipher preference, minimum TLS
- * version, and the platform-specific get_encoded_feature_list_* /
- * create_metrics_* entry points that consume a native Mqtt5ClientConfig or
- * MqttConnectionConfig.
- *
- * Shared symbols are re-exported so callers importing from "./aws_iot_metrics"
- * (native path) keep working unchanged.
- *
  * @internal
  * @packageDocumentation
  */
@@ -51,11 +41,6 @@ export type { SdkMetricsFactory } from "../common/aws_iot_metrics";
 
 /**
  * Map ClientOperationQueueBehavior to its single-character metrics value.
- *
- * Native-only: only native's Mqtt5ClientConfig exposes `offlineQueueBehavior`.
- * The enum itself lives in common/mqtt5.ts because it is shared vocabulary
- * (browser mirrors the concept internally as OfflineQueuePolicy), but the
- * mapper is native-scoped since browser cannot emit this feature.
  *
  * Mapping: FailNonQos1PublishOnDisconnect->A, FailQos0PublishOnDisconnect->B,
  * FailAllOnDisconnect->C.

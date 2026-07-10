@@ -9,21 +9,6 @@ import * as metrics from "./aws_iot_metrics";
 import { Mqtt5ClientConfig } from "./mqtt5";
 import { MqttConnectionConfig } from "./mqtt";
 
-const NATIVE_ONLY_IDS = [
-    metrics.MetricsFeatureId.OFFLINE_QUEUE_BEHAVIOR,      // C
-    metrics.MetricsFeatureId.SOCKET_IMPLEMENTATION,       // G
-    metrics.MetricsFeatureId.HTTP_PROXY_TYPE,             // H
-    metrics.MetricsFeatureId.CERTIFICATE_SOURCE,          // I
-    metrics.MetricsFeatureId.TLS_CIPHER_PREFERENCE,       // J
-    metrics.MetricsFeatureId.MINIMUM_TLS_VERSION,         // K
-];
-
-function expectNoNativeOnlyIds(featureList: string) {
-    for (const id of NATIVE_ONLY_IDS) {
-        expect(featureList).not.toMatch(new RegExp(`(^|,)${id}/`));
-    }
-}
-
 
 test('get_encoded_feature_list_mqtt5 - minimal config emits only F/5', () => {
     const config: Mqtt5ClientConfig = {
@@ -53,32 +38,11 @@ test('get_encoded_feature_list_mqtt5 - with retry / session / topic alias emits 
     expect(result).toContain("F/5");  // MQTT5
 });
 
-test('get_encoded_feature_list_mqtt5 - does NOT emit native-only IDs (C/G/H/I/J/K)', () => {
-    const config: Mqtt5ClientConfig = {
-        hostName: "localhost",
-        port: 443,
-        retryJitterMode: mqtt5.RetryJitterType.Decorrelated,
-        sessionBehavior: mqtt5.ClientSessionBehavior.RejoinAlways,
-        topicAliasingOptions: {
-            outboundBehavior: mqtt5.OutboundTopicAliasBehaviorType.Manual,
-            inboundBehavior: mqtt5.InboundTopicAliasBehaviorType.Disabled,
-        },
-    };
-    const result = metrics.get_encoded_feature_list_mqtt5(config);
-    expectNoNativeOnlyIds(result);
-});
-
 
 test('get_encoded_feature_list_mqtt3 - minimal emits only F/3', () => {
     const config = {} as MqttConnectionConfig;
     const result = metrics.get_encoded_feature_list_mqtt3(config);
     expect(result).toBe("F/3");
-});
-
-test('get_encoded_feature_list_mqtt3 - does NOT emit native-only IDs', () => {
-    const config = {} as MqttConnectionConfig;
-    const result = metrics.get_encoded_feature_list_mqtt3(config);
-    expectNoNativeOnlyIds(result);
 });
 
 

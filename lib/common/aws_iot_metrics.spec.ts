@@ -4,18 +4,12 @@
  */
 
 /*
- * Tests for the platform-agnostic pieces of lib/common/aws_iot_metrics.ts:
- *  - shared value mappers (retry jitter, session behavior, topic aliasing, protocol version)
- *  - merge_feature_lists
- *  - create_metrics
- *  - _setSdkMetricsFactory / _buildSdkMetrics basics (no factory / factory registered)
- *
  * Runs in BOTH jest configs (test/native/jest.config.js and test/browser/jest.config.js
  * both include lib/common/*.spec.ts), so shared logic is validated under each platform's
  * TypeScript configuration.
  *
  * Ordering note: "_buildSdkMetrics returns undefined when no factory is registered"
- * MUST run before any test that calls _setSdkMetricsFactory. 
+ * MUST run before any test that calls _setSdkMetricsFactory.
  */
 
 import * as mqtt5 from "../common/mqtt5";

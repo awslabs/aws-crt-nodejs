@@ -50,13 +50,6 @@ export type { SdkMetricsFactory } from "../common/aws_iot_metrics";
  *  - D (outboundTopicAliasBehavior) from config.topicAliasingOptions.outboundBehavior
  *  - E (inboundTopicAliasBehavior) from config.topicAliasingOptions.inboundBehavior
  *
- * Not emitted on browser (either not observable or config field is native-only):
- *  - C (offlineQueueBehavior): field only exists on native Mqtt5ClientConfig
- *  - G (socketImplementation): browser is always WebSocket, no OS distinction
- *  - H (httpProxyType): no configurable HTTP proxy in browser
- *  - I/J/K (TLS certificate source / cipher preference / min version):
- *    TLS is browser-managed, no programmatic surface
- *
  * @param config - MQTT5 client configuration.
  * @returns The encoded feature list string.
  * @internal
@@ -94,11 +87,6 @@ export function get_encoded_feature_list_mqtt5(config: Mqtt5ClientConfig): strin
  *
  * Always:
  *  - F (protocolVersion): set to Mqtt311
- *
- * Not emitted on browser MQTT3:
- *  - A/B/D/E (jitter, session, topic alias): these are MQTT5-only concepts;
- *    the MQTT3 MqttConnectionConfigBase does not surface them.
- *  - G/H/I/J/K: same reasons as MQTT5 browser (native-only or not observable).
  *
  * The MQTT3 encoded feature list is intentionally minimal today. Additional
  * feature IDs may be introduced later for browser-specific concerns

@@ -6,7 +6,7 @@
 /**
  * Shared metrics encoding logic for IoT SDK metrics.
  *
- * Platform-agnostic pieces used by both native and browser metrics modules:
+ * Features used by both native and browser metrics modules:
  *  - Feature ID registry (single source of truth for all platforms)
  *  - Value mappers for platform-independent enums (retry, session, queue,
  *    topic aliasing, protocol version)
@@ -15,7 +15,7 @@
  *  - Upstream device-SDK factory hook (_setSdkMetricsFactory)
  *
  * Platform-specific mappers (socket implementation, HTTP proxy, certificate
- * source, TLS options, websocket transport, browser auth method, etc.) live
+ * source, TLS options etc.) live
  * in the per-platform module (lib/native/aws_iot_metrics.ts or
  * lib/browser/aws_iot_metrics.ts).
  *
