@@ -652,6 +652,19 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
     })
 });
 
+test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Auto publish acknowledgement - no duplicate delivery', async() =>{
+    // Verify client sends PUBACK automatically when acquireHandle() is not called. Confirmed by no re-delivery.
+    await retry.networkTimeoutRetryWrapper( async () => {
+        let topic: string = `test-${uuid()}`;
+        let testPayload: Buffer = Buffer.from("hello", "utf-8");
+
+        let config: mqtt5.Mqtt5ClientConfig = createDirectIotCoreClientConfig();
+        let client: mqtt5.Mqtt5Client = new mqtt5.Mqtt5Client(config);
+
+        await test_utils.subPubAutoPubackNoDuplicateTest(client, topic, testPayload);
+    })
+});
+
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Will test', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         let willPayload: Buffer = Buffer.from("ToMyChildrenIBequeathNothing", "utf-8");
