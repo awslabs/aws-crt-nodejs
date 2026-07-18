@@ -26,10 +26,90 @@ import {
 } from '../common/http';
 export { HttpHeader, HttpProxyAuthenticationType } from '../common/http';
 import { BufferedEventEmitter } from '../common/event';
+import { is_nodejs } from '../common/platform';
 import { CrtError } from './error';
-import * as axios from "axios";
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
-import { fromUtf8 } from '@aws-sdk/util-utf8-browser';
+
+/**
+ * Wraps IPv6 literals in brackets so they can be embedded in a URL.
+ * @internal
+ */
+function format_url_host(host_name: string): string {
+    return (host_name.indexOf(':') !== -1 && !host_name.startsWith('[')) ? `[${host_name}]` : host_name;
+}
+
+/**
+ * Lazily loads undici's ProxyAgent. Kept behind a runtime require (and stubbed
+ * out for browser bundlers via the "browser" field in package.json) so that
+ * bundling the browser implementation for a real browser never pulls in undici
+ * or its Node-core dependencies. Returns undefined when undici is unavailable.
+ * @internal
+ */
+function load_proxy_agent(): any {
+    try {
+        // Reference require through a variable so bundlers that don't honor the
+        // package.json "browser" field stub ("undici": false) don't statically pull
+        // undici (and its node: imports) into browser bundles. In a real browser
+        // require is absent and this resolves to undefined.
+        const node_require = typeof require === 'function' ? require : undefined;
+        return node_require ? node_require('undici').ProxyAgent : undefined;
+    } catch (e) {
+        return undefined;
+    }
+}
+
+/**
+ * Builds an undici ProxyAgent dispatcher from proxy options, to be passed to the
+ * (Node-only) `dispatcher` option of the global fetch(). In a real browser, proxying
+ * cannot be applied (proxy routing belongs to the browser/OS); returns undefined with
+ * a warning. Under Node.js, where the caller's proxy_options are expected to be
+ * honored, failure to construct the dispatcher (undici unavailable) is an error
+ * rather than a silent direct connection.
+ * @internal
+ */
+function make_proxy_dispatcher(proxy_options: HttpProxyOptions): any {
+    if (!is_nodejs()) {
+        console.warn(
+            'aws-crt: HttpClientConnection proxy_options were provided, but proxying is only ' +
+            'supported when the browser implementation runs under Node.js. In a real browser, ' +
+            'proxy routing is controlled by the browser/OS network settings and these options ' +
+            'have no effect.'
+        );
+        return undefined;
+    }
+
+    const ProxyAgent = load_proxy_agent();
+    if (!ProxyAgent) {
+        throw new CrtError(
+            'HttpClientConnection proxy_options were provided, but the "undici" package could ' +
+            'not be loaded, so the proxy settings cannot be applied. Ensure undici is installed ' +
+            'to use HTTP proxy support in the browser implementation under Node.js.'
+        );
+    }
+
+    // Native-only capabilities (TLS to the proxy itself, forwarding mode) cannot be
+    // expressed through undici's ProxyAgent, which always speaks plaintext HTTP to the
+    // proxy and tunnels via CONNECT.
+    const native_only = proxy_options as { tls_opts?: unknown, connection_type?: number };
+    if (native_only.tls_opts || native_only.connection_type === 1 /* Forwarding */) {
+        console.warn(
+            'aws-crt: HttpClientConnection proxy_options include settings (tls_opts and/or a ' +
+            'forwarding connection_type) that are not supported by the browser implementation; ' +
+            'the proxy will be reached over plaintext HTTP using a tunneling (CONNECT) connection.'
+        );
+    }
+
+    const options: { uri: string, token?: string } = {
+        uri: `http://${format_url_host(proxy_options.host_name)}:${proxy_options.port}`,
+    };
+
+    if (proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
+        const credentials = `${proxy_options.auth_username || ""}:${proxy_options.auth_password || ""}`;
+        options.token = `Basic ${Buffer.from(credentials).toString('base64')}`;
+    }
+
+    return new ProxyAgent(options);
+}
 
 /**
  * A collection of HTTP headers
@@ -175,7 +255,12 @@ export class HttpHeaders implements CommonHttpHeaders {
 }
 
 /**
- * Options used when connecting to an HTTP endpoint via a proxy
+ * Options used when connecting to an HTTP endpoint via a proxy.
+ *
+ * NOTE: Proxy support in the browser implementation only applies when it runs under Node.js,
+ * where requests are routed through undici's ProxyAgent. In a real browser, per-request proxy
+ * configuration is not available (proxy routing is controlled by the browser/OS network
+ * settings) and these options have no effect; a warning is emitted at runtime in that case.
  *
  * @category HTTP
  */
@@ -211,8 +296,9 @@ export class HttpRequest {
  * @category HTTP
  */
 export class HttpClientConnection extends BufferedEventEmitter {
-    public _axios: any;
-    private axios_options: axios.AxiosRequestConfig;
+    public _baseURL: string;
+    /** @internal undici ProxyAgent dispatcher, when proxying is active (Node.js only) */
+    public _dispatcher: any;
     protected bootstrap: ClientBootstrap | undefined;
     protected socket_options?: SocketOptions;
     protected tls_options?: TlsConnectionOptions;
@@ -226,7 +312,12 @@ export class HttpClientConnection extends BufferedEventEmitter {
      * @param port - port to connect to
      * @param socketOptions - (native only) leave undefined
      * @param tlsOptions - instantiate for TLS, but actual value is unused in browse implementation
-     * @param proxyOptions - options to control proxy usage when establishing the connection
+     * @param proxyOptions - options to control proxy usage when establishing the connection.
+     *
+     * NOTE: When the browser implementation runs under Node.js, proxyOptions are applied by
+     * routing requests through undici's ProxyAgent. In a real browser, per-request proxy
+     * configuration is not available and proxyOptions have no effect (proxy routing is
+     * controlled by the browser/OS network settings); a warning is emitted in that case.
      */
     constructor(
         bootstrap: ClientBootstrap | undefined,
@@ -245,24 +336,24 @@ export class HttpClientConnection extends BufferedEventEmitter {
         this.proxy_options = proxyOptions;
         const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
-        this.axios_options = {
-            baseURL: `${scheme}://${host_name}:${port}/`
-        };
+        this._baseURL = `${scheme}://${format_url_host(host_name)}:${port}/`;
 
-        if (this.proxy_options) {
-            this.axios_options.proxy = {
-                host: this.proxy_options.host_name,
-                port: this.proxy_options.port,
-            };
-
-            if (this.proxy_options.auth_method == HttpProxyAuthenticationType.Basic) {
-                this.axios_options.proxy.auth = {
-                    username: this.proxy_options.auth_username || "",
-                    password: this.proxy_options.auth_password || "",
-                };
+        try {
+            if (this.proxy_options) {
+                this._dispatcher = make_proxy_dispatcher(this.proxy_options);
             }
+        } catch (error) {
+            // Surface construction failures (e.g. an unparseable proxy host) through the
+            // error event rather than throwing from the constructor, which callers like
+            // HttpClientConnectionManager do not expect. Uncork so the buffered error
+            // reaches listeners even if no 'connect' listener is ever attached.
+            setTimeout(() => {
+                this.uncork();
+                this.emit('error', new CrtError(error as any));
+            }, 0);
+            return;
         }
-        this._axios = axios.default.create(this.axios_options);
+
         setTimeout(() => {
             this.emit('connect');
         }, 0);
@@ -320,7 +411,12 @@ export class HttpClientConnection extends BufferedEventEmitter {
      */
     close() {
         this.emit('close');
-        this._axios = undefined;
+        this._baseURL = "";
+        if (this._dispatcher) {
+            // Release keep-alive sockets held by the proxy agent
+            this._dispatcher.close();
+            this._dispatcher = undefined;
+        }
     }
 }
 
@@ -341,15 +437,50 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
         }
         return obj;
     }
-    let body = (request.body) ? (request.body as InputStream).data : undefined;
+    let body: BodyInit | undefined = undefined;
+    if (request.body) {
+        if (['GET', 'HEAD'].includes(request.method.toUpperCase())) {
+            // fetch() throws a TypeError for GET/HEAD requests with a body
+            console.warn(
+                `aws-crt: HttpClientConnection request bodies are not supported for ` +
+                `${request.method.toUpperCase()} requests in the browser implementation; the body will not be sent.`
+            );
+        } else {
+            const data = (request.body as InputStream).data;
+            if (typeof data === 'object' && !(data instanceof ArrayBuffer) && !ArrayBuffer.isView(data)
+                && !(typeof Blob !== 'undefined' && data instanceof Blob)) {
+                // Plain objects would be coerced to "[object Object]" by fetch; serialize as JSON
+                body = JSON.stringify(data);
+                if (request.headers.get('content-type') === "") {
+                    request.headers.set('content-type', 'application/json');
+                }
+            } else {
+                body = data as BodyInit;
+            }
+        }
+    }
     let stream = HttpClientStream._create(connection);
-    stream.connection._axios.request({
-        url: request.path,
-        method: request.method.toLowerCase(),
+    // Join base and path textually (as the previous axios implementation did) rather than
+    // via new URL(path, base): relative-URL resolution would let a path starting with "//"
+    // override the connection's host, sending the request (and its auth headers) elsewhere.
+    const url = connection._baseURL + request.path.replace(/^\/+/, '');
+    // `dispatcher` is a Node/undici-only extension to RequestInit that routes the request
+    // through the proxy agent; it is ignored by the fetch() implementation in a real browser.
+    const init: RequestInit & { dispatcher?: any } = {
+        method: request.method,
         headers: _to_object(request.headers),
         body: body
-    }).then((response: any) => {
-        stream._on_response(response);
+    };
+    if (connection._dispatcher) {
+        init.dispatcher = connection._dispatcher;
+    }
+    fetch(url, init).then(async (response: Response) => {
+        const data = await response.arrayBuffer();
+        if (!response.ok) {
+            stream._on_error_response(response.status, response.headers, data);
+        } else {
+            stream._on_response(response.status, response.headers, data);
+        }
     }).catch((error: any) => {
         stream._on_error(error);
     });
@@ -449,43 +580,39 @@ export class HttpClientStream extends BufferedEventEmitter {
         return new HttpClientStream(connection);
     }
 
-    // Convert axios' single response into a series of events
+    // Convert fetch response into a series of events
     /** @internal */
-    _on_response(response: any) {
-        this.response_status_code = response.status;
+    _on_response(status_code: number, responseHeaders: Headers, data: ArrayBuffer) {
+        this.response_status_code = status_code;
         let headers = new HttpHeaders();
-        for (let header in response.headers) {
-            headers.add(header, response.headers[header]);
-        }
+        responseHeaders.forEach((value: string, key: string) => {
+            headers.add(key, value);
+        });
         this.emit('response', this.response_status_code, headers);
-        let data = response.data;
-        if (data && !(data instanceof ArrayBuffer)) {
-            data = fromUtf8(data.toString());
-        }
         this.emit('data', data);
         this.emit('end');
     }
 
-    // Gather as much information as possible from the axios error
-    // and pass it on to the user
+    // Handle HTTP error responses (non-2xx status codes)
+    /** @internal */
+    _on_error_response(status_code: number, responseHeaders: Headers, data: ArrayBuffer) {
+        this.response_status_code = status_code;
+        let info = `status_code=${status_code}`;
+        const headersObj: { [key: string]: string } = {};
+        responseHeaders.forEach((value, key) => { headersObj[key] = value; });
+        info += ` headers=${JSON.stringify(headersObj)}`;
+        if (data.byteLength > 0) {
+            info += ` data=${new TextDecoder().decode(data)}`;
+        }
+        this.connection.close();
+        this.emit('error', new Error(`msg=Request failed with status ${status_code}, connection=${JSON.stringify(this.connection)}, info=${info}`));
+    }
+
+    // Handle network errors from fetch
     /** @internal */
     _on_error(error: any) {
-        let info = "";
-        if (error.response) {
-            this.response_status_code = error.response.status;
-            info += `status_code=${error.response.status}`;
-            if (error.response.headers) {
-                info += ` headers=${JSON.stringify(error.response.headers)}`;
-            }
-            if (error.response.data) {
-                info += ` data=${error.response.data}`;
-            }
-        } else {
-            info = "No response from server";
-        }
-
         this.connection.close();
-        this.emit('error', new Error(`msg=${error.message}, connection=${JSON.stringify(this.connection)}, info=${info}`));
+        this.emit('error', new Error(`msg=${error.message}, connection=${JSON.stringify(this.connection)}`));
     }
 }
 
@@ -591,8 +718,11 @@ export class HttpClientConnectionManager {
         }
         const on_error = (error: any) => {
             if (this.pending_connections.has(connection)) {
-                // Connection never connected, error it out
-                return this.reject(new CrtError(error));
+                // Connection never connected, error it out. Remove it and pump so the
+                // failed slot doesn't permanently count against max_connections.
+                this.remove(connection);
+                this.reject(new CrtError(error));
+                return this.pump();
             }
             // If the connection errors after use, get it out of rotation and replace it
             this.remove(connection);
