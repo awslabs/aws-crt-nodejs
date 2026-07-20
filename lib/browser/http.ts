@@ -29,6 +29,16 @@ import { CrtError } from './error';
 import { ClientBootstrap, InputStream, SocketOptions, TlsConnectionOptions } from './io';
 
 /**
+ * Wraps IPv6 literals in brackets so they can be embedded in a URL. IPv4
+ * addresses and DNS names are returned unchanged, as are hosts that are
+ * already bracketed.
+ * @internal
+ */
+function format_url_host(host_name: string): string {
+    return (host_name.indexOf(':') !== -1 && !host_name.startsWith('[')) ? `[${host_name}]` : host_name;
+}
+
+/**
  * A collection of HTTP headers
  *
  * @category HTTP
@@ -255,7 +265,7 @@ export class HttpClientConnection extends BufferedEventEmitter {
         this.proxy_options = proxyOptions;
         const scheme = (this.tls_options || port === 443) ? 'https' : 'http'
 
-        this._baseURL = `${scheme}://${host_name}:${port}/`;
+        this._baseURL = `${scheme}://${format_url_host(host_name)}:${port}/`;
 
         if (this.proxy_options && !HttpClientConnection._proxyWarningEmitted) {
             HttpClientConnection._proxyWarningEmitted = true;
@@ -350,7 +360,12 @@ function stream_request(connection: HttpClientConnection, request: HttpRequest) 
         body = (request.body as InputStream).data as BodyInit;
     }
     let stream = HttpClientStream._create(connection);
-    const url = new URL(request.path, connection._baseURL).toString();
+    // Join base and path textually rather than via new URL(path, base). URL resolution would let a
+    // path starting with "//" override the connection's host (scheme-relative URL parsing), and
+    // would apply WHATWG normalizations (dot-segment resolution, percent-encoding case folding,
+    // selective decoding of unreserved escapes) that can invalidate SigV4 signatures for services
+    // like S3 whose canonical URI is not normalized during signing.
+    const url = connection._baseURL + request.path.replace(/^\/+/, '');
     fetch(url, {
         method: request.method,
         headers: _to_object(request.headers),
@@ -599,8 +614,11 @@ export class HttpClientConnectionManager {
         }
         const on_error = (error: any) => {
             if (this.pending_connections.has(connection)) {
-                // Connection never connected, error it out
-                return this.reject(new CrtError(error));
+                // Connection never connected, error it out. Remove it and pump so the
+                // failed slot doesn't permanently count against max_connections.
+                this.remove(connection);
+                this.reject(new CrtError(error));
+                return this.pump();
             }
             // If the connection errors after use, get it out of rotation and replace it
             this.remove(connection);
