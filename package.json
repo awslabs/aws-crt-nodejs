@@ -28,9 +28,6 @@
     "prepare": "node ./scripts/tsc.js && node ./scripts/install.js",
     "install": "node ./scripts/install.js"
   },
-  "overrides": {
-    "axios": "^1.12.2"
-  },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/jest": "^27.0.1",
