@@ -11,7 +11,7 @@ This library is licensed under the Apache 2.0 License.
 ## Building the package
 
 ### Prereqs:
-* Node 14+
+* Node 18+
 * npm
 * CMake 3.1+
 * Linux: gcc 5+ or clang 3.6+
