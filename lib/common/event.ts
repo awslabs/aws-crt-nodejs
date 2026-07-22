@@ -19,7 +19,7 @@ import { EventEmitter } from 'events';
  */
 export type EventKey = string | symbol;
 
-export type EventEmissionCallback = () => void
+export type EventEmissionCallback = () => void;
 
 /**
  * @internal
@@ -83,6 +83,7 @@ export class BufferedEventEmitter extends EventEmitter {
             }
             this.eventQueue = this.eventQueue.next;
         }
+        this.lastQueuedEvent = undefined;
     }
 
     /**

@@ -10,6 +10,12 @@ import {v4 as uuid} from "uuid";
 import url from "url";
 import {HttpsProxyAgent} from "https-proxy-agent";
 import * as auth from "./auth";
+import {once} from "events";
+import * as mqtt_server from "@test/mqtt_server";
+import * as test_metrics from "@test/metrics";
+import * as promise from "../common/promise";
+import * as mqtt_shared from "../common/mqtt_shared";
+import * as mqtt5_packet from "../common/mqtt5_packet";
 
 jest.setTimeout(30000);
 
@@ -332,14 +338,14 @@ function createOperationFailureClient() : mqtt5.IMqtt5Client {
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry underflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
-        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), -5);
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, -5);
     })
 });
 
 test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvironment())('Disconnection failure - session expiry overflow', async () => {
     await retry.networkTimeoutRetryWrapper( async () => {
         // @ts-ignore
-        await test_utils.testDisconnectValidationFailure(createOperationFailureClient(), 4294967296);
+        await test_utils.testDisconnectValidationFailure(createOperationFailureClient() as mqtt5.Mqtt5Client, 4294967296);
     })
 });
 
@@ -553,4 +559,180 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIotCoreEnvir
         // @ts-ignore
         await test_utils.doRetainTest(new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config), new mqtt5.Mqtt5Client(config));
     })
+});
+
+class ClientTestFixture {
+
+    private server : mqtt_server.MqttServer;
+
+    constructor(config: mqtt_server.MqttServerConfig) {
+        this.server = new mqtt_server.MqttServer(config);
+    }
+
+    async start() {
+        await this.server.start();
+    }
+
+    getServer() : mqtt_server.MqttServer { return this.server; }
+}
+
+function buildDefaultClientConfig(fixture : ClientTestFixture) : mqtt5.Mqtt5ClientConfig {
+    return {
+        hostName: "localhost",
+        port: fixture.getServer().getPort(),
+        sessionBehavior: mqtt5.ClientSessionBehavior.Default,
+        connectProperties: {
+            keepAliveIntervalSeconds: 120
+        },
+        connectTimeoutMs: 10000,
+        websocketOptions: {
+            urlFactoryOptions: {
+                urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws
+            }
+        }
+    };
+}
+
+test('Manual Puback - Acquire', async () => {
+    let config: mqtt_server.MqttServerConfig = {
+        protocolVersion: mqtt_shared.ProtocolMode.Mqtt5
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let clientConfig = buildDefaultClientConfig(fixture);
+    let client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    await connectionSuccess;
+
+    let pubackReceived : boolean = false;
+    let ackHandlePromise : promise.LiftedPromise<mqtt_shared.PublishAcknowledgementHandle> = promise.newLiftedPromise<mqtt_shared.PublishAcknowledgementHandle>();
+
+    client.addListener(mqtt5.Mqtt5Client.MESSAGE_RECEIVED, (event : mqtt5.MessageReceivedEvent) => {
+        if (event.message.qos != mqtt5_packet.QoS.AtMostOnce) {
+            expect(event.acknowledgementControl).toBeDefined();
+
+            // @ts-ignore
+            ackHandlePromise.resolve(event.acknowledgementControl.acquireHandle());
+        }
+    });
+
+    let serverPuback= promise.newLiftedPromise<mqtt5_packet.PubackPacket>();
+    fixture.getServer().addListener('packetReceived', (packet : mqtt5_packet.IPacket) => {
+        if (packet.type == mqtt5_packet.PacketType.Puback) {
+            pubackReceived = true;
+            serverPuback.resolve(packet as mqtt5_packet.PubackPacket);
+        }
+    });
+
+    await client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    });
+
+    let ackHandle : mqtt_shared.PublishAcknowledgementHandle = await ackHandlePromise.promise;
+
+    // Awkward way of trying to check that a puback didn't get automatically sent.  We wait for a generous period of
+    // time and verify that the flag is still false (we can't check the promise for non-resolution).
+    await new Promise((resolve, reject) => setTimeout(resolve, 1000));
+
+    expect(pubackReceived).toBe(false);
+
+    ackHandle.invokeAcknowledgement();
+
+    await serverPuback.promise;
+    expect(pubackReceived).toBe(true);
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+});
+
+test('Manual Puback - No Acquire', async () => {
+    let config: mqtt_server.MqttServerConfig = {
+        protocolVersion: mqtt_shared.ProtocolMode.Mqtt5
+    };
+
+    let fixture = new ClientTestFixture(config);
+    await fixture.start();
+
+    let clientConfig = buildDefaultClientConfig(fixture);
+    let client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, "connectionSuccess");
+    let stopped = once(client, "stopped");
+
+    client.start();
+    await connectionSuccess;
+
+    let pubackReceived : boolean = false;
+    let serverPuback= promise.newLiftedPromise<mqtt5_packet.PubackPacket>();
+    fixture.getServer().addListener('packetReceived', (packet : mqtt5_packet.IPacket) => {
+        if (packet.type == mqtt5_packet.PacketType.Puback) {
+            pubackReceived = true;
+            serverPuback.resolve(packet as mqtt5_packet.PubackPacket);
+        }
+    });
+
+    await client.publish({
+        topicName: "test/topic",
+        qos: mqtt5_packet.QoS.AtLeastOnce
+    });
+
+    await serverPuback.promise;
+    expect(pubackReceived).toBe(true);
+
+    client.stop();
+    await stopped;
+
+    fixture.getServer().stop();
+});
+
+async function doMetricsTestConnect5(server: mqtt_server.MqttServer, disableMetrics: boolean, username?: string) {
+    let clientConfig : mqtt5.Mqtt5ClientConfig = {
+        hostName: "localhost",
+        port: server.getPort(),
+        disableMetrics: disableMetrics,
+        websocketOptions: {
+            urlFactoryOptions: {
+                urlFactory: mqtt5.Mqtt5WebsocketUrlFactoryType.Ws
+            }
+        }
+    };
+
+    if (username !== undefined) {
+        clientConfig.connectProperties = {
+            keepAliveIntervalSeconds: 1200,
+            username: username
+        };
+    }
+
+    let client = new mqtt5.Mqtt5Client(clientConfig);
+
+    let connectionSuccess = once(client, 'connectionSuccess');
+    client.start();
+
+    await connectionSuccess;
+}
+
+test('mqtt5 metrics - enabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, false);
+});
+
+test('mqtt5 metrics - disabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, true);
+});
+
+test('mqtt5 metrics - enabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, false, "hello");
+});
+
+test('mqtt5 metrics - disabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt5, doMetricsTestConnect5, true, "world");
 });

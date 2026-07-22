@@ -5,13 +5,17 @@
 
 import * as test_env from "@test/test_env"
 import * as retry from "@test/retry"
+import * as mqtt_server from "@test/mqtt_server";
+import * as mqtt_shared from "../common/mqtt_shared";
+import * as test_metrics from "@test/metrics";
 import { ClientBootstrap, TlsContextOptions, ClientTlsContext, SocketOptions } from './io';
-import { MqttClient, MqttConnectionConfig, QoS } from './mqtt';
+import {MqttClient, MqttConnectionConfig, QoS, MqttClientConnection} from './mqtt';
 import { v4 as uuid } from 'uuid';
 import { OnConnectionSuccessResult, OnConnectionClosedResult } from '../common/mqtt';
 import {HttpProxyOptions, HttpProxyAuthenticationType, HttpProxyConnectionType} from "./http"
 import { AwsIotMqttConnectionConfigBuilder } from './aws_iot';
 import {once} from "events";
+
 
 jest.setTimeout(30000);
 
@@ -86,32 +90,6 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt
             disable_metrics: true
         }
         await test_connection(config, new MqttClient(new ClientBootstrap()));
-    })
-});
-
-test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_direct_auth_mqtt())('MQTT311 Connection - basic auth with metrics', async () => {
-    await retry.networkTimeoutRetryWrapper( async () => {
-        const config: MqttConnectionConfig = {
-            client_id: `node-mqtt-unit-test-${uuid()}`,
-            host_name: test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_HOST,
-            port: parseInt(test_env.AWS_IOT_ENV.MQTT311_DIRECT_AUTH_MQTT_PORT),
-            clean_session: true,
-            username: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_USERNAME,
-            password: test_env.AWS_IOT_ENV.MQTT311_BASIC_AUTH_PASSWORD,
-            socket_options: new SocketOptions()
-        }
-
-        const client = new MqttClient(new ClientBootstrap())
-        const connection = client.new_connection(config);
-        
-        let onConnectionFailureCalled = false;
-        connection.on('connection_failure', async (callback_data) => {
-            onConnectionFailureCalled = true;
-        })
-
-        const connected = connection.connect();
-        await expect(connected).rejects.toBeDefined();
-        await expect(onConnectionFailureCalled).toBeTruthy();
     })
 });
 
@@ -442,4 +420,40 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
         });
         await expect(promise).resolves.toBeTruthy();
     })
+});
+
+async function doMetricsTestConnect311(server: mqtt_server.MqttServer, disableMetrics: boolean, username?: string) {
+    let clientConfig : MqttConnectionConfig = {
+        client_id: "irrelevant",
+        host_name: "localhost",
+        port: server.getPort(),
+        socket_options: new SocketOptions(),
+        disable_metrics: disableMetrics,
+        use_websocket: true,
+    };
+
+    if (username !== undefined) {
+        clientConfig.username = username;
+    }
+
+    let client = new MqttClient();
+    let connection = new MqttClientConnection(client, clientConfig);
+
+    await connection.connect();
+}
+
+test('mqtt311 metrics - enabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, false);
+});
+
+test('mqtt311 metrics - disabled, undefined username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, true);
+});
+
+test('mqtt311 metrics - enabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, false, "squidward");
+});
+
+test('mqtt311 metrics - disabled, non-empty username', async () => {
+    await test_metrics.doMetricsUsernameTest(mqtt_shared.ProtocolMode.Mqtt311, doMetricsTestConnect311, true, "krustykrab");
 });

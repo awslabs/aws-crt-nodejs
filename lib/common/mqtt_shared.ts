@@ -5,13 +5,22 @@
 
 /**
  * @packageDocumentation
+ * @module mqtt_shared
+ * @mergeTarget
  */
 
-import { MqttWill } from './mqtt';
 import * as event from "./event";
 import * as mqtt5 from "./mqtt5";
 import * as mqtt5_packet from "./mqtt5_packet";
+import { MqttWill } from "./mqtt";
 
+/**
+ * @internal
+ */
+export enum ProtocolMode {
+    Mqtt311,
+    Mqtt5
+}
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -48,101 +57,37 @@ export function normalize_payload(payload: any): Buffer | string {
     throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
+
+
 /**
- * Converts payload to Buffer only, regardless of the supplied type
- * @param payload The payload to convert
- * @internal
- */
-export function normalize_payload_to_buffer(payload: any): Buffer {
-    let normalized = normalize_payload(payload);
-    if (typeof normalized === 'string') {
-        // pass string through
-        return Buffer.from(normalized);
-    }
-
-    return normalized;
-}
-
-/** @internal */
-export const DEFAULT_KEEP_ALIVE : number = 1200;
-
-/** 
  * SDK name used for metrics and identification
  * @internal
  */
 export const SDK_NAME : string = "IoTDeviceSDK/JS";
 
-/** 
- * IoT Device SDK Metrics Structure 
- * @internal
-*/
+/**
+ * IoT Device SDK Metrics Structure
+ */
 export class AwsIoTDeviceSDKMetrics {
     /**
      * Name of the library
      */
     libraryName: string = SDK_NAME;
+
+    metadata: [string, string][] = new Array<[string, string]> ;
 }
 
-function isValidTopicInternal(topic: string, isFilter: boolean) : boolean {
-    if (topic.length === 0 || topic.length > 65535) {
-        return false;
-    }
+/** @internal */
+export const DEFAULT_KEEP_ALIVE : number = 1200;
 
-    let sawHash : boolean = false;
-    for (let segment of topic.split('/')) {
-        if (sawHash) {
-            return false;
-        }
+/** @internal */
+export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
 
-        if (segment.length === 0) {
-            continue;
-        }
+/** @internal */
+export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
 
-        if (segment.includes("+")) {
-            if (!isFilter) {
-                return false;
-            }
-
-            if (segment.length > 1) {
-                return false;
-            }
-        }
-
-        if (segment.includes("#")) {
-            if (!isFilter) {
-                return false;
-            }
-
-            if (segment.length > 1) {
-                return false;
-            }
-
-            sawHash = true;
-        }
-    }
-
-    return true;
-}
-
-export function isValidTopicFilter(topicFilter: any) : boolean {
-    if (typeof(topicFilter) !== 'string') {
-        return false;
-    }
-
-    let topicFilterAsString = topicFilter as string;
-
-    return isValidTopicInternal(topicFilterAsString, true);
-}
-
-export function isValidTopic(topic: any) : boolean {
-    if (typeof(topic) !== 'string') {
-        return false;
-    }
-
-    let topicAsString = topic as string;
-
-    return isValidTopicInternal(topicAsString, false);
-}
+/** @internal */
+export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
 
 /**
  * Base configuration options shared by all MQTT connections.
@@ -408,4 +353,10 @@ export interface Mqtt5ClientConfigBase {
      * If this setting is left undefined, then topic aliasing behavior will be disabled.
      */
     topicAliasingOptions? : mqtt5.TopicAliasingOptions;
+
+    /**
+     * Options for disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
+     */
+    disableMetrics? : boolean;
 }
+

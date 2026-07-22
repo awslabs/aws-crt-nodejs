@@ -21,7 +21,7 @@ import {BufferedEventEmitter} from "../common/event";
 import {CrtError} from "./error";
 import {LiftedPromise, newLiftedPromise} from "../common/promise";
 import * as io from "../common/io";
-import * as mqtt_shared from "../common/mqtt_shared";
+import * as mqtt_shared_browser from "./mqtt_shared_browser";
 
 export * from "../common/mqtt_request_response";
 
@@ -1075,7 +1075,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 }
 
 function validateResponsePath(responsePath: mqtt_request_response.ResponsePath) {
-    if (!mqtt_shared.isValidTopic(responsePath.topic)) {
+    if (!mqtt_shared_browser.isValidTopic(responsePath.topic)) {
         throw new CrtError(`"${JSON.stringify(responsePath.topic)})" is not a valid topic`);
     }
 
@@ -1104,7 +1104,7 @@ function validateRequestOptions(requestOptions: mqtt_request_response.RequestRes
     }
 
     for (const topicFilter of requestOptions.subscriptionTopicFilters) {
-        if (!mqtt_shared.isValidTopicFilter(topicFilter)) {
+        if (!mqtt_shared_browser.isValidTopicFilter(topicFilter)) {
             throw new CrtError(`Invalid request options - "${JSON.stringify(topicFilter)}" is not a valid topic filter`);
         }
     }
@@ -1133,7 +1133,7 @@ function validateRequestOptions(requestOptions: mqtt_request_response.RequestRes
         throw new CrtError("Invalid request options - null publishTopic");
     }
 
-    if (!mqtt_shared.isValidTopic(requestOptions.publishTopic)) {
+    if (!mqtt_shared_browser.isValidTopic(requestOptions.publishTopic)) {
         throw new CrtError(`Invalid request options - "${JSON.stringify(requestOptions.publishTopic)}" is not a valid topic`);
     }
 
@@ -1167,7 +1167,7 @@ function validateStreamingOptions(streamOptions: mqtt_request_response.Streaming
         throw new CrtError("Invalid streaming options - subscriptionTopicFilter not a string");
     }
 
-    if (!mqtt_shared.isValidTopicFilter(streamOptions.subscriptionTopicFilter)) {
+    if (!mqtt_shared_browser.isValidTopicFilter(streamOptions.subscriptionTopicFilter)) {
         throw new CrtError("Invalid streaming options - subscriptionTopicFilter not a valid topic filter");
     }
 }
