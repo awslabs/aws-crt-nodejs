@@ -7,6 +7,7 @@
 #include "http_connection.h"
 #include "http_message.h"
 #include "io.h"
+#include "mqtt_iot_metrics.h"
 
 #include <aws/http/proxy.h>
 #include <aws/io/socket.h>
@@ -96,7 +97,6 @@ static const char *AWS_NAPI_KEY_OUTBOUND_BEHAVIOR = "outboundBehavior";
 static const char *AWS_NAPI_KEY_OUTBOUND_CACHE_MAX_SIZE = "outboundCacheMaxSize";
 static const char *AWS_NAPI_KEY_INBOUND_BEHAVIOR = "inboundBehavior";
 static const char *AWS_NAPI_KEY_INBOUND_CACHE_MAX_SIZE = "inboundCacheMaxSize";
-static const char *AWS_NAPI_KEY_METRICS_LIBRARYNAME = "libraryName";
 
 /*
  * Binding object that outlives the associated napi wrapper object.  When that object finalizes, then it's a signal
@@ -2186,11 +2186,9 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
     struct aws_napi_mqtt5_client_creation_storage options_storage;
     AWS_ZERO_STRUCT(options_storage);
 
-    struct aws_mqtt_iot_metrics metrics;
-    AWS_ZERO_STRUCT(metrics);
-
-    struct aws_byte_buf libraryName;
-    AWS_ZERO_STRUCT(libraryName);
+    struct aws_napi_metrics_storage metrics_storage;
+    AWS_ZERO_STRUCT(metrics_storage);
+    struct aws_mqtt_iot_metrics *metrics = NULL;
 
     s_init_default_mqtt5_client_options(&client_options, &connect_options);
 
@@ -2377,16 +2375,10 @@ napi_value aws_napi_mqtt5_client_new(napi_env env, napi_callback_info info) {
 
     // Set metrics
     napi_value node_metrics = *arg++;
-    if (!aws_napi_is_null_or_undefined(env, node_metrics)) {
-        napi_value node_libraryName = NULL;
-        if (napi_get_named_property(env, node_metrics, AWS_NAPI_KEY_METRICS_LIBRARYNAME, &node_libraryName) ==
-                napi_ok &&
-            aws_byte_buf_init_from_napi(&libraryName, env, node_libraryName) == AWS_OP_SUCCESS) {
-            metrics.library_name = aws_byte_cursor_from_buf(&libraryName);
-            client_options.metrics = &metrics;
-        } else {
-            AWS_LOGF_DEBUG(AWS_LS_NODEJS_CRT_GENERAL, "Failed to set metrics, continuing without metrics");
-        }
+    if (aws_napi_metrics_parse(env, node_metrics, &metrics, &metrics_storage) == AWS_OP_SUCCESS) {
+        /* metrics is NULL when node_metrics was null/undefined;
+         * otherwise it points into metrics_storage. */
+        client_options.metrics = metrics;
     }
 
     client_options.publish_received_handler = s_on_publish_received;
@@ -2423,7 +2415,7 @@ post_ref_error:
 cleanup:
 
     s_aws_napi_mqtt5_client_creation_storage_clean_up(&options_storage);
-    aws_byte_buf_clean_up(&libraryName);
+    aws_napi_metrics_clean_up(&metrics_storage);
 
     return napi_client_wrapper;
 }

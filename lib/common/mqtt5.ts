@@ -219,6 +219,36 @@ export enum InboundTopicAliasBehaviorType {
 }
 
 /**
+ * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
+ * how operations are handled while the client is not connected.  In particular, if the client is not connected,
+ * then any operation that would be failed on disconnect (according to these rules) will be rejected.
+ */
+export enum ClientOperationQueueBehavior {
+
+    /** Same as FailQos0PublishOnDisconnect */
+    Default = 0,
+
+    /**
+     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
+     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
+     */
+    FailNonQos1PublishOnDisconnect = 1,
+
+    /**
+     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
+     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
+     * are requeued in original order behind any retransmissions.
+     */
+    FailQos0PublishOnDisconnect = 2,
+
+    /**
+     * All operations that are not complete at the time of disconnection are failed, except operations that
+     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
+     */
+    FailAllOnDisconnect = 3,
+}
+
+/**
  * Configuration for all client topic aliasing behavior.
  */
 export interface TopicAliasingOptions {

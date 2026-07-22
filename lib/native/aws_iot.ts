@@ -26,6 +26,7 @@ import {
     AwsSigningConfig
 } from "./auth";
 import * as iot_shared from "../common/aws_iot_shared"
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -501,6 +502,14 @@ export class AwsIotMqttConnectionConfigBuilder {
          */
         if (this.params.tls_ctx === undefined) {
             this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
+        }
+
+        // Populate SDK identity metrics if not disabled and not already set.
+        // The registered factory (if any) is supplied by the upstream IoT device
+        // SDK at module load. Without one, this.params.metrics stays undefined and
+        // the encoder will produce CRT-only feature metrics with no IoTSDKVersion.
+        if (!this.params.disable_metrics && !this.params.metrics) {
+            this.params.metrics = _buildSdkMetrics();
         }
 
         return this.params;
