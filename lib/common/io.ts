@@ -102,56 +102,71 @@ export function setLogLevel(level: LogLevel) {
  * decisions are not binding.
  */
 
-export function logFatal(subject: string, logLine: string) {
-    if (logLevel < LogLevel.FATAL) {
+function log(level: LogLevel, subject: string, logLine: string) {
+    if (logLevel < level) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[FATAL] [${currentTime}] [${subject}] - ${logLine}`);
+    console.log(`[${LogLevel[level]}] [${currentTime}] [${subject}] - ${logLine}`);
+}
+
+
+export function logFatal(subject: string, logLine: string) {
+    log(LogLevel.FATAL, subject, logLine);
 }
 
 export function logError(subject: string, logLine: string) {
-    if (logLevel < LogLevel.ERROR) {
-        return;
-    }
-
-    let currentTime = new Date().toISOString();
-    console.log(`[ERROR] [${currentTime}] [${subject}] - ${logLine}`);
+    log(LogLevel.ERROR, subject, logLine);
 }
 
 export function logWarn(subject: string, logLine: string) {
-    if (logLevel < LogLevel.WARN) {
-        return;
-    }
-
-    let currentTime = new Date().toISOString();
-    console.log(`[WARN] [${currentTime}] [${subject}] - ${logLine}`);
+    log(LogLevel.WARN, subject, logLine);
 }
 
 export function logInfo(subject: string, logLine: string) {
-    if (logLevel < LogLevel.INFO) {
-        return;
-    }
-
-    let currentTime = new Date().toISOString();
-    console.log(`[INFO] [${currentTime}] [${subject}] - ${logLine}`);
+    log(LogLevel.INFO, subject, logLine);
 }
 
 export function logDebug(subject: string, logLine: string) {
-    if (logLevel < LogLevel.DEBUG) {
-        return;
-    }
-
-    let currentTime = new Date().toISOString();
-    console.log(`[DEBUG] [${currentTime}] [${subject}] - ${logLine}`);
+    log(LogLevel.DEBUG, subject, logLine);
 }
 
 export function logTrace(subject: string, logLine: string) {
-    if (logLevel < LogLevel.TRACE) {
+    log(LogLevel.TRACE, subject, logLine);
+}
+
+export type LogLineGenerator = () => string;
+
+function flog(level: LogLevel, subject: string, logLineGenerator: LogLineGenerator) {
+    if (logLevel < level) {
         return;
     }
 
     let currentTime = new Date().toISOString();
-    console.log(`[TRACE] [${currentTime}] [${subject}] - ${logLine}`);
+    console.log(`[${LogLevel[level]}] [${currentTime}] [${subject}] - ${logLineGenerator()}`);
+}
+
+export function flogFatal(subject: string, logLineGenerator: LogLineGenerator) {
+    flog(LogLevel.FATAL, subject, logLineGenerator);
+}
+
+export function flogError(subject: string, logLineGenerator: LogLineGenerator) {
+    flog(LogLevel.ERROR, subject, logLineGenerator);
+}
+
+export function flogWarn(subject: string, logLineGenerator: LogLineGenerator) {
+    flog(LogLevel.WARN, subject, logLineGenerator);
+}
+
+export function flogInfo(subject: string, logLineGenerator: LogLineGenerator) {
+    flog(LogLevel.INFO, subject, logLineGenerator);
+}
+
+export function flogDebug(subject: string, logLineGenerator: LogLineGenerator) {
+    flog(LogLevel.DEBUG, subject, logLineGenerator);
+}
+
+export function flogTrace(subject: string, logLineGenerator: LogLineGenerator) {
+    flog(LogLevel.TRACE, subject, logLineGenerator);
 }
