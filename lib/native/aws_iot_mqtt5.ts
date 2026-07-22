@@ -16,6 +16,7 @@ import {CrtError} from "./error";
 import * as iot_shared from "../common/aws_iot_shared";
 import * as http from "./http";
 import * as mqtt_shared from "../common/mqtt_shared";
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
@@ -493,6 +494,14 @@ export class AwsIotMqtt5ClientConfigBuilder {
             if (this.customAuthConfig?.password) {
                 this.config.connectProperties.password = this.customAuthConfig?.password;
             }
+        }
+
+        // Populate SDK identity metrics if not disabled and not already set.
+        // The registered factory (if any) is supplied by the upstream IoT device
+        // SDK at module load. Without one, this.config.metrics stays undefined and
+        // the encoder will produce CRT-only feature metrics with no IoTSDKVersion.
+        if (!this.config.disableMetrics && !this.config.metrics) {
+            this.config.metrics = _buildSdkMetrics();
         }
 
         return this.config;

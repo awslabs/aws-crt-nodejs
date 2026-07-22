@@ -22,6 +22,7 @@ import * as ws from "./ws";
 import * as mqtt_shared from "../common/mqtt_shared";
 import * as auth from "./auth";
 import * as mqtt_shared_browser from "./mqtt_shared_browser";
+import * as aws_iot_metrics from "./aws_iot_metrics";
 import * as validate from "./mqtt_internal/validate";
 
 export * from "../common/mqtt5";
@@ -169,7 +170,7 @@ function buildInternalConnectOptions(internalConnectOptions : internal_mqtt_clie
             internalConnectOptions.username = connectProperties.username;
         }
     } else {
-        internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(new mqtt_shared.AwsIoTDeviceSDKMetrics(), connectProperties?.username);
+        internalConnectOptions.username = mqtt_shared_browser.buildFinalUsernameFromMetrics(aws_iot_metrics.create_metrics_mqtt5(clientConfig), connectProperties?.username);
     }
 
     if (!connectProperties) {

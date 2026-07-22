@@ -14,6 +14,7 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as auth from "./auth";
 import * as iot_shared from "../common/aws_iot_shared";
 import { CrtError } from "./error";
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
@@ -237,6 +238,9 @@ export class AwsIotMqtt5ClientConfigBuilder {
             if (this.customAuthConfig?.password) {
                 this.config.connectProperties.password = this.customAuthConfig?.password;
             }
+        }
+        if (!this.config.disableMetrics && !this.config.metrics) {
+            this.config.metrics = _buildSdkMetrics();
         }
 
         return this.config;

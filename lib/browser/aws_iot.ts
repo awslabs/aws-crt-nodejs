@@ -12,9 +12,8 @@
 import { CredentialsProvider, StaticCredentialProvider} from "./auth"
 import { SocketOptions } from "./io";
 import { MqttClientConnection, MqttConnectionConfig, MqttWill } from "./mqtt";
-import * as platform from "../common/platform";
 import * as iot_shared from "../common/aws_iot_shared"
-import { SDK_NAME } from "../common/mqtt_shared";
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 /**
  * Builder functions to create a {@link MqttConnectionConfig} which can then be used to create
@@ -327,17 +326,9 @@ export class AwsIotMqttConnectionConfigBuilder {
             throw 'client_id and endpoint are required';
         }
 
-        // Add the metrics string
-        if (this.params.username == undefined || this.params.username == null || this.params.username == "") {
-            this.params.username = `?SDK=${SDK_NAME}&Version=`
-        } else {
-            if (this.params.username.indexOf("?") != -1) {
-                this.params.username += `&SDK=${SDK_NAME}&Version=`
-            } else {
-                this.params.username += `?SDK=${SDK_NAME}&Version=`
-            }
+        if (!this.params.disable_metrics && !this.params.metrics) {
+            this.params.metrics = _buildSdkMetrics();
         }
-        this.params.username += platform.crt_version()
 
         return this.params;
     }
