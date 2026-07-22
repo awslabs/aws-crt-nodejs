@@ -7,8 +7,8 @@ on:
       - 'docs'
 
 env:
-  BUILDER_VERSION: v0.9.96
-  BUILDER_SOURCE: releases
+  BUILDER_VERSION: adding_manylinux2_28_image
+  BUILDER_SOURCE: channels
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
   LINUX_BASE_IMAGE: ubuntu-20-x64
@@ -28,8 +28,9 @@ jobs:
         image:
           - al2023-x64
           # - al2012-x64
-          # - manylinux2014-aarch64
-          # - manylinux2014-x64
+          - manylinux_2_28-aarch64
+          - manylinux_2_28-x64
+          - node-18-linux-x64
           - fedora-34-x64
           - opensuse-leap
           - rhel8-x64
