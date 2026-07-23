@@ -90,7 +90,9 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
             reject(error);
         });
         log('connect...');
-        connection.connect();
+        connection.connect().catch((error) => {
+            reject(error);
+        });
     });
 
 }
@@ -98,7 +100,7 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
 async function main() {
     /** Set up the credentialsProvider */
     const provider = new AWSCognitoCredentialsProvider({
-            IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID, 
+            IdentityPoolId: Config.AWS_COGNITO_IDENTITY_POOL_ID,
             Region: Config.AWS_REGION});
     /** Make sure the credential provider fetched before setup the connection */
     await provider.refreshCredentials();
@@ -112,7 +114,7 @@ async function main() {
             const decoder = new TextDecoder('utf8');
             let message = decoder.decode(new Uint8Array(payload));
             log(`Message received: topic=${topic} message=${message}`);
-            /** The sample is used to demo long-running web service. 
+            /** The sample is used to demo long-running web service.
              * Uncomment the following line to see how disconnect behaves.*/
             // connection.disconnect();
         })
