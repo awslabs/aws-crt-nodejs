@@ -150,7 +150,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_custom_auth_sign
 
         const connectionFailure = once(connection, "connection_failure")
         try {
-            connection.connect();
+            await connection.connect();
         } catch (error) {
             // Skip - this is expected because we are intentionally using a bad password
         }
