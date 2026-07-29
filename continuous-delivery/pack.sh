@@ -35,13 +35,20 @@ cp aws-crt-*.tgz ..
 # Check unzip npm package size
 cd ..
 UNZIP="unzip_pack"
+
+# NPM does not have an hard limit for the package size, however, the Node.js CLI memory limits 
+# create an effective maximum threshold. Reference to https://github.com/npm/npm/issues/12750. 
+# The thread is old, while I did not find any update regards to the size limit. For now, using 
+# 100 MB size limit as a safe threadhold.
+NPM_FILE_SIZE_LIMIT_KB=$((100*1024))
+
 mkdir $UNZIP
 tar -xf aws-crt-$CURRENT_TAG.tgz -C $UNZIP
 PACK_FILE_SIZE_KB=$(du -sk $UNZIP | awk '{print $1}')
 echo "Current package size: ${PACK_FILE_SIZE_KB}"
-if expr $PACK_FILE_SIZE_KB \> "$((45000))" ; then
-    # the package size is too large, return -1
+if expr $PACK_FILE_SIZE_KB \> $NPM_FILE_SIZE_LIMIT_KB ; then
+    # the package size is too large
     echo "Package size is too large!"
-    exit -1
+    exit 1
 fi
 exit 0
