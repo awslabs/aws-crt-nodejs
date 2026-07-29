@@ -2,7 +2,6 @@ version: 0.2
 env:
   shell: bash
   variables:
-    BUILDER_VERSION: v0.9.53
     BUILDER_SOURCE: releases
     BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
     PACKAGE_NAME: aws-crt-nodejs
@@ -15,6 +14,9 @@ phases:
     commands:
       - export CC=gcc-7
       - export AWS_CRT_MEMORY_TRACING=2
+      # Pry the builder version this CRT is using out of ci.yml
+      - export BUILDER_VERSION=$(cat .github/workflows/ci.yml | grep 'BUILDER_VERSION:' | sed 's/\s*BUILDER_VERSION:\s*\(.*\)/\1/')
+      - echo "Using builder version ${BUILDER_VERSION}"
   build:
     commands:
       - echo Build started on `date`
