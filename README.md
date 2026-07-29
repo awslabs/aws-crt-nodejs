@@ -4,6 +4,9 @@ NodeJS/Browser bindings for the AWS Common Runtime
 
 [API Docs](https://awslabs.github.io/aws-crt-nodejs/)
 
+## Bumping Node version
+In the coming months, the AWS Common Runtime will be updating its Node baseline from 14.18 to 18. A [discussion thread]() has been created for any questions or feedback you may have. We are targeting September for the update.
+
 ## License
 
 This library is licensed under the Apache 2.0 License.
