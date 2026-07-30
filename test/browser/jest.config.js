@@ -8,6 +8,7 @@ module.exports = {
         '<rootDir>/lib/browser/mqtt_internal/*.spec.ts'
     ],
     preset: 'jest-puppeteer',
+    testEnvironment: '<rootDir>/test/browser/puppeteer-fetch-environment.js',
     globals: {
         'ts-jest': {
             tsconfig: '<rootDir>/tsconfig.browser.json'
@@ -31,7 +32,6 @@ module.exports = {
         '@common/(.+)': '<rootDir>/lib/common/$1',
         '@awscrt/(.+)': '<rootDir>/lib/browser/$1',
         '@awscrt': '<rootDir>/lib/browser.ts',
-        '@test/(.+)': '<rootDir>/test/$1',
-        "axios": "axios/dist/node/axios.cjs"
+        '@test/(.+)': '<rootDir>/test/$1'
     }
 }
