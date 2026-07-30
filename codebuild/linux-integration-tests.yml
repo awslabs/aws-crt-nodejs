@@ -8,7 +8,6 @@ env:
 phases:
   install:
     runtime-versions:
-      nodejs: "18"
       python: "3.10"
     commands:
       - sudo apt-get update -y
