@@ -2,7 +2,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      nodejs: 18
+      nodejs: 20
   pre_build:
     commands:
       - apt-get update -y && apt-get install -y cmake libz-dev libssl-dev

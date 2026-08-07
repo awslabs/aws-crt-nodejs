@@ -1,7 +1,7 @@
 {
     "name": "aws-crt-nodejs",
     "+imports": [
-        "node-18",
+        "node-20",
         "JDK8"
     ],
     "+packages": [

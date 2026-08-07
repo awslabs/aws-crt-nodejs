@@ -18,7 +18,7 @@
 #    pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #endif
 
-#define NAPI_VERSION 4
+#define NAPI_VERSION 9
 #include <node_api.h>
 
 #if defined(__clang__) || defined(__GNUC__)
