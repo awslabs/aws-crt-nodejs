@@ -7,8 +7,8 @@ on:
       - 'docs'
 
 env:
-  BUILDER_VERSION: latest
-  BUILDER_SOURCE: releases
+  BUILDER_VERSION: higher_node_version
+  BUILDER_SOURCE: channels
   BUILDER_HOST: https://d19elf31gohf1l.cloudfront.net
   PACKAGE_NAME: aws-crt-nodejs
   LINUX_BASE_IMAGE: ubuntu-20-x64
@@ -29,6 +29,7 @@ jobs:
           - al2023-x64
           # - al2-x64
           # - manylinux2014-aarch64
+          - node-18-linux-x64
           - manylinux_2_28-x64
           - fedora-34-x64
           - opensuse-leap
