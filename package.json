@@ -26,7 +26,8 @@
     "install": "node ./scripts/install.js"
   },
   "overrides": {
-    "axios": "^1.12.2"
+    "axios": "^1.12.2",
+    "wait-on": "^8.0.5"
   },
   "devDependencies": {
     "@types/crypto-js": "^3.1.43",
