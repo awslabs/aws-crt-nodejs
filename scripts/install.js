@@ -6,7 +6,7 @@ const os = require('os');
 const process = require("process");
 const path = require("path");
 const fs = require("fs");
-const getCRuntime = require("./cruntime")
+const getCRuntime = require("./cruntime");
 
 if (!process.argv.includes('--rebuild')) {
     const binaryDir = path.join('dist', 'bin', `${os.platform()}-${os.arch()}-${getCRuntime()}`, 'aws-crt-nodejs.node');
