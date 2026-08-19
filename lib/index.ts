@@ -44,3 +44,30 @@ export {
     ICrtError,
     CrtError
 };
+
+/**
+ * Emit runtime deprecation warning when running on a Node.js version
+ * that aws-crt will stop supporting (Node.js < 22).
+ */
+(function warnUnsupportedNodeVersion () {
+    if((globalThis as any).AWS_CRT_NODEJS_SUPPRESS_NODE_DEPRECATION_WARNING){
+        return;
+    }
+    if(!platform.is_nodejs() || typeof process.emitWarning !== 'function'){
+        return;
+    }
+    const nodeVersion = process.versions.node
+    const parsedNodeVersion = parseInt(nodeVersion.split('.')[0],10);
+    if(Number.isNaN(parsedNodeVersion) || parsedNodeVersion >= 22){
+        return;
+    }
+    process.emitWarning(
+        `\n\nStarting from January 2027, the AWS Common Runtime for JavaScript (CRT-JS) will require Node.js 22.x or later.\n` +
+        `Support for Node.js 14.x, 16.x, 18.x and 20.x will be dropped.\n\n` +
+        `You are currently on Node.js v${nodeVersion}.\n\n`+
+        `To continue receiving updates for AWS Common Runtime for JavaScript, bug fixes, and security updates, `+
+        `please upgrade to a supported version of Node.js (ideally the latest LTS).\n\n`+
+        `More information: https://github.com/awslabs/aws-crt-nodejs`,
+        {type: 'NodeDeprecationWarning'}
+    );
+})();
