@@ -68,6 +68,6 @@ export {
         `To continue receiving updates for AWS Common Runtime for JavaScript, bug fixes, and security updates, `+
         `please upgrade to a supported version of Node.js (ideally the latest LTS).\n\n`+
         `More information: https://github.com/awslabs/aws-crt-nodejs`,
-        {type: 'NodeDeprecationWarning'}
+        'NodeDeprecationWarning'
     );
 })();
