@@ -454,15 +454,15 @@ export class ProtocolClientAdapter extends BufferedEventEmitter {
         return this.connectionState;
     }
 
-    static PUBLISH_COMPLETION : string = 'publishCompletion';
+    static PUBLISH_COMPLETION : 'publishCompletion' = 'publishCompletion';
 
-    static SUBSCRIBE_COMPLETION : string = 'subscribeCompletion';
+    static SUBSCRIBE_COMPLETION : 'subscribeCompletion' = 'subscribeCompletion';
 
-    static UNSUBSCRIBE_COMPLETION : string = 'unsubscribeCompletion';
+    static UNSUBSCRIBE_COMPLETION : 'unsubscribeCompletion' = 'unsubscribeCompletion';
 
-    static CONNECTION_STATUS : string = 'connectionStatus';
+    static CONNECTION_STATUS : 'connectionStatus' = 'connectionStatus';
 
-    static INCOMING_PUBLISH : string = 'incomingPublish';
+    static INCOMING_PUBLISH : 'incomingPublish' = 'incomingPublish';
 
     on(event: 'publishCompletion', listener: PublishCompletionEventListener): this;
 

@@ -886,7 +886,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      *
      * @event
      */
-    static HALTED : string = 'halted';
+    static HALTED : 'halted' = 'halted';
 
     /**
      * Event emitted when a disconnect packet is received
@@ -895,7 +895,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      *
      * @event
      */
-    static DISCONNECT_RECEIVED : string = 'disconnectReceived';
+    static DISCONNECT_RECEIVED : 'disconnectReceived' = 'disconnectReceived';
 
     /**
      * Event emitted when a publish packet is received
@@ -904,7 +904,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      *
      * @event
      */
-    static PUBLISH_RECEIVED : string = 'publishReceived';
+    static PUBLISH_RECEIVED : 'publishReceived' = 'publishReceived';
 
     /**
      * Event emitted when a connack packet is received
@@ -913,7 +913,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
      *
      * @event
      */
-    static CONNACK_RECEIVED : string = 'connackReceived';
+    static CONNACK_RECEIVED : 'connackReceived' = 'connackReceived';
 
     /**
      * Registers a listener for the client's {@link HALTED} {@link HaltedEvent} event.  A
