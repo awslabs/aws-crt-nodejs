@@ -363,7 +363,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static ERROR : string = 'error';
+    static ERROR : 'error' = 'error';
 
     /**
      * Event emitted when an MQTT PUBLISH packet is received by the client.
@@ -372,7 +372,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static MESSAGE_RECEIVED : string = 'messageReceived';
+    static MESSAGE_RECEIVED : 'messageReceived' = 'messageReceived';
 
     /**
      * Event emitted when the client begins a connection attempt.
@@ -381,7 +381,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static ATTEMPTING_CONNECT : string = 'attemptingConnect';
+    static ATTEMPTING_CONNECT : 'attemptingConnect' = 'attemptingConnect';
 
     /**
      * Event emitted when the client successfully establishes an MQTT connection.  Only emitted after
@@ -391,7 +391,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static CONNECTION_SUCCESS : string = 'connectionSuccess';
+    static CONNECTION_SUCCESS : 'connectionSuccess' = 'connectionSuccess';
 
     /**
      * Event emitted when the client fails to establish an MQTT connection.  Only emitted after
@@ -401,7 +401,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static CONNECTION_FAILURE : string = 'connectionFailure';
+    static CONNECTION_FAILURE : 'connectionFailure' = 'connectionFailure';
 
     /**
      * Event emitted when the client's current connection is closed for any reason.  Only emitted after
@@ -411,7 +411,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static DISCONNECTION : string = 'disconnection';
+    static DISCONNECTION : 'disconnection' = 'disconnection';
 
     /**
      * Event emitted when the client finishes shutdown as a result of the user invoking {@link stop}.
@@ -420,7 +420,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static STOPPED : string = 'stopped';
+    static STOPPED : 'stopped' = 'stopped';
 
     /**
      * Registers a listener for the client's {@link ERROR error} event.  An {@link ERROR error} event is emitted when
