@@ -7,7 +7,7 @@
  * Emits a one-time warning when aws-crt runs on a Node.js version that will be
  * unsupported starting January 2027. Suppress it in any of these ways:
  * @example
- * require('aws-crt/dist/common/node_deprecation_warning').suppress = true;
+ * require('aws-crt').node_deprecation_warning.suppress = true;
  * @example
  * globalThis.AWS_CRT_NODEJS_SUPPRESS_NODE_DEPRECATION_WARNING = true;
  * @example
