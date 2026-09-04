@@ -77,7 +77,7 @@ function isUnsupportedNodeVersion(): boolean {
  * Emits a one-time warning when aws-crt runs on a Node.js version that will be unsupported starting January 2027.
  * Suppress it by setting the AWS_CRT_NODEJS_SUPPRESS_NODE_DEPRECATION_WARNING environment variable, e.g.
  * @example
- * process.env.AWS_CRT_NODEJS_SUPPRESS_NODE_DEPRECATION_WARNING=true
+ * process.env.AWS_CRT_NODEJS_SUPPRESS_NODE_DEPRECATION_WARNING='true'
  * @example
  * AWS_CRT_NODEJS_SUPPRESS_NODE_DEPRECATION_WARNING=1 node app.js
  * @internal
