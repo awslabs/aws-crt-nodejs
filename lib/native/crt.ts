@@ -83,18 +83,18 @@ function isUnsupportedNodeVersion(): boolean {
  * @internal
  */
 export function emitNodeDeprecationWarning(): void{
-    if(isSuppressedExternally()){
+    if(hasWarned){
         return;
     }
-
-    if(hasWarned || !isUnsupportedNodeVersion()){
-        return;
-    }
-
     hasWarned = true;
+
+    if(isSuppressedExternally() || !isUnsupportedNodeVersion()){
+        return;
+    }
+
     const nodeVersion = process.versions.node;
     process.emitWarning(
-        `\n\nStarting in January 2027, the AWS CRT for JavaScript will require Node.js 22.x or later.\n` +
+        `\n\nStarting in January 2027, the AWS CRT for JavaScript will require Node.js ${MINIMUM_SUPPORTED_NODE_MAJOR_VERSION}.x or later.\n` +
         `Support for Node.js 14.x, 16.x, 18.x and 20.x will be dropped.\n\n` +
         `You are currently on Node.js v${nodeVersion}.\n\n` +
         `To continue receiving updates for AWS CRT for JavaScript, bug fixes, and security updates, ` +
