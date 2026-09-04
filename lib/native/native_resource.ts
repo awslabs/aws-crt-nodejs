@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 
-import node_deprecation_warning from '../common/node_deprecation_warning';
+import {emitNodeDeprecationWarning} from './crt';
 
 /**
  * Represents an object allocated natively inside the AWS CRT.
@@ -11,7 +11,7 @@ import node_deprecation_warning from '../common/node_deprecation_warning';
  */
 export class NativeResource {
     constructor(private handle: any) {
-        node_deprecation_warning.emitWarning();
+        emitNodeDeprecationWarning()
     }
 
     /** @internal */
@@ -38,7 +38,7 @@ export function NativeResourceMixin<T extends Ctor<{}>>(Base: T) {
             const handle = args.shift();
             super(...args);
             this._handle = handle;
-            node_deprecation_warning.emitWarning();
+            emitNodeDeprecationWarning()
         }
 
         /** @internal */

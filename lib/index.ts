@@ -10,7 +10,6 @@ import * as cancel from './common/cancel';
 import * as platform from './common/platform';
 import * as promise from './common/promise';
 import * as resource_safety from './common/resource_safety';
-import node_deprecation_warning from './common/node_deprecation_warning';
 
 /* node specific libs */
 import * as auth from './native/auth';
@@ -39,7 +38,6 @@ export {
     mqtt,
     mqtt5,
     mqtt_request_response,
-    node_deprecation_warning,
     platform,
     promise,
     resource_safety,
