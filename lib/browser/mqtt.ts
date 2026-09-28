@@ -334,14 +334,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECT = 'connect';
+    static CONNECT : 'connect' = 'connect';
 
     /**
      * Emitted when connection has disconnected successfully.
      *
      * @event
      */
-    static DISCONNECT = 'disconnect';
+    static DISCONNECT : 'disconnect' = 'disconnect';
 
     /**
      * Emitted when an error occurs.  The error will contain the error
@@ -349,7 +349,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *
      * @event
      */
-    static ERROR = 'error';
+    static ERROR : 'error' = 'error';
 
     /**
      * Emitted when the connection is dropped unexpectedly. The error will contain the error
@@ -357,21 +357,21 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *
      * @event
      */
-    static INTERRUPT = 'interrupt';
+    static INTERRUPT : 'interrupt' = 'interrupt';
 
     /**
      * Emitted when the connection reconnects (after an interrupt). Only triggers on connections after the initial one.
      *
      * @event
      */
-    static RESUME = 'resume';
+    static RESUME : 'resume' = 'resume';
 
     /**
      * Emitted when any MQTT publish message arrives.
      *
      * @event
      */
-    static MESSAGE = 'message';
+    static MESSAGE : 'message' = 'message';
 
     /**
      * Emitted on every successful connect and reconnect.
@@ -379,7 +379,7 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECTION_SUCCESS = 'connection_success';
+    static CONNECTION_SUCCESS : 'connection_success' = 'connection_success';
 
     /**
      * Emitted on an unsuccessful connect and reconnect.
@@ -387,14 +387,14 @@ export class MqttClientConnection extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECTION_FAILURE = 'connection_failure';
+    static CONNECTION_FAILURE : 'connection_failure' = 'connection_failure';
 
     /**
      * Emitted when the MQTT connection was disconnected and shutdown successfully.
      *
      * @event
      */
-    static CLOSED = 'closed'
+    static CLOSED : 'closed' = 'closed'
 
     on(event: 'connect', listener: MqttConnectionConnected): this;
 

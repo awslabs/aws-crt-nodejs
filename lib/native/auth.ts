@@ -16,6 +16,7 @@ import crt_native from './binding';
 import { CrtError } from './error';
 import { HttpRequest, HttpProxyOptions } from './http';
 import {ClientBootstrap, ClientTlsContext} from './io';
+import {emitNodeDeprecationWarning } from './crt'
 
 export {AwsSigningConfigBase} from "../common/auth";
 
@@ -140,6 +141,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
      * @returns a new credentials provider using default credentials resolution rules
      */
     static newDefault(bootstrap: ClientBootstrap | undefined = undefined): AwsCredentialsProvider {
+        emitNodeDeprecationWarning()
         return super.newDefault(bootstrap != null ? bootstrap.native_handle() : null);
     }
 
@@ -153,6 +155,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
      * @returns a new credentials provider that will return a fixed set of AWS credentials
      */
     static newStatic(access_key: crt_native.StringLike, secret_key: crt_native.StringLike, session_token?: crt_native.StringLike): AwsCredentialsProvider {
+        emitNodeDeprecationWarning()
         return super.newStatic(access_key, secret_key, session_token);
     }
 
@@ -165,6 +168,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
      * @returns a new credentials provider that returns credentials sourced from the AWS Cognito Identity service
      */
     static newCognito(config: CognitoCredentialsProviderConfig): AwsCredentialsProvider {
+        emitNodeDeprecationWarning()
         if (config == null || config == undefined) {
             throw new CrtError("AwsCredentialsProvider newCognito: Cognito config not defined");
         }
@@ -183,6 +187,7 @@ export class AwsCredentialsProvider extends crt_native.AwsCredentialsProvider {
      * @returns a new credentials provider that returns credentials sourced from the AWS X509 service
      */
     static newX509(config : X509CredentialsConfig): AwsCredentialsProvider {
+        emitNodeDeprecationWarning()
         if (config == null || config == undefined) {
             throw new CrtError("AwsCredentialsProvider newX509: X509 config not defined")
         }

@@ -4,6 +4,15 @@ NodeJS/Browser bindings for the AWS Common Runtime
 
 [API Docs](https://awslabs.github.io/aws-crt-nodejs/)
 
+> [!IMPORTANT]
+> **Starting January 2027**, the AWS Common Runtime for JavaScript (CRT-JS) will require **Node.js 22.x or later**.
+> Support for Node.js 14.x, 16.x, 18.x, and 20.x will be dropped.
+>
+> To continue receiving updates for AWS Common Runtime for JavaScript, bug fixes, and security updates, please upgrade to a supported version of Node.js (ideally the latest LTS).
+>
+
+
+
 ## License
 
 This library is licensed under the Apache 2.0 License.
