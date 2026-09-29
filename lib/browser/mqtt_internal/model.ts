@@ -130,7 +130,7 @@ export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
 
     authenticationMethod?: string;
 
-    authenticationData?: BinaryData;
+    authenticationData?: mqtt5_packet.BinaryData;
 }
 
 export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
@@ -154,7 +154,7 @@ export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
 export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
     authenticationMethod?: string;
 
-    authenticationData?: BinaryData;
+    authenticationData?: mqtt5_packet.BinaryData;
 }
 
 export interface PingrespPacketInternal extends mqtt5_packet.IPacket {

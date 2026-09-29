@@ -117,7 +117,7 @@ export interface ConnectOptions {
     username?: string;
 
     /** Password to use */
-    password?: BinaryData;
+    password?: mqtt5_packet.BinaryData;
 
     /** Value to use for the session expiry interval property in the Connect packet */
     sessionExpiryIntervalSeconds?: number;

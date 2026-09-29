@@ -364,7 +364,7 @@ function decodeConnectPacket311(firstByte: number, payload: DataView) : model.Co
 
     if (flags & model.CONNECT_FLAGS_HAS_WILL) {
         let willTopic : string = "";
-        let willPayload : BinaryData | null = null;
+        let willPayload : mqtt5_packet.BinaryData | null = null;
 
         [willTopic, index] = decoder.decodeLengthPrefixedString(payload, index);
         [willPayload, index] = decoder.decodeLengthPrefixedBytes(payload, index);
@@ -1169,7 +1169,7 @@ function areConnackPacketsEqual(lhs: model.ConnackPacketInternal, rhs: model.Con
         userPropertiesEqual(lhs.userProperties, rhs.userProperties);
 }
 
-function binaryAsOptionalBuffer(source: BinaryData | undefined) : ArrayBuffer | undefined {
+function binaryAsOptionalBuffer(source: mqtt5_packet.BinaryData | undefined) : ArrayBuffer | undefined {
     if (source == undefined) {
         return undefined;
     }
