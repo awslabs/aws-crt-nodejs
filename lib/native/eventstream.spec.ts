@@ -216,8 +216,8 @@ async function makeGoodConnection() : Promise<eventstream.ClientConnection> {
 
 function buildAllTypeHeaderSet() : Array<eventstream.Header> {
     var encoder = new TextEncoder();
-    let buffer: ArrayBuffer = encoder.encode("Some test");
-    let uuid: ArrayBuffer = encoder.encode("0123456789ABCDEF");
+    let buffer = encoder.encode("Some test");
+    let uuid = encoder.encode("0123456789ABCDEF");
 
     let headers: Array<eventstream.Header> = [
         eventstream.Header.newBoolean('boolTrue', true),
@@ -274,7 +274,7 @@ async function verifyPingRoundTrip(connection : eventstream.ClientConnection) : 
             const pingResponse = once(connection, eventstream.ClientConnection.PROTOCOL_MESSAGE);
 
             var encoder = new TextEncoder();
-            let payload: ArrayBuffer = encoder.encode("A payload");
+            let payload = encoder.encode("A payload");
 
             let headers: Array<eventstream.Header> = buildAllTypeHeaderSet();
 

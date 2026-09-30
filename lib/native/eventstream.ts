@@ -252,7 +252,7 @@ export class Header {
      * @param name name of the header
      * @param value value of the header
      */
-    static newUUID(name: string, value: ArrayBuffer): Header {
+    static newUUID(name: string, value: ArrayBuffer | ArrayBufferView): Header {
         Header.validateHeaderName(name);
 
         if (value.byteLength == 16) {

@@ -16,4 +16,4 @@
  *
  * @category Crypto
  */
-export type Hashable = string | ArrayBuffer | DataView | Buffer;
+export type Hashable = string | ArrayBuffer | ArrayBufferView;

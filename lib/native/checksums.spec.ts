@@ -91,7 +91,7 @@ test('crc64nvme_zeros_one_shot', () => {
 
 test('crc64nvme_zeros_iterated', () => {
     const buffer = new ArrayBuffer(8);
-    let previous = new DataView(buffer);
+    let previous : DataView = new DataView(buffer);
     previous.setBigUint64(0, BigInt(0));
 
     for (let i = 0; i < 32; i++) {

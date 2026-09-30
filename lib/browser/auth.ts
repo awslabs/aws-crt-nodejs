@@ -42,7 +42,7 @@ export class CredentialsProvider {
      * provider implementation should handle application-level authentication refreshing so that the websocket 
      * connection could simply grab the latest valid tokens when getCredentials() get called. 
      * 
-     * @Returns AWSCredentials
+     * @returns AWSCredentials
      * 
      * */
     getCredentials() : AWSCredentials | undefined
