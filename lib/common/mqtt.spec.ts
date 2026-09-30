@@ -236,7 +236,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 
         const id = uuid();
 
-        const tests: { [key: string]: { send: Payload, recv: ArrayBuffer } } = {
+        const tests: { [key: string]: { send: Payload, recv: ArrayBufferLike } } = {
             [`test/types/${id}/string`]: {
                 send: 'utf-8 👁👄👁 time',
                 recv: fromUtf8('utf-8 👁👄👁 time').buffer,
@@ -262,7 +262,7 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
 
         // as messages are received, delete items.
         // when this object is empty all expected messages have been received.
-        let expecting: { [key: string]: ArrayBuffer } = {}
+        let expecting: { [key: string]: ArrayBufferLike } = {}
         for (const topic in tests) {
             expecting[topic] = tests[topic].recv;
         }

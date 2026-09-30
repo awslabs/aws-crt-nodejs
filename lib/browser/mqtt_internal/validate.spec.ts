@@ -306,7 +306,7 @@ test('Binary publish packet validation - success', async () => {
 test('Binary publish packet validation - packet too long', async () => {
     let packet = createBinaryPublishPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.payload = new Uint8Array(128 * 1024 + 1);
+    packet.payload = new ArrayBuffer(128 * 1024 + 1);
 
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("exceeds established maximum packet size");
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("exceeds established maximum packet size");
@@ -374,7 +374,7 @@ test('Binary publish packet validation - qos exceeds maximum', async () => {
 test('Binary publish packet validation - topic too long', async () => {
     let packet = createBinaryPublishPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.topicName = new Uint8Array(65536);
+    packet.topicName = new ArrayBuffer(65536);
 
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings); }).toThrow("not a 16-bit length buffer");
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -410,7 +410,7 @@ test('Binary publish packet validation - topic alias too big', async () => {
 test('Binary publish packet validation - response topic too long', async () => {
     let packet = createBinaryPublishPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.responseTopic = new Uint8Array(65536);
+    packet.responseTopic = new ArrayBuffer(65536);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -419,7 +419,7 @@ test('Binary publish packet validation - response topic too long', async () => {
 test('Binary publish packet validation - correlation data too long', async () => {
     let packet = createBinaryPublishPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.correlationData = new Uint8Array(65536);
+    packet.correlationData = new ArrayBuffer(65536);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -428,7 +428,7 @@ test('Binary publish packet validation - correlation data too long', async () =>
 test('Binary publish packet validation - content type too long', async () => {
     let packet = createBinaryPublishPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.contentType = new Uint8Array(65536);
+    packet.contentType = new ArrayBuffer(65536);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -550,7 +550,7 @@ test('Binary puback packet validation - undefined packet id', async () => {
 test('Binary puback packet validation - reason string too long', async () => {
     let packet = createBinaryPubackPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.reasonString = new Uint8Array(65536);
+    packet.reasonString = new ArrayBuffer(65536);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -595,7 +595,7 @@ test('Inbound puback packet validation - bad packet id', async () => {
 
 test('Inbound puback packet validation - bad reason code', async () => {
     let packet = createInternalPubackPacketMaximal();
-    packet.reasonCode = 255;
+    packet.reasonCode = 255 as any;
 
     expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 PubackReasonCode");
 });
@@ -905,7 +905,7 @@ test('Inbound suback packet validation - zero packet id', async () => {
 
 test('Inbound suback packet validation - bad reason code', async () => {
     let packet = createInternalSubackPacketMaximal();
-    packet.reasonCodes[0] = 3;
+    packet.reasonCodes[0] = 3 as any;
 
     expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311); }).toThrow("not a valid MQTT311 SubackReasonCode");
     expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 SubackReasonCode");
@@ -1102,7 +1102,7 @@ test('Inbound unsuback packet validation - zero packet id', async () => {
 
 test('Inbound unsuback packet validation - bad reason code', async () => {
     let packet = createInternalUnsubackPacketMaximal();
-    packet.reasonCodes[0] = 3;
+    packet.reasonCodes[0] = 3 as any;
 
     validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311);
     expect(() => { validate.validateInboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5); }).toThrow("not a valid MQTT5 UnsubackReasonCode");
@@ -1221,7 +1221,7 @@ test('Binary connect packet validation - authentication data too long', async ()
     let packet = createBinaryConnectPacketMaximal();
     let settings = createStandardNegotiatedSettings();
 
-    packet.authenticationData = new Uint8Array(65537);
+    packet.authenticationData = new ArrayBuffer(65537);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -1396,7 +1396,7 @@ test('Binary disconnect packet validation - positive session expiry interval whe
 test('Binary disconnect packet validation - reason string too long', async () => {
     let packet = createBinaryDisconnectPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.reasonString = new Uint8Array(65536);
+    packet.reasonString = new ArrayBuffer(65536);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");
@@ -1405,7 +1405,7 @@ test('Binary disconnect packet validation - reason string too long', async () =>
 test('Binary disconnect packet validation - server reference too long', async () => {
     let packet = createBinaryDisconnectPacketMaximal();
     let settings = createStandardNegotiatedSettings();
-    packet.serverReference = new Uint8Array(65536);
+    packet.serverReference = new ArrayBuffer(65536);
 
     validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt311, settings);
     expect(() => { validate.validateBinaryOutboundPacket(packet, mqtt_shared.ProtocolMode.Mqtt5, settings); }).toThrow("not a 16-bit length buffer");

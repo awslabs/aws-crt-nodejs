@@ -117,7 +117,7 @@ export interface ConnectOptions {
     username?: string;
 
     /** Password to use */
-    password?: BinaryData;
+    password?: mqtt5_packet.BinaryData;
 
     /** Value to use for the session expiry interval property in the Connect packet */
     sessionExpiryIntervalSeconds?: number;
@@ -1359,7 +1359,7 @@ export class ProtocolState extends BufferedEventEmitter implements IProtocolStat
         logDebug(PROTOCOL_STATE_LOG_SUBJECT, "Begin servicing outbound operations");
 
         let done : boolean = false;
-        let remainingView = new DataView(socketBuffer);
+        let remainingView : DataView<ArrayBufferLike> = new DataView(socketBuffer);
 
         while (!done) {
             let currentOperation : ClientOperation | undefined = undefined;

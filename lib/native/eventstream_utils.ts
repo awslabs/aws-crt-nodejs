@@ -45,7 +45,7 @@ export function marshalInt64BigintAsBuffer(value: bigint) : Uint8Array {
 }
 
 /** @internal */
-export function unmarshalInt64BigintFromBuffer(buffer: ArrayBuffer) : bigint {
+export function unmarshalInt64BigintFromBuffer(buffer: ArrayBufferLike) : bigint {
     let value : bigint = BigInt(0);
 
     let byteView = new Uint8Array(buffer);

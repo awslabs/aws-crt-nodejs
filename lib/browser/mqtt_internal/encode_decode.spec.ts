@@ -36,10 +36,10 @@ function doSingleRoundTripEncodeDecodeTest(packet: mqtt5_packet.IPacket, mode: m
     let binary_packet = test_mqtt_internal_client.convertDebugPacketToBinary(packet);
 
     let stream_destination = new ArrayBuffer(1024 * 1024);
-    let stream_view = new DataView(stream_destination);
+    let stream_view : DataView = new DataView(stream_destination);
 
     let encode_buffer = new ArrayBuffer(encode_buffer_size);
-    let encode_view = new DataView(encode_buffer);
+    let encode_view : DataView = new DataView(encode_buffer);
 
     for (let i = 0; i < packet_count; i++) {
         packet_encoder.initForPacket(binary_packet);

@@ -16,6 +16,8 @@
  * there are fields we may want to transform or hide
  */
 
+type BinaryData = ArrayBuffer | ArrayBufferView;
+
 export function appendBooleanPropertyLine(current: string, prefix: string, propertyName: string, value: boolean) : string {
     return current + `${prefix}  ${propertyName}: ${value ? "true" : "false"}\n`;
 }

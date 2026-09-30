@@ -144,10 +144,13 @@ export class MockProtocolAdapter extends BufferedEventEmitter {
         this.emit(protocol_adapter.ProtocolClientAdapter.PUBLISH_COMPLETION, event);
     }
 
-    triggerIncomingPublish(topic: string, payload: ArrayBuffer) : void {
+    triggerIncomingPublish(topic: string, payload: ArrayBuffer | ArrayBufferView) : void {
+        let buffer : ArrayBuffer = payload instanceof ArrayBuffer
+            ? payload
+            : payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength) as ArrayBuffer;
         let event : protocol_adapter.IncomingPublishEvent = {
             topic : topic,
-            payload: payload
+            payload: buffer
         };
 
         this.emit(protocol_adapter.ProtocolClientAdapter.INCOMING_PUBLISH, event);

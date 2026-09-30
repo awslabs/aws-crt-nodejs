@@ -28,7 +28,7 @@ export class CrtError extends Error implements ICrtError {
     /** The translated error name (e.g. AWS_ERROR_UNKNOWN) */
     readonly error_name?: string;
 
-    /** @var error - The original error. Most often an error_code, but possibly some other context */
+    /** @param error - The original error. Most often an error_code, but possibly some other context */
     constructor(readonly error: any) {
         super(extract_message(error));
         this.error_code = extract_code(error);

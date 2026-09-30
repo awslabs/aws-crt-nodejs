@@ -294,7 +294,7 @@ test('VLI round trip', () => {
 
 function doEncodeDecodeMultipleVliTest(value: number, count: number) {
     let buffer = new ArrayBuffer(count * 4);
-    let encoding_view = new DataView(buffer);
+    let encoding_view : DataView = new DataView(buffer);
 
     for (let i = 0; i < count; i++) {
         encoding_view = vli.encodeVli(encoding_view, value);

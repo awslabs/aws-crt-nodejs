@@ -130,7 +130,7 @@ export interface ConnectPacketInternal extends mqtt5_packet.ConnectPacket {
 
     authenticationMethod?: string;
 
-    authenticationData?: BinaryData;
+    authenticationData?: mqtt5_packet.BinaryData;
 }
 
 export interface PublishPacketInternal extends mqtt5_packet.PublishPacket {
@@ -154,7 +154,7 @@ export interface UnsubackPacketInternal extends mqtt5_packet.UnsubackPacket {
 export interface ConnackPacketInternal extends mqtt5_packet.ConnackPacket {
     authenticationMethod?: string;
 
-    authenticationData?: BinaryData;
+    authenticationData?: mqtt5_packet.BinaryData;
 }
 
 export interface PingrespPacketInternal extends mqtt5_packet.IPacket {
@@ -306,9 +306,9 @@ export function binaryDataToArrayBuffer(data: mqtt5_packet.BinaryData) : ArrayBu
     if (data instanceof ArrayBuffer) {
         return data;
     } else if (data instanceof Buffer) {
-        return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
     } else if (data instanceof Uint8Array) {
-        return data.buffer;
+        return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
     } else {
         throw new CrtError("Invalid binary data");
     }
@@ -425,9 +425,9 @@ export function payloadToArrayBuffer(payload: mqtt5_packet.Payload) : ArrayBuffe
     if (payload instanceof ArrayBuffer) {
         return payload;
     } else if (payload instanceof Buffer) {
-        return payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength);
+        return payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength) as ArrayBuffer;
     } else if (payload instanceof Uint8Array) {
-        return payload.buffer;
+        return payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength) as ArrayBuffer;
     } else if (typeof(payload) === 'string') {
         let encoder = new TextEncoder();
         return encoder.encode(payload).buffer;
