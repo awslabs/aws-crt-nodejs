@@ -10,7 +10,7 @@ import {ICrtError} from "./error";
  * @module mqtt_request_response
  */
 
-export type RequestPayload = ArrayBuffer;
+export type RequestPayload = ArrayBuffer | ArrayBufferView;
 export type ResponsePayload = ArrayBuffer;
 export type StreamingPayload = ArrayBuffer;
 

@@ -217,7 +217,7 @@ class MqttServerConnection extends BufferedEventEmitter {
 
             let responsePackets: Array<mqtt5_packet.IPacket> = [];
             for (let packet of packets) {
-                let handler = handlers.get(packet.type ?? -1);
+                let handler = handlers.get(packet.type ?? (-1 as mqtt5_packet.PacketType));
                 if (!handler) {
                     continue;
                 }

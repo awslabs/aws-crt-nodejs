@@ -105,7 +105,7 @@ export class TestingContext {
         }
     }
 
-    async publishProtocolClient(topic: string, payload: ArrayBuffer) {
+    async publishProtocolClient(topic: string, payload: ArrayBuffer | ArrayBufferView) {
         if (this.mqtt5Client) {
             await this.mqtt5Client.publish({
                 topicName: topic,

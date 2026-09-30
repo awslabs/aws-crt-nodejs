@@ -415,7 +415,7 @@ async function do_publish_success_test(version: ProtocolVersion) : Promise<void>
     let publish_event_promise = once(context.adapter, protocol_adapter.ProtocolClientAdapter.PUBLISH_COMPLETION);
 
     var encoder = new TextEncoder();
-    let payload: ArrayBuffer = encoder.encode("A payload");
+    let payload = encoder.encode("A payload");
     let completionData = 42;
 
     context.adapter.publish({
@@ -450,7 +450,7 @@ async function do_publish_timeout_test(version: ProtocolVersion) : Promise<void>
     let publish_event_promise = once(context.adapter, protocol_adapter.ProtocolClientAdapter.PUBLISH_COMPLETION);
 
     var encoder = new TextEncoder();
-    let payload: ArrayBuffer = encoder.encode("A payload");
+    let payload = encoder.encode("A payload");
     let completionData = 42;
 
     context.adapter.publish({
@@ -490,7 +490,7 @@ test_utils.conditional_test(test_utils.ClientEnvironmentalConfig.hasIoTCoreEnvir
     await context.close();
 
     var encoder = new TextEncoder();
-    let payload: ArrayBuffer = encoder.encode("A payload");
+    let payload = encoder.encode("A payload");
     let completionData = 42;
     let publishOptions = {
         topic: "a/b/c",

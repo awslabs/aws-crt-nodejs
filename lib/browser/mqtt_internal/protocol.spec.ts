@@ -265,7 +265,7 @@ class ProtocolTestFixture {
 
         let responsePackets = new Array<mqtt5_packet.IPacket>();
 
-        let handler = this.handlers.get(packet.type ?? - 1);
+        let handler = this.handlers.get(packet.type ?? (-1 as mqtt5_packet.PacketType));
         if (handler == undefined) {
             throw new CrtError("No handler for packet type");
         }
@@ -2056,7 +2056,7 @@ describe("ReconnectSessionPresentWhileQos0PublishPendingAckFailureTest", () => {
 function verifyPendingQos1PublishOperation(fixture: ProtocolTestFixture) {
     expect(fixture.protocolState.getPendingAcks().size).toEqual(1);
 
-    let operationId : number = fixture.protocolState.getPendingAcks().values().next().value;
+    let operationId : number = fixture.protocolState.getPendingAcks().values().next().value!;
     let operation = fixture.protocolState.getOperations().get(operationId);
     expect(operation).toBeDefined();
     expect(operation?.type).toEqual(mqtt5_packet.PacketType.Publish);
@@ -2755,7 +2755,7 @@ function doDisconnectWhileQos1PublishPendingSetsDuplicateTest(mode: mqtt_shared.
     expect(fixture.protocolState.getOperationQueue(protocol.OperationQueueType.User).length).toEqual(1);
 
     expect(fixture.protocolState.getOperations().size).toEqual(1);
-    let operation : protocol.ClientOperation = fixture.protocolState.getOperations().values().next().value;
+    let operation : protocol.ClientOperation = fixture.protocolState.getOperations().values().next().value!;
     let publishPacket = operation.packet as model.PublishPacketBinary;
     expect(publishPacket.duplicate ?? 0).toEqual(0);
 
