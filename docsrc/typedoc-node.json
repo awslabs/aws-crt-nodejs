@@ -29,7 +29,7 @@
         "invalidLink" : true
     },
     "treatWarningsAsErrors" : true,
-    "plugin": ["typedoc-plugin-merge-modules"],
+    "plugin": ["typedoc-plugin-merge-modules", "./mergeTargetTag.cjs"],
     "mergeModulesMergeMode": "module"
 }
 
