@@ -348,14 +348,14 @@ export class SubscriptionManager extends BufferedEventEmitter {
         }
     }
 
-    static SUBSCRIBE_SUCCESS : string = 'subscribeSuccess';
-    static SUBSCRIBE_FAILURE : string = 'subscribeFailure';
-    static SUBSCRIPTION_ENDED : string = 'subscriptionEnded';
-    static STREAMING_SUBSCRIPTION_ESTABLISHED : string = "streamingSubscriptionEstablished";
-    static STREAMING_SUBSCRIPTION_LOST : string = "streamingSubscriptionLost";
-    static STREAMING_SUBSCRIPTION_HALTED : string = "streamingSubscriptionHalted";
-    static SUBSCRIPTION_ORPHANED : string = "subscriptionOrphaned";
-    static UNSUBSCRIBE_COMPLETE : string = "unsubscribeComplete";
+    static SUBSCRIBE_SUCCESS : 'subscribeSuccess' = 'subscribeSuccess';
+    static SUBSCRIBE_FAILURE : 'subscribeFailure' = 'subscribeFailure';
+    static SUBSCRIPTION_ENDED : 'subscriptionEnded' = 'subscriptionEnded';
+    static STREAMING_SUBSCRIPTION_ESTABLISHED : "streamingSubscriptionEstablished" = "streamingSubscriptionEstablished";
+    static STREAMING_SUBSCRIPTION_LOST : "streamingSubscriptionLost" = "streamingSubscriptionLost";
+    static STREAMING_SUBSCRIPTION_HALTED : "streamingSubscriptionHalted" = "streamingSubscriptionHalted";
+    static SUBSCRIPTION_ORPHANED : "subscriptionOrphaned" = "subscriptionOrphaned";
+    static UNSUBSCRIBE_COMPLETE : "unsubscribeComplete" = "unsubscribeComplete";
 
     on(event: 'subscribeSuccess', listener: SubscribeSuccessEventListener): this;
     on(event: 'subscribeFailure', listener: SubscribeFailureEventListener): this;
@@ -650,4 +650,3 @@ export class SubscriptionManager extends BufferedEventEmitter {
     }
 
 }
-

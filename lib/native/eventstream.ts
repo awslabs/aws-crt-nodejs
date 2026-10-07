@@ -798,7 +798,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * @event
      */
-    static DISCONNECTION : string = 'disconnection';
+    static DISCONNECTION : 'disconnection' = 'disconnection';
 
     /**
      * Event emitted when a protocol message is received from the remote endpoint
@@ -807,7 +807,7 @@ export class ClientConnection extends NativeResourceMixin(BufferedEventEmitter) 
      *
      * @event
      */
-    static PROTOCOL_MESSAGE : string = 'protocolMessage';
+    static PROTOCOL_MESSAGE : 'protocolMessage' = 'protocolMessage';
 
     on(event: 'disconnection', listener: DisconnectionListener): this;
 
@@ -1053,7 +1053,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static ENDED : string = 'ended';
+    static ENDED : 'ended' = 'ended';
 
     /**
      * Event emitted when a stream message is received from the remote endpoint
@@ -1062,7 +1062,7 @@ export class ClientStream extends NativeResourceMixin(BufferedEventEmitter) {
      *
      * @event
      */
-    static MESSAGE : string = 'message';
+    static MESSAGE : 'message' = 'message';
 
     on(event: 'ended', listener: StreamEndedListener): this;
 

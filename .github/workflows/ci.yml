@@ -30,10 +30,10 @@ jobs:
           - al2-x64
           - manylinux2014-aarch64
           - manylinux2014-x64
-          - fedora-34-x64
-          - opensuse-leap
-          - rhel8-x64
-          - raspbian-bullseye
+          - fedora-latest-x64
+          - opensuse-latest-x64
+          - rhel-latest-x64
+          - raspbian-latest-armv7
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -52,7 +52,7 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - alpine-3.16-x64
+          - alpine-latest-x64
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
       with:

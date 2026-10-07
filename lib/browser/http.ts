@@ -273,21 +273,21 @@ export class HttpClientConnection extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECT = 'connect';
+    static CONNECT : 'connect' = 'connect';
 
     /**
      * Emitted when an error occurs on the connection
      *
      * @event
      */
-    static ERROR = 'error';
+    static ERROR : 'error' = 'error';
 
     /**
      * Emitted when the connection has completed
      *
      * @event
      */
-    static CLOSE = 'close';
+    static CLOSE : 'close' = 'close';
 
     on(event: 'connect', listener: HttpClientConnectionConnected): this;
 
@@ -408,28 +408,28 @@ export class HttpClientStream extends BufferedEventEmitter {
      *
      * @event
      */
-    static RESPONSE = 'response';
+    static RESPONSE : 'response' = 'response';
 
     /**
      * Emitted when http response data is available.
      *
      * @event
      */
-    static DATA = 'data';
+    static DATA : 'data' = 'data';
 
     /**
      * Emitted when an error occurs in stream processing
      *
      * @event
      */
-    static ERROR = 'error';
+    static ERROR : 'error' = 'error';
 
     /**
      * Emitted when the stream has completed
      *
      * @event
      */
-    static END = 'end';
+    static END : 'end' = 'end';
 
     on(event: 'response', listener: HttpStreamResponse): this;
 

@@ -184,7 +184,7 @@ export class StreamingOperationBase extends BufferedEventEmitter implements mqtt
      *
      * @event
      */
-    static SUBSCRIPTION_STATUS : string = 'subscriptionStatus';
+    static SUBSCRIPTION_STATUS : 'subscriptionStatus' = 'subscriptionStatus';
 
     /**
      * Event emitted when a stream message is received
@@ -193,7 +193,7 @@ export class StreamingOperationBase extends BufferedEventEmitter implements mqtt
      *
      * @event
      */
-    static INCOMING_PUBLISH : string = 'incomingPublish';
+    static INCOMING_PUBLISH : 'incomingPublish' = 'incomingPublish';
 
     on(event: 'subscriptionStatus', listener: mqtt_request_response.SubscriptionStatusListener): this;
 

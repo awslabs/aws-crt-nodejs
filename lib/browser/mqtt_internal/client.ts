@@ -648,7 +648,7 @@ export class Client extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECTING : string = 'connecting';
+    static CONNECTING : 'connecting' = 'connecting';
 
     /**
      * Event emitted when the client has successfully connected to the remote broker
@@ -657,7 +657,7 @@ export class Client extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECTION_SUCCESS : string = 'connectionSuccess';
+    static CONNECTION_SUCCESS : 'connectionSuccess' = 'connectionSuccess';
 
     /**
      * Event emitted when the client has failed to connect to the remote broker
@@ -666,7 +666,7 @@ export class Client extends BufferedEventEmitter {
      *
      * @event
      */
-    static CONNECTION_FAILURE : string = 'connectionFailure';
+    static CONNECTION_FAILURE : 'connectionFailure' = 'connectionFailure';
 
     /**
      * Event emitted when the client's connection has been closed
@@ -675,7 +675,7 @@ export class Client extends BufferedEventEmitter {
      *
      * @event
      */
-    static DISCONNECTION : string = 'disconnection';
+    static DISCONNECTION : 'disconnection' = 'disconnection';
 
     /**
      * Event emitted when the client enters the stopped state
@@ -684,7 +684,7 @@ export class Client extends BufferedEventEmitter {
      *
      * @event
      */
-    static STOPPED : string = 'stopped';
+    static STOPPED : 'stopped' = 'stopped';
 
     /**
      * Event emitted when the client receives a publish message from the broker
@@ -693,7 +693,7 @@ export class Client extends BufferedEventEmitter {
      *
      * @event
      */
-    static PUBLISH_RECEIVED : string = 'publishReceived';
+    static PUBLISH_RECEIVED : 'publishReceived' = 'publishReceived';
 
     /**
      * Registers a listener for the client's {@link ConnectingEvent} event.  A
