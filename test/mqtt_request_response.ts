@@ -106,6 +106,9 @@ export class TestingContext {
     }
 
     async publishProtocolClient(topic: string, payload: ArrayBuffer) {
+        // eventual consistency if this is an op
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         if (this.mqtt5Client) {
             await this.mqtt5Client.publish({
                 topicName: topic,

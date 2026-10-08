@@ -384,6 +384,8 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     await client.publish({
         topicName: topic,
@@ -396,6 +398,8 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
     await client.unsubscribe({
         topicFilters: [ topic ]
     });
+    // unsubscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     await client.publish({
         topicName: topic,
@@ -435,6 +439,8 @@ export async function subPubAcquireControlTest(client: mqtt5.Mqtt5Client, topic:
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     await client.publish({
         topicName: topic,
@@ -479,6 +485,8 @@ export async function subPubDoubleAcquireControlTest(client: mqtt5.Mqtt5Client, 
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     let firstAcquireResult: any = undefined;
     let secondAcquireResult: any = undefined;
@@ -544,6 +552,8 @@ export async function subPubPostCallbackAcquireControlTest(client: mqtt5.Mqtt5Cl
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     let capturedAcknowledgementControl: mqtt_shared.PublishAcknowledgementHandleWrapper | undefined = undefined;
     let firstMessageReceived: boolean = false;
@@ -602,6 +612,8 @@ export async function subPubAcquireInvokeControlTest(client: mqtt5.Mqtt5Client, 
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Set up a promise that resolves when the first message is received and the ack handle is acquired and invoked.
     // Also track any unexpected re-deliveries.
@@ -668,6 +680,8 @@ export async function subPubAutoPubackNoDuplicateTest(client: mqtt5.Mqtt5Client,
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Verify client sends PUBACK automatically. We do NOT call acquireHandle().
     let unexpectedRedelivery: boolean = false;
@@ -823,6 +837,9 @@ export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mq
         retain: true
     });
 
+    // publish eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Connect with client2, subscribe to the retained topic and expect the appropriate retained message to be
     // delivered after subscription
     let messageReceived2 = once(client2, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
@@ -853,6 +870,9 @@ export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mq
         qos: mqtt5.QoS.AtLeastOnce,
         retain: true
     });
+
+    // publish eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Connect with client 3, subscribe to the retained topic, wait a few seconds to ensure no message received
     client3.start();
@@ -912,6 +932,9 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
             {topicFilter: sharedTopicfilter, qos: mqtt5.QoS.AtLeastOnce}
         ]
     });
+
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     let receivedResolve : (value?: void | PromiseLike<void>) => void;
     const receivedPromise = new Promise<void>((resolve, reject) => {
