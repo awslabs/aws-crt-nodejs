@@ -316,6 +316,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
                 });
                 await expect(sub).resolves.toBeTruthy();
 
+                // subscribe eventual consistency
+                await new Promise(resolve => setTimeout(resolve, 500));
+
                 const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
                 await expect(pub).resolves.toBeTruthy();
             });
@@ -356,6 +359,9 @@ test_env.conditional_test(test_env.AWS_IOT_ENV.mqtt311_is_valid_iot_cred())('MQT
                     await expect(disconnected).resolves.toBeUndefined();
                 });
                 await expect(sub).resolves.toBeTruthy();
+
+                // subscribe eventual consistency
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 const pub = connection.publish(test_topic, test_payload, QoS.AtLeastOnce);
                 await expect(pub).resolves.toBeTruthy();

@@ -35,6 +35,9 @@ enum OperationState {
     /* subscribing response from sub manager -> subscription success/failure event */
     PendingSubscription,
 
+    /* request only) subscription success -> publish delay expiration */
+    PendingPublish,
+
     /* (request only) subscription success -> (publish failure OR correlated response received) */
     PendingResponse,
 
@@ -53,6 +56,8 @@ function operationStateToString(state: OperationState) {
             return "Queued";
         case OperationState.PendingSubscription:
             return "PendingSubscription";
+        case OperationState.PendingPublish:
+            return "PendingPublish";
         case OperationState.PendingResponse:
             return "PendingResponse";
         case OperationState.Subscribed:
@@ -241,6 +246,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
 
     private static logSubject = "RequestResponseClient";
 
+    private readonly publishDelayInMilliseconds : number = 200;
     private readonly operationTimeoutInSeconds: number;
     private nextOperationId : number = 1;
     private protocolClientAdapter : protocol_client_adapter.ProtocolClientAdapter;
@@ -525,7 +531,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
                 type: mqtt_request_response.SubscriptionStatusEventType.SubscriptionEstablished
             });
         } else {
-            this.applyRequestResponsePublish(operation as RequestResponseOperation);
+            this.queueRequestResponsePublish(operation as RequestResponseOperation);
         }
     }
 
@@ -893,7 +899,7 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         let rrOperation = operation as RequestResponseOperation;
         rrOperation.pendingSubscriptionCount--;
         if (rrOperation.pendingSubscriptionCount === 0) {
-            this.applyRequestResponsePublish(rrOperation);
+            this.queueRequestResponsePublish(rrOperation);
         } else {
             io.logDebug(RequestResponseClient.logSubject, `operation ${event.operationId} has ${rrOperation.pendingSubscriptionCount} pending subscriptions left`);
         }
@@ -1022,7 +1028,20 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
         operation.state = state;
     }
 
-    private applyRequestResponsePublish(operation: RequestResponseOperation) {
+    private triggerRequestResponsePublish(id: number) {
+        let op = this.operations.get(id);
+        if (!op) {
+            io.logDebug(RequestResponseClient.logSubject, `operation ${id} was cancelled previously and its publish cannot be sent`);
+            return;
+        }
+
+        if (op.state != OperationState.PendingPublish) {
+            io.logError(RequestResponseClient.logSubject, `operation ${id} is not in a valid state to send a publish payload`);
+            return;
+        }
+
+        let operation = op as RequestResponseOperation;
+
         let publishOptions = {
             topic: operation.options.publishTopic,
             payload: operation.options.payload,
@@ -1039,6 +1058,14 @@ export class RequestResponseClient extends BufferedEventEmitter implements mqtt_
             this.completeRequestResponseOperationWithError(operation.id, new CrtError(`Publish error: "${errorStringified}"`));
             io.logError(RequestResponseClient.logSubject, `request-response operation ${operation.id} synchronously failed publish step due to error: ${errorStringified}`);
         }
+    }
+
+    private queueRequestResponsePublish(operation: RequestResponseOperation) {
+        io.logDebug(RequestResponseClient.logSubject, `queueing publish for request-response operation ${operation.id} to be submitted in ${this.publishDelayInMilliseconds} milliseconds`);
+        operation.state = OperationState.PendingPublish;
+        let id = operation.id;
+
+        setTimeout(() => { this.triggerRequestResponsePublish(id); }, this.publishDelayInMilliseconds);
     }
 
     private openStreamingOperation(id: number) {
