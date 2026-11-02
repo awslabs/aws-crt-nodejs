@@ -607,6 +607,9 @@ static int s_typed_array_element_type_to_byte_length(napi_typedarray_type type, 
 
         case napi_int16_array:
         case napi_uint16_array:
+#ifdef NODE_API_HAS_FLOAT16_ARRAY
+        case 11: /* napi_float16_array */
+#endif
             *element_length = 2;
             return AWS_OP_SUCCESS;
 
