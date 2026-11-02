@@ -144,7 +144,11 @@ jobs:
         node ./scripts/build --target-arch ia32 -DAWS_WARNINGS_ARE_ERRORS=ON
 
   macos:
-    runs-on: macos-15 # latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-latest]
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -161,7 +165,11 @@ jobs:
         python3 codebuild/macos_compatibility_check.py arm64
 
   macos-x64:
-    runs-on: macos-15-large # latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15-large, macos-latest-large]
     steps:
     - uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -186,7 +194,11 @@ jobs:
         python3 codebuild/macos_compatibility_check.py x64
 
   macos-s2n:
-    runs-on: macos-15 # latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-latest]
     env:
       AWS_CRT_USE_NON_FIPS_TLS_13: 1
     steps:
@@ -205,7 +217,11 @@ jobs:
         python3 codebuild/macos_compatibility_check.py arm64
 
   macos-x64-s2n:
-    runs-on: macos-15-large # latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15-large, macos-latest-large]
     env:
       AWS_CRT_USE_NON_FIPS_TLS_13: 1
     steps:
