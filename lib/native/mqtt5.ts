@@ -6,8 +6,6 @@
 /**
  * Node.js specific MQTT5 client implementation
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
- *
  * @packageDocumentation
  * @module mqtt5
  * @mergeTarget
@@ -23,10 +21,12 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import * as mqtt5 from "../common/mqtt5";
 import * as mqtt_shared from "../common/mqtt_shared";
 import {CrtError} from "./error";
+import { create_metrics_mqtt5 } from "./aws_iot_metrics";
 
 export { HttpProxyOptions } from './http';
 export * from "../common/mqtt5";
 export * from '../common/mqtt5_packet';
+export { Mqtt5ClientConfigBase } from "../common/mqtt_shared";
 
 /**
  * Websocket handshake http request transformation function signature
@@ -63,35 +63,6 @@ export interface ClientStatistics {
     unackedOperationSize : number;
 };
 
-/**
- * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
- * how operations are handled while the client is not connected.  In particular, if the client is not connected,
- * then any operation that would be failed on disconnect (according to these rules) will be rejected.
- */
-export enum ClientOperationQueueBehavior {
-
-    /** Same as FailQos0PublishOnDisconnect */
-    Default = 0,
-
-    /**
-     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
-     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
-     */
-    FailNonQos1PublishOnDisconnect = 1,
-
-    /**
-     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
-     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
-     * are requeued in original order behind any retransmissions.
-     */
-    FailQos0PublishOnDisconnect = 2,
-
-    /**
-     * All operations that are not complete at the time of disconnection are failed, except operations that
-     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
-     */
-    FailAllOnDisconnect = 3,
-}
 
 /**
  * Additional controls for client behavior with respect to operation validation and flow control; these checks
@@ -125,58 +96,15 @@ export enum ClientExtendedValidationAndFlowControl {
 /**
  * Configuration options for mqtt5 client creation.
  */
-export interface Mqtt5ClientConfig {
-
-    /**
-     * Host name of the MQTT server to connect to.
-     */
-    hostName: string;
-
-    /**
-     * Network port of the MQTT server to connect to.
-     */
-    port: number;
-
-    /**
-     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
-     */
-    sessionBehavior? : mqtt5.ClientSessionBehavior;
-
-    /**
-     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
-     * timepoints for a large set of reconnecting clients.
-     */
-    retryJitterMode? : mqtt5.RetryJitterType;
-
-    /**
-     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    minReconnectDelayMs? : number;
-
-    /**
-     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
-     * after each connection failure.
-     */
-    maxReconnectDelayMs? : number;
-
-    /**
-     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
-     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
-     */
-    minConnectedTimeToResetReconnectDelayMs? : number;
+export interface Mqtt5ClientConfig extends mqtt_shared.Mqtt5ClientConfigBase {
 
     /**
      * Time interval to wait after sending a CONNECT request for a CONNACK to arrive.  If one does not arrive, the
      * connection will be shut down.
+     *
+     * @group Node-only
      */
     connackTimeoutMs? : number;
-
-    /**
-     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
-     * connect properties will be used for every connection attempt made by the client.
-     */
-    connectProperties?: mqtt5_packet.ConnectPacket;
 
     /**
      * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
@@ -185,7 +113,7 @@ export interface Mqtt5ClientConfig {
      *
      * @group Node-only
      */
-    offlineQueueBehavior? : ClientOperationQueueBehavior;
+    offlineQueueBehavior? : mqtt5.ClientOperationQueueBehavior;
 
     /**
      * Time interval to wait after sending a PINGREQ for a PINGRESP to arrive.  If one does not arrive, the client will
@@ -202,13 +130,6 @@ export interface Mqtt5ClientConfig {
      * @group Node-only
      */
     ackTimeoutSeconds? : number;
-
-    /**
-     * Additional controls for client behavior with respect to topic alias usage.
-     *
-     * If this setting is left undefined, then topic aliasing behavior will be disabled.
-     */
-    topicAliasingOptions? : mqtt5.TopicAliasingOptions
 
     /**
      * Client bootstrap to use.  In almost all cases, this can be left undefined.
@@ -267,8 +188,6 @@ export interface Mqtt5ClientConfig {
  * * AUTH packets and the authentication fields in the CONNECT packet
  * * QoS 2
  *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
- *
  * This client is based on native resources.  When finished with the client, you must call close() to dispose of
  * them or they will leak.
  *
@@ -291,11 +210,12 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
             (client: Mqtt5Client, connack : mqtt5_packet.ConnackPacket, settings: mqtt5.NegotiatedSettings) => { Mqtt5Client._s_on_connection_success(client, connack, settings); },
             (client: Mqtt5Client, errorCode: number, connack? : mqtt5_packet.ConnackPacket) => { Mqtt5Client._s_on_connection_failure(client, new CrtError(errorCode), connack); },
             (client: Mqtt5Client, errorCode: number, disconnect? : mqtt5_packet.DisconnectPacket) => { Mqtt5Client._s_on_disconnection(client, new CrtError(errorCode), disconnect); },
-            (client: Mqtt5Client, message : mqtt5_packet.PublishPacket) => { Mqtt5Client._s_on_message_received(client, message); },
+            (client: Mqtt5Client, message : mqtt5_packet.PublishPacket, pubackControlId?: any) => { Mqtt5Client._s_on_message_received(client, message, pubackControlId); },
             config.clientBootstrap ? config.clientBootstrap.native_handle() : null,
             config.socketOptions ? config.socketOptions.native_handle() : null,
             config.tlsCtx ? config.tlsCtx.native_handle() : null,
-            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null
+            config.httpProxyOptions ? config.httpProxyOptions.create_native_handle() : null,
+            config.disableMetrics == true ? undefined : create_metrics_mqtt5(config)
         ));
     }
 
@@ -443,7 +363,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static ERROR : string = 'error';
+    static ERROR : 'error' = 'error';
 
     /**
      * Event emitted when an MQTT PUBLISH packet is received by the client.
@@ -452,7 +372,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static MESSAGE_RECEIVED : string = 'messageReceived';
+    static MESSAGE_RECEIVED : 'messageReceived' = 'messageReceived';
 
     /**
      * Event emitted when the client begins a connection attempt.
@@ -461,7 +381,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static ATTEMPTING_CONNECT : string = 'attemptingConnect';
+    static ATTEMPTING_CONNECT : 'attemptingConnect' = 'attemptingConnect';
 
     /**
      * Event emitted when the client successfully establishes an MQTT connection.  Only emitted after
@@ -471,7 +391,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static CONNECTION_SUCCESS : string = 'connectionSuccess';
+    static CONNECTION_SUCCESS : 'connectionSuccess' = 'connectionSuccess';
 
     /**
      * Event emitted when the client fails to establish an MQTT connection.  Only emitted after
@@ -481,7 +401,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static CONNECTION_FAILURE : string = 'connectionFailure';
+    static CONNECTION_FAILURE : 'connectionFailure' = 'connectionFailure';
 
     /**
      * Event emitted when the client's current connection is closed for any reason.  Only emitted after
@@ -491,7 +411,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static DISCONNECTION : string = 'disconnection';
+    static DISCONNECTION : 'disconnection' = 'disconnection';
 
     /**
      * Event emitted when the client finishes shutdown as a result of the user invoking {@link stop}.
@@ -500,7 +420,7 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
      *
      * @event
      */
-    static STOPPED : string = 'stopped';
+    static STOPPED : 'stopped' = 'stopped';
 
     /**
      * Registers a listener for the client's {@link ERROR error} event.  An {@link ERROR error} event is emitted when
@@ -662,13 +582,39 @@ export class Mqtt5Client extends NativeResourceMixin(BufferedEventEmitter) imple
         }
     }
 
-    private static _s_on_message_received(client: Mqtt5Client, message : mqtt5_packet.PublishPacket) {
+    private static _s_on_message_received(client: Mqtt5Client, message : mqtt5_packet.PublishPacket, pubackControlId? : any) {
+        let acknowledgementControl : mqtt_shared.PublishAcknowledgementHandleWrapper | undefined = undefined;
+
+        if (pubackControlId !== undefined) {
+            const controlId = pubackControlId;
+            acknowledgementControl = new mqtt_shared.PublishAcknowledgementHandleWrapper(
+                new mqtt_shared.PublishAcknowledgementHandle(() => {
+                    crt_native.mqtt5_client_invoke_publish_acknowledgement(client.native_handle(), controlId);
+                })
+            );
+        }
+
         let messageReceivedEvent: mqtt5.MessageReceivedEvent = {
             message: message
         };
 
+        if (acknowledgementControl) {
+            messageReceivedEvent.acknowledgementControl = acknowledgementControl;
+        }
+
         process.nextTick(() => {
-            client.emit(Mqtt5Client.MESSAGE_RECEIVED, messageReceivedEvent);
+            client.emitWithCallback(Mqtt5Client.MESSAGE_RECEIVED, () => {
+                /*
+                 * Even if corked, all listeners have had a chance to react to the event
+                 * and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                 */
+                if (acknowledgementControl) {
+                    const handle = acknowledgementControl.acquireHandle();
+                    if (handle) {
+                        handle.invokeAcknowledgement();
+                    }
+                }
+            }, messageReceivedEvent);
         });
     }
 }

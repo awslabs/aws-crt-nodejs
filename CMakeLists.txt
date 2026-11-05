@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.9...3.31)
+
+
 project(aws-crt-nodejs C)
 option(BUILD_DEPS "Builds aws common runtime dependencies as part of build, only do this if you don't want to control your dependency chain." ON)
 
@@ -14,21 +16,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
-if (UNIX AND NOT APPLE)
-    include(GNUInstallDirs)
-elseif(NOT DEFINED CMAKE_INSTALL_LIBDIR)
-    set(CMAKE_INSTALL_LIBDIR "lib")
-endif()
-
-if (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib64")
-    set(FIND_LIBRARY_USE_LIB64_PATHS true)
-endif()
-
-# This is required in order to append /lib/cmake to each element in CMAKE_PREFIX_PATH
-set(AWS_MODULE_DIR "/${CMAKE_INSTALL_LIBDIR}/cmake")
-string(REPLACE ";" "${AWS_MODULE_DIR};" AWS_MODULE_PATH "${CMAKE_PREFIX_PATH}${AWS_MODULE_DIR}")
-# Append that generated list to the module search path
-list(APPEND CMAKE_MODULE_PATH ${AWS_MODULE_PATH})
+include(GNUInstallDirs)
 
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/dist")
 
@@ -42,14 +30,40 @@ if (BUILD_DEPS)
     set(BUILD_TESTING OFF)
 
     add_subdirectory(crt/aws-c-common)
-    if (UNIX AND NOT APPLE)
-        set(SEARCH_LIBCRYPTO OFF)
-        set(DISABLE_GO ON)
-        set(DISABLE_PERL ON)
-        set(BUILD_LIBSSL OFF)
-        add_subdirectory(crt/aws-lc)
-        set(UNSAFE_TREAT_WARNINGS_AS_ERRORS OFF)
-        add_subdirectory(crt/s2n)
+    # On Linux and BSD, we use S2N for TLS and AWS-LC crypto.
+    # On Windows, we use the default OS libraries.
+    # Build s2n-tls and aws-lc on all Unix platforms except non-macOS Apple (iOS, tvOS).
+    # On macOS (Darwin), both Secure Transport and s2n are built; the TLS backend
+    # is selected at runtime via the AWS_CRT_USE_NON_FIPS_TLS_13 environment variable.
+    if (UNIX AND (NOT APPLE OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"))
+        include(AwsPrebuildDependency)
+        # s2n-tls uses libcrypto during its configuration, so we need to prebuild aws-lc.
+        aws_prebuild_dependency(
+            DEPENDENCY_NAME AWSLC
+            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/aws-lc
+            CMAKE_ARGUMENTS
+                -DDISABLE_GO=ON
+                -DDISABLE_PERL=ON
+                -DBUILD_LIBSSL=OFF
+                -DBUILD_TESTING=OFF
+        )
+        # On Intel Macs, Homebrew installs to /usr/local which is in the default system header
+        # search path. Without CMAKE_NO_SYSTEM_FROM_IMPORTED, s2n picks up Homebrew's OpenSSL
+        # headers instead of the bundled aws-lc headers. Not needed on ARM (/opt/homebrew)
+        # or Linux.
+        set(S2N_EXTRA_CMAKE_ARGUMENTS "")
+        if (APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+            list(APPEND S2N_EXTRA_CMAKE_ARGUMENTS -DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON)
+        endif()
+        # prebuild s2n-tls.
+        aws_prebuild_dependency(
+            DEPENDENCY_NAME S2N
+            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/crt/s2n
+            CMAKE_ARGUMENTS
+                -DUNSAFE_TREAT_WARNINGS_AS_ERRORS=OFF
+                -DBUILD_TESTING=OFF
+                ${S2N_EXTRA_CMAKE_ARGUMENTS}
+        )
     endif()
 
     add_subdirectory(crt/aws-c-sdkutils)
@@ -64,15 +78,12 @@ if (BUILD_DEPS)
 
     set(BUILD_TESTING ${BUILD_TESTING_PREV})
 else()
+    # this is required so we can use aws-c-common's CMake modules
+    find_package(aws-c-common REQUIRED)
+
     include(AwsFindPackage)
     set(IN_SOURCE_BUILD OFF)
 endif()
-
-if (POLICY CMP0069)
-    cmake_policy(SET CMP0069 NEW) # Enable LTO/IPO if available in the compiler, see AwsCFlags
-endif()
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_PREFIX_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake")
 
 include(AwsCFlags)
 include(AwsSharedLibSetup)

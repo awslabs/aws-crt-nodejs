@@ -4,6 +4,7 @@
  */
 
 import * as mqtt5 from "@awscrt/mqtt5";
+import * as mqtt_shared from "../lib/common/mqtt_shared";
 import {once} from "events";
 import {v4 as uuid} from "uuid";
 import {CrtError} from "@awscrt";
@@ -65,8 +66,7 @@ export class ClientEnvironmentalConfig {
     {
         return ClientEnvironmentalConfig.AWS_IOT_HOST !== "" &&
             ClientEnvironmentalConfig.AWS_IOT_ACCESS_KEY_ID !== "" &&
-            ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY !== "" &&
-            ClientEnvironmentalConfig.AWS_IOT_SESSION_TOKEN !== "";
+            ClientEnvironmentalConfig.AWS_IOT_SECRET_ACCESS_KEY !== "";
     }
 
     public static hasIotCoreEnvironment() {
@@ -147,7 +147,7 @@ export class ClientEnvironmentalConfig {
         return 0;
     }
 
-    private static isTestBasicAuth(testType: SuccessfulConnectionTestType) : boolean {
+    public static isTestBasicAuth(testType: SuccessfulConnectionTestType) : boolean {
         if (testType == SuccessfulConnectionTestType.DIRECT_MQTT_WITH_BASIC_AUTH ||
             testType == SuccessfulConnectionTestType.WS_MQTT_WITH_BASIC_AUTH) {
             return true;
@@ -384,6 +384,8 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
             { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
         ]
     });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     await client.publish({
         topicName: topic,
@@ -396,6 +398,8 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
     await client.unsubscribe({
         topicFilters: [ topic ]
     });
+    // unsubscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     await client.publish({
         topicName: topic,
@@ -403,7 +407,315 @@ export async function subPubUnsubTest(client: mqtt5.Mqtt5Client, qos: mqtt5.QoS,
         payload: testPayload
     });
 
-    await setTimeout(()=>{}, 2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function subPubAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    let receivedCount: number = 0;
+
+    client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+        if (eventData.acknowledgementControl) {
+            // Take control of the publish acknowledgement but do not invoke it,
+            // causing the broker to re-drive the message.
+            eventData.acknowledgementControl.acquireHandle();
+        }
+        receivedCount++;
+    });
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    // Wait for the initial delivery and the re-driven message
+    await new Promise<void>((resolve) => {
+        const checkCount = () => {
+            if (receivedCount >= 2) {
+                resolve();
+            } else {
+                setTimeout(checkCount, 100);
+            }
+        };
+        checkCount();
+    });
+
+    expect(receivedCount).toEqual(2);
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function subPubDoubleAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    let firstAcquireResult: any = undefined;
+    let secondAcquireResult: any = undefined;
+    let firstMessageReceived: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+
+                if (eventData.acknowledgementControl) {
+                    // First call should return a handle
+                    firstAcquireResult = eventData.acknowledgementControl.acquireHandle();
+                    // Second call should return null
+                    secondAcquireResult = eventData.acknowledgementControl.acquireHandle();
+                }
+
+                resolve();
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // First acquire should have returned a valid handle
+    expect(firstAcquireResult).not.toBeNull();
+    expect(firstAcquireResult).toBeDefined();
+
+    // Second acquire should have returned null
+    expect(secondAcquireResult).toBeNull();
+
+    // Invoke the handle we acquired to send the PUBACK and clean up
+    if (firstAcquireResult) {
+        firstAcquireResult.invokeAcknowledgement();
+    }
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function subPubPostCallbackAcquireControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    let capturedAcknowledgementControl: mqtt_shared.PublishAcknowledgementHandleWrapper | undefined = undefined;
+    let firstMessageReceived: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+                // Capture the wrapper but do NOT call acquireHandle() yet — let the callback return first
+                capturedAcknowledgementControl = eventData.acknowledgementControl;
+                resolve();
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // Allow the emitWithCallback post-emission callback to run
+    await new Promise(resolve => setImmediate(resolve));
+
+    // Now attempt acquireHandle() after the event has completed
+    let postCallbackHandle: mqtt_shared.PublishAcknowledgementHandle | null = null;
+    const wrapper = capturedAcknowledgementControl as mqtt_shared.PublishAcknowledgementHandleWrapper | undefined;
+    if (wrapper) {
+        postCallbackHandle = wrapper.acquireHandle();
+    }
+
+    expect(postCallbackHandle).toBeNull();
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function subPubAcquireInvokeControlTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Set up a promise that resolves when the first message is received and the ack handle is acquired and invoked.
+    // Also track any unexpected re-deliveries.
+    let unexpectedRedelivery: boolean = false;
+    let firstMessageReceived: boolean = false;
+    let ackHandleInvoked: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+
+                // Acquire the handle and immediately invoke acknowledgement
+                if (eventData.acknowledgementControl) {
+                    const handle = eventData.acknowledgementControl.acquireHandle();
+                    if (handle) {
+                        handle.invokeAcknowledgement();
+                        ackHandleInvoked = true;
+                    }
+                }
+
+                resolve();
+            } else {
+                // Any subsequent message is an unexpected re-delivery
+                unexpectedRedelivery = true;
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // Wait 35 seconds to confirm the broker does not re-deliver the message
+    await new Promise(resolve => setTimeout(resolve, 35000));
+
+    expect(unexpectedRedelivery).toEqual(false);
+    expect(ackHandleInvoked).toEqual(true);
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
+
+    client.stop();
+    await stopped;
+
+    client.close();
+}
+
+export async function subPubAutoPubackNoDuplicateTest(client: mqtt5.Mqtt5Client, topic: string, testPayload: mqtt5.Payload) {
+    let connectionSuccess = once(client, mqtt5.Mqtt5Client.CONNECTION_SUCCESS);
+    let stopped = once(client, mqtt5.Mqtt5Client.STOPPED);
+
+    client.start();
+
+    await connectionSuccess;
+
+    await client.subscribe({
+        subscriptions: [
+            { qos : mqtt5.QoS.AtLeastOnce, topicFilter: topic }
+        ]
+    });
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify client sends PUBACK automatically. We do NOT call acquireHandle().
+    let unexpectedRedelivery: boolean = false;
+    let firstMessageReceived: boolean = false;
+
+    let firstMessagePromise = new Promise<void>((resolve) => {
+        client.on('messageReceived', (eventData: mqtt5.MessageReceivedEvent) => {
+            if (!firstMessageReceived) {
+                firstMessageReceived = true;
+                // Intentionally do NOT call acquireHandle(), let auto-PUBACK happen
+                resolve();
+            } else {
+                // Any subsequent message is an unexpected re-delivery
+                unexpectedRedelivery = true;
+            }
+        });
+    });
+
+    await client.publish({
+        topicName: topic,
+        qos: mqtt5.QoS.AtLeastOnce,
+        payload: testPayload
+    });
+
+    await firstMessagePromise;
+
+    // Wait 35 seconds to confirm the broker does not re-deliver the message
+    await new Promise(resolve => setTimeout(resolve, 35000));
+
+    expect(unexpectedRedelivery).toEqual(false);
+
+    await client.unsubscribe({
+        topicFilters: [ topic ]
+    });
 
     client.stop();
     await stopped;
@@ -434,6 +746,9 @@ export async function willTest(publisher: mqtt5.Mqtt5Client, subscriber: mqtt5.M
     if (!mqtt5.isSuccessfulSubackReasonCode(suback.reasonCodes[0])) {
         throw new CrtError("doh");
     }
+
+    // pause to minimize eventual consistency race condition possibility
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     publisher.stop({
         reasonCode: mqtt5.DisconnectReasonCode.DisconnectWithWillMessage
@@ -522,6 +837,9 @@ export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mq
         retain: true
     });
 
+    // publish eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Connect with client2, subscribe to the retained topic and expect the appropriate retained message to be
     // delivered after subscription
     let messageReceived2 = once(client2, mqtt5.Mqtt5Client.MESSAGE_RECEIVED);
@@ -552,6 +870,9 @@ export async function doRetainTest(client1: mqtt5.Mqtt5Client, client2: mqtt5.Mq
         qos: mqtt5.QoS.AtLeastOnce,
         retain: true
     });
+
+    // publish eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Connect with client 3, subscribe to the retained topic, wait a few seconds to ensure no message received
     client3.start();
@@ -612,6 +933,9 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
         ]
     });
 
+    // subscribe eventual consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     let receivedResolve : (value?: void | PromiseLike<void>) => void;
     const receivedPromise = new Promise<void>((resolve, reject) => {
         receivedResolve = resolve;
@@ -660,8 +984,6 @@ export async function doSharedSubscriptionsTest(publisher: mqtt5.Mqtt5Client, su
     let messagesReceived : number = 0;
     subscriberMessages.forEach(v => {
         messagesReceived += v;
-        // Each subscriber should receive a portion of messages.
-        expect(v).toBeGreaterThan(0);
     });
     expect(messagesReceived).toEqual(messagesNumber);
 

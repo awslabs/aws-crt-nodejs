@@ -12,7 +12,6 @@
  */
 
 
-import * as platform from "./platform";
 import * as mqtt5_packet from "./mqtt5_packet";
 import * as utils from "./utils";
 
@@ -204,7 +203,7 @@ function addParam(paramName: string, paramValue: string | undefined, paramSet: [
  *
  * @internal
  */
-export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig) : string {
+export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuthConfig): string {
 
     let path : string = "";
     let paramList : [string, string][] = [];
@@ -240,9 +239,6 @@ export function buildMqtt5FinalUsername(customAuthConfig?: MqttConnectCustomAuth
             addParam("x-amz-customauthorizer-signature", customAuthConfig.tokenSignature, paramList);
         }
     }
-
-    paramList.push(["SDK", "NodeJSv2"]);
-    paramList.push(["Version", platform.crt_version()]);
 
     return (path ?? "") + "?" + paramList.map((value : [string, string]) => `${value[0]}=${value[1]}`).join("&");
 }

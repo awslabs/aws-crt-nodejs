@@ -5,8 +5,22 @@
 
 /**
  * @packageDocumentation
+ * @module mqtt_shared
+ * @mergeTarget
  */
 
+import * as event from "./event";
+import * as mqtt5 from "./mqtt5";
+import * as mqtt5_packet from "./mqtt5_packet";
+import { MqttWill } from "./mqtt";
+
+/**
+ * @internal
+ */
+export enum ProtocolMode {
+    Mqtt311,
+    Mqtt5
+}
 
 /**
  * Converts payload to Buffer or string regardless of the supplied type
@@ -43,5 +57,320 @@ export function normalize_payload(payload: any): Buffer | string {
     throw new TypeError("payload parameter must be a string, object, or DataView.");
 }
 
+
+
+/**
+ * SDK name used for metrics and identification
+ * @internal
+ */
+export const SDK_NAME : string = "IoTDeviceSDK/JS";
+
+/**
+ * IoT Device SDK Metrics Structure
+ */
+export class AWSIoTMetrics {
+    /**
+     * Name of the library
+     */
+    libraryName: string = SDK_NAME;
+
+    metadata: [string, string][] = new Array<[string, string]> ;
+}
+
 /** @internal */
 export const DEFAULT_KEEP_ALIVE : number = 1200;
+
+/** @internal */
+export const MAXIMUM_VARIABLE_LENGTH_INTEGER : number= 268435455;
+
+/** @internal */
+export const MAXIMUM_PACKET_SIZE : number = 5 + MAXIMUM_VARIABLE_LENGTH_INTEGER;
+
+/** @internal */
+export const DEFAULT_RECEIVE_MAXIMUM : number = 65535;
+
+/**
+ * Base configuration options shared by all MQTT connections.
+ *
+ * This interface contains the common configuration properties used by both
+ * browser and native MQTT client connections. Platform-specific implementations
+ * extend this interface with additional properties.
+ *
+ * @category MQTT
+ */
+export interface MqttConnectionConfigBase {
+    /**
+     * ID to place in CONNECT packet. Must be unique across all devices/clients.
+     * If an ID is already in use, the other client will be disconnected.
+     */
+    client_id: string;
+
+    /** Server name to connect to */
+    host_name: string;
+
+    /** Server port to connect to */
+    port: number;
+
+    /**
+     * Whether or not to start a clean session with each reconnect.
+     * If True, the server will forget all subscriptions with each reconnect.
+     * Set False to request that the server resume an existing session
+     * or start a new session that may be resumed after a connection loss.
+     * The `session_present` bool in the connection callback informs
+     * whether an existing session was successfully resumed.
+     * If an existing session is resumed, the server remembers previous subscriptions
+     * and sends messages (with QoS1 or higher) that were published while the client was offline.
+     */
+    clean_session?: boolean;
+
+    /**
+     * The keep alive value, in seconds, to send in CONNECT packet.
+     * A PING will automatically be sent at this interval.
+     * The server will assume the connection is lost if no PING is received after 1.5X this value.
+     * This duration must be longer than {@link ping_timeout}.
+     */
+    keep_alive?: number;
+
+    /**
+     * Milliseconds to wait for ping response before client assumes
+     * the connection is invalid and attempts to reconnect.
+     * This duration must be shorter than keep_alive_secs.
+     * Alternatively, TCP keep-alive via :attr:`SocketOptions.keep_alive`
+     * may accomplish this in a more efficient (low-power) scenario,
+     * but keep-alive options may not work the same way on every platform and OS version.
+     */
+    ping_timeout?: number;
+
+    /**
+     * Milliseconds to wait for the response to the operation requires response by protocol.
+     * Set to zero to disable timeout. Otherwise, the operation will fail if no response is
+     * received within this amount of time after the packet is written to the socket.
+     * It applied to PUBLISH (QoS>0) and UNSUBSCRIBE now.
+     */
+    protocol_operation_timeout?: number;
+
+    /**
+     * Minimum seconds to wait between reconnect attempts.
+     * Must be <= {@link reconnect_max_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_min_sec?: number;
+
+    /**
+     * Maximum seconds to wait between reconnect attempts.
+     * Must be >= {@link reconnect_min_sec}.
+     * Wait starts at min and doubles with each attempt until max is reached.
+     */
+    reconnect_max_sec?: number;
+
+    /**
+     * Will to send with CONNECT packet. The will is
+     * published by the server when its connection to the client is unexpectedly lost.
+     */
+    will?: MqttWill;
+
+    /** Username to connect with */
+    username?: string;
+
+    /** Password to connect with */
+    password?: string;
+
+    /** Disable Aws IoT SDK Metrics. The metrics includes SDK name, version, and platform.*/
+    disable_metrics?: boolean;
+
+    /**
+     * Optional metrics configuration for IoT SDK metrics reporting.
+     * If provided, the CRT will merge with CRT-generated metrics.
+     * If undefined, default metrics will be created.
+     */
+    metrics?: AWSIoTMetrics;
+
+}
+
+export type PublishAcknowledgementFunctor = () => void;
+
+/**
+ * Wrapper class containing a one-use singleton handle that can be used to trigger sending the acknowledgement (Puback in
+ * QoS 1, Pubrec in QoS 2) packet for an incoming publish.
+ */
+export class PublishAcknowledgementHandleWrapper {
+
+    private ackHandle : PublishAcknowledgementHandle | null;
+
+    constructor(handle : PublishAcknowledgementHandle | null) {
+        this.ackHandle = handle;
+    }
+
+    /**
+     * Attempt to take the acknowledgement handle held by the wrapper.  This will only succeed for the first caller;
+     * after the initial call, null will be returned.  By taking the handle, the caller assumes responsibility
+     * for sending the acknowledgement packet associated with the incoming publish packet.  Failing to trigger the
+     * acknowledgement will cause the broker to potentially re-send the publish.
+     */
+    acquireHandle() : PublishAcknowledgementHandle | null {
+        let handle = this.ackHandle;
+        this.ackHandle = null;
+
+        return handle;
+    }
+}
+
+function movePublishAcknowledgementHandleWrapper(wrapper: PublishAcknowledgementHandleWrapper | undefined, compositionFunctor?: PublishAcknowledgementFunctor) : PublishAcknowledgementHandleWrapper | undefined {
+    if (wrapper) {
+        let handle = wrapper.acquireHandle();
+        if (compositionFunctor && handle) {
+            let interiorHandle = handle;
+            handle = new PublishAcknowledgementHandle(() => {
+                interiorHandle.invokeAcknowledgement();
+                compositionFunctor();
+            });
+        }
+
+        return new PublishAcknowledgementHandleWrapper(handle);
+    }
+
+    return undefined;
+}
+
+/** @internal */
+export function emitAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    ackHandleWrapper = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
+    if (ackHandleWrapper) {
+        (ackEventPayload as any)[wrapperFieldName] = ackHandleWrapper;
+        emitter.emitWithCallback(ackEvent, () => {
+            if (ackHandleWrapper) {
+                let handle = ackHandleWrapper.acquireHandle();
+                if (handle) {
+                    // Even if corked, all listeners have had a chance to react to the event
+                    // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                    handle.invokeAcknowledgement();
+                }
+            }
+        }, ackEventPayload);
+    } else {
+        emitter.emit(ackEvent, ackEventPayload);
+    }
+}
+
+/** @internal */
+export function queueAcknowledgeableEvent<T>(emitter: event.BufferedEventEmitter, ackEvent: string, ackEventPayload: T, wrapperFieldName: string, ackHandleWrapper?: PublishAcknowledgementHandleWrapper, compositionFunctor?: PublishAcknowledgementFunctor) : void {
+    let wrapper : PublishAcknowledgementHandleWrapper | undefined = movePublishAcknowledgementHandleWrapper(ackHandleWrapper, compositionFunctor);
+
+    queueMicrotask(() => {
+        if (wrapper) {
+            (ackEventPayload as any)[wrapperFieldName] = wrapper;
+            emitter.emitWithCallback(ackEvent, () => {
+                if (wrapper) {
+                    let handle = wrapper.acquireHandle();
+                    if (handle) {
+                        // Even if corked, all listeners have had a chance to react to the event
+                        // and acquire the acknowledgement handle if they wanted to.  If no one did so, then we do it ourselves.
+                        handle.invokeAcknowledgement();
+                    }
+                }
+            }, ackEventPayload);
+        } else {
+            emitter.emit(ackEvent, ackEventPayload);
+        }
+    });
+}
+
+/**
+ * Object that allows the holder to trigger the acknowledgement for an associated publish packet.
+ */
+export class PublishAcknowledgementHandle {
+
+    private acknowledgementFunction? : PublishAcknowledgementFunctor;
+
+    constructor(acknowledgementFunction : PublishAcknowledgementFunctor) {
+        this.acknowledgementFunction = acknowledgementFunction;
+    }
+
+    /**
+     * trigger the acknowledgement for an associated Publish packet
+     */
+    invokeAcknowledgement() : void {
+        let acknowledgementFunction = this.acknowledgementFunction;
+        this.acknowledgementFunction = undefined;
+        if (acknowledgementFunction) {
+            acknowledgementFunction();
+        }
+    }
+}
+
+/**
+ * Base configuration options shared by all MQTT5 clients.
+ *
+ * This interface contains the common configuration properties used by both
+ * browser and native MQTT5 client implementations. Platform-specific implementations
+ * extend this interface with additional properties.
+ *
+ * @category MQTT5
+ */
+export interface Mqtt5ClientConfigBase {
+
+    /**
+     * Host name of the MQTT server to connect to.
+     */
+    hostName: string;
+
+    /**
+     * Network port of the MQTT server to connect to.
+     */
+    port: number;
+
+    /**
+     * Controls how the MQTT5 client should behave with respect to MQTT sessions.
+     */
+    sessionBehavior? : mqtt5.ClientSessionBehavior;
+
+    /**
+     * Controls how the reconnect delay is modified in order to smooth out the distribution of reconnection attempt
+     * timepoints for a large set of reconnecting clients.
+     */
+    retryJitterMode? : mqtt5.RetryJitterType;
+
+    /**
+     * Minimum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
+     * after each connection failure.
+     */
+    minReconnectDelayMs? : number;
+
+    /**
+     * Maximum amount of time to wait to reconnect after a disconnect.  Exponential backoff is performed with jitter
+     * after each connection failure.
+     */
+    maxReconnectDelayMs? : number;
+
+    /**
+     * Amount of time that must elapse with an established connection before the reconnect delay is reset to the minimum.
+     * This helps alleviate bandwidth-waste in fast reconnect cycles due to permission failures on operations.
+     */
+    minConnectedTimeToResetReconnectDelayMs? : number;
+
+    /**
+     * All configurable options with respect to the CONNECT packet sent by the client, including the will.  These
+     * connect properties will be used for every connection attempt made by the client.
+     */
+    connectProperties?: mqtt5_packet.ConnectPacket;
+
+    /**
+     * Additional controls for client behavior with respect to topic alias usage.
+     *
+     * If this setting is left undefined, then topic aliasing behavior will be disabled.
+     */
+    topicAliasingOptions? : mqtt5.TopicAliasingOptions;
+
+    /**
+     * Options for disable Aws IoT Metrics. The metrics includes SDK name, version, and platform.
+     */
+    disableMetrics? : boolean;
+
+    /**
+     * Optional metrics configuration for IoT SDK metrics reporting.
+     * If provided, the CRT will merge with CRT-generated metrics.
+     * If undefined, default metrics will be created.
+     */
+    metrics?: AWSIoTMetrics;
+}
+

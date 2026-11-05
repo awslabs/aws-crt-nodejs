@@ -16,6 +16,7 @@ import {CrtError} from "./error";
 import * as iot_shared from "../common/aws_iot_shared";
 import * as http from "./http";
 import * as mqtt_shared from "../common/mqtt_shared";
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 export { MqttConnectCustomAuthConfig } from '../common/aws_iot_shared';
 
@@ -43,8 +44,6 @@ export interface WebsocketSigv4Config {
 /**
  * Builder pattern class to create an {@link mqtt5.Mqtt5ClientConfig} which can then be used to create
  * an {@link mqtt5.Mqtt5Client}, configured for use with AWS IoT.
- *
- * [MQTT5 Client User Guide](https://www.github.com/awslabs/aws-crt-nodejs/blob/main/MQTT5-UserGuide.md)
  *
  * @category IoT
  */
@@ -292,6 +291,16 @@ export class AwsIotMqtt5ClientConfigBuilder {
     }
 
     /**
+     * Configures which TLS cipher preference should be used when establishing connections
+     *
+     * @param tlsCipherPreference cipher preference to use
+     */
+    withTlsCipherPreference(tlsCipherPreference: io.TlsCipherPreference) : AwsIotMqtt5ClientConfigBuilder {
+        this.tlsContextOptions.tls_cipher_preference = tlsCipherPreference;
+        return this;
+    }
+
+    /**
      * Overrides the IoT endpoint port to connect to.
      *
      * @param port The IoT endpoint port to connect to. Usually 8883 for MQTT, or 443 for websockets
@@ -485,6 +494,14 @@ export class AwsIotMqtt5ClientConfigBuilder {
             if (this.customAuthConfig?.password) {
                 this.config.connectProperties.password = this.customAuthConfig?.password;
             }
+        }
+
+        // Populate SDK identity metrics if not disabled and not already set.
+        // The registered factory (if any) is supplied by the upstream IoT device
+        // SDK at module load. Without one, this.config.metrics stays undefined and
+        // the encoder will produce CRT-only feature metrics with no IoTSDKVersion.
+        if (!this.config.disableMetrics && !this.config.metrics) {
+            this.config.metrics = _buildSdkMetrics();
         }
 
         return this.config;

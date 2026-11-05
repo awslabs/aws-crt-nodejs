@@ -27,8 +27,10 @@ struct aws_http_connection_manager *aws_napi_get_http_connection_manager(
 
 static void s_http_connection_manager_finalize(napi_env env, void *finalize_data, void *finalize_hint) {
     (void)finalize_hint;
-    (void)env;
     struct http_connection_manager_binding *binding = finalize_data;
+    if (binding->node_external != NULL) {
+        napi_delete_reference(env, binding->node_external);
+    }
     aws_mem_release(binding->allocator, binding);
 }
 

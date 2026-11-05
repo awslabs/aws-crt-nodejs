@@ -21,9 +21,10 @@
 
 import crt_native from './binding';
 import { NativeResource } from "./native_resource";
-import { TlsVersion, SocketType, SocketDomain } from '../common/io';
+import { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { Readable } from 'stream';
-export { TlsVersion, SocketType, SocketDomain } from '../common/io';
+// Do not re-export the logging functions in common; they are package-private
+export { setLogLevel, LogLevel, TlsVersion, SocketType, SocketDomain } from '../common/io';
 import { CrtError } from './error';
 
 /**
@@ -57,27 +58,6 @@ export function error_code_to_name(error_code: number): string {
 }
 
 /**
- * The amount of detail that will be logged
- * @category Logging
- */
-export enum LogLevel {
-    /** No logging whatsoever. Equivalent to never calling {@link enable_logging}. */
-    NONE = 0,
-    /** Only fatals. In practice, this will not do much, as the process will log and then crash (intentionally) if a fatal condition occurs */
-    FATAL = 1,
-    /** Only errors */
-    ERROR = 2,
-    /** Only warnings and errors */
-    WARN = 3,
-    /** Information about connection/stream creation/destruction events */
-    INFO = 4,
-    /** Enough information to debug the chain of events a given network connection encounters */
-    DEBUG = 5,
-    /** Everything. Only use this if you really need to know EVERY single call */
-    TRACE = 6
-}
-
-/**
  * Enables logging of the native AWS CRT libraries.
  * @param level - The logging level to filter to. It is not possible to log less than WARN.
  *
@@ -86,6 +66,7 @@ export enum LogLevel {
  */
 export function enable_logging(level: LogLevel) {
     crt_native.io_logging_enable(level);
+    setLogLevel(level);
 }
 
 /**
@@ -177,6 +158,69 @@ export interface Pkcs12Options {
 }
 
 /**
+ * Certificate source tracking.
+ * Tracks how the TLS context was created for metrics reporting.
+ * JAVA_KEY_STORE = 3 is reserved for Java Key Store
+ * @internal
+ */
+export enum CertificateSource {
+    CERTIFICATE_FILES = 0,
+    PKCS11 = 1,
+    WINDOWS_CERT_STORE = 2,
+    PKCS12_FILE = 4,
+}
+
+/**
+ * Each TlsCipherPreference represents an ordered list of TLS Ciphers to use when negotiating a TLS Connection. At
+ * present, the ability to configure arbitrary orderings of TLS Ciphers is not allowed, and only a curated list of
+ * vetted TlsCipherPref's are exposed.
+ */
+export enum TlsCipherPreference {
+
+    /**
+     * The underlying platform's default TLS Cipher Preference ordering. This is usually the best option, as it will be
+     * automatically updated as the underlying OS or platform changes, and will always be supported on all platforms.
+     */
+    Default = 0,
+
+    /**
+     * A TLS Cipher Preference ordering that supports TLS 1.0 through TLS 1.3, and has Kyber Round 3 as its highest
+     * priority post-quantum key exchange algorithm. PQ algorithms in this preference list will always be used in hybrid
+     * mode, and will be combined with a classical ECDHE key exchange that is performed in addition to the PQ key
+     * exchange. This preference makes a best-effort to negotiate a PQ algorithm, but if the peer does not support any
+     * PQ algorithms the TLS connection will fall back to a single classical algorithm for key exchange (such as ECDHE
+     * or RSA).
+     * NIST has announced that they plan to eventually standardize Kyber. However, the NIST standardization process might
+     * introduce minor changes that could cause the final Kyber standard to differ from the Kyber Round 3 implementation
+     * available in this preference list.
+     */
+    PQ_TLSv1_0_2021_05 = 6,
+
+    /**
+     * Recommended default policy with post-quantum algorithm support. This policy may change over time.
+     */
+    PQ_Default = 8,
+
+    /**
+     * A TLS Cipher Preference ordering that supports TLS 1.2 through TLS 1.3, and does not include CBC cipher suites.
+     * It is FIPS-complaint.
+     */
+    TLSv1_2_2025_07 = 9
+}
+
+/**
+ * Returns true if the supplied TlsCipherPreference is supported on the current platform, false otherwise.
+ *
+ * @param tls_cipher_preference - cipher preference to check support for
+ *
+ * nodejs only.
+ * @category TLS
+ */
+export function tls_cipher_preference_is_supported(tls_cipher_preference: TlsCipherPreference) : boolean {
+    return crt_native.io_tls_cipher_preference_is_supported(tls_cipher_preference);
+}
+
+/**
  * Options for creating a {@link ClientTlsContext} or {@link ServerTlsContext}.
  *
  * nodejs only.
@@ -209,6 +253,14 @@ export class TlsContextOptions {
     public pkcs11_options?: TlsContextOptions.Pkcs11Options;
     /** Path to certificate in a Windows cert store. Windows only. */
     public windows_cert_store_path?: string;
+    /** TLS cipher preferences; Linux only */
+    public tls_cipher_preference?: TlsCipherPreference;
+
+    /**
+     * Tracks how the TLS context was created, for metrics reporting.
+     * @internal
+     */
+    public certificate_source?: CertificateSource;
 
     /**
      * In client mode, this turns off x.509 validation. Don't do this unless you are testing.
@@ -219,6 +271,21 @@ export class TlsContextOptions {
      * set this to true.
      */
     public verify_peer: boolean = true;
+
+    /**
+     * Set to true to disable certificate revocation checking during TLS negotiation.
+     * 
+     * On Windows (SChannel), this prevents the TLS handshake from making outbound network calls
+     * to CRL/OCSP revocation endpoints, which can block for minutes when the endpoints are unreachable
+     * (e.g., in private subnets without internet access).
+     *
+     * On Linux (s2n), this disables validation of OCSP stapled responses provided by the server.
+     *
+     * On Apple platforms, this is a no-op as revocation checking is not enabled by default.
+     * 
+     * Default is false (revocation checking enabled where available).
+     */
+    public no_certificate_revocation: boolean = false;
 
     /**
      * Overrides the default system trust store.
@@ -252,6 +319,7 @@ export class TlsContextOptions {
         opt.certificate = certificate;
         opt.private_key = private_key;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.CERTIFICATE_FILES;
         return opt;
     }
 
@@ -268,6 +336,7 @@ export class TlsContextOptions {
         opt.certificate_filepath = certificate_filepath;
         opt.private_key_filepath = private_key_filepath;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.CERTIFICATE_FILES;
         return opt;
     }
 
@@ -284,6 +353,7 @@ export class TlsContextOptions {
         opt.pkcs12_filepath = pkcs12_filepath;
         opt.pkcs12_password = pkcs12_password;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.PKCS12_FILE;
         return opt;
     }
 
@@ -308,6 +378,7 @@ export class TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.pkcs11_options = options;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.PKCS11;
         return opt;
     }
 
@@ -325,6 +396,7 @@ export class TlsContextOptions {
         let opt = new TlsContextOptions();
         opt.windows_cert_store_path = certificate_path;
         opt.verify_peer = true;
+        opt.certificate_source = CertificateSource.WINDOWS_CERT_STORE;
         return opt;
     }
 
@@ -428,6 +500,13 @@ export namespace TlsContextOptions {
  * @category TLS
  */
 export abstract class TlsContext extends NativeResource {
+    /** Certificate source used to create this TLS context, for metrics tracking. @internal */
+    readonly certificate_source?: CertificateSource;
+    /** TLS cipher preference configured on this context, for metrics tracking. @internal */
+    readonly tls_cipher_preference?: TlsCipherPreference;
+    /** Minimum TLS version configured on this context, for metrics tracking. @internal */
+    readonly min_tls_version?: TlsVersion;
+
     constructor(ctx_opt: TlsContextOptions) {
         if (ctx_opt == null || ctx_opt == undefined) {
             throw new CrtError("TlsContext constructor: ctx_opt not defined");
@@ -446,7 +525,12 @@ export abstract class TlsContext extends NativeResource {
             ctx_opt.pkcs12_password,
             ctx_opt.pkcs11_options,
             ctx_opt.windows_cert_store_path,
-            ctx_opt.verify_peer));
+            ctx_opt.tls_cipher_preference,
+            ctx_opt.verify_peer,
+            ctx_opt.no_certificate_revocation));
+        this.certificate_source = ctx_opt.certificate_source;
+        this.tls_cipher_preference = ctx_opt.tls_cipher_preference;
+        this.min_tls_version = ctx_opt.min_tls_version;
     }
 }
 

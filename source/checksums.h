@@ -9,5 +9,6 @@
 
 napi_value aws_napi_checksums_crc32(napi_env env, napi_callback_info info);
 napi_value aws_napi_checksums_crc32c(napi_env env, napi_callback_info info);
+napi_value aws_napi_checksums_crc64nvme(napi_env env, napi_callback_info info);
 
 #endif /* AWS_CRT_NODEJS_CHECKSUMS_H */

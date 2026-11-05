@@ -13,7 +13,6 @@ import { MqttClientConnection, MqttConnectionConfig, MqttWill} from "./mqtt";
 import { DEFAULT_RECONNECT_MIN_SEC, DEFAULT_RECONNECT_MAX_SEC} from "../common/mqtt"
 import * as io from "./io";
 import { TlsContextOptions } from "./io";
-import * as platform from '../common/platform';
 import { HttpProxyOptions } from "./http";
 import { WebsocketOptionsBase } from "../common/auth";
 import { CrtError } from "./error";
@@ -27,6 +26,7 @@ import {
     AwsSigningConfig
 } from "./auth";
 import * as iot_shared from "../common/aws_iot_shared"
+import { _buildSdkMetrics } from "./aws_iot_metrics";
 
 /**
  * Websocket-specific mqtt connection configuration options
@@ -267,6 +267,16 @@ export class AwsIotMqttConnectionConfigBuilder {
     }
 
     /**
+     * Configures which TLS cipher preference should be used when establishing connections
+     *
+     * @param tls_cipher_preference cipher preference to use
+     */
+    with_tls_cipher_preference(tls_cipher_preference: io.TlsCipherPreference) : AwsIotMqttConnectionConfigBuilder {
+        this.tls_ctx_options.tls_cipher_preference = tls_cipher_preference;
+        return this;
+    }
+
+    /**
      * Configures the IoT endpoint for this connection
      * @param endpoint The IoT endpoint to connect to
      */
@@ -441,7 +451,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * Configure the max reconnection period (in second). The reonnection period will
      * be set in range of [reconnect_min_sec,reconnect_max_sec].
-     * @param reconnect_max_sec max reconnection period
+     * @param max_sec max reconnection period
      */
     with_reconnect_max_sec(max_sec: number) {
         this.params.reconnect_max_sec = max_sec;
@@ -451,7 +461,7 @@ export class AwsIotMqttConnectionConfigBuilder {
     /**
      * Configure the min reconnection period (in second). The reonnection period will
      * be set in range of [reconnect_min_sec,reconnect_max_sec].
-     * @param reconnect_min_sec min reconnection period
+     * @param min_sec min reconnection period
      */
     with_reconnect_min_sec(min_sec: number) {
         this.params.reconnect_min_sec = min_sec;
@@ -494,17 +504,13 @@ export class AwsIotMqttConnectionConfigBuilder {
             this.params.tls_ctx = new io.ClientTlsContext(this.tls_ctx_options);
         }
 
-        // Add the metrics string
-        if (iot_shared.is_string_and_not_empty(this.params.username) == false) {
-            this.params.username = "?SDK=NodeJSv2&Version="
-        } else {
-            if (this.params.username?.indexOf("?") != -1) {
-                this.params.username += "&SDK=NodeJSv2&Version="
-            } else {
-                this.params.username += "?SDK=NodeJSv2&Version="
-            }
+        // Populate SDK identity metrics if not disabled and not already set.
+        // The registered factory (if any) is supplied by the upstream IoT device
+        // SDK at module load. Without one, this.params.metrics stays undefined and
+        // the encoder will produce CRT-only feature metrics with no IoTSDKVersion.
+        if (!this.params.disable_metrics && !this.params.metrics) {
+            this.params.metrics = _buildSdkMetrics();
         }
-        this.params.username += platform.crt_version()
 
         return this.params;
     }

@@ -1,0 +1,17 @@
+version: 0.2
+phases:
+  install:
+    commands:
+  build:
+    commands:
+      - mkdir linux-arm64-musl
+      - cd aws-crt-nodejs
+      - ./continuous-delivery/generic-linux-build.sh aws-crt-alpine-3.16-arm64
+      - cp -r dist/bin/linux-arm64-musl/* ../linux-arm64-musl/
+
+  post_build:
+    commands:
+
+artifacts:
+  files:
+    - 'linux-arm64-musl/**/*'
