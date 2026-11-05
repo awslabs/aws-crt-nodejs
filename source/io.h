@@ -38,6 +38,11 @@ napi_value aws_napi_io_client_bootstrap_new(napi_env env, napi_callback_info inf
 struct aws_client_bootstrap *aws_napi_get_client_bootstrap(struct client_bootstrap_binding *binding);
 
 /**
+ * Checks if the native implementation supports a specific cipher preference.
+ */
+napi_value aws_napi_io_tls_cipher_preference_is_supported(napi_env env, napi_callback_info info);
+
+/**
  * Create a new aws_tls_ctx to be managed by a napi_external.
  */
 napi_value aws_napi_io_tls_ctx_new(napi_env env, napi_callback_info info);

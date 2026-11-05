@@ -9,6 +9,7 @@
  */
 
 import * as mqtt5_packet from "./mqtt5_packet";
+import * as mqtt_shared from "../common/mqtt_shared";
 import { ICrtError } from "./error";
 
 /**
@@ -218,6 +219,36 @@ export enum InboundTopicAliasBehaviorType {
 }
 
 /**
+ * Controls how disconnects affect the queued and in-progress operations tracked by the client.  Also controls
+ * how operations are handled while the client is not connected.  In particular, if the client is not connected,
+ * then any operation that would be failed on disconnect (according to these rules) will be rejected.
+ */
+export enum ClientOperationQueueBehavior {
+
+    /** Same as FailQos0PublishOnDisconnect */
+    Default = 0,
+
+    /**
+     * Re-queues QoS 1+ publishes on disconnect; un-acked publishes go to the front while unprocessed publishes stay
+     * in place.  All other operations (QoS 0 publishes, subscribe, unsubscribe) are failed.
+     */
+    FailNonQos1PublishOnDisconnect = 1,
+
+    /**
+     * QoS 0 publishes that are not complete at the time of disconnection are failed.  Un-acked QoS 1+ publishes are
+     * re-queued at the head of the line for immediate retransmission on a session resumption.  All other operations
+     * are requeued in original order behind any retransmissions.
+     */
+    FailQos0PublishOnDisconnect = 2,
+
+    /**
+     * All operations that are not complete at the time of disconnection are failed, except operations that
+     * the MQTT5 spec requires to be retransmitted (un-acked QoS1+ publishes).
+     */
+    FailAllOnDisconnect = 3,
+}
+
+/**
  * Configuration for all client topic aliasing behavior.
  */
 export interface TopicAliasingOptions {
@@ -339,6 +370,15 @@ export interface MessageReceivedEvent {
      * PUBLISH packet received from the server
      */
     message: mqtt5_packet.PublishPacket;
+
+    /**
+     * Allows the event recipient to take control of when the Publish packet's acknowledgement
+     * packet is sent.  If the acknowledgement handle is not acquired by an event listener during the emission
+     * process, the client will automatically send the acknowledgement itself.
+     *
+     * Undefined if this publish is not acknowledgeable (QoS 0).
+     */
+    acknowledgementControl?: mqtt_shared.PublishAcknowledgementHandleWrapper;
 }
 
 /**
@@ -431,7 +471,7 @@ export interface IMqtt5Client {
      * This is an asynchronous operation.  Once the process completes, no further events will be emitted until the client
      * has {@link start} invoked.
      *
-     * @param disconnectPacket (optional) properties of a DISCONNECT packet to send as part of the shutdown process
+     * @param packet (optional) properties of a DISCONNECT packet to send as part of the shutdown process
      */
     stop(packet?: mqtt5_packet.DisconnectPacket) : void;
 

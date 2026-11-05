@@ -12,6 +12,7 @@ export class AWS_IOT_ENV {
     // ====================
 
     public static MQTT5_HOST = process.env.AWS_TEST_MQTT5_IOT_CORE_HOST ?? "";
+    public static MQTT5_TLS13_HOST = process.env.AWS_TEST_MQTT5_IOT_CORE_TLS13_HOST ?? "";
     public static MQTT5_REGION = process.env.AWS_TEST_MQTT5_IOT_CORE_REGION ?? "";
 
     public static MQTT5_RSA_CERT = process.env.AWS_TEST_MQTT5_IOT_CORE_RSA_CERT ?? "";
@@ -108,8 +109,7 @@ export class AWS_IOT_ENV {
         return AWS_IOT_ENV.MQTT5_HOST !== "" &&
             AWS_IOT_ENV.MQTT5_REGION !== "" &&
             AWS_IOT_ENV.MQTT5_CRED_ACCESS_KEY !== "" &&
-            AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY !== "" &&
-            AWS_IOT_ENV.MQTT5_CRED_SESSION_TOKEN !== "";
+            AWS_IOT_ENV.MQTT5_CRED_SECRET_ACCESS_KEY !== "";
     }
 
     public static mqtt5_is_valid_cognito() {
@@ -126,6 +126,12 @@ export class AWS_IOT_ENV {
             AWS_IOT_ENV.MQTT5_X509_KEY !== "" &&
             AWS_IOT_ENV.MQTT5_X509_ROLE_ALIAS !== "" &&
             AWS_IOT_ENV.MQTT5_X509_THING_NAME !== "";
+    }
+
+    public static mqtt5_is_valid_tls13() {
+        return AWS_IOT_ENV.MQTT5_TLS13_HOST !== "" &&
+            AWS_IOT_ENV.MQTT5_RSA_CERT !== "" &&
+            AWS_IOT_ENV.MQTT5_RSA_KEY !== "";
     }
 
     // ====================
@@ -343,4 +349,8 @@ export class AWS_IOT_ENV {
     public static AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID ?? "";
     public static AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY ?? "";
 
+}
+
+export async function sleep(millis: number) {
+    await new Promise(resolve => setTimeout(resolve, millis));
 }

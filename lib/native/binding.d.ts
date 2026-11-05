@@ -19,6 +19,8 @@ import * as mqtt5_packet from "../common/mqtt5_packet";
 import { PublishCompletionResult } from "../common/mqtt5";
 import * as eventstream from "./eventstream";
 import { ConnectionStatistics } from "./mqtt";
+import * as mqtt_request_response from "../native/mqtt_request_response";
+import * as mqtt_shared from "../common/mqtt_shared";
 
 
 /**
@@ -54,6 +56,10 @@ export function is_alpn_available(): boolean;
 export function io_client_bootstrap_new(): NativeHandle;
 /* wraps aws_tls_context #TODO: Wrap with ClassBinder */
 /** @internal */
+export function io_tls_cipher_preference_is_supported(
+    tls_cipher_policy: number,
+): boolean;
+/** @internal */
 export function io_tls_ctx_new(
     min_tls_version: number,
     ca_filepath?: StringLike,
@@ -68,7 +74,9 @@ export function io_tls_ctx_new(
     pkcs12_password?: StringLike,
     pkcs11_options?: TlsContextOptions.Pkcs11Options,
     windows_cert_store_path?: StringLike,
+    tls_cipher_policy?: number,
     verify_peer?: boolean,
+    no_certificate_revocation?: boolean,
 ): NativeHandle;
 /* wraps aws_tls_connection_options #TODO: Wrap with ClassBinder */
 /** @internal */
@@ -142,6 +150,45 @@ export function hmac_sha256_compute(secret: StringLike, data: StringLike, trunca
 export function checksums_crc32(data: StringLike, previous?: number): number;
 /** @internal */
 export function checksums_crc32c(data: StringLike, previous?: number): number;
+/** @internal */
+export function checksums_crc64nvme(data: StringLike, previous?: DataView): DataView;
+
+/* MQTT Request-Response Client */
+
+/** @internal */
+export function mqtt_request_response_client_new_from_5(
+    client: mqtt_request_response.RequestResponseClient,
+    protocolClient: NativeHandle,
+    options: mqtt_request_response.RequestResponseClientOptions
+): NativeHandle;
+
+/** @internal */
+export function mqtt_request_response_client_new_from_311(
+    client: mqtt_request_response.RequestResponseClient,
+    protocolClient: NativeHandle,
+    options: mqtt_request_response.RequestResponseClientOptions
+): NativeHandle;
+
+/** @internal */
+export function mqtt_request_response_client_close(client: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_request_response_client_submit_request(client: NativeHandle, request_options: mqtt_request_response.RequestResponseOperationOptions, on_completion: (errorCode: number, topic?: string, response?: ArrayBuffer) => void) : void;
+
+/** @internal */
+export function mqtt_streaming_operation_new(
+    operation: mqtt_request_response.StreamingOperationBase,
+    client: NativeHandle,
+    options: mqtt_request_response.StreamingOperationOptions,
+    on_subscription_status_update_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, type: mqtt_request_response.SubscriptionStatusEventType, error_code: number) => void,
+    on_incoming_publish_handler: (streamingOperation: mqtt_request_response.StreamingOperationBase, publishEvent: mqtt_request_response.IncomingPublishEvent) => void,
+): NativeHandle;
+
+/** @internal */
+export function mqtt_streaming_operation_open(operation: NativeHandle) : void;
+
+/** @internal */
+export function mqtt_streaming_operation_close(operation: NativeHandle) : void;
 
 /* MQTT5 Client */
 
@@ -154,11 +201,12 @@ export function mqtt5_client_new(
     on_connection_success_handler: (client: Mqtt5Client, connack: mqtt5_packet.ConnackPacket, settings: NegotiatedSettings) => void,
     on_connection_failure_handler: (client: Mqtt5Client, errorCode: number, connack?: mqtt5_packet.ConnackPacket) => void,
     on_disconnection_handler: (client: Mqtt5Client, errorCode: number, disconnect?: mqtt5_packet.DisconnectPacket) => void,
-    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket) => void,
+    on_message_received_handler: (client: Mqtt5Client, message: mqtt5_packet.PublishPacket, pubackControlId?: any) => void,
     client_bootstrap?: NativeHandle,
     socket_options?: NativeHandle,
     tls_ctx?: NativeHandle,
     proxy_options?: NativeHandle,
+    metrics? : mqtt_shared.AWSIoTMetrics
 ): NativeHandle;
 
 /** @internal */
@@ -178,6 +226,9 @@ export function mqtt5_client_publish(client: NativeHandle, publish_packet: mqtt5
 
 /** @internal */
 export function mqtt5_client_get_queue_statistics(client: NativeHandle) : ClientStatistics;
+
+/** @internal */
+export function mqtt5_client_invoke_publish_acknowledgement(client: NativeHandle, pubackControlId: NativeHandle) : void;
 
 /** @internal */
 export function mqtt5_client_close(client: NativeHandle) : void;
@@ -206,6 +257,7 @@ export function mqtt_client_connection_new(
     websocket_handshake_transform?: (request: HttpRequest, done: (error_code?: number) => void) => void,
     reconnect_min_sec?: number,
     reconnect_max_sec?: number,
+    metrics? : mqtt_shared.AWSIoTMetrics
 ): NativeHandle;
 
 /** @internal */
@@ -357,14 +409,13 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Gets the first value for the given name, ignoring any additional values
-     * @param name - The header name to look for
-     * @param default_value - Value returned if no values are found for the given name
+     * @param key - The header name to look for
      * @return The first header value, or default if no values exist
      */
     public get(key: string): string;
     /**
      * Get the list of values for the given name
-     * @param name - The header name to look for
+     * @param key - The header name to look for
      * @return List of values, or empty list if none exist
      */
     public get_values(key: string): string[];
@@ -382,27 +433,27 @@ export class HttpHeaders implements CommonHttpHeaders {
 
     /**
      * Add a name/value pair
-     * @param name - The header name
+     * @param key - The header name
      * @param value - The header value
     */
     public add(key: string, value: string): void;
 
     /**
      * Set a name/value pair, replacing any existing values for the name
-     * @param name - The header name
+     * @param key - The header name
      * @param value - The header value
     */
     public set(key: string, value: string): void;
 
     /**
      * Removes all values for the given name
-     * @param name - The header to remove all values for
+     * @param key - The header to remove all values for
      */
     public remove(key: string): void;
 
     /**
      * Removes a specific name/value pair
-     * @param name - The header name to remove
+     * @param key - The header name to remove
      * @param value - The header value to remove
      */
     public remove_value(key: string, value: string): void;

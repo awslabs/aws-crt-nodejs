@@ -8,8 +8,10 @@
 
 #include "http_connection.h"
 #include "http_message.h"
+#include "mqtt_iot_metrics.h"
 
 #include <aws/mqtt/client.h>
+#include <aws/mqtt/mqtt.h>
 
 #include <aws/http/proxy.h>
 
@@ -49,6 +51,15 @@ struct mqtt_connection_binding {
     napi_threadsafe_function on_connection_failure;
     bool first_successfull_connection;
 };
+
+struct aws_mqtt_client_connection *aws_napi_get_mqtt_client_connection_from_binding(
+    struct mqtt_connection_binding *binding) {
+    if (binding == NULL) {
+        return NULL;
+    }
+
+    return binding->connection;
+}
 
 static void s_mqtt_client_connection_release_threadsafe_function_on_failure(struct mqtt_connection_binding *binding) {
 
@@ -381,7 +392,7 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
 
     struct aws_allocator *allocator = aws_napi_get_allocator();
 
-    napi_value node_args[14];
+    napi_value node_args[15];
     size_t num_args = AWS_ARRAY_SIZE(node_args);
     napi_value *arg = &node_args[0];
     AWS_NAPI_CALL(env, napi_get_cb_info(env, cb_info, &num_args, node_args, NULL, NULL), {
@@ -421,6 +432,10 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
     AWS_ZERO_STRUCT(username);
     struct aws_byte_buf password;
     AWS_ZERO_STRUCT(password);
+
+    struct aws_napi_metrics_storage metrics_storage;
+    AWS_ZERO_STRUCT(metrics_storage);
+    struct aws_mqtt_iot_metrics *metrics = NULL;
 
     napi_value node_client_external = *arg++;
     struct mqtt_nodejs_client *node_client;
@@ -678,6 +693,20 @@ napi_value aws_napi_mqtt_client_connection_new(napi_env env, napi_callback_info 
         goto cleanup;
     }
 
+    // Set metrics
+    napi_value node_metrics = *arg++;
+    if (aws_napi_metrics_parse(env, node_metrics, &metrics, &metrics_storage) == AWS_OP_SUCCESS) {
+        if (aws_mqtt_client_connection_set_metrics(binding->connection, metrics)) {
+            AWS_LOGF_DEBUG(
+                AWS_LS_NODEJS_CRT_GENERAL,
+                "Failed to set metrics with error code %d(%s)",
+                aws_last_error(),
+                aws_error_debug_str(aws_last_error()));
+        }
+    } else {
+        aws_mqtt_client_connection_set_metrics(binding->connection, NULL);
+    }
+
     /* napi_create_reference() must be the last thing called by this function.
      * Once this succeeds, the external will not be cleaned up automatically */
     AWS_NAPI_CALL(env, napi_create_reference(env, node_external, 1, &binding->node_external), {
@@ -692,6 +721,7 @@ cleanup:
     aws_byte_buf_clean_up(&will_payload);
     aws_byte_buf_clean_up(&username);
     aws_byte_buf_clean_up(&password);
+    aws_napi_metrics_clean_up(&metrics_storage);
     return result;
 }
 
